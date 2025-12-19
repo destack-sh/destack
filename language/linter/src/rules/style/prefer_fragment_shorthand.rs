@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 // #Correctness: prefer-fragment-shorthand works but would be better with canonical DIR symbols?
 
@@ -31,7 +31,7 @@ declare_lint! {
         code = "LY053",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -47,7 +47,6 @@ impl LintRule for PreferFragmentShorthand {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-
             let Expression::TreeExpression {
                 left,
                 arguments,
@@ -70,6 +69,16 @@ impl LintRule for PreferFragmentShorthand {
                 continue;
             }
 
+            // make fix: <Fragment>...</Fragment> -> <>...</>
+            let expression_span = ctx.tree.get_span(node_id);
+            let expr_text = ctx.get_span_text(expression_span);
+            let replacement = convert_fragment_to_shorthand(expr_text);
+            let edits = ctx
+                .edit_builder()
+                .replace(expression_span, replacement)
+                .into_edits();
+            let fix = LintFix::safe("Convert to fragment shorthand").with_edits(edits);
+
             ctx.report(
                 LintDiagnostic::new(
                     PREFER_FRAGMENT_SHORTHAND.id,
@@ -78,12 +87,44 @@ impl LintRule for PreferFragmentShorthand {
                     severity,
                     "use `<>...</>` shorthand instead of `<Fragment>...</Fragment>`",
                     ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
+                    expression_span,
                 )
-                .with_label("replace with `<>...</>`"),
+                .with_label("replace with `<>...</>`")
+                .with_fix(fix),
             );
         }
     }
+}
+
+/// Convert `<Fragment>...</Fragment>` to `<>...</>`.
+fn convert_fragment_to_shorthand(text: &str) -> String {
+    let mut result = text.to_string();
+
+    // replace opening tag: <Fragment>
+    // find the first >
+    if let Some(end) = result.find('>') {
+        // check if it's self-closing />
+        if result[..end].ends_with('/') {
+            // <Fragment /> -> </>
+            result = format!("</{}", &result[end..]);
+        } else {
+            // <Fragment> -> <>
+            result = format!("<{}", &result[end..]);
+        }
+    }
+
+    // replace closing tag: </Fragment>
+    // find </Fragment> at the end
+    if let Some(close_start) = result.rfind("</") {
+        let close_end = result[close_start..]
+            .find('>')
+            .unwrap_or(result.len() - close_start);
+        let before_close = &result[..close_start];
+        let after_close = &result[close_start + close_end + 1..];
+        result = format!("{before_close}</>{after_close}");
+    }
+
+    result
 }
 
 /// Check if the left expression is `Fragment`.
@@ -224,5 +265,41 @@ let elem = <React.Fragment><Child /></React.Fragment>
 "#,
         );
         test.result(result).assert_lint("prefer-fragment-shorthand");
+    }
+
+    #[test]
+    fn test_fix_fragment_to_shorthand() {
+        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let elem = <Fragment><Child /></Fragment>;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-fragment-shorthand")
+            .assert_safe_fixed(
+                r#"
+let elem = <><Child /></>;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_empty_fragment() {
+        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let elem = <Fragment></Fragment>;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-fragment-shorthand")
+            .assert_safe_fixed(
+                r#"
+let elem = <></>;
+"#,
+            );
     }
 }

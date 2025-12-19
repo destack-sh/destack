@@ -34,17 +34,15 @@ impl LintRule for NoVar {
             } = expr
             {
                 // make fix: replace var with let
-                let expr_span = ctx.tree.get_span(node_id);
-                let expr_text = ctx.get_span_text(expr_span);
-                // replace the leading "var" with "let"
-                let replacement = if expr_text.starts_with("var") {
-                    format!("let{}", &expr_text[3..])
-                } else {
-                    expr_text.to_string()
-                };
+                let expression_span = ctx.tree.get_span(node_id);
+                let expr_text = ctx.get_span_text(expression_span);
+                let replacement = expr_text
+                    .strip_prefix("var")
+                    .map(|rest| format!("let{rest}"))
+                    .unwrap_or_else(|| expr_text.to_string());
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Replace `var` with `let`").with_edits(edits);
 
@@ -56,7 +54,7 @@ impl LintRule for NoVar {
                         severity,
                         "unexpected `var` declaration",
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("use `let` or `const` instead")
                     .with_fix(fix),

@@ -91,14 +91,14 @@ impl LintRule for OperatorAssignment {
 
             // compare the paths
             if paths_equal(left_path, bin_left_path) {
-                let expr_span = ctx.tree.get_span(node_id);
+                // make fix: replace `x = x + 1` with `x += 1`
+                let expression_span = ctx.tree.get_span(node_id);
                 let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
                 let right_text = ctx.get_span_text(ctx.tree.get_span(*bin_right));
                 let replacement = format!("{left_text} {compound_op} {right_text}");
-
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe(format!("Replace with `{compound_op}`")).with_edits(edits);
 
@@ -110,7 +110,7 @@ impl LintRule for OperatorAssignment {
                         severity,
                         format!("assignment can be simplified with `{compound_op}`"),
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label(format!("use `{compound_op}` instead"))
                     .with_fix(fix),

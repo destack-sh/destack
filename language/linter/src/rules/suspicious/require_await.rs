@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Asynchrony, Declaration, FunctionKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow async functions with no await expression.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LU024",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -56,6 +56,23 @@ impl LintRule for RequireAwait {
             let has_await = contains_await(ctx, *body_id);
 
             if !has_await {
+                let decl_span = ctx.tree.get_span(node_id);
+                let decl_text = ctx.get_span_text(decl_span);
+
+                // make fix: remove "async " prefix (unsafe - changes return type)
+                let replacement = if let Some(rest) = decl_text.strip_prefix("async ") {
+                    rest.to_string()
+                } else if let Some(rest) = decl_text.strip_prefix("async\n") {
+                    rest.to_string()
+                } else {
+                    decl_text.to_string()
+                };
+                let edits = ctx
+                    .edit_builder()
+                    .replace(decl_span, replacement)
+                    .into_edits();
+                let fix = LintFix::r#unsafe("Remove async keyword").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         REQUIRE_AWAIT.id,
@@ -64,9 +81,10 @@ impl LintRule for RequireAwait {
                         severity,
                         "async function has no await expression",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        decl_span,
                     )
-                    .with_label("add await or remove async keyword"),
+                    .with_label("add await or remove async keyword")
+                    .with_fix(fix),
                 );
             }
         }
@@ -173,5 +191,27 @@ function foo() {
 "#,
         );
         test.result(result).assert_no_lint("require-await");
+    }
+
+    #[test]
+    fn test_fix_removes_async() {
+        let test = TestProgram::for_rule(RequireAwait);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+async function foo() {
+    return 42
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-await")
+            .assert_unsafe_fixed(
+                r#"
+function foo() {
+    return 42
+}
+"#,
+            );
     }
 }

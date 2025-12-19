@@ -57,14 +57,14 @@ impl LintRule for PreferUnaryNegation {
 
             if left_is_neg_one || right_is_neg_one {
                 // make fix: use unary negation
-                let expr_span = ctx.tree.get_span(node_id);
+                let expression_span = ctx.tree.get_span(node_id);
                 let other_id = if left_is_neg_one { *right } else { *left };
                 let other_span = ctx.tree.get_span(other_id);
                 let other_text = ctx.get_span_text(other_span);
                 let replacement = format!("-{other_text}");
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Use unary negation").with_edits(edits);
 
@@ -76,7 +76,7 @@ impl LintRule for PreferUnaryNegation {
                         severity,
                         "prefer unary negation over multiplying by -1",
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("use `-x` instead")
                     .with_fix(fix),

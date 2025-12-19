@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty interface declarations.
@@ -14,7 +14,7 @@ declare_lint! {
         code = "LY033",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -43,9 +43,23 @@ impl LintRule for NoEmptyInterface {
                 .map(|v| v.len())
                 .unwrap_or(0);
 
+            let Declaration::Interface { descriptor, .. } = declaration else {
+                unreachable!()
+            };
+
             // empty interface with no extends is useless
             if members.is_empty() && extends_count == 0 {
                 let span = ctx.tree.get_span(node_id);
+
+                // build fix: interface Empty {} -> type Empty = {}
+                let name = descriptor
+                    .name
+                    .map(|n| ctx.strings.get(n.string()).as_ref().to_string())
+                    .unwrap_or_default();
+                let replacement = format!("type {name} = {{}}");
+                let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+                let fix = LintFix::safe("Convert to type alias").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_EMPTY_INTERFACE.id,
@@ -56,12 +70,26 @@ impl LintRule for NoEmptyInterface {
                         ctx.module.file_id,
                         span,
                     )
-                    .with_label("use `type X = {}` or add members"),
+                    .with_label("use `type X = {}` or add members")
+                    .with_fix(fix),
                 );
             }
             // interface that only extends one type could be a type alias
             else if members.is_empty() && extends_count == 1 {
                 let span = ctx.tree.get_span(node_id);
+
+                // build fix: interface Child extends Parent {} -> type Child = Parent
+                let name = descriptor
+                    .name
+                    .map(|n| ctx.strings.get(n.string()).as_ref().to_string())
+                    .unwrap_or_default();
+                let parent_id = heritage.extends_types.as_ref().unwrap()[0];
+                let parent_span = ctx.tree.get_span(parent_id);
+                let parent_text = ctx.get_span_text(parent_span);
+                let replacement = format!("type {name} = {parent_text}");
+                let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+                let fix = LintFix::safe("Convert to type alias").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_EMPTY_INTERFACE.id,
@@ -72,7 +100,8 @@ impl LintRule for NoEmptyInterface {
                         ctx.module.file_id,
                         span,
                     )
-                    .with_label("use `type X = Parent` or `newtype X = Parent` instead"),
+                    .with_label("use `type X = Parent` or `newtype X = Parent` instead")
+                    .with_fix(fix),
                 );
             }
         }
@@ -146,5 +175,41 @@ interface Child extends Parent {
 "#,
         );
         test.result(result).assert_no_lint("no-empty-interface");
+    }
+
+    #[test]
+    fn test_fix_empty_interface() {
+        let test = TestProgram::for_rule(NoEmptyInterface);
+        let result = test.lint_ast(
+            "test.ts",
+            r#"
+interface Empty {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty-interface")
+            .assert_safe_fixed(
+                r#"
+type Empty = { };
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_single_extends() {
+        let test = TestProgram::for_rule(NoEmptyInterface);
+        let result = test.lint_ast(
+            "test.ts",
+            r#"
+interface Child extends Parent {}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty-interface")
+            .assert_safe_fixed(
+                r#"
+type Child = Parent;
+"#,
+            );
     }
 }

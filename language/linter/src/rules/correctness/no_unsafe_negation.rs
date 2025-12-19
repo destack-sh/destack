@@ -52,7 +52,7 @@ impl LintRule for NoUnsafeNegation {
                     };
 
                     // make fix: convert `!a in b` to `!(a in b)`
-                    let expr_span = ctx.tree.get_span(node_id);
+                    let expression_span = ctx.tree.get_span(node_id);
                     let inner_span = ctx.tree.get_span(inner_id);
                     let inner_text = ctx.get_span_text(inner_span);
                     let right_span = ctx.tree.get_span(*right);
@@ -60,7 +60,7 @@ impl LintRule for NoUnsafeNegation {
                     let replacement = format!("!({inner_text} {operator_name} {right_text})");
                     let edits = ctx
                         .edit_builder()
-                        .replace(expr_span, replacement)
+                        .replace(expression_span, replacement)
                         .into_edits();
                     let fix = LintFix::safe("Wrap in parentheses").with_edits(edits);
 
@@ -72,7 +72,7 @@ impl LintRule for NoUnsafeNegation {
                             severity,
                             format!("negation of left operand of `{operator_name}`"),
                             ctx.module.file_id,
-                            expr_span,
+                            expression_span,
                         )
                         .with_label(format!(
                             "this parses as `(!a) {operator_name} b`, use `!(a {operator_name} b)` instead"

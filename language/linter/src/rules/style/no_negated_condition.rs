@@ -51,7 +51,7 @@ impl LintRule for NoNegatedCondition {
             };
 
             // make fix: swap branches and remove negation
-            let expr_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.tree.get_span(node_id);
             let then_span = ctx.tree.get_span(*then_expression);
             let else_span = ctx.tree.get_span(*else_id);
             let then_text = ctx.get_span_text(then_span);
@@ -66,7 +66,7 @@ impl LintRule for NoNegatedCondition {
             };
             let edits = ctx
                 .edit_builder()
-                .replace(expr_span, replacement)
+                .replace(expression_span, replacement)
                 .into_edits();
             let fix = LintFix::safe("Swap branches and remove negation").with_edits(edits);
 
@@ -82,7 +82,7 @@ impl LintRule for NoNegatedCondition {
                     severity,
                     message,
                     ctx.module.file_id,
-                    expr_span,
+                    expression_span,
                 )
                 .with_label("swap branches and remove negation")
                 .with_fix(fix),
