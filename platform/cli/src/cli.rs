@@ -21,7 +21,7 @@ pub struct Cli {
 
 #[derive(Parser, Debug)]
 pub enum Command {
-    /// Type check source files.
+    /// Check source files for type errors and lint issues.
     Check(CheckArgs),
 
     /// Compile source files.
@@ -30,7 +30,7 @@ pub enum Command {
     /// Compile and run a source file.
     Run(RunArgs),
 
-    /// Lint source files.
+    /// Lint source files (alias for check).
     Lint(LintArgs),
 
     /// Format source files.

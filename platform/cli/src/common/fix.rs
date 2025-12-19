@@ -1,0 +1,264 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
+use destack_source::{DiagnosticOptions, FileId, ModuleId};
+use destack_workspace::Program;
+
+use crate::common::print_diagnostics;
+use crate::console;
+
+/// Options for fix behavior.
+#[derive(Debug, Clone, Default)]
+pub struct FixOptions {
+    /// Apply fixes to files.
+    pub apply: bool,
+    /// Include unsafe fixes.
+    pub include_unsafe: bool,
+    /// Show diff instead of applying (dry run).
+    pub diff: bool,
+}
+
+/// Result of running linting with fix collection.
+#[derive(Debug)]
+pub struct FixResult {
+    /// Number of unfixable problems remaining.
+    pub unfixable_count: usize,
+}
+
+/// Run linting and optionally apply fixes.
+pub fn run_with_fixes(
+    program: Arc<Program>,
+    modules: &[ModuleId],
+    diagnostic_options: &DiagnosticOptions,
+    fix_options: &FixOptions,
+) -> FixResult {
+    let linter_options = program.linter.clone();
+    let runner = LintRunner::from_options(&linter_options);
+
+    // collect all lint diagnostics
+    let mut all_diagnostics: Vec<LintDiagnostic> = Vec::new();
+    for module_id in modules {
+        let module = program.modules.get(*module_id);
+        let ast_diagnostics = runner.lint_module(
+            program.clone(),
+            module.clone(),
+            &linter_options,
+            LintLevel::Ast,
+        );
+        let dir_diagnostics = runner.lint_module(
+            program.clone(),
+            module.clone(),
+            &linter_options,
+            LintLevel::Dir,
+        );
+        all_diagnostics.extend(ast_diagnostics);
+        all_diagnostics.extend(dir_diagnostics);
+    }
+
+    // separate fixable from unfixable
+    let (fixable, unfixable): (Vec<_>, Vec<_>) = all_diagnostics
+        .into_iter()
+        .partition(|d| has_applicable_fix(d, fix_options.include_unsafe));
+
+    if fix_options.diff {
+        // show diff without applying
+        show_diff(&program, &fixable, fix_options.include_unsafe);
+    } else if fix_options.apply {
+        // apply fixes
+        let fixed_count = apply_fixes(&program, &fixable, fix_options.include_unsafe);
+        if fixed_count > 0 {
+            console::info(&format!("Fixed {fixed_count} problem(s)"));
+        }
+    }
+
+    // report remaining unfixable issues
+    if !unfixable.is_empty() {
+        let collection = to_diagnostic_collection(&unfixable);
+        let mapped = collection.map(diagnostic_options);
+        print_diagnostics(&program, &mapped);
+    }
+
+    // report issues that should have had fixes but didn't
+    let fixable_without_fix: Vec<_> = fixable
+        .iter()
+        .filter(|d| d.fixes.is_empty())
+        .cloned()
+        .collect();
+    if !fixable_without_fix.is_empty() {
+        let collection = to_diagnostic_collection(&fixable_without_fix);
+        let mapped = collection.map(diagnostic_options);
+        print_diagnostics(&program, &mapped);
+    }
+
+    let unfixable_count = unfixable.len() + fixable_without_fix.len();
+
+    FixResult { unfixable_count }
+}
+
+/// Convert lint diagnostics to a standard diagnostic collection.
+fn to_diagnostic_collection(
+    diagnostics: &[LintDiagnostic],
+) -> destack_source::DiagnosticCollection {
+    let mut collection = destack_source::DiagnosticCollection::new();
+    for d in diagnostics {
+        collection.insert(d.clone().into_diagnostic());
+    }
+    collection
+}
+
+/// Check if a diagnostic has an applicable fix.
+fn has_applicable_fix(diagnostic: &LintDiagnostic, include_unsafe: bool) -> bool {
+    diagnostic.fixes.iter().any(|f| {
+        f.applicability == Fixability::Safe
+            || (include_unsafe && f.applicability == Fixability::Unsafe)
+    })
+}
+
+/// Apply fixes from diagnostics to source files.
+fn apply_fixes(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe: bool) -> usize {
+    let edits_by_file = collect_edits(diagnostics, include_unsafe);
+    let mut fix_count = 0;
+
+    for (file_id, mut edits) in edits_by_file {
+        // sort by position descending to apply from end to start
+        edits.sort_by(|a, b| b.0.cmp(&a.0));
+
+        let file = program.files.get(file_id);
+        let mut source = file.text().to_string();
+
+        for (start, end, new_text) in &edits {
+            source.replace_range(*start..*end, new_text);
+            fix_count += 1;
+        }
+
+        // write the fixed source back to disk
+        if let Some(path) = file.path.as_ref()
+            && let Err(e) = std::fs::write(path, &source)
+        {
+            console::error(&format!("failed to write {}: {e}", path.display()));
+        }
+    }
+
+    fix_count
+}
+
+/// Show diff of what fixes would be applied.
+fn show_diff(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe: bool) -> usize {
+    let edits_by_file = collect_edits(diagnostics, include_unsafe);
+    let mut fix_count = 0;
+
+    for (file_id, mut edits) in edits_by_file {
+        edits.sort_by(|a, b| b.0.cmp(&a.0));
+
+        let file = program.files.get(file_id);
+        let original = file.text().to_string();
+        let mut modified = original.clone();
+
+        for (start, end, new_text) in &edits {
+            modified.replace_range(*start..*end, new_text);
+            fix_count += 1;
+        }
+
+        if original != modified {
+            let path = file
+                .path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| file.name.clone());
+            print_unified_diff(&path, &original, &modified);
+        }
+    }
+
+    if fix_count > 0 {
+        console::info(&format!("{fix_count} fix(es) available"));
+    }
+
+    fix_count
+}
+
+/// Collect edits from diagnostics, grouped by file.
+fn collect_edits(
+    diagnostics: &[LintDiagnostic],
+    include_unsafe: bool,
+) -> HashMap<FileId, Vec<(usize, usize, String)>> {
+    let mut edits_by_file: HashMap<FileId, Vec<(usize, usize, String)>> = HashMap::new();
+
+    for diagnostic in diagnostics {
+        for fix in &diagnostic.fixes {
+            let applicable = fix.applicability == Fixability::Safe
+                || (include_unsafe && fix.applicability == Fixability::Unsafe);
+            if !applicable {
+                continue;
+            }
+
+            for edit in &fix.edits {
+                let start = edit.span.start as usize;
+                let end = edit.span.end as usize;
+                edits_by_file.entry(edit.span.file).or_default().push((
+                    start,
+                    end,
+                    edit.new_text.clone(),
+                ));
+            }
+        }
+    }
+
+    edits_by_file
+}
+
+/// Print a simple unified diff.
+fn print_unified_diff(path: &str, original: &str, modified: &str) {
+    console::print(&format!("--- a/{path}"));
+    console::print(&format!("+++ b/{path}"));
+
+    let original_lines: Vec<&str> = original.lines().collect();
+    let modified_lines: Vec<&str> = modified.lines().collect();
+
+    // simple line-by-line diff (not a real unified diff algorithm, but good enough)
+    let max_lines = original_lines.len().max(modified_lines.len());
+    let mut in_hunk = false;
+    let mut hunk_start = 0;
+
+    for i in 0..max_lines {
+        let orig = original_lines.get(i);
+        let modi = modified_lines.get(i);
+
+        if orig != modi {
+            if !in_hunk {
+                in_hunk = true;
+                hunk_start = i.saturating_sub(2);
+                console::print(&format!(
+                    "@@ -{},{} +{},{} @@",
+                    hunk_start + 1,
+                    5,
+                    hunk_start + 1,
+                    5
+                ));
+                // print context before
+                for j in hunk_start..i {
+                    if let Some(line) = original_lines.get(j) {
+                        console::print(&format!(" {line}"));
+                    }
+                }
+            }
+
+            if let Some(line) = orig {
+                console::print(&console::color(&format!("-{line}"), "31"));
+            }
+            if let Some(line) = modi {
+                console::print(&console::color(&format!("+{line}"), "32"));
+            }
+        } else if in_hunk {
+            // print context after change
+            if let Some(line) = orig {
+                console::print(&format!(" {line}"));
+            }
+            if i > hunk_start + 6 {
+                in_hunk = false;
+            }
+        }
+    }
+
+    console::print("");
+}

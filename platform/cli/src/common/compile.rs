@@ -11,7 +11,7 @@ use crate::console;
 
 /// How deeply to compile modules.
 #[derive(Debug, Clone, Default)]
-pub enum CompileMode {
+pub enum CompilerMode {
     /// Type check only (parse, bind, resolve, analyze).
     #[default]
     Check,
@@ -25,15 +25,20 @@ pub enum CompileMode {
 }
 
 /// Common compilation context shared by check/build/lint commands.
-pub struct CompileContext {
+pub struct CompilerContext {
+    /// The session.
     pub session: Arc<Session>,
+    /// The program.
     pub program: Arc<Program>,
+    /// The compiler.
     pub compiler: Compiler,
+    /// The diagnostic options.
     pub diagnostic_options: DiagnosticOptions,
-    pub mode: CompileMode,
+    /// The compile mode.
+    pub mode: CompilerMode,
 }
 
-impl fmt::Debug for CompileContext {
+impl fmt::Debug for CompilerContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CompileContext")
             .field("session", &self.session)
@@ -45,15 +50,15 @@ impl fmt::Debug for CompileContext {
     }
 }
 
-impl CompileContext {
+impl CompilerContext {
     /// Create a new compilation context for type checking.
     pub fn for_check(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
-        Self::new(program_args, diagnostic_args, CompileMode::Check)
+        Self::new(program_args, diagnostic_args, CompilerMode::Check)
     }
 
     /// Create a new compilation context for linting.
     pub fn for_lint(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
-        Self::new(program_args, diagnostic_args, CompileMode::Lint)
+        Self::new(program_args, diagnostic_args, CompilerMode::Lint)
     }
 
     /// Create a new compilation context for building a target.
@@ -62,14 +67,18 @@ impl CompileContext {
         diagnostic_args: &DiagnosticArgs,
         target: String,
     ) -> Self {
-        Self::new(program_args, diagnostic_args, CompileMode::Build { target })
+        Self::new(
+            program_args,
+            diagnostic_args,
+            CompilerMode::Build { target },
+        )
     }
 
     /// Create a new compilation context with the given mode.
     pub fn new(
         program_args: &ProgramArgs,
         diagnostic_args: &DiagnosticArgs,
-        mode: CompileMode,
+        mode: CompilerMode,
     ) -> Self {
         let diagnostic_options: DiagnosticOptions = diagnostic_args.clone().into();
         let session = program_args.setup();
@@ -153,13 +162,13 @@ impl CompileContext {
     /// Enqueue a module for compilation based on the compile mode.
     pub fn enqueue_module(&self, module: ModuleId) {
         match &self.mode {
-            CompileMode::Check => {
+            CompilerMode::Check => {
                 self.compiler.enqueue(AnalyzeTask::AnalyzeModule { module });
             }
-            CompileMode::Lint => {
+            CompilerMode::Lint => {
                 self.compiler.enqueue(LintTask::LintModule { module });
             }
-            CompileMode::Build { target } => {
+            CompilerMode::Build { target } => {
                 self.compiler.enqueue(GenerateTask::GenerateModule {
                     module,
                     target: target.clone(),
@@ -191,6 +200,21 @@ impl CompileContext {
     /// Run the compiler.
     pub fn compile(self) -> CompileResult {
         self.compiler.compile();
+        drop(self.compiler);
+        CompileResult {
+            program: self.program,
+            diagnostic_options: self.diagnostic_options,
+        }
+    }
+
+    /// Run the compiler without consuming self.
+    /// Useful when you need to access program/modules after compilation.
+    pub fn run_compile(&self) {
+        self.compiler.compile();
+    }
+
+    /// Create a compile result (for diagnostics).
+    pub fn into_result(self) -> CompileResult {
         drop(self.compiler);
         CompileResult {
             program: self.program,
