@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, IfKind, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow negated conditions in if-else and ternary expressions.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LY045",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -32,6 +32,7 @@ impl LintRule for NoNegatedCondition {
             let ast::Expression::If {
                 kind,
                 condition,
+                then_expression,
                 else_expression,
                 ..
             } = expression
@@ -40,14 +41,34 @@ impl LintRule for NoNegatedCondition {
             };
 
             // only check if there's an else branch
-            let Some(_else_id) = else_expression else {
+            let Some(else_id) = else_expression else {
                 continue;
             };
 
-            // check if condition is negated
-            if !is_negated_condition(ctx, *condition) {
+            // check if condition is negated and get the positive version
+            let Some(positive_condition) = get_positive_condition(ctx, *condition) else {
                 continue;
-            }
+            };
+
+            // make fix: swap branches and remove negation
+            let expr_span = ctx.tree.get_span(node_id);
+            let then_span = ctx.tree.get_span(*then_expression);
+            let else_span = ctx.tree.get_span(*else_id);
+            let then_text = ctx.get_span_text(then_span);
+            let else_text = ctx.get_span_text(else_span);
+            let replacement = match kind {
+                IfKind::If => {
+                    format!("if ({positive_condition}) {else_text} else {then_text}")
+                }
+                IfKind::Ternary => {
+                    format!("{positive_condition} ? {else_text} : {then_text}")
+                }
+            };
+            let edits = ctx
+                .edit_builder()
+                .replace(expr_span, replacement)
+                .into_edits();
+            let fix = LintFix::safe("Swap branches and remove negation").with_edits(edits);
 
             let message = match kind {
                 IfKind::If => "unexpected negated condition in if-else",
@@ -61,44 +82,58 @@ impl LintRule for NoNegatedCondition {
                     severity,
                     message,
                     ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
+                    expr_span,
                 )
-                .with_label("swap branches and remove negation"),
+                .with_label("swap branches and remove negation")
+                .with_fix(fix),
             );
         }
     }
 }
 
-/// Check if an expression is a negated condition (! operator or != comparison).
-fn is_negated_condition(
+/// Get the positive version of a negated condition, if the condition is negated.
+/// Returns None if the condition is not negated.
+fn get_positive_condition(
     ctx: &LintModuleAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
-) -> bool {
+) -> Option<String> {
     let expression = ctx.tree.get(expression_id);
 
     // unwrap parentheses
     if let ast::Expression::Parenthesized { expression: inner } = expression {
-        return is_negated_condition(ctx, *inner);
+        return get_positive_condition(ctx, *inner);
     }
 
-    // check for unary not: !x
-    if let ast::Expression::Unary { operator, .. } = expression
+    // check for unary not: !x -> x
+    if let ast::Expression::Unary { operator, right } = expression
         && *operator == UnaryOperator::Not
     {
-        return true;
+        let inner_span = ctx.tree.get_span(*right);
+        return Some(ctx.get_span_text(inner_span).to_string());
     }
 
-    // check for inequality: x != y or x !== y
-    if let ast::Expression::Binary { operator, .. } = expression
-        && matches!(
-            operator,
-            ast::BinaryOperator::NotEqual | ast::BinaryOperator::NotEqualStrict
-        )
+    // check for inequality: x != y -> x == y, x !== y -> x === y
+    if let ast::Expression::Binary {
+        left,
+        operator,
+        right,
+    } = expression
     {
-        return true;
+        let positive_op = match operator {
+            ast::BinaryOperator::NotEqual => Some("=="),
+            ast::BinaryOperator::NotEqualStrict => Some("==="),
+            _ => None,
+        };
+        if let Some(op) = positive_op {
+            let left_span = ctx.tree.get_span(*left);
+            let right_span = ctx.tree.get_span(*right);
+            let left_text = ctx.get_span_text(left_span);
+            let right_text = ctx.get_span_text(right_span);
+            return Some(format!("{left_text} {op} {right_text}"));
+        }
     }
 
-    false
+    None
 }
 
 #[cfg(test)]
@@ -272,5 +307,75 @@ function foo(x: int32) {
         );
         // this should be allowed since the else-if has no else branch
         test.result(result).assert_no_lint("no-negated-condition");
+    }
+
+    #[test]
+    fn test_fix_negated_if() {
+        let test = TestProgram::for_rule(NoNegatedCondition);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+if (!x) {
+    doA()
+} else {
+    doB()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-negated-condition")
+            .assert_safe_fixed(
+                r#"
+if (x) {
+    doB()
+} else {
+    doA()
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_not_equal() {
+        let test = TestProgram::for_rule(NoNegatedCondition);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+if (x != 0) {
+    doA()
+} else {
+    doB()
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-negated-condition")
+            .assert_safe_fixed(
+                r#"
+if (x == 0) {
+    doB()
+} else {
+    doA()
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_ternary() {
+        let test = TestProgram::for_rule(NoNegatedCondition);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = (!x) ? 1 : 2
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-negated-condition")
+            .assert_safe_fixed(
+                r#"
+const result = x ? 2 : 1;
+"#,
+            );
     }
 }

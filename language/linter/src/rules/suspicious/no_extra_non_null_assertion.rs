@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow extra non-null assertions.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LU022",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -41,7 +41,16 @@ impl LintRule for NoExtraNonNullAssertion {
                 continue;
             }
 
-            let span = ctx.tree.get_span(node_id);
+            let outer_span = ctx.tree.get_span(node_id);
+            let inner_span = ctx.tree.get_span(*left);
+            let inner_text = ctx.get_span_text(inner_span);
+
+            let edits = ctx
+                .edit_builder()
+                .replace(outer_span, inner_text)
+                .into_edits();
+            let fix = LintFix::safe("Remove extra `!`").with_edits(edits);
+
             ctx.report(
                 LintDiagnostic::new(
                     NO_EXTRA_NON_NULL_ASSERTION.id,
@@ -50,9 +59,10 @@ impl LintRule for NoExtraNonNullAssertion {
                     severity,
                     "extra non-null assertion",
                     ctx.module.file_id,
-                    span,
+                    outer_span,
                 )
-                .with_label("remove the extra `!`"),
+                .with_label("remove the extra `!`")
+                .with_fix(fix),
             );
         }
     }
@@ -127,5 +137,23 @@ const x = a!.b!;
         );
         test.result(result)
             .assert_no_lint("no-extra-non-null-assertion");
+    }
+
+    #[test]
+    fn test_fix_removes_extra_assertion() {
+        let test = TestProgram::for_rule(NoExtraNonNullAssertion);
+        let result = test.lint_ast(
+            "test.ts",
+            r#"
+const x = value!!
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-extra-non-null-assertion")
+            .assert_safe_fixed(
+                r#"
+const x = value!;
+"#,
+            );
     }
 }

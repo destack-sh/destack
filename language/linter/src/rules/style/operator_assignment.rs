@@ -96,9 +96,11 @@ impl LintRule for OperatorAssignment {
                 let right_text = ctx.get_span_text(ctx.tree.get_span(*bin_right));
                 let replacement = format!("{left_text} {compound_op} {right_text}");
 
-                let edits = ctx.edit_builder().replace(expr_span, replacement).into_edits();
-                let fix =
-                    LintFix::safe(format!("Replace with `{compound_op}`")).with_edits(edits);
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expr_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe(format!("Replace with `{compound_op}`")).with_edits(edits);
 
                 ctx.report(
                     LintDiagnostic::new(

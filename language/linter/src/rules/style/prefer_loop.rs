@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer `loop` over `while(true)` or `for(;;)`.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LY031",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -30,24 +30,46 @@ impl LintRule for PreferLoop {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            let is_infinite_loop = match expression {
+            let body_id = match expression {
                 // while (true) or while (1)
-                ast::Expression::While { condition, .. } => is_always_true(ctx.tree, *condition),
+                ast::Expression::While {
+                    condition, body, ..
+                } => {
+                    if is_always_true(ctx.tree, *condition) {
+                        Some(*body)
+                    } else {
+                        None
+                    }
+                }
                 // for (;;)
                 ast::Expression::For {
                     initialization,
                     condition,
                     increment,
+                    body,
                     ..
-                } => initialization.is_none() && condition.is_none() && increment.is_none(),
-                _ => false,
+                } => {
+                    if initialization.is_none() && condition.is_none() && increment.is_none() {
+                        Some(*body)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
             };
 
-            if !is_infinite_loop {
+            let Some(body_id) = body_id else {
                 continue;
-            }
+            };
 
+            // make fix: replace with loop
             let span = ctx.tree.get_span(node_id);
+            let body_span = ctx.tree.get_span(body_id);
+            let body_text = ctx.get_span_text(body_span);
+            let replacement = format!("loop {body_text}");
+            let edits = ctx.edit_builder().replace(span, replacement).into_edits();
+            let fix = LintFix::safe("Replace with `loop`").with_edits(edits);
+
             ctx.report(
                 LintDiagnostic::new(
                     PREFER_LOOP.id,
@@ -58,7 +80,8 @@ impl LintRule for PreferLoop {
                     ctx.module.file_id,
                     span,
                 )
-                .with_label("replace with `loop { ... }`"),
+                .with_label("replace with `loop { ... }`")
+                .with_fix(fix),
             );
         }
     }
@@ -183,5 +206,49 @@ for (let i = 0;;) {
 "#,
         );
         test.result(result).assert_no_lint("prefer-loop");
+    }
+
+    #[test]
+    fn test_fix_while_true() {
+        let test = TestProgram::for_rule(PreferLoop);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+while (true) {
+    break
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-loop")
+            .assert_safe_fixed(
+                r#"
+loop {
+    break
+}
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_for_empty() {
+        let test = TestProgram::for_rule(PreferLoop);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+for (;;) {
+    break
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-loop")
+            .assert_safe_fixed(
+                r#"
+loop {
+    break
+}
+"#,
+            );
     }
 }
