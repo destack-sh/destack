@@ -58,7 +58,7 @@ pub fn generate_module(
     drop(package);
 
     // create lowerer and process
-    let mut lowerer = ModuleLowerer::new(&module, &dir_tree, &symbols, &types, target);
+    let mut lowerer = ModuleLowerer::new(&module, &module.ast, &dir_tree, &symbols, &types, target);
     lowerer.lower_module()?;
 
     // finish and get artifacts + warnings

@@ -21,7 +21,7 @@ impl ModuleLowerer<'_> {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(modifiers))
                     .transpose()?;
-                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let name = self.strings.intern_from(&self.ast.strings, *name);
                 let ty = self
                     .types
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
@@ -80,7 +80,7 @@ impl ModuleLowerer<'_> {
                 let modifiers = modifiers
                     .map(|modifiers| self.lower_binding_modifier(modifiers))
                     .transpose()?;
-                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let name = self.strings.intern_from(&self.ast.strings, *name);
                 let ty = self
                     .types
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))

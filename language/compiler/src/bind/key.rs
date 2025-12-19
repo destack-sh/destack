@@ -4,7 +4,7 @@ use destack_ast as ast;
 use destack_dir::{
     DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -12,6 +12,7 @@ impl Compiler {
     pub(super) fn bind_key(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         key: ast::Key,
         parent_id: Option<LocalNodeIdAny>,
@@ -22,7 +23,7 @@ impl Compiler {
         match key {
             ast::Key::Name(ast::Name::Number(string_id)) => {
                 // (numeric keys evaluate to canonical string representation)
-                let source = module.ast.strings.get(string_id);
+                let source = ast.strings.get(string_id);
                 let canonical = evaluate_numeric_literal(&source);
                 let name = self.program.strings.intern(&canonical);
                 DynamicKey::Name(name)
@@ -31,17 +32,19 @@ impl Compiler {
                 let name = self
                     .program
                     .strings
-                    .intern_from(&module.ast.strings, name.string());
+                    .intern_from(&ast.strings, name.string());
                 DynamicKey::Name(name)
             }
             ast::Key::Expression(expression) => {
-                let expression = self
-                    .bind_expression(module, scope, expression, parent_id, tree, symbols, types);
+                let expression = self.bind_expression(
+                    module, ast, scope, expression, parent_id, tree, symbols, types,
+                );
                 DynamicKey::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
-                let name = self.program.strings.intern_from(&module.ast.strings, name);
-                let key = self.bind_expression(module, scope, key, parent_id, tree, symbols, types);
+                let name = self.program.strings.intern_from(&ast.strings, name);
+                let key =
+                    self.bind_expression(module, ast, scope, key, parent_id, tree, symbols, types);
                 DynamicKey::NamedExpression { name, key }
             }
         }

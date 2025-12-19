@@ -3,8 +3,6 @@ use destack_source::ModuleId;
 
 use crate::{BindResult, Compiler, TaskDependencyError};
 
-use destack_workspace::Module;
-
 /// Task to bind AST into DIR (including syntactic desugaring).
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Bind)]
@@ -17,13 +15,11 @@ pub enum BindTask {
     #[task(code = 2, trace = "module={module}")]
     BindModuleBuild { module: ModuleId },
 
-    /// Syntactic desugaring: transforms that don't need type information.
-    /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
-    /// - `UpdateExpression` → `Assign` + `Binary` (`x++` → `x = x + 1`)
+    /// Desugar the module syntactically.
     #[task(code = 3, trace = "module={module}")]
     BindModuleDesugar { module: ModuleId },
 
-    /// Validate module semantics that depend on structural context (but not types).
+    /// Validate module "syntactic" correctness.
     #[task(code = 4, trace = "module={module}")]
     BindModuleValidate { module: ModuleId },
 }
@@ -39,8 +35,20 @@ impl Compiler {
             BindTask::BindModuleBuild { module } => {
                 self.require_import_module(module)?;
                 let module = self.program.modules.get(module);
-                let mut module = module.write();
-                self.bind_module_build(&mut module);
+                // bind module roots
+                let roots = {
+                    let module = module.read();
+                    self.bind_module_roots(&module, &module.ast)
+                };
+                {
+                    let mut module = module.write();
+                    module.dir.roots.extend(roots);
+                };
+                // bind module exports
+                {
+                    let mut module = module.write();
+                    self.bind_module_exports(&mut module);
+                }
             }
             BindTask::BindModuleDesugar { module } => {
                 self.require_bind_module_build(module)?;
@@ -52,7 +60,8 @@ impl Compiler {
                 self.require_bind_module_desugar(module)?;
                 let module = self.program.modules.get(module);
                 let module = module.read();
-                self.bind_module_validate(&module);
+                self.validate_binding_names(&module);
+                self.validate_binding_conflicts(&module);
             }
         }
         Ok(())
@@ -74,23 +83,5 @@ impl Compiler {
         module: ModuleId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(BindTask::BindModuleValidate { module })
-    }
-
-    /// Bind a module and build its DIR.
-    fn bind_module_build(&self, module: &mut Module) {
-        // bind AST into DIR
-        self.bind_module_roots(module);
-
-        // bind module exports
-        self.bind_module_exports(module);
-    }
-
-    /// Validate a module after binding into DIR.
-    fn bind_module_validate(&self, module: &Module) {
-        // check for reserved identifiers
-        self.validate_binding_names(module);
-
-        // check for conflicting bindings
-        self.validate_binding_conflicts(module);
     }
 }

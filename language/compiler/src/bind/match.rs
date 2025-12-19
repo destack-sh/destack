@@ -6,7 +6,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,6 +14,7 @@ impl Compiler {
     pub(super) fn bind_match_case(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_match_case_id: ast::LocalNodeId<ast::MatchCase>,
         parent_id: Option<LocalNodeIdAny>,
@@ -21,11 +22,11 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
-        let ast_match_case = module.ast.tree.get(ast_match_case_id);
+        let ast_match_case = ast.tree.get(ast_match_case_id);
         let match_case_id =
             tree.reserve_from_source(NodeType::MatchCase, ast_match_case_id.id, scope, parent_id);
         let (symbol_id, scope_id) =
-            self.bind_anonymous_local_with_scope(module, ScopeKind::Block, scope, symbols);
+            self.bind_anonymous_local_with_scope(module, ast, ScopeKind::Block, scope, symbols);
         let match_case = match ast_match_case {
             ast::MatchCase::Expression {
                 pattern,
@@ -34,6 +35,7 @@ impl Compiler {
             } => {
                 let pattern = self.bind_pattern(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     SymbolBinding::Runtime,
@@ -45,6 +47,7 @@ impl Compiler {
                 );
                 let body = self.bind_expression(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(match_case_id),
@@ -55,6 +58,7 @@ impl Compiler {
                 let guard = guard.map(|guard| {
                     self.bind_expression(
                         module,
+                        ast,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         guard,
                         Some(match_case_id),
@@ -77,6 +81,7 @@ impl Compiler {
             } => {
                 let pattern = self.bind_pattern(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     SymbolBinding::Runtime,
@@ -88,6 +93,7 @@ impl Compiler {
                 );
                 let body = self.bind_block(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *body,
                     Some(match_case_id),
@@ -98,6 +104,7 @@ impl Compiler {
                 let guard = guard.map(|guard| {
                     self.bind_expression(
                         module,
+                        ast,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         guard,
                         Some(match_case_id),

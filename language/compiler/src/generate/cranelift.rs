@@ -101,7 +101,7 @@ impl Compiler {
     }
 
     /// Convert a MIR local node id to a global node id.
-	/// nocheckin #Broken: revisit generate node mapping
+    /// nocheckin #Broken: revisit generate node mapping
     fn mir_to_global_node(
         module_id: ModuleId,
         node: destack_mir::LocalNodeIdAny,

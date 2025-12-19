@@ -7,8 +7,8 @@ use destack_base::StringPool;
 use destack_dir::{NodeTree as DirTree, SymbolTable, TypeTable};
 use destack_source::FileType;
 use destack_workspace::{
-    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, Module, OutputFormat,
-    Target,
+    Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, Module, ModuleAst,
+    OutputFormat, Target,
 };
 
 use crate::tree::NodeTree as JsTree;
@@ -30,6 +30,9 @@ pub struct CodegenJsOutput {
 pub struct ModuleLowerer<'a> {
     /// The source module.
     pub(crate) module: &'a Module,
+    /// The source module AST.
+    pub(crate) ast: &'a ModuleAst,
+
     /// The DIR tree.
     pub(crate) dir_tree: &'a DirTree,
     /// The symbol table (for future use).
@@ -55,6 +58,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowerer.
     pub fn new(
         module: &'a Module,
+        ast: &'a ModuleAst,
         dir_tree: &'a DirTree,
         symbols: &'a SymbolTable,
         types: &'a TypeTable,
@@ -62,6 +66,7 @@ impl<'a> ModuleLowerer<'a> {
     ) -> Self {
         Self {
             module,
+            ast,
             dir_tree,
             symbols,
             types,

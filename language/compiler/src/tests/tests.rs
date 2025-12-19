@@ -9,10 +9,9 @@ use std::time::Duration;
 use destack_ast::NodeParentIndex;
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
-use destack_linter::print_diff;
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileSystem, FileType, MemoryFileSystem, ModuleId, MultiSpan,
-    PhysicalFileSystem, PrintOptions, Uri, print_diagnostics,
+    DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType, MemoryFileSystem,
+    ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
 };
 use destack_workspace::{Module, Program, Session};
 use parking_lot::RwLock;
@@ -417,7 +416,7 @@ impl TestProgram {
         let unbound = unbound.trim();
         let expected = expected.trim();
         if unbound != expected {
-            print_diff(expected, unbound);
+            print_diff(expected, unbound, &DiffOptions::new());
             panic!("elaborated code mismatch");
         }
     }
@@ -428,7 +427,7 @@ impl TestProgram {
         let unbound = unbound.trim();
         let expected = expected.trim();
         if unbound != expected {
-            print_diff(expected, unbound);
+            print_diff(expected, unbound, &DiffOptions::new());
             panic!("bound code mismatch");
         }
     }

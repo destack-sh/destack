@@ -4,14 +4,15 @@ use destack_dir::{
     DeclarationType, FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
     PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind a scalar literal to a DIR scalar literal.
     pub(super) fn bind_scalar_literal(
         &self,
-        module: &Module,
+        _module: &Module,
+        ast: &ModuleAst,
         scalar_literal: &ast::ScalarLiteral,
     ) -> ScalarLiteral {
         match scalar_literal {
@@ -21,19 +22,12 @@ impl Compiler {
             ast::ScalarLiteral::Float(float) => ScalarLiteral::Float(*float),
             ast::ScalarLiteral::Character(character) => ScalarLiteral::Character(*character),
             ast::ScalarLiteral::String(string) => {
-                let string = self
-                    .program
-                    .strings
-                    .intern_from(&module.ast.strings, *string);
+                let string = self.program.strings.intern_from(&ast.strings, *string);
                 ScalarLiteral::String(string)
             }
             ast::ScalarLiteral::RegexString { content, flags } => {
-                let content = self
-                    .program
-                    .strings
-                    .intern_from(&module.ast.strings, *content);
-                let flags =
-                    flags.map(|flag| self.program.strings.intern_from(&module.ast.strings, flag));
+                let content = self.program.strings.intern_from(&ast.strings, *content);
+                let flags = flags.map(|flag| self.program.strings.intern_from(&ast.strings, flag));
                 ScalarLiteral::RegexString { content, flags }
             }
         }
@@ -43,6 +37,7 @@ impl Compiler {
     pub(super) fn bind_template_literal(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
         parent_id: Option<LocalNodeIdAny>,
@@ -52,26 +47,19 @@ impl Compiler {
     ) -> TemplateLiteral {
         match template_literal {
             ast::TemplateLiteral::String { string } => {
-                let string = self
-                    .program
-                    .strings
-                    .intern_from(&module.ast.strings, *string);
+                let string = self.program.strings.intern_from(&ast.strings, *string);
                 TemplateLiteral::String { string }
             }
             ast::TemplateLiteral::InterpolatedString { strings, arguments } => {
                 let strings = strings
                     .iter()
-                    .map(|string| {
-                        self.program
-                            .strings
-                            .intern_from(&module.ast.strings, *string)
-                    })
+                    .map(|string| self.program.strings.intern_from(&ast.strings, *string))
                     .collect();
                 let arguments = arguments
                     .iter()
                     .map(|argument| {
                         self.bind_argument(
-                            module, scope, *argument, parent_id, tree, symbols, types,
+                            module, ast, scope, *argument, parent_id, tree, symbols, types,
                         )
                     })
                     .collect();

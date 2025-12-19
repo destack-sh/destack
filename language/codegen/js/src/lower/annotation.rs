@@ -26,12 +26,12 @@ impl ModuleLowerer<'_> {
         let annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
                 let position = self.lower_annotation_position(*position);
-                let string = self.strings.intern_from(&self.module.ast.strings, *string);
+                let string = self.strings.intern_from(&self.ast.strings, *string);
                 Annotation::Doc { position, string }
             }
             dir::Annotation::Comment { position, string } => {
                 let position = self.lower_annotation_position(*position);
-                let string = self.strings.intern_from(&self.module.ast.strings, *string);
+                let string = self.strings.intern_from(&self.ast.strings, *string);
                 Annotation::Comment { position, string }
             }
             dir::Annotation::Decorator {

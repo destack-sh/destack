@@ -8,7 +8,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -36,6 +36,7 @@ impl Compiler {
     pub(super) fn bind_dependency_item(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         source: DependencySource,
         kind: ast::DependencyKind,
@@ -46,7 +47,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
-        let ast_item = module.ast.tree.get(ast_item_id);
+        let ast_item = ast.tree.get(ast_item_id);
         let item_id =
             tree.reserve_from_source(NodeType::DependencyItem, ast_item_id.id, scope, parent_id);
 
@@ -58,16 +59,17 @@ impl Compiler {
         let mode = self.bind_dependency_mode(ast_item.mode);
         let name = ast_item
             .name
-            .map(|name| self.program.strings.intern_from(&module.ast.strings, name));
+            .map(|name| self.program.strings.intern_from(&ast.strings, name));
         let alias = ast_item
             .alias
-            .map(|alias| self.program.strings.intern_from(&module.ast.strings, alias));
+            .map(|alias| self.program.strings.intern_from(&ast.strings, alias));
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
         let key = alias.or(name);
         let (symbol_id, _) = if let Some(key) = key {
             self.bind_named_item(
                 module,
+                ast,
                 SymbolSpace::Value,
                 StaticKey::Name(key),
                 scope,
@@ -77,6 +79,7 @@ impl Compiler {
         } else {
             self.bind_anonymous_item(
                 module,
+                ast,
                 SymbolSpace::Value,
                 scope,
                 if is_export { Some(mode) } else { None },
@@ -88,6 +91,7 @@ impl Compiler {
             if let Some(ast_value_id) = ast_item.value {
                 let value_id = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     ast_value_id,
                     Some(item_id),

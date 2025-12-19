@@ -6,7 +6,7 @@ use destack_dir::{
 
 use crate::Compiler;
 
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,6 +14,7 @@ impl Compiler {
     pub(super) fn bind_where_clause(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         parent_id: Option<LocalNodeIdAny>,
@@ -21,7 +22,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WhereClause> {
-        let ast_where_clause = module.ast.tree.get(ast_where_clause_id);
+        let ast_where_clause = ast.tree.get(ast_where_clause_id);
         let where_clause_id = tree.reserve_from_source(
             NodeType::WhereClause,
             ast_where_clause_id.id,
@@ -30,9 +31,10 @@ impl Compiler {
         );
         match ast_where_clause {
             ast::WhereClause::Assertion { left, right } => {
-                let left = self.program.strings.intern_from(&module.ast.strings, *left);
+                let left = self.program.strings.intern_from(&ast.strings, *left);
                 let right = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *right,
                     Some(where_clause_id),
@@ -45,6 +47,7 @@ impl Compiler {
             ast::WhereClause::Guard { guard } => {
                 let guard = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *guard,
                     Some(where_clause_id),

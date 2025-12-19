@@ -28,7 +28,7 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|m| self.lower_mutability(m));
-                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let name = self.strings.intern_from(&self.ast.strings, *name);
                 let pattern = Pattern::Binding { mutability, name };
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
@@ -58,7 +58,7 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let name = self.strings.intern_from(&self.ast.strings, *name);
                 let pattern = pattern
                     .map(|pattern| self.lower_pattern(pattern))
                     .transpose()?;
@@ -87,8 +87,8 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = self.strings.intern_from(&self.module.ast.strings, *name);
-                let alias = self.strings.intern_from(&self.module.ast.strings, *alias);
+                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let alias = self.strings.intern_from(&self.ast.strings, *alias);
                 let default = default
                     .map(|default| {
                         self.lower_expression(default).expect_node::<Expression>(
@@ -118,8 +118,7 @@ impl ModuleLowerer<'_> {
                 symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name =
-                    name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
+                let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
                 let pattern_field = PatternField::Spread { mutability, name };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)

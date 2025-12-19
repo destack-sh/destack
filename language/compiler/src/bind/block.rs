@@ -3,7 +3,7 @@ use destack_dir::{
     Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
     ScopeKind, SymbolTable, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 use crate::Compiler;
 
@@ -13,6 +13,7 @@ impl Compiler {
     pub(super) fn bind_block(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_block_id: ast::LocalNodeId<ast::Block>,
         parent_id: Option<LocalNodeIdAny>,
@@ -20,9 +21,15 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Block> {
-        let ast_block = module.ast.tree.get(ast_block_id);
-        let (symbol_id, scope_id) =
-            self.bind_anonymous_item_with_scope(module, ScopeKind::Block, scope, None, symbols);
+        let ast_block = ast.tree.get(ast_block_id);
+        let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
+            module,
+            ast,
+            ScopeKind::Block,
+            scope,
+            None,
+            symbols,
+        );
         let block_id = tree.reserve_from_source(
             NodeType::Block,
             ast_block_id.id,
@@ -35,6 +42,7 @@ impl Compiler {
             .map(|expression| {
                 self.bind_expression(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *expression,
                     Some(block_id),

@@ -5,7 +5,7 @@ use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
     Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable, Visibility,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -13,6 +13,7 @@ impl Compiler {
     pub(super) fn bind_binding_modifier(
         &self,
         _module: &Module,
+        _ast: &ModuleAst,
         modifiers: ast::BindingModifier,
     ) -> BindingModifier {
         let kind = modifiers.kind.map(|kind| match kind {
@@ -52,6 +53,7 @@ impl Compiler {
     pub(super) fn bind_parameter(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
         parent_id: Option<LocalNodeIdAny>,
@@ -59,7 +61,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Parameter> {
-        let ast_parameter = module.ast.tree.get(ast_parameter_id);
+        let ast_parameter = ast.tree.get(ast_parameter_id);
         let parameter_id =
             tree.reserve_from_source(NodeType::Parameter, ast_parameter_id.id, scope, parent_id);
         match ast_parameter {
@@ -70,11 +72,12 @@ impl Compiler {
                 default,
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.program.strings.intern_from(&module.ast.strings, *name);
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let name = self.program.strings.intern_from(&ast.strings, *name);
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         default,
                         Some(parameter_id),
@@ -85,6 +88,7 @@ impl Compiler {
                 });
                 let (symbol_id, _) = self.bind_named_item(
                     module,
+                    ast,
                     SymbolSpace::Value,
                     StaticKey::Name(name),
                     scope,
@@ -103,6 +107,7 @@ impl Compiler {
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
+                        ast,
                         scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -121,9 +126,10 @@ impl Compiler {
                 default,
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let pattern = self.bind_pattern(
                     module,
+                    ast,
                     scope,
                     None,
                     SymbolBinding::Runtime,
@@ -136,6 +142,7 @@ impl Compiler {
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         default,
                         Some(parameter_id),
@@ -145,7 +152,7 @@ impl Compiler {
                     )
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -158,6 +165,7 @@ impl Compiler {
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
+                        ast,
                         scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -175,10 +183,11 @@ impl Compiler {
                 ty,
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
-                let name = self.program.strings.intern_from(&module.ast.strings, *name);
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let name = self.program.strings.intern_from(&ast.strings, *name);
                 let (symbol_id, _) = self.bind_named_item(
                     module,
+                    ast,
                     SymbolSpace::Value,
                     StaticKey::Name(name),
                     scope,
@@ -196,6 +205,7 @@ impl Compiler {
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
+                        ast,
                         scope,
                         *ty,
                         Some(parameter_id.into()),
@@ -214,6 +224,7 @@ impl Compiler {
     pub(super) fn bind_argument(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_argument_id: ast::LocalNodeId<ast::Argument>,
         parent_id: Option<LocalNodeIdAny>,
@@ -221,7 +232,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Argument> {
-        let ast_argument = module.ast.tree.get(ast_argument_id);
+        let ast_argument = ast.tree.get(ast_argument_id);
         let argument_id =
             tree.reserve_from_source(NodeType::Argument, ast_argument_id.id, scope, parent_id);
         match ast_argument {
@@ -229,9 +240,10 @@ impl Compiler {
                 let name = self
                     .program
                     .strings
-                    .intern_from(&module.ast.strings, name.string());
+                    .intern_from(&ast.strings, name.string());
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(argument_id),
@@ -244,6 +256,7 @@ impl Compiler {
             ast::Argument::Positional { value } => {
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(argument_id),
@@ -256,6 +269,7 @@ impl Compiler {
             ast::Argument::Spread { value } => {
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(argument_id),
@@ -266,12 +280,10 @@ impl Compiler {
                 tree.insert(argument_id, Argument::Spread { value })
             }
             ast::Argument::Labeled { label, value } => {
-                let label = self
-                    .program
-                    .strings
-                    .intern_from(&module.ast.strings, *label);
+                let label = self.program.strings.intern_from(&ast.strings, *label);
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(argument_id),
