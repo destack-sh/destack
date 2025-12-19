@@ -83,7 +83,7 @@ impl<'a> EditBuilder<'a> {
     /// # Example
     /// ```ignore
     /// // expr -> (expr)
-    /// builder.wrap(expr_span, "(", ")")
+    /// builder.wrap(expression_span, "(", ")")
     ///
     /// // call() -> await call()
     /// builder.wrap(call_span, "await ", "")
@@ -101,7 +101,7 @@ impl<'a> EditBuilder<'a> {
     /// # Example
     /// ```ignore
     /// // x === -0 -> Object.is(x, -0)
-    /// builder.replace_with(expr_span, |text| format!("Object.is({text}, -0)"))
+    /// builder.replace_with(expression_span, |text| format!("Object.is({text}, -0)"))
     /// ```
     pub fn replace_with(self, span: Span, f: impl FnOnce(&str) -> String) -> Self {
         let content = self.get_text(span);

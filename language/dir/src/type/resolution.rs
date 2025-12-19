@@ -134,7 +134,7 @@ pub enum Resolution {
         candidate: ResolutionCandidate,
     },
     /// Dynamic resolution: runtime dispatch needed based on argument types.
-    /// Only used when the receiver is a union and different implementations apply.
+    /// Only used when the receiver is a union and different implementations may apply.
     Dynamic {
         /// The receiver type (the union type).
         receiver: Option<LocalTypeId>,
@@ -167,4 +167,5 @@ pub struct ResolutionCandidate {
     pub target_symbol: GlobalSymbolId,
     /// The instance of the symbol, if generically instantiated.
     pub instance: Option<LocalInstanceId>,
+    // pub language_item: Option<LanguageItem>, // nocheckin
 }
