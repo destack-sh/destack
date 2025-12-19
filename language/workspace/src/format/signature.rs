@@ -15,14 +15,18 @@ pub struct FormattedSignature {
 }
 
 /// Format a declaration's signature with full type information.
+///
+/// # Panics
+/// Panics if the module's DIR is not available (should only be called after Bind phase).
 pub fn format_declaration_signature(
     declaration: &dir::Declaration,
     module: &Module,
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> FormattedSignature {
-    let dir_tree = module.dir.tree.read();
-    let types = module.dir.types.read();
+    let dir = module.dir();
+    let dir_tree = dir.tree.read();
+    let types = dir.types.read();
     let module_id = module.id;
 
     let kind = declaration.kind_name();
@@ -217,20 +221,22 @@ pub fn format_symbol_signature(
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> Option<FormattedSignature> {
+    // get module DIR
     let module = modules.get(symbol_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let dir = module.dir.as_ref()?;
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.into_local());
 
     // only format symbols with declarations
     let declaration_ref = symbol.primary_declaration?;
     drop(symbols);
 
-    let dir_tree = module_guard.dir.tree.read();
+    let dir_tree = dir.tree.read();
     let declaration_id = declaration_ref.local_id.try_into().ok()?;
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
 
-    let types = module_guard.dir.types.read();
+    let types = dir.types.read();
     let kind = declaration.kind_name();
     let descriptor = declaration.descriptor();
 
@@ -245,7 +251,7 @@ pub fn format_symbol_signature(
         ""
     };
 
-    let module_id = module_guard.id;
+    let module_id = module.id;
 
     let text = match declaration {
         dir::Declaration::Function { signature, .. } => format_function(

@@ -126,10 +126,11 @@ impl Compiler {
         // get the prelude module
         let prelude_module = self.program.modules.get(prelude_module_id);
         let prelude_module = prelude_module.read();
-        let symbols = prelude_module.dir.symbols.read();
+        let prelude_dir = prelude_module.dir();
+        let symbols = prelude_dir.symbols.read();
 
         // look up symbol by name in prelude's namespace scope
-        let namespace_scope = symbols.get_scope_by_id(prelude_module.dir.namespace_scope);
+        let namespace_scope = symbols.get_scope_by_id(prelude_dir.namespace_scope);
         let key = StaticKey::Name(name);
         let Some(symbol_id) = namespace_scope.find(key) else {
             return Ok(None);
@@ -171,7 +172,7 @@ impl Compiler {
         let prelude_module_id = prelude_symbol.module_id;
         let prelude_module = self.program.modules.get(prelude_module_id);
         let prelude_module = prelude_module.read();
-        let prelude_symbols = prelude_module.dir.symbols.read();
+        let prelude_symbols = prelude_module.dir().symbols.read();
 
         let local_symbol_id = prelude_symbol.local_id;
         let symbol = prelude_symbols.get_symbol(local_symbol_id);
@@ -544,7 +545,7 @@ impl Compiler {
             // get the symbol
             let module = self.program.modules.get(current.module_id);
             let module = module.read();
-            let symbols = module.dir.symbols.read();
+            let symbols = module.dir().symbols.read();
             let symbol = symbols.get_symbol(current.local_id);
 
             // if symbol already has canonical_symbol computed, use it (optimization)
@@ -571,7 +572,7 @@ impl Compiler {
         // get the target_symbol
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let symbols = module.dir.symbols.read();
+        let symbols = module.dir().symbols.read();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let Some(target_symbol) = symbol.target_symbol else {
             // no target, this symbol is its own final
@@ -586,7 +587,7 @@ impl Compiler {
         // set the canonical_symbol
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let mut symbols = module.dir.symbols.write();
+        let mut symbols = module.dir().symbols.write();
         symbols.get_symbol_mut(symbol_id.local_id).canonical_symbol = Some(canonical_symbol);
 
         Ok(canonical_symbol)
@@ -598,8 +599,6 @@ mod tests {
     use destack_dir::{Expression, Pattern, ScalarLiteral};
 
     use crate::{TestProgram, assert_node, assert_string};
-
-    // ==================== Label Resolution Tests ====================
 
     /// Resolve labeled break to outer loop.
     #[test]
@@ -620,7 +619,8 @@ outer: while (true) {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
 
         // find the outer while loop's symbol
         let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
@@ -675,7 +675,8 @@ outer: for (let i = 0; i < 10; i++) {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
 
         // find the continue expression
         let found_continue = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -727,7 +728,8 @@ myblock: {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
             matches!(
@@ -810,7 +812,8 @@ outer: while (true) {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
             matches!(
@@ -853,7 +856,8 @@ outer: loop {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
             matches!(
@@ -875,8 +879,6 @@ outer: loop {
         }
     }
 
-    // ==================== End Label Resolution Tests ====================
-
     /// Resolve symbols at top level in a single module.
     #[test]
     fn test_resolve_symbol_in_single_module() {
@@ -894,7 +896,8 @@ let z = y;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
         let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
 
         // pattern -> declarator -> let
@@ -963,10 +966,10 @@ export let B = A + 1;
 
         let module_a = test.module("a.ds");
         let module_a = module_a.read();
-        let tree_a = module_a.dir.tree.read();
+        let tree_a = module_a.dir().tree.read();
         let module_b = test.program.modules.get(module_b_id);
         let module_b = module_b.read();
-        let tree_b = module_b.dir.tree.read();
+        let tree_b = module_b.dir().tree.read();
 
         // export let A = 1;
         let (a_symbol_id, a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
@@ -1444,7 +1447,8 @@ let b = obj.y;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
 
         let a_declarator = tree.get_parent(a_node.id).unwrap();
@@ -1493,7 +1497,8 @@ let a = obj.inner.value;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
 
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
         let a_declarator = tree.get_parent(a_node.id).unwrap();
@@ -1549,7 +1554,8 @@ export let C = A + B;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let symbols = dir.symbols.read();
 
         let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
         let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();

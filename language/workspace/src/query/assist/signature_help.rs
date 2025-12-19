@@ -2,7 +2,7 @@ use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, NodeType, P
 use destack_source::FileId;
 
 use crate::query::common::get_module_by_file_id;
-use crate::{Module, Session};
+use crate::{ModuleAst, Session};
 
 /// A parameter in a signature.
 #[derive(Debug, Clone)]
@@ -87,23 +87,21 @@ impl SignatureHelp {
 
 /// Get signature help at the given position (inside a function call).
 pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<SignatureHelp> {
-    // 1. get the module for this file
+    // get module AST/DIR
     let module = get_module_by_file_id(session, file)?;
-    let module_guard = module.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let dir_tree = dir.tree.read();
 
-    // 2. find enclosing AST nodes at the offset
-    let enclosing = module_guard
-        .ast
-        .tree
-        .source_map
-        .get_enclosing_spans(offset, offset);
+    // find enclosing AST nodes at the offset
+    let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
 
-    let dir_tree = module_guard.dir.tree.read();
-
-    // 3. look for a call expression among the enclosing nodes
+    // look for a call expression among the enclosing nodes
     for enclosing_span in &enclosing {
         let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
             continue;
@@ -133,17 +131,22 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 | Expression::LocalReference { target_symbol, .. }
                 | Expression::ModuleReference { target_symbol, .. } => {
                     let target_module = session.modules.get(target_symbol.module_id);
-                    let target_guard = target_module.read();
-                    let symbols = target_guard.dir.symbols.read();
-                    let symbol_data = symbols.get_symbol(target_symbol.local_id);
-                    let name = symbol_data
-                        .name()
-                        .map(|id| target_guard.ast.strings.get(id).to_string());
+                    let target = target_module.read();
+                    let name =
+                        if let (Some(target_ast), Some(target_dir)) = (&target.ast, &target.dir) {
+                            let symbols = target_dir.symbols.read();
+                            let symbol_data = symbols.get_symbol(target_symbol.local_id);
+                            symbol_data
+                                .name()
+                                .map(|id| target_ast.strings.get(id).to_string())
+                        } else {
+                            None
+                        };
                     (name, Some(*target_symbol))
                 }
                 // method call: obj.method(...)
                 Expression::Member { name, .. } => {
-                    let name = module_guard.ast.strings.get(*name).to_string();
+                    let name = ast.strings.get(*name).to_string();
                     (Some(name), None)
                 }
                 _ => (None, None),
@@ -163,8 +166,13 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
             }
 
             // determine active parameter based on cursor position
-            let active_parameter =
-                determine_active_parameter(&module_guard, &dir_tree, dynamic_arguments, offset);
+            let active_parameter = determine_active_parameter(
+                ast,
+                module.file_id,
+                &dir_tree,
+                dynamic_arguments,
+                offset,
+            );
 
             return Some(SignatureHelp::single(signature, active_parameter));
         }
@@ -185,51 +193,53 @@ fn get_function_parameters(
     // try to get actual parameter names from the function declaration
     if let Some(symbol_id) = target_symbol {
         let target_module = session.modules.get(symbol_id.module_id);
-        let target_guard = target_module.read();
-        let symbols = target_guard.dir.symbols.read();
+        let target = target_module.read();
+        let (Some(target_ast), Some(target_dir)) = (&target.ast, &target.dir) else {
+            return fallback_params(argument_count);
+        };
+        let symbols = target_dir.symbols.read();
         let symbol_data = symbols.get_symbol(symbol_id.local_id);
 
         // check if this symbol has a primary declaration
-        if let Some(global_node_id) = symbol_data.primary_declaration {
-            // must be a declaration node
-            if global_node_id.local_id.ty == NodeType::Declaration {
-                let declaration_id = global_node_id.local_id.try_into_typed().ok();
-                if let Some(declaration_id) = declaration_id {
-                    let dir_tree = target_guard.dir.tree.read();
-                    let declaration = dir_tree.get::<Declaration>(declaration_id);
+        if let Some(global_node_id) = symbol_data.primary_declaration
+            && global_node_id.local_id.ty == NodeType::Declaration
+            && let Some(declaration_id) = global_node_id.local_id.try_into_typed().ok()
+        {
+            let dir_tree = target_dir.tree.read();
+            let declaration = dir_tree.get::<Declaration>(declaration_id);
 
-                    // if it's a function, get its parameters
-                    if let Declaration::Function { signature, .. } = declaration {
-                        let params: Vec<_> = signature
-                            .dynamic_parameters
-                            .iter()
-                            .map(|param_id| {
-                                let param = dir_tree.get::<Parameter>(*param_id);
-                                let param_name = match param {
-                                    Parameter::Named { name, .. } => {
-                                        target_guard.ast.strings.get(*name).to_string()
-                                    }
-                                    Parameter::Variadic { name, .. } => {
-                                        let name_str =
-                                            target_guard.ast.strings.get(*name).to_string();
-                                        format!("...{name_str}")
-                                    }
-                                    Parameter::Pattern { .. } => "<pattern>".to_string(),
-                                };
-                                ParameterInfo::new(param_name)
-                            })
-                            .collect();
+            // if it's a function, get its parameters
+            if let Declaration::Function { signature, .. } = declaration {
+                let params: Vec<_> = signature
+                    .dynamic_parameters
+                    .iter()
+                    .map(|param_id| {
+                        let param = dir_tree.get::<Parameter>(*param_id);
+                        let param_name = match param {
+                            Parameter::Named { name, .. } => {
+                                target_ast.strings.get(*name).to_string()
+                            }
+                            Parameter::Variadic { name, .. } => {
+                                let name_str = target_ast.strings.get(*name).to_string();
+                                format!("...{name_str}")
+                            }
+                            Parameter::Pattern { .. } => "<pattern>".to_string(),
+                        };
+                        ParameterInfo::new(param_name)
+                    })
+                    .collect();
 
-                        if !params.is_empty() {
-                            return params;
-                        }
-                    }
+                if !params.is_empty() {
+                    return params;
                 }
             }
         }
     }
 
-    // fallback to generic parameter names
+    fallback_params(argument_count)
+}
+
+fn fallback_params(argument_count: usize) -> Vec<ParameterInfo> {
     let count = argument_count.max(1);
     (0..count)
         .map(|i| ParameterInfo::new(format!("arg{i}")))
@@ -240,7 +250,8 @@ fn get_function_parameters(
 ///
 /// Counts how many arguments come before the cursor position.
 fn determine_active_parameter(
-    module: &Module,
+    ast: &ModuleAst,
+    file_id: FileId,
     dir_tree: &destack_dir::NodeTree,
     arguments: &[destack_dir::LocalNodeId<Argument>],
     cursor_offset: u32,
@@ -256,18 +267,17 @@ fn determine_active_parameter(
     for (idx, arg_id) in arguments.iter().enumerate() {
         // get the argument's source span
         let arg_node_id: destack_dir::LocalNodeIdAny = (*arg_id).into();
-        if let Some(span) = get_argument_span(module, dir_tree, arg_node_id) {
-            // if cursor is before this argument's start, we're on the previous parameter
-            if cursor_offset < span.start {
-                break;
-            }
-            // cursor is in or after this argument
-            active_param = idx;
+        let span = get_argument_span(ast, file_id, dir_tree, arg_node_id);
+        // if cursor is before this argument's start, we're on the previous parameter
+        if cursor_offset < span.start {
+            break;
+        }
+        // cursor is in or after this argument
+        active_param = idx;
 
-            // if cursor is within this argument, stop here
-            if cursor_offset <= span.end {
-                break;
-            }
+        // if cursor is within this argument, stop here
+        if cursor_offset <= span.end {
+            break;
         }
     }
 
@@ -276,19 +286,12 @@ fn determine_active_parameter(
 
 /// Get the span of an argument node.
 fn get_argument_span(
-    module: &Module,
+    ast: &ModuleAst,
+    file_id: FileId,
     dir_tree: &destack_dir::NodeTree,
     node_id: destack_dir::LocalNodeIdAny,
-) -> Option<destack_source::Span> {
-    // get the AST source id for this DIR node
+) -> destack_source::Span {
     let source_id = dir_tree.get_source(node_id.id);
-
-    // look up in AST source map
-    let ast_span = module.ast.tree.source_map.get(source_id);
-
-    Some(destack_source::Span::new(
-        module.file_id,
-        ast_span.start,
-        ast_span.end,
-    ))
+    let ast_span = ast.tree.source_map.get(source_id);
+    destack_source::Span::new(file_id, ast_span.start, ast_span.end)
 }

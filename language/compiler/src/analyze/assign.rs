@@ -620,7 +620,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -643,7 +643,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -669,7 +669,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -695,7 +695,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let any_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Any,
@@ -721,7 +721,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let never_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Never,
@@ -747,7 +747,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let never_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Never,
@@ -773,7 +773,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -802,7 +802,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -834,7 +834,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -860,7 +860,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -889,7 +889,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
         let strings = test.program.strings.clone();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -952,7 +952,7 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let number_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
@@ -1166,7 +1166,7 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let int_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
@@ -1192,7 +1192,7 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let float_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
@@ -1219,7 +1219,7 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let int8_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
@@ -1245,7 +1245,7 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let int8_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
@@ -1278,7 +1278,7 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir.types.write();
+        let mut types = module.dir().types.write();
 
         let int8_ty = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
@@ -1315,7 +1315,7 @@ class Labrador extends Dog { color: string }
 
         let module = test.module("test.ds");
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
         // Labrador extends Dog
         let labrador_lineage = types
@@ -1362,7 +1362,7 @@ class Document implements Printable, Saveable {
 
         let module = test.module("test.ds");
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
         let doc_lineage = types
             .get_lineage_for_symbol(document_id)
             .expect("Document should have lineage");

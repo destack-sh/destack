@@ -10,7 +10,8 @@ impl TestProgram {
     pub fn resolve_to_symbol(&self, module_uri: &str, path: &str) -> Option<GlobalSymbolId> {
         let module = self.module(module_uri);
         let module = module.read();
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let symbols = dir.symbols.read();
 
         let segments: Vec<&str> = path.split('.').collect();
         if segments.is_empty() {
@@ -20,7 +21,7 @@ impl TestProgram {
         // resolve the first segment as an absolute symbol
         let first_segment = segments[0];
         let first_segment = self.program.strings.intern(first_segment);
-        let namespace_scope = symbols.get_scope_by_id(module.dir.namespace_scope);
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
         let symbol_id = self.resolve_absolute_symbol(
             &symbols,
             (namespace_scope, LocalScopeMark::end()),
@@ -47,7 +48,7 @@ impl TestProgram {
         let symbol_id = self.resolve_to_symbol(module_uri, path)?;
         let module = self.module(module_uri);
         let module = module.read();
-        let symbols = module.dir.symbols.read();
+        let symbols = module.dir().symbols.read();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         Some((symbol_id, symbol.primary_declaration?))
     }
@@ -118,7 +119,7 @@ impl TestProgram {
     pub fn resolve_label_symbol(&self, module_uri: &str, name: &str) -> Option<GlobalSymbolId> {
         let module = self.module(module_uri);
         let module = module.read();
-        let symbols = module.dir.symbols.read();
+        let symbols = module.dir().symbols.read();
         let name_id = self.program.strings.intern(name);
 
         // search all symbols for a matching label symbol

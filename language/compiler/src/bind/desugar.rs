@@ -8,7 +8,7 @@ impl Compiler {
     /// Desugare module syntactically: transforms that don't need type information:
     /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
     pub(super) fn bind_module_desugar(&self, module: &Module) {
-        let mut tree = module.dir.tree.write();
+        let mut tree = module.dir().tree.write();
 
         // desugar expressions
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {

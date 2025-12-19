@@ -1,5 +1,6 @@
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
+use destack_workspace::ModuleDir;
 
 use crate::{BindResult, Compiler, TaskDependencyError};
 
@@ -35,14 +36,19 @@ impl Compiler {
             BindTask::BindModuleBuild { module } => {
                 self.require_import_module(module)?;
                 let module = self.program.modules.get(module);
+                // initialize DIR
+                {
+                    let mut module = module.write();
+                    module.dir = Some(ModuleDir::new(module.id));
+                }
                 // bind module roots
                 let roots = {
                     let module = module.read();
-                    self.bind_module_roots(&module, &module.ast)
+                    self.bind_module_roots(&module, module.ast())
                 };
                 {
                     let mut module = module.write();
-                    module.dir.roots.extend(roots);
+                    module.dir_mut().roots.extend(roots);
                 };
                 // bind module exports
                 {

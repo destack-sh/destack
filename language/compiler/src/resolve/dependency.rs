@@ -4,7 +4,7 @@ use destack_dir::{
     LocalScopeMark, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleDir};
 
 use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
 
@@ -19,6 +19,7 @@ impl Compiler {
     pub(super) fn resolve_import(
         &self,
         module: &Module,
+        dir: &ModuleDir,
         node: GlobalNodeIdAny,
         _source: DependencySource,
         target: StringId,
@@ -27,11 +28,7 @@ impl Compiler {
         let relative_module = if is_relative { Some(module.id) } else { None };
 
         // check if already resolved locally
-        if let Some(&remote_module_id) = module
-            .dir
-            .imported_modules
-            .read()
-            .get(&(relative_module, target))
+        if let Some(&remote_module_id) = dir.imported_modules.read().get(&(relative_module, target))
         {
             return Ok(remote_module_id);
         }
@@ -41,14 +38,12 @@ impl Compiler {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
             if let Some(&remote_module_id) = global_module
-                .dir
+                .dir()
                 .imported_modules
                 .read()
                 .get(&(None, target))
             {
-                module
-                    .dir
-                    .imported_modules
+                dir.imported_modules
                     .write()
                     .insert((None, target), remote_module_id);
                 return Ok(remote_module_id);
@@ -70,9 +65,7 @@ impl Compiler {
             })?;
 
         // record the resolved import
-        module
-            .dir
-            .imported_modules
+        dir.imported_modules
             .write()
             .insert((relative_module, target), remote_module_id);
         Ok(remote_module_id)
@@ -82,6 +75,7 @@ impl Compiler {
     pub(super) fn resolve_dependency_item(
         &self,
         module: &Module,
+        dir: &ModuleDir,
         item_id: LocalNodeId<DependencyItem>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -100,6 +94,7 @@ impl Compiler {
             } => {
                 let remote_module_id = self.resolve_import(
                     module,
+                    dir,
                     item_id.into_global_any(module.id),
                     *source,
                     *target,
@@ -126,7 +121,7 @@ impl Compiler {
                         (
                             remote_module_id,
                             remote_module
-                                .dir
+                                .dir()
                                 .default_symbol
                                 .into_global(remote_module_id),
                         )
@@ -135,20 +130,14 @@ impl Compiler {
                         // check if this is a namespace export (namespace re-export without alias)
                         if alias.is_none() && matches!(source, DependencySource::ExportStatement) {
                             // `export * from "..."` -> register as namespace export
-                            let current_module = self.program.modules.get(module.id);
-                            let current_module = current_module.read();
-                            current_module
-                                .dir
-                                .namespace_exports
-                                .write()
-                                .push(remote_module_id);
+                            dir.namespace_exports.write().push(remote_module_id);
                         }
                         let remote_module = self.program.modules.get(remote_module_id);
                         let remote_module = remote_module.read();
                         (
                             remote_module_id,
                             remote_module
-                                .dir
+                                .dir()
                                 .namespace_symbol
                                 .into_global(remote_module_id),
                         )
@@ -222,8 +211,9 @@ impl Compiler {
     ) -> ResolveResult<(ModuleId, GlobalSymbolId)> {
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir.symbols.read();
-        let remote_scope_id = remote_module.dir.namespace_scope;
+        let remote_dir = remote_module.dir();
+        let remote_symbols = remote_dir.symbols.read();
+        let remote_scope_id = remote_dir.namespace_scope;
         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
 
         // first try to resolve in the direct namespace
@@ -276,8 +266,9 @@ impl Compiler {
         // get the namespace exports for the via module
         let via_module = self.program.modules.get(via_module_id);
         let via_module = via_module.read();
-        let via_namespace_scope = via_module.dir.namespace_scope;
-        let namespace_exports: Vec<ModuleId> = via_module.dir.namespace_exports.read().clone();
+        let via_dir = via_module.dir();
+        let via_namespace_scope = via_dir.namespace_scope;
+        let namespace_exports: Vec<ModuleId> = via_dir.namespace_exports.read().clone();
         drop(via_module);
 
         // search through namespace exports (breadth-first)
@@ -296,10 +287,11 @@ impl Compiler {
 
             let namespace_module = self.program.modules.get(namespace_module_id);
             let namespace_module = namespace_module.read();
-            let namespace_symbols = namespace_module.dir.symbols.read();
+            let namespace_dir = namespace_module.dir();
+            let namespace_symbols = namespace_dir.symbols.read();
 
             // try to find the symbol in this module's namespace
-            let namespace_scope_id = namespace_module.dir.namespace_scope;
+            let namespace_scope_id = namespace_dir.namespace_scope;
             let namespace_scope = namespace_symbols.get_scope_by_id(namespace_scope_id);
 
             // check if the symbol exists and is exported in this module
@@ -313,7 +305,7 @@ impl Compiler {
 
             // add this module's namespace exports to the queue
             let nested_namespace_exports: Vec<ModuleId> =
-                namespace_module.dir.namespace_exports.read().clone();
+                namespace_dir.namespace_exports.read().clone();
             queue.extend(nested_namespace_exports);
         }
 

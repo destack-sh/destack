@@ -27,14 +27,14 @@ impl Compiler {
 
     /// Unbind a module's DIR tree to an AST tree.
     pub fn unbind_module(&self, module: &Module) -> UnboundModule {
-        let tree = module.dir.tree.read();
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
 
         // rebuild the AST tree
         let mut ast_tree = ast::NodeTree::new();
         let mut ast_strings = StringPool::new();
-        let roots: Vec<ast::LocalNodeId<ast::Expression>> = module
-            .dir
+        let roots: Vec<ast::LocalNodeId<ast::Expression>> = dir
             .roots
             .iter()
             .map(|expression_id| {

@@ -180,9 +180,13 @@ fn complete_members(
 
     // if we have a receiver symbol, try to get its members
     if let Some(symbol_id) = receiver_symbol {
+        // get module AST/DIR
         let module = session.modules.get(symbol_id.module_id);
-        let module_guard = module.read();
-        let symbols = module_guard.dir.symbols.read();
+        let module = module.read();
+        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+            return common_member_completions();
+        };
+        let symbols = dir.symbols.read();
         let _symbol = symbols.get_symbol(symbol_id.local_id);
 
         // get the scope owned by this symbol (for types like struct/class)
@@ -193,7 +197,7 @@ fn complete_members(
             for (key, member_id) in &scope.named_symbols {
                 if let destack_dir::StaticKey::Name(name_id) = key {
                     let member_symbol = symbols.get_symbol(*member_id);
-                    let name = module_guard.ast.strings.get(*name_id).to_string();
+                    let name = ast.strings.get(*name_id).to_string();
                     let kind = CompletionKind::from(member_symbol.ty);
 
                     let mut completion = Completion::new(name, kind).with_sort_order(10);
@@ -209,7 +213,7 @@ fn complete_members(
         }
 
         drop(symbols);
-        drop(module_guard);
+        drop(module);
 
         // also check for extension methods
         results.extend(complete_extension_methods(session, symbol_id));
@@ -265,16 +269,19 @@ fn complete_types(
     file: FileId,
     token: Option<&TokenAtCursor>,
 ) -> Vec<Completion> {
-    let mut results = Vec::new();
-
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return results;
-    };
-
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
-
     let prefix = token.map(|t| t.text.as_str()).unwrap_or("");
+
+    // get module AST/DIR
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return primitive_type_completions(prefix);
+    };
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return primitive_type_completions(prefix);
+    };
+    let symbols = dir.symbols.read();
+
+    let mut results = Vec::new();
 
     // add type symbols from current module
     for symbol in symbols.symbols() {
@@ -287,7 +294,7 @@ fn complete_types(
             continue;
         };
 
-        let name = module_guard.ast.strings.get(string_id).to_string();
+        let name = ast.strings.get(string_id).to_string();
 
         // filter by prefix if typing
         if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
@@ -299,7 +306,7 @@ fn complete_types(
     }
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     // add primitive types
     results.extend(primitive_type_completions(prefix));
@@ -330,16 +337,19 @@ fn complete_values(
     token: Option<&TokenAtCursor>,
     trigger: CompletionTrigger,
 ) -> Vec<Completion> {
-    let mut results = Vec::new();
-
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return results;
-    };
-
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
-
     let prefix = token.map(|t| t.text.as_str()).unwrap_or("");
+
+    // get module AST/DIR
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return keyword_completions_filtered(prefix);
+    };
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return keyword_completions_filtered(prefix);
+    };
+    let symbols = dir.symbols.read();
+
+    let mut results = Vec::new();
 
     // if we have a scope, walk up from it to collect visible symbols
     if let Some(scope_id) = scope_id {
@@ -359,7 +369,7 @@ fn complete_values(
                         continue;
                     }
 
-                    let name = module_guard.ast.strings.get(*name_id).to_string();
+                    let name = ast.strings.get(*name_id).to_string();
 
                     // filter by prefix
                     if !prefix.is_empty()
@@ -382,7 +392,7 @@ fn complete_values(
                 continue;
             };
 
-            let name = module_guard.ast.strings.get(string_id).to_string();
+            let name = ast.strings.get(string_id).to_string();
 
             if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
                 continue;
@@ -394,7 +404,7 @@ fn complete_values(
     }
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     // add keywords if triggered manually or at statement position
     if matches!(trigger, CompletionTrigger::Invoked) || prefix.is_empty() {
@@ -411,15 +421,19 @@ fn complete_imports(
     target_module: Option<ModuleId>,
     _token: Option<&TokenAtCursor>,
 ) -> Vec<Completion> {
-    let mut results = Vec::new();
-
     let Some(module_id) = target_module else {
-        return results;
+        return Vec::new();
     };
 
+    // get module AST/DIR
     let module = session.modules.get(module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let symbols = dir.symbols.read();
+
+    let mut results = Vec::new();
 
     // add all exported symbols
     for symbol in symbols.symbols() {
@@ -431,7 +445,7 @@ fn complete_imports(
             continue;
         };
 
-        let name = module_guard.ast.strings.get(string_id).to_string();
+        let name = ast.strings.get(string_id).to_string();
         let kind = CompletionKind::from(symbol.ty);
         results.push(Completion::new(name, kind).with_sort_order(10));
     }
@@ -442,23 +456,26 @@ fn complete_imports(
 
 /// Complete all symbols (fallback for unknown context).
 fn complete_all(session: &Session, file: FileId, token: Option<&TokenAtCursor>) -> Vec<Completion> {
-    let mut results = Vec::new();
-
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return results;
-    };
-
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
-
     let prefix = token.map(|t| t.text.as_str()).unwrap_or("");
+
+    // get module AST/DIR
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return keyword_completions_filtered(prefix);
+    };
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return keyword_completions_filtered(prefix);
+    };
+    let symbols = dir.symbols.read();
+
+    let mut results = Vec::new();
 
     for symbol in symbols.symbols() {
         let Some(string_id) = symbol.name() else {
             continue;
         };
 
-        let name = module_guard.ast.strings.get(string_id).to_string();
+        let name = ast.strings.get(string_id).to_string();
 
         if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
             continue;
@@ -469,7 +486,7 @@ fn complete_all(session: &Session, file: FileId, token: Option<&TokenAtCursor>) 
     }
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     results.extend(keyword_completions_filtered(prefix));
     results.sort_by(|a, b| a.label.cmp(&b.label));

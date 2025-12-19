@@ -11,9 +11,10 @@ impl Compiler {
         module: &Module,
         ast: &ModuleAst,
     ) -> Vec<LocalNodeId<Expression>> {
-        let mut tree = module.dir.tree.write();
-        let mut symbols = module.dir.symbols.write();
-        let mut types = module.dir.types.write();
+        let dir = module.dir();
+        let mut tree = dir.tree.write();
+        let mut symbols = dir.symbols.write();
+        let mut types = dir.types.write();
         ast.roots
             .iter()
             .map(|expression| {
@@ -21,8 +22,8 @@ impl Compiler {
                     module,
                     ast,
                     (
-                        module.dir.namespace_scope,
-                        symbols.get_scope_mark(module.dir.namespace_scope),
+                        dir.namespace_scope,
+                        symbols.get_scope_mark(dir.namespace_scope),
                     ),
                     *expression,
                     None,
@@ -36,10 +37,11 @@ impl Compiler {
 
     /// Bind module exports and resolve conflicts.
     pub(super) fn bind_module_exports(&self, module: &mut Module) {
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let symbols = dir.symbols.read();
 
         // collect exported symbols
-        let root_scope = symbols.get_scope_by_id(module.dir.namespace_scope);
+        let root_scope = symbols.get_scope_by_id(dir.namespace_scope);
         let exported_symbols: Vec<(GlobalNodeIdAny, LocalSymbolId)> = root_scope
             .named_symbols
             .iter()
@@ -56,7 +58,7 @@ impl Compiler {
             .collect();
 
         // resolve exported symbols and check for conflicts
-        let mut exported = module.dir.exported_symbols.write();
+        let mut exported = dir.exported_symbols.write();
         for (_, symbol_id) in exported_symbols.iter() {
             let symbol = symbols.get_symbol(*symbol_id);
             let space = symbol.space;

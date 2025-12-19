@@ -57,19 +57,21 @@ impl InlayHint {
 
 /// Get inlay hints for a range in a file.
 pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHint> {
+    // get module AST/DIR
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let module_id = module.id;
+    let dir_tree = dir.tree.read();
+    let types = dir.types.read();
+
     let mut hints = Vec::new();
 
-    // 1. get the module for this file
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return hints;
-    };
-
-    let module_guard = module.read();
-    let module_id = module_guard.id;
-    let dir_tree = module_guard.dir.tree.read();
-    let types = module_guard.dir.types.read();
-
-    // 2. iterate through all call expressions for parameter hints
+    // iterate through all call expressions for parameter hints
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         // check if this is a call expression
         let Expression::Call {
@@ -88,7 +90,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
         // get the span of this call expression
         let ast_node_id = dir_tree.get_source(expression_id.id);
-        let call_span = module_guard.ast.tree.source_map.get(ast_node_id);
+        let call_span = ast.tree.source_map.get(ast_node_id);
 
         // skip if outside the requested range
         if call_span.end < range.start || call_span.start > range.end {
@@ -111,7 +113,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             // get the span of the argument
             let arg_ast_id = dir_tree.get_source(argument_id.id);
-            let arg_span = module_guard.ast.tree.source_map.get(arg_ast_id);
+            let arg_span = ast.tree.source_map.get(arg_ast_id);
 
             // add a parameter hint at the start of the argument
             let param_name = param_names
@@ -135,7 +137,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
         if let Pattern::Binding { symbol, .. } = pattern {
             // get the span of the binding name
             let ast_node_id = dir_tree.get_source(declarator.pattern.id);
-            let pattern_span = module_guard.ast.tree.source_map.get(ast_node_id);
+            let pattern_span = ast.tree.source_map.get(ast_node_id);
 
             // skip if outside the requested range
             if pattern_span.end < range.start || pattern_span.start > range.end {
@@ -177,9 +179,13 @@ fn get_parameter_names(
         return Vec::new();
     };
 
+    // get target module AST/DIR
     let target_module = session.modules.get(symbol_id.module_id);
-    let target_guard = target_module.read();
-    let symbols = target_guard.dir.symbols.read();
+    let target = target_module.read();
+    let (Some(ast), Some(dir)) = (&target.ast, &target.dir) else {
+        return Vec::new();
+    };
+    let symbols = dir.symbols.read();
     let symbol_data = symbols.get_symbol(symbol_id.local_id);
 
     // check if this symbol has a primary declaration
@@ -190,13 +196,13 @@ fn get_parameter_names(
     // must be a declaration node
     if global_node_id.local_id.ty != NodeType::Declaration {
         return Vec::new();
-    }
+    };
 
     let Some(declaration_id) = global_node_id.local_id.try_into_typed().ok() else {
         return Vec::new();
     };
 
-    let dir_tree = target_guard.dir.tree.read();
+    let dir_tree = dir.tree.read();
     let declaration = dir_tree.get::<Declaration>(declaration_id);
 
     // if it's a function, get its parameters
@@ -210,9 +216,9 @@ fn get_parameter_names(
         .map(|param_id| {
             let param = dir_tree.get::<Parameter>(*param_id);
             match param {
-                Parameter::Named { name, .. } => target_guard.ast.strings.get(*name).to_string(),
+                Parameter::Named { name, .. } => ast.strings.get(*name).to_string(),
                 Parameter::Variadic { name, .. } => {
-                    let name_str = target_guard.ast.strings.get(*name).to_string();
+                    let name_str = ast.strings.get(*name).to_string();
                     format!("...{name_str}")
                 }
                 Parameter::Pattern { .. } => "<pattern>".to_string(),

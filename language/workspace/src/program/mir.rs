@@ -9,7 +9,7 @@ pub struct ModuleMir {
     /// The id of the Module.
     pub id: ModuleId,
     /// The target this is for.
-    // pub target: String, // nocheckin
+    pub target: String,
     /// The MIR of the Module (may be empty initially).
     pub tree: RwLock<mir::NodeTree>,
     /// The string pool of the Module's MIR stuff.
@@ -18,9 +18,10 @@ pub struct ModuleMir {
 
 impl ModuleMir {
     /// Create a new ModuleMir.
-    pub fn new(id: ModuleId) -> Self {
+    pub fn new(id: ModuleId, target: String) -> Self {
         Self {
             id,
+            target,
             tree: RwLock::new(mir::NodeTree::new()),
             strings: StringPool::new(),
         }

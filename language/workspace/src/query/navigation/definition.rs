@@ -1,7 +1,7 @@
 use destack_source::{FileId, Span};
 
-use crate::Session;
 use crate::query::common::{find_symbol_at_offset, get_dir_node_span, get_symbol_definition_span};
+use crate::{ModuleAst, ModuleDir, Session};
 use destack_dir::{self as dir, Declarator, Expression, NodeType};
 
 /// Result of a goto definition query.
@@ -63,10 +63,13 @@ pub fn goto_declaration(session: &Session, file: FileId, offset: u32) -> Option<
 
 /// Get the declaration span without following canonical_symbol.
 fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<Span> {
+    // get module and dir
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-
-    let symbols = module.dir.symbols.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // get primary_declaration directly
@@ -74,7 +77,7 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
 
     drop(symbols);
 
-    get_dir_node_span(&module, declaration.local_id)
+    get_dir_node_span(ast, dir, declaration.local_id)
 }
 
 /// Find the type definition of the symbol at the given position.
@@ -92,16 +95,19 @@ pub fn goto_type_definition(
 
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
-    let module_guard = module.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
 
     // check if the symbol itself is a type symbol (class, struct, enum, etc.)
-    let symbols = module_guard.dir.symbols.read();
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // go directly to the definition of the type symbol (if it's a type or type-value)
     if symbol.space == dir::SymbolSpace::Type || symbol.space == dir::SymbolSpace::TypeValue {
         drop(symbols);
-        drop(module_guard);
+        drop(module);
         let span = get_symbol_definition_span(session, symbol_id)?;
         return Some(DefinitionResult::single(span));
     }
@@ -109,12 +115,12 @@ pub fn goto_type_definition(
     drop(symbols);
 
     // for non-type symbols (variables, parameters, etc.), look up their value type
-    let types = module_guard.dir.types.read();
+    let types = dir.types.read();
     if let Some(type_id) = types.get_value_type_id(symbol_id) {
         let ty = types.get_type(type_id);
         if let Some(type_symbol) = ty.symbol() {
             drop(types);
-            drop(module_guard);
+            drop(module);
             let span = get_symbol_definition_span(session, type_symbol)?;
             return Some(DefinitionResult::single(span));
         }
@@ -124,9 +130,9 @@ pub fn goto_type_definition(
     // NOTE #Incomplete: get_value_type_id doesn't populate types for all variables/parameters yet
     // (we can remove this once type inference populates value types for all symbols)
     if let Some(type_symbol) =
-        get_type_from_declaration_context(session, &module_guard, symbol_at.node_id)
+        get_type_from_declaration_context(session, ast, dir, symbol_at.node_id)
     {
-        drop(module_guard);
+        drop(module);
         let span = get_symbol_definition_span(session, type_symbol)?;
         return Some(DefinitionResult::single(span));
     }
@@ -138,11 +144,12 @@ pub fn goto_type_definition(
 /// (we can remove this once type inference populates value types for all symbols, see goto_type_definition)
 fn get_type_from_declaration_context(
     session: &Session,
-    module: &crate::Module,
+    _ast: &ModuleAst,
+    dir: &ModuleDir,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::GlobalSymbolId> {
-    let dir_tree = module.dir.tree.read();
-    let types = module.dir.types.read();
+    let dir_tree = dir.tree.read();
+    let types = dir.types.read();
 
     match node_id.ty {
         // for patterns, find parent declarator and get its type annotation
@@ -166,7 +173,7 @@ fn get_type_from_declaration_context(
         NodeType::Parameter => {
             // parameters have their declared type stored in TypeTable
             let global_node_id = dir::GlobalNodeIdAny {
-                module_id: module.id,
+                module_id: dir.id,
                 local_id: node_id,
             };
             if let Some(type_id) = types.get_declared_type_id(global_node_id) {
@@ -185,8 +192,11 @@ fn get_type_from_declaration_context(
                 drop(dir_tree);
                 // verify target is a type symbol
                 let target_module = session.modules.get(target.module_id);
-                let target_guard = target_module.read();
-                let symbols = target_guard.dir.symbols.read();
+                let target_module = target_module.read();
+                let Some(target_dir) = &target_module.dir else {
+                    return None;
+                };
+                let symbols = target_dir.symbols.read();
                 let symbol = symbols.get_symbol(target.local_id);
 
                 if symbol.space == dir::SymbolSpace::Type

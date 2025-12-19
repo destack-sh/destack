@@ -213,7 +213,8 @@ pub fn generate_module(
 
     // compile
     let name = module.uri.last_segment().unwrap_or("module");
-    let compile_output = backend.compile_module(&module.mir, name)?;
+    let mir = module.mir(target.name.as_str());
+    let compile_output = backend.compile_module(mir, name)?;
 
     // determine file type and create artifact
     let (file_type, content) = match target.output {

@@ -8,15 +8,16 @@ impl Compiler {
     pub(super) fn resolve_module_direct(&self, module_id: ModuleId) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mut tree = module.dir.tree.write();
-        let mut symbols = module.dir.symbols.write();
+        let dir = module.dir();
+        let mut tree = dir.tree.write();
+        let mut symbols = dir.symbols.write();
         let mut collector = TaskResultCollector::new();
 
         // resolve expressions
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             self.collect(
                 &mut collector,
-                self.resolve_expression(&module, expression_id, &mut tree, &mut symbols),
+                self.resolve_expression(&module, dir, expression_id, &mut tree, &mut symbols),
             );
         }
 
@@ -24,7 +25,7 @@ impl Compiler {
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
             self.collect(
                 &mut collector,
-                self.resolve_dependency_item(&module, item_id, &mut tree, &mut symbols),
+                self.resolve_dependency_item(&module, dir, item_id, &mut tree, &mut symbols),
             );
         }
 
@@ -32,7 +33,7 @@ impl Compiler {
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
             self.collect(
                 &mut collector,
-                self.resolve_declaration(&module, declaration_id, &mut tree, &mut symbols),
+                self.resolve_declaration(&module, dir, declaration_id, &mut tree, &mut symbols),
             );
         }
 
@@ -48,8 +49,9 @@ impl Compiler {
     pub(super) fn resolve_module_canonical(&self, module_id: ModuleId) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
 
         // collect symbols that have target_symbol but no canonical_symbol
         // (only include symbols with primary_declaration, others are internal/incomplete)

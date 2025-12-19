@@ -63,19 +63,20 @@ pub fn prepare_type_hierarchy(
 
     // check if it's a type
     let module = session.modules.get(canonical_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
     let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
 
     // get the name
-    let name = symbol
-        .name()
-        .map(|id| module_guard.ast.strings.get(id).to_string())?;
+    let name = symbol.name().map(|id| ast.strings.get(id).to_string())?;
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     // get the definition span
     let selection_range = get_symbol_definition_span(session, canonical_id)?;
@@ -105,8 +106,11 @@ pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierar
 
     // get the lineage for this type
     let module = session.modules.get(canonical_id.module_id);
-    let module_guard = module.read();
-    let types = module_guard.dir.types.read();
+    let module = module.read();
+    let Some(dir) = &module.dir else {
+        return Vec::new();
+    };
+    let types = dir.types.read();
     let Some(lineage) = types.get_lineage_for_symbol(canonical_id) else {
         return Vec::new();
     };
@@ -126,7 +130,7 @@ pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierar
     supertype_ids.extend(lineage.embedded.iter().copied());
 
     drop(types);
-    drop(module_guard);
+    drop(module);
 
     // convert to TypeHierarchyItems
     supertype_ids
@@ -147,8 +151,11 @@ pub fn subtypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarch
 
     // search all modules for types that extend/implement this type
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let types = module_guard.dir.types.read();
+        let module = module.read();
+        let Some(dir) = &module.dir else {
+            continue;
+        };
+        let types = dir.types.read();
 
         for (symbol_id, lineage) in types.iter_lineages() {
             // check if this type extends or implements our target
@@ -175,16 +182,17 @@ pub fn type_hierarchy_item_from_symbol(
     symbol_id: GlobalSymbolId,
 ) -> Option<TypeHierarchyItem> {
     let module = session.modules.get(symbol_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
-    let name = symbol
-        .name()
-        .map(|id| module_guard.ast.strings.get(id).to_string())?;
+    let name = symbol.name().map(|id| ast.strings.get(id).to_string())?;
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     let selection_range = get_symbol_definition_span(session, symbol_id)?;
 

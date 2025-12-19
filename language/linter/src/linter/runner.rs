@@ -90,7 +90,7 @@ impl LintRunner {
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
         let module = module.read();
-        let ast = &module.ast;
+        let ast = &module.ast();
         let file = program.files.get(module.file_id);
         let mut ctx = LintModuleAstContext::new(
             program,
@@ -126,14 +126,15 @@ impl LintRunner {
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.read();
-        let ast = &module.ast;
+        let ast = &module.ast();
         let file = program.files.get(module.file_id);
-        let tree = module.dir.tree.read();
-        let symbols = module.dir.symbols.read();
-        let types = module.dir.types.read();
-        let namespace_exports = module.dir.namespace_exports.read();
-        let imported_modules = module.dir.imported_modules.read();
-        let exported_symbols = module.dir.exported_symbols.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
+        let namespace_exports = dir.namespace_exports.read();
+        let imported_modules = dir.imported_modules.read();
+        let exported_symbols = dir.exported_symbols.read();
         let mut ctx = LintModuleDirContext::new(
             program,
             &module,
@@ -142,10 +143,10 @@ impl LintRunner {
             &tree,
             &symbols,
             &types,
-            module.dir.roots.clone(),
-            module.dir.namespace_symbol,
-            module.dir.namespace_scope,
-            module.dir.default_symbol,
+            dir.roots.clone(),
+            dir.namespace_symbol,
+            dir.namespace_scope,
+            dir.default_symbol,
             namespace_exports.clone(),
             imported_modules.clone(),
             exported_symbols.clone(),

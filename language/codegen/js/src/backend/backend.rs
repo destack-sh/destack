@@ -40,12 +40,15 @@ pub fn generate_module(
         });
     }
 
-    // get module and acquire read locks
+    // get module
     let module_ref = program.modules.get(module_id);
     let module = module_ref.read();
-    let dir_tree = module.dir.tree.read();
-    let symbols = module.dir.symbols.read();
-    let types = module.dir.types.read();
+    let ast = module.ast();
+    let dir = module.dir();
+    let dir_tree = dir.tree.read();
+    let dir_roots = dir.roots.clone();
+    let symbols = dir.symbols.read();
+    let types = dir.types.read();
 
     // get package path and root_dir for output path resolution
     let package = program.packages.get(module.package_id);
@@ -58,7 +61,9 @@ pub fn generate_module(
     drop(package);
 
     // create lowerer and process
-    let mut lowerer = ModuleLowerer::new(&module, &module.ast, &dir_tree, &symbols, &types, target);
+    let mut lowerer = ModuleLowerer::new(
+        &module, ast, &dir_tree, &dir_roots, &symbols, &types, target,
+    );
     lowerer.lower_module()?;
 
     // finish and get artifacts + warnings

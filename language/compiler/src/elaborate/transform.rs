@@ -6,57 +6,18 @@ use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult};
 
-// # Elaborate Transform
-//
-// This module transforms high-level pattern matching constructs into explicit
-// control flow (if-else chains) with type checks and field accesses.
-//
-// ## Design Philosophy: Abstract Type Checks
-//
-// Type checks like `value is SomeType` are emitted as-is in DIR, without
-// trying to predict how they'll be implemented at runtime. This keeps the
-// elaborate phase target-independent.
-//
-// For example, when matching `Point(x, y)` where Point is a newtype:
-// - We emit `value is Point` as the type check
-// - We emit `value[0]`, `value[1]` for field extraction
-//
-// How these operations are *implemented* is the codegen's responsibility:
-// - JS: newtypes may be erased (no check needed), or use discriminant fields
-// - Native: may use type tags, vtables, or discriminant fields
-//
-// If a target cannot implement a particular pattern, it should emit an error
-// at codegen time rather than elaborate trying to predict what's possible.
-//
-// ## Pattern Categories
-//
-// | Pattern              | Type Check        | Field Access           |
-// |----------------------|-------------------|------------------------|
-// | Expression (literal) | `value == lit`    | N/A                    |
-// | Wildcard             | none              | N/A                    |
-// | Binding              | guard only        | N/A                    |
-// | TaggedTuple          | `value is Type`   | `value[0]`, `value[1]` |
-// | TaggedObject         | `value is Type`   | `value.field`          |
-// | Tuple (anonymous)    | none (structural) | `value[0]`, `value[1]` |
-// | Object (anonymous)   | none (structural) | `value.field`          |
-
 impl Compiler {
-    /// Transform a module: semantic simplifications for constructs no target supports.
-    ///
-    /// Transformations (in order):
+    /// Transform a module with target-independent simplifications:
     /// 1. `if let` → if + explicit binding
     /// 2. `match` → decision trees (if-else chains)
     /// 3. Expressions as values → temp + assignments
-    ///
-    /// Note: simple destructuring patterns are NOT transformed here.
-    /// They remain in DIR for targets to handle (JS emits native destructuring,
-    /// native/lower expands to field accesses).
     pub(super) fn elaborate_module_transform(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mut tree = module.dir.tree.write();
-        let symbols = module.dir.symbols.read();
-        let types = module.dir.types.read();
+        let dir = module.dir();
+        let mut tree = dir.tree.write();
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
 
         // pass 1: if-let → if + binding
         self.transform_if_let(&mut tree, &symbols, &types)?;

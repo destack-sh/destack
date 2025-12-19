@@ -4,7 +4,8 @@
 //! This is the JS codegen entry point, used for JS/TS targets.
 
 use destack_base::StringPool;
-use destack_dir::{NodeTree as DirTree, SymbolTable, TypeTable};
+use destack_dir as dir;
+use destack_dir::{SymbolTable, TypeTable};
 use destack_source::FileType;
 use destack_workspace::{
     Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, Module, ModuleAst,
@@ -27,21 +28,24 @@ pub struct CodegenJsOutput {
 
 /// Context for lowering a DIR module to JS AST.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ModuleLowerer<'a> {
     /// The source module.
     pub(crate) module: &'a Module,
     /// The source module AST.
     pub(crate) ast: &'a ModuleAst,
 
+    /// The DIR roots.
+    pub(crate) dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
     /// The DIR tree.
-    pub(crate) dir_tree: &'a DirTree,
-    /// The symbol table (for future use).
-    #[allow(dead_code)]
+    pub(crate) dir_tree: &'a dir::NodeTree,
+    /// The symbol table.
     pub(crate) symbols: &'a SymbolTable,
     /// The type table.
     pub(crate) types: &'a TypeTable,
     /// The target configuration.
     pub(crate) target: &'a Target,
+
     /// The output JS AST tree.
     pub(crate) tree: JsTree,
     /// Root nodes in the output.
@@ -59,7 +63,8 @@ impl<'a> ModuleLowerer<'a> {
     pub fn new(
         module: &'a Module,
         ast: &'a ModuleAst,
-        dir_tree: &'a DirTree,
+        dir_tree: &'a dir::NodeTree,
+        dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
         symbols: &'a SymbolTable,
         types: &'a TypeTable,
         target: &'a Target,
@@ -68,6 +73,7 @@ impl<'a> ModuleLowerer<'a> {
             module,
             ast,
             dir_tree,
+            dir_roots,
             symbols,
             types,
             target,
@@ -91,7 +97,7 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower the module to JS AST.
     pub fn lower_module(&mut self) -> CodegenJsResult<()> {
-        for expression_id in self.module.dir.roots.iter() {
+        for expression_id in self.dir_roots.iter() {
             match self.lower_expression(*expression_id) {
                 Ok(root_id) => self.roots.push(root_id),
                 Err(error) => self.error(error),

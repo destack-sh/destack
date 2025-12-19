@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::{FileId, ModuleId};
 
+use crate::Session;
 use crate::query::common::get_module_by_file_id;
-use crate::{Module, Session};
 
 /// The kind of completion context at a cursor position.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,14 +54,20 @@ pub struct ContextResult {
 
 /// Detect the completion context at a given offset.
 pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32) -> ContextResult {
+    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file_id) else {
         return ContextResult {
             context: CompletionContext::Unknown,
             token: None,
         };
     };
-
-    let module_guard = module.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return ContextResult {
+            context: CompletionContext::Unknown,
+            token: None,
+        };
+    };
 
     // get the source text from the file
     let source_file = session.files.get(file_id);
@@ -85,8 +91,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     if after_dot {
         // find enclosing AST nodes at the position before the dot
         let before_dot = offset.saturating_sub(1);
-        let enclosing = module_guard
-            .ast
+        let enclosing = ast
             .tree
             .source_map
             .get_enclosing_spans(before_dot, before_dot);
@@ -95,7 +100,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         let mut enclosing = enclosing;
         enclosing.sort_by_key(|e| e.length);
 
-        let dir_tree = module_guard.dir.tree.read();
+        let dir_tree = dir.tree.read();
 
         // look for a member expression or an expression to the left
         for enc in &enclosing {
@@ -151,7 +156,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     }
 
     // default to value position
-    let scope_id = find_scope_at_offset(&module_guard, offset);
+    let scope_id = find_scope_at_offset(ast, dir, offset);
 
     ContextResult {
         context: CompletionContext::ValuePosition { scope_id },
@@ -275,13 +280,13 @@ fn detect_import_context(source: &str, offset: u32) -> Option<CompletionContext>
 }
 
 /// Find the scope at a given offset.
-fn find_scope_at_offset(module: &Module, offset: u32) -> Option<dir::LocalScopeId> {
+fn find_scope_at_offset(
+    ast: &crate::ModuleAst,
+    dir: &crate::ModuleDir,
+    offset: u32,
+) -> Option<dir::LocalScopeId> {
     // find enclosing AST nodes
-    let enclosing = module
-        .ast
-        .tree
-        .source_map
-        .get_enclosing_spans(offset, offset);
+    let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -290,7 +295,7 @@ fn find_scope_at_offset(module: &Module, offset: u32) -> Option<dir::LocalScopeI
     let mut enclosing = enclosing;
     enclosing.sort_by_key(|e| e.length);
 
-    let dir_tree = module.dir.tree.read();
+    let dir_tree = dir.tree.read();
 
     // find the innermost node - we need to get the scope for the node
     for enclosing in &enclosing {

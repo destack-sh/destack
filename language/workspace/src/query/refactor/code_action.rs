@@ -128,10 +128,9 @@ fn collect_diagnostic_fixes(
     actions: &mut Vec<CodeAction>,
 ) {
     // iterate through all programs to find diagnostics for this file
-    for program_ref in session.programs.iter() {
-        let program = program_ref.value();
+    for program in session.programs.iter() {
+        let program = program.value();
         let diagnostics = program.diagnostics.iter();
-
         for diagnostic in diagnostics {
             // skip diagnostics for other files
             if diagnostic.file_id != file {

@@ -90,8 +90,11 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
         return Vec::new();
     };
 
-    let module_guard = module.read();
-    let dir_tree = module_guard.dir.tree.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let dir_tree = dir.tree.read();
 
     let mut symbols = Vec::new();
 
@@ -113,17 +116,16 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
         let descriptor = declaration.descriptor();
         let name = descriptor
             .name
-            .map(|string_id| module_guard.ast.strings.get(string_id).to_string())
+            .map(|string_id| ast.strings.get(string_id).to_string())
             .unwrap_or_else(|| "<anonymous>".to_string());
 
         // get spans
         let ast_node_id = dir_tree.get_source(declaration_id.id);
-        let full_span = module_guard.ast.tree.source_map.get(ast_node_id);
+        let full_span = ast.tree.source_map.get(ast_node_id);
         let range = Span::new(file, full_span.start, full_span.end);
 
         // get main span (name span) if available
-        let selection_range = module_guard
-            .ast
+        let selection_range = ast
             .tree
             .source_map
             .get_main(ast_node_id)

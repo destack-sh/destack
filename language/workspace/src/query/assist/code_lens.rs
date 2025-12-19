@@ -103,47 +103,52 @@ impl CodeLens {
 /// Code lenses appear as inline annotations above functions, classes, etc.
 /// Common uses: reference counts, "Run Test" buttons, implementation counts.
 pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
+    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let module_id = module.id;
+    let dir_tree = dir.tree.read();
+    let symbols = dir.symbols.read();
 
     let mut lenses = Vec::new();
-    let module_guard = module.read();
-    let module_id = module_guard.id;
-    let dir_tree = module_guard.dir.tree.read();
-    let symbols = module_guard.dir.symbols.read();
 
     // collect declarations and their info
     let declarations: Vec<_> = dir_tree
         .iter_nodes_of_type::<dir::Declaration>()
-        .map(|(decl_id, decl)| {
-            let symbol_id = decl.symbol();
-            let ast_node_id = dir_tree.get_source(decl_id.id);
-            let main_span = module_guard
-                .ast
-                .tree
-                .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
-            let name = symbols
-                .get_symbol(symbol_id)
-                .name()
-                .map(|id| module_guard.ast.strings.get(id).to_string());
-            let symbol_type = symbols.get_symbol(symbol_id).ty;
-            (
-                decl.clone(),
-                GlobalSymbolId {
-                    module_id,
-                    local_id: symbol_id,
-                },
-                main_span,
-                name,
-                symbol_type,
-            )
-        })
+        .map(
+            |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
+                let symbol_id = decl.symbol();
+                let ast_node_id = dir_tree.get_source(decl_id.id);
+                let main_span = ast
+                    .tree
+                    .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
+                let name = symbols
+                    .get_symbol(symbol_id)
+                    .name()
+                    .map(|id| ast.strings.get(id).to_string());
+                let symbol_type = symbols.get_symbol(symbol_id).ty;
+                (
+                    decl.clone(),
+                    GlobalSymbolId {
+                        module_id,
+                        local_id: symbol_id,
+                    },
+                    main_span,
+                    name,
+                    symbol_type,
+                )
+            },
+        )
         .collect();
 
     drop(symbols);
     drop(dir_tree);
-    drop(module_guard);
+    drop(module);
 
     for (declaration, global_symbol_id, main_span, name, symbol_type) in declarations {
         let Some(span) = main_span else {
@@ -193,8 +198,9 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let mut count = 0;
 
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let dir_tree = module_guard.dir.tree.read();
+        let module = module.read();
+        let Some(dir) = &module.dir else { continue };
+        let dir_tree = dir.tree.read();
 
         for (_, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             if let Some(target) = expr.target_symbol() {
@@ -215,8 +221,9 @@ fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize 
     let mut count = 0;
 
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let types = module_guard.dir.types.read();
+        let module = module.read();
+        let Some(dir) = &module.dir else { continue };
+        let types = dir.types.read();
 
         for (_, lineage) in types.iter_lineages() {
             if lineage.directly_implements(canonical_id) {
@@ -234,8 +241,9 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     let mut count = 0;
 
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let types = module_guard.dir.types.read();
+        let module = module.read();
+        let Some(dir) = &module.dir else { continue };
+        let types = dir.types.read();
 
         for (_, lineage) in types.iter_lineages() {
             if lineage.directly_extends(canonical_id) {

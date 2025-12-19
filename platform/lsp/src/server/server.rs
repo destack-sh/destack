@@ -1418,23 +1418,22 @@ fn format_file(
     // try to use module's pre-parsed AST
     if let Some(module_lock) = query::get_module_by_file_id(session, file_id) {
         let module = module_lock.read();
-        if !module.ast.tokens.is_empty() {
-            // use module's AST
-            let side_span = Parser::compute_side_span_from_tree(&module.ast.tree);
-            let strings = module.ast.strings.clone().into_immutable();
+        if let Some(ast) = &module.ast {
+            let side_span = Parser::compute_side_span_from_tree(&ast.tree);
+            let strings = ast.strings.clone().into_immutable();
             let context = DestackFormatContext {
                 options: format_options,
                 file: file.as_ref(),
-                tree: &module.ast.tree,
-                source_map: &module.ast.tree.source_map,
-                parents: module.ast.parents.clone(),
-                tokens: &module.ast.tokens,
-                side_tokens: &module.ast.side_tokens,
+                tree: &ast.tree,
+                source_map: &ast.tree.source_map,
+                parents: ast.parents.clone(),
+                tokens: &ast.tokens,
+                side_tokens: &ast.side_tokens,
                 side_span: &side_span,
                 strings: &strings,
             };
 
-            return format_expressions(&context, &module.ast.roots);
+            return format_expressions(&context, &ast.roots);
         }
     }
 
