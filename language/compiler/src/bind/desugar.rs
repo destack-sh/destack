@@ -1,46 +1,23 @@
-use destack_dir::{
-    AssignOperator, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType, SymbolTable,
-    TypeTable,
-};
-use destack_source::ModuleId;
+use destack_dir::{AssignOperator, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType};
+use destack_workspace::Module;
 
-use crate::{Compiler, ElaborateResult};
+use crate::Compiler;
 
 #[allow(clippy::single_match)]
 impl Compiler {
-    /// Desugar a module: syntactic simplification (no type info needed).
-    ///
-    /// Transforms:
+    /// Desugare module syntactically: transforms that don't need type information:
     /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
-    /// - `RangeExpression` → iterator construction
-    /// - `TreeExpression` → runtime construction calls
-    /// - `Maybe`/`Must` → explicit error handling (if not overloaded)
-    pub(super) fn desugar_module(&self, module_id: ModuleId) -> ElaborateResult<()> {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
+    pub(super) fn bind_module_desugar(&self, module: &Module) {
         let mut tree = module.dir.tree.write();
-        let symbols = module.dir.symbols.read();
-        let types = module.dir.types.read();
 
         // desugar expressions
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.desugar_expression(expression_id, &mut tree, &symbols, &types)?;
+            self.desugar_expression(expression_id, &mut tree);
         }
-
-        // desugar annotations
-        // TODO #Incomplete: desugar annotations (function annotations into expressions)
-
-        Ok(())
     }
 
     /// Desugar an expression.
-    pub(super) fn desugar_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
-    ) -> ElaborateResult<()> {
+    fn desugar_expression(&self, expression_id: LocalNodeId<Expression>, tree: &mut NodeTree) {
         let scope = tree.get_scope(expression_id);
         let expression = tree.get(expression_id).clone();
         match expression {
@@ -75,9 +52,7 @@ impl Compiler {
             }
 
             _ => {}
-        };
-
-        Ok(())
+        }
     }
 }
 
@@ -134,10 +109,10 @@ let x: number = 0;
 x += 1;
 ",
         );
-        test.elaborate_module(module_id);
+        test.bind_module(module_id);
         test.compile();
         test.check_clean();
-        test.assert_elaborated(
+        test.assert_bound(
             module_id,
             r#"
 let x = 0;

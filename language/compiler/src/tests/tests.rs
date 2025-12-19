@@ -421,4 +421,15 @@ impl TestProgram {
             panic!("elaborated code mismatch");
         }
     }
+
+    /// Assert that a module's DIR has been bound (and desugared) to the given AST.
+    pub fn assert_bound(&self, module_id: ModuleId, expected: &str) {
+        let unbound = self.unbind_to_string(module_id);
+        let unbound = unbound.trim();
+        let expected = expected.trim();
+        if unbound != expected {
+            print_diff(expected, unbound);
+            panic!("bound code mismatch");
+        }
+    }
 }
