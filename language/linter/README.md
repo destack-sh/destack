@@ -134,11 +134,11 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-missing-override` | ErrorProne | DIR | ✗ | 🔶 | Safe | Warn when method overrides parent without `override` keyword |
 | `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | Safe | Disallow negation in the left operand of equality tests |
 | `no-prototype-builtins` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow calling Object.prototype methods directly on objects |
-| `no-redundant-match-guard` | Destack | DIR | ✓ | 🔶 | Safe | Disallow match guards that are always true or false |
+| `no-redundant-match-guard` | Destack | AST | ✓ | 🔶 | Safe | Disallow match guards that are always true or false |
 | `no-redundant-pattern` | Destack | AST | ✓ | ✅ | Safe | Disallow patterns that bind nothing useful |
 | `no-return-assign` | ESLint | AST | ✓ | ✅ | None | Disallow assignment operators in return statements |
 | `no-self-assign` | ESLint | AST | ✓ | ✅ | Safe | Disallow assignments where both sides are exactly the same |
-| `no-shadow-restricted-names` | ESLint | DIR | ✓ | 🔶 | None | Disallow shadowing of restricted names |
+| `no-shadow-restricted-names` | ESLint | AST | ✓ | 🔶 | None | Disallow shadowing of restricted or builtin names |
 | `no-single-element-tuple` | Destack | AST | ✓ | ✅ | Safe | Warn on single-element tuples that may be accidental |
 | `no-template-curly-in-string` | ESLint | AST | ✓ | ✅ | Safe | Disallow template literal placeholder syntax in regular strings |
 | `no-throw-literal` | ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow throwing literals instead of Error objects |

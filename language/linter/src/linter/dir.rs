@@ -8,6 +8,14 @@ use {destack_ast as ast, destack_dir as dir};
 
 use crate::{LintDiagnostic, LintMeta};
 
+/// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
+#[derive(Debug, Clone, Copy)]
+struct LintSeverityOverride {
+    severity: LintSeverity,
+    /// `@forbid` prevents inner scopes from overriding.
+    is_forbidden: bool,
+}
+
 /// Context for DIR-level linting of a single module. Unfurls ModuleDir.
 pub struct LintModuleDirContext<'a> {
     /// The program containing this module.
@@ -130,11 +138,99 @@ impl<'a> LintModuleDirContext<'a> {
     pub fn get_effective_severity<T: dir::Node>(
         &self,
         meta: &LintMeta,
-        _node_id: dir::LocalNodeId<T>,
+        node_id: dir::LocalNodeId<T>,
     ) -> LintSeverity {
-        // nocheckin TODO #Incomplete: pre-compute decorator suppressions in context,
-        //  (then walk ancestors here checking the pre-parsed map)
-        self.get_severity(meta)
+        // walk up parent chain, collecting decorator overrides (innermost first)
+        let mut overrides: Vec<LintSeverityOverride> = Vec::new();
+        let mut current = Some(node_id.id);
+
+        while let Some(id) = current {
+            for annotation_id in self.tree.get_annotations(id) {
+                if let Some(item) = self.parse_decorator(annotation_id, meta) {
+                    overrides.push(item);
+                }
+            }
+            current = self.tree.get_parent_id(id);
+        }
+
+        // apply from outermost to innermost (reverse since we collected innermost first)
+        let mut effective = self.get_severity(meta);
+        let mut is_forbidden = false;
+
+        for item in overrides.into_iter().rev() {
+            if is_forbidden {
+                continue;
+            }
+            effective = item.severity;
+            is_forbidden = item.is_forbidden;
+        }
+
+        effective
+    }
+
+    /// Parse a decorator annotation and return the severity override if it matches this lint.
+    fn parse_decorator(
+        &self,
+        annotation_id: dir::LocalNodeId<dir::Annotation>,
+        meta: &LintMeta,
+    ) -> Option<LintSeverityOverride> {
+        let annotation = self.tree.get(annotation_id);
+        let dir::Annotation::Decorator {
+            left, arguments, ..
+        } = annotation
+        else {
+            return None;
+        };
+
+        // extract path from the decorator expression
+        let left_expression = self.tree.get(*left);
+        let path = match left_expression {
+            dir::Expression::LocalReference { path, .. }
+            | dir::Expression::ModuleReference { path, .. }
+            | dir::Expression::GlobalReference { path, .. }
+            | dir::Expression::UnresolvedPath { path, .. } => path,
+            _ => return None,
+        };
+
+        // check decorator name (must be single segment: allow, warn, deny, forbid)
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let name = self.program.strings.get(path.segments[0]);
+        let (severity, is_forbidden) = match name.as_ref() {
+            "allow" => (LintSeverity::Off, false),
+            "warn" => (LintSeverity::Warning, false),
+            "deny" => (LintSeverity::Error, false),
+            "forbid" => (LintSeverity::Error, true),
+            _ => return None,
+        };
+
+        // extract the string argument (lint ID or code)
+        let arguments = arguments.as_ref()?;
+        let first_argument = self.tree.get(*arguments.first()?);
+        let dir::Argument::Positional { value } = first_argument else {
+            return None;
+        };
+
+        let argument_expression = self.tree.get(*value);
+        let dir::Expression::ScalarLiteral {
+            value: dir::ScalarLiteral::String(string_id),
+        } = argument_expression
+        else {
+            return None;
+        };
+
+        // match against lint ID or code
+        let specifier = self.program.strings.get(*string_id);
+        if specifier.as_ref() == meta.id || specifier.as_ref() == meta.code {
+            Some(LintSeverityOverride {
+                severity,
+                is_forbidden,
+            })
+        } else {
+            None
+        }
     }
 
     /// Report a lint diagnostic.
@@ -173,5 +269,124 @@ impl<'a> LintModuleDirContext<'a> {
     /// Create an EditBuilder with source text for text-aware operations.
     pub fn edit_builder(&self) -> EditBuilder<'_> {
         EditBuilder::from_file(self.module.file_id, self.file.text())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::LintLevel;
+    use crate::linter::TestProgram;
+    use crate::rules::correctness::NoSelfCompare;
+
+    #[test]
+    fn test_allow_suppresses_by_id() {
+        let test = TestProgram::for_rule(NoSelfCompare);
+        let result = test.lint(
+            "test.ds",
+            r#"
+@allow("no-self-compare")
+function foo() {
+    let x = 1
+    x == x
+}
+"#,
+            LintLevel::Dir,
+        );
+        test.check_clean();
+        test.result(result).assert_no_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_allow_suppresses_by_code() {
+        let test = TestProgram::for_rule(NoSelfCompare);
+        let result = test.lint(
+            "test.ds",
+            r#"
+@allow("LC004")
+function foo() {
+    let x = 1
+    x == x
+}
+"#,
+            LintLevel::Dir,
+        );
+        test.check_clean();
+        test.result(result).assert_no_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_allow_does_not_affect_other_lints() {
+        let test = TestProgram::for_rule(NoSelfCompare);
+        let result = test.lint(
+            "test.ds",
+            r#"
+@allow("some-other-lint")
+function foo() {
+    let x = 1
+    x == x
+}
+"#,
+            LintLevel::Dir,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_forbid_prevents_inner_allow() {
+        let test = TestProgram::for_rule(NoSelfCompare);
+        let result = test.lint(
+            "test.ds",
+            r#"
+@forbid("no-self-compare")
+function outer() {
+    @allow("no-self-compare")
+    function inner() {
+        let x = 1
+        x == x
+    }
+}
+"#,
+            LintLevel::Dir,
+        );
+        test.check_clean();
+        // inner @allow should be ignored due to outer @forbid
+        test.result(result).assert_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_warn_changes_severity() {
+        let test = TestProgram::for_rule(NoSelfCompare);
+        let result = test.lint(
+            "test.ds",
+            r#"
+@warn("no-self-compare")
+function foo() {
+    let x = 1
+    x == x
+}
+"#,
+            LintLevel::Dir,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-self-compare");
+    }
+
+    #[test]
+    fn test_deny_changes_severity() {
+        let test = TestProgram::for_rule(NoSelfCompare);
+        let result = test.lint(
+            "test.ds",
+            r#"
+@deny("no-self-compare")
+function foo() {
+    let x = 1
+    x == x
+}
+"#,
+            LintLevel::Dir,
+        );
+        test.check_clean();
+        test.result(result).assert_lint("no-self-compare");
     }
 }
