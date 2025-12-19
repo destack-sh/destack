@@ -44,6 +44,9 @@ pub struct LintModuleDirContext<'a> {
     /// Linter configuration.
     pub options: &'a LinterOptions,
 
+    /// Whether to compute fixes for diagnostics.
+    pub compute_fixes: bool,
+
     /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
 }
@@ -75,6 +78,7 @@ impl<'a> LintModuleDirContext<'a> {
         imported_modules: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
         exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>,
         options: &'a LinterOptions,
+        compute_fixes: bool,
     ) -> Self {
         Self {
             program,
@@ -92,6 +96,7 @@ impl<'a> LintModuleDirContext<'a> {
             imported_modules,
             exported_symbols,
             options,
+            compute_fixes,
             diagnostics: Vec::new(),
         }
     }
@@ -115,6 +120,19 @@ impl<'a> LintModuleDirContext<'a> {
     /// Check if a rule is enabled.
     pub fn is_rule_enabled(&self, meta: &LintMeta) -> bool {
         self.get_severity(meta).is_enabled()
+    }
+
+    /// Get effective severity for a rule at a specific node.
+    ///
+    /// This checks for `@allow`/`@deny`/`@warn`/`@forbid` decorators on the node
+    /// and its ancestors, returning the effective severity at that location.
+    pub fn get_effective_severity<T: dir::Node>(
+        &self,
+        meta: &LintMeta,
+        _node_id: dir::LocalNodeId<T>,
+    ) -> LintSeverity {
+        // nocheckin TODO #Incomplete: walk up parents checking for @allow/@deny/@warn/@forbid decorators
+        self.get_severity(meta)
     }
 
     /// Report a lint diagnostic.

@@ -74,6 +74,13 @@ pub enum AccessorKind {
     Accessor,
 }
 
+/// The evaluation timing of a binding.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Timing {
+    /// Must be evaluated at compile time.
+    Comptime,
+}
+
 /// The modifiers of a field-like item.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct BindingModifier {
@@ -89,6 +96,8 @@ pub struct BindingModifier {
     pub operator: Option<BindingOperator>,
     /// The accessor kind of the binding.
     pub accessor: Option<AccessorKind>,
+    /// The evaluation timing of the binding.
+    pub timing: Option<Timing>,
 }
 
 /// The mode of a function.

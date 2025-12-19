@@ -35,7 +35,7 @@ struct DecoratorInfo {
 /// @deprecated("use newAPI instead")
 /// function oldAPI() { }
 /// ```
-newtype deprecated = string | void;
+newtype deprecated = (string,) | ();
 
 /// Marks something as experimental/unstable.
 ///
@@ -43,35 +43,42 @@ newtype deprecated = string | void;
 /// @experimental
 /// function newFeature() { }
 /// ```
-newtype experimental = string | void;
+newtype experimental = (string,) | ();
 
 /// Allow some diagnostic.
 /// ```
 /// @allow(E001)
 /// function oldAPI() { }
 /// ```
-newtype allow = string | void;
+newtype allow = (string,) | ();
 
 /// Warn on some diagnostic.
 /// ```
 /// @warn(E001)
 /// function oldAPI() { }
 /// ```
-newtype warn = string | void;
+newtype warn = (string,) | ();
 
-/// Error on some diagnostic.
+/// Deny some diagnostic with an error.
 /// ```
-/// @error(E001)
+/// @deny(E001)
 /// function oldAPI() { }
 /// ```
-newtype error = string | void;
+newtype deny = (string,) | ();
+
+/// Forbid some diagnostic (cannot be allowed later).
+/// ```
+/// @forbid(E001)
+/// function oldAPI() { }
+/// ```
+newtype forbid = (string,) | ();
 
 /// Expect some diagnostic.
 /// ```
 /// @expect(E001)
 /// function oldAPI() { }
 /// ```
-newtype expect = string | void;
+newtype expect = (string,) | ();
 
 /// Compiler intrinsic marker.
 ///
@@ -82,7 +89,7 @@ newtype expect = string | void;
 /// @intrinsic
 /// declare function typeOf<T>(value: T): Type<T>;
 /// ```
-newtype intrinsic = void;
+newtype intrinsic = ();
 
 /// Inline hint for the optimizer.
 ///
@@ -93,7 +100,7 @@ newtype intrinsic = void;
 /// @inline
 /// function add(a: int, b: int): int { a + b }
 /// ```
-newtype inline = void;
+newtype inline = ();
 
 /// No-inline hint for the optimizer.
 ///
@@ -103,7 +110,7 @@ newtype inline = void;
 /// @noinline
 /// function complexCalculation() { ... }
 /// ```
-newtype noinline = void;
+newtype noinline = ();
 
 /// Loop unroll hint for the optimizer.
 ///
@@ -117,4 +124,4 @@ newtype noinline = void;
 /// @unroll(4)
 /// for (let i = 0; i < 16; i++) { }
 /// ```
-newtype unroll = int | void;
+newtype unroll = (int,) | ();

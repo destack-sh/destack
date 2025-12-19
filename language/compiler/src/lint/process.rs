@@ -50,7 +50,8 @@ impl Compiler {
         }
 
         let module = self.program.modules.get(module_id);
-        let runner = LintRunner::from_options(&options);
+        // don't compute fixes, we just report diagnostics here
+        let runner = LintRunner::from_options(&options).with_fixes(false);
 
         // run at each IR level
         let ast_diagnostics = runner.lint_module(

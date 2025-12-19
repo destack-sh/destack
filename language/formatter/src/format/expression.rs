@@ -2239,6 +2239,11 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [Keyword::Await, space(), expression])?;
         }
 
+        // comptime
+        Expression::Comptime { body } => {
+            write!(f, [Keyword::Comptime, space(), body])?;
+        }
+
         // yield
         Expression::Yield { cardinality, value } => {
             write!(f, [Keyword::Yield])?;

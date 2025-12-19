@@ -497,6 +497,18 @@ pub enum Expression {
     /// ```
     Parenthesized { expression: LocalNodeId<Expression> },
 
+    /// Compile time evaluated expression.
+    /// The body is evaluated at compile time and the result is embedded in the output.
+    ///
+    /// Examples:
+    /// ```
+    /// comptime 1 + 2
+    /// comptime factorial(10)
+    /// comptime { let x = compute(); x * 2 }
+    /// const TABLE = comptime { generateLookupTable() }
+    /// ```
+    Comptime { body: LocalNodeId<Expression> },
+
     /// Type unary operation (prefix or postfix).
     ///
     /// Examples:

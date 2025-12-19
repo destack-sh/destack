@@ -13,6 +13,8 @@ use crate::{
 /// Runs lint rules against modules and programs.
 pub struct LintRunner {
     rules: Vec<BoxedLintRule>,
+    /// Whether to compute fixes for diagnostics.
+    compute_fixes: bool,
 }
 
 impl std::fmt::Debug for LintRunner {
@@ -26,7 +28,21 @@ impl std::fmt::Debug for LintRunner {
 impl LintRunner {
     /// Create a runner with the given rules.
     pub fn new(rules: Vec<BoxedLintRule>) -> Self {
-        Self { rules }
+        Self {
+            rules,
+            compute_fixes: true,
+        }
+    }
+
+    /// Enable or disable fix computation (builder pattern).
+    pub fn with_fixes(mut self, compute: bool) -> Self {
+        self.compute_fixes = compute;
+        self
+    }
+
+    /// Check if fix computation is enabled.
+    pub fn compute_fixes(&self) -> bool {
+        self.compute_fixes
     }
 
     /// Create a runner with rules based on preset.
@@ -36,7 +52,10 @@ impl LintRunner {
             LintPreset::Recommended => recommended_rules(),
             LintPreset::All => all_rules(),
         };
-        Self { rules }
+        Self {
+            rules,
+            compute_fixes: true,
+        }
     }
 
     /// Create a runner from linter options.
@@ -56,7 +75,10 @@ impl LintRunner {
 
     /// Create an empty runner.
     pub fn empty() -> Self {
-        Self { rules: Vec::new() }
+        Self {
+            rules: Vec::new(),
+            compute_fixes: true,
+        }
     }
 
     /// Get the rules.
@@ -101,6 +123,7 @@ impl LintRunner {
             &ast.roots,
             &ast.strings,
             options,
+            self.compute_fixes,
         );
 
         for rule in &self.rules {
@@ -151,6 +174,7 @@ impl LintRunner {
             imported_modules.clone(),
             exported_symbols.clone(),
             options,
+            self.compute_fixes,
         );
 
         // check rules

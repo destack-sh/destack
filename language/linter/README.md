@@ -159,7 +159,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `prefer-array-find` | Unicorn | DIR | ✓ | 🔶 | Unsafe | Suggest `.find()` over manual search loops |
 | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest `.map()` over manual mapping loops |
 | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Safe | Suggest `.flatMap()` over `.map().flatten()` |
-| `prefer-match` | Destack | AST | ✓ | ✅ | Unsafe | Suggest match expressions over complex if-else chains |
+| `prefer-match` | Destack | AST | ✓ | ✅ | Unsafe | Suggest match expressions over complex if-else chains or switch statements |
 | `require-await` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow async functions with no await expressions |
 | `require-else-in-if-chain` | Destack | AST | ✓ | ✅ | Suggestion | Require final else in if-else-if chains |
 | `require-yield` | ESLint | AST | ✓ | ✅ | None | Require generator functions to contain yield |

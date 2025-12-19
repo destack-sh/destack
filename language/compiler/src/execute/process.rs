@@ -9,7 +9,7 @@ use destack_source::ModuleId;
 pub enum ExecuteTask {
     /// Execute comptime code for a module.
     #[task(code = 1, trace = "module={module}")]
-    ExecuteModule { module: ModuleId }, // nocheckin: how to structure comptime execution? synthetic function?
+    ExecuteModule { module: ModuleId }, // (placeholder, not sure yet how to structure comptime execution)
 }
 
 impl Compiler {

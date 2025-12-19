@@ -507,6 +507,130 @@ if (result.ok) {
 }
 ```
 
+## Comptime
+
+Destack supports compile-time evaluation via the `comptime` keyword, inspired by Zig.
+The compiler already evaluates pure expressions at compile time when possible as an optimization.
+The `comptime` keyword enforces compile-time evaluation: if the expression cannot be evaluated at compile time, it is a compile error.
+
+### Comptime Expressions
+
+The `comptime` keyword can wrap any expression or block:
+
+```
+// block form
+const TABLE = comptime {
+    let t = [];
+    for (let i = 0; i < 256; i++) {
+        t.push(computeCRC(i));
+    }
+    t
+};
+
+// expression form
+const VALUE = comptime 1 + 2 + 3;
+const RESULT = comptime factorial(10);
+```
+
+### Comptime Blocks
+
+Comptime blocks are block expressions evaluated at compile time.
+The block's value becomes a compile-time constant embedded in the output:
+
+```
+const doubled = comptime {
+    const x = heavyComputation();
+    x * 2
+};
+```
+
+### Comptime Semantics
+
+#### Evaluation Time
+
+| Expression | Evaluation |
+|------------|------------|
+| `const X = expr` | Module initialization (optimizer may fold) |
+| `const X = comptime expr` | Compile time (guaranteed) |
+| `const X = comptime { ... }` | Compile time (guaranteed) |
+| Static parameter values | Compile time (always) |
+
+#### Comptime-Valid Operations
+
+Comptime code must be deterministic and side-effect-free:
+
+| Operation | Comptime-Valid? |
+|-----------|-----------------|
+| Arithmetic, logic, string operations | Yes |
+| Pure function calls | Yes |
+| Accessing constants | Yes |
+| Static parameter access | Yes |
+| Creating data structures | Yes |
+| I/O: file, network, console | No |
+| Random number generation | No |
+| Runtime state access | No |
+
+#### Error Handling
+
+If comptime code uses a non-comptime operation, it is a compile error:
+
+```
+const X = comptime {
+    console.log("hello");  // compile error: I/O not allowed in comptime
+    42
+};
+```
+
+### Comptime Functions
+
+Functions are not explicitly marked as "comptime" and "not comptime".
+Any function can be called at comptime if its body is comptime-valid:
+
+```
+function factorial(n: int): int {
+    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+}
+
+// same function, different contexts
+const COMPILE_TIME = comptime factorial(10);  // evaluated at compile time
+const runtime = factorial(userInput);         // evaluated at runtime
+```
+
+The call site determines when the function runs, not the function definition.
+
+### Static Parameters
+
+Static parameters are inherently comptime.
+Their values must be known at compile time and are executed using the same mechanism as comptime expressions (because they are comptime expressions):
+
+```
+function createBuffer<Size: int>(): uint8[Size] {
+    comptime {
+        let buf = [];
+        for (let i = 0; i < Size; i++) { buf.push(0); }
+        buf
+    }
+}
+
+const buffer = createBuffer<1024>();
+```
+
+### Conditional Compilation
+
+Comptime enables conditional compilation based on build configuration:
+
+```
+const DEBUG = comptime getEnvFlag("DEBUG");
+
+function log(msg: string) {
+    if (comptime DEBUG) {
+        console.log(msg);
+    }
+}
+```
+
+When `DEBUG` is false, the compiler eliminates the entire `if` branch from the output.
+
 ## Reflection
 
 Destack makes types first-class runtime values, enabling reflection without separate metadata systems or configuration.

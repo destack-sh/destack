@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_dir::{
     AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
-    Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable, Visibility,
+    Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Timing, TypeTable, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -39,6 +39,9 @@ impl Compiler {
         let accessor = modifiers.accessor.map(|accessor| match accessor {
             ast::AccessorKind::Accessor => AccessorKind::Accessor,
         });
+        let timing = modifiers.timing.map(|timing| match timing {
+            ast::Timing::Comptime => Timing::Comptime,
+        });
         BindingModifier {
             kind,
             anchor,
@@ -46,6 +49,7 @@ impl Compiler {
             visibility,
             operator,
             accessor,
+            timing,
         }
     }
 

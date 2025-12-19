@@ -1,7 +1,7 @@
 use destack_ast::{
     AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern,
-    ScalarLiteral, StringId, TokenType,
+    ScalarLiteral, StringId, Timing, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -51,6 +51,14 @@ impl Parser {
                 modifiers = Some(BindingModifier::default());
             }
             modifiers.as_mut().unwrap().accessor = Some(AccessorKind::Accessor);
+        }
+        // timing
+        if self.peek_keyword(Keyword::Comptime).is_ok() {
+            self.bump(); // eat comptime
+            if modifiers.is_none() {
+                modifiers = Some(BindingModifier::default());
+            }
+            modifiers.as_mut().unwrap().timing = Some(Timing::Comptime);
         }
         Ok(modifiers)
     }
@@ -711,7 +719,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, BindingKind, BindingOperator, Expression, IntType, Mutability, Name, Parameter,
-        Pattern, PatternField, ScalarLiteral, TypeLiteral, Visibility,
+        Pattern, PatternField, ScalarLiteral, Timing, TypeLiteral, Visibility,
     };
 
     use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
@@ -846,6 +854,18 @@ mod tests {
             assert_eq!(modifiers.visibility, Some(Visibility::Private));
             assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
             assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_comptime() {
+        // comptime n: int32
+        let mut test = TestParser::new("comptime n: int32");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+            assert_string!(parser, *name, "n");
+            assert_eq!(modifiers.timing, Some(Timing::Comptime));
         });
     }
 

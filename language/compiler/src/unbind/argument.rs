@@ -34,6 +34,9 @@ impl Compiler {
         let accessor = modifiers.accessor.map(|accessor| match accessor {
             dir::AccessorKind::Accessor => ast::AccessorKind::Accessor,
         });
+        let timing = modifiers.timing.map(|timing| match timing {
+            dir::Timing::Comptime => ast::Timing::Comptime,
+        });
         ast::BindingModifier {
             kind,
             anchor,
@@ -41,6 +44,7 @@ impl Compiler {
             visibility,
             operator,
             accessor,
+            timing,
         }
     }
 

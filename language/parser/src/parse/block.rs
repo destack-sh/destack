@@ -338,6 +338,33 @@ impl Parser {
         Ok(await_id)
     }
 
+    /// Eat a comptime expression.
+    ///
+    /// Examples:
+    /// ```
+    /// comptime 1 + 2
+    /// comptime factorial(10)
+    /// comptime { generateLookupTable() }
+    /// ```
+    pub fn eat_comptime(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let start = self.mark();
+
+        // keyword
+        self.eat_keyword(Keyword::Comptime)?;
+
+        // body expression
+        let body_id = self.with_options(self.options.not_in_position(), |parser| {
+            parser.eat_expression()
+        })?;
+
+        // comptime
+        let comptime_id = self.tree.insert(
+            Expression::Comptime { body: body_id },
+            self.get_span_from(start),
+        );
+        Ok(comptime_id)
+    }
+
     /// Eat a yield expression.
     ///
     /// According to ECMAScript spec, yield has restricted productions:
@@ -598,6 +625,36 @@ mod tests {
             assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
                 assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_comptime_expression() {
+        let mut test = TestParser::new("comptime factorial(10)");
+        let mut parser = test.prepare();
+        let comptime_id = parser.eat_comptime().unwrap();
+        // comptime factorial(10)
+        assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
+            // factorial(10)
+            assert_node!(parser.tree, *body, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "factorial");
+                assert_eq!(dynamic_arguments.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_comptime_expression_simple() {
+        // comptime 1 + 2
+        let mut test = TestParser::new("comptime 1 + 2");
+        let mut parser = test.prepare();
+        let comptime_id = parser.eat_comptime().unwrap();
+        // comptime 1 + 2
+        assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
+            // 1 + 2
+            assert_node!(parser.tree, *body, Expression::Binary { .. } => {
+                // binary addition
             });
         });
     }
