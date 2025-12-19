@@ -23,9 +23,9 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                MIDDLE-END                                   │
 │                                                                             │
-│                   Lower ───────► Verify ───────► Optimize                   │
-│                     │              │                │                       │
-│                    MIR            CFG           Better MIR                  │
+│         Lower ───────► Verify ───────► Execute ───────► Optimize            │
+│           │              │                │                │                │
+│          MIR            CFG           Comptime         Better MIR           │
 │                                                                             │
 │              (may be skipped for some targets like JS/TS)                   │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -59,13 +59,14 @@ The front-end transforms source text into typed, elaborated DIR.
 
 ### Middle-End
 
-The middle-end lowers DIR to MIR and performs verification and optimization.
+The middle-end lowers DIR to MIR and performs verification, comptime execution, and optimization.
 This region may be skipped for targets that don't require low-level IR (e.g., JS/TS transpilation).
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
 | Lower | `M` | DIR | MIR | Lower high-level DIR to machine-level IR |
 | Verify | `V` | MIR | MIR | Verify and flow-check MIR (safety, borrowing, control flow) |
+| Execute | `C` | MIR | MIR | Execute comptime code and substitute results |
 | Optimize | `O` | MIR | MIR | Optimization passes |
 
 ### Back-End
@@ -102,6 +103,7 @@ The compiler is organized into modules corresponding to each phase.
 | `elaborate/` | Post-analysis transforms (patterns, trees, etc.) | [src/elaborate/](src/elaborate/) |
 | `lower/` | Lower DIR to MIR | [src/lower/](src/lower/) |
 | `verify/` | Verify and flow-check MIR | [src/verify/](src/verify/) |
+| `execute/` | Execute comptime code | [src/execute/](src/execute/) |
 | `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
 | `generate/` | Generate artifacts from DIR/MIR | [src/generate/](src/generate/) |
 | `link/` | Link artifacts | [src/link/](src/link/) |

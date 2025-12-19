@@ -37,10 +37,11 @@ fn phase_letter(phase: &str) -> char {
         "Elaborate" => 'E',
         "Lower" => 'M',
         "Verify" => 'V',
+        "Execute" => 'X',
         "Optimize" => 'O',
         "Generate" => 'G',
         "Link" => 'K',
-        "Emit" => 'X',
+        "Emit" => 'W',
         "Lint" => 'L',
         _ => '?',
     }

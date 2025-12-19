@@ -25,7 +25,6 @@ impl Compiler {
             self.error(error);
         }
 
-
         Ok(())
     }
 

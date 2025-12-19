@@ -2,9 +2,9 @@ use std::cell::Cell;
 use std::thread;
 
 use crate::{
-    AnalyzeError, BindError, Compiler, ElaborateError, EmitError, GenerateError, InternalError,
-    LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug, TaskDependency,
-    TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus, VerifyError,
+    AnalyzeError, BindError, Compiler, ElaborateError, EmitError, ExecuteError, GenerateError,
+    InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug,
+    TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus, VerifyError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -146,6 +146,7 @@ impl Compiler {
             Task::Elaborate(elaborate_task) => self.process_elaborate(elaborate_task).into(),
             Task::Lower(lower_task) => self.process_lower(lower_task).into(),
             Task::Verify(verify_task) => self.process_verify(verify_task).into(),
+            Task::Execute(execute_task) => self.process_execute(execute_task).into(),
             Task::Optimize(optimize_task) => self.process_optimize(optimize_task).into(),
             Task::Generate(generate_task) => self.process_generate(generate_task).into(),
             Task::Link(link_task) => self.process_link(link_task).into(),
@@ -418,6 +419,10 @@ impl Compiler {
             }
             .into(),
             TaskPhase::Verify => VerifyError::UnsatisfiedDependency {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            TaskPhase::Execute => ExecuteError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),

@@ -1,9 +1,9 @@
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeError, BindError, DiagnosticAnchor, ElaborateError, EmitError, GenerateError,
-    ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError, TaskDependency,
-    TaskId, TaskPhase, VerifyError,
+    AnalyzeError, BindError, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError,
+    GenerateError, ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
+    TaskDependency, TaskId, TaskPhase, VerifyError,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,10 +19,12 @@ pub enum TaskError {
     /// Error during elaboration.
     Elaborate(ElaborateError),
     // --------------------------------------------------
-    /// Error during lower.
+    /// Error during lowering.
     Lower(LowerError),
     /// Error during verification.
     Verify(VerifyError),
+    /// Error during execution.
+    Execute(ExecuteError),
     /// Error during optimization.
     Optimize(OptimizeError),
     // --------------------------------------------------
@@ -98,7 +100,7 @@ impl InternalError {
 
 impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EC{:03}", self.sub_code())
+        write!(f, "EZ{:03}", self.sub_code())
     }
 }
 
@@ -120,6 +122,7 @@ impl TaskError {
             Self::Elaborate(_) => Some(TaskPhase::Elaborate),
             Self::Lower(_) => Some(TaskPhase::Lower),
             Self::Verify(_) => Some(TaskPhase::Verify),
+            Self::Execute(_) => Some(TaskPhase::Execute),
             Self::Optimize(_) => Some(TaskPhase::Optimize),
             Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
@@ -133,7 +136,7 @@ impl TaskError {
     pub fn phase_letter(&self) -> char {
         match self.phase() {
             Some(phase) => phase.letter(),
-            None => 'C', // C for Compiler internal error
+            None => 'Z', // Z for internal compiler error
         }
     }
 
@@ -148,6 +151,7 @@ impl TaskError {
             Self::Elaborate(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
             Self::Verify(error) => error.sub_code(),
+            Self::Execute(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
             Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
@@ -167,6 +171,7 @@ impl TaskError {
             Self::Elaborate(error) => error.anchor(),
             Self::Lower(error) => error.anchor(),
             Self::Verify(error) => error.anchor(),
+            Self::Execute(error) => error.anchor(),
             Self::Optimize(error) => error.anchor(),
             Self::Generate(error) => error.anchor(),
             Self::Link(error) => error.anchor(),
@@ -186,6 +191,7 @@ impl TaskError {
             Self::Elaborate(error) => error.message(program),
             Self::Lower(error) => error.message(program),
             Self::Verify(error) => error.message(program),
+            Self::Execute(error) => error.message(program),
             Self::Optimize(error) => error.message(program),
             Self::Generate(error) => error.message(program),
             Self::Link(error) => error.message(program),

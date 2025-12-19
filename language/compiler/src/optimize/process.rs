@@ -24,6 +24,11 @@ impl Compiler {
         Ok(())
     }
 
+    /// Ensure a module has been optimized.
+    pub fn require_optimize(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(OptimizeTask::OptimizeModule { module })
+    }
+
     /// Optimize a module's MIR.
     fn optimize_module(&self, _module: ModuleId) -> OptimizeResult<()> {
         // NOTE #Incomplete: implement optimize
@@ -31,10 +36,5 @@ impl Compiler {
         // - constant folding
         // - inlining
         Ok(())
-    }
-
-    /// Ensure a module has been optimized.
-    pub fn require_optimize(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(OptimizeTask::OptimizeModule { module })
     }
 }
