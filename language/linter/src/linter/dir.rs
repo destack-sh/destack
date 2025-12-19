@@ -152,6 +152,6 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Create an EditBuilder with source text for text-aware operations.
     pub fn edit_builder(&self) -> EditBuilder<'_> {
-        EditBuilder::with_source(self.module.file_id, self.file.text())
+        EditBuilder::from_file(self.module.file_id, self.file.text())
     }
 }

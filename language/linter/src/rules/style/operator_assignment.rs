@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, AssignOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer compound assignment operators.
@@ -12,7 +12,7 @@ declare_lint! {
         code = "LY016",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -53,7 +53,7 @@ impl LintRule for OperatorAssignment {
             let ast::Expression::Binary {
                 left: bin_left,
                 operator,
-                right: _,
+                right: bin_right,
             } = right_expr
             else {
                 continue;
@@ -91,6 +91,15 @@ impl LintRule for OperatorAssignment {
 
             // compare the paths
             if paths_equal(left_path, bin_left_path) {
+                let expr_span = ctx.tree.get_span(node_id);
+                let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
+                let right_text = ctx.get_span_text(ctx.tree.get_span(*bin_right));
+                let replacement = format!("{left_text} {compound_op} {right_text}");
+
+                let edits = ctx.edit_builder().replace(expr_span, replacement).into_edits();
+                let fix =
+                    LintFix::safe(format!("Replace with `{compound_op}`")).with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         OPERATOR_ASSIGNMENT.id,
@@ -99,9 +108,10 @@ impl LintRule for OperatorAssignment {
                         severity,
                         format!("assignment can be simplified with `{compound_op}`"),
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        expr_span,
                     )
-                    .with_label(format!("use `{compound_op}` instead")),
+                    .with_label(format!("use `{compound_op}` instead"))
+                    .with_fix(fix),
                 );
             }
         }
@@ -188,5 +198,45 @@ x = x == 1
 "#,
         );
         test.result(result).assert_no_lint("operator-assignment");
+    }
+
+    #[test]
+    fn test_fix_add_assignment() {
+        let test = TestProgram::for_rule(OperatorAssignment);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+var x = 1
+x = x + 1
+"#,
+        );
+        test.result(result)
+            .assert_lint("operator-assignment")
+            .assert_safe_fixed(
+                r#"
+var x = 1;
+x += 1;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_multiply_assignment() {
+        let test = TestProgram::for_rule(OperatorAssignment);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+var x = 2
+x = x * 3
+"#,
+        );
+        test.result(result)
+            .assert_lint("operator-assignment")
+            .assert_safe_fixed(
+                r#"
+var x = 2;
+x *= 3;
+"#,
+            );
     }
 }

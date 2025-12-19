@@ -1,7 +1,9 @@
 use destack_ast::{self as ast, Block};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::rules::common::expression_get_block_span_str;
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `else` blocks after `return` in `if` statements.
@@ -13,7 +15,7 @@ declare_lint! {
         code = "LY014",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -41,6 +43,26 @@ impl LintRule for NoElseReturn {
 
             // check if the then block ends with a return
             if ends_with_return(ctx, *then_expression) {
+                let if_span = ctx.tree.get_span(node_id);
+                let then_span = ctx.tree.get_span(*then_expression);
+                let else_span = ctx.tree.get_span(*else_id);
+
+                // get just the if-then part (from start to end of then block)
+                let if_then_span = Span::new(if_span.file, if_span.start, then_span.end);
+                let if_then_text = ctx.get_span_text(if_then_span);
+
+                // get else content: if it's a block, get the inner content
+                let else_text = expression_get_block_span_str(ctx, *else_id);
+
+                // build replacement: if-then on one line, else content on next
+                let replacement = format!("{if_then_text}\n{else_text}");
+
+                let edits = ctx
+                    .edit_builder()
+                    .replace(if_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Remove unnecessary else").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_ELSE_RETURN.id,
@@ -49,9 +71,10 @@ impl LintRule for NoElseReturn {
                         severity,
                         "unnecessary `else` after `return`",
                         ctx.module.file_id,
-                        ctx.tree.get_span(*else_id),
+                        else_span,
                     )
-                    .with_label("remove the `else` and un-indent this code"),
+                    .with_label("remove the `else` and un-indent this code")
+                    .with_fix(fix),
                 );
             }
         }
@@ -134,5 +157,34 @@ function foo(x: boolean) {
 "#,
         );
         test.result(result).assert_no_lint("no-else-return");
+    }
+
+    #[test]
+    fn test_fix_else_after_return() {
+        let test = TestProgram::for_rule(NoElseReturn);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+function foo(x: bool): int32 {
+    if (x) {
+        return 1
+    } else {
+        return 2
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-else-return")
+            .assert_safe_fixed(
+                r#"
+function foo(x: bool): int32 {
+    if (x) {
+        return 1
+    }
+    return 2
+}
+"#,
+            );
     }
 }
