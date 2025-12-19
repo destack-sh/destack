@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_ast::StringId;
-use destack_source::{ModuleId, Span};
+use destack_source::{EditBuilder, File, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
@@ -14,6 +14,8 @@ pub struct LintModuleDirContext<'a> {
     pub program: Arc<Program>,
     /// The module being linted.
     pub module: &'a Module,
+    /// The source file.
+    pub file: Arc<File>,
 
     /// The AST tree.
     pub ast: &'a ast::NodeTree,
@@ -60,6 +62,7 @@ impl<'a> LintModuleDirContext<'a> {
     pub fn new(
         program: Arc<Program>,
         module: &'a Module,
+        file: Arc<File>,
         ast: &'a ast::NodeTree,
         tree: &'a dir::NodeTree,
         symbols: &'a dir::SymbolTable,
@@ -76,6 +79,7 @@ impl<'a> LintModuleDirContext<'a> {
         Self {
             program,
             module,
+            file,
             ast,
             tree,
             symbols,
@@ -136,10 +140,18 @@ impl<'a> LintModuleDirContext<'a> {
         self.ast.get_span_by_id(ast_node_id)
     }
 
+    /// Get the full source text.
+    pub fn source_text(&self) -> &str {
+        self.file.text()
+    }
+
     /// Get the source text for a span.
-    pub fn get_span_text(&self, span: Span) -> String {
-        let file = self.program.files.get(span.file);
-        let text = file.text();
-        text[span.start as usize..span.end as usize].to_string()
+    pub fn get_span_text(&self, span: Span) -> &str {
+        &self.file.text()[span.start as usize..span.end as usize]
+    }
+
+    /// Create an EditBuilder with source text for text-aware operations.
+    pub fn edit_builder(&self) -> EditBuilder<'_> {
+        EditBuilder::with_source(self.module.file_id, self.file.text())
     }
 }

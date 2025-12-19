@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use destack_ast::{self as ast, StringPool};
+use destack_source::{EditBuilder, File};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 
 use crate::{LintDiagnostic, LintMeta};
@@ -11,6 +12,8 @@ pub struct LintModuleAstContext<'a> {
     pub program: Arc<Program>,
     /// The module being linted.
     pub module: &'a Module,
+    /// The source file.
+    pub file: Arc<File>,
 
     /// The AST tree.
     pub tree: &'a ast::NodeTree,
@@ -41,6 +44,7 @@ impl<'a> LintModuleAstContext<'a> {
     pub fn new(
         program: Arc<Program>,
         module: &'a Module,
+        file: Arc<File>,
         tree: &'a ast::NodeTree,
         parents: &'a ast::NodeParentIndex,
         roots: &'a Vec<ast::LocalNodeId<ast::Expression>>,
@@ -50,6 +54,7 @@ impl<'a> LintModuleAstContext<'a> {
         Self {
             program,
             module,
+            file,
             tree,
             parents,
             roots,
@@ -102,10 +107,18 @@ impl<'a> LintModuleAstContext<'a> {
         &self.diagnostics
     }
 
+    /// Get the full source text.
+    pub fn source_text(&self) -> &str {
+        self.file.text()
+    }
+
     /// Get the source text for a span.
-    pub fn get_span_text(&self, span: destack_source::Span) -> String {
-        let file = self.program.files.get(span.file);
-        let text = file.text();
-        text[span.start as usize..span.end as usize].to_string()
+    pub fn get_span_text(&self, span: destack_source::Span) -> &str {
+        &self.file.text()[span.start as usize..span.end as usize]
+    }
+
+    /// Create an EditBuilder with source text for text-aware operations.
+    pub fn edit_builder(&self) -> EditBuilder<'_> {
+        EditBuilder::with_source(self.module.file_id, self.file.text())
     }
 }

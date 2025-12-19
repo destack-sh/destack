@@ -42,6 +42,12 @@ impl LintFix {
         self
     }
 
+    /// Add multiple edits.
+    pub fn with_edits(mut self, edits: impl IntoIterator<Item = Edit>) -> Self {
+        self.edits.extend(edits);
+        self
+    }
+
     /// Add a replacement edit.
     pub fn replace(mut self, span: Span, new_text: impl Into<String>) -> Self {
         self.edits.push(Edit::replace(span, new_text));
