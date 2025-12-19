@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, ScalarLiteral, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer unary negation over multiplying by -1.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LY047",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -29,7 +29,6 @@ impl LintRule for PreferUnaryNegation {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-
             let ast::Expression::Binary {
                 operator,
                 left,
@@ -57,6 +56,18 @@ impl LintRule for PreferUnaryNegation {
             let right_is_neg_one = is_negative_one(ctx, right_expression, *right);
 
             if left_is_neg_one || right_is_neg_one {
+                // make fix: use unary negation
+                let expr_span = ctx.tree.get_span(node_id);
+                let other_id = if left_is_neg_one { *right } else { *left };
+                let other_span = ctx.tree.get_span(other_id);
+                let other_text = ctx.get_span_text(other_span);
+                let replacement = format!("-{other_text}");
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expr_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Use unary negation").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         PREFER_UNARY_NEGATION.id,
@@ -65,9 +76,10 @@ impl LintRule for PreferUnaryNegation {
                         severity,
                         "prefer unary negation over multiplying by -1",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        expr_span,
                     )
-                    .with_label("use `-x` instead"),
+                    .with_label("use `-x` instead")
+                    .with_fix(fix),
                 );
             }
         }
@@ -243,5 +255,41 @@ const result = x * 1;
 "#,
         );
         test.result(result).assert_no_lint("prefer-unary-negation");
+    }
+
+    #[test]
+    fn test_fix_multiply_by_negative_one_right() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x * -1
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-unary-negation")
+            .assert_safe_fixed(
+                r#"
+const result = -x;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_multiply_by_negative_one_left() {
+        let test = TestProgram::for_rule(PreferUnaryNegation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = -1 * x
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-unary-negation")
+            .assert_safe_fixed(
+                r#"
+const result = -x;
+"#,
+            );
     }
 }

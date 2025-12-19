@@ -41,11 +41,9 @@ impl LintRule for Eqeqeq {
             };
 
             let (message, label, strict_op) = match operator {
-                BinaryOperator::Equal => (
-                    "use `===` instead of `==`",
-                    "prefer strict equality",
-                    "===",
-                ),
+                BinaryOperator::Equal => {
+                    ("use `===` instead of `==`", "prefer strict equality", "===")
+                }
                 BinaryOperator::NotEqual => (
                     "use `!==` instead of `!=`",
                     "prefer strict inequality",
@@ -59,7 +57,10 @@ impl LintRule for Eqeqeq {
             let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
             let replacement = format!("{left_text} {strict_op} {right_text}");
 
-            let edits = ctx.edit_builder().replace(expr_span, replacement).into_edits();
+            let edits = ctx
+                .edit_builder()
+                .replace(expr_span, replacement)
+                .into_edits();
             let fix = LintFix::safe(format!("Replace with `{strict_op}`")).with_edits(edits);
 
             ctx.report(

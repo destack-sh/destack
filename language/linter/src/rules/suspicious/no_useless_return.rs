@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow redundant return statements at the end of functions.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LU004",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -38,6 +38,10 @@ impl LintRule for NoUselessReturn {
 
             // check if the last statement is a bare return
             if let Some(return_id) = get_trailing_bare_return(ctx, *body_id) {
+                let return_span = ctx.tree.get_span(return_id);
+                let edits = ctx.edit_builder().delete(return_span).into_edits();
+                let fix = LintFix::safe("Remove useless return").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_USELESS_RETURN.id,
@@ -46,9 +50,10 @@ impl LintRule for NoUselessReturn {
                         severity,
                         "useless return statement",
                         ctx.module.file_id,
-                        ctx.tree.get_span(return_id),
+                        return_span,
                     )
-                    .with_label("this return is unnecessary"),
+                    .with_label("this return is unnecessary")
+                    .with_fix(fix),
                 );
             }
         }
@@ -144,5 +149,28 @@ function foo(x: boolean) {
 "#,
         );
         test.result(result).assert_no_lint("no-useless-return");
+    }
+
+    #[test]
+    fn test_fix_removes_useless_return() {
+        let test = TestProgram::for_rule(NoUselessReturn);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+function foo() {
+    bar()
+    return
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-return")
+            .assert_safe_fixed(
+                r#"
+function foo() {
+    bar()
+}
+"#,
+            );
     }
 }

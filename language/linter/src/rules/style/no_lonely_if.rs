@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `if` as the only statement in an `else` block.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LY015",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -84,6 +84,16 @@ impl LintRule for NoLonelyIf {
             };
 
             if let Some(lonely_id) = lonely_if_id {
+                let else_span = ctx.tree.get_span(*else_id);
+                let lonely_span = ctx.tree.get_span(lonely_id);
+                let lonely_text = ctx.get_span_text(lonely_span);
+
+                let edits = ctx
+                    .edit_builder()
+                    .replace(else_span, lonely_text)
+                    .into_edits();
+                let fix = LintFix::safe("Convert to `else if`").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_LONELY_IF.id,
@@ -92,9 +102,10 @@ impl LintRule for NoLonelyIf {
                         severity,
                         "lonely `if` in `else` block",
                         ctx.module.file_id,
-                        ctx.tree.get_span(lonely_id),
+                        lonely_span,
                     )
-                    .with_label("use `else if` instead"),
+                    .with_label("use `else if` instead")
+                    .with_fix(fix),
                 );
             }
         }
@@ -157,5 +168,33 @@ if (a) {
 "#,
         );
         test.result(result).assert_no_lint("no-lonely-if");
+    }
+
+    #[test]
+    fn test_fix_lonely_if() {
+        let test = TestProgram::for_rule(NoLonelyIf);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+if (a) {
+    foo()
+} else {
+    if (b) {
+        bar()
+    }
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-lonely-if")
+            .assert_safe_fixed(
+                r#"
+if (a) {
+    foo()
+} else if (b) {
+    bar()
+}
+"#,
+            );
     }
 }
