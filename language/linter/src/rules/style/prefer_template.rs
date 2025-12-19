@@ -26,7 +26,9 @@ impl LintRule for PreferTemplate {
         PreferTemplate::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
@@ -50,6 +52,11 @@ impl LintRule for PreferTemplate {
             // flag if at least one side is a string and the other is not
             // (if both are strings, no-useless-concat should catch it)
             if (left_is_string || right_is_string) && !(left_is_string && right_is_string) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let expression_span = ctx.tree.get_span(node_id);
 
                 // make the fix: convert to template literal

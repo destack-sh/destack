@@ -26,7 +26,9 @@ impl LintRule for ConsistentExtensionStyle {
         ConsistentExtensionStyle::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let decl = ctx.tree.get(node_id);
 
@@ -37,6 +39,10 @@ impl LintRule for ConsistentExtensionStyle {
 
             // check if extension is anonymous (no name)
             if descriptor.name.is_none() {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         CONSISTENT_EXTENSION_STYLE.id,

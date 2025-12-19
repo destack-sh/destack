@@ -26,7 +26,8 @@ impl LintRule for NoUselessEscape {
         NoUselessEscape::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let file = ctx.program.files.get(ctx.module.file_id);
         let source = file.text();
 
@@ -48,6 +49,11 @@ impl LintRule for NoUselessEscape {
 
             // check for useless escapes in the raw string
             if let Some(char_pos) = find_useless_escape(raw) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let escape_char = raw.chars().nth(char_pos + 1).unwrap_or('?');
                 ctx.report(
                     LintDiagnostic::new(

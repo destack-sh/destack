@@ -44,7 +44,9 @@ impl LintRule for NoUselessUnderscoreBinding {
         NoUselessUnderscoreBinding::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -67,6 +69,11 @@ impl LintRule for NoUselessUnderscoreBinding {
 
                 // check if value has side effects
                 if expression_has_side_effects(ctx, value_id) {
+                    continue;
+                }
+
+                let severity = ctx.get_effective_severity(meta, *declarator_id);
+                if !severity.is_enabled() {
                     continue;
                 }
 

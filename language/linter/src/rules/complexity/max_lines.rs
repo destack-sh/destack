@@ -26,11 +26,21 @@ impl LintRule for MaxLines {
         MaxLines::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_lines = ctx.options.max_lines;
         let file = ctx.program.files.get(ctx.module.file_id);
         let line_count = file.line_count() as usize;
         if line_count > max_lines {
+            // file-level lint: use first root expression for severity check, or base severity
+            let severity = ctx
+                .roots
+                .first()
+                .map(|root| ctx.get_effective_severity(meta, *root))
+                .unwrap_or_else(|| ctx.get_severity(meta));
+            if !severity.is_enabled() {
+                return;
+            }
             // report at the first line of the file
             let span = destack_source::Span::new(ctx.module.file_id, 0, 0);
             ctx.report(

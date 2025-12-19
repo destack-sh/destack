@@ -40,7 +40,9 @@ impl LintRule for NoSelfCompare {
         NoSelfCompare::meta()
     }
 
-    fn check_module_dir<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        let meta = self.meta();
+
         for (node_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             // filter to comparison binary expressions
             let dir::Expression::Binary {
@@ -65,6 +67,10 @@ impl LintRule for NoSelfCompare {
             if let (Some(left_sym), Some(right_sym)) = (left_symbol, right_symbol)
                 && left_sym == right_sym
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let span = ctx.get_span(node_id);
                 ctx.report(
                     LintDiagnostic::new(

@@ -26,7 +26,9 @@ impl LintRule for NoConfusingNonNullAssertion {
         NoConfusingNonNullAssertion::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // check for `!` (Must) followed by optional chain (Maybe with Indirect position)
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
@@ -35,6 +37,11 @@ impl LintRule for NoConfusingNonNullAssertion {
             if let ast::Expression::Must { left, .. } = expr {
                 // check if the result is used with optional chaining
                 if is_optional_chain_target(ctx, node_id) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_CONFUSING_NON_NULL_ASSERTION.id,
@@ -52,6 +59,11 @@ impl LintRule for NoConfusingNonNullAssertion {
 
                 // pattern: foo!.bar where left is optional chain (foo?.baz!)
                 if is_optional_chain(ctx, *left) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_CONFUSING_NON_NULL_ASSERTION.id,

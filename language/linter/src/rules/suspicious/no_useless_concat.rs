@@ -26,7 +26,9 @@ impl LintRule for NoUselessConcat {
         NoUselessConcat::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Binary {
                 left,
@@ -44,6 +46,11 @@ impl LintRule for NoUselessConcat {
 
             // check if both sides are string literals
             if is_string_literal(ctx, *left) && is_string_literal(ctx, *right) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let expression_span = ctx.tree.get_span(node_id);
 
                 // make fix: combine string literals

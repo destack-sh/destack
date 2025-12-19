@@ -37,7 +37,9 @@ impl LintRule for PreferTupleDestructure {
         PreferTupleDestructure::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // track indexed accesses by source variable: source_name -> [(index, node_id)]
         let mut indexed_accesses: HashMap<String, Vec<(i64, ast::LocalNodeId<Declarator>)>> =
             HashMap::new();
@@ -75,6 +77,11 @@ impl LintRule for PreferTupleDestructure {
             if accesses.len() >= 2 {
                 // report on the first access (suggests converting all of them)
                 let (_, first_node_id) = &accesses[0];
+                let severity = ctx.get_effective_severity(meta, *first_node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         PREFER_TUPLE_DESTRUCTURE.id,

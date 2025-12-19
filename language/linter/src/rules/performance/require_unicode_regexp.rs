@@ -34,7 +34,8 @@ impl LintRule for RequireUnicodeRegexp {
         RequireUnicodeRegexp::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check regex literals
             let expression = ctx.tree.get(node_id);
@@ -52,6 +53,10 @@ impl LintRule for RequireUnicodeRegexp {
                 false
             };
             if !has_unicode_flag {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         REQUIRE_UNICODE_REGEXP.id,

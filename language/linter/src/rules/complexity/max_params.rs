@@ -26,7 +26,8 @@ impl LintRule for MaxParams {
         MaxParams::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_params = ctx.options.max_params;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -40,6 +41,10 @@ impl LintRule for MaxParams {
 
             let param_count = signature.dynamic_parameters.len();
             if param_count > max_params {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         MAX_PARAMS.id,

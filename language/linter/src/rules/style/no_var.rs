@@ -26,13 +26,20 @@ impl LintRule for NoVar {
         NoVar::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             if let ast::Expression::Let {
                 kind: LetKind::Var, ..
             } = expr
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 // make fix: replace var with let
                 let expression_span = ctx.tree.get_span(node_id);
                 let expr_text = ctx.get_span_text(expression_span);

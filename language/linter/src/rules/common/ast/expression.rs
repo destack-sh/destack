@@ -374,6 +374,8 @@ fn string_ids_equal(
     left_string.as_ref() == right_string.as_ref()
 }
 
+// nocheckin #Cleanup: can expression_has_side_effects use NodeVisitor..?
+
 /// Check if an expression has side effects (conservatively returns true if unsure).
 ///
 /// This is useful for lints that want to detect expressions that can be safely removed
@@ -484,6 +486,9 @@ pub fn expression_has_side_effects(
         Expression::ObjectExpression { .. }
         | Expression::TreeExpression { .. }
         | Expression::SequenceExpression { .. } => true,
+
+        // comptime: check if body has side effects
+        Expression::Comptime { body } => expression_has_side_effects(ctx, *body),
     }
 }
 

@@ -2,7 +2,6 @@ use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
-use destack_source::FileId;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -30,7 +29,9 @@ impl LintRule for NoConstructorReturn {
         NoConstructorReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // find all constructor methods
         for node_id in ctx.tree.iter_nodes::<ast::Member>() {
             let member = ctx.tree.get(node_id);
@@ -56,16 +57,30 @@ impl LintRule for NoConstructorReturn {
             // check for return statements with values in the body
             let mut visitor = ConstructorReturnVisitor {
                 options: NodeVisitorOptions::default(),
-                severity,
-                file_id: ctx.module.file_id,
-                diagnostics: Vec::new(),
+                return_nodes: Vec::new(),
             };
 
             let body_expr = ctx.tree.get(*body_id);
             visitor.visit_expression(ctx.tree, *body_id, body_expr);
 
-            for diagnostic in visitor.diagnostics {
-                ctx.report(diagnostic);
+            for return_id in visitor.return_nodes {
+                let severity = ctx.get_effective_severity(meta, return_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                ctx.report(
+                    LintDiagnostic::new(
+                        NO_CONSTRUCTOR_RETURN.id,
+                        NO_CONSTRUCTOR_RETURN.code,
+                        NO_CONSTRUCTOR_RETURN.category,
+                        severity,
+                        "return with value in constructor",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(return_id),
+                    )
+                    .with_label("constructors should not return values"),
+                );
             }
         }
     }
@@ -74,9 +89,7 @@ impl LintRule for NoConstructorReturn {
 /// NodeVisitor that finds return statements with values, but stops at nested functions.
 struct ConstructorReturnVisitor {
     options: NodeVisitorOptions,
-    severity: LintSeverity,
-    file_id: FileId,
-    diagnostics: Vec<LintDiagnostic>,
+    return_nodes: Vec<LocalNodeId<Expression>>,
 }
 
 impl NodeVisitor for ConstructorReturnVisitor {
@@ -92,18 +105,7 @@ impl NodeVisitor for ConstructorReturnVisitor {
     ) {
         // check for return with value
         if matches!(expression, Expression::Return { value: Some(_) }) {
-            self.diagnostics.push(
-                LintDiagnostic::new(
-                    NO_CONSTRUCTOR_RETURN.id,
-                    NO_CONSTRUCTOR_RETURN.code,
-                    NO_CONSTRUCTOR_RETURN.category,
-                    self.severity,
-                    "return with value in constructor",
-                    self.file_id,
-                    tree.get_span(id),
-                )
-                .with_label("constructors should not return values"),
-            );
+            self.return_nodes.push(id);
         }
 
         // don't descend into nested function declarations

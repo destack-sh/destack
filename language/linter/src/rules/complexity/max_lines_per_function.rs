@@ -26,7 +26,8 @@ impl LintRule for MaxLinesPerFunction {
         MaxLinesPerFunction::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_lines = ctx.options.max_lines_per_function;
         let file = ctx.program.files.get(ctx.module.file_id);
 
@@ -59,6 +60,10 @@ impl LintRule for MaxLinesPerFunction {
             // line count is inclusive (line 1 to line 3 = 3 lines)
             let line_count = (end_line - start_line + 1) as usize;
             if line_count > max_lines {
+                let severity = ctx.get_effective_severity(meta, expression_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 // get name from the function body's block span for more accurate location
                 let body_span = ctx.tree.get_span(*body_id);
                 ctx.report(

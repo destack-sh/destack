@@ -25,7 +25,8 @@ impl LintRule for FilenameCaseRule {
         FilenameCaseRule::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let expected_case = ctx.options.filename_case;
 
         // get the filename without extension
@@ -44,6 +45,10 @@ impl LintRule for FilenameCaseRule {
 
         // check if filename matches expected case
         if !matches_case(file_stem, expected_case) {
+            let severity = ctx.get_effective_severity(meta, ctx.roots[0]);
+            if !severity.is_enabled() {
+                return;
+            }
             let expected = case_name(expected_case);
             ctx.report(
                 LintDiagnostic::new(

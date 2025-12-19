@@ -26,7 +26,9 @@ impl LintRule for NoUnneededTernary {
         NoUnneededTernary::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
@@ -47,6 +49,11 @@ impl LintRule for NoUnneededTernary {
 
             // check for x ? true : false -> x
             if is_boolean_literal(then_expr, true) && is_boolean_literal(else_expr, false) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 // make fix: replace `x ? true : false` with `x`
                 let edits = ctx
                     .edit_builder()
@@ -70,6 +77,11 @@ impl LintRule for NoUnneededTernary {
             }
             // check for x ? false : true -> !x
             else if is_boolean_literal(then_expr, false) && is_boolean_literal(else_expr, true) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 // make fix: replace `x ? false : true` with `!x`
                 let replacement = format!("!{condition_text}");
                 let edits = ctx

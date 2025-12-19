@@ -32,7 +32,8 @@ impl LintRule for NoExcessiveBooleans {
         NoExcessiveBooleans::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_booleans = ctx.options.max_booleans;
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -50,6 +51,11 @@ impl LintRule for NoExcessiveBooleans {
                     .count();
 
                 if bool_count > max_booleans {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_EXCESSIVE_BOOLEANS.id,
@@ -78,6 +84,11 @@ impl LintRule for NoExcessiveBooleans {
                     .count();
 
                 if bool_count > max_booleans {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_EXCESSIVE_BOOLEANS.id,

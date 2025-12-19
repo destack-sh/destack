@@ -27,7 +27,9 @@ impl LintRule for UseIsnan {
         UseIsnan::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -60,6 +62,11 @@ impl LintRule for UseIsnan {
             let left_is_nan = is_nan_identifier(ctx, *left);
             let right_is_nan = is_nan_identifier(ctx, *right);
             if !left_is_nan && !right_is_nan {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
                 continue;
             }
 

@@ -2,6 +2,7 @@ use destack_ast::{
     self as ast, Argument, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_argument, walk_expression,
 };
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -30,16 +31,15 @@ impl LintRule for MaxNestedCallbacks {
         MaxNestedCallbacks::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_callbacks = ctx.options.max_nested_callbacks;
 
         let mut visitor = CallbackVisitor {
             options: NodeVisitorOptions::default(),
             depth: 0,
             max_callbacks,
-            severity,
-            file_id: ctx.module.file_id,
-            diagnostics: Vec::new(),
+            violations: Vec::new(),
         };
 
         for root_id in ctx.roots.iter() {
@@ -47,19 +47,41 @@ impl LintRule for MaxNestedCallbacks {
             visitor.visit_expression(ctx.tree, *root_id, expression);
         }
 
-        for diagnostic in visitor.diagnostics {
-            ctx.report(diagnostic);
+        for violation in visitor.violations {
+            let severity = ctx.get_effective_severity(meta, violation.node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            ctx.report(
+                LintDiagnostic::new(
+                    MAX_NESTED_CALLBACKS.id,
+                    MAX_NESTED_CALLBACKS.code,
+                    MAX_NESTED_CALLBACKS.category,
+                    severity,
+                    format!(
+                        "callback nesting depth {} exceeds maximum of {}",
+                        violation.depth, max_callbacks
+                    ),
+                    ctx.module.file_id,
+                    violation.span,
+                )
+                .with_label("consider using async/await or extracting to a named function"),
+            );
         }
     }
+}
+
+struct CallbackViolation {
+    node_id: LocalNodeId<Expression>,
+    span: Span,
+    depth: usize,
 }
 
 struct CallbackVisitor {
     options: NodeVisitorOptions,
     depth: usize,
     max_callbacks: usize,
-    severity: LintSeverity,
-    file_id: destack_source::FileId,
-    diagnostics: Vec<LintDiagnostic>,
+    violations: Vec<CallbackViolation>,
 }
 
 impl CallbackVisitor {
@@ -95,21 +117,11 @@ impl NodeVisitor for CallbackVisitor {
         if self.is_function(tree, value_id) {
             self.depth += 1;
             if self.depth > self.max_callbacks {
-                self.diagnostics.push(
-                    LintDiagnostic::new(
-                        MAX_NESTED_CALLBACKS.id,
-                        MAX_NESTED_CALLBACKS.code,
-                        MAX_NESTED_CALLBACKS.category,
-                        self.severity,
-                        format!(
-                            "callback nesting depth {} exceeds maximum of {}",
-                            self.depth, self.max_callbacks
-                        ),
-                        self.file_id,
-                        tree.get_span(value_id),
-                    )
-                    .with_label("consider using async/await or extracting to a named function"),
-                );
+                self.violations.push(CallbackViolation {
+                    node_id: value_id,
+                    span: tree.get_span(value_id),
+                    depth: self.depth,
+                });
             }
             // walk the argument (which will visit the callback body)
             destack_base::ensure_sufficient_stack(|| walk_argument(self, tree, id, argument));

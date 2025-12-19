@@ -63,7 +63,9 @@ impl LintRule for CommentLayout {
         CommentLayout::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
             match annotation {
@@ -85,6 +87,10 @@ impl LintRule for CommentLayout {
 
                         // check for multiple sentences on one line
                         if has_multiple_sentences(trimmed) {
+                            let severity = ctx.get_effective_severity(meta, node_id);
+                            if !severity.is_enabled() {
+                                break;
+                            }
                             ctx.report(
                                 LintDiagnostic::new(
                                     COMMENT_LAYOUT.id,
@@ -103,6 +109,10 @@ impl LintRule for CommentLayout {
 
                     // check for problematic hyphens
                     if has_problematic_hyphen(text.as_ref()) {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_LAYOUT.id,
@@ -125,6 +135,10 @@ impl LintRule for CommentLayout {
 
                     // check for problematic hyphens
                     if has_problematic_hyphen(text.as_ref()) {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_LAYOUT.id,

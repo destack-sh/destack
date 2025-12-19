@@ -26,7 +26,9 @@ impl LintRule for NoLonelyIf {
         NoLonelyIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
@@ -84,6 +86,11 @@ impl LintRule for NoLonelyIf {
             };
 
             if let Some(lonely_id) = lonely_if_id {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let else_span = ctx.tree.get_span(*else_id);
                 let lonely_span = ctx.tree.get_span(lonely_id);
                 let lonely_text = ctx.get_span_text(lonely_span);

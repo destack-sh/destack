@@ -90,7 +90,9 @@ impl LintRule for PreferExpressionOverLetIf {
         PreferExpressionOverLetIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // look for blocks with potential let-if patterns
         for block_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(block_id);
@@ -143,6 +145,11 @@ impl LintRule for PreferExpressionOverLetIf {
                     continue;
                 }
                 if !expr_is_simple_assignment(ctx, *else_expr, var_name) {
+                    continue;
+                }
+
+                let severity = ctx.get_effective_severity(meta, first_id);
+                if !severity.is_enabled() {
                     continue;
                 }
 

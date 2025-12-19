@@ -26,7 +26,9 @@ impl LintRule for ConsistentTypeImports {
         ConsistentTypeImports::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
@@ -48,6 +50,10 @@ impl LintRule for ConsistentTypeImports {
                 });
 
             if all_type_imports {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         CONSISTENT_TYPE_IMPORTS.id,

@@ -27,7 +27,9 @@ impl LintRule for NoAnonymousDefaultExport {
         NoAnonymousDefaultExport::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // check anonymous default export declarations (e.g., `export default function() {}`)
         for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             // check if this is a default anonymous declaration
@@ -41,6 +43,10 @@ impl LintRule for NoAnonymousDefaultExport {
                 continue;
             }
 
+            let severity = ctx.get_effective_severity(meta, declaration_id);
+            if !severity.is_enabled() {
+                continue;
+            }
             let span = ctx.tree.get_span(declaration_id);
             ctx.report(
                 LintDiagnostic::new(
@@ -75,6 +81,10 @@ impl LintRule for NoAnonymousDefaultExport {
                     continue;
                 }
 
+                let severity = ctx.get_effective_severity(meta, expression_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let span = ctx.tree.get_span(expression_id);
                 ctx.report(
                     LintDiagnostic::new(

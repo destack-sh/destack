@@ -27,7 +27,9 @@ impl LintRule for DotNotation {
         DotNotation::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
@@ -53,6 +55,10 @@ impl LintRule for DotNotation {
 
             // check if string is a valid identifier
             if is_identifier(name_str) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 // make fix: convert `obj["property"]` to `obj.property`
                 let expression_span = ctx.tree.get_span(node_id);
                 let left_span = ctx.tree.get_span(*left);

@@ -27,7 +27,9 @@ impl LintRule for NoEmptyInterface {
         NoEmptyInterface::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             let Declaration::Interface {
@@ -49,6 +51,11 @@ impl LintRule for NoEmptyInterface {
 
             // empty interface with no extends is useless
             if members.is_empty() && extends_count == 0 {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let span = ctx.tree.get_span(node_id);
 
                 // build fix: interface Empty {} -> type Empty = {}
@@ -76,6 +83,11 @@ impl LintRule for NoEmptyInterface {
             }
             // interface that only extends one type could be a type alias
             else if members.is_empty() && extends_count == 1 {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let span = ctx.tree.get_span(node_id);
 
                 // build fix: interface Child extends Parent {} -> type Child = Parent

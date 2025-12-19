@@ -36,7 +36,9 @@ impl LintRule for PreferSelfClosingTree {
         PreferSelfClosingTree::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let Expression::TreeExpression {
@@ -59,6 +61,11 @@ impl LintRule for PreferSelfClosingTree {
             let is_empty_non_self_closing = matches!(elements, Some(e) if e.is_empty());
 
             if !is_empty_non_self_closing {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
                 continue;
             }
 

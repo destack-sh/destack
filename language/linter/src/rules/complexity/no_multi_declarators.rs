@@ -27,7 +27,9 @@ impl LintRule for NoMultiDeclarators {
         NoMultiDeclarators::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Let { declarators, .. } = ctx.tree.get(expression_id) else {
                 continue;
@@ -35,6 +37,11 @@ impl LintRule for NoMultiDeclarators {
 
             // check if there are multiple declarators
             if declarators.len() > 1 {
+                let severity = ctx.get_effective_severity(meta, expression_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let span = ctx.tree.get_span(expression_id);
                 ctx.report(
                     LintDiagnostic::new(

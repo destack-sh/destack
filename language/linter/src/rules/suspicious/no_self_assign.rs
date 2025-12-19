@@ -25,7 +25,8 @@ impl LintRule for NoSelfAssign {
         NoSelfAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let file = ctx.program.files.get(ctx.module.file_id);
         let source = file.text();
 
@@ -49,6 +50,11 @@ impl LintRule for NoSelfAssign {
             let right_text = get_span_text(source, right_span);
 
             if left_text == right_text && !left_text.is_empty() {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let expression_span = ctx.tree.get_span(node_id);
 
                 // fix: replace `x = x` with just `x`

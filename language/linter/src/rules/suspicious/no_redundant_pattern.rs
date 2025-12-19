@@ -26,7 +26,9 @@ impl LintRule for NoRedundantPattern {
         NoRedundantPattern::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // check let/const declarations with patterns that bind nothing
         for node_id in ctx.tree.iter_nodes::<ast::Declarator>() {
             let declarator = ctx.tree.get(node_id);
@@ -48,6 +50,11 @@ impl LintRule for NoRedundantPattern {
 
             // check if the pattern binds anything
             if !binds_anything(ctx, declarator.pattern) {
+                let severity = ctx.get_effective_severity(meta, declarator.pattern);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_REDUNDANT_PATTERN.id,

@@ -2,6 +2,7 @@ use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -29,14 +30,15 @@ impl LintRule for MaxReturnStatements {
         MaxReturnStatements::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+        let max_return_statements = ctx.options.max_return_statements;
+
         let mut visitor = ReturnStatementVisitor {
             options: NodeVisitorOptions::default(),
             return_counts: Vec::new(),
-            max_return_statements: ctx.options.max_return_statements,
-            severity,
-            file_id: ctx.module.file_id,
-            diagnostics: Vec::new(),
+            max_return_statements,
+            violations: Vec::new(),
         };
 
         for root_id in ctx.roots.iter() {
@@ -44,19 +46,41 @@ impl LintRule for MaxReturnStatements {
             visitor.visit_expression(ctx.tree, *root_id, expression);
         }
 
-        for diagnostic in visitor.diagnostics {
-            ctx.report(diagnostic);
+        for violation in visitor.violations {
+            let severity = ctx.get_effective_severity(meta, violation.node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            ctx.report(
+                LintDiagnostic::new(
+                    MAX_RETURN_STATEMENTS.id,
+                    MAX_RETURN_STATEMENTS.code,
+                    MAX_RETURN_STATEMENTS.category,
+                    severity,
+                    format!(
+                        "function has {} return statements (max {})",
+                        violation.return_count, max_return_statements
+                    ),
+                    ctx.module.file_id,
+                    violation.span,
+                )
+                .with_label("consider restructuring to reduce return points"),
+            );
         }
     }
+}
+
+struct ReturnViolation {
+    node_id: LocalNodeId<Expression>,
+    span: Span,
+    return_count: usize,
 }
 
 struct ReturnStatementVisitor {
     options: NodeVisitorOptions,
     return_counts: Vec<usize>,
     max_return_statements: usize,
-    severity: LintSeverity,
-    file_id: destack_source::FileId,
-    diagnostics: Vec<LintDiagnostic>,
+    violations: Vec<ReturnViolation>,
 }
 
 impl NodeVisitor for ReturnStatementVisitor {
@@ -97,21 +121,11 @@ impl NodeVisitor for ReturnStatementVisitor {
                         // pop and check the count
                         let return_count = self.return_counts.pop().unwrap_or(0);
                         if return_count > self.max_return_statements {
-                            self.diagnostics.push(
-                                LintDiagnostic::new(
-                                    MAX_RETURN_STATEMENTS.id,
-                                    MAX_RETURN_STATEMENTS.code,
-                                    MAX_RETURN_STATEMENTS.category,
-                                    self.severity,
-                                    format!(
-                                        "function has {return_count} return statements (max {})",
-                                        self.max_return_statements
-                                    ),
-                                    self.file_id,
-                                    body_span,
-                                )
-                                .with_label("consider restructuring to reduce return points"),
-                            );
+                            self.violations.push(ReturnViolation {
+                                node_id: id,
+                                span: body_span,
+                                return_count,
+                            });
                         }
                     }
                     return; // don't walk the declaration again

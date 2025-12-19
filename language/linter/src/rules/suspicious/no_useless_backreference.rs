@@ -28,7 +28,9 @@ impl LintRule for NoUselessBackreference {
         NoUselessBackreference::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::ScalarLiteral(ast::ScalarLiteral::RegexString { content, .. }) =
@@ -41,6 +43,11 @@ impl LintRule for NoUselessBackreference {
             let regex_str = regex_content.as_ref();
 
             if let Some(problem) = find_useless_backreference(regex_str) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_USELESS_BACKREFERENCE.id,

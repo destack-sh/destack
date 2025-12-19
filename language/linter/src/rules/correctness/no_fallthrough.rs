@@ -26,7 +26,9 @@ impl LintRule for NoFallthrough {
         NoFallthrough::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -53,18 +55,23 @@ impl LintRule for NoFallthrough {
                             (*id, true)
                         } else {
                             // empty block falls through
-                            ctx.report(
-                                LintDiagnostic::new(
-                                    NO_FALLTHROUGH.id,
-                                    NO_FALLTHROUGH.code,
-                                    NO_FALLTHROUGH.category,
-                                    severity,
-                                    "empty case falls through to next case",
-                                    ctx.module.file_id,
-                                    ctx.tree.get_span(*case_id),
-                                )
-                                .with_label("add a `break` statement or `// fallthrough` comment"),
-                            );
+                            let severity = ctx.get_effective_severity(meta, node_id);
+                            if severity.is_enabled() {
+                                ctx.report(
+                                    LintDiagnostic::new(
+                                        NO_FALLTHROUGH.id,
+                                        NO_FALLTHROUGH.code,
+                                        NO_FALLTHROUGH.category,
+                                        severity,
+                                        "empty case falls through to next case",
+                                        ctx.module.file_id,
+                                        ctx.tree.get_span(*case_id),
+                                    )
+                                    .with_label(
+                                        "add a `break` statement or `// fallthrough` comment",
+                                    ),
+                                );
+                            }
                             continue;
                         }
                     }
@@ -78,6 +85,10 @@ impl LintRule for NoFallthrough {
                 };
 
                 if !terminates {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
                     ctx.report(
                         LintDiagnostic::new(
                             NO_FALLTHROUGH.id,

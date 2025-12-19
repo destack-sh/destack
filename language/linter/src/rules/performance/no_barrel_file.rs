@@ -36,7 +36,8 @@ impl LintRule for NoBarrelFile {
         NoBarrelFile::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let mut export_count = 0;
         let mut reexport_count = 0;
         let mut has_other_code = false;
@@ -82,6 +83,10 @@ impl LintRule for NoBarrelFile {
             && !has_other_code
             && let Some(node_id) = first_export_id
         {
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                return;
+            }
             ctx.report(
                 LintDiagnostic::new(
                     NO_BARREL_FILE.id,

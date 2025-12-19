@@ -28,7 +28,9 @@ impl LintRule for NoElseReturn {
         NoElseReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
@@ -43,6 +45,11 @@ impl LintRule for NoElseReturn {
 
             // check if the then block ends with a return
             if ends_with_return(ctx, *then_expression) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let if_span = ctx.tree.get_span(node_id);
                 let then_span = ctx.tree.get_span(*then_expression);
                 let else_span = ctx.tree.get_span(*else_id);

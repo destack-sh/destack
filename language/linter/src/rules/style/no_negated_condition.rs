@@ -26,7 +26,9 @@ impl LintRule for NoNegatedCondition {
         NoNegatedCondition::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::If {
@@ -49,6 +51,11 @@ impl LintRule for NoNegatedCondition {
             let Some(positive_condition) = get_positive_condition(ctx, *condition) else {
                 continue;
             };
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
 
             // make fix: swap branches and remove negation
             let expression_span = ctx.tree.get_span(node_id);

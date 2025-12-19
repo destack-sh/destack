@@ -30,9 +30,11 @@ impl LintRule for PreferExpression {
         PreferExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for root_id in ctx.roots.iter() {
-            check_expression(ctx, severity, ctx.tree, *root_id);
+            check_expression(ctx, meta, ctx.tree, *root_id);
         }
     }
 }
@@ -40,7 +42,7 @@ impl LintRule for PreferExpression {
 /// Recursively check expressions for the pattern.
 fn check_expression(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     tree: &NodeTree,
     expr_id: LocalNodeId<Expression>,
 ) {
@@ -48,7 +50,7 @@ fn check_expression(
 
     // check blocks for the pattern
     if let Expression::Block(block_id) = expression {
-        check_block(ctx, severity, tree, *block_id);
+        check_block(ctx, meta, tree, *block_id);
     }
 
     // recursively check nested expressions
@@ -56,7 +58,7 @@ fn check_expression(
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);
             for &child_id in &block.expressions {
-                check_expression(ctx, severity, tree, child_id);
+                check_expression(ctx, meta, tree, child_id);
             }
         }
         Expression::If {
@@ -64,9 +66,9 @@ fn check_expression(
             else_expression,
             ..
         } => {
-            check_expression(ctx, severity, tree, *then_expression);
+            check_expression(ctx, meta, tree, *then_expression);
             if let Some(else_id) = else_expression {
-                check_expression(ctx, severity, tree, *else_id);
+                check_expression(ctx, meta, tree, *else_id);
             }
         }
         Expression::Declaration(declaration_id) => {
@@ -74,7 +76,7 @@ fn check_expression(
             if let destack_ast::Declaration::Function { body, .. } = declaration
                 && let Some(body_id) = body
             {
-                check_expression(ctx, severity, tree, *body_id);
+                check_expression(ctx, meta, tree, *body_id);
             }
         }
         _ => {}
@@ -84,7 +86,7 @@ fn check_expression(
 /// Check a block for the uninitialized-let-then-if pattern.
 fn check_block(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     tree: &NodeTree,
     block_id: LocalNodeId<Block>,
 ) {
@@ -100,6 +102,11 @@ fn check_block(
         if let Some(variable_name) = get_uninitialized_let(tree, let_expr_id)
             && check_if_assigns_to_variable(tree, if_expr_id, variable_name)
         {
+            let severity = ctx.get_effective_severity(meta, let_expr_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+
             ctx.report(
                 LintDiagnostic::new(
                     PREFER_EXPRESSION.id,

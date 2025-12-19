@@ -124,14 +124,16 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get effective severity for a rule at a specific node.
     ///
-    /// This checks for `@allow`/`@deny`/`@warn`/`@forbid` decorators on the node
+    /// Checks for `@allow`/`@deny`/`@warn`/`@forbid` decorators on the node
     /// and its ancestors, returning the effective severity at that location.
+    /// Rules should call this before reporting to respect per-node suppressions.
     pub fn get_effective_severity<T: dir::Node>(
         &self,
         meta: &LintMeta,
         _node_id: dir::LocalNodeId<T>,
     ) -> LintSeverity {
-        // nocheckin TODO #Incomplete: walk up parents checking for @allow/@deny/@warn/@forbid decorators
+        // nocheckin TODO #Incomplete: pre-compute decorator suppressions in context,
+        //  (then walk ancestors here checking the pre-parsed map)
         self.get_severity(meta)
     }
 

@@ -29,7 +29,8 @@ impl LintRule for NoAwaitInLoop {
         NoAwaitInLoop::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Await { .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -53,6 +54,10 @@ impl LintRule for NoAwaitInLoop {
                     | ast::Expression::For { .. }
                     | ast::Expression::ForEach { .. }
                     | ast::Expression::Loop { .. } => {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            break;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 NO_AWAIT_IN_LOOP.id,

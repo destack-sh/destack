@@ -28,7 +28,9 @@ impl LintRule for NoUselessComputedKey {
         NoUselessComputedKey::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Property>() {
             let property = ctx.tree.get(node_id);
             let key = match property {
@@ -51,6 +53,11 @@ impl LintRule for NoUselessComputedKey {
             let string_value = ctx.strings.get(*string_id);
             let string_str = string_value.as_ref();
             if is_valid_identifier(string_str) {
+                let severity = ctx.get_effective_severity(meta, *expr_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let property_span = ctx.tree.get_span(node_id);
 
                 // make fix: replace `["foo"]` with `.foo`

@@ -26,13 +26,20 @@ impl LintRule for NoEmpty {
         NoEmpty::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(node_id);
             if block.format == ast::BlockFormat::Explicit
                 && block.expressions.is_empty()
                 && !ctx.tree.has_infix_annotations(node_id.id)
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let span = ctx.tree.get_span(node_id);
                 ctx.report(
                     LintDiagnostic::new(

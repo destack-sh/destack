@@ -33,7 +33,9 @@ impl LintRule for CommentPunctuation {
         CommentPunctuation::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
 
@@ -59,6 +61,10 @@ impl LintRule for CommentPunctuation {
 
                     // short inline comments should not end with period
                     if is_short_comment(trimmed) && trimmed.ends_with('.') {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_PUNCTUATION.id,
@@ -103,6 +109,10 @@ impl LintRule for CommentPunctuation {
 
                     // doc comments should end with punctuation
                     if !last_line.ends_with(['.', '!', '?', ':', ')']) {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_PUNCTUATION.id,

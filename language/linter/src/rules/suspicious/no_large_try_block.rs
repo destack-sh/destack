@@ -28,7 +28,8 @@ impl LintRule for NoLargeTryBlock {
         NoLargeTryBlock::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_statements = ctx.options.max_try_block_statements;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -39,6 +40,11 @@ impl LintRule for NoLargeTryBlock {
             // count statements in the try block
             let statement_count = count_statements(ctx, *try_expression);
             if statement_count > max_statements {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_LARGE_TRY_BLOCK.id,

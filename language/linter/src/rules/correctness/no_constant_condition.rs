@@ -37,7 +37,9 @@ impl LintRule for NoConstantCondition {
         NoConstantCondition::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let condition_id = match ctx.tree.get(node_id) {
                 ast::Expression::If { condition, .. } => *condition,
@@ -46,6 +48,10 @@ impl LintRule for NoConstantCondition {
             };
             let condition = ctx.tree.get(condition_id);
             if is_constant_expression(ctx.tree, condition) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         NO_CONSTANT_CONDITION.id,

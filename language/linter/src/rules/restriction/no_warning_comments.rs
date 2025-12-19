@@ -26,7 +26,8 @@ impl LintRule for NoWarningComments {
         NoWarningComments::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let warning_terms = &ctx.options.warning_comment_terms;
 
         // iterate over all annotations (comments)
@@ -44,6 +45,10 @@ impl LintRule for NoWarningComments {
             // check for warning terms in the comment
             for term in warning_terms {
                 if comment_upper.contains(&term.to_uppercase()) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        break;
+                    }
                     ctx.report(
                         LintDiagnostic::new(
                             NO_WARNING_COMMENTS.id,

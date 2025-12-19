@@ -33,7 +33,9 @@ impl LintRule for NoHardcodedIp {
         NoHardcodedIp::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check string literals
             let expression = ctx.tree.get(node_id);
@@ -47,6 +49,10 @@ impl LintRule for NoHardcodedIp {
             if let Some(ip) = find_ipv4_address(string_str)
                 && !is_allowed_ipv4(&ip)
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         NO_HARDCODED_IP.id,
@@ -65,6 +71,10 @@ impl LintRule for NoHardcodedIp {
             if let Some(ip) = find_ipv6_address(string_str)
                 && !is_allowed_ipv6(&ip)
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         NO_HARDCODED_IP.id,

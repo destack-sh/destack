@@ -27,7 +27,9 @@ impl LintRule for NoConstantBinaryExpression {
         NoConstantBinaryExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Binary {
                 left,
@@ -40,6 +42,10 @@ impl LintRule for NoConstantBinaryExpression {
 
             // check for constant results
             if let Some(message) = check_constant_result(ctx, *left, *operator, *right) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let span = ctx.tree.get_span(node_id);
                 ctx.report(
                     LintDiagnostic::new(

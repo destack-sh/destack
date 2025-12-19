@@ -41,7 +41,9 @@ impl LintRule for PreferTuple {
         PreferTuple::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // only applies to Destack files
         if !matches!(
             ctx.module.language_type,
@@ -81,6 +83,11 @@ impl LintRule for PreferTuple {
 
             // check if there are different types
             if !has_different_types(&element_types) {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
                 continue;
             }
 
