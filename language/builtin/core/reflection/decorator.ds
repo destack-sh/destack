@@ -45,6 +45,34 @@ newtype deprecated = string | void;
 /// ```
 newtype experimental = string | void;
 
+/// Allow some diagnostic.
+/// ```
+/// @allow(E001)
+/// function oldAPI() { }
+/// ```
+newtype allow = string | void;
+
+/// Warn on some diagnostic.
+/// ```
+/// @warn(E001)
+/// function oldAPI() { }
+/// ```
+newtype warn = string | void;
+
+/// Error on some diagnostic.
+/// ```
+/// @error(E001)
+/// function oldAPI() { }
+/// ```
+newtype error = string | void;
+
+/// Expect some diagnostic.
+/// ```
+/// @expect(E001)
+/// function oldAPI() { }
+/// ```
+newtype expect = string | void;
+
 /// Compiler intrinsic marker.
 ///
 /// Marks a declaration as implemented by the compiler.
