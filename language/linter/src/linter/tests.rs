@@ -100,6 +100,12 @@ impl TestProgram {
         Self::new_without_builtins(all_rules())
     }
 
+    /// Modify linter options (builder pattern).
+    pub(crate) fn with_options(mut self, f: impl FnOnce(&mut LinterOptions)) -> Self {
+        f(&mut self.linter_options);
+        self
+    }
+
     /// Load a lib module set (builder pattern).
     pub(crate) fn with_lib(self, name: &str) -> Self {
         self.session.load_lib(name);
@@ -355,19 +361,6 @@ impl<'a> LintResult<'a> {
     #[track_caller]
     pub(crate) fn assert_unsafe_fixed(&self, expected: &str) -> &Self {
         let fixed = self.apply_fixes(Some(Fixability::Unsafe));
-        let fixed = fixed.trim();
-        let expected = expected.trim();
-        if fixed != expected {
-            print_diff(expected, fixed);
-            panic!("fixed code mismatch");
-        }
-        self
-    }
-
-    /// Assert the fully fixed code matches expected.
-    #[track_caller]
-    pub(crate) fn assert_any_fixed(&self, expected: &str) -> &Self {
-        let fixed = self.apply_fixes(None);
         let fixed = fixed.trim();
         let expected = expected.trim();
         if fixed != expected {

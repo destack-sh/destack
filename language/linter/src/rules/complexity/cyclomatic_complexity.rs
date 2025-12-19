@@ -155,8 +155,9 @@ mod tests {
 
     #[test]
     fn test_detects_high_complexity() {
-        let test = TestProgram::for_rule(CyclomaticComplexity);
-        // create a function with 21+ decision points to exceed default of 20
+        let test = TestProgram::for_rule(CyclomaticComplexity)
+            .with_options(|options| options.max_cyclomatic_complexity = 20);
+        // create a function with 21+ decision points to exceed limit of 20
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -208,7 +209,8 @@ function simple(x: int32): int32 {
 
     #[test]
     fn test_counts_logical_operators() {
-        let test = TestProgram::for_rule(CyclomaticComplexity);
+        let test = TestProgram::for_rule(CyclomaticComplexity)
+            .with_options(|opts| opts.max_cyclomatic_complexity = 20);
         let result = test.lint_ast(
             "test.ds",
             r#"
