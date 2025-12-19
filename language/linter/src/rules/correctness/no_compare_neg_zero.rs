@@ -120,7 +120,11 @@ fn make_neg_zero_fix(
         _ => return None,
     };
 
-    Some(LintFix::safe("Replace with Object.is()").replace(expr_span, replacement))
+    let edits = ctx
+        .edit_builder()
+        .replace(expr_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Replace with Object.is()").with_edits(edits))
 }
 
 /// Check if an expression is negative zero (-0).

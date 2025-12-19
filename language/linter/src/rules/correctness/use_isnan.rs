@@ -142,7 +142,11 @@ fn make_isnan_fix(
         _ => return None,
     };
 
-    Some(LintFix::safe("Replace with Number.isNaN()").replace(expr_span, replacement))
+    let edits = ctx
+        .edit_builder()
+        .replace(expr_span, replacement)
+        .into_edits();
+    Some(LintFix::safe("Replace with Number.isNaN()").with_edits(edits))
 }
 
 #[cfg(test)]
