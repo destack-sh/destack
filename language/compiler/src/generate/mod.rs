@@ -1,4 +1,6 @@
+mod cranelift;
 mod error;
+mod js;
 mod process;
 mod warning;
 
