@@ -515,9 +515,13 @@ The `comptime` keyword enforces compile-time evaluation: if the expression canno
 
 ### Comptime Expressions
 
-The `comptime` keyword can wrap any expression or block:
+The `comptime` keyword wraps an expression or block, forcing compile-time evaluation:
 
 ```
+// expression form
+const VALUE = comptime 1 + 2 + 3;
+const RESULT = comptime factorial(10);
+
 // block form
 const TABLE = comptime {
     let t = [];
@@ -526,64 +530,53 @@ const TABLE = comptime {
     }
     t
 };
-
-// expression form
-const VALUE = comptime 1 + 2 + 3;
-const RESULT = comptime factorial(10);
 ```
 
-### Comptime Blocks
+The result is embedded as a constant in the compiled output.
 
-Comptime blocks are block expressions evaluated at compile time.
-The block's value becomes a compile-time constant embedded in the output:
+### Comptime Parameters
 
-```
-const doubled = comptime {
-    const x = heavyComputation();
-    x * 2
-};
-```
-
-### Comptime Semantics
-
-#### Evaluation Time
-
-| Expression | Evaluation |
-|------------|------------|
-| `const X = expr` | Module initialization (optimizer may fold) |
-| `const X = comptime expr` | Compile time (guaranteed) |
-| `const X = comptime { ... }` | Compile time (guaranteed) |
-| Static parameter values | Compile time (always) |
-
-#### Comptime-Valid Operations
-
-Comptime code must be deterministic and side-effect-free:
-
-| Operation | Comptime-Valid? |
-|-----------|-----------------|
-| Arithmetic, logic, string operations | Yes |
-| Pure function calls | Yes |
-| Accessing constants | Yes |
-| Static parameter access | Yes |
-| Creating data structures | Yes |
-| I/O: file, network, console | No |
-| Random number generation | No |
-| Runtime state access | No |
-
-#### Error Handling
-
-If comptime code uses a non-comptime operation, it is a compile error:
+Parameters can be marked `comptime` to require compile-time-known arguments:
 
 ```
-const X = comptime {
-    console.log("hello");  // compile error: I/O not allowed in comptime
-    42
-};
+function createBuffer(comptime size: int): uint8[] {
+    let buf = [];
+    for (let i = 0; i < size; i++) { buf.push(0); }
+    buf
+}
+
+createBuffer(1024);           // ok: literal is comptime-known
+createBuffer(config.size);    // error: config.size not comptime-known
+
+const N = comptime 1024;
+createBuffer(N);              // ok: N is comptime-known
 ```
+
+Comptime parameters enable:
+- Specialization based on constant values
+- Compile-time loop unrolling
+- Dead code elimination based on parameter values
+
+### Static Parameters
+
+Static parameters (generics with non-type values) are inherently comptime:
+
+```
+function repeat<N: int>(value: string): string {
+    let result = "";
+    for (let i = 0; i < N; i++) { result += value; }
+    result
+}
+
+const greeting = repeat<3>("hello ");  // N is comptime
+```
+
+Static parameters and `comptime` parameters serve similar purposes.
+Use static parameters when the value affects the return type; use `comptime` parameters otherwise.
 
 ### Comptime Functions
 
-Functions are not explicitly marked as "comptime" and "not comptime".
+Functions are not explicitly marked as comptime or not comptime.
 Any function can be called at comptime if its body is comptime-valid:
 
 ```
@@ -591,33 +584,72 @@ function factorial(n: int): int {
     if (n <= 1) { 1 } else { n * factorial(n - 1) }
 }
 
-// same function, different contexts
-const COMPILE_TIME = comptime factorial(10);  // evaluated at compile time
-const runtime = factorial(userInput);         // evaluated at runtime
+// same function, different evaluation contexts
+const COMPILE_TIME = comptime factorial(10);  // must be evaluated at compile time
+const runtime = factorial(userInput);         // may be evaluated at runtime
 ```
 
 The call site determines when the function runs, not the function definition.
+A function that performs I/O cannot be called in a comptime context, but can still be called at runtime.
 
-### Static Parameters
+### Evaluation Contexts
 
-Static parameters are inherently comptime.
-Their values must be known at compile time and are executed using the same mechanism as comptime expressions (because they are comptime expressions):
+| Context | Evaluation |
+|---------|------------|
+| `const X = expr` | Module initialization (optimizer _may_ fold / evaluate as comptime) |
+| `const X = comptime expr` | Compile time (guaranteed) |
+| `comptime` parameter argument | Compile time (required) |
+| Static parameter argument | Compile time (required) |
+| `if (comptime cond)` condition | Compile time (enables branch elimination) |
+
+### Comptime-Valid Operations
+
+Comptime evaluation must be deterministic and side-effect-free:
+
+| Category | Operations | Comptime-Valid |
+|----------|------------|----------------|
+| Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` | Yes |
+| Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` | Yes |
+| Logic | `&&`, `\|\|`, `!` | Yes |
+| Bitwise | `&`, `\|`, `^`, `~`, `<<`, `>>` | Yes |
+| String | concatenation, slicing, `length` | Yes |
+| Data structures | array/object creation, access | Yes |
+| Control flow | `if`, `match`, `for`, `while`, `loop` | Yes |
+| Functions | pure function calls | Yes |
+| Constants | `const` bindings, static parameters | Yes |
+| I/O | file, network, console | No |
+| Random | `Math.random()`, crypto random | No |
+| Time | `Date.now()`, timers | No |
+| Runtime state | mutable globals, closures over `let` | No |
+| Async | `await`, promises | No |
+| Exceptions | `throw` (but `try`/`catch` is allowed) | No |
+
+### Comptime Errors
+
+Non-comptime operations in comptime context produce compile errors:
 
 ```
-function createBuffer<Size: int>(): uint8[Size] {
-    comptime {
-        let buf = [];
-        for (let i = 0; i < Size; i++) { buf.push(0); }
-        buf
-    }
-}
+const X = comptime {
+    console.log("hello");  // error: I/O not allowed in comptime
+    42
+};
 
-const buffer = createBuffer<1024>();
+function greet(comptime name: string) {
+    print(name);  // ok: print happens at runtime, not comptime
+}
+greet(getUserInput());  // error: getUserInput() is not comptime-known
+```
+
+Comptime evaluation failures (division by zero, out of bounds, etc.) are also compile errors:
+
+```
+const X = comptime 1 / 0;           // error: division by zero in comptime
+const Y = comptime [1, 2, 3][10];   // error: index out of bounds in comptime
 ```
 
 ### Conditional Compilation
 
-Comptime enables conditional compilation based on build configuration:
+When an `if` condition is a comptime expression, the compiler can eliminate dead branches:
 
 ```
 const DEBUG = comptime getEnvFlag("DEBUG");
@@ -629,7 +661,11 @@ function log(msg: string) {
 }
 ```
 
-When `DEBUG` is false, the compiler eliminates the entire `if` branch from the output.
+When `DEBUG` is false, the entire `if` body is removed from the output.
+This works because:
+1. `DEBUG` is a comptime constant
+2. The condition `comptime DEBUG` forces compile-time evaluation
+3. The compiler sees a constant `false` and eliminates the branch during code generation
 
 ## Reflection
 

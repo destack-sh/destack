@@ -251,63 +251,37 @@ function merge<T: int, U>(): T where (
 
 ## Comptime
 
-Destack supports explicit compile-time evaluation via the `comptime` keyword (inspired by Zig).
-The compiler already optimizes aggressively and will evaluate pure expressions at compile time when possible.
-The `comptime` keyword lets you *enforce* compile-time evaluation for expressions and bindings: if the operand cannot be evaluated at compile time, it is a compile error.
-
-### Compile-Time Expressions
-
-The `comptime` keyword can wrap any expression (or block, which is an expression):
+Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
+The compiler already optimizes aggressively, evaluating pure expressions at compile time when possible.
+The `comptime` keyword lets you *enforce* that the expression must be evaluated at compile time, otherwise it is a compile error.
 
 ```
-// precompute expensive data at compile time
 const LOOKUP_TABLE = comptime {
     let table = [];
-    for (let i = 0; i < 256; i++) {
-        table.push(computeCRC(i));
-    }
+    for (let i = 0; i < 256; i++) { table.push(computeCRC(i)); }
     table
 };
-
-// simple compile-time expression
-const COMPUTED = comptime 1 + 2 + 3; // (redundant, but allowed for explicitness)
 ```
 
-With `comptime`, the result is guaranteed to be computed during compilation and embedded in the output.
-Without `comptime`, the `LOOKUP_TABLE` may be computed at module initialization time (i.e., runtime) instead.
-
-### Comptime Functions
-
-Functions are not explicitly marked as "comptime" and "not comptime".
-Any function can be called at comptime if its body uses only comptime-valid operations:
+Functions are not marked as comptime or not. The call site determines when a function runs:
 
 ```
 function factorial(n: int): int {
     if (n <= 1) { 1 } else { n * factorial(n - 1) }
 }
 
-const FACT_10 = comptime factorial(10);    // evaluated at compile time
-const runtime = factorial(getUserInput()); // evaluated at runtime
+const FACT_10 = comptime factorial(10);    // compile time
+const dynamic = factorial(getUserInput()); // runtime
 ```
 
-The call site determines when the function runs, not the function definition.
-
-### Static Parameters
-
-Static parameters are inherently comptime.
-Their values must be known at compile time and are executed using the same mechanism as comptime expressions (because they are comptime expressions):
+Parameters can be marked `comptime` to require compile-time-known arguments:
 
 ```
-function repeat<N: int>(value: string): string {
-    comptime {
-        let result = "";
-        for (let i = 0; i < N; i++) { result += value; }
-        result
-    }
-}
-
-const greeting = repeat<3>("hello ");
+function createBuffer(comptime size: int): uint8[] { ... }
 ```
+
+Static parameters (generics with value types) are inherently comptime.
+See [SPECIFICATION.md](SPECIFICATION.md#comptime) for detailed semantics.
 
 ## Reflection
 
