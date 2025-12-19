@@ -90,7 +90,7 @@ impl ModuleLowerer<'_> {
                 items,
                 arguments,
             } => {
-                let target = self.strings.intern_from(&self.module.ast.strings, *target);
+                let target = self.strings.intern_from(&self.ast.strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let arguments = arguments
                     .as_ref()
@@ -123,7 +123,7 @@ impl ModuleLowerer<'_> {
                 target_module: _,
                 items,
             } => {
-                let target = self.strings.intern_from(&self.module.ast.strings, *target);
+                let target = self.strings.intern_from(&self.ast.strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
@@ -369,7 +369,7 @@ impl ModuleLowerer<'_> {
                 let left_id = self
                     .lower_expression(*left)
                     .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
-                let name = self.strings.intern_from(&self.module.ast.strings, *name);
+                let name = self.strings.intern_from(&self.ast.strings, *name);
                 let static_arguments = static_arguments
                     .as_ref()
                     .map(|arguments| {
@@ -500,7 +500,7 @@ impl ModuleLowerer<'_> {
                 body,
                 symbol: _,
             } => {
-                let label = self.strings.intern_from(&self.module.ast.strings, *label);
+                let label = self.strings.intern_from(&self.ast.strings, *label);
                 // TODO #Broken: handle expressions lowering into non-statements (like labelled blocks?)
                 let body_id = self
                     .lower_expression(*body)

@@ -90,15 +90,16 @@ impl LintRunner {
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
         let module = module.read();
+        let ast = &module.ast;
         let file = program.files.get(module.file_id);
         let mut ctx = LintModuleAstContext::new(
             program,
             &module,
             file,
-            &module.ast.tree,
-            &module.ast.parents,
-            &module.ast.roots,
-            &module.ast.strings,
+            &ast.tree,
+            &ast.parents,
+            &ast.roots,
+            &ast.strings,
             options,
         );
 
@@ -125,6 +126,7 @@ impl LintRunner {
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.read();
+        let ast = &module.ast;
         let file = program.files.get(module.file_id);
         let tree = module.dir.tree.read();
         let symbols = module.dir.symbols.read();
@@ -136,7 +138,7 @@ impl LintRunner {
             program,
             &module,
             file,
-            &module.ast.tree,
+            &ast.tree,
             &tree,
             &symbols,
             &types,

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::harness::{TestResult, format_diagnostics};
+use crate::mdtest::MdTestCase;
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
@@ -9,8 +11,6 @@ use destack_source::{
     FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
-use crate::harness::{TestResult, format_diagnostics};
-use crate::mdtest::MdTestCase;
 
 /// Run a single formatter transform test.
 ///
@@ -132,7 +132,11 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     if formatted_normalized == expected_normalized {
         TestResult::Passed
     } else {
-        print_diff(&expected_normalized, &formatted_normalized, &DiffOptions::new());
+        print_diff(
+            &expected_normalized,
+            &formatted_normalized,
+            &DiffOptions::new(),
+        );
         TestResult::Failed {
             message: "formatted output differs from expected".to_string(),
         }

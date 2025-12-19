@@ -6,7 +6,7 @@ use destack_dir::{
     NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
     SymbolType, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -48,7 +48,8 @@ impl Compiler {
     /// Bind AST declaration descriptor into DIR declaration descriptor (including symbol and scope).
     pub(super) fn bind_declaration_descriptor(
         &self,
-        module: &Module,
+        _module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         descriptor: &ast::DeclarationDescriptor,
         kind: SymbolKind,
@@ -58,7 +59,7 @@ impl Compiler {
         let name = descriptor.name.map(|name| {
             self.program
                 .strings
-                .intern_from(&module.ast.strings, name.string())
+                .intern_from(&ast.strings, name.string())
         });
         let export = descriptor
             .export
@@ -108,6 +109,7 @@ impl Compiler {
     pub(super) fn bind_declaration(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_declaration_id: ast::LocalNodeId<ast::Declaration>,
         parent_id: Option<LocalNodeIdAny>,
@@ -115,7 +117,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
-        let ast_declaration = module.ast.tree.get(ast_declaration_id);
+        let ast_declaration = ast.tree.get(ast_declaration_id);
         let declaration_id = tree.reserve_from_source(
             NodeType::Declaration,
             ast_declaration_id.id,
@@ -130,6 +132,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -138,6 +141,7 @@ impl Compiler {
                 );
                 let generics = self.bind_generics(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -150,6 +154,7 @@ impl Compiler {
                     .map(|expression| {
                         self.bind_expression(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *expression,
                             Some(declaration_id),
@@ -180,6 +185,7 @@ impl Compiler {
                 };
                 let (descriptor, _scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     symbol_kind,
@@ -194,6 +200,7 @@ impl Compiler {
                         .map(|param| {
                             self.bind_parameter(
                                 module,
+                                ast,
                                 scope,
                                 *param,
                                 Some(declaration_id),
@@ -206,6 +213,7 @@ impl Compiler {
                 });
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(declaration_id),
@@ -229,6 +237,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -237,6 +246,7 @@ impl Compiler {
                 );
                 let generics = self.bind_generics(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -246,6 +256,7 @@ impl Compiler {
                 );
                 let heritage = self.bind_heritage(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -258,6 +269,7 @@ impl Compiler {
                     .map(|member| {
                         self.bind_member(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -283,6 +295,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -291,6 +304,7 @@ impl Compiler {
                 );
                 let generics = self.bind_generics(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -300,6 +314,7 @@ impl Compiler {
                 );
                 let heritage = self.bind_heritage(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -312,6 +327,7 @@ impl Compiler {
                     .map(|member| {
                         self.bind_member(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -339,6 +355,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -348,6 +365,7 @@ impl Compiler {
                 let kind = self.bind_enum_kind(*kind);
                 let generics = self.bind_generics(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -357,6 +375,7 @@ impl Compiler {
                 );
                 let heritage = self.bind_heritage(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -369,6 +388,7 @@ impl Compiler {
                     .map(|field| {
                         self.bind_enum_field(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *field,
                             Some(declaration_id),
@@ -383,6 +403,7 @@ impl Compiler {
                     .map(|member| {
                         self.bind_member(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -411,6 +432,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -419,6 +441,7 @@ impl Compiler {
                 );
                 let generics = self.bind_generics(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -428,6 +451,7 @@ impl Compiler {
                 );
                 let heritage = self.bind_heritage(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -440,6 +464,7 @@ impl Compiler {
                     .map(|member| {
                         self.bind_member(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -467,6 +492,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -475,6 +501,7 @@ impl Compiler {
                 );
                 let generics = self.bind_generics(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     generics,
                     Some(declaration_id),
@@ -484,6 +511,7 @@ impl Compiler {
                 );
                 let target_type = self.bind_expression(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *target_type,
                     Some(declaration_id),
@@ -493,6 +521,7 @@ impl Compiler {
                 );
                 let heritage = self.bind_heritage(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     heritage,
                     Some(declaration_id),
@@ -505,6 +534,7 @@ impl Compiler {
                     .map(|member| {
                         self.bind_member(
                             module,
+                            ast,
                             (scope_id, symbols.get_scope_mark(scope_id)),
                             *member,
                             Some(declaration_id),
@@ -531,6 +561,7 @@ impl Compiler {
             } => {
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
+                    ast,
                     scope,
                     descriptor,
                     SymbolKind::Item,
@@ -539,6 +570,7 @@ impl Compiler {
                 );
                 let signature = self.bind_function_signature(
                     module,
+                    ast,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     signature,
                     Some(declaration_id),
@@ -549,6 +581,7 @@ impl Compiler {
                 let body = body.map(|body| {
                     self.bind_expression(
                         module,
+                        ast,
                         (scope_id, symbols.get_scope_mark(scope_id)),
                         body,
                         Some(declaration_id),
@@ -577,6 +610,7 @@ impl Compiler {
     pub(super) fn bind_enum_field(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_field_id: ast::LocalNodeId<ast::EnumField>,
         parent_id: Option<LocalNodeIdAny>,
@@ -584,18 +618,28 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<EnumField> {
-        let ast_field = module.ast.tree.get(ast_field_id);
+        let ast_field = ast.tree.get(ast_field_id);
         let field_id =
             tree.reserve_from_source(NodeType::EnumField, ast_field_id.id, scope, parent_id);
         let name = self
             .program
             .strings
-            .intern_from(&module.ast.strings, ast_field.name.string());
+            .intern_from(&ast.strings, ast_field.name.string());
         let value = ast_field.value.map(|value| {
-            self.bind_expression(module, scope, value, Some(field_id), tree, symbols, types)
+            self.bind_expression(
+                module,
+                ast,
+                scope,
+                value,
+                Some(field_id),
+                tree,
+                symbols,
+                types,
+            )
         });
         let (symbol_id, _) = self.bind_named_item(
             module,
+            ast,
             SymbolSpace::Value,
             StaticKey::Name(name),
             scope,

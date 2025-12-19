@@ -4,7 +4,7 @@ use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, NodeTree, NodeType,
     Property, SymbolSpace, SymbolTable, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -12,6 +12,7 @@ impl Compiler {
     pub(super) fn bind_property(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_property_id: ast::LocalNodeId<ast::Property>,
         parent_id: Option<LocalNodeIdAny>,
@@ -19,7 +20,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
-        let ast_property = module.ast.tree.get(ast_property_id);
+        let ast_property = ast.tree.get(ast_property_id);
         let property_id =
             tree.reserve_from_source(NodeType::Property, ast_property_id.id, scope, parent_id);
         let property = match ast_property {
@@ -30,13 +31,23 @@ impl Compiler {
                 default,
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
-                    self.bind_key(module, scope, key, Some(property_id), tree, symbols, types)
+                    self.bind_key(
+                        module,
+                        ast,
+                        scope,
+                        key,
+                        Some(property_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let value = value.map(|value| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         value,
                         Some(property_id),
@@ -48,6 +59,7 @@ impl Compiler {
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         default,
                         Some(property_id),
@@ -57,7 +69,7 @@ impl Compiler {
                     )
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Property::Field {
                     modifiers,
                     key,
@@ -73,12 +85,22 @@ impl Compiler {
                 body,
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
-                    self.bind_key(module, scope, key, Some(property_id), tree, symbols, types)
+                    self.bind_key(
+                        module,
+                        ast,
+                        scope,
+                        key,
+                        Some(property_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let signature = self.bind_function_signature(
                     module,
+                    ast,
                     scope,
                     signature,
                     Some(property_id),
@@ -89,6 +111,7 @@ impl Compiler {
                 let body = body.map(|body| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         body,
                         Some(property_id),
@@ -98,7 +121,7 @@ impl Compiler {
                     )
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Property::Method {
                     modifiers,
                     key,
@@ -111,9 +134,10 @@ impl Compiler {
                 modifiers, value, ..
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(property_id),
@@ -122,7 +146,7 @@ impl Compiler {
                     types,
                 );
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Property::Spread {
                     modifiers,
                     value,
@@ -137,6 +161,7 @@ impl Compiler {
     pub(super) fn bind_member(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_member_id: ast::LocalNodeId<ast::Member>,
         parent_id: Option<LocalNodeIdAny>,
@@ -144,7 +169,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Member> {
-        let ast_member = module.ast.tree.get(ast_member_id);
+        let ast_member = ast.tree.get(ast_member_id);
         let member_id =
             tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
         let member = match ast_member {
@@ -156,13 +181,23 @@ impl Compiler {
                 ..
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
-                    self.bind_key(module, scope, key, Some(member_id), tree, symbols, types)
+                    self.bind_key(
+                        module,
+                        ast,
+                        scope,
+                        key,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let value = value.map(|value| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         value,
                         Some(member_id),
@@ -174,6 +209,7 @@ impl Compiler {
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         default,
                         Some(member_id),
@@ -183,7 +219,7 @@ impl Compiler {
                     )
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Member::Field {
                     modifiers,
                     key,
@@ -200,12 +236,22 @@ impl Compiler {
                 ..
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
-                    self.bind_key(module, scope, key, Some(member_id), tree, symbols, types)
+                    self.bind_key(
+                        module,
+                        ast,
+                        scope,
+                        key,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let signature = self.bind_function_signature(
                     module,
+                    ast,
                     scope,
                     signature,
                     Some(member_id),
@@ -214,10 +260,19 @@ impl Compiler {
                     types,
                 );
                 let body = body.map(|body| {
-                    self.bind_expression(module, scope, body, Some(member_id), tree, symbols, types)
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        body,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Member::Method {
                     modifiers,
                     key,
@@ -230,9 +285,10 @@ impl Compiler {
                 modifiers, value, ..
             } => {
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let value = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *value,
                     Some(member_id),
@@ -241,7 +297,7 @@ impl Compiler {
                     types,
                 );
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Member::Embed {
                     modifiers,
                     value,
@@ -251,9 +307,10 @@ impl Compiler {
             ast::Member::StaticBlock { modifiers, body } => {
                 // modifiers are validated in the analyze validate pass
                 let modifiers =
-                    modifiers.map(|modifiers| self.bind_binding_modifier(module, modifiers));
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let body = self.bind_expression(
                     module,
+                    ast,
                     scope,
                     *body,
                     Some(member_id),
@@ -262,7 +319,7 @@ impl Compiler {
                     types,
                 );
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 Member::StaticBlock {
                     modifiers,
                     body,

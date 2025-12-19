@@ -254,9 +254,7 @@ impl ModuleLowerer<'_> {
         field_id: dir::LocalNodeId<dir::EnumField>,
     ) -> CodegenJsResult<LocalNodeId<EnumField>> {
         let field = self.dir_tree.get(field_id);
-        let name = self
-            .strings
-            .intern_from(&self.module.ast.strings, field.name);
+        let name = self.strings.intern_from(&self.ast.strings, field.name);
         let value = field
             .value
             .as_ref()

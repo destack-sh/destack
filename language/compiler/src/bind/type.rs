@@ -4,7 +4,7 @@ use destack_dir::{
     Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, Mutability,
     NodeTree, SymbolTable, Type, TypeKind, TypeTable, VarianceBound,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -12,6 +12,7 @@ impl Compiler {
     pub(super) fn bind_expression_to_type(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_expression_id: ast::LocalNodeId<ast::Expression>,
         parent_id: Option<LocalNodeIdAny>,
@@ -21,6 +22,7 @@ impl Compiler {
     ) -> LocalTypeId {
         let expression_id = self.bind_expression(
             module,
+            ast,
             scope,
             ast_expression_id,
             parent_id,
@@ -61,6 +63,7 @@ impl Compiler {
     pub(super) fn bind_generics(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         generics: &ast::Generics,
         parent_id: Option<LocalNodeIdAny>,
@@ -77,6 +80,7 @@ impl Compiler {
                     .map(|static_parameter| {
                         self.bind_parameter(
                             module,
+                            ast,
                             scope,
                             *static_parameter,
                             parent_id,
@@ -93,6 +97,7 @@ impl Compiler {
                 .map(|where_clause| {
                     self.bind_where_clause(
                         module,
+                        ast,
                         scope,
                         *where_clause,
                         parent_id,
@@ -113,6 +118,7 @@ impl Compiler {
     pub(super) fn bind_heritage(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         heritage: &ast::Heritage,
         parent_id: Option<LocalNodeIdAny>,
@@ -126,6 +132,7 @@ impl Compiler {
                 .map(|extends_type| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         *extends_type,
                         parent_id,
@@ -142,6 +149,7 @@ impl Compiler {
                 .map(|implements_type| {
                     self.bind_expression(
                         module,
+                        ast,
                         scope,
                         *implements_type,
                         parent_id,

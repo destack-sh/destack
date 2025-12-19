@@ -55,7 +55,6 @@ impl Compiler {
         }
     }
 
-
     /// Create a placeholder node for errors without a specific location.
     /// nocheckin #Broken: don't do placeholder nodes in generate
     pub(super) fn placeholder_node(module_id: ModuleId) -> GlobalNodeIdAny {

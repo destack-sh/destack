@@ -1,22 +1,25 @@
 use destack_dir::{Expression, GlobalNodeIdAny, LocalNodeId, LocalSymbolId, StaticKey};
 
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 use crate::Compiler;
 
 impl Compiler {
     /// Bind the AST root expressions for a module.
-    pub(super) fn bind_module_roots(&self, module: &mut Module) {
+    pub(super) fn bind_module_roots(
+        &self,
+        module: &Module,
+        ast: &ModuleAst,
+    ) -> Vec<LocalNodeId<Expression>> {
         let mut tree = module.dir.tree.write();
         let mut symbols = module.dir.symbols.write();
         let mut types = module.dir.types.write();
-        let roots: Vec<LocalNodeId<Expression>> = module
-            .ast
-            .roots
+        ast.roots
             .iter()
             .map(|expression| {
                 self.bind_expression(
                     module,
+                    ast,
                     (
                         module.dir.namespace_scope,
                         symbols.get_scope_mark(module.dir.namespace_scope),
@@ -28,8 +31,7 @@ impl Compiler {
                     &mut types,
                 )
             })
-            .collect();
-        module.dir.roots.extend(roots);
+            .collect()
     }
 
     /// Bind module exports and resolve conflicts.

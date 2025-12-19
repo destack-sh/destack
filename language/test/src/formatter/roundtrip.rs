@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::harness::{TestCase, TestResult, check_diagnostics};
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
@@ -9,7 +10,6 @@ use destack_source::{
     print_diff,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program};
-use crate::harness::{TestCase, TestResult, check_diagnostics};
 
 /// Run a single formatter roundtrip test.
 ///

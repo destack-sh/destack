@@ -5,7 +5,7 @@ use destack_dir::{
     FunctionSignature, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable,
     TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -69,6 +69,7 @@ impl Compiler {
     pub(super) fn bind_function_signature(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         signature: &ast::FunctionSignature,
         parent_id: Option<LocalNodeIdAny>,
@@ -82,18 +83,31 @@ impl Compiler {
         let mode = signature.mode.map(|mode| self.bind_function_mode(mode));
         let kind = self.bind_function_kind(signature.kind);
         let generics = signature.generics.as_ref().map(|generics| {
-            self.bind_generics(module, scope, generics, parent_id, tree, symbols, types)
+            self.bind_generics(
+                module, ast, scope, generics, parent_id, tree, symbols, types,
+            )
         });
 
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
             .map(|parameter| {
-                self.bind_parameter(module, scope, *parameter, parent_id, tree, symbols, types)
+                self.bind_parameter(
+                    module, ast, scope, *parameter, parent_id, tree, symbols, types,
+                )
             })
             .collect();
         let return_type = signature.return_type.map(|return_type| {
-            self.bind_expression(module, scope, return_type, parent_id, tree, symbols, types)
+            self.bind_expression(
+                module,
+                ast,
+                scope,
+                return_type,
+                parent_id,
+                tree,
+                symbols,
+                types,
+            )
         });
         FunctionSignature {
             abstraction,

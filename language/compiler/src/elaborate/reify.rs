@@ -3,6 +3,8 @@ use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult};
 
+// nocheckin: elaborate reify
+
 impl Compiler {
     /// Reify a module to make abstractions concrete:
     /// - Range expressions → iterator construction

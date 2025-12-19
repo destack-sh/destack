@@ -43,10 +43,9 @@ impl ModuleLowerer<'_> {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name =
-                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
-                    let alias = alias
-                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
+                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let alias =
+                        alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -67,10 +66,9 @@ impl ModuleLowerer<'_> {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name =
-                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
-                    let alias = alias
-                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
+                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let alias =
+                        alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -105,10 +103,9 @@ impl ModuleLowerer<'_> {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name =
-                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
-                    let alias = alias
-                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
+                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let alias =
+                        alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {
@@ -132,10 +129,9 @@ impl ModuleLowerer<'_> {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name =
-                        name.map(|name| self.strings.intern_from(&self.module.ast.strings, name));
-                    let alias = alias
-                        .map(|alias| self.strings.intern_from(&self.module.ast.strings, alias));
+                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let alias =
+                        alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
                         mode,
                         kind: if *item_kind != kind {

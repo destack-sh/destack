@@ -33,6 +33,7 @@ pub struct Module {
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
 
+    // nocheckin
     /// The AST-level module data (syntactic).
     pub ast: ModuleAst,
     /// The DIR-level module data (semantic, target-independent).

@@ -4,7 +4,7 @@ use destack_dir::{
     Annotation, AnnotationPosition, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, NodeTree, NodeType, SymbolTable, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -13,18 +13,20 @@ impl Compiler {
     pub fn attach_annotations(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) {
         // bind them
-        for ast_annotation_id in module.ast.tree.get_nodes::<ast::Annotation>() {
-            let ast_parent_id = module.ast.parents.get(ast_annotation_id);
+        for ast_annotation_id in ast.tree.get_nodes::<ast::Annotation>() {
+            let ast_parent_id = ast.parents.get(ast_annotation_id);
             let dir_parent_id = ast_parent_id
                 .and_then(|ast_parent_id| tree.get_node_id_by_source_id(ast_parent_id));
             self.bind_annotation(
                 module,
+                ast,
                 scope,
                 ast_annotation_id,
                 dir_parent_id,
@@ -35,7 +37,7 @@ impl Compiler {
         }
 
         // attach them
-        for (ast_node_id, ast_annotations) in module.ast.tree.get_all_annotations() {
+        for (ast_node_id, ast_annotations) in ast.tree.get_all_annotations() {
             let Some(dir_node_id) = tree.get_node_id_by_source_id(*ast_node_id) else {
                 continue;
             };
@@ -68,6 +70,7 @@ impl Compiler {
     pub(super) fn bind_annotation(
         &self,
         module: &Module,
+        ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         ast_annotation_id: ast::LocalNodeId<ast::Annotation>,
         parent_id: Option<LocalNodeIdAny>,
@@ -75,7 +78,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalNodeId<Annotation>> {
-        let ast_annotation = module.ast.tree.get(ast_annotation_id);
+        let ast_annotation = ast.tree.get(ast_annotation_id);
 
         // skip blank annotations without reserving
         if matches!(ast_annotation, ast::Annotation::Blank { .. }) {
@@ -87,29 +90,26 @@ impl Compiler {
         let annotation = match ast_annotation {
             ast::Annotation::Blank { .. } => unreachable!(),
             ast::Annotation::Doc { node, position } => {
-                let doc = module.ast.tree.get(*node);
+                let doc = ast.tree.get(*node);
                 let position = self.bind_annotation_position(*position);
-                let string = self
-                    .program
-                    .strings
-                    .intern_from(&module.ast.strings, doc.string);
+                let string = self.program.strings.intern_from(&ast.strings, doc.string);
                 Annotation::Doc { position, string }
             }
             ast::Annotation::Comment { node, position } => {
-                let comment = module.ast.tree.get(*node);
+                let comment = ast.tree.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let string = self
                     .program
                     .strings
-                    .intern_from(&module.ast.strings, comment.string);
+                    .intern_from(&ast.strings, comment.string);
                 Annotation::Comment { position, string }
             }
             ast::Annotation::Decorator { node, position } => {
-                let decorator = module.ast.tree.get(*node);
+                let decorator = ast.tree.get(*node);
                 let position = self.bind_annotation_position(*position);
 
                 // bind the path as a Path expression
-                let path = self.bind_path(module, &decorator.left);
+                let path = self.bind_path(module, ast, &decorator.left);
                 let left_id = tree.reserve_from_source(
                     NodeType::Expression,
                     node.id, // use decorator node as source
@@ -131,6 +131,7 @@ impl Compiler {
                         .map(|argument| {
                             self.bind_argument(
                                 module,
+                                ast,
                                 scope,
                                 *argument,
                                 Some(annotation_id),
