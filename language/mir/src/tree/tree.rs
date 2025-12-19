@@ -28,7 +28,11 @@ pub struct NodeTree {
     pub(crate) types: Arena<Type>,
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
-    // #Incomplete: track parents as side data in MIR NodeTree?
+
+    // source tracking (MIR node id → DIR node id)
+    /// Maps MIR node id → source DIR node id (for diagnostics).
+    /// None for synthesized nodes that don't correspond to source.
+    pub(crate) source_id_by_node_id: Vec<Option<u32>>,
 }
 
 impl Debug for NodeTree {
@@ -71,10 +75,13 @@ impl NodeTree {
             types: Arena::new(),
             fields: Arena::new(),
             globals: Arena::new(),
+
+            source_id_by_node_id: Vec::with_capacity(capacity),
         }
     }
 
     /// Insert a node into the tree and return its id.
+    /// The node will have no source DIR node associated (synthesized).
     pub fn insert<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
@@ -86,6 +93,24 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
+        self.source_id_by_node_id.push(None);
+
+        LocalNodeId::new(global_id)
+    }
+
+    /// Insert a node into the tree with a source DIR node id for diagnostics.
+    pub fn insert_from<T>(&mut self, node: T, source_dir_id: u32) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        let global_id = self.next_global_id;
+        self.next_global_id += 1;
+
+        let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
+        self.local_id_by_node_id.push(local_id);
+        self.node_type_by_node_id.push(T::TYPE);
+        self.source_id_by_node_id.push(Some(source_dir_id));
 
         LocalNodeId::new(global_id)
     }
@@ -116,6 +141,19 @@ impl NodeTree {
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {
         self.node_type_by_node_id[id as usize]
+    }
+
+    /// Get the source DIR node id for a MIR node, if available.
+    /// Returns None for synthesized nodes that don't correspond to source.
+    #[inline]
+    pub fn get_source(&self, id: u32) -> Option<u32> {
+        self.source_id_by_node_id[id as usize]
+    }
+
+    /// Set the source DIR node id for a MIR node.
+    #[inline]
+    pub fn set_source(&mut self, id: u32, source_dir_id: u32) {
+        self.source_id_by_node_id[id as usize] = Some(source_dir_id);
     }
 
     /// Iterate over all nodes of a given type.

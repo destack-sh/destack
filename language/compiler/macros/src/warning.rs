@@ -333,7 +333,23 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
         .iter()
         .map(|v| {
             let name = &v.name;
-            if v.fields.iter().any(|(n, _)| n == "node") {
+
+            // check for optional node with module fallback
+            let has_module = v.fields.iter().any(|(n, _)| n == "module");
+            let node_is_option = v
+                .fields
+                .iter()
+                .any(|(n, ty)| n == "node" && quote!(#ty).to_string().starts_with("Option"));
+
+            if has_module && node_is_option {
+                // both module and optional node: use node if present, otherwise module
+                quote! {
+                    Self::#name { node, module, .. } => match node {
+                        Some(n) => DiagnosticAnchor::Node(*n),
+                        None => DiagnosticAnchor::Module(*module),
+                    }
+                }
+            } else if v.fields.iter().any(|(n, _)| n == "node") {
                 quote! { Self::#name { node, .. } => DiagnosticAnchor::Node(*node) }
             } else if v.fields.iter().any(|(n, _)| n == "span") {
                 quote! { Self::#name { span, .. } => DiagnosticAnchor::File(span.file) }

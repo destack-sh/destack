@@ -357,8 +357,24 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         .iter()
         .map(|v| {
             let name = &v.name;
+
+            // check for optional node with module fallback
+            let has_module = v.fields.iter().any(|(n, _)| n == "module");
+            let node_is_option = v
+                .fields
+                .iter()
+                .any(|(n, ty)| n == "node" && quote!(#ty).to_string().starts_with("Option"));
+
             if v.fields.iter().any(|(n, _)| n == "dependency") {
                 quote! { Self::#name { dependency, .. } => dependency.anchor() }
+            } else if has_module && node_is_option {
+                // both module and optional node: use node if present, otherwise module
+                quote! {
+                    Self::#name { node, module, .. } => match node {
+                        Some(n) => DiagnosticAnchor::Node(*n),
+                        None => DiagnosticAnchor::Module(*module),
+                    }
+                }
             } else if v.fields.iter().any(|(n, _)| n == "node") {
                 quote! { Self::#name { node, .. } => DiagnosticAnchor::Node(*node) }
             } else if v.fields.iter().any(|(n, _)| n == "span") {

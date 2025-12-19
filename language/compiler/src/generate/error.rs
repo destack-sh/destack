@@ -3,6 +3,7 @@ use crate::{
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::GlobalNodeIdAny;
+use destack_source::ModuleId;
 use destack_workspace::Program;
 
 /// Errors during the generate phase.
@@ -19,47 +20,57 @@ pub enum GenerateError {
 
     /// Unsupported target/output format.
     #[error(code = "EG002", message = "unsupported target: {target}")]
-    UnsupportedTarget {
-        node: GlobalNodeIdAny,
-        target: String,
-    },
-
-    /// Unsupported construct (instruction, expression, etc.).
-    #[error(code = "EG003", message = "unsupported construct")]
-    UnsupportedConstruct { node: GlobalNodeIdAny },
-
-    /// Unsupported type for codegen.
-    #[error(code = "EG004", message = "unsupported type")]
-    UnsupportedType { node: GlobalNodeIdAny },
-
-    /// Unexpected construct (wrong node type).
-    #[error(code = "EG005", message = "unexpected construct")]
-    UnexpectedConstruct { node: GlobalNodeIdAny },
-
-    /// Unresolved construct (not fully resolved before codegen).
-    #[error(code = "EG006", message = "unresolved construct")]
-    UnresolvedConstruct { node: GlobalNodeIdAny },
+    UnsupportedTarget { module: ModuleId, target: String },
 
     /// Unresolved function reference.
-    #[error(code = "EG007", message = "unresolved function: {name}")]
-    UnresolvedFunction { node: GlobalNodeIdAny, name: String },
-
-    /// Missing type information.
-    #[error(code = "EG008", message = "missing type")]
-    MissingType { node: GlobalNodeIdAny },
-
-    /// Out of bounds access (tuple/array element index).
-    #[error(code = "EG009", message = "index {index} out of bounds (len {len})")]
-    OutOfBounds {
-        node: GlobalNodeIdAny,
-        index: u32,
-        len: usize,
-    },
+    #[error(code = "EG003", message = "unresolved function: {name}")]
+    UnresolvedFunction { module: ModuleId, name: String },
 
     /// Internal codegen error.
-    #[error(code = "EG010", message = "internal error: {message}")]
-    Internal {
-        node: GlobalNodeIdAny,
-        message: String,
+    #[error(code = "EG004", message = "internal error: {message}")]
+    Internal { module: ModuleId, message: String },
+
+    /// Unsupported construct (instruction, expression, etc.).
+    #[error(code = "EG005", message = "unsupported construct")]
+    UnsupportedConstruct {
+        module: ModuleId,
+        node: Option<GlobalNodeIdAny>,
+    },
+
+    /// Unsupported type for codegen.
+    #[error(code = "EG006", message = "unsupported type")]
+    UnsupportedType {
+        module: ModuleId,
+        node: Option<GlobalNodeIdAny>,
+    },
+
+    /// Unexpected construct (wrong node type).
+    #[error(code = "EG007", message = "unexpected construct")]
+    UnexpectedConstruct {
+        module: ModuleId,
+        node: Option<GlobalNodeIdAny>,
+    },
+
+    /// Unresolved construct (not fully resolved before codegen).
+    #[error(code = "EG008", message = "unresolved construct")]
+    UnresolvedConstruct {
+        module: ModuleId,
+        node: Option<GlobalNodeIdAny>,
+    },
+
+    /// Missing type information.
+    #[error(code = "EG009", message = "missing type")]
+    MissingType {
+        module: ModuleId,
+        node: Option<GlobalNodeIdAny>,
+    },
+
+    /// Out of bounds access (tuple/array element index).
+    #[error(code = "EG010", message = "index {index} out of bounds (len {len})")]
+    OutOfBounds {
+        module: ModuleId,
+        node: Option<GlobalNodeIdAny>,
+        index: u32,
+        len: usize,
     },
 }
