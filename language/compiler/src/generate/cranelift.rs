@@ -1,6 +1,6 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
 use destack_codegen_cranelift::{CodegenCraneliftError, CodegenCraneliftWarning};
-use destack_dir::{GlobalNodeIdAny, LocalNodeIdAny, NodeType};
+use destack_dir::{GlobalNodeIdAny, LocalNodeIdAny};
 use destack_source::ModuleId;
 use destack_workspace::Target;
 
@@ -11,10 +11,9 @@ impl Compiler {
         module_id: ModuleId,
         target: &Target,
     ) -> GenerateResult<()> {
-        // yield to Optimize if not ready
         self.require_optimize(module_id)?;
 
-        // dispatch to Cranelift codegen
+        // generate artifact
         let registry_next_id = || self.program.artifacts.next_id();
         let output = destack_codegen_cranelift::generate_module(
             self.program.clone(),
@@ -22,95 +21,110 @@ impl Compiler {
             target,
             registry_next_id,
         )
-        .map_err(|e| Self::map_cranelift_error(module_id, e))?;
-
-        // map and report warnings
-        for warning in output.warnings {
-            let warning = Self::map_cranelift_warning(module_id, warning);
-            self.warning(warning);
-        }
-
-        // map and report errors (may be suppressed)
-        for error in output.errors {
-            let error = Self::map_cranelift_error(module_id, error);
-            self.error(error);
-        }
-
-        // store artifacts in registry
+        .map_err(|e| self.map_cranelift_error(module_id, &target.name, e))?;
         for artifact in output.artifacts {
             self.program.artifacts.insert(artifact);
+        }
+
+        // map warnings/errors
+        for warning in output.warnings {
+            let warning = self.map_cranelift_warning(module_id, &target.name, warning);
+            self.warning(warning);
+        }
+        for error in output.errors {
+            let error = self.map_cranelift_error(module_id, &target.name, error);
+            self.error(error);
         }
 
         Ok(())
     }
 
-    /// Map a Cranelift codegen error to a GenerateError.
-    fn map_cranelift_error(module_id: ModuleId, error: CodegenCraneliftError) -> GenerateError {
+    /// Map a Cranelift error to a compiler error.
+    fn map_cranelift_error(
+        &self,
+        module_id: ModuleId,
+        target_name: &str,
+        error: CodegenCraneliftError,
+    ) -> GenerateError {
         match error {
             CodegenCraneliftError::UnsupportedTarget { triple, .. } => {
                 GenerateError::UnsupportedTarget {
-                    node: Self::placeholder_node(module_id),
+                    module: module_id,
                     target: triple,
-                }
-            }
-            CodegenCraneliftError::UnsupportedType { node, .. } => GenerateError::UnsupportedType {
-                node: Self::mir_to_global_node(module_id, node),
-            },
-            CodegenCraneliftError::MissingType { node, .. } => GenerateError::MissingType {
-                node: Self::mir_to_global_node(module_id, node),
-            },
-            CodegenCraneliftError::UnsupportedInstruction { node, .. } => {
-                GenerateError::UnsupportedConstruct {
-                    node: Self::mir_to_global_node(module_id, node),
                 }
             }
             CodegenCraneliftError::FunctionNotFound { name, .. } => {
                 GenerateError::UnresolvedFunction {
-                    node: Self::placeholder_node(module_id),
+                    module: module_id,
                     name,
                 }
             }
+            CodegenCraneliftError::Internal { message } => GenerateError::Internal {
+                module: module_id,
+                message,
+            },
+            CodegenCraneliftError::UnsupportedType { node, .. } => GenerateError::UnsupportedType {
+                module: module_id,
+                node: self.get_dir_node_id(module_id, target_name, node),
+            },
+            CodegenCraneliftError::MissingType { node, .. } => GenerateError::MissingType {
+                module: module_id,
+                node: self.get_dir_node_id(module_id, target_name, node),
+            },
+            CodegenCraneliftError::UnsupportedInstruction { node, .. } => {
+                GenerateError::UnsupportedConstruct {
+                    module: module_id,
+                    node: self.get_dir_node_id(module_id, target_name, node),
+                }
+            }
             CodegenCraneliftError::OutOfBounds { node, index, len } => GenerateError::OutOfBounds {
-                node: Self::mir_to_global_node(module_id, node),
+                module: module_id,
+                node: self.get_dir_node_id(module_id, target_name, node),
                 index,
                 len,
-            },
-            CodegenCraneliftError::Internal { message } => GenerateError::Internal {
-                node: Self::placeholder_node(module_id),
-                message,
             },
         }
     }
 
-    /// Map a Cranelift codegen warning to a GenerateWarning.
-    ///
-    /// Currently Cranelift warnings don't map to any GenerateWarning variants,
-    /// so we map them to UnexpectedConstruct as a catch-all.
+    /// Map a Cranelift warning to a compiler warning.
     fn map_cranelift_warning(
+        &self,
         module_id: ModuleId,
+        target_name: &str,
         warning: CodegenCraneliftWarning,
     ) -> GenerateWarning {
         match warning {
             CodegenCraneliftWarning::UnexpectedNode { node, .. } => {
                 GenerateWarning::UnexpectedConstruct {
-                    node: Self::mir_to_global_node(module_id, node),
+                    module: module_id,
+                    node: self.get_dir_node_id(module_id, target_name, node),
                 }
             }
         }
     }
 
-    /// Convert a MIR local node id to a global node id.
-    /// nocheckin #Broken: revisit generate node mapping
-    fn mir_to_global_node(
+    /// Look up source DIR node from MIR node via source tracking.
+    /// Returns None if MIR node is synthesized (no source).
+    fn get_dir_node_id(
+        &self,
         module_id: ModuleId,
-        node: destack_mir::LocalNodeIdAny,
-    ) -> GlobalNodeIdAny {
-        GlobalNodeIdAny::new(
+        target_name: &str,
+        mir_node: destack_mir::LocalNodeIdAny,
+    ) -> Option<GlobalNodeIdAny> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let mir_tree = module.mir(target_name).tree.read();
+
+        let dir_node_id = mir_tree.get_source(mir_node.id)?;
+        let dir_tree = module.dir().tree.read();
+        let dir_node_type = dir_tree.get_node_type(dir_node_id);
+
+        Some(GlobalNodeIdAny::new(
             module_id,
             LocalNodeIdAny {
-                id: node.id,
-                ty: NodeType::Expression,
+                id: dir_node_id,
+                ty: dir_node_type,
             },
-        )
+        ))
     }
 }

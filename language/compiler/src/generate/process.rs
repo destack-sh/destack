@@ -1,7 +1,6 @@
 use crate::{Compiler, GenerateError, GenerateResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
-use destack_dir::{GlobalNodeIdAny, LocalNodeIdAny, NodeType};
 use destack_source::ModuleId;
 use destack_workspace::OutputFormat;
 
@@ -42,7 +41,7 @@ impl Compiler {
         };
 
         let target = target.ok_or_else(|| GenerateError::Internal {
-            node: Self::placeholder_node(module_id),
+            module: module_id,
             message: format!("target '{target_name}' not found"),
         })?;
 
@@ -53,18 +52,6 @@ impl Compiler {
                 self.generate_cranelift(module_id, &target)
             }
         }
-    }
-
-    /// Create a placeholder node for errors without a specific location.
-    /// nocheckin #Broken: don't do placeholder nodes in generate
-    pub(super) fn placeholder_node(module_id: ModuleId) -> GlobalNodeIdAny {
-        GlobalNodeIdAny::new(
-            module_id,
-            LocalNodeIdAny {
-                id: 0,
-                ty: NodeType::Expression,
-            },
-        )
     }
 
     /// Ensure a module has been generated.
