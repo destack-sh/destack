@@ -24,7 +24,6 @@ pub enum Expression {
     Statement { statement: LocalNodeId<Expression> },
 
     /// Labelled statement (like `label: stmt` in JavaScript).
-    /// Used as a target for break/continue.
     Labelled {
         label: StringId,
         body: LocalNodeId<Expression>,

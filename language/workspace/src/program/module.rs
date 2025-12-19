@@ -2,16 +2,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use indexmap::IndexMap;
 use parking_lot::RwLock;
 
-use destack_ast::{self as ast};
-use destack_base::{StringId, StringPool};
-use destack_dir::{self as dir};
-use destack_mir::{self as mir};
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{ModuleType, TsConfigId};
+use crate::{ModuleAst, ModuleDir, ModuleMir, ModuleType, TsConfigId};
 
 /// A Module is a single source unit.
 /// Destack treats all modules as "strict mode".
@@ -38,11 +33,11 @@ pub struct Module {
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
 
-    /// The AST-level module data.
+    /// The AST-level module data (syntactic).
     pub ast: ModuleAst,
-    /// The DIR-level module data.
+    /// The DIR-level module data (semantic, target-independent).
     pub dir: ModuleDir,
-    /// The MIR-level module data.
+    /// The MIR-level module data (target-specific).
     pub mir: ModuleMir,
 }
 
@@ -128,155 +123,6 @@ impl Module {
     /// Check if this module is stale (source file has changed since compilation).
     pub fn is_stale(&self, file_version: FileVersion) -> bool {
         self.source_version != file_version
-    }
-}
-
-/// AST-level module data.
-/// NOTE #Performance: revisit required ModuleAst state (tokens add ~10-20% memory overhead)
-#[derive(Debug)]
-pub struct ModuleAst {
-    /// The id of the Module.
-    pub id: ModuleId,
-    /// The AST of the Module (may be empty).
-    pub tree: ast::NodeTree,
-    /// The AST parent index.
-    pub parents: ast::NodeParentIndex,
-    /// The top-level AST expressions of the Module.
-    pub roots: Vec<ast::LocalNodeId<ast::Expression>>,
-    /// The string pool of the Module.
-    pub strings: StringPool,
-    /// The tokens of the Module.
-    pub tokens: Vec<ast::TokenSpan>,
-    /// The side tokens (comments, whitespace) of the Module.
-    pub side_tokens: Vec<ast::TokenSpan>,
-}
-
-impl ModuleAst {
-    /// Create a new empty ModuleAst.
-    pub fn new(id: ModuleId) -> Self {
-        Self {
-            id,
-            tree: ast::NodeTree::new(),
-            parents: ast::NodeParentIndex::new(),
-            roots: Vec::new(),
-            strings: StringPool::new(),
-            tokens: Vec::new(),
-            side_tokens: Vec::new(),
-        }
-    }
-
-    /// Create a ModuleAst from a tree.
-    pub fn from_tree(
-        id: ModuleId,
-        tree: ast::NodeTree,
-        roots: Vec<ast::LocalNodeId<ast::Expression>>,
-        strings: StringPool,
-        tokens: Vec<ast::TokenSpan>,
-        side_tokens: Vec<ast::TokenSpan>,
-    ) -> Self {
-        let parents = ast::NodeParentIndex::from_tree(&tree);
-        Self {
-            id,
-            tree,
-            parents,
-            roots,
-            strings,
-            tokens,
-            side_tokens,
-        }
-    }
-}
-
-/// DIR-level module data.
-#[derive(Debug)]
-pub struct ModuleDir {
-    /// The id of the Module.
-    pub id: ModuleId,
-
-    /// The main DIR node tree of the Module.
-    pub tree: RwLock<dir::NodeTree>,
-    /// The symbol side table of the Module.
-    pub symbols: RwLock<dir::SymbolTable>,
-    /// The type side table of the Module (includes types, instances, resolutions).
-    pub types: RwLock<dir::TypeTable>,
-    /// The top-level expressions of the Module.
-    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-
-    /// The symbol of the Module namespace.
-    pub namespace_symbol: dir::LocalSymbolId,
-    /// The scope of the Module.
-    pub namespace_scope: dir::LocalScopeId,
-    /// The symbol of the Module default.
-    pub default_symbol: dir::LocalSymbolId,
-    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    pub namespace_exports: RwLock<Vec<ModuleId>>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
-    pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId), ModuleId>>,
-    /// Exported symbols by key (space, name).
-    pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>>,
-}
-
-impl ModuleDir {
-    /// Create a new ModuleDir.
-    pub fn new(id: ModuleId) -> Self {
-        // set up default namespace and default symbol
-        let mut symbols = dir::SymbolTable::new(id);
-        let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
-        let (namespace_symbol_id, _) = symbols.insert_symbol(
-            dir::SymbolKind::Namespace,
-            dir::SymbolType::Void,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
-            None,
-            (namespace_scope_id, dir::LocalScopeMark::end()),
-            Some(dir::DependencyMode::Namespace),
-        );
-        symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
-        let (default_symbol_id, _) = symbols.insert_symbol(
-            dir::SymbolKind::Namespace,
-            dir::SymbolType::Void,
-            dir::SymbolSpace::Value,
-            dir::SymbolBinding::Runtime,
-            None,
-            (namespace_scope_id, dir::LocalScopeMark::end()),
-            Some(dir::DependencyMode::Default),
-        );
-
-        Self {
-            id,
-            tree: RwLock::new(dir::NodeTree::new(id)),
-            symbols: RwLock::new(symbols),
-            types: RwLock::new(dir::TypeTable::new(id)),
-            roots: Vec::new(),
-            namespace_symbol: namespace_symbol_id,
-            namespace_scope: namespace_scope_id,
-            default_symbol: default_symbol_id,
-            namespace_exports: RwLock::new(Vec::new()),
-            imported_modules: RwLock::new(IndexMap::new()),
-            exported_symbols: RwLock::new(IndexMap::new()),
-        }
-    }
-}
-
-/// MIR-level module data.
-#[derive(Debug)]
-pub struct ModuleMir {
-    /// The id of the Module.
-    pub id: ModuleId,
-    /// The MIR of the Module (may be empty initially).
-    pub tree: RwLock<mir::NodeTree>,
-    /// The string pool of the Module's MIR stuff.
-    pub strings: StringPool,
-}
-
-impl ModuleMir {
-    /// Create a new ModuleMir.
-    pub fn new(id: ModuleId) -> Self {
-        Self {
-            id,
-            tree: RwLock::new(mir::NodeTree::new()),
-            strings: StringPool::new(),
-        }
     }
 }
 
