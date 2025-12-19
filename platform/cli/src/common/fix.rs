@@ -5,7 +5,7 @@ use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
 use destack_source::{DiagnosticOptions, FileId, ModuleId};
 use destack_workspace::Program;
 
-use crate::common::print_diagnostics;
+use crate::common::format::{FormatOptions, format_diagnostics};
 use crate::console;
 
 /// Options for fix behavior.
@@ -32,6 +32,7 @@ pub fn run_with_fixes(
     modules: &[ModuleId],
     diagnostic_options: &DiagnosticOptions,
     fix_options: &FixOptions,
+    format_options: &FormatOptions,
 ) -> FixResult {
     let linter_options = program.linter.clone();
     let runner = LintRunner::from_options(&linter_options);
@@ -61,11 +62,12 @@ pub fn run_with_fixes(
         .into_iter()
         .partition(|d| has_applicable_fix(d, fix_options.include_unsafe));
 
+    // show diff without applying
     if fix_options.diff {
-        // show diff without applying
         show_diff(&program, &fixable, fix_options.include_unsafe);
-    } else if fix_options.apply {
-        // apply fixes
+    }
+    // apply fixes
+    else if fix_options.apply {
         let fixed_count = apply_fixes(&program, &fixable, fix_options.include_unsafe);
         if fixed_count > 0 {
             console::info(&format!("Fixed {fixed_count} problem(s)"));
@@ -76,7 +78,7 @@ pub fn run_with_fixes(
     if !unfixable.is_empty() {
         let collection = to_diagnostic_collection(&unfixable);
         let mapped = collection.map(diagnostic_options);
-        print_diagnostics(&program, &mapped);
+        let _ = format_diagnostics(&program.files, &mapped, format_options, modules.len());
     }
 
     // report issues that should have had fixes but didn't
@@ -88,11 +90,10 @@ pub fn run_with_fixes(
     if !fixable_without_fix.is_empty() {
         let collection = to_diagnostic_collection(&fixable_without_fix);
         let mapped = collection.map(diagnostic_options);
-        print_diagnostics(&program, &mapped);
+        let _ = format_diagnostics(&program.files, &mapped, format_options, modules.len());
     }
 
     let unfixable_count = unfixable.len() + fixable_without_fix.len();
-
     FixResult { unfixable_count }
 }
 
