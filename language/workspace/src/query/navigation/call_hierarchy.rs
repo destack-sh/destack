@@ -56,7 +56,7 @@ pub struct CallHierarchyOutgoingCall {
     pub from_ranges: Vec<Span>,
 }
 
-// NOTE #Incomplete: call hierarchy query should also check overload Resolution
+// NOTE #Incomplete: call hierarchy query should also check Resolutions
 
 /// Prepare a call hierarchy item at the given position.
 ///
@@ -69,24 +69,24 @@ pub fn prepare_call_hierarchy(
     // find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-
-    // check if it's a function
     let module = session.modules.get(canonical_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
+    // check if it's a function
     if symbol.ty != SymbolType::Function {
         return None;
     }
 
     // get the name
-    let name = symbol
-        .name()
-        .map(|id| module_guard.ast.strings.get(id).to_string())?;
+    let name = symbol.name().map(|id| ast.strings.get(id).to_string())?;
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     // get the definition span
     let selection_range = get_symbol_definition_span(session, canonical_id)?;
@@ -118,9 +118,12 @@ pub fn incoming_calls(
 
     // find all call expressions that target this function
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let module_id = module_guard.id;
-        let dir_tree = module_guard.dir.tree.read();
+        let module = module.read();
+        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+            continue;
+        };
+        let module_id = module.id;
+        let dir_tree = dir.tree.read();
 
         // collect call sites and their containing functions
         let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
@@ -135,7 +138,7 @@ pub fn incoming_calls(
             }
 
             // get the span of this reference
-            let Some(call_span) = get_dir_node_span(&module_guard, expr_id.into()) else {
+            let Some(call_span) = get_dir_node_span(ast, dir, expr_id.into()) else {
                 continue;
             };
 
@@ -151,7 +154,7 @@ pub fn incoming_calls(
         }
 
         drop(dir_tree);
-        drop(module_guard);
+        drop(module);
 
         // convert to incoming calls
         for (fn_symbol_id, call_spans) in call_sites_by_function {
@@ -178,9 +181,12 @@ pub fn outgoing_calls(
 
     // get the module containing this function
     let module = session.modules.get(canonical_id.module_id);
-    let module_guard = module.read();
-    let dir_tree = module_guard.dir.tree.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let dir_tree = dir.tree.read();
+    let symbols = dir.symbols.read();
 
     // find the declaration for this symbol
     let symbol = symbols.get_symbol(canonical_id.local_id);
@@ -209,22 +215,25 @@ pub fn outgoing_calls(
     // get spans for collected calls
     let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
     for (target_id, expr_id) in collector.calls {
-        if let Some(span) = get_dir_node_span(&module_guard, expr_id.into()) {
+        if let Some(span) = get_dir_node_span(ast, dir, expr_id.into()) {
             calls_with_spans.entry(target_id).or_default().push(span);
         }
     }
 
     drop(symbols);
     drop(dir_tree);
-    drop(module_guard);
+    drop(module);
 
     // convert to outgoing calls
     let mut outgoing = Vec::new();
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
         let target_module = session.modules.get(target_symbol_id.module_id);
-        let target_guard = target_module.read();
-        let target_symbols = target_guard.dir.symbols.read();
+        let target = target_module.read();
+        let Some(target_dir) = &target.dir else {
+            continue;
+        };
+        let target_symbols = target_dir.symbols.read();
         let target_symbol = target_symbols.get_symbol(target_symbol_id.local_id);
 
         if target_symbol.ty != SymbolType::Function {
@@ -232,7 +241,7 @@ pub fn outgoing_calls(
         }
 
         drop(target_symbols);
-        drop(target_guard);
+        drop(target);
 
         if let Some(target_item) = call_hierarchy_item_from_symbol(session, target_symbol_id) {
             outgoing.push(CallHierarchyOutgoingCall {
@@ -321,20 +330,21 @@ pub fn call_hierarchy_item_from_symbol(
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {
     let module = session.modules.get(symbol_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     if symbol.ty != SymbolType::Function {
         return None;
     }
 
-    let name = symbol
-        .name()
-        .map(|id| module_guard.ast.strings.get(id).to_string())?;
+    let name = symbol.name().map(|id| ast.strings.get(id).to_string())?;
 
     drop(symbols);
-    drop(module_guard);
+    drop(module);
 
     let selection_range = get_symbol_definition_span(session, symbol_id)?;
 

@@ -2231,10 +2231,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let expression_id = module.dir.roots[0];
+        let expression_id = module.dir().roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -2264,10 +2264,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let expression_id = module.dir.roots[0];
+        let expression_id = module.dir().roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -2297,10 +2297,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let expression_id = module.dir.roots[0];
+        let expression_id = module.dir().roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -2330,10 +2330,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let expression_id = module.dir.roots[0];
+        let expression_id = module.dir().roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -2363,10 +2363,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let expression_id = module.dir.roots[0];
+        let expression_id = module.dir().roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -2396,9 +2396,9 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
-        let let_expr_id = module.dir.roots[0];
+        let let_expr_id = module.dir().roots[0];
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
         // no declared type
@@ -2431,10 +2431,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let expression_id = module.dir.roots[0];
+        let expression_id = module.dir().roots[0];
         let expression = tree.get(expression_id);
         let &Expression::Statement {
             statement: expression_id,
@@ -2487,7 +2487,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
         let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
@@ -2548,7 +2548,7 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
         let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
         let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
@@ -2616,7 +2616,7 @@ let x = value;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
         // x should have literal type 42 (imported from lib.ds)
         let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -2653,7 +2653,7 @@ let x = items;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
         // x should have tuple type [1, 2, 3] with literal elements (imported from lib.ds)
         let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -2690,7 +2690,7 @@ let x = greeting;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let types = module.dir.types.read();
+        let types = module.dir().types.read();
 
         // x should have literal string type (imported from lib.ds)
         let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -2749,7 +2749,7 @@ declare const b: B = helperB();
         // struct A { value: B } -> typeOf(A.value) should point to canonical B
         let a_module = test.program.modules.get(a_symbol_id.module_id);
         let a_module = a_module.read();
-        let a_types = a_module.dir.types.read();
+        let a_types = a_module.dir().types.read();
         let a_ty_id = a_types.get_value_type_id(a_symbol_id).unwrap();
         assert_type!(a_types, a_ty_id, Type::Object { fields } => {
             assert_eq!(fields.len(), 1);
@@ -2761,7 +2761,7 @@ declare const b: B = helperB();
         // struct B { value: A } -> typeOf(B.value) should point to canonical A
         let b_module = test.program.modules.get(b_symbol_id.module_id);
         let b_module = b_module.read();
-        let b_types = b_module.dir.types.read();
+        let b_types = b_module.dir().types.read();
         let b_ty_id = b_types.get_value_type_id(b_symbol_id).unwrap();
         assert_type!(b_types, b_ty_id, Type::Object { fields } => {
             assert_eq!(fields.len(), 1);

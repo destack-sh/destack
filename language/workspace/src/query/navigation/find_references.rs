@@ -54,11 +54,14 @@ pub fn find_references(
     let mut references = Vec::new();
 
     for module in session.modules.iter() {
-        let module_guard = module.read();
+        let module = module.read();
+        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+            continue;
+        };
 
-        // collect matching expression ids first (to avoid borrow issues)
+        // collect matching expression ids
         let matching_expr_ids: Vec<_> = {
-            let dir_tree = module_guard.dir.tree.read();
+            let dir_tree = dir.tree.read();
             dir_tree
                 .iter_nodes_of_type::<Expression>()
                 .filter_map(|(expr_id, expr)| {
@@ -73,9 +76,9 @@ pub fn find_references(
                 .collect()
         };
 
-        // now get spans for each matching expression
+        // get spans for each matching expression
         for expr_id in matching_expr_ids {
-            if let Some(span) = get_dir_node_span(&module_guard, expr_id.into()) {
+            if let Some(span) = get_dir_node_span(ast, dir, expr_id.into()) {
                 references.push(span);
             }
         }

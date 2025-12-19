@@ -65,13 +65,16 @@ pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<Pr
 
     // get the symbol to check if it has a name
     let module = session.modules.get(canonical_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
     // get the symbol name
     let name_string_id = symbol.name()?;
-    let name = module_guard.ast.strings.get(name_string_id).to_string();
+    let name = ast.strings.get(name_string_id).to_string();
 
     // 3. return the range and current name
     Some(PrepareRenameResult {
@@ -113,11 +116,14 @@ pub fn rename(
 
     // 5. find all references across all modules
     for module in session.modules.iter() {
-        let module_guard = module.read();
+        let module = module.read();
+        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+            continue;
+        };
 
         // collect matching expression ids first to avoid borrow issues
         let matching_expression_ids: Vec<_> = {
-            let dir_tree = module_guard.dir.tree.read();
+            let dir_tree = dir.tree.read();
             dir_tree
                 .iter_nodes_of_type::<Expression>()
                 .filter_map(|(expression_id, expression)| {
@@ -134,7 +140,7 @@ pub fn rename(
 
         // get spans for each matching expression
         for expression_id in matching_expression_ids {
-            if let Some(span) = get_dir_node_span(&module_guard, expression_id.into()) {
+            if let Some(span) = get_dir_node_span(ast, dir, expression_id.into()) {
                 edits_by_file.entry(span.file).or_default().push(span);
             }
         }

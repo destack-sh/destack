@@ -81,11 +81,14 @@ pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<D
     }
 
     // 5. find all references in this file
-    let module_guard = module.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
 
     // collect matching expression ids first to avoid borrow issues
     let matching_expression_ids: Vec<_> = {
-        let dir_tree = module_guard.dir.tree.read();
+        let dir_tree = dir.tree.read();
         dir_tree
             .iter_nodes_of_type::<Expression>()
             .filter_map(|(expression_id, expression)| {
@@ -102,7 +105,7 @@ pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<D
 
     // get spans for each matching expression
     for expression_id in matching_expression_ids {
-        if let Some(span) = get_dir_node_span(&module_guard, expression_id.into()) {
+        if let Some(span) = get_dir_node_span(ast, dir, expression_id.into()) {
             // only include if in this file (should always be true for single module)
             if span.file == file {
                 // classify as Read (basic classification - definition was already added as Write)

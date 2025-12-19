@@ -33,13 +33,15 @@ pub struct Module {
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
 
-    // nocheckin
-    /// The AST-level module data (syntactic).
-    pub ast: ModuleAst,
-    /// The DIR-level module data (semantic, target-independent).
-    pub dir: ModuleDir,
-    /// The MIR-level module data (target-specific).
-    pub mir: ModuleMir,
+    // NOTE #Architecture: module state is globally shared in Module/ModuleRegistry/Program/Workspace
+    //  (dependencies and incrementalism work via compiler Task dependencies and explicit *Versions;
+    //   there are significant trade-offs here with fine granularity vs predictable access patterns)
+    /// The AST-level module data (syntactic). None until Import phase completes.
+    pub ast: Option<ModuleAst>,
+    /// The DIR-level module data (semantic, target-independent). None until Bind phase completes.
+    pub dir: Option<ModuleDir>,
+    /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
+    pub mirs: Vec<ModuleMir>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -67,9 +69,9 @@ impl Module {
             tsconfig_id,
             module_type,
             language_type,
-            ast: ModuleAst::new(id),
-            dir: ModuleDir::new(id),
-            mir: ModuleMir::new(id),
+            ast: None,
+            dir: None,
+            mirs: Vec::new(),
         }
     }
 
@@ -86,8 +88,6 @@ impl Module {
         language_type: LanguageType,
         ast: ModuleAst,
     ) -> Self {
-        let dir = ModuleDir::new(id);
-        let mir = ModuleMir::new(id);
         Self {
             id,
             version: ModuleVersion::INITIAL,
@@ -99,32 +99,58 @@ impl Module {
             tsconfig_id,
             module_type,
             language_type,
-            ast,
-            dir,
-            mir,
+            ast: Some(ast),
+            dir: None,
+            mirs: Vec::new(),
         }
     }
 
-    /// Check if this module has been parsed (has AST content).
-    pub fn is_parsed(&self) -> bool {
-        // nocheckin
-        !self.ast.roots.is_empty() || !self.ast.tree.is_empty()
+    /// Get the AST.
+    ///
+    /// # Panics
+    /// Panics if called before Import phase completes.
+    #[inline]
+    pub fn ast(&self) -> &ModuleAst {
+        self.ast.as_ref().expect("no AST on {self:?}")
     }
 
-    /// Reset the module for recompilation.
-    /// Clears AST, DIR, and MIR data, increments version, and updates source_version.
-    pub fn reset(&mut self, _new_source_version: FileVersion) {
-        todo!("#Suspicious: revisit Module::reset"); // (use versions and task dependencies..?)
-        // self.version = self.version.next();
-        // self.source_version = new_source_version;
-        // self.ast = ModuleAst::new(self.id);
-        // self.dir = ModuleDir::new(self.id);
-        // self.mir = ModuleMir::new(self.id);
+    /// Get the AST mutably.
+    ///
+    /// # Panics
+    /// Panics if called before Import phase completes.
+    #[inline]
+    pub fn ast_mut(&mut self) -> &mut ModuleAst {
+        self.ast.as_mut().expect("no AST on {self:?}")
     }
 
-    /// Check if this module is stale (source file has changed since compilation).
-    pub fn is_stale(&self, file_version: FileVersion) -> bool {
-        self.source_version != file_version
+    /// Get the DIR.
+    ///
+    /// # Panics
+    /// Panics if called before Bind phase completes.
+    #[inline]
+    pub fn dir(&self) -> &ModuleDir {
+        self.dir.as_ref().expect("no DIR on {self:?}")
+    }
+
+    /// Get the DIR mutably.
+    ///
+    /// # Panics
+    /// Panics if called before Bind phase completes.
+    #[inline]
+    pub fn dir_mut(&mut self) -> &mut ModuleDir {
+        self.dir.as_mut().expect("no DIR on {self:?}")
+    }
+
+    /// Get the MIR for a target.
+    ///
+    /// # Panics
+    /// Panics if called before Lower phase completes.
+    #[inline]
+    pub fn mir(&self, target: &str) -> &ModuleMir {
+        self.mirs
+            .iter()
+            .find(|mir| mir.target == target)
+            .unwrap_or_else(|| panic!("no MIR for target {target:?} on {self:?}"))
     }
 }
 

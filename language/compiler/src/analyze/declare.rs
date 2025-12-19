@@ -265,10 +265,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let let_expr_id = module.dir.roots[0];
+        let let_expr_id = module.dir().roots[0];
         let expression = tree.get(let_expr_id);
         let &Expression::Statement {
             statement: let_expr_id,
@@ -303,10 +303,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
 
-        let let_expr_id = module.dir.roots[0];
+        let let_expr_id = module.dir().roots[0];
         let expression = tree.get(let_expr_id);
         let &Expression::Statement {
             statement: let_expr_id,

@@ -43,11 +43,12 @@ impl Compiler {
         // resolve the symbol in the module
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let symbols = dir.symbols.read();
 
         // find the symbol in the module's namespace scope
         let name_id = self.program.strings.intern(item.export_name());
-        let namespace_scope = symbols.get_scope_by_id(module.dir.namespace_scope);
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
         let key = StaticKey::Name(name_id);
         let Some(symbol_id) = namespace_scope.find(key) else {
             return Err(ResolveError::MissingLanguageItem { item });
@@ -89,7 +90,7 @@ mod tests {
         let language_item_id = test.compiler.expect_language_item(LanguageItem::Add);
         let language_item_module = test.program.modules.get(language_item_id.module_id);
         let language_item_module = language_item_module.read();
-        let language_item_symbols = language_item_module.dir.symbols.read();
+        let language_item_symbols = language_item_module.dir().symbols.read();
         let language_item_symbol = language_item_symbols.get_symbol(language_item_id.into_local());
         assert_string!(test.program, language_item_symbol.name().unwrap(), "Add");
     }

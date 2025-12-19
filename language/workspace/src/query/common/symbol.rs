@@ -28,16 +28,16 @@ pub fn find_symbol_at_offset(
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
+    // get module AST/DIR
     let module = get_module_by_file_id(session, file_id)?;
-    let module_guard = module.read();
-    let module_id = module_guard.id;
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let module_id = module.id;
 
     // find AST nodes at the offset
-    let enclosing = module_guard
-        .ast
-        .tree
-        .source_map
-        .get_enclosing_spans(offset, offset);
+    let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -48,7 +48,7 @@ pub fn find_symbol_at_offset(
 
     // check if we're in a doc/comment first (these should not return symbols)
     for enclosing_span in &enclosing {
-        let node_type = module_guard.ast.tree.get_node_type(enclosing_span.idx);
+        let node_type = ast.tree.get_node_type(enclosing_span.idx);
         if matches!(
             node_type,
             destack_ast::NodeType::Doc | destack_ast::NodeType::Comment
@@ -58,7 +58,7 @@ pub fn find_symbol_at_offset(
     }
 
     // try each AST node from smallest to largest
-    let dir_tree = module_guard.dir.tree.read();
+    let dir_tree = dir.tree.read();
     for enclosing_span in &enclosing {
         // try to get the DIR node for this AST node
         let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
@@ -187,15 +187,18 @@ pub fn find_symbol_at_offset(
 /// this returns the same symbol_id.
 pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
     let module = session.modules.get(symbol_id.module_id);
-    let module_guard = module.read();
-    let symbols = module_guard.dir.symbols.read();
+    let module = module.read();
+    let Some(dir) = &module.dir else {
+        return symbol_id;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     if let Some(canonical) = symbol.canonical_symbol
         && canonical != symbol_id
     {
         drop(symbols);
-        drop(module_guard);
+        drop(module);
         return get_canonical_symbol(session, canonical);
     }
 
@@ -210,7 +213,10 @@ pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) 
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
 
-    let symbols = module.dir.symbols.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return None;
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // follow canonical_symbol chain if present (for imports)
@@ -230,5 +236,5 @@ pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) 
     drop(symbols);
 
     // get the main span from the declaration node (identifier span)
-    get_dir_node_main_span(&module, declaration.local_id)
+    get_dir_node_main_span(ast, dir, declaration.local_id)
 }

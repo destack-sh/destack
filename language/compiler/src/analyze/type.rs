@@ -659,7 +659,7 @@ impl Compiler {
         // look up the type in the remote module's TypeTable
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
-        let remote_types = remote_module.dir.types.read();
+        let remote_types = remote_module.dir().types.read();
 
         // copy the type into our local TypeTable
         if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
@@ -728,7 +728,7 @@ impl Compiler {
 
             // tuple types
             Type::Tuple { elements } => {
-                let local_elems: Vec<_> = elements
+                let local_elements: Vec<_> = elements
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
@@ -743,7 +743,7 @@ impl Compiler {
                     .collect();
                 types.insert_type_from(
                     Type::Tuple {
-                        elements: local_elems,
+                        elements: local_elements,
                     },
                     expression_id,
                 )
@@ -836,7 +836,7 @@ impl Compiler {
 
             // union and intersection types
             Type::Union { elements } => {
-                let local_elems: Vec<_> = elements
+                let local_elements: Vec<_> = elements
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
@@ -851,13 +851,13 @@ impl Compiler {
                     .collect();
                 types.insert_type_from(
                     Type::Union {
-                        elements: local_elems,
+                        elements: local_elements,
                     },
                     expression_id,
                 )
             }
             Type::Intersection { elements } => {
-                let local_elems: Vec<_> = elements
+                let local_elements: Vec<_> = elements
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
@@ -872,7 +872,7 @@ impl Compiler {
                     .collect();
                 types.insert_type_from(
                     Type::Intersection {
-                        elements: local_elems,
+                        elements: local_elements,
                     },
                     expression_id,
                 )

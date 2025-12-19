@@ -82,9 +82,10 @@ impl Compiler {
     fn analyze_module_declare(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mut tree = module.dir.tree.write();
-        let symbols = module.dir.symbols.read();
-        let mut types = module.dir.types.write();
+        let dir = module.dir();
+        let mut tree = dir.tree.write();
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
 
         // evaluate any unevaluated types
@@ -114,14 +115,15 @@ impl Compiler {
     fn analyze_module_infer(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let symbols = module.dir.symbols.read();
-        let mut types = module.dir.types.write();
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
 
         // analyze all expressions
         let mut ctx = InferContext::new();
-        for root_id in module.dir.roots.iter() {
+        for root_id in dir.roots.iter() {
             self.collect(
                 &mut collector,
                 self.infer_expression(&module, *root_id, &tree, &symbols, &mut types, &mut ctx),
@@ -140,8 +142,9 @@ impl Compiler {
     fn analyze_module_validate(&self, module_id: ModuleId) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let types = module.dir.types.read();
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let types = dir.types.read();
 
         // validate declarations
         for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {

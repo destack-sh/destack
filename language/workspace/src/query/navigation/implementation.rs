@@ -45,8 +45,11 @@ pub fn goto_implementation(
 
     // 3. check if it's an interface or class (types that can be implemented/extended)
     let target_module = session.modules.get(canonical_id.module_id);
-    let target_guard = target_module.read();
-    let symbols = target_guard.dir.symbols.read();
+    let target_module = target_module.read();
+    let Some(target_dir) = &target_module.dir else {
+        return Some(ImplementationResult::empty());
+    };
+    let symbols = target_dir.symbols.read();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
     let is_interface = symbol.ty == SymbolType::Interface;
@@ -60,8 +63,11 @@ pub fn goto_implementation(
     // 4. search all modules for types that implement/extend this symbol
     let mut locations = Vec::new();
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let types = module_guard.dir.types.read();
+        let module = module.read();
+        let Some(dir) = &module.dir else {
+            continue;
+        };
+        let types = dir.types.read();
 
         // check all lineages in this module
         for (symbol_id, lineage) in types.iter_lineages() {

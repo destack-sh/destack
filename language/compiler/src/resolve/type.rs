@@ -169,8 +169,9 @@ string;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let roots = &module.dir.roots;
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let roots = &dir.roots;
 
         // int (defaults to int32)
         assert_node!(tree, roots[0], Expression::Statement { statement } => {
@@ -262,8 +263,9 @@ string;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
-        let roots = &module.dir.roots;
+        let dir = module.dir();
+        let tree = dir.tree.read();
+        let roots = &dir.roots;
 
         let (string_symbol_id, _) = test
             .resolve_to_node::<destack_dir::Pattern>("test.ds", "string")
@@ -299,7 +301,7 @@ struct Foo {
         // verify that Self in return type resolves to Foo
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let tree = module.dir().tree.read();
 
         // find the Self reference in the function return type
         let mut found_self_reference = false;

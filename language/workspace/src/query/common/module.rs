@@ -20,16 +20,19 @@ pub struct ExportedSymbol {
 
 /// Get all exported symbols from a module.
 pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<ExportedSymbol> {
-    let mut exports = Vec::new();
-
+    // get module AST/DIR
     let module = session.modules.get(module_id);
-    let module_guard = module.read();
-    let module_path = module_guard
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let module_path = module
         .path
         .as_ref()
         .map(|p| p.to_string_lossy().to_string());
+    let symbols = dir.symbols.read();
 
-    let symbols = module_guard.dir.symbols.read();
+    let mut exports = Vec::new();
 
     for (idx, symbol) in symbols.symbols().enumerate() {
         if symbol.export.is_none() {
@@ -40,7 +43,7 @@ pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<Exporte
             continue;
         };
 
-        let name = module_guard.ast.strings.get(string_id).to_string();
+        let name = ast.strings.get(string_id).to_string();
         let local_id = destack_dir::LocalSymbolId::new_typed(idx as u32, symbol.ty);
 
         exports.push(ExportedSymbol {
@@ -67,19 +70,22 @@ pub fn search_importable_symbols(
     let query_lower = query.to_lowercase();
 
     for module in session.modules.iter() {
-        let module_guard = module.read();
-        let module_id = module_guard.id;
+        let module = module.read();
+        let module_id = module.id;
 
         if Some(module_id) == exclude_module {
             continue;
         }
 
-        let module_path = module_guard
+        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+            continue;
+        };
+
+        let module_path = module
             .path
             .as_ref()
             .map(|p| p.to_string_lossy().to_string());
-
-        let symbols = module_guard.dir.symbols.read();
+        let symbols = dir.symbols.read();
 
         for (idx, symbol) in symbols.symbols().enumerate() {
             if symbol.export.is_none() {
@@ -90,7 +96,7 @@ pub fn search_importable_symbols(
                 continue;
             };
 
-            let name = module_guard.ast.strings.get(string_id).to_string();
+            let name = ast.strings.get(string_id).to_string();
 
             if !query.is_empty() && !name.to_lowercase().starts_with(&query_lower) {
                 continue;

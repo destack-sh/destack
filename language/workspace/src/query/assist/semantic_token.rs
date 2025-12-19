@@ -99,13 +99,16 @@ impl SemanticToken {
 /// Returns tokens suitable for LSP textDocument/semanticTokens/full.
 /// Tokens are in source order (not delta-encoded; the LSP layer handles that).
 pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
+    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-
     let mut tokens = Vec::new();
-    let module_guard = module.read();
-    let dir_tree = module_guard.dir.tree.read();
+    let module = module.read();
+    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        return Vec::new();
+    };
+    let dir_tree = dir.tree.read();
 
     // collect declaration tokens (these are definition sites)
     for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
@@ -113,8 +116,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
 
         // get the main span (identifier) for the declaration
         let ast_node_id = dir_tree.get_source(decl_id.id);
-        let Some(main_span) = module_guard
-            .ast
+        let Some(main_span) = ast
             .tree
             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
         else {
@@ -155,11 +157,10 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect parameter tokens
     for (parameter_id, parameter) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
         let ast_node_id = dir_tree.get_source(parameter_id.id);
-        let span = module_guard.ast.tree.get_span_by_id(ast_node_id);
+        let span = ast.tree.get_span_by_id(ast_node_id);
 
         // for parameters, try to get just the name span if available
-        let name_span = module_guard
-            .ast
+        let name_span = ast
             .tree
             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
             .unwrap_or(span);
@@ -182,8 +183,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     for (pattern_id, pattern) in dir_tree.iter_nodes_of_type::<dir::Pattern>() {
         if let dir::Pattern::Binding { mutability, .. } = pattern {
             let ast_node_id = dir_tree.get_source(pattern_id.id);
-            let Some(main_span) = module_guard
-                .ast
+            let Some(main_span) = ast
                 .tree
                 .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
             else {
@@ -207,8 +207,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect pattern field bindings (destructuring)
     for (field_id, field) in dir_tree.iter_nodes_of_type::<dir::PatternField>() {
         let ast_node_id = dir_tree.get_source(field_id.id);
-        let Some(main_span) = module_guard
-            .ast
+        let Some(main_span) = ast
             .tree
             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
         else {
@@ -246,7 +245,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect expression tokens (references, literals, etc.)
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let ast_node_id = dir_tree.get_source(expression_id.id);
-        let span = module_guard.ast.tree.get_span_by_id(ast_node_id);
+        let span = ast.tree.get_span_by_id(ast_node_id);
 
         match expression {
             // symbol references - look up the symbol to determine type
@@ -255,7 +254,10 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::Expression::ModuleReference { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
                 let target_guard = target_module.read();
-                let target_symbols = target_guard.dir.symbols.read();
+                let Some(target_dir) = &target_guard.dir else {
+                    continue;
+                };
+                let target_symbols = target_dir.symbols.read();
                 let symbol = target_symbols.get_symbol(target_symbol.local_id);
 
                 let token_type = symbol_type_to_token_type(symbol.ty);
@@ -264,8 +266,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
 
             // labelled statement - the label itself
             dir::Expression::Labelled { .. } => {
-                if let Some(main_span) = module_guard
-                    .ast
+                if let Some(main_span) = ast
                     .tree
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
                 {
@@ -302,8 +303,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             // member access - the member name is a property
             dir::Expression::Member { .. } => {
                 // try to get just the member name span
-                if let Some(main_span) = module_guard
-                    .ast
+                if let Some(main_span) = ast
                     .tree
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
                 {
@@ -320,8 +320,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         let ast_node_id = dir_tree.get_source(member_id.id);
 
         // try to get the name span
-        let Some(main_span) = module_guard
-            .ast
+        let Some(main_span) = ast
             .tree
             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
         else {
@@ -361,8 +360,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     for (field_id, _field) in dir_tree.iter_nodes_of_type::<dir::EnumField>() {
         let ast_node_id = dir_tree.get_source(field_id.id);
 
-        if let Some(main_span) = module_guard
-            .ast
+        if let Some(main_span) = ast
             .tree
             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
         {
@@ -389,8 +387,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                 if let Some(params) = static_parameters {
                     for parameter_id in params {
                         let ast_node_id = dir_tree.get_source(parameter_id.id);
-                        if let Some(main_span) = module_guard
-                            .ast
+                        if let Some(main_span) = ast
                             .tree
                             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
                         {
@@ -412,8 +409,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         {
             for parameter_id in static_params {
                 let ast_node_id = dir_tree.get_source(parameter_id.id);
-                if let Some(main_span) = module_guard
-                    .ast
+                if let Some(main_span) = ast
                     .tree
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
                 {
@@ -429,13 +425,12 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     // collect annotation tokens (decorators, comments)
     for (annotation_id, annotation) in dir_tree.iter_nodes_of_type::<dir::Annotation>() {
         let ast_node_id = dir_tree.get_source(annotation_id.id);
-        let span = module_guard.ast.tree.get_span_by_id(ast_node_id);
+        let span = ast.tree.get_span_by_id(ast_node_id);
 
         match annotation {
             dir::Annotation::Decorator { .. } => {
                 // for decorators, highlight the whole thing or just the name
-                if let Some(main_span) = module_guard
-                    .ast
+                if let Some(main_span) = ast
                     .tree
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
                 {
@@ -461,8 +456,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         let ast_node_id = dir_tree.get_source(item_id.id);
 
         // get the local binding name span
-        let Some(main_span) = module_guard
-            .ast
+        let Some(main_span) = ast
             .tree
             .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
         else {
@@ -475,9 +469,13 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::DependencyItem::Remote { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
                 let target_guard = target_module.read();
-                let target_symbols = target_guard.dir.symbols.read();
-                let symbol = target_symbols.get_symbol(target_symbol.local_id);
-                symbol_type_to_token_type(symbol.ty)
+                if let Some(target_dir) = &target_guard.dir {
+                    let target_symbols = target_dir.symbols.read();
+                    let symbol = target_symbols.get_symbol(target_symbol.local_id);
+                    symbol_type_to_token_type(symbol.ty)
+                } else {
+                    SemanticTokenType::Variable
+                }
             }
             // unresolved items default to variable
             _ => SemanticTokenType::Variable,

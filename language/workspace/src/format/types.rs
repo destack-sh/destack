@@ -11,7 +11,10 @@ pub fn format_global_type(
 ) -> String {
     let module = modules.get(ty_id.module_id);
     let module = module.read();
-    let types = module.dir.types.read();
+    let Some(dir) = &module.dir else {
+        return "<unknown>".to_string();
+    };
+    let types = dir.types.read();
     let ty = types.get_type(ty_id.local_id);
     format_type(ty, &types, modules, strings)
 }
@@ -296,7 +299,10 @@ pub fn format_symbol_name(
 ) -> String {
     let module = modules.get(symbol_id.module_id);
     let module = module.read();
-    let symbols = module.dir.symbols.read();
+    let Some(dir) = &module.dir else {
+        return "<unknown>".to_string();
+    };
+    let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.into_local());
     if let Some(name_id) = symbol.name() {
         strings.get(name_id).to_string()

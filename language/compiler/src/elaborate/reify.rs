@@ -15,9 +15,10 @@ impl Compiler {
     pub(super) fn elaborate_module_reify(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mut tree = module.dir.tree.write();
-        let symbols = module.dir.symbols.read();
-        let types = module.dir.types.read();
+        let dir = module.dir();
+        let mut tree = dir.tree.write();
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
 
         // reify expressions
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {

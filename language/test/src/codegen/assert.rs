@@ -5,7 +5,6 @@ use std::path::Path;
 use destack_source::{DiffOptions, print_diff};
 
 use crate::harness::TestResult;
-use crate::harness::print::color;
 
 use super::discover::collect_files;
 

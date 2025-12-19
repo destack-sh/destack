@@ -12,7 +12,7 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
     let (tree, strings) = mir::parse::Parser::parse(source).expect("failed to parse MIR");
 
     // create a ModuleMir and populate it
-    let module = ModuleMir::new(ModuleId::EPHEMERAL);
+    let module = ModuleMir::new(ModuleId::EPHEMERAL, "clif".to_string());
     *module.tree.write() = tree;
 
     // copy strings into module's string pool

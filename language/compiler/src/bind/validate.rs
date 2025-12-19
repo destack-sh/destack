@@ -28,7 +28,8 @@ impl Compiler {
 
     /// Check for reserved identifiers used as binding names.
     pub(super) fn validate_binding_names(&self, module: &Module) {
-        let symbols = module.dir.symbols.read();
+        let dir = module.dir();
+        let symbols = dir.symbols.read();
         for scope in symbols.scopes() {
             for (key, symbol_id) in scope.named_symbols.iter() {
                 let symbol = symbols.get_symbol(*symbol_id);
@@ -103,7 +104,7 @@ impl Compiler {
             .unwrap_or(!module.language_type.is_destack());
 
         // cross-check all named symbols in all scopes in the module
-        let symbols = module.dir.symbols.read();
+        let symbols = module.dir().symbols.read();
         for scope in symbols.scopes() {
             for (key, symbol_id) in scope.named_symbols.iter() {
                 let symbol = symbols.get_symbol(*symbol_id);

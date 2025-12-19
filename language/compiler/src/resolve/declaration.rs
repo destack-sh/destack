@@ -1,6 +1,6 @@
 use destack_dir::{Declaration, Expression, GlobalSymbolId, LocalNodeId, NodeTree, SymbolTable};
 
-use destack_workspace::Module;
+use destack_workspace::{Module, ModuleDir};
 
 use crate::{Compiler, ResolveResult};
 
@@ -9,6 +9,7 @@ impl Compiler {
     pub(super) fn resolve_declaration(
         &self,
         _module: &Module,
+        _dir: &ModuleDir,
         declaration_id: LocalNodeId<Declaration>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -139,7 +140,7 @@ extension for Foo {
         // extension Foo -> struct Foo
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir.tree.read();
+        let tree = module.dir().tree.read();
         let extensions: Vec<_> = tree
             .iter_node_ids_of_type::<Declaration>()
             .into_iter()

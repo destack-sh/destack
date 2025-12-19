@@ -29,7 +29,7 @@ impl Compiler {
         // check if already parsed
         {
             let module = module.read();
-            if module.is_parsed() {
+            if module.ast.is_some() {
                 return Ok(());
             }
         }
@@ -80,14 +80,14 @@ impl Compiler {
 
         // update module with AST
         let mut module = module.write();
-        module.ast = ModuleAst::from_tree(
+        module.ast = Some(ModuleAst::from_tree(
             module_id,
             parser.tree,
             expressions,
             parser.strings,
             parser.tokens,
             parser.side_tokens,
-        );
+        ));
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse");
