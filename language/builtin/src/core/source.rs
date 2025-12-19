@@ -53,6 +53,7 @@ builtin_source!(CORE_PRELUDE, "prelude.ds");
 builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
 builtin_source!(OPERATOR_COMPARISON, "operator", "comparison.ds");
+builtin_source!(OPERATOR_STRING, "operator", "string.ds");
 builtin_source!(OPERATOR_SUBSCRIPT, "operator", "subscript.ds");
 builtin_source!(OPERATOR_CONTROL, "operator", "control.ds");
 
@@ -75,6 +76,7 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     OPERATOR_ARITHMETIC,
     OPERATOR_COMPARISON,
     OPERATOR_SUBSCRIPT,
+    OPERATOR_STRING,
     OPERATOR_CONTROL,
     OPERATOR_INDEX,
     // reflection (depends on operator for some types)
