@@ -162,6 +162,15 @@ define_language_items! {
         PartialCompare => (Interface, "operator/comparison", "PartialCompare", optional),
     }
 
+    /// String operator interfaces.
+    string {
+        /// Interface for the `Display` trait
+        Display => (Interface, "operator/string", "Display", required),
+
+        /// Interface for the `Debug` trait
+        Debug => (Interface, "operator/string", "Debug", required),
+    }
+
     /// Subscript and dereference operators.
     subscript {
         /// `a[i]` access

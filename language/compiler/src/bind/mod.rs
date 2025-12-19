@@ -4,6 +4,7 @@ mod block;
 mod build;
 mod declaration;
 mod dependency;
+mod desugar;
 mod error;
 mod expression;
 mod function;

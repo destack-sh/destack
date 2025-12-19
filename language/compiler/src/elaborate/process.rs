@@ -3,67 +3,62 @@ use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult, TaskDependencyError};
 
-/// Task to elaborate something.
+/// Task to elaborate a module: post-analysis transforms that need type information
+/// but are target-independent.
+///
+/// Elaboration has two phases:
+/// 1. **Transform** (simplify): reduce syntactic complexity within the same abstraction level
+/// 2. **Reify** (make concrete): cross abstraction boundaries, turn abstract concepts into code
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Elaborate)]
 pub enum ElaborateTask {
-    /// Desugar a module.
+    /// Elaborate a module (umbrella task).
     #[task(code = 1, trace = "module={module}")]
-    ElaborateModuleDesugar { module: ModuleId },
+    ElaborateModule { module: ModuleId },
 
-    /// Deload a module.
+    /// Semantic transforms: simplify control flow and syntax.
+    /// - Pattern matching → decision trees
+    /// - Range expressions → iterator construction
+    /// - Maybe/Must → explicit error handling
     #[task(code = 2, trace = "module={module}")]
-    ElaborateModuleDeload { module: ModuleId },
+    ElaborateModuleTransform { module: ModuleId },
 
-    /// Reify a module.
+    /// Reification: make abstractions concrete.
+    /// - Tree literals → constructor calls
+    /// - Operators → resolved method calls (based on Resolution)
+    /// - Type descriptors → runtime type objects
     #[task(code = 3, trace = "module={module}")]
     ElaborateModuleReify { module: ModuleId },
-
-    /// Elaborate a module.
-    #[task(code = 4, trace = "module={module}")]
-    ElaborateModule { module: ModuleId },
 }
 
 impl Compiler {
     /// Process an elaborate task.
     pub fn process_elaborate(&self, task: ElaborateTask) -> ElaborateResult<()> {
         match task {
-            ElaborateTask::ElaborateModuleDesugar { module } => {
-                self.require_analyze_module(module)?;
-                self.desugar_module(module)?;
-            }
-            ElaborateTask::ElaborateModuleDeload { module } => {
-                self.require_elaborate_module_desugar(module)?;
-                self.deload_module(module)?;
-            }
-            ElaborateTask::ElaborateModuleReify { module } => {
-                self.require_elaborate_module_deload(module)?;
-                self.reify_module(module)?;
-            }
             ElaborateTask::ElaborateModule { module } => {
                 self.require_elaborate_module_reify(module)?;
+            }
+            ElaborateTask::ElaborateModuleTransform { module } => {
+                self.require_analyze_module(module)?;
+                self.elaborate_module_transform(module)?;
+            }
+            ElaborateTask::ElaborateModuleReify { module } => {
+                self.require_elaborate_module_transform(module)?;
+                self.elaborate_module_reify(module)?;
             }
         }
         Ok(())
     }
 
-    /// Ensure a module has been desugared.
-    pub fn require_elaborate_module_desugar(
+    /// Ensure a module has been transformed (post-analysis simplification).
+    pub fn require_elaborate_module_transform(
         &self,
         module: ModuleId,
     ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(ElaborateTask::ElaborateModuleDesugar { module })
+        self.do_require_task_internal_only(ElaborateTask::ElaborateModuleTransform { module })
     }
 
-    /// Ensure a module has been deloaded.
-    pub fn require_elaborate_module_deload(
-        &self,
-        module: ModuleId,
-    ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(ElaborateTask::ElaborateModuleDeload { module })
-    }
-
-    /// Ensure a module has been reified.
+    /// Ensure a module has been reified (abstractions made concrete).
     pub fn require_elaborate_module_reify(
         &self,
         module: ModuleId,

@@ -5,11 +5,11 @@ use crate::{BindResult, Compiler, TaskDependencyError};
 
 use destack_workspace::Module;
 
-/// Task to bind AST into DIR.
+/// Task to bind AST into DIR (including syntactic desugaring).
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Bind)]
 pub enum BindTask {
-    /// Bind a module completely (build, validate).
+    /// Bind a module completely (build, desugar, validate).
     #[task(code = 1, trace = "module={module}")]
     BindModule { module: ModuleId },
 
@@ -17,8 +17,14 @@ pub enum BindTask {
     #[task(code = 2, trace = "module={module}")]
     BindModuleBuild { module: ModuleId },
 
-    /// Validate module semantics that depend on structural context (but not types).
+    /// Syntactic desugaring: transforms that don't need type information.
+    /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
+    /// - `UpdateExpression` → `Assign` + `Binary` (`x++` → `x = x + 1`)
     #[task(code = 3, trace = "module={module}")]
+    BindModuleDesugar { module: ModuleId },
+
+    /// Validate module semantics that depend on structural context (but not types).
+    #[task(code = 4, trace = "module={module}")]
     BindModuleValidate { module: ModuleId },
 }
 
@@ -28,7 +34,7 @@ impl Compiler {
     pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
         match task {
             BindTask::BindModule { module } => {
-                self.require_bind_module_build(module)?;
+                self.require_bind_module_desugar(module)?;
             }
             BindTask::BindModuleBuild { module } => {
                 self.require_import_module(module)?;
@@ -36,8 +42,14 @@ impl Compiler {
                 let mut module = module.write();
                 self.bind_module_build(&mut module);
             }
-            BindTask::BindModuleValidate { module } => {
+            BindTask::BindModuleDesugar { module } => {
                 self.require_bind_module_build(module)?;
+                let module = self.program.modules.get(module);
+                let module = module.read();
+                self.bind_module_desugar(&module);
+            }
+            BindTask::BindModuleValidate { module } => {
+                self.require_bind_module_desugar(module)?;
                 let module = self.program.modules.get(module);
                 let module = module.read();
                 self.bind_module_validate(&module);
@@ -49,6 +61,11 @@ impl Compiler {
     /// Ensure a module has been bound (DIR built).
     pub fn require_bind_module_build(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(BindTask::BindModuleBuild { module })
+    }
+
+    /// Ensure a module has been desugared after binding.
+    pub fn require_bind_module_desugar(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(BindTask::BindModuleDesugar { module })
     }
 
     /// Ensure a module has been validated after binding.

@@ -3,4 +3,5 @@ export * from "./comparison.ds";
 export * from "./subscript.ds";
 export * from "./control.ds";
 
-// nocheckin: revisit what should be in "core"/"prelude" vs just in lib? (or put everything in libs?)
+// nocheckin: canonical DIR symbols in lib, revisit "core" vs "prelude" vs lib?
+//  (or put everything in libs? and some are just "prelude" libs?)

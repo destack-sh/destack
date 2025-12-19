@@ -4,8 +4,8 @@ The Destack compiler takes JavaScript, TypeScript and Destack sources and transl
 
 ## Pipeline
 
-Like most compilers, the Destack compiler has three main regions: 
- 1. Front-end (`.(ds|ts|tsx|js|jsx)` → typed DIR -> elaborated DIR)
+Like most compilers, the Destack compiler has three main regions:
+ 1. Front-end (`.(ds|ts|tsx|js|jsx)` → typed, elaborated DIR)
  2. Middle-end (DIR → optimized MIR)
  3. Back-end (DIR/MIR → artifacts).
 (For JS/TS targets, the middle-end may be skipped entirely.)
@@ -16,7 +16,7 @@ Like most compilers, the Destack compiler has three main regions:
 │                                                                             │
 │   source ───► Import ───► Bind ───► Resolve ───► Analyze ───► Elaborate     │
 │                 │          │           │            │             │         │
-│    Text        AST        DIR       Symbols       Types       Instances     │
+│    Text        AST     DIR (canon)  Symbols       Types       Elaborated    │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -52,10 +52,10 @@ The front-end transforms source text into typed, elaborated DIR.
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
 | Import | `I` | Text | AST | Parse source into abstract syntax tree |
-| Bind | `B` | AST | DIR | Create symbols, scopes, initial DIR structure |
+| Bind | `B` | AST | DIR | Create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
 | Resolve | `R` | DIR | DIR | Resolve symbol references (lexical binding) |
-| Analyze | `A` | DIR | DIR | Infer types, resolve overloads, validate |
-| Elaborate | `E` | DIR | DIR | Desugar, impute overloads, reify |
+| Analyze | `A` | DIR | DIR | Infer types, resolve overloads, validate semantics |
+| Elaborate | `E` | DIR | DIR | Post-analysis transforms: patterns→decision trees, tree literals→calls, etc. |
 
 ### Middle-End
 
@@ -64,7 +64,7 @@ This region may be skipped for targets that don't require low-level IR (e.g., JS
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
-| Lower | `L` | DIR | MIR | Lower high-level DIR to machine-level IR |
+| Lower | `M` | DIR | MIR | Lower high-level DIR to machine-level IR |
 | Verify | `V` | MIR | MIR | Verify and flow-check MIR (safety, borrowing, control flow) |
 | Optimize | `O` | MIR | MIR | Optimization passes |
 
@@ -76,7 +76,7 @@ The back-end generates target artifacts from DIR (for JS/TS) or MIR (for native/
 |-------|--------|-------|--------|-------------|
 | Generate | `G` | DIR/MIR | artifacts | Generate target code (JS/TS from DIR, native from MIR) |
 | Link | `K` | artifacts | linked | Link artifacts into final output |
-| Emit | `M` | linked | files | Write linked output to disk |
+| Emit | `X` | linked | files | Write linked output to disk |
 
 ## Representations
 
@@ -96,10 +96,10 @@ The compiler is organized into modules corresponding to each phase.
 |------|-------------|--------|
 | `compile/` | Compiler orchestration, task queue, and worker threads | [src/compile/](src/compile/) |
 | `import/` | Import and parse source into AST | [src/import/](src/import/) |
-| `bind/` | Bind AST to DIR, declare symbols and scopes | [src/bind/](src/bind/) |
+| `bind/` | Bind AST to DIR; declare symbols/scopes; syntactic desugaring | [src/bind/](src/bind/) |
 | `resolve/` | Resolve symbol references | [src/resolve/](src/resolve/) |
 | `analyze/` | Type inference, checking, and overload resolution | [src/analyze/](src/analyze/) |
-| `elaborate/` | Monomorphize and desugar DIR | [src/elaborate/](src/elaborate/) |
+| `elaborate/` | Post-analysis transforms (patterns, tree literals, etc.) | [src/elaborate/](src/elaborate/) |
 | `lower/` | Lower DIR to MIR | [src/lower/](src/lower/) |
 | `verify/` | Verify and flow-check MIR | [src/verify/](src/verify/) |
 | `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
