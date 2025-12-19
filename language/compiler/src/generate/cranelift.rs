@@ -91,8 +91,7 @@ impl Compiler {
         warning: CodegenCraneliftWarning,
     ) -> GenerateWarning {
         match warning {
-            CodegenCraneliftWarning::UnoptimizedCodePath { node, .. }
-            | CodegenCraneliftWarning::PerformanceHint { node, .. } => {
+            CodegenCraneliftWarning::UnexpectedNode { node, .. } => {
                 GenerateWarning::UnexpectedConstruct {
                     node: Self::mir_to_global_node(module_id, node),
                 }

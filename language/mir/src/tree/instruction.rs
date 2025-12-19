@@ -6,8 +6,8 @@ use std::str::FromStr;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Constant, Function, Global, Local, LocalNodeId, Node, NodeType, Type,
-    UnaryOperator, Value,
+    BinaryOperator, Constant, Function, Global, Intrinsic, Local, LocalNodeId, Node, NodeType,
+    Type, UnaryOperator, Value,
 };
 
 /// Instructions produce SSA values and perform operations.
@@ -216,6 +216,22 @@ pub enum Instruction {
         /// The type of the value to allocate.
         layout: LocalNodeId<Type>,
     },
+
+    // intrinsics
+    /// Call a compiler intrinsic.
+    ///
+    /// Intrinsics are special operations that:
+    /// - Have no function body (handled specially by each backend)
+    /// - May have target-specific implementations
+    /// - Are used for comptime evaluation, type reflection, and low-level ops
+    Intrinsic {
+        /// The SSA value to define with the result, if any.
+        destination: Option<Value>,
+        /// The intrinsic to call.
+        intrinsic: Intrinsic,
+        /// The arguments to pass.
+        arguments: Vec<Value>,
+    },
 }
 
 impl Node for Instruction {
@@ -247,6 +263,7 @@ impl Instruction {
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
+            Instruction::Intrinsic { destination, .. } => *destination,
         }
     }
 
@@ -287,6 +304,7 @@ impl Instruction {
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::StackAlloc { .. } => smallvec![],
+            Instruction::Intrinsic { arguments, .. } => arguments.iter().copied().collect(),
         }
     }
 }

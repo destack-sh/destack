@@ -167,5 +167,4 @@ pub struct ResolutionCandidate {
     pub target_symbol: GlobalSymbolId,
     /// The instance of the symbol, if generically instantiated.
     pub instance: Option<LocalInstanceId>,
-    // pub language_item: Option<LanguageItem>, // nocheckin
 }

@@ -386,6 +386,18 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )
             }
+
+            Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+            } => {
+                if let Some(dst) = destination {
+                    write!(f, [dst, space(), token("="), space()])?;
+                }
+                write!(f, [token("intrinsic."), token(intrinsic.to_str())])?;
+                format_value_list(arguments, f)
+            }
         }
     }
 }

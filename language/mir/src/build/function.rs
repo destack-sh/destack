@@ -92,6 +92,7 @@ impl<'a> FunctionBuilder<'a> {
             return_type,
             linkage: Linkage::Local,
             allocation_mode: AllocationMode::Any,
+            coroutine: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,

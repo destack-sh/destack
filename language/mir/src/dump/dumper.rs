@@ -484,6 +484,26 @@ impl<'a> Dumper<'a> {
                 self.write(" = stack.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
             }
+
+            Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+            } => {
+                if let Some(dst) = destination {
+                    self.write_colored(&self.format_value(*dst), Color::Green);
+                    self.write(" = ");
+                }
+                self.write_colored(&format!("intrinsic.{}", intrinsic.to_str()), Color::Cyan);
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+            }
         }
 
         self.write("\n");
@@ -598,6 +618,28 @@ impl<'a> Dumper<'a> {
 
             Terminator::Unreachable => {
                 self.write_colored("unreachable", Color::Red);
+            }
+
+            Terminator::Yield {
+                value,
+                resume,
+                resume_arguments,
+            } => {
+                self.write_colored("yield", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*value));
+                self.write(", ");
+                self.write(&self.format_block_id(*resume));
+                if !resume_arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in resume_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
             }
         }
         self.write("\n");

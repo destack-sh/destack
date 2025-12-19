@@ -157,6 +157,29 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::Unreachable => {
             write!(f, [token("unreachable")])
         }
+
+        Terminator::Yield {
+            value,
+            resume,
+            resume_arguments,
+        } => {
+            let resume_index = f.context().block_index(*resume);
+            write!(
+                f,
+                [
+                    token("yield"),
+                    space(),
+                    value,
+                    token(","),
+                    space(),
+                    text(&format!("block{resume_index}"))
+                ]
+            )?;
+            if !resume_arguments.is_empty() {
+                format_value_list(resume_arguments, f)?;
+            }
+            Ok(())
+        }
     }
 }
 

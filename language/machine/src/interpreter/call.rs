@@ -282,6 +282,13 @@ impl Interpreter {
             }
 
             mir::Terminator::Unreachable => Err(self.make_error(Error::Unreachable)),
+
+            mir::Terminator::Yield { .. } => {
+                // TODO: implement coroutine yield
+                Err(self.make_error(Error::UnsupportedInstruction {
+                    name: "yield".to_string(),
+                }))
+            }
         }
     }
 

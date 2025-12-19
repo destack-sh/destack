@@ -171,6 +171,7 @@ pub enum Task {
     Lower(LowerTask),
     /// Verify and flow-check MIR.
     Verify(VerifyTask),
+    // nocheckin: add execute for comptime
     /// Optimize MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
