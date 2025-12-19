@@ -7,15 +7,12 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, Edit, File, FileId, FileType, LanguageType,
-    MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
+    LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
 };
 use destack_workspace::{LintCategory, LintSeverity, LinterOptions, Program, Session};
 
-use crate::{
-    BoxedLintRule, DiffOptions, Fixability, LintDiagnostic, LintLevel, LintRunner, all_rules,
-    print_diff,
-};
+use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner, all_rules};
 
 /// Test wrapper for linting.
 pub(crate) struct TestProgram {

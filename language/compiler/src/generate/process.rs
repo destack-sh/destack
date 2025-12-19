@@ -14,7 +14,7 @@ pub enum GenerateTask {
     GenerateModule {
         /// The module to generate.
         module: ModuleId,
-        /// The target name (looked up on the module's package).
+        /// The target name (for the module's package).
         target: String,
     },
 }

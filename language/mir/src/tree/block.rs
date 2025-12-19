@@ -90,6 +90,25 @@ pub enum Terminator {
         cases: Vec<SwitchCase>,
     },
 
+    /// Yield from a coroutine (generator or async function).
+    ///
+    /// Suspends execution, yielding a value to the caller.
+    /// When resumed, execution continues at the resume block with the resumed value.
+    ///
+    /// For generators: `yield value` suspends and returns value to caller.
+    /// For async: `await promise` suspends until promise resolves.
+    /// The `CoroutineKind` on the function determines the exact semantics.
+    Yield {
+        /// The value to yield (for generators) or the promise to await (for async).
+        value: Value,
+        /// The block to resume at when the coroutine is continued.
+        resume: LocalNodeId<Block>,
+        /// Arguments to pass to the resume block's parameters.
+        /// The first argument typically receives the value passed to `.next(arg)` or
+        /// the resolved promise value.
+        resume_arguments: Vec<Value>,
+    },
+
     /// Unreachable code (triggers undefined behavior if executed).
     Unreachable,
 }
@@ -110,6 +129,7 @@ impl Terminator {
                 successors.extend(cases.iter().map(|c| c.target));
                 successors
             }
+            Terminator::Yield { resume, .. } => smallvec![*resume],
             Terminator::Unreachable => smallvec![],
         }
     }
@@ -141,6 +161,15 @@ impl Terminator {
                 for case in cases {
                     uses.extend(case.arguments.iter().copied());
                 }
+                uses
+            }
+            Terminator::Yield {
+                value,
+                resume_arguments,
+                ..
+            } => {
+                let mut uses = smallvec![*value];
+                uses.extend(resume_arguments.iter().copied());
                 uses
             }
             Terminator::Unreachable => smallvec![],

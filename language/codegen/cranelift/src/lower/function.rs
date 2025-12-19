@@ -464,6 +464,9 @@ impl<'a> FunctionLowerer<'a> {
 
             // these don't produce values
             mir::Instruction::RawFree { .. } => None,
+
+            // intrinsic: handled separately (may or may not have a result)
+            mir::Instruction::Intrinsic { .. } => None,
         }
     }
 
@@ -1028,6 +1031,14 @@ impl<'a> FunctionLowerer<'a> {
                     instruction_id.into_any(),
                 ));
             }
+
+            // intrinsic -> depends on the specific intrinsic
+            mir::Instruction::Intrinsic { intrinsic, .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    format!("intrinsic.{}", intrinsic.to_str()),
+                    instruction_id.into_any(),
+                ));
+            }
         }
 
         Ok(())
@@ -1113,6 +1124,12 @@ impl<'a> FunctionLowerer<'a> {
 
             // unreachable -> trap (program abort for impossible paths)
             mir::Terminator::Unreachable => {
+                builder.ins().trap(trap::UNREACHABLE);
+            }
+
+            // yield -> coroutine suspension
+            mir::Terminator::Yield { .. } => {
+                // #Incomplete: implement cranelift coroutine support (lower in MIR?)
                 builder.ins().trap(trap::UNREACHABLE);
             }
         }

@@ -288,6 +288,7 @@ impl<'a> Parser<'a> {
                 return_type,
                 linkage,
                 allocation_mode: crate::AllocationMode::Any,
+                coroutine: None,
                 locals: Vec::new(),
                 blocks: Vec::new(),
                 entry: None,
@@ -306,6 +307,7 @@ impl<'a> Parser<'a> {
             return_type,
             linkage,
             allocation_mode: crate::AllocationMode::Any,
+            coroutine: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -512,6 +514,9 @@ impl<'a> Parser<'a> {
                 for case in cases.iter_mut() {
                     case.target = resolve(case.target, source_to_actual);
                 }
+            }
+            Terminator::Yield { resume, .. } => {
+                *resume = resolve(*resume, source_to_actual);
             }
         }
     }

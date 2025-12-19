@@ -5,14 +5,10 @@ use destack_mir as mir;
 /// Warning during Cranelift code generation.
 #[derive(Debug, Clone)]
 pub enum CodegenCraneliftWarning {
-    /// Unoptimized code path.
-    UnoptimizedCodePath {
+    /// Unexpected node.
+    UnexpectedNode {
         node: mir::LocalNodeIdAny,
-        message: Option<String>,
-    },
-    /// Potential performance issue.
-    PerformanceHint {
-        node: mir::LocalNodeIdAny,
+        wanted: mir::NodeType,
         message: Option<String>,
     },
 }
@@ -21,20 +17,16 @@ impl CodegenCraneliftWarning {
     /// Get the node id of the warning, if available.
     pub fn node_id(&self) -> mir::LocalNodeIdAny {
         match self {
-            Self::UnoptimizedCodePath { node, .. } => *node,
-            Self::PerformanceHint { node, .. } => *node,
+            Self::UnexpectedNode { node, .. } => *node,
         }
     }
 
     /// Get the warning message.
     pub fn message(&self) -> String {
         match self {
-            Self::UnoptimizedCodePath { message, .. } => message
+            Self::UnexpectedNode { message, .. } => message
                 .clone()
-                .unwrap_or_else(|| "unoptimized code path".to_string()),
-            Self::PerformanceHint { message, .. } => message
-                .clone()
-                .unwrap_or_else(|| "potential performance issue".to_string()),
+                .unwrap_or_else(|| "unexpected node".to_string()),
         }
     }
 }

@@ -30,6 +30,50 @@ impl AllocationMode {
     }
 }
 
+/// The kind of coroutine a function represents.
+///
+/// Coroutines are functions that can suspend and resume execution.
+/// This includes generators, async functions, and async generators.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CoroutineKind {
+    /// Generator function (`function*`).
+    /// Yields values to the caller, who controls resumption via `.next()`.
+    /// Returns an `Iterator<T>`.
+    Generator,
+    /// Async function (`async function`).
+    /// Awaits promises, with the runtime controlling resumption.
+    /// Returns a `Promise<T>`.
+    Async,
+    /// Async generator function (`async function*`).
+    /// Both yields values and awaits promises.
+    /// Returns an `AsyncIterator<T>`.
+    AsyncGenerator,
+}
+
+impl CoroutineKind {
+    /// Text representation for formatting/parsing.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            CoroutineKind::Generator => "generator",
+            CoroutineKind::Async => "async",
+            CoroutineKind::AsyncGenerator => "async_generator",
+        }
+    }
+
+    /// Whether this coroutine yields values (generator or async generator).
+    pub fn is_generator(self) -> bool {
+        matches!(
+            self,
+            CoroutineKind::Generator | CoroutineKind::AsyncGenerator
+        )
+    }
+
+    /// Whether this coroutine awaits promises (async or async generator).
+    pub fn is_async(self) -> bool {
+        matches!(self, CoroutineKind::Async | CoroutineKind::AsyncGenerator)
+    }
+}
+
 /// A function in MIR.
 ///
 /// Functions are the top-level compilation unit, containing:
@@ -48,6 +92,9 @@ pub struct Function {
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
     pub allocation_mode: AllocationMode,
+    /// The kind of coroutine, if this function is a coroutine.
+    /// `None` for regular functions, `Some(kind)` for generators/async.
+    pub coroutine: Option<CoroutineKind>,
     /// Local variables (stack-allocated slots for mutable bindings).
     /// Empty for imported functions.
     pub locals: Vec<LocalNodeId<Local>>,
@@ -81,6 +128,7 @@ impl Function {
             return_type,
             linkage: Linkage::Local,
             allocation_mode: AllocationMode::Any,
+            coroutine: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: Some(entry),
@@ -100,6 +148,7 @@ impl Function {
             return_type,
             linkage: Linkage::Import,
             allocation_mode: AllocationMode::Any,
+            coroutine: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -111,6 +160,17 @@ impl Function {
     pub fn with_linkage(mut self, linkage: Linkage) -> Self {
         self.linkage = linkage;
         self
+    }
+
+    /// Set the coroutine kind and return self (builder pattern).
+    pub fn with_coroutine(mut self, coroutine: CoroutineKind) -> Self {
+        self.coroutine = Some(coroutine);
+        self
+    }
+
+    /// Check if this function is a coroutine (generator, async, or async generator).
+    pub fn is_coroutine(&self) -> bool {
+        self.coroutine.is_some()
     }
 
     /// Check if this function is imported (defined elsewhere).

@@ -5,9 +5,9 @@ The Destack compiler takes JavaScript, TypeScript and Destack sources and transl
 ## Pipeline
 
 Like most compilers, the Destack compiler has three main regions:
- 1. Front-end (`.(ds|ts|tsx|js|jsx)` → typed, elaborated DIR)
- 2. Middle-end (DIR → optimized MIR)
- 3. Back-end (DIR/MIR → artifacts).
+ 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → typed, elaborated DIR)
+ 2. Middle-end (target-independent DIR → target-specific MIR)
+ 3. Back-end (DIR/MIR → emitted artifacts).
 (For JS/TS targets, the middle-end may be skipped entirely.)
 
 ```
@@ -99,11 +99,11 @@ The compiler is organized into modules corresponding to each phase.
 | `bind/` | Bind AST to DIR; declare symbols/scopes; syntactic desugaring | [src/bind/](src/bind/) |
 | `resolve/` | Resolve symbol references | [src/resolve/](src/resolve/) |
 | `analyze/` | Type inference, checking, and overload resolution | [src/analyze/](src/analyze/) |
-| `elaborate/` | Post-analysis transforms (patterns, tree literals, etc.) | [src/elaborate/](src/elaborate/) |
+| `elaborate/` | Post-analysis transforms (patterns, trees, etc.) | [src/elaborate/](src/elaborate/) |
 | `lower/` | Lower DIR to MIR | [src/lower/](src/lower/) |
 | `verify/` | Verify and flow-check MIR | [src/verify/](src/verify/) |
 | `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
-| `generate/` | Generate artifacts from DIR or MIR | [src/generate/](src/generate/) |
+| `generate/` | Generate artifacts from DIR/MIR | [src/generate/](src/generate/) |
 | `link/` | Link artifacts | [src/link/](src/link/) |
 | `emit/` | Write output files to disk | [src/emit/](src/emit/) |
 | `tests/` | Compiler tests | [src/tests/](src/tests/) |
