@@ -18,6 +18,9 @@ pub enum ExecuteError {
     UnsatisfiedDependency { dependency: TaskDependency },
 
     /// Unsupported construct for comptime execution.
-    #[error(code = "EX002", message = "unsupported construct for comptime execution")]
+    #[error(
+        code = "EX002",
+        message = "unsupported construct for comptime execution"
+    )]
     UnsupportedConstruct { node: GlobalNodeIdAny },
 }

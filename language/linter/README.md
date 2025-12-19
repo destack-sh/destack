@@ -19,6 +19,23 @@ Rules are organized into categories, each with a letter code for diagnostic IDs:
 
 ---
 
+## Compiler vs Linter
+
+We have a full compiler with its own analysis, verification, and diagnostics.
+Checks that are fundamental to correct compilation are handled by the **compiler** rather than the linter:
+
+| Check | Owner | Reasoning |
+|-------|-------|-----------|
+| Type mismatches | Compiler | Fundamental type system |
+| Unbound symbols | Compiler | Required for compilation |
+| Conflicting symbols | Compiler | Required for compilation |
+| Unreachable code | Compiler | CFG analysis for codegen |
+| Precision loss | Compiler | Numeric type semantics |
+| Pattern exhaustiveness | Compiler | Required for correctness |
+| Ownership violations | Compiler | Memory safety |
+
+---
+
 ## Correctness (C)
 
 High-confidence issues that are almost always wrong.
@@ -56,7 +73,7 @@ High-confidence issues that are almost always wrong.
 | `no-infinite-recursion` | ErrorProne | DIR | ✗ | 🔶 | None | Disallow functions that unconditionally call themselves |
 | `no-invalid-regexp` | ESLint | AST | ✓ | ✅ | None | Disallow invalid regular expression strings |
 | `no-iterator-invalidation` | Destack | DIR | ✗ | 🔶 | None | Disallow modifying a collection while iterating over it |
-| `no-loop-single-iteration` | SonarQube | AST | ✓ | 🔶 | Suggestion | Disallow loops that execute at most once |
+| `no-loop-single-iteration` | SonarQube | AST | ✓ | ✅ | Suggestion | Disallow loops that execute at most once |
 | `no-misused-promises` | TS-ESLint | DIR | ✗ | 🔶 | None | Disallow Promises in places not designed to handle them |
 | `no-misused-spread` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow spread syntax in contexts where it's incorrect |
 | `no-new-native-nonconstructor` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow `new` on Symbol and BigInt |
@@ -64,7 +81,6 @@ High-confidence issues that are almost always wrong.
 | `no-overlapping-match-arms` | Destack | DIR | ✓ | 🔶 | Safe | Disallow match patterns that subsume later arms |
 | `no-promise-executor-return` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow returning values from Promise executor |
 | `no-self-compare` | ESLint | AST | ✓ | ✅ | None | Disallow comparisons where both sides are exactly the same |
-| `no-size-always-true` | ErrorProne | AST | ✓ | 🔶 | Safe | Disallow comparisons like `.length >= 0` that are always true |
 | `no-sparse-arrays` | ESLint | AST | ✓ | ✅ | None | Disallow sparse arrays with holes |
 | `no-struct-identity-compare` | Destack | DIR | ✓ | 🔶 | Safe | Disallow identity comparison on value types |
 | `no-this-before-super` | ESLint | DIR | ✓ | 🔶 | None | Disallow `this` before calling `super()` in constructors |
@@ -106,12 +122,12 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-ex-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning exceptions in catch clauses |
 | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow extra non-null assertions |
 | `no-global-assign` | ESLint | DIR | ✗ | 🔶 | None | Disallow assignments to native objects or read-only globals |
-| `no-identical-branches` | SonarQube | AST | ✓ | 🔶 | Safe | Warn when all branches of if/switch have identical bodies |
+| `no-identical-branches` | SonarQube | AST | ✓ | ✅ | Safe | Warn when all branches of if/switch have identical bodies |
 | `no-identical-functions` | SonarQube | DIR | ✗ | 🔶 | Suggestion | Warn on functions with identical implementations |
 | `no-implicit-void-expression` | Destack | AST | ✗ | 🔶 | Safe | Disallow implicit void returns from expression blocks |
 | `no-incomplete-range` | Destack | AST | ✓ | ✅ | Safe | Warn on exclusive ranges that are likely meant to be inclusive |
 | `no-inner-declarations` | ESLint | AST | ✓ | ✅ | None | Disallow variable or function declarations in nested blocks |
-| `no-large-try-block` | DeepSource | AST | ✓ | 🔶 | None | Warn when try block contains much more than throwing code |
+| `no-large-try-block` | DeepSource | AST | ✓ | ✅ | None | Warn when try block contains much more than throwing code |
 | `no-loop-func` | ESLint | DIR | ✓ | 🔶 | None | Disallow functions that capture loop variables |
 | `no-method-shadowing` | Destack | DIR | ✓ | 🔶 | None | Warn when a method shadows an inherited method |
 | `no-misleading-character-class` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow characters that behave unexpectedly in regex |
@@ -160,7 +176,7 @@ Patterns that may expose the application to attacks.
 | `no-blank-target` | Biome | AST | ✓ | ✅ | Safe | Disallow `target="_blank"` without `rel="noopener"` |
 | `no-command-injection` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in shell command execution |
 | `no-eval` | ESLint | DIR | ✗ | 🔶 | None | Disallow the use of `eval()` |
-| `no-hardcoded-ip` | SonarQube | AST | ✓ | 🔶 | None | Disallow hardcoded IP addresses |
+| `no-hardcoded-ip` | SonarQube | AST | ✓ | ✅ | None | Disallow hardcoded IP addresses |
 | `no-implied-eval` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow `setTimeout` and `setInterval` with string arguments |
 | `no-mass-assignment` | Semgrep | DIR | ✗ | 🔶 | Suggestion | Disallow `Object.assign` from untrusted input |
 | `no-new-func` | ESLint | DIR | ✗  | 🔶 | None | Disallow `new Function()` |
@@ -231,7 +247,7 @@ Subjective preferences for consistent coding style.
 | `grouped-accessor-pairs` | ESLint | AST | ✓ | ✅ | None | Require grouped accessor pairs in object literals and classes |
 | `no-boolean-literal-compare` | Unicorn | AST | ✓ | ✅ | Safe | Disallow comparing boolean expressions to boolean literals |
 | `no-collapsible-if` | Unicorn | AST | ✓ | ✅ | Safe | Suggest merging nested if statements without else |
-| `no-duplicate-string` | SonarQube | AST | ✓ | 🔶 | Suggestion | Disallow the same string literal appearing many times |
+| `no-duplicate-string` | SonarQube | AST | ✓ | ✅ | None | Disallow the same string literal appearing many times |
 | `no-duplicate-type-constituents` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow duplicate constituents in union/intersection types |
 | `no-else-return` | ESLint | AST | ✓ | ✅ | Safe | Disallow else blocks after return statements |
 | `no-empty-interface` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow empty interfaces |
@@ -240,13 +256,13 @@ Subjective preferences for consistent coding style.
 | `no-lonely-if` | ESLint | AST | ✓ | ✅ | Safe | Disallow if statements as the only statement in else blocks |
 | `no-negated-condition` | ESLint | AST | ✓ | ✅ | Safe | Disallow negated conditions with else branches |
 | `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type constituents made redundant by others |
-| `no-nested-template-literal` | SonarQube | AST | ✓ | 🔶 | Suggestion | Disallow template literals nested inside template literals |
+| `no-nested-template-literal` | SonarQube | AST | ✓ | ✅ | None | Disallow template literals nested inside template literals |
 | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow nested ternary expressions |
 | `no-object-constructor` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow `new Object()` |
 | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | Safe | Disallow ternary operators when simpler alternatives exist |
 | `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow unnecessary template literal expressions |
 | `no-unnecessary-type-arguments` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type arguments that equal the default |
-| `no-unnecessary-lambda` | ErrorProne | AST | ✓ | 🔶 | Safe | Disallow lambdas that only wrap a direct function call |
+| `no-unnecessary-lambda` | ErrorProne | AST | ✓ | ✅ | Safe | Disallow lambdas that only wrap a direct function call |
 | `no-var` | ESLint | AST | ✓ | ✅ | Safe | Require `let` or `const` instead of `var` |
 | `object-shorthand` | ESLint | AST | ✓ | ✅ | Safe | Require or disallow method and property shorthand syntax |
 | `operator-assignment` | ESLint | AST | ✓ | ✅ | Safe | Require or disallow assignment operator shorthand |
@@ -281,7 +297,7 @@ Subjective preferences for consistent coding style.
 | `prefer-string-replaceall` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer `.replaceAll()` over `.replace()` with global regex |
 | `prefer-struct-literal` | Destack | AST | ✓ | ✅ | Safe | Prefer struct literal syntax over constructor calls |
 | `prefer-template` | ESLint | AST | ✓ | ✅ | Safe | Prefer template literals over string concatenation |
-| `prefer-tuple` | Destack | AST | ✓ | 🔶 | Safe | Suggest tuple type for fixed-length heterogeneous arrays |
+| `prefer-tuple` | Destack | AST | ✓ | ✅ | Safe | Suggest tuple type for fixed-length heterogeneous arrays |
 | `prefer-tuple-destructure` | Destack | AST | ✓ | ✅ | Safe | Prefer tuple destructuring over indexed access |
 | `prefer-tuple-swap` | Destack | AST | ✓ | ✅ | Safe | Prefer tuple swap syntax over temporary variable |
 | `prefer-unary-negation` | Destack | AST | ✓ | ✅ | Safe | Prefer unary negation over multiplying by -1 |
@@ -308,17 +324,18 @@ Overly complex code that is harder to understand and maintain.
 | `max-lines-per-function` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per function |
 | `max-nested-callbacks` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested callbacks |
 | `max-params` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of function parameters |
-| `max-return-statements` | Code Climate | AST | ✓ | 🔶 | None | Enforce a maximum number of return statements per function |
+| `max-return-statements` | Code Climate | AST | ✓ | ✅ | None | Enforce a maximum number of return statements per function |
 | `max-statements` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of statements per function |
-| `max-switch-cases` | SonarQube | AST | ✓ | 🔶 | None | Enforce a maximum number of cases in a switch statement |
-| `max-union-members` | SonarQube | AST | ✓ | 🔶 | None | Enforce a maximum number of members in a union type |
+| `max-switch-cases` | SonarQube | AST | ✓ | ✅ | None | Enforce a maximum number of cases in a switch statement |
+| `max-type-fields` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of fields in a struct, class, interface, or object type |
+| `max-type-variants` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of variants in a union type or enum |
 | `no-complex-boolean-expression` | Destack | AST | ✓ | ✅ | Safe | Suggest simplifying complex boolean expressions |
-| `no-complex-type` | Destack | AST | ✓ | 🔶 | Suggestion | Warn on overly complex types that should be aliased |
+| `no-complex-type` | Destack | AST | ✓ | ✅ | None | Warn on overly complex types that should be aliased |
 | `no-duplicate-code` | Code Climate | DIR | ✗ | 🔶 | Suggestion | Warn on duplicate or near-duplicate code blocks |
 | `no-excessive-booleans` | Destack | AST | ✓ | ✅ | Suggestion | Disallow too many boolean parameters or struct fields |
 | `no-multi-assign` | ESLint | AST | ✓ | ✅ | Safe | Disallow chained assignment expressions |
 | `no-multi-declarators` | ESLint | AST | ✓ | ✅ | Safe | Disallow multiple variable declarations per statement |
-| `no-nested-switch` | SonarQube | AST | ✓ | 🔶 | None | Disallow switch statements nested inside switch statements (or match) |
+| `no-nested-switch` | SonarQube | AST | ✓ | ✅ | None | Disallow switch statements nested inside switch statements (or match) |
 | `no-unused-expressions` | ESLint | AST | ✓ | ✅ | Safe | Disallow expressions that have no effect |
 | `no-useless-underscore-binding` | Destack | AST | ✓ | ✅ | Safe | Warn on underscore bindings with no side effects |
 | `prefer-expression-over-let-if` | Destack | AST | ✓ | ✅ | Safe | Suggest expression syntax over let-if sequences |
@@ -365,22 +382,3 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-warning-comments` | ESLint | AST | ✓ | ✅ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Unsafe | Disallow wildcard imports |
 | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Unsafe | Disallow truthy/falsy coercion in conditions |
-
----
-
-## Implementation Notes
-
-### Compiler vs Linter
-
-We have a full compiler with its own analysis, verification, and diagnostics.
-Checks that are fundamental to correct compilation are handled by the **compiler** rather than the linter:
-
-| Check | Owner | Reasoning |
-|-------|-------|-----------|
-| Type mismatches | Compiler | Fundamental type system |
-| Unbound symbols | Compiler | Required for compilation |
-| Conflicting symbols | Compiler | Required for compilation |
-| Unreachable code | Compiler | CFG analysis for codegen |
-| Precision loss | Compiler | Numeric type semantics |
-| Pattern exhaustiveness | Compiler | Required for correctness |
-| Ownership violations | Compiler | Memory safety |

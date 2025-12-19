@@ -8,6 +8,7 @@ mod no_duplicate_case;
 mod no_empty_range;
 mod no_fallthrough;
 mod no_invalid_regexp;
+mod no_loop_single_iteration;
 mod no_self_compare;
 mod no_sparse_arrays;
 mod no_unsafe_finally;
@@ -26,6 +27,7 @@ pub use no_duplicate_case::*;
 pub use no_empty_range::*;
 pub use no_fallthrough::*;
 pub use no_invalid_regexp::*;
+pub use no_loop_single_iteration::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
 pub use no_unsafe_finally::*;
@@ -45,6 +47,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoEmptyRange),
         boxed(NoInvalidRegexp),
         boxed(NoFallthrough),
+        boxed(NoLoopSingleIteration),
         boxed(NoSelfCompare),
         boxed(NoSparseArrays),
         boxed(NoUnsafeFinally),

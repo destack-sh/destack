@@ -13,11 +13,14 @@ mod filename_case;
 mod grouped_accessor_pairs;
 mod no_boolean_literal_compare;
 mod no_collapsible_if;
+mod no_duplicate_string;
 mod no_else_return;
 mod no_empty_interface;
 mod no_lonely_if;
 mod no_negated_condition;
+mod no_nested_template_literal;
 mod no_nested_ternary;
+mod no_unnecessary_lambda;
 mod no_unneeded_ternary;
 mod no_var;
 mod object_shorthand;
@@ -39,6 +42,7 @@ mod prefer_self_closing_tree;
 mod prefer_struct;
 mod prefer_struct_literal;
 mod prefer_template;
+mod prefer_tuple;
 mod prefer_tuple_destructure;
 mod prefer_tuple_swap;
 mod prefer_unary_negation;
@@ -64,11 +68,14 @@ pub use filename_case::*;
 pub use grouped_accessor_pairs::*;
 pub use no_boolean_literal_compare::*;
 pub use no_collapsible_if::*;
+pub use no_duplicate_string::*;
 pub use no_else_return::*;
 pub use no_empty_interface::*;
 pub use no_lonely_if::*;
 pub use no_negated_condition::*;
+pub use no_nested_template_literal::*;
 pub use no_nested_ternary::*;
+pub use no_unnecessary_lambda::*;
 pub use no_unneeded_ternary::*;
 pub use no_var::*;
 pub use object_shorthand::*;
@@ -90,6 +97,7 @@ pub use prefer_self_closing_tree::*;
 pub use prefer_struct::*;
 pub use prefer_struct_literal::*;
 pub use prefer_template::*;
+pub use prefer_tuple::*;
 pub use prefer_tuple_destructure::*;
 pub use prefer_tuple_swap::*;
 pub use prefer_unary_negation::*;
@@ -116,11 +124,14 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(GroupedAccessorPairs),
         boxed(NoBooleanLiteralCompare),
         boxed(NoCollapsibleIf),
+        boxed(NoDuplicateString),
         boxed(NoElseReturn),
         boxed(NoEmptyInterface),
         boxed(NoLonelyIf),
         boxed(NoNegatedCondition),
+        boxed(NoNestedTemplateLiteral),
         boxed(NoNestedTernary),
+        boxed(NoUnnecessaryLambda),
         boxed(NoUnneededTernary),
         boxed(NoVar),
         boxed(ObjectShorthand),
@@ -138,6 +149,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferSelfClosingTree),
         boxed(PreferStruct),
         boxed(PreferStructLiteral),
+        boxed(PreferTuple),
         boxed(PreferTupleDestructure),
         boxed(PreferTupleSwap),
         boxed(PreferNamedExtension),

@@ -65,12 +65,12 @@ impl LintCategory {
     pub const fn description(&self) -> &'static str {
         match self {
             Self::Correctness => "detects likely bugs and logic errors",
-            Self::Suspicious => "detects code that is likely unintentional",
+            Self::Suspicious => "detects potentially unintentional code",
             Self::Performance => "detects inefficient patterns",
             Self::Style => "enforces consistent coding style",
-            Self::Security => "detects potential vulnerabilities",
+            Self::Security => "detects potential security vulnerabilities",
             Self::Complexity => "detects overly complex code",
-            Self::Restriction => "enforces project-specific restrictions",
+            Self::Restriction => "enforces specific  restrictions",
         }
     }
 
@@ -219,6 +219,20 @@ pub struct LinterOptions {
     pub max_params: usize,
     /// Maximum statements per function.
     pub max_statements: usize,
+    /// Maximum return statements per function.
+    pub max_return_statements: usize,
+    /// Maximum switch cases per switch statement.
+    pub max_switch_cases: usize,
+    /// Maximum variants in a union type or enum.
+    pub max_type_variants: usize,
+    /// Maximum fields in a struct, class, or interface.
+    pub max_type_fields: usize,
+    /// Maximum type complexity (nesting depth of generics/unions/intersections).
+    pub max_type_complexity: usize,
+    /// Maximum occurrences of the same string literal before warning.
+    pub max_duplicate_string_occurrences: usize,
+    /// Maximum statements in a try block.
+    pub max_try_block_statements: usize,
 
     // style options
     /// Preferred array type syntax.
@@ -258,6 +272,13 @@ impl Default for LinterOptions {
             max_nested_callbacks: 4,
             max_params: 4,
             max_statements: 50,
+            max_return_statements: 10,
+            max_switch_cases: 20,
+            max_type_variants: 20,
+            max_type_fields: 30,
+            max_type_complexity: 10,
+            max_duplicate_string_occurrences: 6,
+            max_try_block_statements: 20,
             // style
             array_type: ArrayTypeStyle::default(),
             type_definition_style: TypeDefinitionStyle::default(),

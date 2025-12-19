@@ -1319,6 +1319,20 @@ pub struct DsConfigLinterJson {
     pub max_params: Option<usize>,
     /// Maximum statements per function.
     pub max_statements: Option<usize>,
+    /// Maximum return statements per function.
+    pub max_return_statements: Option<usize>,
+    /// Maximum switch cases per switch statement.
+    pub max_switch_cases: Option<usize>,
+    /// Maximum variants in a union type or enum.
+    pub max_type_variants: Option<usize>,
+    /// Maximum fields in a struct, class, or interface.
+    pub max_type_fields: Option<usize>,
+    /// Maximum type complexity (nesting depth of generics/unions/intersections).
+    pub max_type_complexity: Option<usize>,
+    /// Maximum occurrences of the same string literal before warning.
+    pub max_duplicate_string_occurrences: Option<usize>,
+    /// Maximum statements in a try block.
+    pub max_try_block_statements: Option<usize>,
 
     // style options
     /// Preferred array type syntax: "array" or "generic".
@@ -1376,6 +1390,27 @@ impl DsConfigLinterJson {
         }
         if let Some(max_statements) = self.max_statements {
             options.max_statements = max_statements;
+        }
+        if let Some(max_return_statements) = self.max_return_statements {
+            options.max_return_statements = max_return_statements;
+        }
+        if let Some(max_switch_cases) = self.max_switch_cases {
+            options.max_switch_cases = max_switch_cases;
+        }
+        if let Some(max_type_variants) = self.max_type_variants {
+            options.max_type_variants = max_type_variants;
+        }
+        if let Some(max_type_fields) = self.max_type_fields {
+            options.max_type_fields = max_type_fields;
+        }
+        if let Some(max_type_complexity) = self.max_type_complexity {
+            options.max_type_complexity = max_type_complexity;
+        }
+        if let Some(max_duplicate_string_occurrences) = self.max_duplicate_string_occurrences {
+            options.max_duplicate_string_occurrences = max_duplicate_string_occurrences;
+        }
+        if let Some(max_try_block_statements) = self.max_try_block_statements {
+            options.max_try_block_statements = max_try_block_statements;
         }
 
         // style options

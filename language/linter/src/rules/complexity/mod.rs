@@ -5,11 +5,17 @@ mod max_lines;
 mod max_lines_per_function;
 mod max_nested_callbacks;
 mod max_params;
+mod max_return_statements;
 mod max_statements;
+mod max_switch_cases;
+mod max_type_fields;
+mod max_type_variants;
 mod no_complex_boolean_expression;
+mod no_complex_type;
 mod no_excessive_booleans;
 mod no_multi_assign;
 mod no_multi_declarators;
+mod no_nested_switch;
 mod no_unused_expressions;
 mod no_useless_underscore_binding;
 mod prefer_expression_over_let_if;
@@ -25,11 +31,17 @@ pub use max_lines::*;
 pub use max_lines_per_function::*;
 pub use max_nested_callbacks::*;
 pub use max_params::*;
+pub use max_return_statements::*;
 pub use max_statements::*;
+pub use max_switch_cases::*;
+pub use max_type_fields::*;
+pub use max_type_variants::*;
 pub use no_complex_boolean_expression::*;
+pub use no_complex_type::*;
 pub use no_excessive_booleans::*;
 pub use no_multi_assign::*;
 pub use no_multi_declarators::*;
+pub use no_nested_switch::*;
 pub use no_unused_expressions::*;
 pub use no_useless_underscore_binding::*;
 pub use prefer_expression_over_let_if::*;
@@ -46,9 +58,15 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(MaxLinesPerFunction),
         boxed(MaxNestedCallbacks),
         boxed(MaxParams),
+        boxed(MaxReturnStatements),
         boxed(MaxStatements),
+        boxed(MaxSwitchCases),
+        boxed(MaxTypeFields),
+        boxed(MaxTypeVariants),
         boxed(NoComplexBooleanExpression),
+        boxed(NoComplexType),
         boxed(NoExcessiveBooleans),
+        boxed(NoNestedSwitch),
         boxed(NoMultiAssign),
         boxed(NoMultiDeclarators),
         boxed(NoUnusedExpressions),
