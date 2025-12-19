@@ -2,7 +2,7 @@ use clap::Args;
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
 use destack_parser::colorize_source;
 
-use crate::common::{CompileContext, DiagnosticArgs, ProgramArgs, SingleInputArgs};
+use crate::common::{CompilerContext, DiagnosticArgs, ProgramArgs, SingleInputArgs};
 use crate::console;
 
 /// What to dump from DIR compilation.
@@ -51,7 +51,7 @@ pub fn run(args: &DirArgs) -> i32 {
     let dump_file = args.dump.contains(&DumpKind::File) || args.dump.contains(&DumpKind::All);
     let dump_node = args.dump.contains(&DumpKind::Node) || args.dump.contains(&DumpKind::All);
     let dump_symbol = args.dump.contains(&DumpKind::Symbol) || args.dump.contains(&DumpKind::All);
-    let context = CompileContext::for_lint(&args.program, &args.diagnostics);
+    let context = CompilerContext::for_lint(&args.program, &args.diagnostics);
 
     // determine input source
     let source = match args.input.to_source() {

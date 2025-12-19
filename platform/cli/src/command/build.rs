@@ -1,6 +1,6 @@
 use clap::Args;
 
-use crate::common::{CompileContext, DiagnosticArgs, InputArgs, ProgramArgs, TargetArgs};
+use crate::common::{CompilerContext, DiagnosticArgs, InputArgs, ProgramArgs, TargetArgs};
 use crate::console;
 
 #[derive(Args, Debug, Clone)]
@@ -40,7 +40,7 @@ pub fn run(args: &BuildArgs) -> i32 {
         return 1;
     }
 
-    let context = CompileContext::for_build(&args.program, &args.diagnostics, target_name.clone());
+    let context = CompilerContext::for_build(&args.program, &args.diagnostics, target_name.clone());
 
     let sources = match context.load_sources(&args.input) {
         Ok(s) => s,
