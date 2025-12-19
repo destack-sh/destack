@@ -136,7 +136,10 @@ pub struct LabeledSpan {
 
 impl LabeledSpan {
     /// Create a new LabeledSpan.
-    pub fn new(span: Span, label: String) -> Self {
-        Self { span, label }
+    pub fn new(span: Span, label: impl Into<String>) -> Self {
+        Self {
+            span,
+            label: label.into(),
+        }
     }
 }

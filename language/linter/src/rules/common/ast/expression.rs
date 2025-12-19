@@ -298,9 +298,40 @@ pub fn expressions_equal(
             true
         }
 
+        // blocks: compare contents
+        (Expression::Block(left_block), Expression::Block(right_block)) => {
+            blocks_equal(ctx, *left_block, *right_block)
+        }
+
+        // statements: unwrap and compare
+        (Expression::Statement(left_inner), Expression::Statement(right_inner)) => {
+            expressions_equal(ctx, *left_inner, *right_inner)
+        }
+        (Expression::Statement(left_inner), _) => expressions_equal(ctx, *left_inner, right_id),
+        (_, Expression::Statement(right_inner)) => expressions_equal(ctx, left_id, *right_inner),
+
         // for other expression types, don't try to compare
         _ => false,
     }
+}
+
+/// Check if two blocks have identical expressions.
+pub fn blocks_equal(
+    ctx: &LintModuleAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::Block>,
+    right_id: ast::LocalNodeId<ast::Block>,
+) -> bool {
+    let left = ctx.tree.get(left_id);
+    let right = ctx.tree.get(right_id);
+    if left.expressions.len() != right.expressions.len() {
+        return false;
+    }
+    for (left_expr, right_expr) in left.expressions.iter().zip(right.expressions.iter()) {
+        if !expressions_equal(ctx, *left_expr, *right_expr) {
+            return false;
+        }
+    }
+    true
 }
 
 /// Unwrap parenthesized expressions to get the inner expression.
