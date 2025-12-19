@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Require strict equality operators.
@@ -14,7 +14,7 @@ declare_lint! {
         code = "LY021",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -31,41 +31,50 @@ impl LintRule for Eqeqeq {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
-            let Expression::Binary { operator, .. } = expr else {
+            let Expression::Binary {
+                left,
+                operator,
+                right,
+            } = expr
+            else {
                 continue;
             };
 
-            match operator {
-                BinaryOperator::Equal => {
-                    ctx.report(
-                        LintDiagnostic::new(
-                            EQEQEQ.id,
-                            EQEQEQ.code,
-                            EQEQEQ.category,
-                            severity,
-                            "use `===` instead of `==`",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("prefer strict equality"),
-                    );
-                }
-                BinaryOperator::NotEqual => {
-                    ctx.report(
-                        LintDiagnostic::new(
-                            EQEQEQ.id,
-                            EQEQEQ.code,
-                            EQEQEQ.category,
-                            severity,
-                            "use `!==` instead of `!=`",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("prefer strict inequality"),
-                    );
-                }
-                _ => {}
-            }
+            let (message, label, strict_op) = match operator {
+                BinaryOperator::Equal => (
+                    "use `===` instead of `==`",
+                    "prefer strict equality",
+                    "===",
+                ),
+                BinaryOperator::NotEqual => (
+                    "use `!==` instead of `!=`",
+                    "prefer strict inequality",
+                    "!==",
+                ),
+                _ => continue,
+            };
+
+            let expr_span = ctx.tree.get_span(node_id);
+            let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
+            let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
+            let replacement = format!("{left_text} {strict_op} {right_text}");
+
+            let edits = ctx.edit_builder().replace(expr_span, replacement).into_edits();
+            let fix = LintFix::safe(format!("Replace with `{strict_op}`")).with_edits(edits);
+
+            ctx.report(
+                LintDiagnostic::new(
+                    EQEQEQ.id,
+                    EQEQEQ.code,
+                    EQEQEQ.category,
+                    severity,
+                    message,
+                    ctx.module.file_id,
+                    expr_span,
+                )
+                .with_label(label)
+                .with_fix(fix),
+            );
         }
     }
 }
@@ -143,5 +152,37 @@ if (a < b && c > d) {
 "#,
         );
         test.result(result).assert_no_lint("eqeqeq");
+    }
+
+    #[test]
+    fn test_fix_loose_equality() {
+        let test = TestProgram::for_rule(Eqeqeq);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+if (a == b) { x() }
+"#,
+        );
+        test.result(result).assert_lint("eqeqeq").assert_safe_fixed(
+            r#"
+if (a === b) { x() }
+"#,
+        );
+    }
+
+    #[test]
+    fn test_fix_loose_inequality() {
+        let test = TestProgram::for_rule(Eqeqeq);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+if (a != b) { x() }
+"#,
+        );
+        test.result(result).assert_lint("eqeqeq").assert_safe_fixed(
+            r#"
+if (a !== b) { x() }
+"#,
+        );
     }
 }

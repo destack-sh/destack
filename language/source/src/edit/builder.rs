@@ -9,16 +9,11 @@ use crate::{BatchEdit, Edit, FileEdit, FileId, Span};
 /// # Example
 ///
 /// ```ignore
-/// // Without source (position-based operations only)
-/// let edit = EditBuilder::new(file_id)
+/// let edit = EditBuilder::from_file(file_id, source)
 ///     .insert_before(span, "await ")
-///     .build();
-///
-/// // With source (text-aware operations)
-/// let edit = EditBuilder::with_source(file_id, source)
 ///     .wrap(span, "(", ")")
 ///     .replace_with(other_span, |text| format!("Object.is({text}, -0)"))
-///     .build();
+///     .into_edits();
 /// ```
 #[derive(Debug, Clone)]
 pub struct EditBuilder<'a> {
@@ -28,17 +23,8 @@ pub struct EditBuilder<'a> {
 }
 
 impl<'a> EditBuilder<'a> {
-    /// Create a new builder for the given file.
-    pub fn new(file: FileId) -> Self {
-        Self {
-            file,
-            source: None,
-            edits: Vec::new(),
-        }
-    }
-
     /// Create a new builder with source text for text-aware operations.
-    pub fn with_source(file: FileId, source: &'a str) -> Self {
+    pub fn from_file(file: FileId, source: &'a str) -> Self {
         Self {
             file,
             source: Some(source),

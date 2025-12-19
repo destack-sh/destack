@@ -1,4 +1,5 @@
-use destack_ast::{self as ast, Expression, Path};
+use destack_ast::{self as ast, Block, Expression, Path};
+use destack_source::Span;
 
 use crate::LintModuleAstContext;
 
@@ -453,4 +454,26 @@ pub fn expression_has_side_effects(
         | Expression::TreeExpression { .. }
         | Expression::SequenceExpression { .. } => true,
     }
+}
+
+/// Get the content of a block expression, stripping outer braces if present.
+pub fn expression_get_block_span_str(
+    ctx: &LintModuleAstContext<'_>,
+    expr_id: ast::LocalNodeId<Expression>,
+) -> String {
+    let expr = ctx.tree.get(expr_id);
+
+    // if it's a block, get the content inside the braces
+    if let Expression::Block(block_id) = expr {
+        let block: &Block = ctx.tree.get(*block_id);
+        if let (Some(&first), Some(&last)) = (block.expressions.first(), block.expressions.last()) {
+            let first_span = ctx.tree.get_span(first);
+            let last_span = ctx.tree.get_span(last);
+            let content_span = Span::new(first_span.file, first_span.start, last_span.end);
+            return ctx.get_span_text(content_span).to_string();
+        }
+    }
+
+    // otherwise just return the whole expression text
+    ctx.get_span_text(ctx.tree.get_span(expr_id)).to_string()
 }
