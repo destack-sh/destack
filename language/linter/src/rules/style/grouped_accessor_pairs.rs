@@ -44,7 +44,9 @@ impl LintRule for GroupedAccessorPairs {
         GroupedAccessorPairs::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             let members = match declaration {
@@ -55,7 +57,7 @@ impl LintRule for GroupedAccessorPairs {
                 _ => continue,
             };
 
-            check_members_for_ungrouped_accessors(ctx, severity, members);
+            check_members_for_ungrouped_accessors(ctx, meta, members);
         }
 
         // also check object expressions
@@ -66,7 +68,7 @@ impl LintRule for GroupedAccessorPairs {
                 continue;
             };
 
-            check_properties_for_ungrouped_accessors(ctx, severity, properties);
+            check_properties_for_ungrouped_accessors(ctx, meta, properties);
         }
     }
 }
@@ -74,7 +76,7 @@ impl LintRule for GroupedAccessorPairs {
 /// Check members in class-like declarations for ungrouped accessor pairs.
 fn check_members_for_ungrouped_accessors(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     members: &[ast::LocalNodeId<Member>],
 ) {
     // map property name to (getter_index, setter_index)
@@ -120,9 +122,13 @@ fn check_members_for_ungrouped_accessors(
         // check if they are adjacent (difference of 1)
         let diff = getter_idx.abs_diff(setter_idx);
         if diff != 1 {
-            let name = ctx.strings.get(name_id);
             let later_idx = getter_idx.max(setter_idx);
             let later_member_id = members[later_idx];
+            let severity = ctx.get_effective_severity(meta, later_member_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            let name = ctx.strings.get(name_id);
 
             ctx.report(
                 LintDiagnostic::new(
@@ -143,7 +149,7 @@ fn check_members_for_ungrouped_accessors(
 /// Check properties in object expressions for ungrouped accessor pairs.
 fn check_properties_for_ungrouped_accessors(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     properties: &[ast::LocalNodeId<ast::Property>],
 ) {
     // map property name to (getter_index, setter_index)
@@ -190,9 +196,13 @@ fn check_properties_for_ungrouped_accessors(
         // check if they are adjacent (difference of 1)
         let diff = getter_idx.abs_diff(setter_idx);
         if diff != 1 {
-            let name = ctx.strings.get(name_id);
             let later_idx = getter_idx.max(setter_idx);
             let later_prop_id = properties[later_idx];
+            let severity = ctx.get_effective_severity(meta, later_prop_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            let name = ctx.strings.get(name_id);
 
             ctx.report(
                 LintDiagnostic::new(

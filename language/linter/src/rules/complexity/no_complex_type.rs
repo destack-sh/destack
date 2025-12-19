@@ -29,14 +29,15 @@ impl LintRule for NoComplexType {
         NoComplexType::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_type_complexity = ctx.options.max_type_complexity;
 
         // Check let/const declarations
         for decl_id in ctx.tree.iter_nodes::<ast::Declarator>() {
             let decl = ctx.tree.get(decl_id);
             if let Some(ty_id) = decl.ty {
-                check_type_complexity(ctx, severity, ty_id, max_type_complexity);
+                check_type_complexity(ctx, meta, ty_id, max_type_complexity);
             }
         }
 
@@ -49,7 +50,7 @@ impl LintRule for NoComplexType {
                 | ast::Parameter::Variadic { ty, .. } => *ty,
             };
             if let Some(ty_id) = ty_id {
-                check_type_complexity(ctx, severity, ty_id, max_type_complexity);
+                check_type_complexity(ctx, meta, ty_id, max_type_complexity);
             }
         }
     }
@@ -58,7 +59,7 @@ impl LintRule for NoComplexType {
 /// Check if a type expression exceeds the maximum complexity.
 fn check_type_complexity(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     ty_id: LocalNodeId<Expression>,
     max_complexity: usize,
 ) {
@@ -72,6 +73,11 @@ fn check_type_complexity(
     visitor.visit_expression(ctx.tree, ty_id, ty_expr);
 
     if visitor.max_depth > max_complexity {
+        let severity = ctx.get_effective_severity(meta, ty_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
         ctx.report(
             LintDiagnostic::new(
                 NO_COMPLEX_TYPE.id,

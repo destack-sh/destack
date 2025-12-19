@@ -26,7 +26,8 @@ impl LintRule for MaxTypeVariants {
         MaxTypeVariants::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_type_variants = ctx.options.max_type_variants;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -43,6 +44,10 @@ impl LintRule for MaxTypeVariants {
                     }
                     let variant_count = count_union_members(ctx, node_id);
                     if variant_count > max_type_variants {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 MAX_TYPE_VARIANTS.id,
@@ -68,6 +73,10 @@ impl LintRule for MaxTypeVariants {
                     };
                     let variant_count = fields.len();
                     if variant_count > max_type_variants {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 MAX_TYPE_VARIANTS.id,

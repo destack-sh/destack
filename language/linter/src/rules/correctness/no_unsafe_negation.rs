@@ -26,7 +26,9 @@ impl LintRule for NoUnsafeNegation {
         NoUnsafeNegation::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // check for Binary expressions with in/instanceof
             if let ast::Expression::Binary {
@@ -45,6 +47,11 @@ impl LintRule for NoUnsafeNegation {
 
                 // check if left side is a logical not and get the inner expression
                 if let Some(inner_id) = get_negated_inner(ctx, *left) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     let operator_name = match operator {
                         ast::BinaryOperator::In => "in",
                         ast::BinaryOperator::InstanceOf => "instanceof",

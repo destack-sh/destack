@@ -27,7 +27,9 @@ impl LintRule for NoReExportAll {
         NoReExportAll::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -45,6 +47,10 @@ impl LintRule for NoReExportAll {
             for item_id in items {
                 let item = ctx.tree.get(*item_id);
                 if item.mode == DependencyMode::Namespace && item.alias.is_none() {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        break;
+                    }
                     // this is `export * from "..."` (not `export * as foo from "..."`)
                     ctx.report(
                         LintDiagnostic::new(

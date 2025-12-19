@@ -2,7 +2,7 @@ use destack_ast::{
     self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
-use destack_source::FileId;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -30,16 +30,16 @@ impl LintRule for MaxDepth {
         MaxDepth::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_depth = ctx.options.max_depth;
 
+        // collect violations
         let mut visitor = DepthNodeVisitor {
             options: NodeVisitorOptions::default(),
             depth: 0,
             max_depth,
-            severity,
-            file_id: ctx.module.file_id,
-            diagnostics: Vec::new(),
+            violations: Vec::new(),
         };
 
         for root_id in ctx.roots.iter() {
@@ -47,10 +47,36 @@ impl LintRule for MaxDepth {
             visitor.visit_expression(ctx.tree, *root_id, expression);
         }
 
-        for diagnostic in visitor.diagnostics {
-            ctx.report(diagnostic);
+        // create diagnostics with effective severity
+        for violation in visitor.violations {
+            let severity = ctx.get_effective_severity(meta, violation.node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
+            ctx.report(
+                LintDiagnostic::new(
+                    MAX_DEPTH.id,
+                    MAX_DEPTH.code,
+                    MAX_DEPTH.category,
+                    severity,
+                    format!(
+                        "nesting depth {} exceeds maximum of {}",
+                        violation.depth, max_depth
+                    ),
+                    ctx.module.file_id,
+                    violation.span,
+                )
+                .with_label("consider extracting into a function"),
+            );
         }
     }
+}
+
+/// A violation found during depth checking.
+struct DepthViolation {
+    node_id: LocalNodeId<Expression>,
+    span: Span,
+    depth: usize,
 }
 
 /// NodeVisitor for checking the depth of nested blocks.
@@ -58,9 +84,7 @@ struct DepthNodeVisitor {
     options: NodeVisitorOptions,
     depth: usize,
     max_depth: usize,
-    severity: LintSeverity,
-    file_id: FileId,
-    diagnostics: Vec<LintDiagnostic>,
+    violations: Vec<DepthViolation>,
 }
 
 impl NodeVisitor for DepthNodeVisitor {
@@ -89,21 +113,11 @@ impl NodeVisitor for DepthNodeVisitor {
         if increases_depth {
             self.depth += 1;
             if self.depth > self.max_depth {
-                self.diagnostics.push(
-                    LintDiagnostic::new(
-                        MAX_DEPTH.id,
-                        MAX_DEPTH.code,
-                        MAX_DEPTH.category,
-                        self.severity,
-                        format!(
-                            "nesting depth {} exceeds maximum of {}",
-                            self.depth, self.max_depth
-                        ),
-                        self.file_id,
-                        tree.get_span(id),
-                    )
-                    .with_label("consider extracting into a function"),
-                );
+                self.violations.push(DepthViolation {
+                    node_id: id,
+                    span: tree.get_span(id),
+                    depth: self.depth,
+                });
             }
         }
 

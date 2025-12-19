@@ -37,7 +37,9 @@ impl LintRule for NoPlaceholderImplementation {
         NoPlaceholderImplementation::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::Throw { value } = expression else {
@@ -82,6 +84,10 @@ impl LintRule for NoPlaceholderImplementation {
                 .iter()
                 .any(|pattern| message.contains(pattern));
             if is_placeholder {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         NO_PLACEHOLDER_IMPLEMENTATION.id,

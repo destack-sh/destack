@@ -29,7 +29,9 @@ impl LintRule for NoUnsafeFinally {
         NoUnsafeFinally::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Try {
                 finally_expression: Some(finally_id),
@@ -38,6 +40,11 @@ impl LintRule for NoUnsafeFinally {
             else {
                 continue;
             };
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
 
             // check for unsafe control flow in the finally block
             let mut visitor = FinallyVisitor {

@@ -26,7 +26,9 @@ impl LintRule for NoUselessReturn {
         NoUselessReturn::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let ast::Declaration::Function { body, .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -38,6 +40,11 @@ impl LintRule for NoUselessReturn {
 
             // check if the last statement is a bare return
             if let Some(return_id) = get_trailing_bare_return(ctx, *body_id) {
+                let severity = ctx.get_effective_severity(meta, return_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let return_span = ctx.tree.get_span(return_id);
                 let edits = ctx.edit_builder().delete(return_span).into_edits();
                 let fix = LintFix::safe("Remove useless return").with_edits(edits);

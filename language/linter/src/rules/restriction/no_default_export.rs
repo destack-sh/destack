@@ -26,7 +26,9 @@ impl LintRule for NoDefaultExport {
         NoDefaultExport::meta()
     }
 
-    fn check_module_dir<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        let meta = self.meta();
+
         // check for DependencyItem nodes with Default mode
         for (node_id, item) in ctx.tree.iter_nodes_of_type::<dir::DependencyItem>() {
             let is_default = match item {
@@ -42,6 +44,10 @@ impl LintRule for NoDefaultExport {
             };
 
             if is_default {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let span = ctx.get_span(node_id);
                 ctx.report(
                     LintDiagnostic::new(
@@ -62,6 +68,10 @@ impl LintRule for NoDefaultExport {
         for (node_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
             let descriptor = declaration.descriptor();
             if descriptor.export == Some(dir::DependencyMode::Default) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let span = ctx.get_span(node_id);
                 ctx.report(
                     LintDiagnostic::new(

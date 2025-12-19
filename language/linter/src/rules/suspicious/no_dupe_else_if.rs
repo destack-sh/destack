@@ -27,7 +27,9 @@ impl LintRule for NoDupeElseIf {
         NoDupeElseIf::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // find all if expressions and check their else-if chains
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
@@ -54,6 +56,11 @@ impl LintRule for NoDupeElseIf {
             for i in 0..conditions.len() {
                 for j in (i + 1)..conditions.len() {
                     if expressions_equal(ctx, conditions[i], conditions[j]) {
+                        let severity = ctx.get_effective_severity(meta, conditions[j]);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
+
                         ctx.report(
                             LintDiagnostic::new(
                                 NO_DUPE_ELSE_IF.id,

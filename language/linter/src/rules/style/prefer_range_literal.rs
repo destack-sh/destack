@@ -29,7 +29,9 @@ impl LintRule for PreferRangeLiteral {
         PreferRangeLiteral::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
@@ -47,6 +49,11 @@ impl LintRule for PreferRangeLiteral {
             // check if this looks like a simple counting loop
             if !is_simple_counting_loop(ctx.tree, *initialization_id, *condition_id, *increment_id)
             {
+                continue;
+            }
+
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
                 continue;
             }
 

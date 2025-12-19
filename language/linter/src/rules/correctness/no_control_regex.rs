@@ -27,7 +27,9 @@ impl LintRule for NoControlRegex {
         NoControlRegex::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -42,6 +44,10 @@ impl LintRule for NoControlRegex {
 
             // check for control characters in the regex
             if let Some(control_char) = find_control_character(regex_str) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         NO_CONTROL_REGEX.id,

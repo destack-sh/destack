@@ -27,7 +27,9 @@ impl LintRule for NoInnerDeclarations {
         NoInnerDeclarations::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // find function declarations inside control flow blocks
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
@@ -63,6 +65,11 @@ impl LintRule for NoInnerDeclarations {
                 if let ast::Expression::Declaration(decl_id) = expr {
                     let declaration = ctx.tree.get(*decl_id);
                     if matches!(declaration, ast::Declaration::Function { .. }) {
+                        let severity = ctx.get_effective_severity(meta, *expr_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
+
                         ctx.report(
                             LintDiagnostic::new(
                                 NO_INNER_DECLARATIONS.id,

@@ -26,7 +26,8 @@ impl LintRule for ConsistentTypeDefinitions {
         ConsistentTypeDefinitions::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let preferred_style = ctx.options.type_definition_style;
 
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
@@ -41,6 +42,10 @@ impl LintRule for ConsistentTypeDefinitions {
                         ..
                     },
                 ) => {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
                     ctx.report(
                         LintDiagnostic::new(
                             CONSISTENT_TYPE_DEFINITIONS.id,
@@ -66,6 +71,10 @@ impl LintRule for ConsistentTypeDefinitions {
                     // only flag if the value is an object type expression
                     let value_expr = ctx.tree.get(*value);
                     if is_object_type_expression(value_expr) {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 CONSISTENT_TYPE_DEFINITIONS.id,

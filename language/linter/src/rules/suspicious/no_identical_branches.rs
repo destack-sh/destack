@@ -27,7 +27,9 @@ impl LintRule for NoIdenticalBranches {
         NoIdenticalBranches::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::If {
                 then_expression,
@@ -40,6 +42,11 @@ impl LintRule for NoIdenticalBranches {
 
             // check if then and else are identical
             if expressions_equal(ctx, *then_expression, *else_expression) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_IDENTICAL_BRANCHES.id,

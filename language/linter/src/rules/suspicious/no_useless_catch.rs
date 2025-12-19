@@ -26,7 +26,9 @@ impl LintRule for NoUselessCatch {
         NoUselessCatch::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Try {
                 try_expression,
@@ -53,6 +55,11 @@ impl LintRule for NoUselessCatch {
             if is_throw_of_name(ctx, *catch_expr_id, catch_name) {
                 // if there's a finally block, the catch might still be useful for cleanup ordering
                 if finally_expression.is_some() {
+                    continue;
+                }
+
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
                     continue;
                 }
 

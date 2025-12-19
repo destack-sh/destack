@@ -37,7 +37,8 @@ impl LintRule for CognitiveComplexity {
         CognitiveComplexity::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_complexity = ctx.options.max_cognitive_complexity;
 
         // check each function declaration
@@ -46,7 +47,6 @@ impl LintRule for CognitiveComplexity {
             let ast::Declaration::Function { body, .. } = declaration else {
                 continue;
             };
-
             let Some(body_id) = body else {
                 continue;
             };
@@ -63,6 +63,10 @@ impl LintRule for CognitiveComplexity {
             visitor.visit_expression(ctx.tree, *body_id, body_expression);
 
             if visitor.complexity > max_complexity {
+                let severity = ctx.get_effective_severity(meta, declaration_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         COGNITIVE_COMPLEXITY.id,

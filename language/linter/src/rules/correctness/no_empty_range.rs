@@ -26,7 +26,9 @@ impl LintRule for NoEmptyRange {
         NoEmptyRange::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let Expression::RangeExpression {
@@ -55,6 +57,10 @@ impl LintRule for NoEmptyRange {
             };
 
             if is_empty {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let range_type = if *is_inclusive { "..=" } else { ".." };
                 ctx.report(
                     LintDiagnostic::new(

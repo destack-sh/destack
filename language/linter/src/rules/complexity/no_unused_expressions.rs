@@ -42,17 +42,19 @@ impl LintRule for NoUnusedExpressions {
         NoUnusedExpressions::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // check each root expression in the module
         for &root_id in ctx.roots {
-            check_expression_statement(ctx, severity, root_id);
+            check_expression_statement(ctx, meta, root_id);
         }
 
         // also check expressions inside blocks
         for node_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(node_id);
             for &child_id in &block.expressions {
-                check_expression_statement(ctx, severity, child_id);
+                check_expression_statement(ctx, meta, child_id);
             }
         }
     }
@@ -61,11 +63,16 @@ impl LintRule for NoUnusedExpressions {
 /// Check if an expression statement is unused and report it.
 fn check_expression_statement(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) {
     // skip expressions that have side effects or are useful
     if !expression_has_side_effects(ctx, expr_id) {
+        let severity = ctx.get_effective_severity(meta, expr_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
         ctx.report(
             LintDiagnostic::new(
                 NO_UNUSED_EXPRESSIONS.id,

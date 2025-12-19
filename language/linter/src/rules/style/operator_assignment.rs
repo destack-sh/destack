@@ -25,7 +25,9 @@ impl LintRule for OperatorAssignment {
         OperatorAssignment::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
 
@@ -91,6 +93,11 @@ impl LintRule for OperatorAssignment {
 
             // compare the paths
             if paths_equal(left_path, bin_left_path) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 // make fix: replace `x = x + 1` with `x += 1`
                 let expression_span = ctx.tree.get_span(node_id);
                 let left_text = ctx.get_span_text(ctx.tree.get_span(*left));

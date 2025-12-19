@@ -25,7 +25,9 @@ impl LintRule for NoUselessRename {
         NoUselessRename::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // check destructuring pattern fields
         for node_id in ctx.tree.iter_nodes::<ast::PatternField>() {
             let field = ctx.tree.get(node_id);
@@ -37,6 +39,11 @@ impl LintRule for NoUselessRename {
 
             // if name and alias are the same, it's useless
             if name.string() == *alias {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let name_str: String = ctx.strings.get(name.string()).as_ref().to_string();
                 let field_span = ctx.tree.get_span(node_id);
 

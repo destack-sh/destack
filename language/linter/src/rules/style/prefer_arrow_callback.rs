@@ -26,7 +26,9 @@ impl LintRule for PreferArrowCallback {
         PreferArrowCallback::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // iterate over all call expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let Expression::Call {
@@ -37,7 +39,7 @@ impl LintRule for PreferArrowCallback {
             };
 
             for argument_id in dynamic_arguments {
-                check_callback_argument(ctx, severity, *argument_id);
+                check_callback_argument(ctx, meta, *argument_id);
             }
         }
     }
@@ -46,7 +48,7 @@ impl LintRule for PreferArrowCallback {
 /// Check if an argument is a function expression that should be an arrow function.
 fn check_callback_argument(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     argument_id: ast::LocalNodeId<Argument>,
 ) {
     let argument = ctx.tree.get(argument_id);
@@ -82,6 +84,11 @@ fn check_callback_argument(
 
     // skip lambda functions (they're already arrows)
     if signature.kind == FunctionKind::Lambda {
+        return;
+    }
+
+    let severity = ctx.get_effective_severity(meta, argument_id);
+    if !severity.is_enabled() {
         return;
     }
 

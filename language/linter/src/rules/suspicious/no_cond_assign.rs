@@ -27,7 +27,9 @@ impl LintRule for NoCondAssign {
         NoCondAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let condition_id = match ctx.tree.get(node_id) {
                 ast::Expression::If { condition, .. } => *condition,
@@ -38,6 +40,11 @@ impl LintRule for NoCondAssign {
 
             // check if the condition is an assignment (possibly wrapped in parens)
             if is_assignment(ctx, condition_id) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let assign_span = ctx.tree.get_span(condition_id);
 
                 ctx.report(

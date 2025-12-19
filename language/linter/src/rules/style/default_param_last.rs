@@ -29,7 +29,9 @@ impl LintRule for DefaultParamLast {
         DefaultParamLast::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // iterate over all parameters, deduplicate by parent to check each list once
         let mut seen_parents: HashSet<u32> = HashSet::new();
         for param_id in ctx.tree.iter_nodes::<ast::Parameter>() {
@@ -74,14 +76,14 @@ impl LintRule for DefaultParamLast {
                 _ => continue,
             };
 
-            check_parameters(ctx, severity, parameters);
+            check_parameters(ctx, meta, parameters);
         }
     }
 }
 
 fn check_parameters(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     parameters: &[ast::LocalNodeId<Parameter>],
 ) {
     let mut seen_default = false;
@@ -101,6 +103,10 @@ fn check_parameters(
             // found a param without default after one with default
             // variadic parameters are allowed after defaults
             if !matches!(param, Parameter::Variadic { .. }) {
+                let severity = ctx.get_effective_severity(meta, *param_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         DEFAULT_PARAM_LAST.id,

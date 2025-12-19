@@ -26,7 +26,8 @@ impl LintRule for MaxTypeFields {
         MaxTypeFields::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_type_fields = ctx.options.max_type_fields;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -52,6 +53,10 @@ impl LintRule for MaxTypeFields {
                         .count();
 
                     if field_count > max_type_fields {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 MAX_TYPE_FIELDS.id,
@@ -80,6 +85,10 @@ impl LintRule for MaxTypeFields {
                         })
                         .count();
                     if field_count > max_type_fields {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 MAX_TYPE_FIELDS.id,

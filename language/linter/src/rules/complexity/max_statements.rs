@@ -26,12 +26,16 @@ impl LintRule for MaxStatements {
         MaxStatements::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let max_statements = ctx.options.max_statements;
 
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function { body, .. } = declaration else {
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let ast::Expression::Declaration(declaration_id) = ctx.tree.get(node_id) else {
+                continue;
+            };
+
+            let ast::Declaration::Function { body, .. } = ctx.tree.get(*declaration_id) else {
                 continue;
             };
 
@@ -51,6 +55,10 @@ impl LintRule for MaxStatements {
             };
 
             if statement_count > max_statements {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 let body_span = ctx.tree.get_span(*body_id);
                 ctx.report(
                     LintDiagnostic::new(

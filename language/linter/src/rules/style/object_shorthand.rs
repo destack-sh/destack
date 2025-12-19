@@ -26,7 +26,9 @@ impl LintRule for ObjectShorthand {
         ObjectShorthand::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Property>() {
             let property = ctx.tree.get(node_id);
 
@@ -54,6 +56,11 @@ impl LintRule for ObjectShorthand {
             // compare segment names
             let value_name = path.segments[0];
             if *key_name == value_name {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let key_str = ctx.strings.get(*key_name);
                 let property_span = ctx.tree.get_span(node_id);
 

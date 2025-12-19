@@ -26,7 +26,9 @@ impl LintRule for NoEmptyStaticBlock {
         NoEmptyStaticBlock::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Member>() {
             let member = ctx.tree.get(node_id);
             let ast::Member::StaticBlock { body, .. } = member else {
@@ -45,6 +47,11 @@ impl LintRule for NoEmptyStaticBlock {
             };
 
             if is_empty {
+                let severity = ctx.get_effective_severity(meta, *body);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let member_span = ctx.tree.get_span(node_id);
                 let fix = LintFix::safe("Remove empty static block").delete(member_span);
                 ctx.report(

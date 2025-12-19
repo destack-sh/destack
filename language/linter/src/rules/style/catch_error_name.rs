@@ -26,7 +26,8 @@ impl LintRule for CatchErrorName {
         CatchErrorName::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let expected_name = &ctx.options.catch_error_name;
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -52,6 +53,10 @@ impl LintRule for CatchErrorName {
             if let Some(name_id) = actual_name {
                 let actual = ctx.strings.get(name_id);
                 if actual.as_ref() != expected_name {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
                     ctx.report(
                         LintDiagnostic::new(
                             CATCH_ERROR_NAME.id,

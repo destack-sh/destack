@@ -41,7 +41,9 @@ impl LintRule for PreferPatternOverGuard {
         PreferPatternOverGuard::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
             let match_case = ctx.tree.get(node_id);
 
@@ -61,6 +63,11 @@ impl LintRule for PreferPatternOverGuard {
             if let Some(binding_name) = get_simple_binding_name(ctx, pattern)
                 && is_equality_with_literal(ctx, guard_expression, &binding_name)
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         PREFER_PATTERN_OVER_GUARD.id,

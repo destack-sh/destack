@@ -26,7 +26,9 @@ impl LintRule for NoEmptyFunction {
         NoEmptyFunction::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
             let ast::Declaration::Function {
@@ -48,6 +50,11 @@ impl LintRule for NoEmptyFunction {
             };
 
             if is_empty {
+                let severity = ctx.get_effective_severity(meta, *body_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_EMPTY_FUNCTION.id,

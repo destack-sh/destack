@@ -31,7 +31,9 @@ impl LintRule for NoDuplicateString {
         NoDuplicateString::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // collect all string literals with their locations
         let max_occurrences = ctx.options.max_duplicate_string_occurrences;
         let mut string_occurrences: HashMap<StringId, Vec<ast::LocalNodeId<ast::Expression>>> =
@@ -55,6 +57,13 @@ impl LintRule for NoDuplicateString {
         // report strings that appear too many times
         for (string_id, occurrences) in string_occurrences {
             if occurrences.len() > max_occurrences {
+                // report on the first occurrence
+                let first_occurrence = occurrences[0];
+                let severity = ctx.get_effective_severity(meta, first_occurrence);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let string_value = ctx.strings.get(string_id);
                 let display_value = if string_value.len() > 30 {
                     format!("\"{}...\"", &string_value[..27])
@@ -62,8 +71,6 @@ impl LintRule for NoDuplicateString {
                     format!("\"{}\"", &*string_value)
                 };
 
-                // report on the first occurrence
-                let first_occurrence = occurrences[0];
                 let mut lint = LintDiagnostic::new(
                     NO_DUPLICATE_STRING.id,
                     NO_DUPLICATE_STRING.code,

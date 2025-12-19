@@ -26,7 +26,9 @@ impl LintRule for RequireYield {
         RequireYield::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // collect all yield expression spans
         let mut yield_spans: Vec<destack_source::Span> = Vec::new();
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -60,6 +62,11 @@ impl LintRule for RequireYield {
                 .any(|s| s.start >= body_span.start && s.end <= body_span.end);
 
             if !has_yield {
+                let severity = ctx.get_effective_severity(meta, *body_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         REQUIRE_YIELD.id,
@@ -99,6 +106,11 @@ impl LintRule for RequireYield {
                 .any(|s| s.start >= body_span.start && s.end <= body_span.end);
 
             if !has_yield {
+                let severity = ctx.get_effective_severity(meta, *body_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         REQUIRE_YIELD.id,

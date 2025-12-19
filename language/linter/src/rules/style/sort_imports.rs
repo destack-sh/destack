@@ -81,7 +81,9 @@ impl LintRule for SortImports {
         SortImports::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // collect all imports with their info
         struct ImportInfo {
             target: String,
@@ -109,7 +111,7 @@ impl LintRule for SortImports {
 
         // check member sorting within each import
         for import in &imports {
-            check_member_sorting(ctx, severity, import.node_id, &import.items);
+            check_member_sorting(ctx, meta, import.node_id, &import.items);
         }
 
         // check declaration ordering (grouping + alphabetical within groups)
@@ -119,6 +121,11 @@ impl LintRule for SortImports {
 
             // check group ordering
             if current.group < prev.group {
+                let severity = ctx.get_effective_severity(meta, current.node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         SORT_IMPORTS.id,
@@ -144,6 +151,11 @@ impl LintRule for SortImports {
             } else if current.group == prev.group {
                 // same group: check alphabetical ordering
                 if prev.target.to_lowercase() > current.target.to_lowercase() {
+                    let severity = ctx.get_effective_severity(meta, current.node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             SORT_IMPORTS.id,
@@ -168,7 +180,7 @@ impl LintRule for SortImports {
 /// Check that imported members within an import are sorted alphabetically.
 fn check_member_sorting(
     ctx: &mut LintModuleAstContext<'_>,
-    severity: LintSeverity,
+    meta: &'static crate::LintMeta,
     _import_node_id: ast::LocalNodeId<Expression>,
     items: &[ast::LocalNodeId<DependencyItem>],
 ) {
@@ -202,6 +214,11 @@ fn check_member_sorting(
         let (current_name, current_id) = &named_items[i];
 
         if prev_name.to_lowercase() > current_name.to_lowercase() {
+            let severity = ctx.get_effective_severity(meta, *current_id);
+            if !severity.is_enabled() {
+                break;
+            }
+
             ctx.report(
                 LintDiagnostic::new(
                     SORT_IMPORTS.id,

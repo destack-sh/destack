@@ -36,7 +36,9 @@ impl LintRule for PreferTupleSwap {
         PreferTupleSwap::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // look for blocks containing expression sequences
         for block_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(block_id);
@@ -52,6 +54,11 @@ impl LintRule for PreferTupleSwap {
                 let second_id = block.expressions[window_start + 1];
                 let third_id = block.expressions[window_start + 2];
                 if let Some(swap_info) = detect_swap_pattern(ctx, first_id, second_id, third_id) {
+                    let severity = ctx.get_effective_severity(meta, first_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             PREFER_TUPLE_SWAP.id,

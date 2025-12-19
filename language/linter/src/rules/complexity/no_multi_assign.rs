@@ -27,7 +27,9 @@ impl LintRule for NoMultiAssign {
         NoMultiAssign::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Assign { right, .. } = ctx.tree.get(expression_id) else {
                 continue;
@@ -35,6 +37,11 @@ impl LintRule for NoMultiAssign {
 
             // check if the right-hand side is also an assignment
             if is_assignment(ctx, *right) {
+                let severity = ctx.get_effective_severity(meta, expression_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 let span = ctx.tree.get_span(expression_id);
                 ctx.report(
                     LintDiagnostic::new(

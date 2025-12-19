@@ -26,7 +26,9 @@ impl LintRule for PreferUnaryNegation {
         PreferUnaryNegation::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::Binary {
@@ -56,6 +58,11 @@ impl LintRule for PreferUnaryNegation {
             let right_is_neg_one = is_negative_one(ctx, right_expression, *right);
 
             if left_is_neg_one || right_is_neg_one {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 // make fix: use unary negation
                 let expression_span = ctx.tree.get_span(node_id);
                 let other_id = if left_is_neg_one { *right } else { *left };

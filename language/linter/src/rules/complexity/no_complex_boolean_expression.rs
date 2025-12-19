@@ -29,7 +29,9 @@ impl LintRule for NoComplexBooleanExpression {
         NoComplexBooleanExpression::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -45,6 +47,11 @@ impl LintRule for NoComplexBooleanExpression {
                     ..
                 } = inner
                 {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_COMPLEX_BOOLEAN_EXPRESSION.id,
@@ -75,6 +82,11 @@ impl LintRule for NoComplexBooleanExpression {
 
                 // check if both sides are the same expression (redundant)
                 if expressions_equal(ctx, *left, *right) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_COMPLEX_BOOLEAN_EXPRESSION.id,
@@ -99,6 +111,11 @@ impl LintRule for NoComplexBooleanExpression {
 
                 // check for contradiction: a && !a or a || !a
                 if is_negation_of(ctx, *left, *right) || is_negation_of(ctx, *right, *left) {
+                    let severity = ctx.get_effective_severity(meta, node_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     let (result, suggestion) = if *operator == BinaryOperator::And {
                         ("always false", "replace with `false`")
                     } else {

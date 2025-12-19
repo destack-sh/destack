@@ -27,8 +27,10 @@ impl LintRule for NoMagicNumbers {
         NoMagicNumbers::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let allowed_numbers = &ctx.options.allowed_magic_numbers;
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // extract numeric literals
             let expression = ctx.tree.get(node_id);
@@ -46,6 +48,10 @@ impl LintRule for NoMagicNumbers {
                 continue;
             }
 
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
+            }
             let span = ctx.tree.get_span(node_id);
             ctx.report(
                 LintDiagnostic::new(

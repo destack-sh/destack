@@ -40,7 +40,9 @@ impl LintRule for NoIncompleteRange {
         NoIncompleteRange::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -65,6 +67,11 @@ impl LintRule for NoIncompleteRange {
             if let Some((start_char, end_char)) = get_char_range(start_expression, end_expression)
                 && is_suspicious_char_range(start_char, end_char)
             {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_INCOMPLETE_RANGE.id,
@@ -86,6 +93,11 @@ impl LintRule for NoIncompleteRange {
 
             // check for subtraction at the end like `0..n - 1`
             if is_end_subtraction(end_expression) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_INCOMPLETE_RANGE.id,

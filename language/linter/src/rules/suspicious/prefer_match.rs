@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
-    /// Suggest using `match` instead of complex if-else-if chains.
+    /// Suggest using `match` instead of complex if-else-if chains or switch statements.
     ///
     /// When comparing the same value against multiple possibilities,
     /// a `match` expression is often clearer and ensures exhaustiveness.
@@ -18,8 +18,10 @@ declare_lint! {
         stability = Stable
     )]
     pub PreferMatch,
-    "Prefer match over complex if-else-if"
+    "Prefer match over complex if-else-if or switch statements"
 }
+
+// nocheckin: expand prefer-match to cover switch statements (incl. fix?)
 
 // minimum number of else-if branches to trigger the suggestion
 const MIN_BRANCHES: usize = 3;
@@ -29,7 +31,8 @@ impl LintRule for PreferMatch {
         PreferMatch::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         let file = ctx.program.files.get(ctx.module.file_id);
         let source = file.text();
 
@@ -90,6 +93,11 @@ impl LintRule for PreferMatch {
             }
 
             if branch_count >= MIN_BRANCHES {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         PREFER_MATCH.id,

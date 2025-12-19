@@ -28,7 +28,9 @@ impl LintRule for Yoda {
         Yoda::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let Expression::Binary {
@@ -49,6 +51,11 @@ impl LintRule for Yoda {
             let left_expression = ctx.tree.get(*left);
             let right_expression = ctx.tree.get(*right);
             if is_literal(left_expression) && !is_literal(right_expression) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 // make fix: flip comparison
                 let expression_span = ctx.tree.get_span(node_id);
                 let left_span = ctx.tree.get_span(*left);

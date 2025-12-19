@@ -28,7 +28,9 @@ impl LintRule for NoDuplicateMatchArms {
         NoDuplicateMatchArms::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Match { cases, .. } = ctx.tree.get(node_id) else {
                 continue;
@@ -63,6 +65,11 @@ impl LintRule for NoDuplicateMatchArms {
                     .iter()
                     .any(|(_, prev_body)| expressions_equal(ctx, *prev_body, body_id));
                 if is_duplicate {
+                    let severity = ctx.get_effective_severity(meta, body_id);
+                    if !severity.is_enabled() {
+                        continue;
+                    }
+
                     ctx.report(
                         LintDiagnostic::new(
                             NO_DUPLICATE_MATCH_ARMS.id,

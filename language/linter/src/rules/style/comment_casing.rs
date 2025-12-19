@@ -26,7 +26,9 @@ impl LintRule for CommentCasing {
         CommentCasing::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
 
@@ -54,6 +56,10 @@ impl LintRule for CommentCasing {
                     if let Some(first_char) = text.chars().find(|c| c.is_alphabetic())
                         && first_char.is_uppercase()
                     {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_CASING.id,
@@ -94,6 +100,10 @@ impl LintRule for CommentCasing {
                     if let Some(first_char) = first_line.chars().find(|c| c.is_alphabetic())
                         && first_char.is_lowercase()
                     {
+                        let severity = ctx.get_effective_severity(meta, node_id);
+                        if !severity.is_enabled() {
+                            continue;
+                        }
                         ctx.report(
                             LintDiagnostic::new(
                                 COMMENT_CASING.id,

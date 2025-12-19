@@ -36,7 +36,9 @@ impl LintRule for GuardForIn {
         GuardForIn::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
@@ -61,6 +63,11 @@ impl LintRule for GuardForIn {
             let first_expr_id = block.expressions[0];
             let has_guard = is_if_expression(ctx, first_expr_id);
             if !has_guard {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         GUARD_FOR_IN.id,

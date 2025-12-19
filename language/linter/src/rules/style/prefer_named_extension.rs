@@ -26,7 +26,9 @@ impl LintRule for PreferNamedExtension {
         PreferNamedExtension::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {
             let declaration = ctx.tree.get(node_id);
 
@@ -56,6 +58,11 @@ impl LintRule for PreferNamedExtension {
             };
 
             if is_foreign {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         PREFER_NAMED_EXTENSION.id,

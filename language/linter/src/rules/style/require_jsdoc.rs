@@ -26,7 +26,9 @@ impl LintRule for RequireJsdoc {
         RequireJsdoc::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
+
         // iterate over Expression nodes to find declarations
         // (annotations are attached to Expression nodes, not Declaration nodes)
         for expr_id in ctx.tree.iter_nodes::<ast::Expression>() {
@@ -59,6 +61,11 @@ impl LintRule for RequireJsdoc {
             let has_doc = !ctx.tree.get_docs_for(expr_id.id).is_empty();
 
             if !has_doc {
+                let severity = ctx.get_effective_severity(meta, expr_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
                 ctx.report(
                     LintDiagnostic::new(
                         REQUIRE_JSDOC.id,

@@ -44,7 +44,8 @@ impl LintRule for NoSuperLinearRegex {
         NoSuperLinearRegex::meta()
     }
 
-    fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+    fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
+        let meta = self.meta();
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::ScalarLiteral(ast::ScalarLiteral::RegexString { content, .. }) =
@@ -58,11 +59,15 @@ impl LintRule for NoSuperLinearRegex {
 
             // parse the regex into HIR for analysis
             let Ok(hir) = Parser::new().parse(regex_str) else {
-                // invalid regex - handled by no-invalid-regexp
+                // invalid regex: handled by no-invalid-regexp
                 continue;
             };
 
             if let Some(problem) = find_super_linear_pattern(&hir) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
                 ctx.report(
                     LintDiagnostic::new(
                         NO_SUPER_LINEAR_REGEX.id,
