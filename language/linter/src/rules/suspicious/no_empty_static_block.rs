@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow empty static initialization blocks in classes.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LU014",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -33,8 +33,8 @@ impl LintRule for NoEmptyStaticBlock {
                 continue;
             };
 
-            let body_expr = ctx.tree.get(*body);
             // check if the body is a block expression with no statements
+            let body_expr = ctx.tree.get(*body);
             let is_empty = match body_expr {
                 ast::Expression::Block(block_id) => {
                     let block = ctx.tree.get(*block_id);
@@ -45,6 +45,8 @@ impl LintRule for NoEmptyStaticBlock {
             };
 
             if is_empty {
+                let member_span = ctx.tree.get_span(node_id);
+                let fix = LintFix::safe("Remove empty static block").delete(member_span);
                 ctx.report(
                     LintDiagnostic::new(
                         NO_EMPTY_STATIC_BLOCK.id,
@@ -53,9 +55,10 @@ impl LintRule for NoEmptyStaticBlock {
                         severity,
                         "empty static initialization block",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        member_span,
                     )
-                    .with_label("remove or add initialization code"),
+                    .with_label("remove or add initialization code")
+                    .with_fix(fix),
                 );
             }
         }
@@ -109,5 +112,25 @@ class Foo {
 "#,
         );
         test.result(result).assert_no_lint("no-empty-static-block");
+    }
+
+    #[test]
+    fn test_fix_removes_empty_static_block() {
+        let test = TestProgram::for_rule(NoEmptyStaticBlock);
+        let result = test.lint_ast(
+            "test.ts",
+            r#"
+class Foo {
+    static {}
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-empty-static-block")
+            .assert_safe_fixed(
+                r#"
+class Foo { }
+"#,
+            );
     }
 }

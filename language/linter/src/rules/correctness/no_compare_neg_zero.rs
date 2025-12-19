@@ -101,7 +101,7 @@ fn make_neg_zero_fix(
     right: ast::LocalNodeId<ast::Expression>,
     operator: ast::BinaryOperator,
     left_is_neg_zero: bool,
-    expr_span: destack_source::Span,
+    expression_span: destack_source::Span,
 ) -> Option<LintFix> {
     // get the non-(-0) operand
     let other_id = if left_is_neg_zero { right } else { left };
@@ -122,7 +122,7 @@ fn make_neg_zero_fix(
 
     let edits = ctx
         .edit_builder()
-        .replace(expr_span, replacement)
+        .replace(expression_span, replacement)
         .into_edits();
     Some(LintFix::safe("Replace with Object.is()").with_edits(edits))
 }

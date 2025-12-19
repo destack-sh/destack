@@ -52,14 +52,14 @@ impl LintRule for Eqeqeq {
                 _ => continue,
             };
 
-            let expr_span = ctx.tree.get_span(node_id);
+            // make fix: replace `a == b` with `a === b` or `a != b` with `a !== b`
+            let expression_span = ctx.tree.get_span(node_id);
             let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
             let right_text = ctx.get_span_text(ctx.tree.get_span(*right));
             let replacement = format!("{left_text} {strict_op} {right_text}");
-
             let edits = ctx
                 .edit_builder()
-                .replace(expr_span, replacement)
+                .replace(expression_span, replacement)
                 .into_edits();
             let fix = LintFix::safe(format!("Replace with `{strict_op}`")).with_edits(edits);
 
@@ -71,7 +71,7 @@ impl LintRule for Eqeqeq {
                     severity,
                     message,
                     ctx.module.file_id,
-                    expr_span,
+                    expression_span,
                 )
                 .with_label(label)
                 .with_fix(fix),

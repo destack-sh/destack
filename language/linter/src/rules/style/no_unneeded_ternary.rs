@@ -30,7 +30,6 @@ impl LintRule for NoUnneededTernary {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
-                kind: ast::IfKind::Ternary,
                 condition,
                 then_expression,
                 else_expression: Some(else_expression),
@@ -42,15 +41,16 @@ impl LintRule for NoUnneededTernary {
 
             let then_expr = ctx.tree.get(*then_expression);
             let else_expr = ctx.tree.get(*else_expression);
-            let expr_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.tree.get_span(node_id);
             let condition_span = ctx.tree.get_span(*condition);
             let condition_text = ctx.get_span_text(condition_span);
 
             // check for x ? true : false -> x
             if is_boolean_literal(then_expr, true) && is_boolean_literal(else_expr, false) {
+                // make fix: replace `x ? true : false` with `x`
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, condition_text)
+                    .replace(expression_span, condition_text)
                     .into_edits();
                 let fix = LintFix::safe("Simplify to condition").with_edits(edits);
 
@@ -62,7 +62,7 @@ impl LintRule for NoUnneededTernary {
                         severity,
                         "unnecessary ternary `x ? true : false`",
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("use the condition directly")
                     .with_fix(fix),
@@ -70,10 +70,11 @@ impl LintRule for NoUnneededTernary {
             }
             // check for x ? false : true -> !x
             else if is_boolean_literal(then_expr, false) && is_boolean_literal(else_expr, true) {
+                // make fix: replace `x ? false : true` with `!x`
                 let replacement = format!("!{condition_text}");
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Simplify to negated condition").with_edits(edits);
 
@@ -85,7 +86,7 @@ impl LintRule for NoUnneededTernary {
                         severity,
                         "unnecessary ternary `x ? false : true`",
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("use `!x` instead")
                     .with_fix(fix),

@@ -50,9 +50,9 @@ impl LintRule for PreferTemplate {
             // flag if at least one side is a string and the other is not
             // (if both are strings, no-useless-concat should catch it)
             if (left_is_string || right_is_string) && !(left_is_string && right_is_string) {
-                let expr_span = ctx.tree.get_span(node_id);
+                let expression_span = ctx.tree.get_span(node_id);
 
-                // build the fix: convert to template literal
+                // make the fix: convert to template literal
                 let replacement = if left_is_string {
                     // "str" + expr -> `str${expr}`
                     let str_content = get_string_content(ctx, *left);
@@ -68,10 +68,9 @@ impl LintRule for PreferTemplate {
                     let escaped = escape_for_template(&str_content);
                     format!("`${{{left_text}}}{escaped}`")
                 };
-
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Convert to template literal").with_edits(edits);
 
@@ -83,7 +82,7 @@ impl LintRule for PreferTemplate {
                         severity,
                         "prefer template literal for string concatenation",
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("use template literal: `` `...${x}...` ``")
                     .with_fix(fix),

@@ -1,11 +1,7 @@
-use destack_ast::{
-    Argument, Declaration, Expression, FunctionKind, LocalNodeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, walk_expression,
-};
-use destack_source::FileId;
+use destack_ast::{self as ast, Argument, Declaration, Expression, FunctionKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer arrow functions for callbacks.
@@ -17,7 +13,7 @@ declare_lint! {
         code = "LY026",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -31,111 +27,102 @@ impl LintRule for PreferArrowCallback {
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        let mut visitor = CallbackVisitor {
-            options: NodeVisitorOptions::default(),
-            severity,
-            file_id: ctx.module.file_id,
-            diagnostics: Vec::new(),
-        };
+        // iterate over all call expressions
+        for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
+            let Expression::Call {
+                dynamic_arguments, ..
+            } = ctx.tree.get(node_id)
+            else {
+                continue;
+            };
 
-        for root_id in ctx.roots.iter() {
-            let expression = ctx.tree.get(*root_id);
-            visitor.visit_expression(ctx.tree, *root_id, expression);
-        }
-
-        for diagnostic in visitor.diagnostics {
-            ctx.report(diagnostic);
-        }
-    }
-}
-
-/// Visitor to find function callbacks.
-struct CallbackVisitor {
-    options: NodeVisitorOptions,
-    severity: LintSeverity,
-    file_id: FileId,
-    diagnostics: Vec<LintDiagnostic>,
-}
-
-impl NodeVisitor for CallbackVisitor {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_expression(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) {
-        // look for call expressions
-        if let Expression::Call {
-            dynamic_arguments, ..
-        } = expression
-        {
             for argument_id in dynamic_arguments {
-                self.check_callback_argument(tree, *argument_id);
+                check_callback_argument(ctx, severity, *argument_id);
             }
         }
-
-        // continue walking
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 }
 
-impl CallbackVisitor {
-    /// Check if an argument is a function expression that should be an arrow function.
-    fn check_callback_argument(&mut self, tree: &NodeTree, argument_id: LocalNodeId<Argument>) {
-        let argument = tree.get(argument_id);
+/// Check if an argument is a function expression that should be an arrow function.
+fn check_callback_argument(
+    ctx: &mut LintModuleAstContext<'_>,
+    severity: LintSeverity,
+    argument_id: ast::LocalNodeId<Argument>,
+) {
+    let argument = ctx.tree.get(argument_id);
 
-        // get value from the argument (Positional, Named, etc.)
-        let value_id = match argument {
-            Argument::Positional { value } => *value,
-            Argument::Named { value, .. } => *value,
-            Argument::Labeled { value, .. } => *value,
-            Argument::Spread { .. } => return,
-        };
+    // get value from the argument (Positional, Named, etc.)
+    let value_id = match argument {
+        Argument::Positional { value } => *value,
+        Argument::Named { value, .. } => *value,
+        Argument::Labeled { value, .. } => *value,
+        Argument::Spread { .. } => return,
+    };
 
-        let value = tree.get(value_id);
+    let value = ctx.tree.get(value_id);
 
-        // check if value is a function declaration (not lambda)
-        let Expression::Declaration(declaration_id) = value else {
-            return;
-        };
-        let declaration = tree.get(*declaration_id);
-        let Declaration::Function {
-            descriptor,
-            signature,
-            ..
-        } = declaration
-        else {
-            return;
-        };
+    // check if value is a function declaration (not lambda)
+    let Expression::Declaration(declaration_id) = value else {
+        return;
+    };
+    let declaration = ctx.tree.get(*declaration_id);
+    let Declaration::Function {
+        descriptor,
+        signature,
+        ..
+    } = declaration
+    else {
+        return;
+    };
 
-        // skip named functions
-        if descriptor.name.is_some() {
-            return;
-        }
-
-        // skip lambda functions (they're already arrows)
-        if signature.kind == FunctionKind::Lambda {
-            return;
-        }
-
-        // flag traditional function expressions used as callbacks
-        self.diagnostics.push(
-            LintDiagnostic::new(
-                PREFER_ARROW_CALLBACK.id,
-                PREFER_ARROW_CALLBACK.code,
-                PREFER_ARROW_CALLBACK.category,
-                self.severity,
-                "prefer arrow function for callback",
-                self.file_id,
-                tree.get_span(*declaration_id),
-            )
-            .with_label("use `() => { ... }` instead of `function() { ... }`"),
-        );
+    // skip named functions
+    if descriptor.name.is_some() {
+        return;
     }
+
+    // skip lambda functions (they're already arrows)
+    if signature.kind == FunctionKind::Lambda {
+        return;
+    }
+
+    let decl_span = ctx.tree.get_span(*declaration_id);
+    let decl_text = ctx.get_span_text(decl_span);
+
+    // build fix: convert function(params) { body } to (params) => { body }
+    // the declaration text starts with "function", we strip that and insert " =>" before the body
+    let replacement = if let Some(rest) = decl_text.strip_prefix("function") {
+        // find where the body starts (the opening brace)
+        if let Some(brace_pos) = rest.find('{') {
+            let params = rest[..brace_pos].trim();
+            let body = &rest[brace_pos..];
+            format!("{params} => {body}")
+        } else {
+            // shouldn't happen for normal functions, skip fix
+            return;
+        }
+    } else {
+        return;
+    };
+
+    let edits = ctx
+        .edit_builder()
+        .replace(decl_span, replacement)
+        .into_edits();
+    let fix = LintFix::safe("Convert to arrow function").with_edits(edits);
+
+    ctx.report(
+        LintDiagnostic::new(
+            PREFER_ARROW_CALLBACK.id,
+            PREFER_ARROW_CALLBACK.code,
+            PREFER_ARROW_CALLBACK.category,
+            severity,
+            "prefer arrow function for callback",
+            ctx.module.file_id,
+            decl_span,
+        )
+        .with_label("use `() => { ... }` instead of `function() { ... }`")
+        .with_fix(fix),
+    );
 }
 
 #[cfg(test)]
@@ -193,5 +180,25 @@ function foo() {
 "#,
         );
         test.result(result).assert_no_lint("prefer-arrow-callback");
+    }
+
+    #[test]
+    fn test_fix_function_to_arrow() {
+        let test = TestProgram::for_rule(PreferArrowCallback);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+items.map(function(x) { return x + 1 });
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-arrow-callback")
+            .assert_safe_fixed(
+                r#"
+items.map((x) => {
+    return x + 1
+});
+"#,
+            );
     }
 }

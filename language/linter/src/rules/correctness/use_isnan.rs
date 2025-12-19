@@ -123,7 +123,7 @@ fn make_isnan_fix(
     right: ast::LocalNodeId<ast::Expression>,
     operator: BinaryOperator,
     left_is_nan: bool,
-    expr_span: destack_source::Span,
+    expression_span: destack_source::Span,
 ) -> Option<LintFix> {
     // get the non-NaN operand
     let other_id = if left_is_nan { right } else { left };
@@ -144,7 +144,7 @@ fn make_isnan_fix(
 
     let edits = ctx
         .edit_builder()
-        .replace(expr_span, replacement)
+        .replace(expression_span, replacement)
         .into_edits();
     Some(LintFix::safe("Replace with Number.isNaN()").with_edits(edits))
 }

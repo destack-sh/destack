@@ -71,12 +71,10 @@ impl LintRule for NoBooleanLiteralCompare {
             let (message, suggestion) = get_message_and_suggestion(*operator, bool_value, on_left);
 
             // make fix: get the non-boolean expression and optionally negate it
-            let expr_span = ctx.tree.get_span(node_id);
+            let expression_span = ctx.tree.get_span(node_id);
             let other_id = if on_left { *right } else { *left };
             let other_span = ctx.tree.get_span(other_id);
             let other_text = ctx.get_span_text(other_span);
-
-            // determine if we need to negate
             let need_negate = matches!(
                 (operator, bool_value),
                 (BinaryOperator::Equal | BinaryOperator::EqualStrict, false)
@@ -90,10 +88,9 @@ impl LintRule for NoBooleanLiteralCompare {
             } else {
                 other_text.to_string()
             };
-
             let edits = ctx
                 .edit_builder()
-                .replace(expr_span, replacement)
+                .replace(expression_span, replacement)
                 .into_edits();
             let fix = LintFix::safe("Simplify boolean comparison").with_edits(edits);
 
@@ -105,7 +102,7 @@ impl LintRule for NoBooleanLiteralCompare {
                     severity,
                     message,
                     ctx.module.file_id,
-                    expr_span,
+                    expression_span,
                 )
                 .with_label(suggestion)
                 .with_fix(fix),

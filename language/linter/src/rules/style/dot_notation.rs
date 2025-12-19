@@ -53,11 +53,11 @@ impl LintRule for DotNotation {
 
             // check if string is a valid identifier
             if is_identifier(name_str) {
-                // make fix: convert obj["property"] to obj.property
-                // replace the ["property"] part with .property
-                let expr_span = ctx.tree.get_span(node_id);
+                // make fix: convert `obj["property"]` to `obj.property`
+                let expression_span = ctx.tree.get_span(node_id);
                 let left_span = ctx.tree.get_span(*left);
-                let bracket_span = Span::new(expr_span.file, left_span.end, expr_span.end);
+                let bracket_span =
+                    Span::new(expression_span.file, left_span.end, expression_span.end);
                 let replacement = format!(".{name_str}");
                 let edits = ctx
                     .edit_builder()
@@ -73,7 +73,7 @@ impl LintRule for DotNotation {
                         severity,
                         format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("prefer dot notation")
                     .with_fix(fix),

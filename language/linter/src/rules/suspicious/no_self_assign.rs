@@ -49,13 +49,13 @@ impl LintRule for NoSelfAssign {
             let right_text = get_span_text(source, right_span);
 
             if left_text == right_text && !left_text.is_empty() {
-                let expr_span = ctx.tree.get_span(node_id);
+                let expression_span = ctx.tree.get_span(node_id);
 
                 // fix: replace `x = x` with just `x`
                 let replacement = left_text.to_string();
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Remove self-assignment").with_edits(edits);
 
@@ -67,7 +67,7 @@ impl LintRule for NoSelfAssign {
                         severity,
                         format!("self-assignment: `{left_text} = {right_text}`"),
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("this assignment has no effect")
                     .with_fix(fix),

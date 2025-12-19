@@ -1,7 +1,8 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow unnecessary computed property keys in objects.
@@ -14,7 +15,7 @@ declare_lint! {
         code = "LU005",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -50,6 +51,24 @@ impl LintRule for NoUselessComputedKey {
             let string_value = ctx.strings.get(*string_id);
             let string_str = string_value.as_ref();
             if is_valid_identifier(string_str) {
+                let property_span = ctx.tree.get_span(node_id);
+
+                // make fix: replace `["foo"]` with `.foo`
+                // the expression_span is just the string literal, we need to include the brackets
+                let expression_span = ctx.tree.get_span(*expr_id);
+                // expand span to include surrounding brackets
+                let key_span = Span::new(
+                    expression_span.file,
+                    expression_span.start - 1,
+                    expression_span.end + 1,
+                );
+                let replacement = string_str.to_string();
+                let edits = ctx
+                    .edit_builder()
+                    .replace(key_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Convert to static key").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_USELESS_COMPUTED_KEY.id,
@@ -58,11 +77,12 @@ impl LintRule for NoUselessComputedKey {
                         severity,
                         "useless computed key",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        property_span,
                     )
                     .with_label(format!(
                         "use `{string_str}` instead of `[\"{string_str}\"]`"
-                    )),
+                    ))
+                    .with_fix(fix),
                 );
             }
         }
@@ -168,5 +188,23 @@ const obj = { ["123"]: 1 }
         );
         test.result(result)
             .assert_no_lint("no-useless-computed-key");
+    }
+
+    #[test]
+    fn test_fix_computed_to_static() {
+        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const obj = { ["foo"]: 1 }
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-computed-key")
+            .assert_safe_fixed(
+                r#"
+const obj = { foo: 1 };
+"#,
+            );
     }
 }

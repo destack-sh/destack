@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer self-closing tree elements when possible.
@@ -23,7 +23,7 @@ declare_lint! {
         code = "LY058",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -39,7 +39,6 @@ impl LintRule for PreferSelfClosingTree {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-
             let Expression::TreeExpression {
                 left,
                 arguments: _,
@@ -63,6 +62,24 @@ impl LintRule for PreferSelfClosingTree {
                 continue;
             }
 
+            let expression_span = ctx.tree.get_span(node_id);
+            let expr_text = ctx.get_span_text(expression_span);
+
+            // build fix: <Component></Component> -> <Component />
+            // find `></` pattern (close of opening tag, start of closing tag)
+            let replacement = if let Some(pos) = expr_text.find("></") {
+                // take everything up to and not including >, then add />
+                format!("{} />", &expr_text[..pos])
+            } else {
+                expr_text.to_string()
+            };
+
+            let edits = ctx
+                .edit_builder()
+                .replace(expression_span, replacement)
+                .into_edits();
+            let fix = LintFix::safe("Convert to self-closing").with_edits(edits);
+
             ctx.report(
                 LintDiagnostic::new(
                     PREFER_SELF_CLOSING_TREE.id,
@@ -71,9 +88,10 @@ impl LintRule for PreferSelfClosingTree {
                     severity,
                     "use self-closing syntax `<Component />` for elements without children",
                     ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
+                    expression_span,
                 )
-                .with_label("replace with `<... />`"),
+                .with_label("replace with `<... />`")
+                .with_fix(fix),
             );
         }
     }
@@ -184,5 +202,41 @@ let elem = <Parent><Child></Child></Parent>
         );
         // the inner Child element is empty and should be self-closing
         test.result(result).assert_lint("prefer-self-closing-tree");
+    }
+
+    #[test]
+    fn test_fix_to_self_closing() {
+        let test = TestProgram::for_rule(PreferSelfClosingTree);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let elem = <Component></Component>;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-self-closing-tree")
+            .assert_safe_fixed(
+                r#"
+let elem = <Component />;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_with_attrs() {
+        let test = TestProgram::for_rule(PreferSelfClosingTree);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+let elem = <Component name="foo"></Component>;
+"#,
+        );
+        test.result(result)
+            .assert_lint("prefer-self-closing-tree")
+            .assert_safe_fixed(
+                r#"
+let elem = <Component name="foo" />;
+"#,
+            );
     }
 }

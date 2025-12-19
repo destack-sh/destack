@@ -50,7 +50,7 @@ impl LintRule for Yoda {
             let right_expression = ctx.tree.get(*right);
             if is_literal(left_expression) && !is_literal(right_expression) {
                 // make fix: flip comparison
-                let expr_span = ctx.tree.get_span(node_id);
+                let expression_span = ctx.tree.get_span(node_id);
                 let left_span = ctx.tree.get_span(*left);
                 let right_span = ctx.tree.get_span(*right);
                 let left_text = ctx.get_span_text(left_span);
@@ -59,7 +59,7 @@ impl LintRule for Yoda {
                 let replacement = format!("{right_text} {flipped_op} {left_text}");
                 let edits = ctx
                     .edit_builder()
-                    .replace(expr_span, replacement)
+                    .replace(expression_span, replacement)
                     .into_edits();
                 let fix = LintFix::safe("Flip comparison").with_edits(edits);
 
@@ -71,7 +71,7 @@ impl LintRule for Yoda {
                         severity,
                         "unexpected literal on the left side of comparison",
                         ctx.module.file_id,
-                        expr_span,
+                        expression_span,
                     )
                     .with_label("move the literal to the right side")
                     .with_fix(fix),
