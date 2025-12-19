@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::{is_comparison_operator, is_literal};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -80,21 +81,6 @@ impl LintRule for Yoda {
     }
 }
 
-/// Check if an operator is a comparison operator.
-fn is_comparison_operator(operator: &BinaryOperator) -> bool {
-    matches!(
-        operator,
-        BinaryOperator::Equal
-            | BinaryOperator::NotEqual
-            | BinaryOperator::EqualStrict
-            | BinaryOperator::NotEqualStrict
-            | BinaryOperator::LessThan
-            | BinaryOperator::LessThanOrEqual
-            | BinaryOperator::GreaterThan
-            | BinaryOperator::GreaterThanOrEqual
-    )
-}
-
 /// Flip a comparison operator for yoda fix (e.g., < becomes >).
 fn flip_operator(operator: &BinaryOperator) -> &'static str {
     match operator {
@@ -107,20 +93,6 @@ fn flip_operator(operator: &BinaryOperator) -> &'static str {
         BinaryOperator::GreaterThan => "<",
         BinaryOperator::GreaterThanOrEqual => "<=",
         _ => unreachable!("only called for comparison operators"),
-    }
-}
-
-/// Check if an expression is a literal value.
-fn is_literal(expression: &Expression) -> bool {
-    match expression {
-        Expression::ScalarLiteral(_) => true,
-        Expression::TypeLiteral(_) => true,
-        Expression::Parenthesized { expression: _ } => {
-            // we don't recurse into parenthesized expressions to avoid
-            // false positives on complex expressions like (a + b)
-            false
-        }
-        _ => false,
     }
 }
 

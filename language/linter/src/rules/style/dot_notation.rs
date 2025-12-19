@@ -1,7 +1,8 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral, is_identifier};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer dot notation over bracket notation for property access.
@@ -13,7 +14,7 @@ declare_lint! {
         code = "LY020",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -32,6 +33,7 @@ impl LintRule for DotNotation {
 
             // look for index expressions with string literal index
             let Expression::Index {
+                left,
                 index: Some(index_id),
                 ..
             } = expr
@@ -51,6 +53,18 @@ impl LintRule for DotNotation {
 
             // check if string is a valid identifier
             if is_identifier(name_str) {
+                // make fix: convert obj["property"] to obj.property
+                // replace the ["property"] part with .property
+                let expr_span = ctx.tree.get_span(node_id);
+                let left_span = ctx.tree.get_span(*left);
+                let bracket_span = Span::new(expr_span.file, left_span.end, expr_span.end);
+                let replacement = format!(".{name_str}");
+                let edits = ctx
+                    .edit_builder()
+                    .replace(bracket_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Convert to dot notation").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         DOT_NOTATION.id,
@@ -59,9 +73,10 @@ impl LintRule for DotNotation {
                         severity,
                         format!("use `.{name_str}` instead of `[\"{name_str}\"]`"),
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        expr_span,
                     )
-                    .with_label("prefer dot notation"),
+                    .with_label("prefer dot notation")
+                    .with_fix(fix),
                 );
             }
         }
@@ -143,5 +158,42 @@ const x = obj["_private"]
 "#,
         );
         test.result(result).assert_lint("dot-notation");
+    }
+
+    #[test]
+    fn test_fix_bracket_to_dot() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj["foo"]
+"#,
+        );
+        test.result(result)
+            .assert_lint("dot-notation")
+            .assert_safe_fixed(
+                r#"
+const x = obj.foo;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_chained_bracket() {
+        let test = TestProgram::for_rule(DotNotation);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = obj["foo"]["bar"]
+"#,
+        );
+        // should fix both (reports 2 lints)
+        test.result(result)
+            .assert_lint_count("dot-notation", 2)
+            .assert_safe_fixed(
+                r#"
+const x = obj.foo.bar;
+"#,
+            );
     }
 }

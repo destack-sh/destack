@@ -39,6 +39,7 @@ impl<'a> std::fmt::Debug for LintModuleAstContext<'a> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> LintModuleAstContext<'a> {
     /// Create a new AST lint context for a module.
     pub fn new(

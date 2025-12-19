@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Key, Name};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Prefer object shorthand syntax.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LY017",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -55,6 +55,16 @@ impl LintRule for ObjectShorthand {
             let value_name = path.segments[0];
             if *key_name == value_name {
                 let key_str = ctx.strings.get(*key_name);
+                let property_span = ctx.tree.get_span(node_id);
+
+                // make fix: replace `x: x` with just `x`
+                let replacement = key_str.as_ref().to_string();
+                let edits = ctx
+                    .edit_builder()
+                    .replace(property_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Use shorthand syntax").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         OBJECT_SHORTHAND.id,
@@ -63,9 +73,10 @@ impl LintRule for ObjectShorthand {
                         severity,
                         format!("property `{}` can use shorthand syntax", key_str.as_ref()),
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        property_span,
                     )
-                    .with_label("use shorthand `{ x }` instead of `{ x: x }`"),
+                    .with_label("use shorthand `{ x }` instead of `{ x: x }`")
+                    .with_fix(fix),
                 );
             }
         }
@@ -127,5 +138,25 @@ const obj = { x: x + 1 }
 "#,
         );
         test.result(result).assert_no_lint("object-shorthand");
+    }
+
+    #[test]
+    fn test_fix_shorthand() {
+        let test = TestProgram::for_rule(ObjectShorthand);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const x = 1
+const obj = { x: x }
+"#,
+        );
+        test.result(result)
+            .assert_lint("object-shorthand")
+            .assert_safe_fixed(
+                r#"
+const x = 1;
+const obj = { x };
+"#,
+            );
     }
 }

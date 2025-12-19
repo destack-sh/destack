@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, LetKind};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow `var` declarations.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LY012",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -33,6 +33,21 @@ impl LintRule for NoVar {
                 kind: LetKind::Var, ..
             } = expr
             {
+                // make fix: replace var with let
+                let expr_span = ctx.tree.get_span(node_id);
+                let expr_text = ctx.get_span_text(expr_span);
+                // replace the leading "var" with "let"
+                let replacement = if expr_text.starts_with("var") {
+                    format!("let{}", &expr_text[3..])
+                } else {
+                    expr_text.to_string()
+                };
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expr_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Replace `var` with `let`").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_VAR.id,
@@ -41,9 +56,10 @@ impl LintRule for NoVar {
                         severity,
                         "unexpected `var` declaration",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        expr_span,
                     )
-                    .with_label("use `let` or `const` instead"),
+                    .with_label("use `let` or `const` instead")
+                    .with_fix(fix),
                 );
             }
         }
@@ -117,5 +133,37 @@ for (let i = 0; i < 10; i++) {
 "#,
         );
         test.result(result).assert_no_lint("no-var");
+    }
+
+    #[test]
+    fn test_fix_var_to_let() {
+        let test = TestProgram::for_rule(NoVar);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+var x = 1
+"#,
+        );
+        test.result(result).assert_lint("no-var").assert_safe_fixed(
+            r#"
+let x = 1;
+"#,
+        );
+    }
+
+    #[test]
+    fn test_fix_var_in_for() {
+        let test = TestProgram::for_rule(NoVar);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+for (var i = 0; i < 10; i++) { x() }
+"#,
+        );
+        test.result(result).assert_lint("no-var").assert_safe_fixed(
+            r#"
+for (let i = 0; i < 10; i++) { x() }
+"#,
+        );
     }
 }
