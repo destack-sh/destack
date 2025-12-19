@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, NodeTree,
-    Pattern, PostfixPosition, Property, ScalarLiteral, TypeUnaryOperator, WhileKind,
-    YieldCardinality,
+    DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, MatchCase,
+    MatchKind, NodeTree, Pattern, PostfixPosition, Property, ScalarLiteral, TypeUnaryOperator,
+    WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -1346,20 +1346,20 @@ pub(crate) fn format_match<'ast>(
     include_prefix: bool,
 ) -> FormatResult<()> {
     let match_node = f.context().tree.get(node_id);
-    let Expression::Match {
-        kind: _,
-        value,
-        cases,
-    } = &match_node
-    else {
+    let Expression::Match { kind, value, cases } = &match_node else {
         return Err(FormatError::SyntaxError {
             message: "invalid match expression",
         });
     };
+    let kind = *kind;
 
     if include_prefix {
-        // match <expression>
-        write!(f, [Keyword::Match, space()])?;
+        // match/switch <expression>
+        let keyword = match kind {
+            MatchKind::Match => Keyword::Match,
+            MatchKind::Switch => Keyword::Switch,
+        };
+        write!(f, [keyword, space()])?;
     }
 
     write!(f, [token("("), value, token(")")])?;
@@ -1371,17 +1371,97 @@ pub(crate) fn format_match<'ast>(
         return Ok(());
     }
 
-    // match cases
+    // match/switch cases
     write!(f, [space(), token("{"), hard_line_break()])?;
     write!(
         f,
-        [group(&format_args![block_indent(&format_with(|f| f
-            .join_with(hard_line_break())
-            .entries(cases)
-            .finish())),])]
+        [group(&format_args![block_indent(&format_with(|f| {
+            let mut first = true;
+            for case_id in cases {
+                if !first {
+                    write!(f, [hard_line_break()])?;
+                }
+                first = false;
+                format_match_case(f, *case_id, kind)?;
+            }
+            Ok(())
+        })),])]
     )?;
     write!(f, [f.context().block_infix_annotations(node_id)])?;
     write!(f, [hard_line_break(), token("}")])?;
+
+    Ok(())
+}
+
+/// Format a single match/switch case.
+///
+/// For `match`, uses arrow syntax: `pattern => body`
+/// For `switch`, uses colon syntax: `case pattern:` or `default:`
+#[allow(clippy::type_complexity)]
+fn format_match_case<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    case_id: LocalNodeId<MatchCase>,
+    kind: MatchKind,
+) -> FormatResult<()> {
+    let case = f.context().tree.get(case_id);
+
+    // extract pattern, guard, and body based on case variant
+    let (pattern_id, guard, body_format): (
+        LocalNodeId<Pattern>,
+        Option<LocalNodeId<Expression>>,
+        Box<dyn Fn(&mut DestackFormatter<'ast, '_>) -> FormatResult<()> + '_>,
+    ) = match case {
+        MatchCase::Expression {
+            pattern,
+            body,
+            guard,
+        } => (*pattern, *guard, Box::new(move |f| write!(f, [*body]))),
+        MatchCase::Block {
+            pattern,
+            body,
+            guard,
+        } => (*pattern, *guard, Box::new(move |f| write!(f, [*body]))),
+    };
+
+    // write prefix annotations
+    write!(f, [f.context().any_prefix_annotations(case_id)])?;
+
+    let pattern = f.context().tree.get(pattern_id);
+    let is_default = matches!(pattern, Pattern::Wildcard);
+
+    match kind {
+        MatchKind::Match => {
+            // match style: pattern => body
+            write!(f, [pattern_id])?;
+            if let Some(guard) = guard {
+                write!(
+                    f,
+                    [space(), Keyword::If, space(), token("("), guard, token(")")]
+                )?;
+            }
+            write!(f, [space(), token("=>"), space()])?;
+            body_format(f)?;
+        }
+        MatchKind::Switch => {
+            // switch style: case pattern: or default:
+            if is_default {
+                write!(f, [Keyword::Default, token(":")])?;
+            } else {
+                write!(f, [Keyword::Case, space(), pattern_id, token(":")])?;
+            }
+            if let Some(guard) = guard {
+                write!(
+                    f,
+                    [space(), Keyword::If, space(), token("("), guard, token(")")]
+                )?;
+            }
+            write!(f, [space()])?;
+            body_format(f)?;
+        }
+    }
+
+    // write postfix annotations
+    write!(f, [f.context().any_infix_or_postfix_annotations(case_id)])?;
 
     Ok(())
 }

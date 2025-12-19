@@ -89,4 +89,34 @@ mod tests {
             DestackFormatOptions::default_tab()
         );
     }
+
+    #[test]
+    fn test_format_switch_expression_cases() {
+        assert_format!(
+            "switch (x) { case 1: 2; case 3: 4 }",
+            "switch (x) {\n\tcase 1: 2\n\tcase 3: 4\n}",
+            |p| p.eat_match(),
+            DestackFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_switch_with_default_case() {
+        assert_format!(
+            "switch (x) { case 1: \"one\"; default: \"other\" }",
+            "switch (x) {\n\tcase 1: \"one\"\n\tdefault: \"other\"\n}",
+            |p| p.eat_match(),
+            DestackFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_switch_with_block() {
+        assert_format!(
+            "switch (value) { case 1: { const x = 1; } }",
+            "switch (value) {\n\tcase 1: {\n\t\tconst x = 1;\n\t}\n}",
+            |p| p.eat_match(),
+            DestackFormatOptions::default_tab()
+        );
+    }
 }
