@@ -1,4 +1,7 @@
-use destack_ast as ast;
+use destack_ast::{
+    self as ast, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions,
+    walk_expression,
+};
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -21,130 +24,106 @@ declare_lint! {
     "Limit return statements per function"
 }
 
-// nocheckin: use NodeVisitor here for max-return-statements? a bit like in no-nested-callbacks?
-
 impl LintRule for MaxReturnStatements {
     fn meta(&self) -> &'static crate::LintMeta {
         MaxReturnStatements::meta()
     }
 
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
-        let max_return_statements = ctx.options.max_return_statements;
+        let mut visitor = ReturnStatementVisitor {
+            options: NodeVisitorOptions::default(),
+            return_counts: Vec::new(),
+            max_return_statements: ctx.options.max_return_statements,
+            severity,
+            file_id: ctx.module.file_id,
+            diagnostics: Vec::new(),
+        };
 
-        for declaration_id in ctx.tree.iter_nodes::<ast::Declaration>() {
-            let declaration = ctx.tree.get(declaration_id);
-            let ast::Declaration::Function { body, .. } = declaration else {
-                continue;
-            };
-            let Some(body_id) = body else {
-                continue;
-            };
+        for root_id in ctx.roots.iter() {
+            let expression = ctx.tree.get(*root_id);
+            visitor.visit_expression(ctx.tree, *root_id, expression);
+        }
 
-            // count return statements in the function body
-            let return_count = count_returns(ctx, *body_id);
-            if return_count > max_return_statements {
-                let body_span = ctx.tree.get_span(*body_id);
-                ctx.report(
-                    LintDiagnostic::new(
-                        MAX_RETURN_STATEMENTS.id,
-                        MAX_RETURN_STATEMENTS.code,
-                        MAX_RETURN_STATEMENTS.category,
-                        severity,
-                        format!(
-                            "function has {return_count} return statements (max {max_return_statements})"
-                        ),
-                        ctx.module.file_id,
-                        body_span,
-                    )
-                    .with_label("consider restructuring to reduce return points"),
-                );
-            }
+        for diagnostic in visitor.diagnostics {
+            ctx.report(diagnostic);
         }
     }
 }
 
-/// Count return statements in an expression (recursively).
-fn count_returns(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> usize {
-    let expr = ctx.tree.get(expr_id);
+struct ReturnStatementVisitor {
+    options: NodeVisitorOptions,
+    return_counts: Vec<usize>,
+    max_return_statements: usize,
+    severity: LintSeverity,
+    file_id: destack_source::FileId,
+    diagnostics: Vec<LintDiagnostic>,
+}
 
-    match expr {
-        ast::Expression::Return { .. } => 1,
+impl NodeVisitor for ReturnStatementVisitor {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
 
-        // recurse into blocks
-        ast::Expression::Block(block_id) => count_returns_in_block(ctx, *block_id),
-
-        // recurse into control flow
-        ast::Expression::If {
-            then_expression,
-            else_expression,
-            ..
-        } => {
-            let mut count = count_returns(ctx, *then_expression);
-            if let Some(alt) = else_expression {
-                count += count_returns(ctx, *alt);
-            }
-            count
-        }
-
-        ast::Expression::Match { cases, .. } => cases
-            .iter()
-            .map(|case_id| {
-                let case = ctx.tree.get(*case_id);
-                match case {
-                    ast::MatchCase::Expression { body, .. } => count_returns(ctx, *body),
-                    ast::MatchCase::Block { body, .. } => count_returns_in_block(ctx, *body),
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        match expression {
+            // count return statements for the innermost function
+            Expression::Return { .. } => {
+                if let Some(count) = self.return_counts.last_mut() {
+                    *count += 1;
                 }
-            })
-            .sum(),
-
-        ast::Expression::For { body, .. }
-        | ast::Expression::ForEach { body, .. }
-        | ast::Expression::While { body, .. }
-        | ast::Expression::Loop { body, .. } => count_returns_in_block(ctx, *body),
-
-        ast::Expression::Try {
-            try_expression,
-            catch_expression,
-            finally_expression,
-            ..
-        } => {
-            let mut count = count_returns(ctx, *try_expression);
-            if let Some(catch_expr) = catch_expression {
-                count += count_returns(ctx, *catch_expr);
             }
-            if let Some(finally_expr) = finally_expression {
-                count += count_returns(ctx, *finally_expr);
+
+            // handle function declarations: start fresh count
+            Expression::Declaration(declaration_id) => {
+                let declaration = tree.get(*declaration_id);
+                if let ast::Declaration::Function { body, .. } = declaration {
+                    if let Some(body_id) = body {
+                        let body_span = tree.get_span(*body_id);
+
+                        // push new counter for this function
+                        self.return_counts.push(0);
+
+                        // walk the function body
+                        let body_expression = tree.get(*body_id);
+                        destack_base::ensure_sufficient_stack(|| {
+                            walk_expression(self, tree, *body_id, body_expression)
+                        });
+
+                        // pop and check the count
+                        let return_count = self.return_counts.pop().unwrap_or(0);
+                        if return_count > self.max_return_statements {
+                            self.diagnostics.push(
+                                LintDiagnostic::new(
+                                    MAX_RETURN_STATEMENTS.id,
+                                    MAX_RETURN_STATEMENTS.code,
+                                    MAX_RETURN_STATEMENTS.category,
+                                    self.severity,
+                                    format!(
+                                        "function has {return_count} return statements (max {})",
+                                        self.max_return_statements
+                                    ),
+                                    self.file_id,
+                                    body_span,
+                                )
+                                .with_label("consider restructuring to reduce return points"),
+                            );
+                        }
+                    }
+                    return; // don't walk the declaration again
+                }
             }
-            count
+
+            _ => {}
         }
 
-        ast::Expression::Labelled { body, .. } => count_returns(ctx, *body),
-
-        ast::Expression::Statement(inner)
-        | ast::Expression::Parenthesized { expression: inner } => count_returns(ctx, *inner),
-
-        // don't recurse into nested function declarations, they have their own scope
-        ast::Expression::Declaration(_) => 0,
-
-        // other expressions don't contain returns
-        _ => 0,
+        // default recursion for non-function expressions
+        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
-}
-
-/// Count return statements in a block (recursively).
-fn count_returns_in_block(
-    ctx: &LintModuleAstContext<'_>,
-    block_id: ast::LocalNodeId<ast::Block>,
-) -> usize {
-    let block = ctx.tree.get(block_id);
-    block
-        .expressions
-        .iter()
-        .map(|e| count_returns(ctx, *e))
-        .sum()
 }
 
 #[cfg(test)]
