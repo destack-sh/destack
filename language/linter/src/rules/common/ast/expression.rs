@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, Block, Expression, Path};
+use destack_ast::{self as ast, BinaryOperator, Block, Expression, Path};
 use destack_source::Span;
 
 use crate::LintModuleAstContext;
@@ -476,4 +476,33 @@ pub fn expression_get_block_span_str(
 
     // otherwise just return the whole expression text
     ctx.get_span_text(ctx.tree.get_span(expr_id)).to_string()
+}
+
+/// Check if an operator is a comparison operator.
+pub fn is_comparison_operator(operator: &BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
+    )
+}
+
+/// Check if an expression is a literal value (scalar or type literal).
+pub fn is_literal(expression: &Expression) -> bool {
+    match expression {
+        Expression::ScalarLiteral(_) => true,
+        Expression::TypeLiteral(_) => true,
+        Expression::Parenthesized { expression: _ } => {
+            // we don't recurse into parenthesized expressions to avoid
+            // false positives on complex expressions like (a + b)
+            false
+        }
+        _ => false,
+    }
 }

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow comparing boolean expressions to boolean literals.
@@ -16,7 +16,7 @@ declare_lint! {
         code = "LY046",
         category = Style,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Strict,
         stability = Stable
     )]
@@ -70,6 +70,33 @@ impl LintRule for NoBooleanLiteralCompare {
 
             let (message, suggestion) = get_message_and_suggestion(*operator, bool_value, on_left);
 
+            // make fix: get the non-boolean expression and optionally negate it
+            let expr_span = ctx.tree.get_span(node_id);
+            let other_id = if on_left { *right } else { *left };
+            let other_span = ctx.tree.get_span(other_id);
+            let other_text = ctx.get_span_text(other_span);
+
+            // determine if we need to negate
+            let need_negate = matches!(
+                (operator, bool_value),
+                (BinaryOperator::Equal | BinaryOperator::EqualStrict, false)
+                    | (
+                        BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict,
+                        true
+                    )
+            );
+            let replacement = if need_negate {
+                format!("!{other_text}")
+            } else {
+                other_text.to_string()
+            };
+
+            let edits = ctx
+                .edit_builder()
+                .replace(expr_span, replacement)
+                .into_edits();
+            let fix = LintFix::safe("Simplify boolean comparison").with_edits(edits);
+
             ctx.report(
                 LintDiagnostic::new(
                     NO_BOOLEAN_LITERAL_COMPARE.id,
@@ -78,9 +105,10 @@ impl LintRule for NoBooleanLiteralCompare {
                     severity,
                     message,
                     ctx.module.file_id,
-                    ctx.tree.get_span(node_id),
+                    expr_span,
                 )
-                .with_label(suggestion),
+                .with_label(suggestion)
+                .with_fix(fix),
             );
         }
     }
@@ -289,5 +317,77 @@ const result = (x == false) ? 1 : 2;
         );
         test.result(result)
             .assert_lint("no-boolean-literal-compare");
+    }
+
+    #[test]
+    fn test_fix_equal_true() {
+        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x === true
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-boolean-literal-compare")
+            .assert_safe_fixed(
+                r#"
+const result = x;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_equal_false() {
+        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x === false
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-boolean-literal-compare")
+            .assert_safe_fixed(
+                r#"
+const result = !x;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_not_equal_true() {
+        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x !== true
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-boolean-literal-compare")
+            .assert_safe_fixed(
+                r#"
+const result = !x;
+"#,
+            );
+    }
+
+    #[test]
+    fn test_fix_not_equal_false() {
+        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+const result = x !== false
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-boolean-literal-compare")
+            .assert_safe_fixed(
+                r#"
+const result = x;
+"#,
+            );
     }
 }

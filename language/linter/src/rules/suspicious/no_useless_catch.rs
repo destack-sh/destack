@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow catch clauses that only rethrow the caught error.
@@ -13,7 +13,7 @@ declare_lint! {
         code = "LU002",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -29,6 +29,7 @@ impl LintRule for NoUselessCatch {
     fn check_module_ast<'a>(&self, severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let ast::Expression::Try {
+                try_expression,
                 catch_pattern,
                 catch_expression,
                 finally_expression,
@@ -55,6 +56,33 @@ impl LintRule for NoUselessCatch {
                     continue;
                 }
 
+                // build fix: replace try-catch with just the try body
+                let try_span = ctx.tree.get_span(node_id);
+
+                // get the block content - need to unwrap the Block expression
+                let try_expr = ctx.tree.get(*try_expression);
+                let replacement = if let ast::Expression::Block(block_id) = try_expr {
+                    // get the actual block span (not try_expression which includes 'try')
+                    let block_span = ctx.tree.get_span(*block_id);
+                    let block_text = ctx.get_span_text(block_span);
+                    // strip braces and trim
+                    if block_text.starts_with('{') && block_text.ends_with('}') {
+                        block_text[1..block_text.len() - 1].trim().to_string()
+                    } else {
+                        block_text.to_string()
+                    }
+                } else {
+                    // not a block, just use the expression directly
+                    let body_span = ctx.tree.get_span(*try_expression);
+                    ctx.get_span_text(body_span).to_string()
+                };
+
+                let edits = ctx
+                    .edit_builder()
+                    .replace(try_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Remove useless try-catch").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_USELESS_CATCH.id,
@@ -63,9 +91,10 @@ impl LintRule for NoUselessCatch {
                         severity,
                         "useless catch clause",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        try_span,
                     )
-                    .with_label("this catch just rethrows the error"),
+                    .with_label("this catch just rethrows the error")
+                    .with_fix(fix),
                 );
             }
         }
@@ -211,5 +240,27 @@ try {
 "#,
         );
         test.result(result).assert_no_lint("no-useless-catch");
+    }
+
+    #[test]
+    fn test_fix_useless_catch() {
+        let test = TestProgram::for_rule(NoUselessCatch);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+try {
+    foo()
+} catch e {
+    throw e
+}
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-useless-catch")
+            .assert_safe_fixed(
+                r#"
+foo();
+"#,
+            );
     }
 }

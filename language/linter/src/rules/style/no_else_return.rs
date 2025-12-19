@@ -47,7 +47,7 @@ impl LintRule for NoElseReturn {
                 let then_span = ctx.tree.get_span(*then_expression);
                 let else_span = ctx.tree.get_span(*else_id);
 
-                // build replacement: if-then on one line, else content on next
+                // make fix: if-then on one line, else content on next
                 let if_then_span = Span::new(if_span.file, if_span.start, then_span.end);
                 let if_then_text = ctx.get_span_text(if_then_span);
                 let else_text = expression_get_block_span_str(ctx, *else_id);

@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow assignments where both sides are the same.
@@ -12,7 +12,7 @@ declare_lint! {
         code = "LU016",
         category = Suspicious,
         level = Ast,
-        fixable = No,
+        fixable = Always,
         recommended = Always,
         stability = Stable
     )]
@@ -49,6 +49,16 @@ impl LintRule for NoSelfAssign {
             let right_text = get_span_text(source, right_span);
 
             if left_text == right_text && !left_text.is_empty() {
+                let expr_span = ctx.tree.get_span(node_id);
+
+                // fix: replace `x = x` with just `x`
+                let replacement = left_text.to_string();
+                let edits = ctx
+                    .edit_builder()
+                    .replace(expr_span, replacement)
+                    .into_edits();
+                let fix = LintFix::safe("Remove self-assignment").with_edits(edits);
+
                 ctx.report(
                     LintDiagnostic::new(
                         NO_SELF_ASSIGN.id,
@@ -57,9 +67,10 @@ impl LintRule for NoSelfAssign {
                         severity,
                         format!("self-assignment: `{left_text} = {right_text}`"),
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        expr_span,
                     )
-                    .with_label("this assignment has no effect"),
+                    .with_label("this assignment has no effect")
+                    .with_fix(fix),
                 );
             }
         }
@@ -152,5 +163,23 @@ x += x
 "#,
         );
         test.result(result).assert_no_lint("no-self-assign");
+    }
+
+    #[test]
+    fn test_fix_self_assign() {
+        let test = TestProgram::for_rule(NoSelfAssign);
+        let result = test.lint_ast(
+            "test.ds",
+            r#"
+x = x
+"#,
+        );
+        test.result(result)
+            .assert_lint("no-self-assign")
+            .assert_safe_fixed(
+                r#"
+x;
+"#,
+            );
     }
 }
