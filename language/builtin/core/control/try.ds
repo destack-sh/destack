@@ -1,0 +1,65 @@
+/// Interface for the `?` and `??` operators.
+///
+/// Types implementing `Try` support both error propagation (`?`) and
+/// default values (`??`).
+///
+/// ## The `?` Operator (propagate)
+///
+/// `x?` extracts the success value or returns early with the error:
+/// ```
+/// match x.branch() {
+///     Ok { value } => value
+///     Err { error } => return Self.fromError(error)
+/// }
+/// ```
+///
+/// ## The `??` Operator (default)
+///
+/// `x ?? default` extracts the success value or uses the default:
+/// ```
+/// match x.branch() {
+///     Ok { value } => value
+///     Err _ => default
+/// }
+/// ```
+///
+/// This means `??` on `Result<T, E>` works like `unwrapOr`:
+/// ```
+/// const config = loadConfig() ?? defaultConfig;
+/// ```
+///
+/// For nullable types (`T | null`), `??` behaves exactly like TypeScript's
+/// nullish coalescing operator.
+///
+/// ## Example
+///
+/// ```
+/// function divide(a: int, b: int): Result<int, string> {
+///     if (b == 0) {
+///         Result.err("division by zero")
+///     } else {
+///         Result.ok(a / b)
+///     }
+/// }
+///
+/// function calculate(): Result<int, string> {
+///     const x = divide(10, 2)?;  // x = 5, or returns early on error
+///     const y = divide(x, 0)?;   // returns Err("division by zero")
+///     Result.ok(y)
+/// }
+///
+/// // Using ?? for defaults
+/// const result = divide(10, 0) ?? 0;  // result = 0
+/// ```
+
+// Note: Try.branch() returns Result<T, E>, but we don't import Result here
+// to avoid circular dependencies. The Result type is resolved at the module level.
+
+export newtype interface Try<T, E> {
+    /// Branch on success or failure.
+    /// Returns Ok(value) to continue, Err(error) to break.
+    branch(): { kind: "ok", value: T } | { kind: "err", error: E }
+
+    /// Construct Self from an error (for early return with `?`).
+    static fromError(error: E): Self
+}

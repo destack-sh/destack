@@ -118,3 +118,8 @@ Each phase defines tasks that can yield on dependencies and resume when satisfie
 Tasks are identified by phase letter and sub-code (e.g., `TI001` for Import task 1).
 See `compile/task.rs` for task definitions and `compile/queue.rs` for the task queue.
 The compiler uses versions (file/module/artifact) to track changes and dependencies between phases.
+
+## Builtins
+
+The compiler loads language builtins from `language/builtin/` as needed based on target configuration.
+See [builtin/README.md](../builtin/README.md) for the full structure.

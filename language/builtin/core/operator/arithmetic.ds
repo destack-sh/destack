@@ -1,135 +1,135 @@
 /// Interface for the `+` operator.
-/// 
+///
 /// `a + b` becomes `a.add(b)`.
-newtype interface Add<T, R = Self> {
+export newtype interface Add<T, R = Self> {
     add(other: T): R
 }
 
 /// Interface for the `-` operator.
-/// 
+///
 /// `a - b` becomes `a.subtract(b)`.
-newtype interface Subtract<T, R = Self> {
+export newtype interface Subtract<T, R = Self> {
     subtract(other: T): R
 }
 
 /// Interface for the `*` operator.
-/// 
+///
 /// `a * b` becomes `a.multiply(b)`.
-newtype interface Multiply<T, R = Self> {
+export newtype interface Multiply<T, R = Self> {
     multiply(other: T): R
 }
 
 /// Interface for the `/` operator.
-/// 
+///
 /// `a / b` becomes `a.divide(b)`.
-newtype interface Divide<T, R = Self> {
+export newtype interface Divide<T, R = Self> {
     divide(other: T): R
 }
 
 /// Interface for the `%` operator (remainder/modulo).
-/// 
+///
 /// `a % b` becomes `a.remainder(b)`.
-newtype interface Remainder<T, R = Self> {
+export newtype interface Remainder<T, R = Self> {
     remainder(other: T): R
 }
 
 /// Interface for the `**` operator (exponentiation).
-/// 
+///
 /// `a ** b` becomes `a.power(b)`.
-newtype interface Power<T, R = Self> {
+export newtype interface Power<T, R = Self> {
     power(other: T): R
 }
 
 /// Interface for unary `-` (negation).
-/// 
+///
 /// `-a` becomes `a.negate()`.
-newtype interface Negate<R = Self> {
+export newtype interface Negate<R = Self> {
     negate(): R
 }
 
 /// Interface for unary `+`.
-/// 
+///
 /// `+a` becomes `a.plus()`.
-/// 
+///
 /// Rarely overloaded; mainly for symmetry with Negate.
-newtype interface Plus<R = Self> {
+export newtype interface Plus<R = Self> {
     plus(): R
 }
 
 /// Interface for the `&` operator (bitwise/elementwise AND).
-/// 
+///
 /// `a & b` becomes `a.and(b)`.
-/// 
+///
 /// Used for:
 /// - Bitwise AND on integers
 /// - Set intersection
 /// - Boolean array elementwise AND
-newtype interface And<T, R = Self> {
+export newtype interface And<T, R = Self> {
     and(other: T): R
 }
 
 /// Interface for the `|` operator (bitwise/elementwise OR).
-/// 
+///
 /// `a | b` becomes `a.or(b)`.
-/// 
+///
 /// Used for:
 /// - Bitwise OR on integers
 /// - Set union
 /// - Boolean array elementwise OR
-newtype interface Or<T, R = Self> {
+export newtype interface Or<T, R = Self> {
     or(other: T): R
 }
 
 /// Interface for the `^` operator (bitwise/elementwise XOR).
-/// 
+///
 /// `a ^ b` becomes `a.xor(b)`.
-newtype interface Xor<T, R = Self> {
+export newtype interface Xor<T, R = Self> {
     xor(other: T): R
 }
 
 /// Interface for the `~` operator (bitwise/elementwise NOT).
-/// 
+///
 /// `~a` becomes `a.not()`.
-newtype interface Not<R = Self> {
+export newtype interface Not<R = Self> {
     not(): R
 }
 
 /// Interface for the `<<` operator (shift left).
-/// 
+///
 /// `a << b` becomes `a.shiftLeft(b)`.
-newtype interface ShiftLeft<T, R = Self> {
+export newtype interface ShiftLeft<T, R = Self> {
     shiftLeft(other: T): R
 }
 
 /// Interface for the `>>` operator (arithmetic shift right).
-/// 
+///
 /// `a >> b` becomes `a.shiftRight(b)`.
-/// 
+///
 /// For signed integers, this is an arithmetic shift (preserves sign).
-newtype interface ShiftRight<T, R = Self> {
+export newtype interface ShiftRight<T, R = Self> {
     shiftRight(other: T): R
 }
 
 /// Interface for the `>>>` operator (logical/unsigned shift right).
-/// 
+///
 /// `a >>> b` becomes `a.shiftRightUnsigned(b)`.
-/// 
+///
 /// Always shifts in zeros from the left.
-newtype interface ShiftRightUnsigned<T, R = Self> {
+export newtype interface ShiftRightUnsigned<T, R = Self> {
     shiftRightUnsigned(other: T): R
 }
 
 /// Interface for concatenation operations.
-/// 
+///
 /// Can be used with `+` (like JavaScript strings/arrays) or a dedicated
 /// `++` operator if we add one.
-/// 
+///
 /// `a ++ b` (or `a + b` for concat-enabled types) becomes `a.concat(b)`.
-/// 
+///
 /// Used for:
 /// - String concatenation
 /// - Array concatenation
 /// - Other sequence types
-newtype interface Concatenate<T, R = Self> {
+export newtype interface Concatenate<T, R = Self> {
     concat(other: T): R
 }

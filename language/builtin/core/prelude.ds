@@ -1,5 +1,29 @@
-export { Type, typeOf } from "./reflection/type.ds";
-export { Ok, Err, Result, AsyncResult } from "./result.ds";
+// @destack/core/prelude - Auto-imported symbols
+//
+// This module defines what gets automatically imported into every Destack file.
+// It re-exports the most fundamental types and traits from core/.
+
+// Reflection
+export { Type, typeOf } from "./reflect/type.ds";
+
+// Control flow
+export { Try } from "./control/try.ds";
+export { Ok, Err, Result, AsyncResult } from "./control/result.ds";
+export {
+    Bound,
+    RangeBounds,
+    Range,
+    RangeInclusive,
+    RangeFrom,
+    RangeTo,
+    RangeToInclusive,
+    RangeFull,
+} from "./control/range.ds";
+
+// Decorator metadata (reflection)
+export { DecoratorInfo } from "./reflect/decorator.ds";
+
+// Decorator markers (intrinsics)
 export {
     deprecated,
     experimental,
@@ -14,8 +38,9 @@ export {
     unroll,
     taint,
     tag,
-} from "./reflection/decorator.ds";
+} from "./intrinsic/decorator.ds";
 
+// Arithmetic operators
 export {
     Add,
     Subtract,
@@ -33,17 +58,12 @@ export {
     ShiftRightUnsigned,
     Concatenate,
 } from "./operator/arithmetic.ds";
+
+// Comparison operators
 export { Equal, Compare, Ordering } from "./operator/comparison.ds";
-export { Display, Debug } from "./operator/string.ds";
+
+// Formatting operators
+export { Display, Debug } from "./operator/format.ds";
+
+// Subscript operators
 export { Index, IndexSet, Deref, DerefSet } from "./operator/subscript.ds";
-export {
-    Try,
-    Bound,
-    RangeBounds,
-    Range,
-    RangeInclusive,
-    RangeFrom,
-    RangeTo,
-    RangeToInclusive,
-    RangeFull,
-} from "./operator/control.ds";

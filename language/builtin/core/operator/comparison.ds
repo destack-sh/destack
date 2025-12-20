@@ -1,50 +1,50 @@
 /// Interface for the `==` and `!=` operators.
-/// 
+///
 /// `a == b` becomes `a.equal(b)`.
 /// `a != b` becomes `!a.equal(b)`.
-/// 
+///
 /// `===` and `!==` (strict identity) are not overloadable.
 /// They always compare by reference identity (where allowed).
-newtype interface Equal<T = Self> {
+export newtype interface Equal<T = Self> {
     equal(other: T): boolean
 }
 
 /// Result of a comparison operation.
-/// 
+///
 /// Used by the `Compare` interface.
-const enum Ordering {
+export const enum Ordering {
     Less = -1,
     Equal = 0,
     Greater = 1,
 }
 
 /// Interface for comparison operators (`<`, `<=`, `>`, `>=`) and ordering.
-/// 
+///
 /// `a < b` becomes `a.compare(b) == Ordering.Less`.
 /// `a <= b` becomes `a.compare(b) != Ordering.Greater`.
 /// `a > b` becomes `a.compare(b) == Ordering.Greater`.
 /// `a >= b` becomes `a.compare(b) != Ordering.Less`.
-/// 
+///
 /// Types that implement `Compare` should also implement `Equal` for consistency.
-newtype interface Compare<T = Self> {
+export newtype interface Compare<T = Self> {
     compare(other: T): Ordering
 }
 
 /// Interface for partial comparison (when comparison might fail).
-/// 
+///
 /// Some types (like floats with NaN) cannot always be compared.
 /// `partialCompare` returns `null` when comparison is undefined.
-/// 
+///
 /// `a < b` for PartialCompare types:
 /// - If `a.partialCompare(b)` is `null`, result is `false`
 /// - Otherwise, checks if result is `Ordering.Less`
-newtype interface PartialCompare<T = Self> {
+export newtype interface PartialCompare<T = Self> {
     partialCompare(other: T): Ordering | null
 }
 
 /// Interface for partial equality (when equality might fail).
-/// 
+///
 /// For types where `a == a` might be false (like float NaN).
-newtype interface PartialEqual<T = Self> {
+export newtype interface PartialEqual<T = Self> {
     partialEqual(other: T): boolean | null
 }

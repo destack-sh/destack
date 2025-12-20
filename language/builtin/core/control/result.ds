@@ -28,18 +28,18 @@
 /// }
 /// ```
 
-import { Try } from "./operator/control.ds";
-import { Equal } from "./operator/comparison.ds";
-import { Display, Debug } from "./operator/string.ds";
+import { Try } from "./try.ds";
+import { Equal } from "../operator/comparison.ds";
+import { Display, Debug } from "../operator/format.ds";
 
 /// Success variant of Result.
-struct Ok<T> {
+export struct Ok<T> {
     kind: "ok" = "ok",
     value: T,
 }
 
 /// Error variant of Result.
-struct Err<E> {
+export struct Err<E> {
     kind: "err" = "err",
     error: E,
 }
@@ -48,7 +48,7 @@ struct Err<E> {
 ///
 /// Result is the idiomatic way to handle recoverable errors in Destack.
 /// Unlike exceptions, errors are explicit in the type system.
-newtype Result<T, E> = Ok<T> | Err<E>;
+export newtype Result<T, E> = Ok<T> | Err<E>;
 
 /// Extension methods for Result.
 extension<T, E> for Result<T, E> {
@@ -229,16 +229,7 @@ extension<T: Equal<T>, E: Equal<E>> for Result<T, E> implements Equal<Result<T, 
 ///     Result.ok(user)
 /// }
 /// ```
-///
-/// # Chaining
-///
-/// ```
-/// fetchUser("123")
-///     .map(user => user.name)
-///     .mapErr(e => `Failed: ${e}`)
-///     .unwrapOr("Unknown")
-/// ```
-newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 
 /// Extension methods for AsyncResult.
 extension<T, E> for AsyncResult<T, E> {
@@ -387,13 +378,3 @@ extension<T, E> for AsyncResult<T, E> {
         )
     }
 }
-
-// Note: AsyncResult implements Try implicitly through its Result semantics.
-// When you `await` an AsyncResult, you get a Result, which implements Try.
-// So `(await asyncResult)?` works naturally.
-
-// Note: For nullable types (T | null), use optional chaining (x?.foo),
-// nullish coalescing (x ?? default), or simple null checks.
-// The compiler will support `?` on nullable types directly (no Option wrapper needed).
-
-export { Ok, Err, Result, AsyncResult };

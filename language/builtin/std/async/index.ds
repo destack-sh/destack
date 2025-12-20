@@ -1,0 +1,8 @@
+// @destack/std/async - Async utilities
+//
+// Async/await utilities beyond the base Promise type.
+
+// NOTE #Incomplete: Async utilities
+// - Async iterators
+// - Async utilities (delay, timeout, etc.)
+// - Integration with native async runtime

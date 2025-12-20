@@ -1,0 +1,86 @@
+/// Range types and bounds for iteration and slicing.
+///
+/// Ranges represent intervals of values and are used for:
+/// - Iteration: `for (const i of 0..10) { }`
+/// - Slicing: `array[1..5]`
+/// - Pattern matching: `match (x) { 1..10 => ... }`
+
+/// A range bound - included, excluded, or unbounded.
+export newtype Bound<T> = { kind: "included", value: T }
+    | { kind: "excluded", value: T }
+    | { kind: "unbounded" };
+
+/// Interface for types that represent a range of values.
+///
+/// Implemented by all range types (`Range`, `RangeInclusive`, etc.).
+export newtype interface RangeBounds<T> {
+    /// The start bound of this range.
+    startBound(): Bound<T>
+
+    /// The end bound of this range.
+    endBound(): Bound<T>
+
+    /// Check if a value is contained in this range.
+    contains(value: T): boolean
+}
+
+/// Exclusive range: `start..end` (includes start, excludes end).
+///
+/// ```
+/// for (const i of 0..5) {
+///     print(i);  // 0, 1, 2, 3, 4
+/// }
+/// ```
+export struct Range<T> implements RangeBounds<T> {
+    start: T,
+    end: T,
+}
+
+/// Inclusive range: `start..=end` (includes both start and end).
+///
+/// ```
+/// for (const i of 0..=5) {
+///     print(i);  // 0, 1, 2, 3, 4, 5
+/// }
+/// ```
+export struct RangeInclusive<T> implements RangeBounds<T> {
+    start: T,
+    end: T,
+}
+
+/// Range from: `start..` (includes start, no upper bound).
+///
+/// ```
+/// for (const i of 5..) {
+///     if (i > 10) { break }
+///     print(i);  // 5, 6, 7, 8, 9, 10
+/// }
+/// ```
+export struct RangeFrom<T> implements RangeBounds<T> {
+    start: T,
+}
+
+/// Range to (exclusive): `..end` (no lower bound, excludes end).
+///
+/// ```
+/// array[..5]  // first 5 elements (indices 0-4)
+/// ```
+export struct RangeTo<T> implements RangeBounds<T> {
+    end: T,
+}
+
+/// Range to (inclusive): `..=end` (no lower bound, includes end).
+///
+/// ```
+/// array[..=5]  // first 6 elements (indices 0-5)
+/// ```
+export struct RangeToInclusive<T> implements RangeBounds<T> {
+    end: T,
+}
+
+/// Full range: `..` (no bounds, matches everything).
+///
+/// ```
+/// array[..]   // entire array
+/// ```
+export struct RangeFull implements RangeBounds<unknown> { }

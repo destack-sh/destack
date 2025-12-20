@@ -1,0 +1,13 @@
+// @destack/std - Standard Library
+//
+// Universal API with target-conditional implementations.
+// These types have the same interface on all targets, but different underlying implementations:
+// - JS targets: Thin wrappers over JS built-ins
+// - Native targets: Full implementations
+
+export * from "./array"
+export * from "./string"
+export * from "./collections"
+export * from "./time"
+export * from "./io"
+export * from "./async"
