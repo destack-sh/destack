@@ -8,24 +8,24 @@ use destack_source::ModuleId;
 #[phase(Verify)]
 pub enum VerifyTask {
     /// Verify a module.
-    #[task(code = 1, trace = "module={module}")]
-    VerifyModule { module: ModuleId },
+    #[task(code = 1, trace = "module={module} target={target}")]
+    VerifyModule { module: ModuleId, target: String },
 }
 
 impl Compiler {
     /// Process a verify task.
     pub fn process_verify(&self, task: VerifyTask) -> VerifyResult<()> {
         match task {
-            VerifyTask::VerifyModule { module } => {
-                self.require_lower_module(module)?;
-                self.verify_module(module)?;
+            VerifyTask::VerifyModule { module, target } => {
+                self.require_lower_module(module, &target)?;
+                self.verify_module(module, target)?;
             }
         }
         Ok(())
     }
 
     /// Verify a module's MIR.
-    fn verify_module(&self, _module: ModuleId) -> VerifyResult<()> {
+    fn verify_module(&self, _module: ModuleId, _target: String) -> VerifyResult<()> {
         // NOTE #Incomplete: implement verify
         // - ownership/borrow checking
         // - type checking at MIR level?
@@ -34,7 +34,14 @@ impl Compiler {
     }
 
     /// Ensure a module has been verified.
-    pub fn require_verify_module(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(VerifyTask::VerifyModule { module })
+    pub fn require_verify_module(
+        &self,
+        module: ModuleId,
+        target: impl Into<String>,
+    ) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(VerifyTask::VerifyModule {
+            module,
+            target: target.into(),
+        })
     }
 }

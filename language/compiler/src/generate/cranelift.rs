@@ -11,7 +11,7 @@ impl Compiler {
         module_id: ModuleId,
         target: &Target,
     ) -> GenerateResult<()> {
-        self.require_optimize(module_id)?;
+        self.require_optimize(module_id, &target.name)?;
 
         // generate artifact
         let registry_next_id = || self.program.artifacts.next_id();
