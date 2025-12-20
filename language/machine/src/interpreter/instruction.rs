@@ -520,11 +520,18 @@ impl Interpreter {
                 frame.set_value(*destination, Value::StackPointer(sp));
             }
 
-            // intrinsic call - TODO: implement intrinsic execution
-            mir::Instruction::Intrinsic { intrinsic, .. } => {
-                return Err(self.make_error(Error::UnsupportedInstruction {
-                    name: format!("intrinsic.{}", intrinsic.to_str()),
-                }));
+            // intrinsic call
+            mir::Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+                ordering,
+            } => {
+                let result = self.execute_intrinsic(*intrinsic, arguments, *ordering)?;
+                if let Some(dest) = destination {
+                    let frame = self.current_frame_mut()?;
+                    frame.set_value(*dest, result);
+                }
             }
         }
 

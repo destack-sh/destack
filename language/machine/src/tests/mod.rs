@@ -3,6 +3,7 @@ mod block;
 mod cast;
 mod gc;
 mod global;
+mod intrinsic;
 mod memory;
 
 use destack_mir::parse::Parser;

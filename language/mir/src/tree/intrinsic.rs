@@ -1,13 +1,7 @@
 //! MIR intrinsic operations.
 //!
 //! Intrinsics are primitive operations handled directly by backends.
-//! They have no function body and may have target-specific implementations.
-//!
-//! Each backend (Machine interpreter, Cranelift, JS) handles intrinsics
-//! according to its capabilities:
-//! - Machine: evaluates at comptime (type reflection → constants, memory ops → simulated)
-//! - Cranelift: lowers to native instructions or libcalls
-//! - JS: translates to appropriate JS/WebAPI equivalents
+//! They have no function body and usually have target-defined implementations (or just panic).
 
 use std::fmt;
 use std::str::FromStr;
@@ -17,203 +11,297 @@ use std::str::FromStr;
 pub enum Intrinsic {
     // reflection (comptime-only, resolved to constants)
     /// Get the type of a value (comptime only).
+    /// `(T) -> Type<T>`
     TypeOf,
     /// Get the size of a type in bytes.
+    /// `() -> usize`
     SizeOf,
     /// Get the alignment of a type in bytes.
+    /// `() -> usize`
     AlignOf,
 
     // bit manipulation
     /// Count leading zeros.
+    /// `(T) -> T`
     Clz,
     /// Count trailing zeros.
+    /// `(T) -> T`
     Ctz,
     /// Population count (count of set bits).
+    /// `(T) -> T`
     Popcnt,
     /// Byte swap (endianness conversion).
+    /// `(T) -> T`
     ByteSwap,
     /// Reverse all bits.
+    /// `(T) -> T`
     BitReverse,
     /// Rotate bits left.
+    /// `(T, T) -> T`
     RotateLeft,
     /// Rotate bits right.
+    /// `(T, T) -> T`
     RotateRight,
 
     // checked arithmetic (returns (result, overflow_flag) tuple)
     /// Add with overflow detection.
+    /// `(T, T) -> (T, bool)`
     AddOverflow,
     /// Subtract with overflow detection.
+    /// `(T, T) -> (T, bool)`
     SubOverflow,
     /// Multiply with overflow detection.
+    /// `(T, T) -> (T, bool)`
     MulOverflow,
 
     // unchecked arithmetic (UB on overflow - optimizer can assume no overflow)
     /// Unchecked add (UB on overflow).
-    UncheckedAdd,
+    /// `(T, T) -> T`
+    AddUnchecked,
     /// Unchecked subtract (UB on overflow).
-    UncheckedSub,
+    /// `(T, T) -> T`
+    SubUnchecked,
     /// Unchecked multiply (UB on overflow).
-    UncheckedMul,
+    /// `(T, T) -> T`
+    MulUnchecked,
     /// Unchecked divide (UB on zero or overflow).
-    UncheckedDiv,
+    /// `(T, T) -> T`
+    DivUnchecked,
     /// Unchecked remainder (UB on zero or overflow).
-    UncheckedRem,
+    /// `(T, T) -> T`
+    RemUnchecked,
     /// Unchecked shift left (UB if shift >= bit width).
-    UncheckedShl,
+    /// `(T, T) -> T`
+    ShlUnchecked,
     /// Unchecked shift right (UB if shift >= bit width).
-    UncheckedShr,
+    /// `(T, T) -> T`
+    ShrUnchecked,
 
     // saturating arithmetic (clamps to min/max on overflow)
     /// Saturating add.
+    /// `(T, T) -> T`
     SatAdd,
     /// Saturating subtract.
+    /// `(T, T) -> T`
     SatSub,
 
     // memory operations
     /// Copy memory from source to destination (non-overlapping).
+    /// `(dst: ptr, src: ptr, len: usize) -> ()`
     Memcpy,
     /// Move memory (handles overlapping regions).
+    /// `(dst: ptr, src: ptr, len: usize) -> ()`
     Memmove,
     /// Set memory to a byte value.
+    /// `(dst: ptr, val: u8, len: usize) -> ()`
     Memset,
     /// Compare memory regions, returns comparison result.
+    /// `(ptr, ptr, len: usize) -> i32`
     Memcmp,
     /// Volatile load (not optimized away, for memory-mapped I/O).
+    /// `(ptr<T>) -> T`
     VolatileLoad,
     /// Volatile store (not optimized away, for memory-mapped I/O).
+    /// `(ptr<T>, T) -> ()`
     VolatileStore,
     /// Prefetch memory for reading (hint to CPU cache).
+    /// `(ptr) -> ()`
     PrefetchRead,
     /// Prefetch memory for writing (hint to CPU cache).
+    /// `(ptr) -> ()`
     PrefetchWrite,
 
     // type punning and pointer ops
     /// Reinterpret bytes as a different type (no conversion, just reinterpret).
+    /// `(T) -> U`
     Transmute,
     /// Compute byte offset between two pointers.
+    /// `(ptr, ptr) -> isize`
     PtrOffsetFrom,
     /// Byte-wise equality comparison.
+    /// `(T, T) -> bool`
     RawEq,
 
     // garbage collection
     /// GC write barrier for concurrent marking (Dijkstra-style insertion barrier).
     /// Called before writing a managed reference to shade the new value grey.
+    /// `(ptr, val) -> ()`
     GcWriteBarrier,
     /// GC read barrier (optional, for some GC designs like ZGC).
     /// Called when reading a managed reference.
+    /// `(ptr) -> ()`
     GcReadBarrier,
 
     // atomics
     // Memory ordering is specified via an argument to the instruction.
     /// Atomic load.
+    /// `(ptr<T>) -> T`
     AtomicLoad,
     /// Atomic store.
+    /// `(ptr<T>, T) -> ()`
     AtomicStore,
     /// Atomic compare-and-swap.
+    /// `(ptr<T>, expected: T, new: T) -> T`
     AtomicCas,
     /// Atomic fetch-and-add, returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchAdd,
     /// Atomic fetch-and-subtract, returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchSub,
     /// Atomic fetch-and-bitwise-and, returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchAnd,
     /// Atomic fetch-and-bitwise-or, returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchOr,
     /// Atomic fetch-and-bitwise-xor, returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchXor,
     /// Atomic fetch-and-min (signed), returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchMin,
     /// Atomic fetch-and-max (signed), returns old value.
+    /// `(ptr<T>, T) -> T`
     AtomicFetchMax,
     /// Memory fence/barrier.
+    /// `() -> ()`
     AtomicFence,
 
     // float math
     /// Square root.
+    /// `(T) -> T`
     Sqrt,
     /// Absolute value.
+    /// `(T) -> T`
     Abs,
     /// Fused multiply-add: (a * b) + c with single rounding.
+    /// `(T, T, T) -> T`
     Fma,
     /// Copy sign from one float to another.
+    /// `(T, T) -> T`
     Copysign,
     /// Minimum of two floats (IEEE 754 minNum).
+    /// `(T, T) -> T`
     Min,
     /// Maximum of two floats (IEEE 754 maxNum).
+    /// `(T, T) -> T`
     Max,
     /// Sine.
+    /// `(T) -> T`
     Sin,
     /// Cosine.
+    /// `(T) -> T`
     Cos,
     /// Tangent.
+    /// `(T) -> T`
     Tan,
     /// Arc sine.
+    /// `(T) -> T`
     Asin,
     /// Arc cosine.
+    /// `(T) -> T`
     Acos,
     /// Arc tangent.
+    /// `(T) -> T`
     Atan,
     /// Arc tangent of y/x (two-argument).
+    /// `(T, T) -> T`
     Atan2,
     /// e^x (natural exponential).
+    /// `(T) -> T`
     Exp,
     /// 2^x.
+    /// `(T) -> T`
     Exp2,
     /// Natural logarithm (ln).
+    /// `(T) -> T`
     Log,
     /// Base-2 logarithm.
+    /// `(T) -> T`
     Log2,
     /// Base-10 logarithm.
+    /// `(T) -> T`
     Log10,
     /// Power: base^exponent.
+    /// `(T, T) -> T`
     Pow,
-
     /// Round toward negative infinity.
+    /// `(T) -> T`
     Floor,
     /// Round toward positive infinity.
+    /// `(T) -> T`
     Ceil,
     /// Round toward zero (truncate).
+    /// `(T) -> T`
     Trunc,
     /// Round to nearest integer, ties to even.
+    /// `(T) -> T`
     Round,
 
     // control flow and debugging
     /// Mark code as unreachable (UB if executed).
+    /// `() -> !`
     Unreachable,
     /// Trigger a debugger breakpoint.
+    /// `() -> ()`
     Breakpoint,
     /// Abort execution immediately.
+    /// `() -> !`
     Abort,
     /// Get the return address of the current function.
+    /// `() -> ptr`
     ReturnAddress,
     /// Get the frame pointer of the current function.
+    /// `() -> ptr`
     FrameAddress,
     /// Hint that condition is expected to be the given value.
+    /// `(bool, bool) -> bool`
     Expect,
     /// Hint that condition is likely true.
+    /// `(bool) -> bool`
     Likely,
     /// Hint that condition is likely false.
+    /// `(bool) -> bool`
     Unlikely,
     /// Assert that condition is true (UB if false, optimizer can assume).
+    /// `(bool) -> ()`
     Assume,
     /// Optimization barrier (prevent optimizations through this value).
+    /// `(T) -> T`
     BlackBox,
 
-    // SIMD
-    // (Zig-style: vectors are first-class, operators work via type system;
-    //  only these 4 intrinsics are needed for operations that can't be element-wise.)
+    // SIMD (Zig-style: vectors are first-class, operators work element-wise via type system)
     /// Shuffle vector lanes according to a mask.
-    /// shuffle(a, b, mask) selects lanes from a (positive indices) or b (negative indices).
+    /// `(vec<N, T>, vec<N, T>, mask<M>) -> vec<M, T>`
     Shuffle,
-    /// Horizontal reduction across all lanes (sum, min, max, and, or, xor).
-    /// reduce(op, vec) reduces vector to scalar using the specified operation.
-    Reduce,
-    /// Per-lane conditional select.
-    /// select(mask, a, b) returns a[i] if mask[i] else b[i] for each lane.
+    /// Per-lane conditional select: select(mask, a, b) returns a[i] if mask[i] else b[i].
+    /// `(vec<N, bool>, vec<N, T>, vec<N, T>) -> vec<N, T>`
     Select,
     /// Broadcast scalar to all lanes.
-    /// splat(scalar) returns a vector with all lanes set to scalar.
+    /// `(T) -> vec<N, T>`
     Splat,
+    /// Horizontal reduction: sum all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceAdd,
+    /// Horizontal reduction: multiply all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceMul,
+    /// Horizontal reduction: minimum of all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceMin,
+    /// Horizontal reduction: maximum of all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceMax,
+    /// Horizontal reduction: bitwise AND of all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceAnd,
+    /// Horizontal reduction: bitwise OR of all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceOr,
+    /// Horizontal reduction: bitwise XOR of all lanes.
+    /// `(vec<N, T>) -> T`
+    ReduceXor,
 }
 
 impl Intrinsic {
@@ -235,32 +323,32 @@ impl Intrinsic {
             Intrinsic::RotateRight => "rotate_right",
 
             // checked arithmetic
-            Intrinsic::AddOverflow => "add_overflow",
-            Intrinsic::SubOverflow => "sub_overflow",
-            Intrinsic::MulOverflow => "mul_overflow",
+            Intrinsic::AddOverflow => "add.overflow",
+            Intrinsic::SubOverflow => "sub.overflow",
+            Intrinsic::MulOverflow => "mul.overflow",
 
             // unchecked arithmetic
-            Intrinsic::UncheckedAdd => "unchecked_add",
-            Intrinsic::UncheckedSub => "unchecked_sub",
-            Intrinsic::UncheckedMul => "unchecked_mul",
-            Intrinsic::UncheckedDiv => "unchecked_div",
-            Intrinsic::UncheckedRem => "unchecked_rem",
-            Intrinsic::UncheckedShl => "unchecked_shl",
-            Intrinsic::UncheckedShr => "unchecked_shr",
+            Intrinsic::AddUnchecked => "add.unchecked",
+            Intrinsic::SubUnchecked => "sub.unchecked",
+            Intrinsic::MulUnchecked => "mul.unchecked",
+            Intrinsic::DivUnchecked => "div.unchecked",
+            Intrinsic::RemUnchecked => "rem.unchecked",
+            Intrinsic::ShlUnchecked => "shl.unchecked",
+            Intrinsic::ShrUnchecked => "shr.unchecked",
 
             // saturating arithmetic
-            Intrinsic::SatAdd => "sat_add",
-            Intrinsic::SatSub => "sat_sub",
+            Intrinsic::SatAdd => "add.sat",
+            Intrinsic::SatSub => "sub.sat",
 
             // memory
             Intrinsic::Memcpy => "memcpy",
             Intrinsic::Memmove => "memmove",
             Intrinsic::Memset => "memset",
             Intrinsic::Memcmp => "memcmp",
-            Intrinsic::VolatileLoad => "volatile_load",
-            Intrinsic::VolatileStore => "volatile_store",
-            Intrinsic::PrefetchRead => "prefetch_read",
-            Intrinsic::PrefetchWrite => "prefetch_write",
+            Intrinsic::VolatileLoad => "volatile.load",
+            Intrinsic::VolatileStore => "volatile.store",
+            Intrinsic::PrefetchRead => "prefetch.read",
+            Intrinsic::PrefetchWrite => "prefetch.write",
 
             // type punning and pointer ops
             Intrinsic::Transmute => "transmute",
@@ -268,21 +356,21 @@ impl Intrinsic {
             Intrinsic::RawEq => "raw_eq",
 
             // garbage collection
-            Intrinsic::GcWriteBarrier => "gc_write_barrier",
-            Intrinsic::GcReadBarrier => "gc_read_barrier",
+            Intrinsic::GcWriteBarrier => "gc.write_barrier",
+            Intrinsic::GcReadBarrier => "gc.read_barrier",
 
             // atomics
-            Intrinsic::AtomicLoad => "atomic_load",
-            Intrinsic::AtomicStore => "atomic_store",
-            Intrinsic::AtomicCas => "atomic_cas",
-            Intrinsic::AtomicFetchAdd => "atomic_fetch_add",
-            Intrinsic::AtomicFetchSub => "atomic_fetch_sub",
-            Intrinsic::AtomicFetchAnd => "atomic_fetch_and",
-            Intrinsic::AtomicFetchOr => "atomic_fetch_or",
-            Intrinsic::AtomicFetchXor => "atomic_fetch_xor",
-            Intrinsic::AtomicFetchMin => "atomic_fetch_min",
-            Intrinsic::AtomicFetchMax => "atomic_fetch_max",
-            Intrinsic::AtomicFence => "atomic_fence",
+            Intrinsic::AtomicLoad => "atomic.load",
+            Intrinsic::AtomicStore => "atomic.store",
+            Intrinsic::AtomicCas => "atomic.cas",
+            Intrinsic::AtomicFetchAdd => "atomic.fetch.add",
+            Intrinsic::AtomicFetchSub => "atomic.fetch.sub",
+            Intrinsic::AtomicFetchAnd => "atomic.fetch.and",
+            Intrinsic::AtomicFetchOr => "atomic.fetch.or",
+            Intrinsic::AtomicFetchXor => "atomic.fetch.xor",
+            Intrinsic::AtomicFetchMin => "atomic.fetch.min",
+            Intrinsic::AtomicFetchMax => "atomic.fetch.max",
+            Intrinsic::AtomicFence => "atomic.fence",
 
             // float
             Intrinsic::Sqrt => "sqrt",
@@ -323,9 +411,15 @@ impl Intrinsic {
 
             // SIMD
             Intrinsic::Shuffle => "shuffle",
-            Intrinsic::Reduce => "reduce",
             Intrinsic::Select => "select",
             Intrinsic::Splat => "splat",
+            Intrinsic::ReduceAdd => "reduce.add",
+            Intrinsic::ReduceMul => "reduce.mul",
+            Intrinsic::ReduceMin => "reduce.min",
+            Intrinsic::ReduceMax => "reduce.max",
+            Intrinsic::ReduceAnd => "reduce.and",
+            Intrinsic::ReduceOr => "reduce.or",
+            Intrinsic::ReduceXor => "reduce.xor",
         }
     }
 
@@ -355,13 +449,13 @@ impl Intrinsic {
                 | Intrinsic::AddOverflow
                 | Intrinsic::SubOverflow
                 | Intrinsic::MulOverflow
-                | Intrinsic::UncheckedAdd
-                | Intrinsic::UncheckedSub
-                | Intrinsic::UncheckedMul
-                | Intrinsic::UncheckedDiv
-                | Intrinsic::UncheckedRem
-                | Intrinsic::UncheckedShl
-                | Intrinsic::UncheckedShr
+                | Intrinsic::AddUnchecked
+                | Intrinsic::SubUnchecked
+                | Intrinsic::MulUnchecked
+                | Intrinsic::DivUnchecked
+                | Intrinsic::RemUnchecked
+                | Intrinsic::ShlUnchecked
+                | Intrinsic::ShrUnchecked
                 | Intrinsic::SatAdd
                 | Intrinsic::SatSub
                 | Intrinsic::Transmute
@@ -395,9 +489,15 @@ impl Intrinsic {
                 | Intrinsic::Unlikely
                 | Intrinsic::BlackBox
                 | Intrinsic::Shuffle
-                | Intrinsic::Reduce
                 | Intrinsic::Select
                 | Intrinsic::Splat
+                | Intrinsic::ReduceAdd
+                | Intrinsic::ReduceMul
+                | Intrinsic::ReduceMin
+                | Intrinsic::ReduceMax
+                | Intrinsic::ReduceAnd
+                | Intrinsic::ReduceOr
+                | Intrinsic::ReduceXor
         )
     }
 
@@ -450,42 +550,42 @@ impl FromStr for Intrinsic {
             "bit_reverse" => Ok(Intrinsic::BitReverse),
             "rotate_left" => Ok(Intrinsic::RotateLeft),
             "rotate_right" => Ok(Intrinsic::RotateRight),
-            "add_overflow" => Ok(Intrinsic::AddOverflow),
-            "sub_overflow" => Ok(Intrinsic::SubOverflow),
-            "mul_overflow" => Ok(Intrinsic::MulOverflow),
-            "unchecked_add" => Ok(Intrinsic::UncheckedAdd),
-            "unchecked_sub" => Ok(Intrinsic::UncheckedSub),
-            "unchecked_mul" => Ok(Intrinsic::UncheckedMul),
-            "unchecked_div" => Ok(Intrinsic::UncheckedDiv),
-            "unchecked_rem" => Ok(Intrinsic::UncheckedRem),
-            "unchecked_shl" => Ok(Intrinsic::UncheckedShl),
-            "unchecked_shr" => Ok(Intrinsic::UncheckedShr),
-            "sat_add" => Ok(Intrinsic::SatAdd),
-            "sat_sub" => Ok(Intrinsic::SatSub),
+            "add.overflow" => Ok(Intrinsic::AddOverflow),
+            "sub.overflow" => Ok(Intrinsic::SubOverflow),
+            "mul.overflow" => Ok(Intrinsic::MulOverflow),
+            "add.unchecked" => Ok(Intrinsic::AddUnchecked),
+            "sub.unchecked" => Ok(Intrinsic::SubUnchecked),
+            "mul.unchecked" => Ok(Intrinsic::MulUnchecked),
+            "div.unchecked" => Ok(Intrinsic::DivUnchecked),
+            "rem.unchecked" => Ok(Intrinsic::RemUnchecked),
+            "shl.unchecked" => Ok(Intrinsic::ShlUnchecked),
+            "shr.unchecked" => Ok(Intrinsic::ShrUnchecked),
+            "add.sat" => Ok(Intrinsic::SatAdd),
+            "sub.sat" => Ok(Intrinsic::SatSub),
             "memcpy" => Ok(Intrinsic::Memcpy),
             "memmove" => Ok(Intrinsic::Memmove),
             "memset" => Ok(Intrinsic::Memset),
             "memcmp" => Ok(Intrinsic::Memcmp),
-            "volatile_load" => Ok(Intrinsic::VolatileLoad),
-            "volatile_store" => Ok(Intrinsic::VolatileStore),
-            "prefetch_read" => Ok(Intrinsic::PrefetchRead),
-            "prefetch_write" => Ok(Intrinsic::PrefetchWrite),
+            "volatile.load" => Ok(Intrinsic::VolatileLoad),
+            "volatile.store" => Ok(Intrinsic::VolatileStore),
+            "prefetch.read" => Ok(Intrinsic::PrefetchRead),
+            "prefetch.write" => Ok(Intrinsic::PrefetchWrite),
             "transmute" => Ok(Intrinsic::Transmute),
             "ptr_offset_from" => Ok(Intrinsic::PtrOffsetFrom),
             "raw_eq" => Ok(Intrinsic::RawEq),
-            "gc_write_barrier" => Ok(Intrinsic::GcWriteBarrier),
-            "gc_read_barrier" => Ok(Intrinsic::GcReadBarrier),
-            "atomic_load" => Ok(Intrinsic::AtomicLoad),
-            "atomic_store" => Ok(Intrinsic::AtomicStore),
-            "atomic_cas" => Ok(Intrinsic::AtomicCas),
-            "atomic_fetch_add" => Ok(Intrinsic::AtomicFetchAdd),
-            "atomic_fetch_sub" => Ok(Intrinsic::AtomicFetchSub),
-            "atomic_fetch_and" => Ok(Intrinsic::AtomicFetchAnd),
-            "atomic_fetch_or" => Ok(Intrinsic::AtomicFetchOr),
-            "atomic_fetch_xor" => Ok(Intrinsic::AtomicFetchXor),
-            "atomic_fetch_min" => Ok(Intrinsic::AtomicFetchMin),
-            "atomic_fetch_max" => Ok(Intrinsic::AtomicFetchMax),
-            "atomic_fence" => Ok(Intrinsic::AtomicFence),
+            "gc.write_barrier" => Ok(Intrinsic::GcWriteBarrier),
+            "gc.read_barrier" => Ok(Intrinsic::GcReadBarrier),
+            "atomic.load" => Ok(Intrinsic::AtomicLoad),
+            "atomic.store" => Ok(Intrinsic::AtomicStore),
+            "atomic.cas" => Ok(Intrinsic::AtomicCas),
+            "atomic.fetch.add" => Ok(Intrinsic::AtomicFetchAdd),
+            "atomic.fetch.sub" => Ok(Intrinsic::AtomicFetchSub),
+            "atomic.fetch.and" => Ok(Intrinsic::AtomicFetchAnd),
+            "atomic.fetch.or" => Ok(Intrinsic::AtomicFetchOr),
+            "atomic.fetch.xor" => Ok(Intrinsic::AtomicFetchXor),
+            "atomic.fetch.min" => Ok(Intrinsic::AtomicFetchMin),
+            "atomic.fetch.max" => Ok(Intrinsic::AtomicFetchMax),
+            "atomic.fence" => Ok(Intrinsic::AtomicFence),
             "sqrt" => Ok(Intrinsic::Sqrt),
             "abs" => Ok(Intrinsic::Abs),
             "fma" => Ok(Intrinsic::Fma),
@@ -520,9 +620,15 @@ impl FromStr for Intrinsic {
             "assume" => Ok(Intrinsic::Assume),
             "black_box" => Ok(Intrinsic::BlackBox),
             "shuffle" => Ok(Intrinsic::Shuffle),
-            "reduce" => Ok(Intrinsic::Reduce),
             "select" => Ok(Intrinsic::Select),
             "splat" => Ok(Intrinsic::Splat),
+            "reduce.add" => Ok(Intrinsic::ReduceAdd),
+            "reduce.mul" => Ok(Intrinsic::ReduceMul),
+            "reduce.min" => Ok(Intrinsic::ReduceMin),
+            "reduce.max" => Ok(Intrinsic::ReduceMax),
+            "reduce.and" => Ok(Intrinsic::ReduceAnd),
+            "reduce.or" => Ok(Intrinsic::ReduceOr),
+            "reduce.xor" => Ok(Intrinsic::ReduceXor),
 
             _ => Err(()),
         }
@@ -676,13 +782,13 @@ impl Intrinsic {
             }
 
             // unchecked arithmetic
-            Intrinsic::UncheckedAdd
-            | Intrinsic::UncheckedSub
-            | Intrinsic::UncheckedMul
-            | Intrinsic::UncheckedDiv
-            | Intrinsic::UncheckedRem
-            | Intrinsic::UncheckedShl
-            | Intrinsic::UncheckedShr => IntrinsicSignature::Binary,
+            Intrinsic::AddUnchecked
+            | Intrinsic::SubUnchecked
+            | Intrinsic::MulUnchecked
+            | Intrinsic::DivUnchecked
+            | Intrinsic::RemUnchecked
+            | Intrinsic::ShlUnchecked
+            | Intrinsic::ShrUnchecked => IntrinsicSignature::Binary,
 
             // saturating arithmetic
             Intrinsic::SatAdd | Intrinsic::SatSub => IntrinsicSignature::Binary,
@@ -780,9 +886,15 @@ impl Intrinsic {
 
             // SIMD
             Intrinsic::Shuffle => IntrinsicSignature::Shuffle,
-            Intrinsic::Reduce => IntrinsicSignature::Reduce,
             Intrinsic::Select => IntrinsicSignature::Ternary,
             Intrinsic::Splat => IntrinsicSignature::Splat,
+            Intrinsic::ReduceAdd
+            | Intrinsic::ReduceMul
+            | Intrinsic::ReduceMin
+            | Intrinsic::ReduceMax
+            | Intrinsic::ReduceAnd
+            | Intrinsic::ReduceOr
+            | Intrinsic::ReduceXor => IntrinsicSignature::Reduce,
         }
     }
 

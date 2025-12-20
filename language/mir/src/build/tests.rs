@@ -752,7 +752,7 @@ fn test_build_void_intrinsic() {
     let expected = "\
 function @fence_test() -> void {
 block0:
-    intrinsic.atomic_fence()
+    intrinsic.atomic.fence()
     return
 }";
     assert_eq!(output, expected);
