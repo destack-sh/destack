@@ -103,6 +103,14 @@ pub enum Intrinsic {
     /// Byte-wise equality comparison.
     RawEq,
 
+    // garbage collection
+    /// GC write barrier for concurrent marking (Dijkstra-style insertion barrier).
+    /// Called before writing a managed reference to shade the new value grey.
+    GcWriteBarrier,
+    /// GC read barrier (optional, for some GC designs like ZGC).
+    /// Called when reading a managed reference.
+    GcReadBarrier,
+
     // atomics
     // Memory ordering is specified via an argument to the instruction.
     /// Atomic load.
@@ -272,6 +280,10 @@ impl Intrinsic {
             Intrinsic::PtrOffsetFrom => "ptr_offset_from",
             Intrinsic::RawEq => "raw_eq",
 
+            // garbage collection
+            Intrinsic::GcWriteBarrier => "gc_write_barrier",
+            Intrinsic::GcReadBarrier => "gc_read_barrier",
+
             // atomics
             Intrinsic::AtomicLoad => "atomic_load",
             Intrinsic::AtomicStore => "atomic_store",
@@ -417,6 +429,8 @@ impl Intrinsic {
                 | Intrinsic::VolatileStore
                 | Intrinsic::PrefetchRead
                 | Intrinsic::PrefetchWrite
+                | Intrinsic::GcWriteBarrier
+                | Intrinsic::GcReadBarrier
                 | Intrinsic::AtomicLoad
                 | Intrinsic::AtomicStore
                 | Intrinsic::AtomicCas
@@ -479,6 +493,8 @@ impl FromStr for Intrinsic {
             "transmute" => Ok(Intrinsic::Transmute),
             "ptr_offset_from" => Ok(Intrinsic::PtrOffsetFrom),
             "raw_eq" => Ok(Intrinsic::RawEq),
+            "gc_write_barrier" => Ok(Intrinsic::GcWriteBarrier),
+            "gc_read_barrier" => Ok(Intrinsic::GcReadBarrier),
             "atomic_load" => Ok(Intrinsic::AtomicLoad),
             "atomic_store" => Ok(Intrinsic::AtomicStore),
             "atomic_cas" => Ok(Intrinsic::AtomicCas),

@@ -364,8 +364,10 @@ pub struct DsConfigCompilerOptions {
     pub no_implicit_managed_type: bool,
     /// Require explicit copy/borrow at call sites (no implicit managed values).
     pub no_implicit_managed_value: bool,
-    /// Forbid managed runtime features entirely (no unowned `T` at all, pure value types only).
+    /// Forbid managed memory features entirely (no unowned `T` at all, pure value types only).
     pub no_managed: bool,
+    /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...)
+    pub no_runtime: bool,
     /// Forbid referential equality.
     pub no_referential_equality: bool,
     /// Forbid `eval()` and `Function` constructor.
@@ -449,6 +451,7 @@ impl Default for DsConfigCompilerOptions {
             no_implicit_managed_type: false,
             no_implicit_managed_value: false,
             no_managed: false,
+            no_runtime: false,
             no_referential_equality: false,
             no_dynamic_evaluation: false,
             no_global_this: false,
@@ -879,6 +882,8 @@ pub struct CompilerOptionsJson {
     pub no_implicit_managed_value: Option<bool>,
     /// Forbid managed runtime features entirely (no &T at all, pure value types only).
     pub no_managed: Option<bool>,
+    /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).
+    pub no_runtime: Option<bool>,
     /// Forbid referential equality.
     pub no_referential_equality: Option<bool>,
     /// Forbid `eval()` and `Function` constructor.
@@ -969,6 +974,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
             no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
             no_managed: json.no_managed.unwrap_or(false),
+            no_runtime: json.no_runtime.unwrap_or(false),
             no_referential_equality: json.no_referential_equality.unwrap_or(false),
             no_dynamic_evaluation: json.no_dynamic_evaluation.unwrap_or(false),
             no_global_this: json.no_global_this.unwrap_or(false),

@@ -237,7 +237,7 @@ const x: int32 = 1
     fn test_parse_var_array_undefined() {
         let mut test = TestParser::new(
             r###"
-var x: float64[3] = undefined
+^mut x: float64[3] = undefined
 "###,
         );
         let mut parser = test.prepare();

@@ -2,7 +2,7 @@ use std::num::NonZeroU32;
 
 use destack_base::StringId;
 use destack_mir as mir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion};
 use destack_workspace::ModuleMir;
 
 use crate::CodegenCraneliftBackend;
@@ -12,7 +12,11 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
     let (tree, strings) = mir::parse::Parser::parse(source).expect("failed to parse MIR");
 
     // create a ModuleMir and populate it
-    let module = ModuleMir::new(ModuleId::EPHEMERAL, "clif".to_string());
+    let module = ModuleMir::new(
+        ModuleId::EPHEMERAL,
+        ModuleVersion::INITIAL,
+        "clif".to_string(),
+    );
     *module.tree.write() = tree;
 
     // copy strings into module's string pool

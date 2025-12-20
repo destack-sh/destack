@@ -51,9 +51,9 @@ let x = 1;
 Legacy `var` declarations are preserved but follow the same spacing rules.
 
 ```ds
-var   x   =   1
+^mut   x   =   1
 ```
 
 ```ds expected
-var x = 1;
+^mut x = 1;
 ```
