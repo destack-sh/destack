@@ -2,19 +2,19 @@ import { Type } from "./type.ds";
 import { DecoratorInfo } from "./decorator.ds";
 
 /// A property (field) in a struct, class, interface, or object type.
-///
+/// 
 /// Properties describe data members, not methods. For functions/methods,
 /// see `FunctionType`.
-///
+/// 
 /// # Example
-///
+/// 
 /// ```
 /// struct User {
 ///     @unique
 ///     name: string,
 ///     age?: int,
 /// }
-///
+/// 
 /// User.properties[0]
 /// // => Property {
 /// //      name: "name",
@@ -35,7 +35,7 @@ struct Property {
     optional: boolean,
 
     /// Whether this property is readonly.
-    readonly: boolean,
+    readonly : boolean,
 
     /// Decorators on this property.
     decorators: readonly DecoratorInfo[],
@@ -49,21 +49,21 @@ struct Property {
 }
 
 /// A variant in an enum type.
-///
+/// 
 /// Variants can be:
 /// - Simple: just a name (auto-numbered)
 /// - Valued: name with explicit value
 /// - Data-carrying: name with associated data type
-///
+/// 
 /// # Example
-///
+/// 
 /// ```
 /// enum Status {
 ///     Active,           // simple
 ///     Inactive = 0,     // valued
 ///     Pending = "wait", // string valued
 /// }
-///
+/// 
 /// Status.variants[0]
 /// // => Variant { name: "Active", value: 0 }
 /// ```

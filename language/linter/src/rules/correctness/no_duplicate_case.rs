@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expressions_equal;
+use crate::rules::common::is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -55,9 +55,7 @@ impl LintRule for NoDuplicateCase {
                 };
 
                 // check against all previously seen expressions
-                let is_duplicate = seen
-                    .iter()
-                    .any(|&prev| expressions_equal(ctx, prev, expr_id));
+                let is_duplicate = seen.iter().any(|&prev| is_equal(ctx, prev, expr_id));
 
                 if is_duplicate {
                     let severity = ctx.get_effective_severity(meta, node_id);
@@ -99,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_integer_case() {
-        let test = TestProgram::for_rule(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -116,7 +114,7 @@ switch (x) {
 
     #[test]
     fn test_detects_duplicate_string_case() {
-        let test = TestProgram::for_rule(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -133,7 +131,7 @@ switch (x) {
 
     #[test]
     fn test_detects_duplicate_boolean_case() {
-        let test = TestProgram::for_rule(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +148,7 @@ switch (x) {
 
     #[test]
     fn test_allows_unique_cases() {
-        let test = TestProgram::for_rule(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -167,7 +165,7 @@ switch (x) {
 
     #[test]
     fn test_ignores_match_expression() {
-        let test = TestProgram::for_rule(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"

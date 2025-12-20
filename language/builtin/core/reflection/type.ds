@@ -3,20 +3,20 @@ import { DecoratorInfo, intrinsic } from "./decorator.ds";
 import { Refinement } from "./refinement.ds";
 
 /// Stable unique identifier for a type.
-///
+/// 
 /// Format: "module/path:TypeName" (e.g., "myapp/models:User")
-newtype TypeId = string;
+newtype TypeId = string;;
 
 /// Common interface implemented by all type descriptor variants.
 newtype interface TypeBase<T> {
     /// The name of this type (e.g., "User", "int", "string[]").
-    readonly name: string;
+    readonly name: string,
 
     /// Stable unique identifier for this type.
-    readonly id: TypeId;
+    readonly id: TypeId,
 
     /// Type guard - checks if a value is of this type.
-    is(input: unknown): boolean;
+    is(input: unknown): boolean
 }
 
 /// Primitive type descriptor (string, int, float, boolean, null).
@@ -30,16 +30,23 @@ struct PrimitiveType<T> implements TypeBase<T> {
 }
 
 /// The specific kind of primitive type.
-type PrimitiveKind =
-    | "string"
+type PrimitiveKind = "string"
     | "boolean"
     | "null"
     | "undefined"
-    | "int8" | "int16" | "int32" | "int64" | "int128"
-    | "uint8" | "uint16" | "uint32" | "uint64" | "uint128"
-    | "float32" | "float64"
-    | "bigint"
-;
+    | "int8"
+    | "int16"
+    | "int32"
+    | "int64"
+    | "int128"
+    | "uint8"
+    | "uint16"
+    | "uint32"
+    | "uint64"
+    | "uint128"
+    | "float32"
+    | "float64"
+    | "bigint";
 
 /// Struct type descriptor.
 struct StructType<T> implements TypeBase<T> {
@@ -227,16 +234,16 @@ struct RefinedType<T> implements TypeBase<T> {
 }
 
 /// A type descriptor - the union of all type variants.
-///
+/// 
 /// This is the primary type for working with runtime type information.
 /// All variants implement `TypeBase<T>`, so common operations like
 /// `.name`, `.id`, `.is()`, and `.validate()` work on any `Type<T>`.
-///
+/// 
 /// # Example
-///
+/// 
 /// ```
 /// struct User { name: string, age: int }
-///
+/// 
 /// // Type<User> is actually StructType<User>
 /// match (User) {
 ///     StructType { properties } => {
@@ -247,8 +254,7 @@ struct RefinedType<T> implements TypeBase<T> {
 ///     _ => {}
 /// }
 /// ```
-newtype Type<T> =
-    | PrimitiveType<T>
+newtype Type<T> = PrimitiveType<T>
     | StructType<T>
     | ClassType<T>
     | EnumType<T>
@@ -260,14 +266,13 @@ newtype Type<T> =
     | IntersectionType<T>
     | FunctionType<T>
     | ObjectType<T>
-    | RefinedType<T>
-;
+    | RefinedType<T>;
 
 /// Get the type descriptor for a value.
-///
+/// 
 /// Unlike JavaScript's `typeof` (which returns a coarse string like "object"),
 /// this returns the full `Type<T>` descriptor.
-///
+/// 
 /// ```
 /// const user = User { name: "Alice", age: 30 };
 /// const t = typeOf(user);  // Type<User>

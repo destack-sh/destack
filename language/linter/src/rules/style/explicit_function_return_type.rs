@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_detects_missing_return_type() {
-        let test = TestProgram::for_rule(ExplicitFunctionReturnType);
+        let test = TestProgram::for_rule_without_builtins(ExplicitFunctionReturnType);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -88,7 +88,7 @@ function foo() {
 
     #[test]
     fn test_allows_explicit_return_type() {
-        let test = TestProgram::for_rule(ExplicitFunctionReturnType);
+        let test = TestProgram::for_rule_without_builtins(ExplicitFunctionReturnType);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -103,7 +103,7 @@ function foo(): number {
 
     #[test]
     fn test_allows_void_return_type() {
-        let test = TestProgram::for_rule(ExplicitFunctionReturnType);
+        let test = TestProgram::for_rule_without_builtins(ExplicitFunctionReturnType);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -118,7 +118,7 @@ function foo(): void {
 
     #[test]
     fn test_allows_arrow_functions() {
-        let test = TestProgram::for_rule(ExplicitFunctionReturnType);
+        let test = TestProgram::for_rule_without_builtins(ExplicitFunctionReturnType);
         let result = test.lint_ast(
             "test.ts",
             r#"

@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_returns() {
-        let test = TestProgram::for_rule(MaxReturnStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxReturnStatements);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -171,7 +171,7 @@ function tooManyReturns(x: int32): int32 {
 
     #[test]
     fn test_allows_few_returns() {
-        let test = TestProgram::for_rule(MaxReturnStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxReturnStatements);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -187,7 +187,7 @@ function fewReturns(x: int32): int32 {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule(MaxReturnStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxReturnStatements);
         // 10 returns is at the limit (default max is 10)
         let result = test.lint_ast(
             "test.ds",
@@ -211,7 +211,7 @@ function atLimit(x: int32): int32 {
 
     #[test]
     fn test_counts_returns_in_match() {
-        let test = TestProgram::for_rule(MaxReturnStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxReturnStatements);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -237,7 +237,7 @@ function matchReturns(x: int32): int32 {
 
     #[test]
     fn test_does_not_count_nested_function() {
-        let test = TestProgram::for_rule(MaxReturnStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxReturnStatements);
         let result = test.lint_ast(
             "test.ds",
             r#"

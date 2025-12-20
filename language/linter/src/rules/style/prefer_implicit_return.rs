@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_detects_block_with_return() {
-        let test = TestProgram::for_rule(PreferImplicitReturn);
+        let test = TestProgram::for_rule_without_builtins(PreferImplicitReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -119,7 +119,7 @@ const double = (x) => { return x * 2 }
 
     #[test]
     fn test_allows_implicit_return() {
-        let test = TestProgram::for_rule(PreferImplicitReturn);
+        let test = TestProgram::for_rule_without_builtins(PreferImplicitReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -131,7 +131,7 @@ const double = (x) => x * 2
 
     #[test]
     fn test_allows_multi_statement_block() {
-        let test = TestProgram::for_rule(PreferImplicitReturn);
+        let test = TestProgram::for_rule_without_builtins(PreferImplicitReturn);
         // multi-statement blocks can't use implicit return
         let result = test.lint_ast(
             "test.ds",
@@ -147,7 +147,7 @@ const double = (x) => {
 
     #[test]
     fn test_allows_function_declaration() {
-        let test = TestProgram::for_rule(PreferImplicitReturn);
+        let test = TestProgram::for_rule_without_builtins(PreferImplicitReturn);
         // traditional functions always need blocks
         let result = test.lint_ast(
             "test.ds",
@@ -162,7 +162,7 @@ function double(x) {
 
     #[test]
     fn test_allows_void_return() {
-        let test = TestProgram::for_rule(PreferImplicitReturn);
+        let test = TestProgram::for_rule_without_builtins(PreferImplicitReturn);
         // void returns can't be implicit
         let result = test.lint_ast(
             "test.ds",

@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_single_sentence_allowed() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -180,7 +180,7 @@ function foo() {}
 
     #[test]
     fn test_multiple_sentences_on_one_line_detected() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -193,7 +193,7 @@ function foo() {}
 
     #[test]
     fn test_multiple_sentences_on_separate_lines_allowed() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -207,7 +207,7 @@ function foo() {}
 
     #[test]
     fn test_hyphen_separator_detected() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -220,7 +220,7 @@ function foo() {}
 
     #[test]
     fn test_colon_separator_allowed() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -233,7 +233,7 @@ function foo() {}
 
     #[test]
     fn test_compound_word_hyphen_allowed() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -246,7 +246,7 @@ function foo() {}
 
     #[test]
     fn test_url_hyphen_allowed() {
-        let test = TestProgram::for_rule(CommentLayout);
+        let test = TestProgram::for_rule_without_builtins(CommentLayout);
         let result = test.lint_ast(
             "test.ds",
             r#"

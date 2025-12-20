@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_detects_chained_assignment() {
-        let test = TestProgram::for_rule(NoMultiAssign);
+        let test = TestProgram::for_rule_without_builtins(NoMultiAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -95,7 +95,7 @@ a = (b = (c = 1));
 
     #[test]
     fn test_detects_simple_chain() {
-        let test = TestProgram::for_rule(NoMultiAssign);
+        let test = TestProgram::for_rule_without_builtins(NoMultiAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -109,7 +109,7 @@ a = (b = 1);
 
     #[test]
     fn test_detects_parenthesized_chain() {
-        let test = TestProgram::for_rule(NoMultiAssign);
+        let test = TestProgram::for_rule_without_builtins(NoMultiAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -123,7 +123,7 @@ a = (b = 1);
 
     #[test]
     fn test_allows_separate_assignments() {
-        let test = TestProgram::for_rule(NoMultiAssign);
+        let test = TestProgram::for_rule_without_builtins(NoMultiAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -138,7 +138,7 @@ b = 1;
 
     #[test]
     fn test_allows_assignment_in_declaration() {
-        let test = TestProgram::for_rule(NoMultiAssign);
+        let test = TestProgram::for_rule_without_builtins(NoMultiAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -151,7 +151,7 @@ let b = 2;
 
     #[test]
     fn test_allows_compound_assignment() {
-        let test = TestProgram::for_rule(NoMultiAssign);
+        let test = TestProgram::for_rule_without_builtins(NoMultiAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"

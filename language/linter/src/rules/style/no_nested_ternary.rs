@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_detects_nested_ternary_in_then() {
-        let test = TestProgram::for_rule(NoNestedTernary);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -101,7 +101,7 @@ const x = a ? b ? 1 : 2 : 3;
 
     #[test]
     fn test_detects_nested_ternary_in_else() {
-        let test = TestProgram::for_rule(NoNestedTernary);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -113,7 +113,7 @@ const x = a ? 1 : b ? 2 : 3;
 
     #[test]
     fn test_detects_nested_ternary_in_condition() {
-        let test = TestProgram::for_rule(NoNestedTernary);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -125,7 +125,7 @@ const x = (a ? true : false) ? 1 : 2;
 
     #[test]
     fn test_allows_simple_ternary() {
-        let test = TestProgram::for_rule(NoNestedTernary);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -137,7 +137,7 @@ const x = condition ? 1 : 2;
 
     #[test]
     fn test_allows_if_else() {
-        let test = TestProgram::for_rule(NoNestedTernary);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +153,7 @@ const x = if (a) {
 
     #[test]
     fn test_allows_separate_ternaries() {
-        let test = TestProgram::for_rule(NoNestedTernary);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"

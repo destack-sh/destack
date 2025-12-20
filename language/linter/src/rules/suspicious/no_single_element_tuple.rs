@@ -65,14 +65,14 @@ mod tests {
 
     #[test]
     fn test_detects_single_element_tuple() {
-        let test = TestProgram::for_rule(NoSingleElementTuple);
+        let test = TestProgram::for_rule_without_builtins(NoSingleElementTuple);
         let result = test.lint_ast("test.ds", "const x = (1,);");
         test.result(result).assert_lint("no-single-element-tuple");
     }
 
     #[test]
     fn test_allows_multi_element_tuple() {
-        let test = TestProgram::for_rule(NoSingleElementTuple);
+        let test = TestProgram::for_rule_without_builtins(NoSingleElementTuple);
         let result = test.lint_ast("test.ds", "const x = (1, 2);");
         test.result(result)
             .assert_no_lint("no-single-element-tuple");
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_allows_empty_tuple() {
-        let test = TestProgram::for_rule(NoSingleElementTuple);
+        let test = TestProgram::for_rule_without_builtins(NoSingleElementTuple);
         let result = test.lint_ast("test.ds", "const x = ();");
         test.result(result)
             .assert_no_lint("no-single-element-tuple");

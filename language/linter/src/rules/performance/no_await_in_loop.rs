@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_detects_await_in_for_loop() {
-        let test = TestProgram::for_rule(NoAwaitInLoop);
+        let test = TestProgram::for_rule_without_builtins(NoAwaitInLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -111,7 +111,7 @@ async function fetchAll(urls: string[]) {
 
     #[test]
     fn test_detects_await_in_while_loop() {
-        let test = TestProgram::for_rule(NoAwaitInLoop);
+        let test = TestProgram::for_rule_without_builtins(NoAwaitInLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -127,7 +127,7 @@ async function process() {
 
     #[test]
     fn test_detects_await_in_traditional_for() {
-        let test = TestProgram::for_rule(NoAwaitInLoop);
+        let test = TestProgram::for_rule_without_builtins(NoAwaitInLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -143,7 +143,7 @@ async function fetchAll() {
 
     #[test]
     fn test_allows_await_outside_loop() {
-        let test = TestProgram::for_rule(NoAwaitInLoop);
+        let test = TestProgram::for_rule_without_builtins(NoAwaitInLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ async function fetchOne(url: string) {
 
     #[test]
     fn test_allows_promise_all() {
-        let test = TestProgram::for_rule(NoAwaitInLoop);
+        let test = TestProgram::for_rule_without_builtins(NoAwaitInLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -174,7 +174,7 @@ async function fetchAll(urls: string[]) {
     #[test]
     fn test_allows_await_in_nested_async_function() {
         // await inside a nested async function should not be flagged
-        let test = TestProgram::for_rule(NoAwaitInLoop);
+        let test = TestProgram::for_rule_without_builtins(NoAwaitInLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"

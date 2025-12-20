@@ -79,42 +79,42 @@ mod tests {
 
     #[test]
     fn test_allows_dense_array() {
-        let test = TestProgram::for_rule(NoSparseArrays);
+        let test = TestProgram::for_rule_without_builtins(NoSparseArrays);
         let result = test.lint_ast("test.ts", "const arr = [1, 2, 3];");
         test.result(result).assert_no_lint("no-sparse-arrays");
     }
 
     #[test]
     fn test_allows_array_with_undefined() {
-        let test = TestProgram::for_rule(NoSparseArrays);
+        let test = TestProgram::for_rule_without_builtins(NoSparseArrays);
         let result = test.lint_ast("test.ts", "const arr = [1, undefined, 3];");
         test.result(result).assert_no_lint("no-sparse-arrays");
     }
 
     #[test]
     fn test_allows_empty_array() {
-        let test = TestProgram::for_rule(NoSparseArrays);
+        let test = TestProgram::for_rule_without_builtins(NoSparseArrays);
         let result = test.lint_ast("test.ts", "const arr = [];");
         test.result(result).assert_no_lint("no-sparse-arrays");
     }
 
     #[test]
     fn test_detects_sparse_array_middle_hole() {
-        let test = TestProgram::for_rule(NoSparseArrays);
+        let test = TestProgram::for_rule_without_builtins(NoSparseArrays);
         let result = test.lint_ast("test.ts", "const arr = [1, , 3];");
         test.result(result).assert_lint("no-sparse-arrays");
     }
 
     #[test]
     fn test_detects_sparse_array_leading_hole() {
-        let test = TestProgram::for_rule(NoSparseArrays);
+        let test = TestProgram::for_rule_without_builtins(NoSparseArrays);
         let result = test.lint_ast("test.ts", "const arr = [, 1];");
         test.result(result).assert_lint("no-sparse-arrays");
     }
 
     #[test]
     fn test_allows_trailing_comma() {
-        let test = TestProgram::for_rule(NoSparseArrays);
+        let test = TestProgram::for_rule_without_builtins(NoSparseArrays);
         let result = test.lint_ast("test.ts", "const arr = [1, 2, ];");
         test.result(result).assert_no_lint("no-sparse-arrays");
     }

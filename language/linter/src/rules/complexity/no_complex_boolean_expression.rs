@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expressions_equal;
+use crate::rules::common::is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -81,7 +81,7 @@ impl LintRule for NoComplexBooleanExpression {
                 }
 
                 // check if both sides are the same expression (redundant)
-                if expressions_equal(ctx, *left, *right) {
+                if is_equal(ctx, *left, *right) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         continue;
@@ -151,7 +151,7 @@ fn is_negation_of(
         right: inner_id,
     } = right
     {
-        expressions_equal(ctx, left_id, *inner_id)
+        is_equal(ctx, left_id, *inner_id)
     } else {
         false
     }
@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_detects_double_negation() {
-        let test = TestProgram::for_rule(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -177,7 +177,7 @@ let x = !!value
 
     #[test]
     fn test_detects_redundant_and() {
-        let test = TestProgram::for_rule(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -190,7 +190,7 @@ let x = a && a
 
     #[test]
     fn test_detects_redundant_or() {
-        let test = TestProgram::for_rule(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -203,7 +203,7 @@ let x = b || b
 
     #[test]
     fn test_detects_contradiction_and() {
-        let test = TestProgram::for_rule(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -216,7 +216,7 @@ let x = a && !a
 
     #[test]
     fn test_detects_contradiction_or() {
-        let test = TestProgram::for_rule(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -229,7 +229,7 @@ let x = a || !a
 
     #[test]
     fn test_allows_valid_expressions() {
-        let test = TestProgram::for_rule(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"

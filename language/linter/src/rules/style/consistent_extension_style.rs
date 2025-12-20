@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_allows_named_extension() {
-        let test = TestProgram::for_rule(ConsistentExtensionStyle);
+        let test = TestProgram::for_rule_without_builtins(ConsistentExtensionStyle);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -84,7 +84,7 @@ extension StringUtils for string {
 
     #[test]
     fn test_detects_anonymous_extension() {
-        let test = TestProgram::for_rule(ConsistentExtensionStyle);
+        let test = TestProgram::for_rule_without_builtins(ConsistentExtensionStyle);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -101,7 +101,7 @@ extension for string {
 
     #[test]
     fn test_allows_named_generic_extension() {
-        let test = TestProgram::for_rule(ConsistentExtensionStyle);
+        let test = TestProgram::for_rule_without_builtins(ConsistentExtensionStyle);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_has_side_effects;
+use crate::rules::common::has_side_effects;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -67,7 +67,7 @@ fn check_expression_statement(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) {
     // skip expressions that have side effects or are useful
-    if !expression_has_side_effects(ctx, expr_id) {
+    if !has_side_effects(ctx, expr_id) {
         let severity = ctx.get_effective_severity(meta, expr_id);
         if !severity.is_enabled() {
             return;
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_detects_unused_literal() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds", r#"
 5
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_detects_unused_string() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_detects_unused_binary() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -130,7 +130,7 @@ x + 1
 
     #[test]
     fn test_detects_unused_identifier() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds", r#"
 x
@@ -141,7 +141,7 @@ x
 
     #[test]
     fn test_allows_function_call() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +153,7 @@ doSomething()
 
     #[test]
     fn test_allows_assignment() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -165,7 +165,7 @@ x = 5
 
     #[test]
     fn test_allows_let_binding() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -177,7 +177,7 @@ let x = 5
 
     #[test]
     fn test_allows_return() {
-        let test = TestProgram::for_rule(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"

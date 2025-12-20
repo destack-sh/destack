@@ -68,28 +68,28 @@ mod tests {
 
     #[test]
     fn test_detects_star_import() {
-        let test = TestProgram::for_rule(NoWildcardImports);
+        let test = TestProgram::for_rule_without_builtins(NoWildcardImports);
         let result = test.lint_ast("test.ts", r#"import * as foo from "foo";"#);
         test.result(result).assert_lint("no-wildcard-imports");
     }
 
     #[test]
     fn test_allows_named_import() {
-        let test = TestProgram::for_rule(NoWildcardImports);
+        let test = TestProgram::for_rule_without_builtins(NoWildcardImports);
         let result = test.lint_ast("test.ts", r#"import { foo, bar } from "foo";"#);
         test.result(result).assert_no_lint("no-wildcard-imports");
     }
 
     #[test]
     fn test_allows_default_import() {
-        let test = TestProgram::for_rule(NoWildcardImports);
+        let test = TestProgram::for_rule_without_builtins(NoWildcardImports);
         let result = test.lint_ast("test.ts", r#"import foo from "foo";"#);
         test.result(result).assert_no_lint("no-wildcard-imports");
     }
 
     #[test]
     fn test_allows_side_effect_import() {
-        let test = TestProgram::for_rule(NoWildcardImports);
+        let test = TestProgram::for_rule_without_builtins(NoWildcardImports);
         let result = test.lint_ast("test.ts", r#"import "foo";"#);
         test.result(result).assert_no_lint("no-wildcard-imports");
     }

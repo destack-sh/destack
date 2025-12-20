@@ -1,14 +1,28 @@
 /// The target platform (OS) the code is being compiled for.
-export type Platform = "web" | "windows" | "macos" | "linux" | "ios" | "android" | "wasi" | "universal";
+export type Platform = "web"
+    | "windows"
+    | "macos"
+    | "linux"
+    | "ios"
+    | "android"
+    | "wasi"
+    | "universal";;
 
 /// The output format the code is being compiled to.
-export type OutputFormat = "js" | "ts" | "wasm" | "native";
+export type OutputFormat = "js" | "ts" | "wasm" | "native";;
 
 /// The runtime environment that will execute the code.
-export type Runtime =
-    | "browser" | "node" | "deno" | "bun" | "worker" | "workerd" | "embedded"
-    | "wasm-js" | "wasm-wasi" | "wasm-standalone"
-    | "destack";
+export type Runtime = "browser"
+    | "node"
+    | "deno"
+    | "bun"
+    | "worker"
+    | "workerd"
+    | "embedded"
+    | "wasm-js"
+    | "wasm-wasi"
+    | "wasm-standalone"
+    | "destack";;
 
 /// Environment variables available at compile time.
 export interface ImportMetaEnv {
@@ -46,7 +60,8 @@ export interface ImportMeta {
     readonly env: ImportMetaEnv,
 }
 
-declare global {
+declare;
+global {
     /// The import.meta object for the current module.
-    const meta: ImportMeta;
-}
+    const meta: ImportMeta,
+};

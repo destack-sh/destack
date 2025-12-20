@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_detects_useless_catch_throw() {
-        let test = TestProgram::for_rule(NoUselessCatch);
+        let test = TestProgram::for_rule_without_builtins(NoUselessCatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -183,7 +183,7 @@ try {
 
     #[test]
     fn test_detects_useless_catch_block_throw() {
-        let test = TestProgram::for_rule(NoUselessCatch);
+        let test = TestProgram::for_rule_without_builtins(NoUselessCatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -199,7 +199,7 @@ try {
 
     #[test]
     fn test_allows_catch_with_logging() {
-        let test = TestProgram::for_rule(NoUselessCatch);
+        let test = TestProgram::for_rule_without_builtins(NoUselessCatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -216,7 +216,7 @@ try {
 
     #[test]
     fn test_allows_catch_with_different_throw() {
-        let test = TestProgram::for_rule(NoUselessCatch);
+        let test = TestProgram::for_rule_without_builtins(NoUselessCatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -233,7 +233,7 @@ try {
     #[test]
     fn test_allows_catch_with_finally() {
         // catch + finally might be useful for cleanup ordering
-        let test = TestProgram::for_rule(NoUselessCatch);
+        let test = TestProgram::for_rule_without_builtins(NoUselessCatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -251,7 +251,7 @@ try {
 
     #[test]
     fn test_fix_useless_catch() {
-        let test = TestProgram::for_rule(NoUselessCatch);
+        let test = TestProgram::for_rule_without_builtins(NoUselessCatch);
         let result = test.lint_ast(
             "test.ds",
             r#"

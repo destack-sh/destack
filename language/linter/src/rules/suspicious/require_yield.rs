@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_detects_generator_without_yield() {
-        let test = TestProgram::for_rule(RequireYield);
+        let test = TestProgram::for_rule_without_builtins(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +149,7 @@ function* gen() {
 
     #[test]
     fn test_detects_empty_generator() {
-        let test = TestProgram::for_rule(RequireYield);
+        let test = TestProgram::for_rule_without_builtins(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -161,7 +161,7 @@ function* gen() {}
 
     #[test]
     fn test_allows_generator_with_yield() {
-        let test = TestProgram::for_rule(RequireYield);
+        let test = TestProgram::for_rule_without_builtins(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -176,7 +176,7 @@ function* gen() {
 
     #[test]
     fn test_allows_generator_with_yield_in_loop() {
-        let test = TestProgram::for_rule(RequireYield);
+        let test = TestProgram::for_rule_without_builtins(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -192,7 +192,7 @@ function* gen() {
 
     #[test]
     fn test_allows_regular_function() {
-        let test = TestProgram::for_rule(RequireYield);
+        let test = TestProgram::for_rule_without_builtins(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -206,7 +206,7 @@ function foo() {
 
     #[test]
     fn test_allows_generator_with_yield_star() {
-        let test = TestProgram::for_rule(RequireYield);
+        let test = TestProgram::for_rule_without_builtins(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"

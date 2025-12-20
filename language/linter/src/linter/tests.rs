@@ -12,7 +12,7 @@ use destack_source::{
 };
 use destack_workspace::{LintCategory, LintSeverity, LinterOptions, Program, Session};
 
-use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner, all_rules};
+use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner};
 
 /// Test wrapper for linting.
 pub(crate) struct TestProgram {
@@ -89,13 +89,13 @@ impl TestProgram {
     }
 
     /// Create a test with a single rule (without prelude).
-    pub(crate) fn for_rule<R: crate::LintRule + 'static>(rule: R) -> Self {
+    pub(crate) fn for_rule_without_builtins<R: crate::LintRule + 'static>(rule: R) -> Self {
         Self::new_without_builtins(vec![crate::boxed(rule)])
     }
 
-    /// Create a test with all rules (without prelude).
-    pub(crate) fn with_all_rules() -> Self {
-        Self::new_without_builtins(all_rules())
+    /// Create a test with a single rule (with prelude).
+    pub(crate) fn for_rule_with_builtins<R: crate::LintRule + 'static>(rule: R) -> Self {
+        Self::new_with_builtins(vec![crate::boxed(rule)])
     }
 
     /// Modify linter options (builder pattern).

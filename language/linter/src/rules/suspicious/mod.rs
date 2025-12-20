@@ -18,9 +18,11 @@ mod no_inner_declarations;
 mod no_large_try_block;
 mod no_misleading_character_class;
 mod no_negation_in_equality_check;
+mod no_redundant_match_guard;
 mod no_redundant_pattern;
 mod no_return_assign;
 mod no_self_assign;
+mod no_shadow_restricted_names;
 mod no_single_element_tuple;
 mod no_template_curly_in_string;
 mod no_useless_backreference;
@@ -58,9 +60,11 @@ pub use no_inner_declarations::*;
 pub use no_large_try_block::*;
 pub use no_misleading_character_class::*;
 pub use no_negation_in_equality_check::*;
+pub use no_redundant_match_guard::*;
 pub use no_redundant_pattern::*;
 pub use no_return_assign::*;
 pub use no_self_assign::*;
+pub use no_shadow_restricted_names::*;
 pub use no_single_element_tuple::*;
 pub use no_template_curly_in_string::*;
 pub use no_useless_backreference::*;
@@ -99,9 +103,11 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoLargeTryBlock),
         boxed(NoMisleadingCharacterClass),
         boxed(NoNegationInEqualityCheck),
+        boxed(NoRedundantMatchGuard),
         boxed(NoRedundantPattern),
         boxed(NoReturnAssign),
         boxed(NoSelfAssign),
+        boxed(NoShadowRestrictedNames),
         boxed(NoSingleElementTuple),
         boxed(NoTemplateCurlyInString),
         boxed(NoUselessBackreference),

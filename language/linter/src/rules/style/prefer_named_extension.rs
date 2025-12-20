@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_anonymous_extension_of_foreign_type_detected() {
-        let test = TestProgram::for_rule(PreferNamedExtension);
+        let test = TestProgram::for_rule_without_builtins(PreferNamedExtension);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -101,7 +101,7 @@ extension for std.io.File {
 
     #[test]
     fn test_named_extension_of_foreign_type_allowed() {
-        let test = TestProgram::for_rule(PreferNamedExtension);
+        let test = TestProgram::for_rule_without_builtins(PreferNamedExtension);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +115,7 @@ extension FileHelpers for std.io.File {
 
     #[test]
     fn test_anonymous_extension_of_local_type_allowed() {
-        let test = TestProgram::for_rule(PreferNamedExtension);
+        let test = TestProgram::for_rule_without_builtins(PreferNamedExtension);
         let result = test.lint_ast(
             "test.ds",
             r#"

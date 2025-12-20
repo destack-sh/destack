@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_detects_return_value_in_constructor() {
-        let test = TestProgram::for_rule(NoConstructorReturn);
+        let test = TestProgram::for_rule_without_builtins(NoConstructorReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -144,7 +144,7 @@ class Foo {
 
     #[test]
     fn test_detects_return_value_in_if() {
-        let test = TestProgram::for_rule(NoConstructorReturn);
+        let test = TestProgram::for_rule_without_builtins(NoConstructorReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -162,7 +162,7 @@ class Foo {
 
     #[test]
     fn test_allows_bare_return() {
-        let test = TestProgram::for_rule(NoConstructorReturn);
+        let test = TestProgram::for_rule_without_builtins(NoConstructorReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -181,7 +181,7 @@ class Foo {
 
     #[test]
     fn test_allows_constructor_without_return() {
-        let test = TestProgram::for_rule(NoConstructorReturn);
+        let test = TestProgram::for_rule_without_builtins(NoConstructorReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -197,7 +197,7 @@ class Foo {
 
     #[test]
     fn test_allows_return_in_nested_function() {
-        let test = TestProgram::for_rule(NoConstructorReturn);
+        let test = TestProgram::for_rule_without_builtins(NoConstructorReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"

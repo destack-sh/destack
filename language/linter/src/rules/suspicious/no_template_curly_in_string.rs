@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_detects_template_in_double_quoted_string() {
-        let test = TestProgram::for_rule(NoTemplateCurlyInString);
+        let test = TestProgram::for_rule_without_builtins(NoTemplateCurlyInString);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -109,7 +109,7 @@ const x = "Hello ${name}"
 
     #[test]
     fn test_detects_multiple_templates() {
-        let test = TestProgram::for_rule(NoTemplateCurlyInString);
+        let test = TestProgram::for_rule_without_builtins(NoTemplateCurlyInString);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -122,7 +122,7 @@ const x = "${a} + ${b} = ${c}"
 
     #[test]
     fn test_allows_template_literal() {
-        let test = TestProgram::for_rule(NoTemplateCurlyInString);
+        let test = TestProgram::for_rule_without_builtins(NoTemplateCurlyInString);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -135,7 +135,7 @@ const x = `Hello ${name}`
 
     #[test]
     fn test_allows_regular_string() {
-        let test = TestProgram::for_rule(NoTemplateCurlyInString);
+        let test = TestProgram::for_rule_without_builtins(NoTemplateCurlyInString);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -148,7 +148,7 @@ const x = "Hello world"
 
     #[test]
     fn test_allows_dollar_without_brace() {
-        let test = TestProgram::for_rule(NoTemplateCurlyInString);
+        let test = TestProgram::for_rule_without_builtins(NoTemplateCurlyInString);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -161,7 +161,7 @@ const x = "Price: $100"
 
     #[test]
     fn test_allows_incomplete_template() {
-        let test = TestProgram::for_rule(NoTemplateCurlyInString);
+        let test = TestProgram::for_rule_without_builtins(NoTemplateCurlyInString);
         let result = test.lint_ast(
             "test.ds",
             r#"

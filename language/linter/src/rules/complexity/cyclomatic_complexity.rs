@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_detects_high_complexity() {
-        let test = TestProgram::for_rule(CyclomaticComplexity)
+        let test = TestProgram::for_rule_without_builtins(CyclomaticComplexity)
             .with_options(|options| options.max_cyclomatic_complexity = 20);
         // create a function with 21+ decision points to exceed limit of 20
         let result = test.lint_ast(
@@ -197,7 +197,7 @@ function complex(a: bool) {
 
     #[test]
     fn test_allows_simple_function() {
-        let test = TestProgram::for_rule(CyclomaticComplexity);
+        let test = TestProgram::for_rule_without_builtins(CyclomaticComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -214,7 +214,7 @@ function simple(x: int32): int32 {
 
     #[test]
     fn test_counts_logical_operators() {
-        let test = TestProgram::for_rule(CyclomaticComplexity)
+        let test = TestProgram::for_rule_without_builtins(CyclomaticComplexity)
             .with_options(|opts| opts.max_cyclomatic_complexity = 20);
         let result = test.lint_ast(
             "test.ds",
@@ -230,7 +230,7 @@ function manyConditions(a: bool): bool {
 
     #[test]
     fn test_counts_match_arms() {
-        let test = TestProgram::for_rule(CyclomaticComplexity);
+        let test = TestProgram::for_rule_without_builtins(CyclomaticComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -252,7 +252,7 @@ function manyMatches(x: int32): string {
 
     #[test]
     fn test_counts_ternary() {
-        let test = TestProgram::for_rule(CyclomaticComplexity);
+        let test = TestProgram::for_rule_without_builtins(CyclomaticComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -267,7 +267,7 @@ function nested(a: bool, b: bool): int32 {
 
     #[test]
     fn test_counts_try_catch() {
-        let test = TestProgram::for_rule(CyclomaticComplexity);
+        let test = TestProgram::for_rule_without_builtins(CyclomaticComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"

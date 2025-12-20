@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_equal_true_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -178,7 +178,7 @@ const result = x == true;
 
     #[test]
     fn test_equal_false_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -191,7 +191,7 @@ const result = x == false;
 
     #[test]
     fn test_not_equal_true_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -204,7 +204,7 @@ const result = x != true;
 
     #[test]
     fn test_not_equal_false_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -217,7 +217,7 @@ const result = x != false;
 
     #[test]
     fn test_strict_equal_true_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -230,7 +230,7 @@ const result = x === true;
 
     #[test]
     fn test_strict_not_equal_false_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -243,7 +243,7 @@ const result = x !== false;
 
     #[test]
     fn test_literal_on_left_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -256,7 +256,7 @@ const result = true == x;
 
     #[test]
     fn test_false_on_left_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -269,7 +269,7 @@ const result = false != x;
 
     #[test]
     fn test_non_boolean_comparison_allowed() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -282,7 +282,7 @@ const result = x == 42;
 
     #[test]
     fn test_boolean_variable_comparison_allowed() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -295,7 +295,7 @@ const result = x == y;
 
     #[test]
     fn test_in_if_condition_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -312,7 +312,7 @@ function foo(x: bool) {
 
     #[test]
     fn test_in_ternary_condition_detected() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -325,7 +325,7 @@ const result = (x == false) ? 1 : 2;
 
     #[test]
     fn test_fix_equal_true() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -343,7 +343,7 @@ const result = x;
 
     #[test]
     fn test_fix_equal_false() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -361,7 +361,7 @@ const result = !x;
 
     #[test]
     fn test_fix_not_equal_true() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -379,7 +379,7 @@ const result = !x;
 
     #[test]
     fn test_fix_not_equal_false() {
-        let test = TestProgram::for_rule(NoBooleanLiteralCompare);
+        let test = TestProgram::for_rule_without_builtins(NoBooleanLiteralCompare);
         let result = test.lint_ast(
             "test.ds",
             r#"

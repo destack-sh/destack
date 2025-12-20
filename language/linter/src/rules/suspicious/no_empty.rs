@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_block() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_without_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds", r#"
 {}
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_if_block() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_without_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -88,7 +88,7 @@ if (true) {}
 
     #[test]
     fn test_detects_empty_function_body() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_without_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -100,7 +100,7 @@ function foo() {}
 
     #[test]
     fn test_no_empty_with_content() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_without_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -113,7 +113,7 @@ function foo() {}
     #[test]
     fn test_no_empty_module_level() {
         // implicit module-level blocks should not trigger
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_without_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -125,7 +125,7 @@ let x = 1;
 
     #[test]
     fn test_no_empty_block_with_comment() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_without_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"

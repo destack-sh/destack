@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_detects_sequence_expression() {
-        let test = TestProgram::for_rule(NoSequences);
+        let test = TestProgram::for_rule_without_builtins(NoSequences);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -76,7 +76,7 @@ let x = (1, 2, 3);
 
     #[test]
     fn test_allows_function_calls_with_multiple_args() {
-        let test = TestProgram::for_rule(NoSequences);
+        let test = TestProgram::for_rule_without_builtins(NoSequences);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -88,7 +88,7 @@ foo(1, 2, 3);
 
     #[test]
     fn test_allows_array_literals() {
-        let test = TestProgram::for_rule(NoSequences);
+        let test = TestProgram::for_rule_without_builtins(NoSequences);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -100,7 +100,7 @@ let arr = [1, 2, 3];
 
     #[test]
     fn test_allows_destack_tuples() {
-        let test = TestProgram::for_rule(NoSequences);
+        let test = TestProgram::for_rule_without_builtins(NoSequences);
         // in .ds files, (1, 2) is a tuple, not a sequence
         let result = test.lint_ast(
             "test.ds",

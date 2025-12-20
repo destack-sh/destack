@@ -142,6 +142,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-single-element-tuple` | Destack | AST | ✓ | ✅ | Safe | Warn on single-element tuples that may be accidental |
 | `no-template-curly-in-string` | ESLint | AST | ✓ | ✅ | Safe | Disallow template literal placeholder syntax in regular strings |
 | `no-throw-literal` | ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow throwing literals instead of Error objects |
+| `no-unknown-rule-decorator` | Destack | AST | ✓ | 🔶 | None | Disallow unknown rule decorators |
 | `no-unexpected-multiline` | ESLint | AST | ✗ | 🔶 | Safe | Disallow confusing multiline expressions |
 | `no-unnecessary-clone` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Warn on cloning values that are not used afterward |
 | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type assertions that do not change the type |
@@ -258,6 +259,7 @@ Subjective preferences for consistent coding style.
 | `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type constituents made redundant by others |
 | `no-nested-template-literal` | SonarQube | AST | ✓ | ✅ | None | Disallow template literals nested inside template literals |
 | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow nested ternary expressions |
+| `no-switch` | Destack | AST | ✓ | 🔶 | Safe | Disallow switch statements (in favor of match) |
 | `no-object-constructor` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow `new Object()` |
 | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | Safe | Disallow ternary operators when simpler alternatives exist |
 | `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow unnecessary template literal expressions |
@@ -287,7 +289,7 @@ Subjective preferences for consistent coding style.
 | `prefer-pattern-over-guard` | Destack | AST | ✓ | ✅ | Safe | Suggest moving match guards into the pattern |
 | `prefer-precise-numeric` | Destack | AST | ✓ | ✅ | Suggestion | Prefer precise numeric types over `number` |
 | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✗ | 🔶 | Suggestion | Require Error objects in Promise rejections |
-| `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Safe | Prefer `?` operator over manual Result matching |
+| `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Safe | Prefer `?` propagation over manual Result matching |
 | `prefer-range-contains` | Destack | AST | ✓ | ✅ | Safe | Prefer range contains method over comparison chains |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Safe | Prefer range literals over C-style for loops |
 | `prefer-result-type` | Destack | DIR | ✓ | 🔶 | Suggestion | Prefer `Result<T, E>` return type over throwing |

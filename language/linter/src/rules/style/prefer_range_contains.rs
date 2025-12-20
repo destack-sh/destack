@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn test_range_check_detected() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -213,7 +213,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_range_check_greater_less_or_equal() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -229,7 +229,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_range_in_allowed() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -245,7 +245,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_different_variables_allowed() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -262,7 +262,7 @@ function foo(x: int32, y: int32) {
 
     #[test]
     fn test_single_comparison_allowed() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -278,7 +278,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_two_lower_bounds_allowed() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -295,7 +295,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_two_upper_bounds_allowed() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -312,7 +312,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_or_expression_allowed() {
-        let test = TestProgram::for_rule(PreferRangeContains);
+        let test = TestProgram::for_rule_without_builtins(PreferRangeContains);
         let result = test.lint_ast(
             "test.ds",
             r#"

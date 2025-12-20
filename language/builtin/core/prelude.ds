@@ -1,8 +1,18 @@
-// reflection
 export { Type, typeOf } from "./reflection/type.ds";
-export { deprecated, intrinsic, inline, unroll } from "./reflection/decorator.ds";
+export {
+    deprecated,
+    experimental,
+    allow,
+    warn,
+    deny,
+    forbid,
+    expect,
+    intrinsic,
+    inline,
+    noinline,
+    unroll,
+} from "./reflection/decorator.ds";
 
-// operator: arithmetic
 export {
     Add,
     Subtract,
@@ -20,14 +30,9 @@ export {
     ShiftRightUnsigned,
     Concatenate,
 } from "./operator/arithmetic.ds";
-
-// operator: comparison
 export { Equal, Compare, Ordering } from "./operator/comparison.ds";
-
-// operator: subscript
+export { Display, Debug } from "./operator/string.ds";
 export { Index, IndexSet, Deref, DerefSet } from "./operator/subscript.ds";
-
-// operator: control
 export {
     Try,
     ControlFlow,

@@ -1,5 +1,5 @@
 /// A refinement (constraint) on a type.
-///
+/// 
 /// Refinements describe constraints that must be satisfied by values of a type.
 /// They contain both the constraint metadata (for introspection) and a validation
 /// function (for runtime checking).
@@ -8,7 +8,7 @@ struct Refinement {
     kind: string,
 
     /// Arguments to the refinement.
-    ///
+    /// 
     /// - `min(5)` => args: [5]
     /// - `pattern(/^\d+$/)` => args: [/^\d+$/]
     args: readonly unknown[],
@@ -22,29 +22,13 @@ struct Refinement {
 }
 
 /// Well-known refinement kinds.
-///
+/// 
 /// The compiler recognizes these and can generate optimized validation code.
 /// Custom refinements use string kinds and rely on the `validate` function.
-type RefinementKind =
-    // Numeric
-    | "min"
-    | "max"
-    | "positive"
-    | "negative"
-    | "nonZero"
-    | "multipleOf"
-    // Sequence length
-    | "minLength"
-    | "maxLength"
-    | "length"
-    | "nonEmpty"
-    // String patterns
-    | "pattern"
-    | "email"
-    | "url"
-    | "uuid"
-    | "datetime"
-    | "date"
-    | "time"
-    | string
-;
+type RefinementKind = 
+// Numeric
+"min" | "max" | "positive" | "negative" | "nonZero" | "multipleOf";
+// Sequence length
+"minLength" | "maxLength" | "length" | "nonEmpty";
+// String patterns
+"pattern" | "email" | "url" | "uuid" | "datetime" | "date" | "time" | string;

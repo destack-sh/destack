@@ -75,35 +75,35 @@ mod tests {
 
     #[test]
     fn test_detects_todo_comment() {
-        let test = TestProgram::for_rule(NoWarningComments);
+        let test = TestProgram::for_rule_without_builtins(NoWarningComments);
         let result = test.lint_ast("test.ts", "// TODO: fix this");
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_detects_fixme_comment() {
-        let test = TestProgram::for_rule(NoWarningComments);
+        let test = TestProgram::for_rule_without_builtins(NoWarningComments);
         let result = test.lint_ast("test.ts", "// FIXME: broken");
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_detects_hack_comment() {
-        let test = TestProgram::for_rule(NoWarningComments);
+        let test = TestProgram::for_rule_without_builtins(NoWarningComments);
         let result = test.lint_ast("test.ts", "/* HACK: temporary workaround */");
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_case_insensitive() {
-        let test = TestProgram::for_rule(NoWarningComments);
+        let test = TestProgram::for_rule_without_builtins(NoWarningComments);
         let result = test.lint_ast("test.ts", "// todo: lowercase");
         test.result(result).assert_lint("no-warning-comments");
     }
 
     #[test]
     fn test_allows_normal_comment() {
-        let test = TestProgram::for_rule(NoWarningComments);
+        let test = TestProgram::for_rule_without_builtins(NoWarningComments);
         let result = test.lint_ast("test.ts", "// this is a regular comment");
         test.result(result).assert_no_lint("no-warning-comments");
     }

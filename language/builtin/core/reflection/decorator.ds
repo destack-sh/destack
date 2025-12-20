@@ -1,22 +1,22 @@
 /// Metadata about a decorator applied to a declaration.
 struct DecoratorInfo {
     /// The name of the decorator.
-    ///
+    /// 
     /// For `@foo`, this is "foo".
     /// For `@foo.bar`, this is "foo.bar".
     name: string,
 
     /// Arguments passed to the decorator.
-    ///
+    /// 
     /// For `@foo(1, "hello")`, this is [1, "hello"].
     /// For `@foo` (no call), this is [].
     args: readonly unknown[],
 
     /// The decorator value itself.
-    ///
+    /// 
     /// - For function decorators: the decorator function
     /// - For newtype decorators: the newtype descriptor
-    ///
+    /// 
     /// This allows runtime code to check decorator types:
     /// ```
     /// if (decorator.value === deprecated) {
@@ -27,101 +27,101 @@ struct DecoratorInfo {
 }
 
 /// Marks something as deprecated.
-///
+/// 
 /// When used as a decorator, emits a compile-time warning.
 /// The message is included in the warning and accessible at runtime.
-///
+/// 
 /// ```
 /// @deprecated("use newAPI instead")
 /// function oldAPI() { }
 /// ```
-newtype deprecated = (string,) | ();
+newtype deprecated = (string,) | ();;
 
 /// Marks something as experimental/unstable.
-///
+/// 
 /// ```
 /// @experimental
 /// function newFeature() { }
 /// ```
-newtype experimental = (string,) | ();
+newtype experimental = (string,) | ();;
 
 /// Allow some diagnostic.
 /// ```
 /// @allow(E001)
 /// function oldAPI() { }
 /// ```
-newtype allow = (string,) | ();
+newtype allow = (string,) | ();;
 
 /// Warn on some diagnostic.
 /// ```
 /// @warn(E001)
 /// function oldAPI() { }
 /// ```
-newtype warn = (string,) | ();
+newtype warn = (string,) | ();;
 
 /// Deny some diagnostic with an error.
 /// ```
 /// @deny(E001)
 /// function oldAPI() { }
 /// ```
-newtype deny = (string,) | ();
+newtype deny = (string,) | ();;
 
 /// Forbid some diagnostic (cannot be allowed later).
 /// ```
 /// @forbid(E001)
 /// function oldAPI() { }
 /// ```
-newtype forbid = (string,) | ();
+newtype forbid = (string,) | ();;
 
 /// Expect some diagnostic.
 /// ```
 /// @expect(E001)
 /// function oldAPI() { }
 /// ```
-newtype expect = (string,) | ();
+newtype expect = (string,) | ();;
 
 /// Compiler intrinsic marker.
-///
+/// 
 /// Marks a declaration as implemented by the compiler.
 /// The declaration body (if any) is ignored; the compiler provides the implementation.
-///
+/// 
 /// ```
 /// @intrinsic
 /// declare function typeOf<T>(value: T): Type<T>;
 /// ```
-newtype intrinsic = ();
+newtype intrinsic = ();;
 
 /// Inline hint for the optimizer.
-///
+/// 
 /// Suggests that this function should be inlined at call sites.
 /// The compiler may ignore this hint based on heuristics.
-///
+/// 
 /// ```
 /// @inline
 /// function add(a: int, b: int): int { a + b }
 /// ```
-newtype inline = ();
+newtype inline = ();;
 
 /// No-inline hint for the optimizer.
-///
+/// 
 /// Prevents this function from being inlined.
-///
+/// 
 /// ```
 /// @noinline
 /// function complexCalculation() { ... }
 /// ```
-newtype noinline = ();
+newtype noinline = ();;
 
 /// Loop unroll hint for the optimizer.
-///
+/// 
 /// Suggests that a loop should be unrolled. Can optionally specify
 /// the unroll factor.
-///
+/// 
 /// ```
 /// @unroll
 /// for (let i = 0; i < 4; i++) { }
-///
+/// 
 /// @unroll(4)
 /// for (let i = 0; i < 16; i++) { }
 /// ```
-newtype unroll = (int,) | ();
+newtype unroll = (int,) | ();;

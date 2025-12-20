@@ -63,28 +63,28 @@ mod tests {
 
     #[test]
     fn test_detects_non_null_assertion() {
-        let test = TestProgram::for_rule(NoNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoNonNullAssertion);
         let result = test.lint_ast("test.ts", "let x = foo!;");
         test.result(result).assert_lint("no-non-null-assertion");
     }
 
     #[test]
     fn test_detects_chained_non_null_assertion() {
-        let test = TestProgram::for_rule(NoNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoNonNullAssertion);
         let result = test.lint_ast("test.ts", "let x = foo!.bar;");
         test.result(result).assert_lint("no-non-null-assertion");
     }
 
     #[test]
     fn test_allows_optional_chaining() {
-        let test = TestProgram::for_rule(NoNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoNonNullAssertion);
         let result = test.lint_ast("test.ts", "let x = foo?.bar;");
         test.result(result).assert_no_lint("no-non-null-assertion");
     }
 
     #[test]
     fn test_allows_regular_access() {
-        let test = TestProgram::for_rule(NoNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoNonNullAssertion);
         let result = test.lint_ast("test.ts", "let x = foo.bar;");
         test.result(result).assert_no_lint("no-non-null-assertion");
     }

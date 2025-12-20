@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_detects_namespace() {
-        let test = TestProgram::for_rule(NoNamespace);
+        let test = TestProgram::for_rule_without_builtins(NoNamespace);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -77,7 +77,7 @@ namespace MyNamespace {
 
     #[test]
     fn test_allows_module_exports() {
-        let test = TestProgram::for_rule(NoNamespace);
+        let test = TestProgram::for_rule_without_builtins(NoNamespace);
         let result = test.lint_ast(
             "test.ts",
             r#"

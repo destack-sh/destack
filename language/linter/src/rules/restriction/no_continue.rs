@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_detects_continue() {
-        let test = TestProgram::for_rule(NoContinue);
+        let test = TestProgram::for_rule_without_builtins(NoContinue);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -78,7 +78,7 @@ for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_detects_labeled_continue() {
-        let test = TestProgram::for_rule(NoContinue);
+        let test = TestProgram::for_rule_without_builtins(NoContinue);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -94,7 +94,7 @@ outer: for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_allows_break() {
-        let test = TestProgram::for_rule(NoContinue);
+        let test = TestProgram::for_rule_without_builtins(NoContinue);
         let result = test.lint_ast(
             "test.ts",
             r#"

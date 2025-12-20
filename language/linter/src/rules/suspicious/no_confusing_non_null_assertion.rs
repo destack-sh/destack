@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_detects_non_null_before_optional_chain() {
-        let test = TestProgram::for_rule(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -142,7 +142,7 @@ const x = foo!.?bar
 
     #[test]
     fn test_detects_non_null_after_optional_chain() {
-        let test = TestProgram::for_rule(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -155,7 +155,7 @@ const x = foo?.bar!
 
     #[test]
     fn test_allows_separate_non_null_and_optional() {
-        let test = TestProgram::for_rule(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -169,7 +169,7 @@ const y = baz?.qux
 
     #[test]
     fn test_allows_simple_non_null() {
-        let test = TestProgram::for_rule(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"

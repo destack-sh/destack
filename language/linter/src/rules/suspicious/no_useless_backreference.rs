@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_detects_nonexistent_backreference() {
-        let test = TestProgram::for_rule(NoUselessBackreference);
+        let test = TestProgram::for_rule_without_builtins(NoUselessBackreference);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -173,7 +173,7 @@ const re = /(a)\2/
 
     #[test]
     fn test_detects_forward_reference() {
-        let test = TestProgram::for_rule(NoUselessBackreference);
+        let test = TestProgram::for_rule_without_builtins(NoUselessBackreference);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -185,7 +185,7 @@ const re = /\1(a)/
 
     #[test]
     fn test_allows_valid_backreference() {
-        let test = TestProgram::for_rule(NoUselessBackreference);
+        let test = TestProgram::for_rule_without_builtins(NoUselessBackreference);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -198,7 +198,7 @@ const re = /(a)\1/
 
     #[test]
     fn test_allows_multiple_valid_backreferences() {
-        let test = TestProgram::for_rule(NoUselessBackreference);
+        let test = TestProgram::for_rule_without_builtins(NoUselessBackreference);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -211,7 +211,7 @@ const re = /(a)(b)\1\2/
 
     #[test]
     fn test_allows_regex_without_backreference() {
-        let test = TestProgram::for_rule(NoUselessBackreference);
+        let test = TestProgram::for_rule_without_builtins(NoUselessBackreference);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -224,7 +224,7 @@ const re = /hello/
 
     #[test]
     fn test_allows_escaped_digit_in_char_class() {
-        let test = TestProgram::for_rule(NoUselessBackreference);
+        let test = TestProgram::for_rule_without_builtins(NoUselessBackreference);
         let result = test.lint_ast(
             "test.ds",
             r#"

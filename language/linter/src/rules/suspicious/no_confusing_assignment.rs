@@ -95,28 +95,28 @@ mod tests {
 
     #[test]
     fn test_detects_assignment_in_if() {
-        let test = TestProgram::for_rule(NoConfusingAssignment);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingAssignment);
         let result = test.lint_ast("test.ts", "if (x = 1) {}");
         test.result(result).assert_lint("no-confusing-assignment");
     }
 
     #[test]
     fn test_detects_assignment_in_while() {
-        let test = TestProgram::for_rule(NoConfusingAssignment);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingAssignment);
         let result = test.lint_ast("test.ts", "while (x = next()) {}");
         test.result(result).assert_lint("no-confusing-assignment");
     }
 
     #[test]
     fn test_detects_single_paren_assignment() {
-        let test = TestProgram::for_rule(NoConfusingAssignment);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingAssignment);
         let result = test.lint_ast("test.ts", "if ((x = 1)) {}");
         test.result(result).assert_lint("no-confusing-assignment");
     }
 
     #[test]
     fn test_allows_double_paren_assignment() {
-        let test = TestProgram::for_rule(NoConfusingAssignment);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingAssignment);
         let result = test.lint_ast("test.ts", "if (((x = 1))) {}");
         test.result(result)
             .assert_no_lint("no-confusing-assignment");
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn test_allows_comparison() {
-        let test = TestProgram::for_rule(NoConfusingAssignment);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingAssignment);
         let result = test.lint_ast("test.ts", "if (x === 1) {}");
         test.result(result)
             .assert_no_lint("no-confusing-assignment");
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_allows_boolean_condition() {
-        let test = TestProgram::for_rule(NoConfusingAssignment);
+        let test = TestProgram::for_rule_without_builtins(NoConfusingAssignment);
         let result = test.lint_ast("test.ts", "if (x) {}");
         test.result(result)
             .assert_no_lint("no-confusing-assignment");

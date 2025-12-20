@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::is_constant_expression;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -21,17 +22,6 @@ declare_lint! {
     "Disallow constant expressions in conditions"
 }
 
-fn is_constant_expression(tree: &ast::NodeTree, expr: &ast::Expression) -> bool {
-    match expr {
-        ast::Expression::ScalarLiteral(_) => true,
-        ast::Expression::Parenthesized { expression } => {
-            is_constant_expression(tree, tree.get(*expression))
-        }
-        ast::Expression::Unary { right, .. } => is_constant_expression(tree, tree.get(*right)),
-        _ => false,
-    }
-}
-
 impl LintRule for NoConstantCondition {
     fn meta(&self) -> &'static crate::LintMeta {
         NoConstantCondition::meta()
@@ -47,7 +37,7 @@ impl LintRule for NoConstantCondition {
                 _ => continue,
             };
             let condition = ctx.tree.get(condition_id);
-            if is_constant_expression(ctx.tree, condition) {
+            if is_constant_expression(ctx, condition) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -76,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_detects_if_true() {
-        let test = TestProgram::for_rule(NoConstantCondition);
+        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -88,7 +78,7 @@ if (true) { foo(); }
 
     #[test]
     fn test_detects_if_false() {
-        let test = TestProgram::for_rule(NoConstantCondition);
+        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -100,7 +90,7 @@ if (false) { foo(); }
 
     #[test]
     fn test_detects_while_true() {
-        let test = TestProgram::for_rule(NoConstantCondition);
+        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -112,7 +102,7 @@ while (true) { foo(); }
 
     #[test]
     fn test_detects_if_number() {
-        let test = TestProgram::for_rule(NoConstantCondition);
+        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -124,7 +114,7 @@ if (1) { foo(); }
 
     #[test]
     fn test_no_constant_with_variable() {
-        let test = TestProgram::for_rule(NoConstantCondition);
+        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +126,7 @@ if (x) { foo(); }
 
     #[test]
     fn test_no_constant_with_comparison() {
-        let test = TestProgram::for_rule(NoConstantCondition);
+        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"

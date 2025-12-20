@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_detects_string_concat() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ const greeting = "Hello " + name
 
     #[test]
     fn test_detects_concat_with_string_on_right() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -170,7 +170,7 @@ const greeting = name + " says hi"
 
     #[test]
     fn test_allows_template_literal() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -182,7 +182,7 @@ const greeting = `Hello ${name}`
 
     #[test]
     fn test_allows_number_addition() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -194,7 +194,7 @@ const sum = a + b
 
     #[test]
     fn test_allows_two_strings() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         // two string literals should be caught by no-useless-concat
         let result = test.lint_ast(
             "test.ds",
@@ -207,7 +207,7 @@ const x = "hello" + "world"
 
     #[test]
     fn test_fix_string_on_left() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -225,7 +225,7 @@ const greeting = `Hello ${name}`;
 
     #[test]
     fn test_fix_string_on_right() {
-        let test = TestProgram::for_rule(PreferTemplate);
+        let test = TestProgram::for_rule_without_builtins(PreferTemplate);
         let result = test.lint_ast(
             "test.ds",
             r#"

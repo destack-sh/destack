@@ -76,49 +76,49 @@ mod tests {
 
     #[test]
     fn test_detects_magic_integer() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", "let x = 42;");
         test.result(result).assert_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_detects_magic_float() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", "let x = 3.14;");
         test.result(result).assert_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_zero() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", "let x = 0;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_one() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", "let x = 1;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_negative_one() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", "let x = -1;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_two() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", "let x = 2;");
         test.result(result).assert_no_lint("no-magic-numbers");
     }
 
     #[test]
     fn test_allows_strings() {
-        let test = TestProgram::for_rule(NoMagicNumbers);
+        let test = TestProgram::for_rule_without_builtins(NoMagicNumbers);
         let result = test.lint_ast("test.ts", r#"let x = "hello";"#);
         test.result(result).assert_no_lint("no-magic-numbers");
     }

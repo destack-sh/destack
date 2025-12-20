@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_data_only_class_detected() {
-        let test = TestProgram::for_rule(PreferStruct);
+        let test = TestProgram::for_rule_without_builtins(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +115,7 @@ class Point {
 
     #[test]
     fn test_class_with_method_allowed() {
-        let test = TestProgram::for_rule(PreferStruct);
+        let test = TestProgram::for_rule_without_builtins(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -134,7 +134,7 @@ class Point {
 
     #[test]
     fn test_class_with_extends_allowed() {
-        let test = TestProgram::for_rule(PreferStruct);
+        let test = TestProgram::for_rule_without_builtins(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -148,7 +148,7 @@ class Point3D extends Point {
 
     #[test]
     fn test_struct_not_affected() {
-        let test = TestProgram::for_rule(PreferStruct);
+        let test = TestProgram::for_rule_without_builtins(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -163,7 +163,7 @@ struct Point {
 
     #[test]
     fn test_empty_class_allowed() {
-        let test = TestProgram::for_rule(PreferStruct);
+        let test = TestProgram::for_rule_without_builtins(PreferStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"

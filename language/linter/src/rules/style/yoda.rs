@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_detects_yoda_equality() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -124,7 +124,7 @@ if ("red" === color) {
 
     #[test]
     fn test_detects_yoda_strict_equality() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -138,7 +138,7 @@ if (5 === x) {
 
     #[test]
     fn test_detects_yoda_less_than() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -152,7 +152,7 @@ if (10 < x) {
 
     #[test]
     fn test_detects_yoda_null_check() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -166,7 +166,7 @@ if (null === value) {
 
     #[test]
     fn test_allows_normal_comparison() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -180,7 +180,7 @@ if (color === "red") {
 
     #[test]
     fn test_allows_variable_comparison() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -194,7 +194,7 @@ if (a === b) {
 
     #[test]
     fn test_allows_literal_to_literal() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -208,7 +208,7 @@ if (5 === 5) {
 
     #[test]
     fn test_allows_non_comparison_operators() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -220,7 +220,7 @@ let x = 5 + a;
 
     #[test]
     fn test_fix_yoda_equality() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -236,7 +236,7 @@ if (x === 5) { y() }
 
     #[test]
     fn test_fix_yoda_less_than() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -252,7 +252,7 @@ if (x > 10) { y() }
 
     #[test]
     fn test_fix_yoda_greater_than_or_equal() {
-        let test = TestProgram::for_rule(Yoda);
+        let test = TestProgram::for_rule_without_builtins(Yoda);
         let result = test.lint_ast(
             "test.ds",
             r#"

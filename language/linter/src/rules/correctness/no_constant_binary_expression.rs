@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_detects_logical_or_same_literal() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -193,7 +193,7 @@ true || true;
 
     #[test]
     fn test_detects_logical_and_same_literal() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -206,7 +206,7 @@ false && false;
 
     #[test]
     fn test_detects_new_object_comparison() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -219,7 +219,7 @@ new Foo() === new Foo();
 
     #[test]
     fn test_detects_object_literal_comparison() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -232,7 +232,7 @@ const x = {} === {};
 
     #[test]
     fn test_detects_array_literal_comparison() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -245,7 +245,7 @@ const x = {} === {};
 
     #[test]
     fn test_detects_string_plus_null() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -258,7 +258,7 @@ const x = {} === {};
 
     #[test]
     fn test_detects_string_plus_undefined() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -271,7 +271,7 @@ const x = {} === {};
 
     #[test]
     fn test_allows_different_literals_or() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -284,7 +284,7 @@ true || false;
 
     #[test]
     fn test_allows_variable_comparison() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -299,7 +299,7 @@ x === y;
 
     #[test]
     fn test_allows_string_concatenation() {
-        let test = TestProgram::for_rule(NoConstantBinaryExpression);
+        let test = TestProgram::for_rule_without_builtins(NoConstantBinaryExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"

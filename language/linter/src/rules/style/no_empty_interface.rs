@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_interface() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -139,7 +139,7 @@ interface Empty {}
 
     #[test]
     fn test_detects_single_extends() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -151,7 +151,7 @@ interface Child extends Parent {}
 
     #[test]
     fn test_allows_interface_with_members() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -165,7 +165,7 @@ interface Foo {
 
     #[test]
     fn test_allows_multiple_extends() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -177,7 +177,7 @@ interface Combined extends A, B {}
 
     #[test]
     fn test_allows_extends_with_members() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -191,7 +191,7 @@ interface Child extends Parent {
 
     #[test]
     fn test_fix_empty_interface() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -209,7 +209,7 @@ type Empty = { };
 
     #[test]
     fn test_fix_single_extends() {
-        let test = TestProgram::for_rule(NoEmptyInterface);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyInterface);
         let result = test.lint_ast(
             "test.ts",
             r#"

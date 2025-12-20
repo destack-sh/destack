@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_detects_useless_escape() {
-        let test = TestProgram::for_rule(NoUselessEscape);
+        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -121,7 +121,7 @@ const x = "hel\lo"
 
     #[test]
     fn test_allows_valid_escapes() {
-        let test = TestProgram::for_rule(NoUselessEscape);
+        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -133,7 +133,7 @@ const x = "hello\nworld"
 
     #[test]
     fn test_allows_quote_escape() {
-        let test = TestProgram::for_rule(NoUselessEscape);
+        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -145,7 +145,7 @@ const x = "say \"hello\""
 
     #[test]
     fn test_allows_backslash_escape() {
-        let test = TestProgram::for_rule(NoUselessEscape);
+        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"

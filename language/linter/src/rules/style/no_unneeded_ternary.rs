@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_detects_true_false() {
-        let test = TestProgram::for_rule(NoUnneededTernary);
+        let test = TestProgram::for_rule_without_builtins(NoUnneededTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -134,7 +134,7 @@ const result = x ? true : false
 
     #[test]
     fn test_detects_false_true() {
-        let test = TestProgram::for_rule(NoUnneededTernary);
+        let test = TestProgram::for_rule_without_builtins(NoUnneededTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -146,7 +146,7 @@ const result = x ? false : true
 
     #[test]
     fn test_allows_useful_ternary() {
-        let test = TestProgram::for_rule(NoUnneededTernary);
+        let test = TestProgram::for_rule_without_builtins(NoUnneededTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ const result = x ? "yes" : "no"
 
     #[test]
     fn test_allows_if_else() {
-        let test = TestProgram::for_rule(NoUnneededTernary);
+        let test = TestProgram::for_rule_without_builtins(NoUnneededTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -171,7 +171,7 @@ const result = if (x) { true } else { false }
 
     #[test]
     fn test_fix_true_false() {
-        let test = TestProgram::for_rule(NoUnneededTernary);
+        let test = TestProgram::for_rule_without_builtins(NoUnneededTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -189,7 +189,7 @@ const result = x;
 
     #[test]
     fn test_fix_false_true() {
-        let test = TestProgram::for_rule(NoUnneededTernary);
+        let test = TestProgram::for_rule_without_builtins(NoUnneededTernary);
         let result = test.lint_ast(
             "test.ds",
             r#"

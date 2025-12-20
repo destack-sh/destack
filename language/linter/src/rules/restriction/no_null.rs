@@ -63,28 +63,28 @@ mod tests {
 
     #[test]
     fn test_detects_null_literal() {
-        let test = TestProgram::for_rule(NoNull);
+        let test = TestProgram::for_rule_without_builtins(NoNull);
         let result = test.lint_ast("test.ts", "const x = null;");
         test.result(result).assert_lint("no-null");
     }
 
     #[test]
     fn test_detects_null_comparison() {
-        let test = TestProgram::for_rule(NoNull);
+        let test = TestProgram::for_rule_without_builtins(NoNull);
         let result = test.lint_ast("test.ts", "if (x === null) {}");
         test.result(result).assert_lint("no-null");
     }
 
     #[test]
     fn test_allows_undefined() {
-        let test = TestProgram::for_rule(NoNull);
+        let test = TestProgram::for_rule_without_builtins(NoNull);
         let result = test.lint_ast("test.ts", "const x = undefined;");
         test.result(result).assert_no_lint("no-null");
     }
 
     #[test]
     fn test_allows_optional() {
-        let test = TestProgram::for_rule(NoNull);
+        let test = TestProgram::for_rule_without_builtins(NoNull);
         let result = test.lint_ast("test.ts", "const x: string | undefined = undefined;");
         test.result(result).assert_no_lint("no-null");
     }

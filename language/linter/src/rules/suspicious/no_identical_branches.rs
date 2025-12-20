@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expressions_equal;
+use crate::rules::common::is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -41,7 +41,7 @@ impl LintRule for NoIdenticalBranches {
             };
 
             // check if then and else are identical
-            if expressions_equal(ctx, *then_expression, *else_expression) {
+            if is_equal(ctx, *then_expression, *else_expression) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_detects_identical_branches() {
-        let test = TestProgram::for_rule(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -87,7 +87,7 @@ if (x) {
 
     #[test]
     fn test_allows_different_branches() {
-        let test = TestProgram::for_rule(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -103,7 +103,7 @@ if (x) {
 
     #[test]
     fn test_allows_if_without_else() {
-        let test = TestProgram::for_rule(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -117,7 +117,7 @@ if (x) {
 
     #[test]
     fn test_detects_identical_ternary() {
-        let test = TestProgram::for_rule(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_detects_any_type_annotation() {
-        let test = TestProgram::for_rule(NoExplicitAny);
+        let test = TestProgram::for_rule_without_builtins(NoExplicitAny);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -75,7 +75,7 @@ let x: any = 42;
 
     #[test]
     fn test_detects_any_parameter() {
-        let test = TestProgram::for_rule(NoExplicitAny);
+        let test = TestProgram::for_rule_without_builtins(NoExplicitAny);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -87,7 +87,7 @@ function foo(x: any) {}
 
     #[test]
     fn test_detects_any_return_type() {
-        let test = TestProgram::for_rule(NoExplicitAny);
+        let test = TestProgram::for_rule_without_builtins(NoExplicitAny);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -99,7 +99,7 @@ function foo(): any { return 42; }
 
     #[test]
     fn test_allows_unknown() {
-        let test = TestProgram::for_rule(NoExplicitAny);
+        let test = TestProgram::for_rule_without_builtins(NoExplicitAny);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -111,7 +111,7 @@ let x: unknown = 42;
 
     #[test]
     fn test_allows_specific_types() {
-        let test = TestProgram::for_rule(NoExplicitAny);
+        let test = TestProgram::for_rule_without_builtins(NoExplicitAny);
         let result = test.lint_ast(
             "test.ts",
             r#"

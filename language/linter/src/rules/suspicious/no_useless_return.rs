@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_detects_bare_return_at_end() {
-        let test = TestProgram::for_rule(NoUselessReturn);
+        let test = TestProgram::for_rule_without_builtins(NoUselessReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -114,7 +114,7 @@ function foo() {
 
     #[test]
     fn test_allows_return_with_value() {
-        let test = TestProgram::for_rule(NoUselessReturn);
+        let test = TestProgram::for_rule_without_builtins(NoUselessReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -128,7 +128,7 @@ function foo() {
 
     #[test]
     fn test_allows_no_return() {
-        let test = TestProgram::for_rule(NoUselessReturn);
+        let test = TestProgram::for_rule_without_builtins(NoUselessReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -143,7 +143,7 @@ function foo() {
     #[test]
     fn test_allows_early_return() {
         // early return is not useless
-        let test = TestProgram::for_rule(NoUselessReturn);
+        let test = TestProgram::for_rule_without_builtins(NoUselessReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -160,7 +160,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_fix_removes_useless_return() {
-        let test = TestProgram::for_rule(NoUselessReturn);
+        let test = TestProgram::for_rule_without_builtins(NoUselessReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"

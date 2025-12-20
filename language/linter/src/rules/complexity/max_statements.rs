@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_statements() {
-        let test = TestProgram::for_rule(MaxStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxStatements);
         // create a function with 51 statements (over default 50)
         let mut source = String::from("function foo() {\n");
         for i in 0..51 {
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_allows_few_statements() {
-        let test = TestProgram::for_rule(MaxStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxStatements);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -113,7 +113,7 @@ function foo() {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule(MaxStatements);
+        let test = TestProgram::for_rule_without_builtins(MaxStatements);
         // create a function with exactly 50 statements
         let mut source = String::from("function foo() {\n");
         for i in 0..50 {

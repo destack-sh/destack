@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_detects_struct() {
-        let test = TestProgram::for_rule(NoStruct);
+        let test = TestProgram::for_rule_without_builtins(NoStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -79,7 +79,7 @@ struct Point {
 
     #[test]
     fn test_detects_exported_struct() {
-        let test = TestProgram::for_rule(NoStruct);
+        let test = TestProgram::for_rule_without_builtins(NoStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -94,7 +94,7 @@ export struct Point {
 
     #[test]
     fn test_allows_class() {
-        let test = TestProgram::for_rule(NoStruct);
+        let test = TestProgram::for_rule_without_builtins(NoStruct);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -108,7 +108,7 @@ class MyClass {
 
     #[test]
     fn test_allows_interface() {
-        let test = TestProgram::for_rule(NoStruct);
+        let test = TestProgram::for_rule_without_builtins(NoStruct);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -122,7 +122,7 @@ interface MyInterface {
 
     #[test]
     fn test_allows_type() {
-        let test = TestProgram::for_rule(NoStruct);
+        let test = TestProgram::for_rule_without_builtins(NoStruct);
         let result = test.lint_ast(
             "test.ts",
             r#"
