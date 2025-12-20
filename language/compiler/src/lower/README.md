@@ -8,10 +8,14 @@ This document describes how Destack's high-level semantic representation (elabor
 
 ## Objectives
 
-The overarching goal is **Rust performance with TypeScript semantics and ergonomics**:
-- **Best case:** Rust-tier performance (zero-cost abstractions, no GC pauses)
-- **Average case:** Go-tier performance (efficient GC, good concurrency)
-- **Worst case:** Still faster than optimized JS runtimes (V8, JSC, SpiderMonkey)
+The overarching goal is **Rust performance with TypeScript semantics and ergonomics**.
+These are targets, not guarantees; actual performance depends on workload and optimization maturity:
+
+- **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
+- **Average case (target):** Go-tier performance (efficient GC, good concurrency)
+- **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
+
+AOT compilation provides predictable performance without warmup, but V8's speculative optimization can beat static compilation on some dynamic patterns. Our advantage is consistency and control.
 
 Specifically, Destack lowering enables:
 1. **TypeScript semantics**: TS and Destack code behaves identically in native
@@ -71,11 +75,52 @@ MIR is generated per-target with target-specific decisions:
 
 # Interoperability
 
-Destack aims for full TypeScript compatibility, but some dynamic JavaScript features are incompatible with ahead-of-time compilation. These features are restricted or forbidden in native targets (but fully supported in JS codegen targets).
+Destack aims for full **modern TypeScript** compatibility, and some dynamic JavaScript features are incompatible with ahead-of-time compilation. Dynamic features that interfere with AOT compilation are restricted or forbidden in native targets (but fully supported in JS codegen targets). Fortunately, most modern TS code already avoids such highly dynamic patterns as a best practice.
 
 ## Restrictions
 
+JavaScript, as originally designed, is a highly dynamic language with dynamic scopes and litte typing guarantees. Over time, like in many dynamic languages, much of the community has come around to a restricted, statically typed variant of the language in modern TypeScript.
+
+Critically, Destack aims to enable native compilation of **modern TypeScript**, not of arbitrary JavaScript.
+There are other projects that attempt AOT JavaScript (with varying degrees of success), and such untyped dynamic code is explicitly out of scope and cannot be compiled.
+
+### Exception Handling
+
+**On native targets, `throw` aborts the process.** There is no stack unwinding, no catching.
+This is caught by the compiler, and misusing `throw` is a compile error.
+The divergence on exception handling is the most significant semantic difference between Destack and traditional JavaScript/TypeScript:
+
+```
+// this works in JS/TS:
+try {
+    throw new Error("oops")
+} catch (e) {
+    console.log("caught")  // executes
+}
+
+// On native Destack: process aborts at throw, catch never runs
+```
+
+**Why:** Zero-cost error handling. Exception tables and stack unwinding add overhead to every function call. By making `throw` an abort, the happy path has no exception-handling cost.
+
+**What to use instead:** `Result<T, E>` with the `?` operator for recoverable errors:
+
+```
+function readConfig(): Result<Config, Error> {
+    const text = readFile("config.json")?    // propagates error
+    Result.ok(parseConfig(text))
+}
+```
+
+**JS target:** `throw` works normally for compatibility. You can still take advantage of Destack's many other features while keeping exceptions around at no extra cost.
+
+**Interop:** Exceptions don't cross FFI boundaries. If calling JS that throws (via WASM), wrap it on the JS side to return a Result-like object. See [FFI Error Handling](#ffi-error-handling).
+
+See [Errors and Exceptions](#errors-and-exceptions) for full details.
+
 ### Forbidden Features
+
+Fully dynamic features are forbidden in native targets.
 
 | Feature | Reason | Alternative |
 |---------|--------|-------------|
@@ -86,16 +131,16 @@ Destack aims for full TypeScript compatibility, but some dynamic JavaScript feat
 | `__proto__` | Prototype chain mutation | Fixed type hierarchy |
 | `Object.setPrototypeOf()` | Prototype chain mutation | Fixed type hierarchy |
 
-These features are already discouraged in modern TypeScript (strict mode forbids `with`; `eval` breaks type safety).
+Some of these features are already discouraged in modern TypeScript (strict mode forbids `with`; `eval` breaks type safety), others have solid alternatives as espoused by our standard library.
 
 ### Object.prototype Methods
 
-Object prototype methods that depend on the prototype chain are generally not available:
+Object prototype methods that depend on a dynamic prototype chain are generally not available:
 
 | Method | Status | Alternative |
 |--------|--------|-------------|
 | `toString()` | Supported | Via `Display` interface |
-| `valueOf()` | Supported | Via `ValueOf` interface |
+| `valueOf()` | Not needed | Implicit coercion discouraged; use explicit conversion |
 | `hasOwnProperty(key)` | Limited | Static keys only; use `in` operator or RTTI |
 | `constructor` | Aliased | `obj.constructor` becomes `typeOf(obj)` |
 | `isPrototypeOf()` | Forbidden | Use `instanceof` with RTTI |
@@ -153,15 +198,24 @@ const u = cache[id] // desugars to cache.index(id)
 
 This works transparently because `Map<K, V>` implements `Index<K, V>` and `IndexSet<K, V>`.
 
-**Trade-offs:**
-- Object literal syntax `{ [key]: value }` becomes `Map.from([[key, value]])`
-- `Object.keys()` / `Object.entries()` become `map.keys()` / `map.entries()`
-- Different performance characteristics (hash map vs JS object shape)
-- `JSON.stringify(record)` serializes as JSON object (not Map), but the internal
-  representation differs from JS
+**What works:**
+- `record[key]` and `record[key] = value` (via Index/IndexSet)
+- `record.keys()`, `record.values()`, `record.entries()` (Map methods)
+- `for (const [k, v] of record)` (Map is iterable)
+- `JSON.stringify(record)` (serializes as JSON object, not Map)
+- `key in record` (desugars to `record.has(key)`)
 
-**Recommendation:** For data that needs JSON serialization, prefer explicit struct
-types over `Record<K, V>`. Structs have predictable serialization on all targets.
+**What doesn't work (compile error on native):**
+- `for (const k in record)` (use `for (const k of record.keys())`)
+- `{...record}` spread (use `Map.from(record)` or explicit copying)
+- `Object.keys(record)` (use `record.keys()`)
+- `Object.assign(record, other)` (use `record.merge(other)` or loop)
+
+**Trade-offs:**
+- Hash map instead of JS object shape (different performance characteristics)
+- Slightly different API surface
+
+**Recommendation:** For data with known keys, prefer explicit struct types. Structs have fixed layout, predictable serialization, and identical behavior on all targets. Use `Record<K, V>` only when you genuinely need dynamic keys.
 
 ### JSON
 
@@ -212,6 +266,56 @@ For dynamic symbol-keyed collections, use `Map<symbol, T>`:
 const sym = Symbol("dynamic")
 const map = Map<symbol, string>.new()
 map[sym] = "value"  // explicit Map, not object property
+```
+
+### Array Methods
+
+Array prototype methods work as expected. They're monomorphized per element type:
+
+```
+const nums: int[] = [1, 2, 3]
+nums.map(x => x * 2)      // monomorphized: Array_int_map
+nums.filter(x => x > 1)   // monomorphized: Array_int_filter
+nums.reduce((a, b) => a + b, 0)
+```
+
+Methods that take callbacks receive closures. The closure type is also monomorphized:
+- `map<U>((T) => U)` generates code for the specific `T` and `U`
+- `sort((T, T) => int)` generates a comparator call for the specific `T`
+
+Mutating methods (`push`, `pop`, `splice`, `sort`) work in-place on the array's backing storage.
+
+### this Binding
+
+JavaScript's `this` binding rules are preserved:
+
+**Arrow functions** capture `this` lexically (from enclosing scope):
+```
+class Counter {
+    count = 0
+    increment = () => { this.count++ }  // this is always Counter instance
+}
+```
+Lowers to a closure that captures `self` in its environment.
+
+**Regular functions/methods** receive `this` as implicit first parameter:
+```
+class Counter {
+    count = 0
+    increment() { this.count++ }  // this passed at call site
+}
+```
+Lowers to `@Counter_increment(self)`.
+
+**Standalone functions** have `this = undefined` (strict mode):
+```
+function standalone() { return this }  // undefined
+```
+
+`.call()`, `.apply()`, `.bind()` work by manipulating the implicit `this` parameter:
+```
+fn.call(obj, arg)   // lowers to: fn(obj, arg)
+fn.bind(obj)        // lowers to: closure capturing obj as this
 ```
 
 ---
@@ -445,15 +549,10 @@ const small: bigint = 42n          // inline: 0x0000000000000055 (42 << 1 | 1)
 const large: bigint = 2n ** 100n   // heap: pointer to limb array
 ```
 
-**Semantics:**
-- `===` compares values, not identity (bigints are value types semantically) // nocheckin: not TS consistent!
+The native `bigint` has TypeScript semantics:
+- `===` compares values, not identity (bigints are value types semantically, same as JS/TS)
 - Small bigints compare inline; large bigints compare limb-by-limb
-- Overflow from small to large is automatic and transparent
-
-MIR representation:
-- Type: `i64` (tagged pointer)
-- Operations: runtime library calls that handle both cases
-- The runtime checks the tag bit and dispatches accordingly
+- Overflow from small to large is automatic and transparent (same layout size)
 
 ### Symbol
 
@@ -465,7 +564,7 @@ const symbol = Symbol("description")
 ```
 
 MIR representation:
-- `symbol_id: uint64` (unique per-symbol, assigned at creation)
+- `symbolId: uint64` (unique per-symbol, assigned at creation)
 - Description string stored separately in symbol table
 
 Symbol comparison is just integer comparison.
@@ -590,7 +689,18 @@ Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference
 | Equality | By value (`==` compares properties) | By reference (unless `Equal` implemented) |
 | Extends | No | Yes |
 | Implements | Yes | Yes |
-| Virtual | None (all calls static) | Methods can be virtual |
+| Virtual | None (all calls static) | Methods virtual by default |
+
+**Virtual method dispatch for classes:**
+- All class methods are virtual by default (like TypeScript/JavaScript prototype methods)
+- Private methods (`#method`) use direct dispatch (not inheritable)
+- **Devirtualization**: The optimizer analyzes the class hierarchy and converts virtual calls to direct calls when safe:
+  - No subclasses exist in the compilation unit → direct call
+  - Method not overridden by any subclass → direct call
+  - Receiver type is exactly known (not a supertype) → direct call
+
+The `final` keyword on methods or classes is an API contract ("you may not override/extend"), not an optimization hint. 
+For whole-program compilation, the optimizer already knows what's overridden. `final` matters for libraries where downstream users could extend your classes.
 
 Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof` or `typeOf`.
 
@@ -958,7 +1068,7 @@ The native RTTI representation is a compact binary format that maps to the high-
 `Type<T>` API from `@destack-sh/core/reflection` (see `language/builtin/core/reflection/type.ds`):
 
 ```
-// high-level API (source-level, what users see)
+// high-level API (source-level, what users see, see language/builtin/core/reflection/type.ds)
 newtype Type<T> = StructType<T> | ClassType<T> | EnumType<T> | ...
 
 struct StructType<T> {
@@ -970,26 +1080,26 @@ struct StructType<T> {
     description?: string
 }
 
-// Native RTTI (binary format, what the runtime uses)
+// native RTTI (binary format, what the runtime uses)
 struct TypeDescriptor {
     id: uint32                  // index into RTTI table
-    type_id_offset: uint32      // offset to TypeId string ("myapp/models:User")
-    name_offset: uint32         // offset to name string ("User")
+    typeIdOffset: uint32        // offset to TypeId string ("myapp/models:User")
+    nameOffset: uint32          // offset to name string ("User")
     size: uint32                // sizeof(T) in bytes
     alignment: uint16           // alignof(T) in bytes
     kind: uint8                 // maps to Type<T> discriminant
     flags: uint8                // nominal, sealed, etc.
-    parent_id: uint32           // for class inheritance (0 if none)
-    vtable_ptr: &VTable         // for virtual dispatch (null if none)
-    properties_offset: uint32   // offset to PropertyDescriptor array
-    property_count: uint16      // number of properties
-    decorators_offset: uint32   // offset to DecoratorDescriptor array
-    decorator_count: uint16     // number of decorators
+    parentId: uint32            // for class inheritance (0 if none)
+    vtablePtr: &VTable          // for virtual dispatch (null if none)
+    propertiesOffset: uint32    // offset to PropertyDescriptor array
+    propertyCount: uint16       // number of properties
+    decoratorsOffset: uint32    // offset to DecoratorDescriptor array
+    decoratorCount: uint16      // number of decorators
 }
 
 struct PropertyDescriptor {
-    name_offset: uint32         // offset into string table
-    type_id: uint32             // TypeDescriptor id for property type
+    nameOffset: uint32          // offset into string table
+    typeId: uint32              // TypeDescriptor id for property type
     offset: uint32              // byte offset within parent struct
     flags: uint8                // optional, readonly, etc.
 }
@@ -1325,7 +1435,7 @@ block0:
 #### Explicit Reference Counting
 
 For scenarios where GC pauses are unacceptable or deterministic destruction is needed,
-use the stdlib `Rc<T>` and `Arc<T>` types (like Rust):
+use the standard library `Rc<T>` and `Arc<T>` types (like Rust):
 
 ```
 const shared = Rc.new(data)       // explicit RC, single-threaded
@@ -1365,25 +1475,63 @@ Used for temporary values, small structs.
 
 ## Ownership and Value Semantics
 
-Destack's ownership model is inspired by **Mojo** and **Swift**: automatic by default, explicit when needed.
-Unlike Rust (where ownership is mandatory), Destack defaults to GC-managed memory with opt-in value semantics.
+Destack covers the spectrum from TS to Go to Rust: implicit GC by default, explicit ownership when needed.
+Most code uses the default. Performance-critical code adds hints. Systems code opts into explicit control.
 
-### Ownership Spectrum
+### Ownership Options
 
-| Modifier | Semantics | When to Use |
-|----------|-----------|-------------|
-| `T` | Automatic (default) | Most code, let the compiler decide |
-| `&T` | Immutable reference | Read-only shared access |
-| `&mut T` | Mutable reference | In-place modification |
-| `^T` | Value (copy) | Force value semantics, stack allocation |
-| `^var T` | Mutable value | Force mutable value semantics |
+To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC-managed references, primitives are values).
 
-The default (`T`) uses managed allocation with automatic optimization:
+| Modifier | Semantics | After `foo(x)` | Who cleans up? |
+|----------|-----------|----------------|----------------|
+| `T` | GC-managed (implicit) | `x` still valid | GC |
+| `&T` | Borrow (read-only) | `x` still valid | Original owner |
+| `&mut T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
+| `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
+| `^var T` | Ownership transfer (mutable) | `x` **invalid** | New owner (or GC fallback) |
+
+For the default (`T`), the compiler optimizes automatically:
 - Small values are passed by copy (registers)
 - Large values are GC-managed references
 - Escape analysis promotes heap to stack when safe
 
-### Explicit References (&T)
+### Explicit Ownership (^T)
+
+`T` is not owned by anyone, it is implicitly GC-managed and freed whenever all references to it are gone.
+Many people can hold and mutate `T` as long as they like.
+`^T` is for when there should only be one owner.
+Accordingly, when calling a function with `^T`, the caller gives up ownership of the value to the callee.
+After the transfer, the original binding is invalid:
+
+```
+function consume(data: ^LargeData) { ... }
+const d = LargeData { ... }
+consume(^d)    // ownership transferred
+print(d.value) // ERROR: use after ownership transfer
+```
+
+Use-after-move is an error by default (suppressible to warning).
+
+When a `^T` value goes out of scope without being transferred, it is **dropped**:
+
+```
+function process() {
+    const data = ^LargeData { ... }  // we own this
+    doWork(&data)                     // borrow it
+    // data dropped here (destructor called)
+}
+```
+
+Types can implement `Drop` to customize cleanup. This enables RAII patterns.
+
+**Ownership transfer enables:**
+- Clear API contracts ("this function takes ownership")
+- RAII (files close, locks release, resources clean up)
+- Arena integration (transfer into arena)
+- Optimization (compiler knows no aliasing)
+- Stack allocation without GC overhead
+
+### Explicit Borrowing (&T)
 
 `&T` and `&mut T` are explicit references (pointers) to data. They lower directly to pointer types in MIR:
 
@@ -1403,24 +1551,92 @@ function @mutate(v0: ref<Point>) -> void { ... }  ; mutability tracked separatel
 - Share read access (`&T`) across multiple callers
 - In-place modification (`&mut T`) when the caller retains ownership
 
-**References vs managed allocation:**
-The default `T` is a GC-managed reference internally. Explicit `&T` is the same pointer type in MIR, but with different *source-level semantics*:
-- `T`: The value is owned by someone (GC-managed); safe to hold indefinitely
-- `&T`: A borrow; the referent must outlive the reference (compile-time checked)
+For native targets, both `T` and `&T` lower to `ref<T>` in MIR. The difference is source-level semantics and compiler hints.
 
-For native targets, both are `ref<T>` in MIR. The difference is enforced by the borrow checker before lowering.
+### Borrow Hints
 
-### Explicit Values (^T)
+Destack's `&T` and `&mut T` are **not** Rust-style borrow checking. They're opt-in hints.
 
-`^T` forces value/copy semantics. The data is copied when passed, and the callee gets its own copy:
+**What ownership hints are for:**
+- API documentation ("this function borrows, doesn't own")
+- Optimization hints (compiler can assume no aliasing for `&mut`)
+- Warnings for obvious mistakes (returning `&T` to local variable)
 
+**What ownership hints are not for:**
+- A full lifetime system
+- A memory safety mechanism (GC handles that)
+- Required for correctness
+
+The compiler warns on obvious violations:
 ```
-function consume(data: ^LargeData) { ... }
-const d = LargeData { ... }
-consume(^d)    // d is copied (or moved if last use)
+function bad(): &Point {
+    const p = Point { x: 1, y: 2 }
+    &p  // warning: returning reference to local variable
+}
 ```
 
-This enables stack allocation and avoids GC overhead for temporary values.
+But it won't catch complex lifetime issues that Rust's borrow checker handles. That's fine: GC ensures memory safety regardless. The borrow hints are useful for:
+- Performance-critical code where you want to avoid accidental copies
+- API design where you want to communicate intent
+- Catching simple "oops, returned a reference to a local" bugs
+
+### Arenas and Explicit Ownership
+
+For "systems" programming (compilers, game engines, databases), you need more memory control.
+
+**Arenas:** Allocate many objects, free all at once.
+```
+const arena = Arena<AstNode>.new()
+
+// allocate into arena - returns &AstNode (reference into arena)
+const expr = arena.alloc(BinaryExpr { left, op, right })
+const stmt = arena.alloc(IfStmt { cond, then, else_ })
+
+// all allocations freed when arena drops
+arena.drop()
+```
+
+Arena-allocated values are `&T` references - they live as long as the arena. No individual GC tracking, no per-object overhead.
+
+**No-GC regions:** Forbid GC allocations in performance-critical code.
+```
+@noManaged
+function processFrame(entities: &Entity[]) {
+    // compiler error if any GC allocation happens here
+    // forces you to use stack, arena, or pre-allocated buffers
+}
+```
+
+**Ownership transfer:** Use `^T` for explicit ownership transfer.
+```
+function takeOwnership(node: ^AstNode) {
+    // caller gives up ownership, we're responsible for cleanup
+}
+
+const node = AstNode { ... }
+takeOwnership(^node)  // ownership transferred
+print(node.value)     // ERROR: use after ownership transfer
+```
+
+**The spectrum in practice:**
+```
+// Default: GC, simple, like TypeScript
+function simple(): User {
+    User { name: "Alice" }  // GC-managed, just works
+}
+
+// Performance: hints, no unnecessary copies
+function transform(data: &LargeData): &Result {
+    // borrow input, return reference to field
+    &data.result
+}
+
+// Systems: arena, no GC
+function compileModule(arena: &Arena<Node>, source: string): &Module {
+    // all AST nodes allocated in arena
+    // zero GC during compilation
+}
+```
 
 ### Copy Elision and Move Semantics
 
@@ -1502,7 +1718,7 @@ consume(^d)                    // last use of d → moved, not copied
 #### Explicit Reference Counting
 
 For scenarios where GC pauses are unacceptable or deterministic destruction is needed,
-use the stdlib `Rc<T>` and `Arc<T>` types:
+use the standard library `Rc<T>` and `Arc<T>` types:
 
 ```
 const shared = new Rc(data)        // explicit RC, single-threaded
@@ -1559,7 +1775,7 @@ Use `Result` for anything the caller might want to handle.
 
 ### Result Types
 
-The stdlib provides `Result<T, E>` as a discriminated union.
+The standard library provides `Result<T, E>` as a discriminated union.
 From Lower's perspective, `Result` is just a tagged union with no special handling.
 
 ```
@@ -1830,6 +2046,35 @@ function add(a: int32, b: int32): int32 { a + b }
 ```
 
 Generates with `CallingConvention::C` and `Linkage::Export`.
+
+### FFI Error Handling
+
+**Exceptions don't cross FFI boundaries.** This is simple and matches how Rust works.
+
+**C libraries:** Return error codes. Wrap in Result:
+```
+@extern("C")
+declare function fopen(path: &uint8, mode: &uint8): &FILE?
+
+function openFile(path: string): Result<&FILE, IOError> {
+    const f = fopen(path.cstr(), "r".cstr())
+    if (f == null) { Result.err(IOError.fromErrno()) }
+    else { Result.ok(f) }
+}
+```
+
+**WASM/JS interop:** If importing JS that might throw, wrap it on the JS side:
+```js
+// JS wrapper returns Result-like object
+export function safeParse(text) {
+    try { return { ok: true, value: JSON.parse(text) } }
+    catch (e) { return { ok: false, error: e.message } }
+}
+```
+
+**C++ exceptions:** Catch internally, return error codes.
+
+**Destack libraries:** Use Result. Since you have the source (like Rust crates), no FFI boundary.
 
 ## DIR -> MIR Mapping
 

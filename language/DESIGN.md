@@ -537,42 +537,83 @@ Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first mat
 
 ## Ownership
 
-TypeScript doesn't distinguish references from values—everything is implicitly reference-counted _or_ copied purely based on type.
-Destack adds opt-in explicit control over three orthogonal aspects of ownership:
+TypeScript doesn't distinguish references from values in its type system, everything is implicitly GC-managed or copied purely based on type.
+Destack adds opt-in explicit control, enabling a spectrum from TypeScript simplicity to Rust-level control.
 
-### Value Ownership
+### Ownership Modifiers
 
-Control whether data is passed by reference or by value:
-
+In addition to the default `T`, there are four other ownership options:
 ```
-T            // automatic (TypeScript behavior)
-&T           // reference (shared access)
-^T           // value (copy semantics)
-```
-
-### Mutability Ownership
-
-Control whether bindings can be mutated:
-
-```
-&const T     // immutable reference
-&mut T       // mutable reference
-^const T     // immutable value
-^var T       // mutable value
+T            // automatic (TypeScript behavior, implicitly GC-managed)
+&T           // borrow (read-only reference)
+&mut T       // borrow (mutable reference)
+^T           // ownership transfer (caller gives up ownership)
+^mut T       // ownership transfer (explicitly mutable)
 ```
 
-### Dispatch Behavior
+### Ownership Semantics
 
-Control how polymorphic calls are dispatched:
+When you transfer ownership with `^T`, reusing the original value is an error:
 
 ```
-&T             // automatic dispatch
-&implements T  // explicit dynamic interface dispatch
-&extends T     // explicit dynamic class dispatch
+const node = AstNode { ... }
+consume(^node)    // ownership transferred
+print(node.value) // ERROR: use after ownership transfer
 ```
 
-Explicit dispatch enables devirtualization and other optimizations when the compiler can prove static dispatch is safe.
-It's closer to Mojo's approach: explicit control when you need it, automatic behavior when you don't.
+When a `^T` value is no longer used without being transferred, it is **dropped** (destructor called):
+
+```
+function process() {
+    const data = ^LargeData { ... }  // we own this
+    doWork(&data)                     // borrow it
+    // data dropped here → destructor called
+}
+```
+
+This enables RAII patterns (files close, locks release, resources clean up).
+Types can implement `Drop` to customize cleanup behavior.
+
+### Returning References
+
+Functions can return borrowed references (`&T`). The compiler warns on obvious mistakes like returning a reference to a local variable, but does not enforce full lifetime tracking—GC ensures memory safety regardless.
+
+```
+function get(container: &Container): &Item {
+    &container.item  // ok: borrowing from input
+}
+
+function bad(): &Point {
+    const p = Point { x: 1, y: 2 }
+    &p  // WARNING: returning reference to local variable
+}
+```
+
+### Project-Level Control
+
+Configure strictness in `dsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "noImplicitManagedType": true,   // require ^T or &T on types
+    "noImplicitManagedValue": true,  // require ^x or &x on values
+    "noManaged": true,               // forbid GC entirely
+    "noRuntime": true                // forbid runtime features
+  }
+}
+```
+
+### Function-Level Control
+
+Use decorators for per-function restrictions:
+
+```
+@noManaged
+function processFrame(entities: &Entity[]) {
+    // compiler error if any GC allocation happens here
+}
+```
 
 <sub>See [test/fixtures/mdtest/ownership/](test/fixtures/mdtest/ownership/) for specification tests.</sub>
 
