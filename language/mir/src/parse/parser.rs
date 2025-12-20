@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    BinaryOperator, Block, CastKind, Constant, Function, Global, GlobalInitializer, Instruction,
-    Intrinsic, Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase,
-    Terminator, Type, TypedValue, UnaryOperator, Value,
+    BinaryOperator, Block, CastKind, Constant, Field, Function, Global, GlobalInitializer,
+    Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
+    Ownership, SwitchCase, Terminator, Type, TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -749,15 +749,16 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            // intrinsics: intrinsic.{name}(args)
+            // intrinsics: intrinsic.{name}(args) or intrinsic.{name}(args, ordering)
             _ if opcode_text.starts_with("intrinsic.") => {
                 let opcode_start = opcode.start;
                 let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
-                let arguments = self.parse_call_arguments()?;
+                let (arguments, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
                 Instruction::Intrinsic {
                     destination: Some(destination),
                     intrinsic,
                     arguments,
+                    ordering,
                 }
             }
 
@@ -820,15 +821,16 @@ impl<'a> Parser<'a> {
                 Instruction::RawFree { pointer }
             }
 
-            // void intrinsics: intrinsic.{name}(args)
+            // void intrinsics: intrinsic.{name}(args) or intrinsic.{name}(args, ordering)
             _ if opcode_text.starts_with("intrinsic.") => {
                 let opcode_start = opcode.start;
                 let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
-                let arguments = self.parse_call_arguments()?;
+                let (arguments, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
                 Instruction::Intrinsic {
                     destination: None,
                     intrinsic,
                     arguments,
+                    ordering,
                 }
             }
 
@@ -1039,6 +1041,27 @@ impl<'a> Parser<'a> {
                 let result = self.parse_type()?;
                 Type::FunctionPointer { parameters, result }
             }
+            TokenType::Struct => {
+                self.bump();
+                self.eat_token(TokenType::OpenBrace)?;
+                let mut fields = Vec::new();
+                let mut offset = 0u32;
+                while !self.peek_token(TokenType::CloseBrace) {
+                    let ty = self.parse_type()?;
+                    let field = Field {
+                        name: None,
+                        ty,
+                        offset,
+                    };
+                    fields.push(self.tree.insert(field));
+                    offset += 1; // simplified offset, real offset would need size info
+                    if !self.eat_token_maybe(TokenType::Comma) {
+                        break;
+                    }
+                }
+                self.eat_token(TokenType::CloseBrace)?;
+                Type::Struct { fields }
+            }
             _ => {
                 return Err(ParseError::unexpected("type", token_ty, token_start));
             }
@@ -1124,6 +1147,45 @@ impl<'a> Parser<'a> {
         let args = self.parse_value_list()?;
         self.eat_token(TokenType::CloseParen)?;
         Ok(args)
+    }
+
+    /// Parse intrinsic arguments: (values...) or (values..., ordering) for atomics.
+    fn parse_intrinsic_arguments(
+        &mut self,
+        intrinsic: Intrinsic,
+    ) -> ParseResult<(Vec<Value>, Option<MemoryOrdering>)> {
+        self.eat_token(TokenType::OpenParen)?;
+
+        let mut values = Vec::new();
+        let mut ordering = None;
+
+        // parse values and potentially an ordering at the end
+        loop {
+            // check for closing paren
+            if self.peek_token(TokenType::CloseParen) {
+                break;
+            }
+
+            // try to parse a value
+            if self.peek_token(TokenType::Value) {
+                values.push(self.parse_value()?);
+                if !self.eat_token_maybe(TokenType::Comma) {
+                    break;
+                }
+            } else if intrinsic.requires_ordering() {
+                // try to parse a memory ordering identifier
+                let token = self.eat_token(TokenType::Identifier)?;
+                ordering = Some(token.text.parse::<MemoryOrdering>().map_err(|_| {
+                    ParseError::invalid(&format!("memory ordering '{}'", token.text), token.start)
+                })?);
+                break;
+            } else {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+        Ok((values, ordering))
     }
 
     /// Parse a comma-separated list of values.

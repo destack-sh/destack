@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+// nocheckin: deduplicate MIR operators vs intrinsics?
 /// Binary arithmetic/logic operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOperator {
@@ -163,6 +164,26 @@ impl BinaryOperator {
                 | BinaryOperator::FloatLessEqual
                 | BinaryOperator::FloatGreaterThan
                 | BinaryOperator::FloatGreaterEqual
+        )
+    }
+
+    /// Whether this is an integer arithmetic or bitwise operator.
+    pub fn is_integer(&self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::Add
+                | BinaryOperator::Subtract
+                | BinaryOperator::Multiply
+                | BinaryOperator::SignedDivide
+                | BinaryOperator::UnsignedDivide
+                | BinaryOperator::SignedRemainder
+                | BinaryOperator::UnsignedRemainder
+                | BinaryOperator::And
+                | BinaryOperator::Or
+                | BinaryOperator::Xor
+                | BinaryOperator::ShiftLeft
+                | BinaryOperator::ArithmeticShiftRight
+                | BinaryOperator::LogicalShiftRight
         )
     }
 }

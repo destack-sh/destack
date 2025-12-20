@@ -233,7 +233,8 @@ struct RefinedType<T> implements TypeBase<T> {
     refinements: readonly Refinement[],
 }
 
-/// A type descriptor - the union of all type variants.
+/// A type descriptor.
+/// Type is the union of all possible type variants.
 /// 
 /// This is the primary type for working with runtime type information.
 /// All variants implement `TypeBase<T>`, so common operations like

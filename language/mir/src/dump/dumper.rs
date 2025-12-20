@@ -489,6 +489,7 @@ impl<'a> Dumper<'a> {
                 destination,
                 intrinsic,
                 arguments,
+                ordering,
             } => {
                 if let Some(dst) = destination {
                     self.write_colored(&self.format_value(*dst), Color::Green);
@@ -501,6 +502,12 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
+                }
+                if let Some(ord) = ordering {
+                    if !arguments.is_empty() {
+                        self.write(", ");
+                    }
+                    self.write_colored(ord.to_str(), Color::Yellow);
                 }
                 self.write(")");
             }

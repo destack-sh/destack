@@ -255,3 +255,151 @@ block0(v0: i32, v1: i32):
 }"#,
     );
 }
+
+#[test]
+fn test_roundtrip_intrinsic_atomic() {
+    // atomic intrinsic with memory ordering
+    roundtrip(
+        r#"function @atomic_test(v0: rawptr<i32>) -> i32 {
+block0(v0: rawptr<i32>):
+    v1 = intrinsic.atomic_load(v0, acquire)
+    return v1
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_intrinsic_atomic_fence() {
+    // atomic fence with ordering
+    roundtrip(
+        r#"function @fence_test() -> void {
+block0:
+    intrinsic.atomic_fence(seq_cst)
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_field_operations() {
+    // field.get and field.set
+    roundtrip(
+        r#"function @field_test(v0: (i32, f64)) -> i32 {
+block0(v0: (i32, f64)):
+    v1 = field.get v0, 0
+    v2 = iconst 42i32
+    v3 = field.set v0, 0, v2
+    return v1
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_element_operations() {
+    // element.get and element.set
+    roundtrip(
+        r#"function @element_test(v0: [i32; 10], v1: i64) -> i32 {
+block0(v0: [i32; 10], v1: i64):
+    v2 = element.get v0, v1
+    v3 = iconst 42i32
+    v4 = element.set v0, v1, v3
+    return v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_load_store() {
+    // load and store through pointer
+    roundtrip(
+        r#"function @load_store_test(v0: rawptr<i32>) -> i32 {
+block0(v0: rawptr<i32>):
+    v1 = load v0
+    v2 = iconst 42i32
+    store v0, v2
+    return v1
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_unary_operations() {
+    // unary operations
+    roundtrip(
+        r#"function @unary_test(v0: i32, v1: f64) -> i32 {
+block0(v0: i32, v1: f64):
+    v2 = ineg v0
+    v3 = bnot v0
+    v4 = fneg v1
+    return v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_cast_operations() {
+    // cast operations
+    roundtrip(
+        r#"function @cast_test(v0: i32) -> i64 {
+block0(v0: i32):
+    v1 = sextend v0 -> i64
+    return v1
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_tuple_type() {
+    // tuple type in function signature
+    roundtrip(
+        r#"function @tuple_test(v0: (i32, f64, bool)) -> (i32, f64, bool) {
+block0(v0: (i32, f64, bool)):
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_array_type() {
+    // array type in function signature
+    roundtrip(
+        r#"function @array_test(v0: [i32; 10]) -> [i32; 10] {
+block0(v0: [i32; 10]):
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_function_pointer_type() {
+    // function pointer type
+    roundtrip(
+        r#"function @fnptr_test(v0: fn(i32, i32) -> i64) -> fn(i32, i32) -> i64 {
+block0(v0: fn(i32, i32) -> i64):
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_struct_type() {
+    // struct type in function signature
+    roundtrip(
+        r#"function @struct_test(v0: struct { i32, f64 }) -> struct { i32, f64 } {
+block0(v0: struct { i32, f64 }):
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_call_indirect() {
+    // call through function pointer
+    roundtrip(
+        r#"function @indirect_call_test(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call.indirect v0(v1)
+    return v2
+}"#,
+    );
+}

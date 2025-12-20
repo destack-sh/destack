@@ -6,8 +6,8 @@ use std::str::FromStr;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Constant, Function, Global, Intrinsic, Local, LocalNodeId, Node, NodeType,
-    Type, UnaryOperator, Value,
+    BinaryOperator, Constant, Function, Global, Intrinsic, Local, LocalNodeId, MemoryOrdering,
+    Node, NodeType, Type, UnaryOperator, Value,
 };
 
 /// Instructions produce SSA values and perform operations.
@@ -231,6 +231,8 @@ pub enum Instruction {
         intrinsic: Intrinsic,
         /// The arguments to pass.
         arguments: Vec<Value>,
+        /// Memory ordering for atomic operations (None for non-atomic intrinsics).
+        ordering: Option<MemoryOrdering>,
     },
 }
 
