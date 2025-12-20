@@ -4,7 +4,9 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatMirNode, Function, Global, Instruction, LocalNodeId, MirFormatter, Value};
+use crate::{
+    FormatMirNode, Function, Global, Instruction, LocalNodeId, MemoryOrdering, MirFormatter, Value,
+};
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
     fn format_node(
@@ -391,12 +393,13 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 intrinsic,
                 arguments,
+                ordering,
             } => {
                 if let Some(dst) = destination {
                     write!(f, [dst, space(), token("="), space()])?;
                 }
                 write!(f, [token("intrinsic."), token(intrinsic.to_str())])?;
-                format_value_list(arguments, f)
+                format_intrinsic_args(arguments, *ordering, f)
             }
         }
     }
@@ -430,6 +433,28 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
             write!(f, [token(","), space()])?;
         }
         write!(f, [val])?;
+    }
+    write!(f, [token(")")])
+}
+
+/// Format intrinsic arguments with optional memory ordering.
+fn format_intrinsic_args<'a>(
+    values: &[Value],
+    ordering: Option<MemoryOrdering>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("(")])?;
+    for (i, val) in values.iter().enumerate() {
+        if i > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [val])?;
+    }
+    if let Some(ord) = ordering {
+        if !values.is_empty() {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [token(ord.to_str())])?;
     }
     write!(f, [token(")")])
 }

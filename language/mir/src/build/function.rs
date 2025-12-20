@@ -1,9 +1,9 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, Constant, Function, Global, Instruction, Intrinsic,
-    Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue,
-    UnaryOperator, Value,
+    AllocationMode, BinaryOperator, Block, CastKind, Constant, Function, Global, Instruction,
+    Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership,
+    Terminator, Type, TypedValue, UnaryOperator, Value,
 };
 
 use super::Variable;
@@ -627,6 +627,54 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
+    // instruction builders: aggregates
+
+    /// Extract a field from a struct or tuple.
+    pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FieldGet {
+            destination,
+            aggregate,
+            index,
+        });
+        destination
+    }
+
+    /// Insert a value into a struct or tuple field.
+    pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FieldSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        });
+        destination
+    }
+
+    /// Extract an element from an array.
+    pub fn element_get(&mut self, array: Value, index: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ElementGet {
+            destination,
+            array,
+            index,
+        });
+        destination
+    }
+
+    /// Insert a value into an array element.
+    pub fn element_set(&mut self, array: Value, index: Value, value: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ElementSet {
+            destination,
+            array,
+            index,
+            value,
+        });
+        destination
+    }
+
     // instruction builders: allocation
 
     /// Allocate a managed (runtime-tracked) struct.
@@ -705,6 +753,60 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
+    /// Call through a function pointer.
+    pub fn call_indirect(&mut self, callee: Value, arguments: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::CallIndirect {
+            destination: Some(destination),
+            callee,
+            arguments,
+        });
+        destination
+    }
+
+    /// Call through a function pointer with no return value.
+    pub fn call_indirect_void(&mut self, callee: Value, arguments: Vec<Value>) {
+        self.insert_instruction(Instruction::CallIndirect {
+            destination: None,
+            callee,
+            arguments,
+        });
+    }
+
+    // instruction builders: casts
+
+    /// Cast a value to a different type.
+    pub fn cast(&mut self, kind: CastKind, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Cast {
+            destination,
+            kind,
+            argument,
+            to_type,
+        });
+        destination
+    }
+
+    /// Bitcast (reinterpret bits, same size).
+    pub fn bitcast(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastKind::Bitcast, argument, to_type)
+    }
+
+    /// Truncate integer to smaller width.
+    pub fn trunc(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastKind::Truncate, argument, to_type)
+    }
+
+    /// Zero-extend integer to larger width.
+    pub fn zext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastKind::ZeroExtend, argument, to_type)
+    }
+
+    /// Sign-extend integer to larger width.
+    pub fn sext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+        self.cast(CastKind::SignExtend, argument, to_type)
+    }
+
     // instruction builders: intrinsics
 
     /// Call an intrinsic that returns a value.
@@ -714,6 +816,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: Some(destination),
             intrinsic,
             arguments,
+            ordering: None,
         });
         destination
     }
@@ -724,6 +827,39 @@ impl<'a> FunctionBuilder<'a> {
             destination: None,
             intrinsic,
             arguments,
+            ordering: None,
+        });
+    }
+
+    /// Call an atomic intrinsic that returns a value.
+    pub fn atomic_intrinsic(
+        &mut self,
+        intrinsic: Intrinsic,
+        arguments: Vec<Value>,
+        ordering: MemoryOrdering,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: Some(destination),
+            intrinsic,
+            arguments,
+            ordering: Some(ordering),
+        });
+        destination
+    }
+
+    /// Call an atomic intrinsic with no return value.
+    pub fn atomic_intrinsic_void(
+        &mut self,
+        intrinsic: Intrinsic,
+        arguments: Vec<Value>,
+        ordering: MemoryOrdering,
+    ) {
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: None,
+            intrinsic,
+            arguments,
+            ordering: Some(ordering),
         });
     }
 

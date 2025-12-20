@@ -2,10 +2,10 @@
 
 > NOTE #Incomplete: implement/mdtest ownership semantics
 
-Explicit control over references, values, and mutability.
+Explicit control over references, values, and ownership transfer.
 
 TypeScript doesn't distinguish references from values. Destack adds opt-in
-explicit control.
+explicit control, enabling a spectrum from TypeScript simplicity to Rust-level control.
 
 ## Subdirectories
 
@@ -17,29 +17,31 @@ explicit control.
 
 ## Overview
 
-### Value Ownership
+### Ownership Modifiers
 
 ```ds
-T            // automatic (TypeScript behavior)
-&T           // reference (shared access)
-^T           // value (copy semantics)
+T            // automatic (TypeScript behavior) - GC-managed
+&T           // borrow (read-only reference)
+&mut T       // borrow (mutable reference)
+^T           // ownership transfer (caller gives up ownership)
+^var T       // ownership transfer (explicitly mutable)
 ```
 
-### Mutability
+### Semantics
+
+| Modifier | After `foo(x)` | Who cleans up? |
+|----------|----------------|----------------|
+| `T` | `x` still valid | GC |
+| `&T` | `x` still valid | Original owner |
+| `&mut T` | `x` still valid | Original owner |
+| `^T` | `x` **invalid** | New owner |
+
+### Use-After-Move
 
 ```ds
-&const T     // immutable reference
-&mut T       // mutable reference
-^const T     // immutable value
-^var T       // mutable value
-```
-
-### Dispatch Behavior
-
-```ds
-&T             // automatic dispatch
-&implements T  // explicit dynamic interface dispatch
-&extends T     // explicit dynamic class dispatch
+const node = AstNode { ... }
+consume(^node)    // ownership transferred
+print(node.value) // ERROR: use after ownership transfer
 ```
 
 See [DESIGN.md](../../../../../DESIGN.md#ownership) for full documentation.
