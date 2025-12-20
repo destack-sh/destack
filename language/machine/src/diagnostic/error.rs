@@ -109,6 +109,12 @@ pub enum Error {
     ImmutableGlobalWrite {
         global: mir::LocalNodeId<mir::Global>,
     } = 22,
+
+    /// Abort intrinsic called.
+    Abort = 23,
+
+    /// Invalid arguments to intrinsic.
+    InvalidIntrinsicArguments { intrinsic: String } = 24,
 }
 
 impl Error {
@@ -170,6 +176,10 @@ impl Error {
             }
             Self::ImmutableGlobalWrite { global } => {
                 format!("cannot write to immutable global: {global:?}")
+            }
+            Self::Abort => "abort called".to_string(),
+            Self::InvalidIntrinsicArguments { intrinsic } => {
+                format!("invalid arguments to intrinsic: {intrinsic}")
             }
         }
     }

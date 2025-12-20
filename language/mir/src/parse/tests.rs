@@ -224,7 +224,7 @@ fn test_roundtrip_intrinsic_void() {
     roundtrip(
         r#"function @fence_test() -> void {
 block0:
-    intrinsic.atomic_fence()
+    intrinsic.atomic.fence()
     return
 }"#,
     );
@@ -250,7 +250,7 @@ fn test_roundtrip_intrinsic_overflow() {
     roundtrip(
         r#"function @add_overflow_test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add_overflow(v0, v1)
+    v2 = intrinsic.add.overflow(v0, v1)
     return v2
 }"#,
     );
@@ -262,7 +262,7 @@ fn test_roundtrip_intrinsic_atomic() {
     roundtrip(
         r#"function @atomic_test(v0: rawptr<i32>) -> i32 {
 block0(v0: rawptr<i32>):
-    v1 = intrinsic.atomic_load(v0, acquire)
+    v1 = intrinsic.atomic.load(v0, acquire)
     return v1
 }"#,
     );
@@ -274,7 +274,7 @@ fn test_roundtrip_intrinsic_atomic_fence() {
     roundtrip(
         r#"function @fence_test() -> void {
 block0:
-    intrinsic.atomic_fence(seq_cst)
+    intrinsic.atomic.fence(seq_cst)
     return
 }"#,
     );

@@ -938,7 +938,7 @@ pub struct TsCompilerOptions {
     /// Require explicit returns.
     pub no_implicit_returns: bool,
     /// No unchecked indexed access.
-    pub no_unchecked_indexed_access: bool,
+    pub no_indexed_access_unchecked: bool,
     /// No unused locals.
     pub no_unused_locals: bool,
     /// No unused parameters.
@@ -1035,7 +1035,7 @@ impl Default for TsCompilerOptions {
             no_fallthrough_cases_in_switch: false,
             no_implicit_override: false,
             no_implicit_returns: false,
-            no_unchecked_indexed_access: false,
+            no_indexed_access_unchecked: false,
             no_unused_locals: false,
             no_unused_parameters: false,
             no_property_access_from_index_signature: false,
@@ -1141,7 +1141,7 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
             no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(false),
             no_implicit_override: json.no_implicit_override.unwrap_or(false),
             no_implicit_returns: json.no_implicit_returns.unwrap_or(false),
-            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+            no_indexed_access_unchecked: json.no_indexed_access_unchecked.unwrap_or(false),
             no_unused_locals: json.no_unused_locals.unwrap_or(false),
             no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
             no_property_access_from_index_signature: json
@@ -1364,7 +1364,7 @@ pub struct TsCompilerOptionsJson {
 
     /// Enforce that indexed accesses are properly checked.
     /// <https://www.typescriptlang.org/tsconfig/#noUncheckedIndexedAccess>
-    pub no_unchecked_indexed_access: Option<bool>,
+    pub no_indexed_access_unchecked: Option<bool>,
 
     /// Report errors on unused locals.
     /// <https://www.typescriptlang.org/tsconfig/#noUnusedLocals>

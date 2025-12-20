@@ -3,6 +3,7 @@ mod frame;
 mod global;
 mod instruction;
 mod interpreter;
+mod intrinsic;
 mod operations;
 mod options;
 mod statistics;

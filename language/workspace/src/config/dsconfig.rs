@@ -134,8 +134,8 @@ impl DsConfig {
             || parent_compiler.no_fallthrough_cases_in_switch;
         compiler.exact_optional_property_types =
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
-        compiler.no_unchecked_indexed_access =
-            compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
+        compiler.no_indexed_access_unchecked =
+            compiler.no_indexed_access_unchecked || parent_compiler.no_indexed_access_unchecked;
 
         // inherit Destack-specific checking (stricter wins)
         compiler.no_any = compiler.no_any || parent_compiler.no_any;
@@ -341,7 +341,7 @@ pub struct DsConfigCompilerOptions {
     /// Exact optional property types.
     pub exact_optional_property_types: bool,
     /// Add `undefined` to index access.
-    pub no_unchecked_indexed_access: bool,
+    pub no_indexed_access_unchecked: bool,
 
     // Destack-specific checking
     /// Forbid use of `any` type.
@@ -437,7 +437,7 @@ impl Default for DsConfigCompilerOptions {
             no_implicit_override: true,
             no_fallthrough_cases_in_switch: true,
             exact_optional_property_types: false,
-            no_unchecked_indexed_access: false,
+            no_indexed_access_unchecked: false,
 
             // Destack-specific checking (all off by default, opt-in)
             no_any: false,
@@ -857,7 +857,7 @@ pub struct CompilerOptionsJson {
     /// Interpret optional property types as written (no implicit `undefined`).
     pub exact_optional_property_types: Option<bool>,
     /// Add `undefined` to index signature results (safer array access).
-    pub no_unchecked_indexed_access: Option<bool>,
+    pub no_indexed_access_unchecked: Option<bool>,
 
     // Destack-specific checking
     /// Forbid use of `any` type.
@@ -960,7 +960,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             no_implicit_override: json.no_implicit_override.unwrap_or(true),
             no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
-            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
+            no_indexed_access_unchecked: json.no_indexed_access_unchecked.unwrap_or(false),
 
             // Destack-specific checking
             no_any: json.no_any.unwrap_or(false),
