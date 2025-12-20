@@ -5,7 +5,7 @@ use destack_ast as ast;
 use destack_base::StringPool;
 use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageType, ModuleId,
-    PackageId, Uri,
+    ModuleVersion, PackageId, Uri,
 };
 use indexmap::IndexMap;
 
@@ -212,6 +212,7 @@ impl Program {
         let root_module_id = ModuleId::EPHEMERAL;
         let root_module_ast = ModuleAst::from_tree(
             root_module_id,
+            ModuleVersion::INITIAL,
             root_ast,
             Vec::new(),
             StringPool::new(),

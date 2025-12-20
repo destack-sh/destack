@@ -32,11 +32,10 @@ impl Compiler {
         // initialize MIR for this target
         {
             let mut module = module.write();
+            let version = module.version;
             // replace existing MIR for this target, if any
             module.mirs.retain(|mir| mir.target != target);
-            module
-                .mirs
-                .push(ModuleMir::new(module_id, target.to_string()));
+            module.mirs.push(ModuleMir::new(module_id, version, target));
         }
 
         Ok(())

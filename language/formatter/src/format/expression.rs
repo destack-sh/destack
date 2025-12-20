@@ -1428,7 +1428,14 @@ fn format_match_case<'ast>(
                     if let Some(guard) = guard {
                         write!(
                             f,
-                            [space(), Keyword::If, space(), token("("), *guard, token(")")]
+                            [
+                                space(),
+                                Keyword::If,
+                                space(),
+                                token("("),
+                                *guard,
+                                token(")")
+                            ]
                         )?;
                     }
                 }
@@ -1448,7 +1455,14 @@ fn format_match_case<'ast>(
                     if let Some(guard) = guard {
                         write!(
                             f,
-                            [space(), Keyword::If, space(), token("("), *guard, token(")")]
+                            [
+                                space(),
+                                Keyword::If,
+                                space(),
+                                token("("),
+                                *guard,
+                                token(")")
+                            ]
                         )?;
                     }
                 }

@@ -133,9 +133,8 @@ impl Parser {
             // match-kind
             MatchKind::Match => {
                 // pattern
-                let pattern = self.with_options(self.options.in_match_case(), |parser| {
-                    parser.eat_pattern()
-                })?;
+                let pattern =
+                    self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
 
                 // guard
                 let guard = if self.peek_keyword(Keyword::If).is_ok() {
@@ -236,7 +235,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Block, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral};
+    use destack_ast::{
+        Block, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral,
+    };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 

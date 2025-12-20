@@ -1199,7 +1199,11 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk the MatchSelector.
-fn walk_match_selector<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, selector: &MatchSelector) {
+fn walk_match_selector<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    selector: &MatchSelector,
+) {
     match selector {
         MatchSelector::Pattern { pattern, guard } => {
             let pattern_node = tree.get(*pattern);

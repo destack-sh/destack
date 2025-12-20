@@ -53,7 +53,11 @@ impl LintRule for PreferPatternOverGuard {
             };
 
             // only check pattern selectors with guards
-            let ast::MatchSelector::Pattern { pattern: pattern_id, guard } = selector else {
+            let ast::MatchSelector::Pattern {
+                pattern: pattern_id,
+                guard,
+            } = selector
+            else {
                 continue;
             };
             let Some(guard_expr_id) = guard else {

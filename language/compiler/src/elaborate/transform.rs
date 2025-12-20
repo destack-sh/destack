@@ -151,7 +151,11 @@ impl Compiler {
         };
 
         // default selector: return the body (it always matches)
-        let MatchSelector::Pattern { pattern: pattern_id, guard } = selector else {
+        let MatchSelector::Pattern {
+            pattern: pattern_id,
+            guard,
+        } = selector
+        else {
             return Ok(Some(body));
         };
 
