@@ -43,6 +43,7 @@ Technically, you can even use none at all, and then Destack is just TypeScript.
 | [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `using` | [expressions/](test/fixtures/mdtest/expressions/) |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
 | [Annotations](#annotations) | Annotations: decorators (`@`) for any expression | |
+| [Errors](#errors) | Result-first error handling with `?` propagation, panic/throw for bugs | |
 | [Types](#types) | Type system extensions: newtypes, primitives, structs, constraints | [types/](test/fixtures/mdtest/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
 | [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/mdtest/reflection/) |
@@ -160,7 +161,75 @@ Decorator behavior depends on what the decorator resolves to:
 
 TypeScript decorators copy-pasted into Destack work as expected.
 
-<!-- NOTE: No separate mdtest folder for annotations yet - covered in expressions/ -->
+## Errors
+
+Destack uses **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics (bugs, invariant violations).
+We still support `throw` and classic JS exceptions for compatibility with existing JS/TS code, but only on JS targets.
+
+### Result Types
+
+The standard library provides `Result<T, E>` as the primary error handling mechanism:
+
+```
+function readConfig(path: string): Result<Config, IOError> {
+    const text = readFile(path)?    // propagate errors with ?
+    const json = parseJson(text)?
+    Result.ok(Config.from(json))
+}
+```
+
+The `?` operator propagates errors ergonomically, similar to Rust.
+When applied to a `Result`, it returns early with the error if present.
+(In fact, there is nothing special about `Result` at all; it's just a discriminated union with a `Try` operator overload for `?`.)
+
+### Panic (throw)
+
+`throw` is for **unrecoverable errors**: assertion failures, invariant violations, bugs.
+Unlike exceptions in Java or Python, panics are not meant to be caught and recovered from.
+
+```
+function assertPositive(n: int) {
+    if (n <= 0) {
+        throw new Error("invariant violated: expected positive")
+    }
+}
+```
+
+**Native targets:** `throw` aborts the process. No stack unwinding, no catching.
+This enables zero-cost error handling for the common (non-error) path.
+
+**JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
+
+### try/catch on Result
+
+The `try`/`catch` syntax works with `Result` types as pattern matching sugar:
+
+```
+try {
+    const config = readConfig("config.json")?
+    process(config)
+} catch (e: IOError) {
+    log("Failed to read config:", e)
+}
+```
+
+This desugars to a `match` on the `Result`, with no stack unwinding involved.
+It's purely syntactic convenience for handling `Result` errors.
+
+### Design Rationale
+
+This design is intentional:
+
+1. **Explicit error paths**: Functions that can fail return `Result`. The type system tracks errors.
+2. **Zero-cost happy path**: No exception tables, no stack unwinding machinery for native code.
+3. **Bugs are bugs**: Panics indicate programmer error, not recoverable conditions.
+4. **Target-appropriate semantics**: JS keeps its exception model for compatibility.
+
+The standard library uses `Result` throughout.
+If you need traditional exception semantics, target JS/TS output.
+
+<sub>See [test/fixtures/mdtest/errors/](test/fixtures/mdtest/errors/) for specification tests.</sub>
+
 
 ## Types
 
@@ -192,7 +261,7 @@ const c = Config({ debug: true }); // wraps object
 ### Structs
 
 Structs are data-oriented object types with fixed layout.
-Structs are simpler than classes: no identity, no inheritance, just data with a name.
+Structs are simpler than classes: no reference identity, no inheritance, just data with a name.
 Structs may embed other structs to compose types, and structs can implement interfaces.
 
 ```
@@ -203,12 +272,13 @@ struct Point { x: float32, y: float32 }
 
 | | struct | class |
 |---|---|---|
-| Identity | ❌ No (value equality) | ✅ Yes (reference equality) |
+| Reference identity | ❌ No (`===` is error) | ✅ Yes (`===` compares pointers) |
 | Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
-| Default passing | Copy | Reference |
+| Default passing | Reference | Reference |
 | JS output | Plain object | ES6 class |
 
-Two structs with the same field values are equal—structs *are* their data.
+Both structs and classes are reference types by default; ownership modifiers (`^T`, `&T`) are orthogonal.
+Two structs with the same field values are equal (`==`)—structs *are* their data.
 Two class instances with the same field values are not equal unless they're the same instance—classes *have* identity.
 
 ```
@@ -486,7 +556,7 @@ Control whether bindings can be mutated:
 
 ```
 &const T     // immutable reference
-&var T       // mutable reference
+&mut T       // mutable reference
 ^const T     // immutable value
 ^var T       // mutable value
 ```

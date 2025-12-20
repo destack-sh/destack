@@ -1,6 +1,6 @@
 # Destack Language Specification
 
-Destack is "TypeScript++" for building better full-stack software systems.
+The Destack language is "TypeScript++" for building optimal, correct, integrated full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
 `.ts` and `.js` files work exactly the same as before.
 **Copy-pasting from `.js` or `.ts` into `.ds` works** for real-world code—see [Compatibility](DESIGN.md#compatibility) for rare edge cases.
@@ -325,7 +325,7 @@ Destack additionally supports explicit value or reference control for `T`:
 ```
 T            // automatic (TypeScript behavior)
 &T           // immutable reference
-&var T       // mutable reference
+&mut T       // mutable reference
 ^T           // value (copy semantics)
 ^var T       // mutable value
 ```
@@ -807,7 +807,7 @@ This is the key difference from structs—see the comparison table below.
 ### Struct
 
 Destack adds `struct` for nominal object types with fixed layout.
-Structs are simpler than classes: no identity, no inheritance, just data with a name.
+Structs are simpler than classes: no reference identity, no inheritance, just data with a name.
 
 ```
 struct Point {
@@ -820,24 +820,24 @@ struct Point {
 
 | | struct | class |
 |---|---|---|
-| Identity | ❌ No (value equality) | ✅ Yes (reference equality) |
+| Reference identity | ❌ No (`===` is error) | ✅ Yes (`===` compares pointers) |
 | Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
-| Default passing | Copy | Reference |
+| Default passing | Reference | Reference |
 | JS output | Plain object | ES6 class |
 
 #### Equality and Identity
 
-Structs have no identity—two structs with the same fields are equal.
+Structs have no reference identity—two structs with the same properties are equal by value.
 Structs auto-derive `Equal` (field-by-field comparison) by default:
 
 ```
 const p1 = Point { x: 1, y: 2 };
 const p2 = Point { x: 1, y: 2 };
 p1 == p2   // true: same fields = equal (auto-derived Equal)
-p1 === p2  // error: === requires identity, structs have none
+p1 === p2  // error: === requires reference identity, structs have none
 ```
 
-Since structs have no identity, `===` and `!==` are compile errors on struct types.
+Since structs have no reference identity, `===` and `!==` are compile errors on struct types.
 Use `==` for value comparison.
 
 #### Construction
@@ -1556,7 +1556,7 @@ Captures a value into a variable:
 
 ```
 x                    // bind to x
-var x                // bind to mutable x
+^mut x                // bind to mutable x
 ```
 
 #### Literal
@@ -1640,23 +1640,72 @@ x if x.isValid()     // with method call
 
 ### Errors and Exceptions
 
-TypeScript's `try`/`catch` works unchanged:
+Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics.
+For compatibility with existing JS/TS, we do support `throw` in JS targets.
+
+#### Result and the ? Operator
+
+The `?` operator propagates `Result` errors to the caller:
+
+```
+function readConfig(path: string): Result<Config, Error> {
+    const text = readFile(path)?    // returns early if Err
+    const json = parseJson(text)?   // returns early if Err
+    Result.ok(Config.from(json))
+}
+```
+
+When `?` is applied to a `Result<T, E>`:
+- If `Ok(value)`, extracts and returns `value`
+- If `Err(e)`, returns early with `Err(e)` from the enclosing function
+
+The enclosing function must have a compatible `Result` return type.
+
+#### try/catch on Result
+
+The `try`/`catch` syntax works with `Result` types as pattern matching sugar:
 
 ```
 try {
-    riskyOperation()
-} catch (e) {
-    handleError(e)
+    const config = readConfig("config.json")?
+    process(config)
+} catch (e: IOError) {
+    log("Failed:", e)
 } finally {
     cleanup()
 }
 ```
 
-Destack adds propagation operators:
+This desugars to a `match` on the `Result`. No stack unwinding is involved.
+
+#### Panic (throw)
+
+`throw` is for **unrecoverable errors**: assertion failures, invariant violations, bugs.
+Panics indicate programmer error, not conditions the caller should handle.
 
 ```
-const result = riskyOperation()?;   // propagate to next outer scope
+function unwrap<T>(r: Result<T, Error>): T {
+    match (r) {
+        Ok { value } => value
+        Err { error } => throw error   // panic: caller made a mistake
+    }
+}
 ```
+
+**Native targets:** `throw` aborts the process immediately. No stack unwinding, no catching.
+**JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
+
+#### Target Differences
+
+| Behavior | Native | JS |
+|----------|--------|-----|
+| `Result` + `?` | Early return, no overhead | Early return, no overhead |
+| `try/catch` on `Result` | Pattern match sugar | Pattern match sugar |
+| `throw` | Abort (no unwinding) | JS throw (catchable) |
+| Catching panics | Not possible | Standard try/catch |
+
+Code using `Result` behaves identically on all targets.
+Code using `throw` for control flow will work differently; use `Result` instead.
 
 ### Using
 TODO #Incomplete: support `using` expressions

@@ -11,7 +11,7 @@ explicit control.
 
 | Directory | Description |
 |-----------|-------------|
-| `references/` | Reference types (`&T`, `&var T`) |
+| `references/` | Reference types (`&T`, `&mut T`) |
 | `values/` | Value types (`^T`, `^var T`) |
 | `mutability/` | Mutability modifiers (`const`, `var`) |
 
@@ -29,7 +29,7 @@ T            // automatic (TypeScript behavior)
 
 ```ds
 &const T     // immutable reference
-&var T       // mutable reference
+&mut T       // mutable reference
 ^const T     // immutable value
 ^var T       // mutable value
 ```

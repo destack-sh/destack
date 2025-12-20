@@ -8,13 +8,13 @@ Explicit mutability control.
 
 - **const**: Immutable binding/reference
 - **var**: Mutable binding/reference
-- **Combinations**: `&const T`, `&var T`, `^const T`, `^var T`
+- **Combinations**: `&const T`, `&mut T`, `^const T`, `^var T`
 
 ## Example
 
 ```ds
 &const T     // immutable reference (default for &T)
-&var T       // mutable reference
+&mut T       // mutable reference
 ^const T     // immutable value (default for ^T)
 ^var T       // mutable value
 ```

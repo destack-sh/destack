@@ -65,7 +65,7 @@ pub enum Type {
         variance: Option<VarianceBound>,
         right: LocalTypeId,
     },
-    /// Reference of `&T` to a `T`. Or `&var T` for a mutable reference.
+    /// Reference of `&T` to a `T`. Or `&mut T` for a mutable reference.
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,

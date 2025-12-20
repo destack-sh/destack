@@ -12,7 +12,7 @@ use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageReg
 pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 
 /// Well-known package name for builtins.
-pub const BUILTIN_PACKAGE_NAME: &str = "@destack/builtin";
+pub const BUILTIN_PACKAGE_NAME: &str = "@destack-sh/builtin";
 
 /// Language builtins.
 #[derive(Debug)]

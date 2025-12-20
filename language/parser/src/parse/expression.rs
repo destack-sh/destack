@@ -2416,10 +2416,10 @@ geom.Mesh<2, 4> {
     /// Parse a reference to a member call.
     #[test]
     fn test_parse_reference_member_call() {
-        let mut test = TestParser::new("&var self.foo()");
+        let mut test = TestParser::new("&mut self.foo()");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        // &var self.foo()
+        // &mut self.foo()
         assert_node!(
             parser.tree,
             expr_id,

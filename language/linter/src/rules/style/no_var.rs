@@ -82,7 +82,7 @@ mod tests {
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
+^mut x = 1
 "#,
         );
         test.result(result).assert_lint("no-var");
@@ -146,7 +146,7 @@ for (let i = 0; i < 10; i++) {
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
+^mut x = 1
 "#,
         );
         test.result(result).assert_lint("no-var").assert_safe_fixed(

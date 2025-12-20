@@ -26,6 +26,14 @@ struct DecoratorInfo {
     value: unknown,
 }
 
+/// Marks something as an external symbol.
+/// 
+/// ```
+/// @extern("C")
+/// function oldAPI() { }
+/// ```
+newtype extern = ();;
+
 /// Marks something as deprecated.
 /// 
 /// When used as a decorator, emits a compile-time warning.

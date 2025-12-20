@@ -10,7 +10,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("const")]),
-            Mutability::Mutable => write!(f, [token("var")]),
+            Mutability::Mutable => write!(f, [token("mut")]),
         }
     }
 }
@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_format_pattern_reference() {
-        assert_format!("&var _", "&var _", |p| p.eat_pattern());
+        assert_format!("&mut _", "&mut _", |p| p.eat_pattern());
 
         assert_format!("&1", "&1", |p| p.eat_pattern());
     }

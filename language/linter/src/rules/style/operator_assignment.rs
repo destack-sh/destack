@@ -149,7 +149,7 @@ mod tests {
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
+^mut x = 1
 x = x + 1
 "#,
         );
@@ -162,7 +162,7 @@ x = x + 1
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 2
+^mut x = 2
 x = x * 3
 "#,
         );
@@ -175,7 +175,7 @@ x = x * 3
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
+^mut x = 1
 x += 1
 "#,
         );
@@ -188,8 +188,8 @@ x += 1
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
-var y = 2
+^mut x = 1
+^mut y = 2
 x = y + 1
 "#,
         );
@@ -202,7 +202,7 @@ x = y + 1
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
+^mut x = 1
 x = x == 1
 "#,
         );
@@ -215,7 +215,7 @@ x = x == 1
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 1
+^mut x = 1
 x = x + 1
 "#,
         );
@@ -223,7 +223,7 @@ x = x + 1
             .assert_lint("operator-assignment")
             .assert_safe_fixed(
                 r#"
-var x = 1;
+^mut x = 1;
 x += 1;
 "#,
             );
@@ -235,7 +235,7 @@ x += 1;
         let result = test.lint_ast(
             "test.ds",
             r#"
-var x = 2
+^mut x = 2
 x = x * 3
 "#,
         );
@@ -243,7 +243,7 @@ x = x * 3
             .assert_lint("operator-assignment")
             .assert_safe_fixed(
                 r#"
-var x = 2;
+^mut x = 2;
 x *= 3;
 "#,
             );
