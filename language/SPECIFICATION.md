@@ -320,14 +320,58 @@ int32[N]             // fixed-length array
 ### References and Values
 
 By default, any `T` behaves like in TypeScript (with value primitives and reference objects).
-Destack additionally supports explicit value or reference control for `T`:
+Destack additionally supports explicit ownership control:
 
 ```
-T            // automatic (TypeScript behavior)
-&T           // immutable reference
-&mut T       // mutable reference
-^T           // value (copy semantics)
-^var T       // mutable value
+T            // automatic (TypeScript behavior, implicitly GC-managed)
+&T           // borrow (read-only reference)
+&mut T       // borrow (mutable reference)
+^T           // ownership transfer (caller gives up ownership)
+^mut T       // ownership transfer (explicitly mutable)
+```
+
+| Modifier | Meaning | After `foo(x)` | Who cleans up? |
+|----------|---------|----------------|----------------|
+| `T` | GC-managed (implicit) | `x` still valid | GC |
+| `&T` | Borrow (read) | `x` still valid | Original owner |
+| `&mut T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
+| `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
+
+**Use-after-move:**
+
+```
+const node = AstNode { ... }
+consume(^node)    // ownership transferred
+print(node.value) // ERROR: use after ownership transfer
+```
+
+Using a value after ownership transfer is an error (suppressible to warning).
+
+**Drop as soon as possible:**
+
+When a `^T` value is no longer used without being transferred, it is dropped (destructor called):
+
+```
+function process() {
+    const data = ^LargeData { ... }  // we own this
+    doWork(&data)                     // borrow it
+}   // data dropped here → destructor called
+```
+
+Types can implement `Drop` to customize cleanup, enabling RAII patterns.
+
+**Returning references:**
+
+Functions can return `&T`. 
+The compiler warns on obvious mistakes (returning reference to local), but does not enforce full lifetime tracking.
+
+```
+function get(c: &Container): &Item { &c.item }  // ok
+
+function bad(): &Point {
+    const p = Point { x: 1, y: 2 }
+    &p  // WARNING: returning reference to local
+}
 ```
 
 ### Dynamic Parameterisation
