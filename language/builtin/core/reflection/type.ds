@@ -1,5 +1,5 @@
 import { Property, Variant } from "./property.ds";
-import { DecoratorInfo } from "./decorator.ds";
+import { DecoratorInfo, intrinsic } from "./decorator.ds";
 import { Refinement } from "./refinement.ds";
 
 /// Stable unique identifier for a type.
@@ -274,4 +274,5 @@ newtype Type<T> =
 /// t.name                   // "User"
 /// t.kind                   // "struct"
 /// ```
+@intrinsic
 declare function typeOf<T>(value: T): Type<T>;

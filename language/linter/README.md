@@ -211,7 +211,7 @@ Correct code that could be faster or use less memory.
 | `no-regex-in-loop` | Destack | DIR | ✓ | 🔶 | Safe | Disallow `new RegExp()` inside loops |
 | `no-sequential-independent-await` | Destack | DIR | ✗ | 🔶 | Safe | Suggest `Promise.all` for independent sequential awaits |
 | `no-string-concat-in-loop` | Destack | DIR | ✗ | 🔶 | Unsafe | Disallow `+=` string concatenation in loops |
-| `no-super-linear-regex` | Destack | AST | ✓ | 🔶 | None | Disallow regular expressions with catastrophic backtracking |
+| `no-super-linear-regex` | Destack | AST | ✓ | ✅ | None | Disallow regular expressions with catastrophic backtracking |
 | `prefer-array-every` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer `.every()` over `.filter().length === .length` |
 | `prefer-array-literal` | Destack | DIR | ✗ | 🔶 | Unsafe | Suggest using array literal instead of empty array followed by extend |
 | `prefer-array-some` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer `.some()` over `.find() !== undefined` |

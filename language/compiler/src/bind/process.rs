@@ -50,6 +50,17 @@ impl Compiler {
                     let mut module = module.write();
                     module.dir_mut().roots.extend(roots);
                 };
+                // attach annotations
+                {
+                    let module = module.read();
+                    let dir = module.dir();
+                    let ast = module.ast();
+                    let mut tree = dir.tree.write();
+                    let mut symbols = dir.symbols.write();
+                    let mut types = dir.types.write();
+                    let scope = (dir.namespace_scope, symbols.get_scope_mark(dir.namespace_scope));
+                    self.attach_annotations(&module, ast, scope, &mut tree, &mut symbols, &mut types);
+                }
                 // bind module exports
                 {
                     let mut module = module.write();
