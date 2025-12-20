@@ -1,3 +1,7 @@
+// Type reflection primitives
+//
+// Runtime type information and introspection.
+
 export * from "./type.ds";
 export * from "./property.ds";
 export * from "./refinement.ds";

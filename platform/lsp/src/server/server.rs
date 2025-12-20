@@ -72,7 +72,7 @@ impl DestackLanguageServer {
 
     /// Invalidate a module at the given path and publish diagnostics.
     ///
-    /// nocheckin TODO #Broken: incremental recompilation (currently recompiles entire module)
+    /// nocheckin TODO #Broken: incremental "recompilation" (currently recompiles entire module)
     async fn invalidate_and_publish(&self, uri: &lsp::Uri, path: &std::path::Path) {
         let session = self.session().clone();
         let program = session.find_program_for_path(path);

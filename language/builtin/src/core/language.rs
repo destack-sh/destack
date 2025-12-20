@@ -162,13 +162,13 @@ define_language_items! {
         PartialCompare => (Interface, "operator/comparison", "PartialCompare", optional),
     }
 
-    /// String operator interfaces.
-    string {
+    /// Formatting operator interfaces.
+    format {
         /// Interface for the `Display` trait
-        Display => (Interface, "operator/string", "Display", required),
+        Display => (Interface, "operator/format", "Display", required),
 
         /// Interface for the `Debug` trait
-        Debug => (Interface, "operator/string", "Debug", required),
+        Debug => (Interface, "operator/format", "Debug", required),
     }
 
     /// Subscript and dereference operators.
@@ -186,124 +186,136 @@ define_language_items! {
         DerefSet => (Interface, "operator/subscript", "DerefSet", optional),
     }
 
-    /// Control flow operators.
+    /// Control flow types and interfaces.
     control {
         /// `?` operator for early return
-        Try => (Interface, "operator/control", "Try", required),
+        Try => (Interface, "control/try", "Try", required),
 
-        /// Control flow enum (Continue, Break)
-        ControlFlow => (Enum, "operator/control", "ControlFlow", required),
+        /// Result type for ? operator
+        Result => (Newtype, "control/result", "Result", required),
+
+        /// Ok variant
+        Ok => (Struct, "control/result", "Ok", required),
+
+        /// Err variant
+        Err => (Struct, "control/result", "Err", required),
+
+        /// Async result type
+        AsyncResult => (Newtype, "control/result", "AsyncResult", required),
 
         /// Range bound enum (Included, Excluded, Unbounded)
-        Bound => (Enum, "operator/control", "Bound", required),
+        Bound => (Enum, "control/range", "Bound", required),
 
         /// Range bounds interface
-        RangeBounds => (Interface, "operator/control", "RangeBounds", required),
+        RangeBounds => (Interface, "control/range", "RangeBounds", required),
 
         /// `start..end` exclusive range
-        Range => (Struct, "operator/control", "Range", required),
+        Range => (Struct, "control/range", "Range", required),
 
         /// `start..=end` inclusive range
-        RangeInclusive => (Struct, "operator/control", "RangeInclusive", required),
+        RangeInclusive => (Struct, "control/range", "RangeInclusive", required),
 
         /// `start..` range from
-        RangeFrom => (Struct, "operator/control", "RangeFrom", required),
+        RangeFrom => (Struct, "control/range", "RangeFrom", required),
 
         /// `..end` range to (exclusive)
-        RangeTo => (Struct, "operator/control", "RangeTo", required),
+        RangeTo => (Struct, "control/range", "RangeTo", required),
 
         /// `..=end` range to (inclusive)
-        RangeToInclusive => (Struct, "operator/control", "RangeToInclusive", required),
+        RangeToInclusive => (Struct, "control/range", "RangeToInclusive", required),
 
         /// `..` full range
-        RangeFull => (Struct, "operator/control", "RangeFull", required),
+        RangeFull => (Struct, "control/range", "RangeFull", required),
     }
 
     /// Reflection types for type descriptors.
-    reflection {
+    reflect {
         /// The `Type<T>` union
-        Type => (Newtype, "reflection/type", "Type", required),
+        Type => (Newtype, "reflect/type", "Type", required),
 
         /// `TypeBase<T>` interface
-        TypeBase => (Interface, "reflection/type", "TypeBase", required),
+        TypeBase => (Interface, "reflect/type", "TypeBase", required),
 
         /// `TypeId` newtype
-        TypeId => (Newtype, "reflection/type", "TypeId", required),
+        TypeId => (Newtype, "reflect/type", "TypeId", required),
 
         /// `typeOf` intrinsic function
-        TypeOf => (Function, "reflection/type", "typeOf", required),
+        TypeOf => (Function, "reflect/type", "typeOf", required),
 
         /// Primitive type descriptor
-        PrimitiveType => (Struct, "reflection/type", "PrimitiveType", required),
+        PrimitiveType => (Struct, "reflect/type", "PrimitiveType", required),
 
         /// Struct type descriptor
-        StructType => (Struct, "reflection/type", "StructType", required),
+        StructType => (Struct, "reflect/type", "StructType", required),
 
         /// Class type descriptor
-        ClassType => (Struct, "reflection/type", "ClassType", required),
+        ClassType => (Struct, "reflect/type", "ClassType", required),
 
         /// Enum type descriptor
-        EnumType => (Struct, "reflection/type", "EnumType", required),
+        EnumType => (Struct, "reflect/type", "EnumType", required),
 
         /// Interface type descriptor
-        InterfaceType => (Struct, "reflection/type", "InterfaceType", required),
+        InterfaceType => (Struct, "reflect/type", "InterfaceType", required),
 
         /// Newtype type descriptor
-        NewtypeType => (Struct, "reflection/type", "NewtypeType", required),
+        NewtypeType => (Struct, "reflect/type", "NewtypeType", required),
 
         /// Array type descriptor
-        ArrayType => (Struct, "reflection/type", "ArrayType", required),
+        ArrayType => (Struct, "reflect/type", "ArrayType", required),
 
         /// Tuple type descriptor
-        TupleType => (Struct, "reflection/type", "TupleType", required),
+        TupleType => (Struct, "reflect/type", "TupleType", required),
 
         /// Union type descriptor
-        UnionType => (Struct, "reflection/type", "UnionType", required),
+        UnionType => (Struct, "reflect/type", "UnionType", required),
 
         /// Intersection type descriptor
-        IntersectionType => (Struct, "reflection/type", "IntersectionType", required),
+        IntersectionType => (Struct, "reflect/type", "IntersectionType", required),
 
         /// Function type descriptor
-        FunctionType => (Struct, "reflection/type", "FunctionType", required),
+        FunctionType => (Struct, "reflect/type", "FunctionType", required),
 
         /// Object type descriptor
-        ObjectType => (Struct, "reflection/type", "ObjectType", required),
+        ObjectType => (Struct, "reflect/type", "ObjectType", required),
 
         /// Refined type descriptor
-        RefinedType => (Struct, "reflection/type", "RefinedType", required),
+        RefinedType => (Struct, "reflect/type", "RefinedType", required),
 
         /// Property descriptor
-        Property => (Struct, "reflection/property", "Property", required),
+        Property => (Struct, "reflect/property", "Property", required),
 
         /// Enum variant descriptor
-        Variant => (Struct, "reflection/property", "Variant", required),
+        Variant => (Struct, "reflect/property", "Variant", required),
 
         /// Refinement descriptor
-        Refinement => (Struct, "reflection/refinement", "Refinement", required),
-
-        /// Decorator info
-        DecoratorInfo => (Struct, "reflection/decorator", "DecoratorInfo", required),
+        Refinement => (Struct, "reflect/refinement", "Refinement", required),
     }
 
-    /// Well-known decorators.
-    decorators {
+    /// Decorator metadata (in reflect/).
+    decorator_metadata {
+        /// Decorator metadata
+        DecoratorInfo => (Struct, "reflect/decorator", "DecoratorInfo", required),
+    }
+
+    /// Well-known decorator markers (in intrinsic/).
+    decorator_markers {
         /// `@intrinsic` marker
-        Intrinsic => (Newtype, "reflection/decorator", "intrinsic", required),
+        Intrinsic => (Newtype, "intrinsic/decorator", "intrinsic", required),
 
         /// `@deprecated` marker
-        Deprecated => (Newtype, "reflection/decorator", "deprecated", optional),
+        Deprecated => (Newtype, "intrinsic/decorator", "deprecated", optional),
 
         /// `@inline` hint
-        Inline => (Newtype, "reflection/decorator", "inline", optional),
+        Inline => (Newtype, "intrinsic/decorator", "inline", optional),
 
         /// `@noinline` hint
-        Noinline => (Newtype, "reflection/decorator", "noinline", optional),
+        Noinline => (Newtype, "intrinsic/decorator", "noinline", optional),
 
         /// `@experimental` marker
-        Experimental => (Newtype, "reflection/decorator", "experimental", optional),
+        Experimental => (Newtype, "intrinsic/decorator", "experimental", optional),
 
         /// `@unroll` hint
-        Unroll => (Newtype, "reflection/decorator", "unroll", optional),
+        Unroll => (Newtype, "intrinsic/decorator", "unroll", optional),
     }
 }
 

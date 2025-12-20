@@ -1,0 +1,9 @@
+// @destack/std/collections - Collection types
+//
+// Map, Set, and other collection utilities.
+// Base types come from lib/es/, these add Destack-specific functionality.
+
+// NOTE #Incomplete: Collection extensions
+// - HashMap, HashSet with custom hashers
+// - BTreeMap, BTreeSet for ordered collections
+// - Native target implementations

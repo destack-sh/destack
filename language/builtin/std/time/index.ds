@@ -1,0 +1,9 @@
+// @destack/std/time - Time and duration types
+//
+// Universal time API with target-conditional implementations.
+
+// NOTE #Incomplete: Time types
+// - Duration
+// - Instant
+// - SystemTime
+// - Target-specific implementations (performance.now, Date.now, native syscalls)

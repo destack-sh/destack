@@ -32,7 +32,7 @@ Computers are miraculously fast, yet software feels slow and clunky.
 We can do better.
 Destack aims to make building correct, optimal, integrated software the obvious default.
 
-TypeScript is a language for describing *the shape of datae*.
+TypeScript is a language for describing *the shape of data*.
 Destack is a system for describing *the shape of software*.
 TypeScript has `.ts`, `.d.ts`, and `.tsx`, Destack brings `.ds` and `.d.ds` into the same codebase.
 The fully integrated library and platform let us extend the TypeScript philosophy for entire software systems. 

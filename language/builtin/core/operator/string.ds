@@ -1,9 +1,0 @@
-/// Interface for the `Display` trait.
-newtype interface Display {
-    display(): string
-}
-
-/// Interface for the `Debug` trait.
-newtype interface Debug {
-    debug(): string
-}

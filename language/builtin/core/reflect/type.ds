@@ -1,6 +1,7 @@
 import { Property, Variant } from "./property.ds";
-import { DecoratorInfo, intrinsic } from "./decorator.ds";
+import { DecoratorInfo } from "./decorator.ds";
 import { Refinement } from "./refinement.ds";
+import { intrinsic } from "../intrinsic/decorator.ds";
 
 /// Stable unique identifier for a type.
 /// 

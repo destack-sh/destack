@@ -1,0 +1,9 @@
+// @destack/std/string - String extensions
+//
+// Extensions and utilities for String.
+// The base String type comes from lib/es/, these add Destack-specific functionality.
+
+// NOTE #Incomplete: String extensions
+// - UTF-8 utilities
+// - Native target implementations
+// - Integration with Display trait

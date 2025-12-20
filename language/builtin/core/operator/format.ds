@@ -1,0 +1,13 @@
+/// Interface for user-facing string representation.
+///
+/// Used for string interpolation and display output.
+export newtype interface Display {
+    display(): string
+}
+
+/// Interface for developer-facing string representation.
+///
+/// Used for debugging and logging.
+export newtype interface Debug {
+    debug(): string
+}

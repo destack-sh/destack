@@ -45,7 +45,7 @@ macro_rules! builtin_source {
     };
 }
 
-// core
+// core (root level)
 builtin_source!(CORE_INDEX, "index.ds");
 builtin_source!(CORE_PRELUDE, "prelude.ds");
 
@@ -53,20 +53,26 @@ builtin_source!(CORE_PRELUDE, "prelude.ds");
 builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
 builtin_source!(OPERATOR_COMPARISON, "operator", "comparison.ds");
-builtin_source!(OPERATOR_STRING, "operator", "string.ds");
+builtin_source!(OPERATOR_FORMAT, "operator", "format.ds");
 builtin_source!(OPERATOR_SUBSCRIPT, "operator", "subscript.ds");
-builtin_source!(OPERATOR_CONTROL, "operator", "control.ds");
 
-// reflection
-builtin_source!(REFLECTION_INDEX, "reflection", "index.ds");
-builtin_source!(REFLECTION_TYPE, "reflection", "type.ds");
-builtin_source!(REFLECTION_PROPERTY, "reflection", "property.ds");
-builtin_source!(REFLECTION_REFINEMENT, "reflection", "refinement.ds");
-builtin_source!(REFLECTION_DECORATOR, "reflection", "decorator.ds");
+// control
+builtin_source!(CONTROL_INDEX, "control", "index.ds");
+builtin_source!(CONTROL_TRY, "control", "try.ds");
+builtin_source!(CONTROL_RESULT, "control", "result.ds");
+builtin_source!(CONTROL_RANGE, "control", "range.ds");
+
+// reflect
+builtin_source!(REFLECT_INDEX, "reflect", "index.ds");
+builtin_source!(REFLECT_TYPE, "reflect", "type.ds");
+builtin_source!(REFLECT_PROPERTY, "reflect", "property.ds");
+builtin_source!(REFLECT_REFINEMENT, "reflect", "refinement.ds");
+builtin_source!(REFLECT_DECORATOR, "reflect", "decorator.ds");
 
 // intrinsic
 builtin_source!(INTRINSIC_INDEX, "intrinsic", "index.ds");
 builtin_source!(INTRINSIC_IMPORT_META, "intrinsic", "import-meta.ds");
+builtin_source!(INTRINSIC_DECORATOR, "intrinsic", "decorator.ds");
 
 /// All core source files in load order.
 ///
@@ -76,18 +82,23 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     OPERATOR_ARITHMETIC,
     OPERATOR_COMPARISON,
     OPERATOR_SUBSCRIPT,
-    OPERATOR_STRING,
-    OPERATOR_CONTROL,
+    OPERATOR_FORMAT,
     OPERATOR_INDEX,
-    // reflection (depends on operator for some types)
-    REFLECTION_PROPERTY,
-    REFLECTION_REFINEMENT,
-    REFLECTION_DECORATOR,
-    REFLECTION_TYPE,
-    REFLECTION_INDEX,
-    // intrinsic
+    // control (Try has no deps, Result depends on Try, Range has no deps)
+    CONTROL_TRY,
+    CONTROL_RANGE,
+    CONTROL_RESULT,
+    CONTROL_INDEX,
+    // intrinsic (decorator newtypes have no deps, needed by reflect/type.ds)
+    INTRINSIC_DECORATOR,
     INTRINSIC_IMPORT_META,
     INTRINSIC_INDEX,
+    // reflect (depends on operator, control, and intrinsic/decorator)
+    REFLECT_PROPERTY,
+    REFLECT_REFINEMENT,
+    REFLECT_DECORATOR,
+    REFLECT_TYPE,
+    REFLECT_INDEX,
     // top level
     CORE_INDEX,
     // prelude

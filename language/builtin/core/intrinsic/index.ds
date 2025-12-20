@@ -1,16 +1,12 @@
 /// Compiler intrinsics - features provided by the compiler.
-/// 
+///
 /// These are "magic" features that the compiler knows about and provides
 /// specialized implementations for. They cannot be implemented in user code.
-/// 
+///
 /// # What's Here
-/// 
+///
 /// - **import-meta.ds** - `import.meta` compile-time module information
-/// 
-/// # Intrinsic Markers
-/// 
-/// The `@intrinsic` decorator (defined in reflection/decorator.ds) marks
-/// declarations as compiler-provided. Functions marked `@intrinsic` have
-/// no user-visible implementation; the compiler generates target-specific code.
+/// - **decorator.ds** - Compiler-recognized decorator markers (@intrinsic, @inline, etc.)
 
 export * from "./import-meta.ds";
+export * from "./decorator.ds";

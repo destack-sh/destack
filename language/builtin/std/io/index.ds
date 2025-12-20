@@ -1,0 +1,8 @@
+// @destack/std/io - I/O traits and utilities
+//
+// Universal I/O traits with target-conditional implementations.
+
+// NOTE #Incomplete: I/O traits
+// - Read, Write, Seek traits
+// - BufReader, BufWriter
+// - Target-specific implementations
