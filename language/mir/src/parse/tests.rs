@@ -181,3 +181,77 @@ block0:
 }"#,
     );
 }
+
+#[test]
+fn test_roundtrip_intrinsic_unary() {
+    // unary intrinsic with one argument
+    roundtrip(
+        r#"function @sqrt_test(v0: f64) -> f64 {
+block0(v0: f64):
+    v1 = intrinsic.sqrt(v0)
+    return v1
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_intrinsic_binary() {
+    // binary intrinsic with two arguments
+    roundtrip(
+        r#"function @min_test(v0: f64, v1: f64) -> f64 {
+block0(v0: f64, v1: f64):
+    v2 = intrinsic.min(v0, v1)
+    return v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_intrinsic_ternary() {
+    // ternary intrinsic (fused multiply-add)
+    roundtrip(
+        r#"function @fma_test(v0: f64, v1: f64, v2: f64) -> f64 {
+block0(v0: f64, v1: f64, v2: f64):
+    v3 = intrinsic.fma(v0, v1, v2)
+    return v3
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_intrinsic_void() {
+    // void intrinsic (no return value)
+    roundtrip(
+        r#"function @fence_test() -> void {
+block0:
+    intrinsic.atomic_fence()
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_intrinsic_bit_manipulation() {
+    // bit manipulation intrinsics
+    roundtrip(
+        r#"function @bit_test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = intrinsic.clz(v0)
+    v2 = intrinsic.ctz(v1)
+    v3 = intrinsic.popcnt(v2)
+    return v3
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_intrinsic_overflow() {
+    // checked arithmetic intrinsics
+    roundtrip(
+        r#"function @add_overflow_test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = intrinsic.add_overflow(v0, v1)
+    return v2
+}"#,
+    );
+}

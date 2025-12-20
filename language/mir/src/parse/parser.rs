@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use crate::{
     BinaryOperator, Block, CastKind, Constant, Function, Global, GlobalInitializer, Instruction,
-    Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type,
-    TypedValue, UnaryOperator, Value,
+    Intrinsic, Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, SwitchCase,
+    Terminator, Type, TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -749,6 +749,18 @@ impl<'a> Parser<'a> {
                 }
             }
 
+            // intrinsics: intrinsic.{name}(args)
+            _ if opcode_text.starts_with("intrinsic.") => {
+                let opcode_start = opcode.start;
+                let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
+                let arguments = self.parse_call_arguments()?;
+                Instruction::Intrinsic {
+                    destination: Some(destination),
+                    intrinsic,
+                    arguments,
+                }
+            }
+
             _ => {
                 return Err(ParseError::invalid(
                     &format!("instruction '{opcode_text}'"),
@@ -806,6 +818,18 @@ impl<'a> Parser<'a> {
             "raw.free" => {
                 let pointer = self.parse_value()?;
                 Instruction::RawFree { pointer }
+            }
+
+            // void intrinsics: intrinsic.{name}(args)
+            _ if opcode_text.starts_with("intrinsic.") => {
+                let opcode_start = opcode.start;
+                let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
+                let arguments = self.parse_call_arguments()?;
+                Instruction::Intrinsic {
+                    destination: None,
+                    intrinsic,
+                    arguments,
+                }
             }
 
             _ => {
@@ -1355,4 +1379,13 @@ fn parse_escape_sequences(s: &str) -> Option<String> {
     }
 
     Some(result)
+}
+
+/// Parse an intrinsic name from an opcode like `intrinsic.sqrt`.
+fn parse_intrinsic_name(opcode_text: &str, pos: usize) -> ParseResult<Intrinsic> {
+    let name = opcode_text
+        .strip_prefix("intrinsic.")
+        .ok_or_else(|| ParseError::invalid("intrinsic opcode", pos))?;
+    name.parse::<Intrinsic>()
+        .map_err(|_| ParseError::invalid(&format!("intrinsic '{name}'"), pos))
 }

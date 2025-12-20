@@ -1,9 +1,9 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, Constant, Function, Global, Instruction, Linkage, Local,
-    LocalNodeId, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator,
-    Value,
+    AllocationMode, BinaryOperator, Block, Constant, Function, Global, Instruction, Intrinsic,
+    Linkage, Local, LocalNodeId, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue,
+    UnaryOperator, Value,
 };
 
 use super::Variable;
@@ -702,6 +702,28 @@ impl<'a> FunctionBuilder<'a> {
             destination: None,
             function,
             arguments: argument_values,
+        });
+    }
+
+    // instruction builders: intrinsics
+
+    /// Call an intrinsic that returns a value.
+    pub fn intrinsic(&mut self, intrinsic: Intrinsic, arguments: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: Some(destination),
+            intrinsic,
+            arguments,
+        });
+        destination
+    }
+
+    /// Call an intrinsic with no return value.
+    pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, arguments: Vec<Value>) {
+        self.insert_instruction(Instruction::Intrinsic {
+            destination: None,
+            intrinsic,
+            arguments,
         });
     }
 
