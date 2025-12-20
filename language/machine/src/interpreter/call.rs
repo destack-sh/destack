@@ -94,6 +94,7 @@ impl Interpreter {
     }
 
     /// Update max stack depth statistic.
+    #[inline]
     fn update_max_stack_depth(&mut self) {
         let depth = self.call_stack.len();
         if depth > self.statistics.max_stack_depth {

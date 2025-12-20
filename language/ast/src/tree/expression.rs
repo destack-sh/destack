@@ -299,6 +299,7 @@ pub enum Expression {
     /// ```
     /// await someLongFunction()
     /// ```
+    // nocheckin: support `await? <expr>` for `(await <expr>)?` (?)
     Await { expression: LocalNodeId<Expression> },
 
     /// Yield an expression.
