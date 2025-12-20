@@ -125,3 +125,23 @@ newtype noinline = ();;
 /// for (let i = 0; i < 16; i++) { }
 /// ```
 newtype unroll = (int,) | ();;
+
+/// Taint a value or expression.
+///
+/// Taints are used to track usage of certain values, fields, expressions, or other constructs.
+/// 
+/// ```
+/// @taint("unsafe")
+/// function oldAPI() { }
+/// ```
+newtype taint = (string,) | ();;
+
+/// Tag a value or expression.
+///
+/// Tags are used for general purpose metadata when more specific decorators are not available.
+/// 
+/// ```
+/// @tag("user")
+/// function oldAPI() { }
+/// ```
+newtype tag = (string,) | ();;

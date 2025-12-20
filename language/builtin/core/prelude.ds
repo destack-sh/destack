@@ -11,6 +11,8 @@ export {
     inline,
     noinline,
     unroll,
+    taint,
+    tag,
 } from "./reflection/decorator.ds";
 
 export {

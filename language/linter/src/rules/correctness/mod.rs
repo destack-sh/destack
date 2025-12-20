@@ -11,6 +11,7 @@ mod no_invalid_regexp;
 mod no_loop_single_iteration;
 mod no_self_compare;
 mod no_sparse_arrays;
+mod no_unknown_rule_decorator;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod use_isnan;
@@ -30,6 +31,7 @@ pub use no_invalid_regexp::*;
 pub use no_loop_single_iteration::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
+pub use no_unknown_rule_decorator::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
 pub use use_isnan::*;
@@ -50,6 +52,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoLoopSingleIteration),
         boxed(NoSelfCompare),
         boxed(NoSparseArrays),
+        boxed(NoUnknownRuleDecorator),
         boxed(NoUnsafeFinally),
         boxed(NoUnsafeNegation),
         boxed(UseIsnan),
