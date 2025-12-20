@@ -1705,6 +1705,22 @@ When `?` is applied to a `Result<T, E>`:
 
 The enclosing function must have a compatible `Result` return type.
 
+#### Result and the ?? Operator
+
+The `??` operator extracts the success value or uses a default:
+
+```
+const config = loadConfig() ?? defaultConfig;
+const port = parsePort(input) ?? 8080;
+```
+
+When `??` is applied to a `Result<T, E>`:
+- If `Ok(value)`, extracts and returns `value`
+- If `Err(_)`, returns the right-hand default value
+
+Both `?` and `??` work via the `Try` interface. For nullable types (`T | null`),
+`??` behaves exactly like TypeScript's nullish coalescing operator.
+
 #### try/catch on Result
 
 The `try`/`catch` syntax works with `Result` types as pattern matching sugar:

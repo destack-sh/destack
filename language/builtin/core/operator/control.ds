@@ -1,43 +1,65 @@
-/// Control flow result for the Try interface.
-/// 
-/// Used to signal whether to continue or break/return early.
-newtype ControlFlow<B, C> = { kind: "continue", value: C } | { kind: "break", value: B };;
+import { Result } from "../result.ds";
 
-/// Interface for the `?` operator (try/propagate).
-/// 
-/// The `?` operator provides early return on "error" values.
-/// `x?` becomes:
+/// Interface for the `?` and `??` operators.
+///
+/// Types implementing `Try` support both error propagation (`?`) and
+/// default values (`??`).
+///
+/// ## The `?` Operator (propagate)
+///
+/// `x?` extracts the success value or returns early with the error:
 /// ```
 /// match x.branch() {
-///     ControlFlow.Continue(v) => v
-///     ControlFlow.Break(e) => return Self.fromResidual(e)
+///     Ok { value } => value
+///     Err { error } => return Self.fromError(error)
 /// }
 /// ```
-/// 
-/// # Example
-/// 
+///
+/// ## The `??` Operator (default)
+///
+/// `x ?? default` extracts the success value or uses the default:
 /// ```
-/// // Result<T, E> implements Try
+/// match x.branch() {
+///     Ok { value } => value
+///     Err _ => default
+/// }
+/// ```
+///
+/// This means `??` on `Result<T, E>` works like `unwrapOr`:
+/// ```
+/// const config = loadConfig() ?? defaultConfig;
+/// ```
+///
+/// For nullable types (`T | null`), `??` behaves exactly like TypeScript's
+/// nullish coalescing operator.
+///
+/// ## Example
+///
+/// ```
 /// function divide(a: int, b: int): Result<int, string> {
-///     if (b == 0) { 
-///         Result.err("division by zero") 
-///     } else { 
-///         Result.ok(a / b) 
+///     if (b == 0) {
+///         Result.err("division by zero")
+///     } else {
+///         Result.ok(a / b)
 ///     }
 /// }
-/// 
+///
 /// function calculate(): Result<int, string> {
 ///     const x = divide(10, 2)?;  // x = 5, or returns early on error
 ///     const y = divide(x, 0)?;   // returns Err("division by zero")
 ///     Result.ok(y)
 /// }
+///
+/// // Using ?? for defaults
+/// const result = divide(10, 0) ?? 0;  // result = 0
 /// ```
 newtype interface Try<T, E> {
     /// Branch on success or failure.
-    branch(): ControlFlow<E, T>
+    /// Returns Ok(value) to continue, Err(error) to break.
+    branch(): Result<T, E>
 
-    /// Construct Self from a residual (for propagation).
-    static fromResidual(residual: E): Self
+    /// Construct Self from an error (for early return with `?`).
+    static fromError(error: E): Self
 }
 
 /// A range bound - included, excluded, or unbounded.
@@ -58,6 +80,8 @@ newtype interface RangeBounds<T> {
     /// Check if a value is contained in this range.
     contains(value: T): boolean
 }
+
+// nocheckin: split off Range stuff to range.ds?
 
 /// Exclusive range: `start..end` (includes start, excludes end).
 /// 

@@ -1,4 +1,5 @@
 export { Type, typeOf } from "./reflection/type.ds";
+export { Ok, Err, Result, AsyncResult } from "./result.ds";
 export {
     deprecated,
     experimental,
@@ -37,7 +38,6 @@ export { Display, Debug } from "./operator/string.ds";
 export { Index, IndexSet, Deref, DerefSet } from "./operator/subscript.ds";
 export {
     Try,
-    ControlFlow,
     Bound,
     RangeBounds,
     Range,

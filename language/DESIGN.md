@@ -21,44 +21,50 @@ Some are even moderately successful.
 But they all fall short in interoperability, usefulness and - ultimately - adoption.
 We feel that now is the time to try this again, and have made some different tradeoffs to enable adoption.
 
-## TypeScript++
+## "TypeScript++"
 
 We're very early in software.
 We want to make correct, optimal, integrated full-stack software systems simple and fast to build.
 But that requires unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
 
 TypeScript is the closest thing we have to a unified software foundation today.
-JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base.
-Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends and is a much more optimizable language (especially in strict TypeScript). 
+JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (read: every browser everywhere).
+Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language. 
 
 Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
-Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly in Destack, and all `++` features are opt-in and complementary.
+Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly with Destack (on JS targets), and all `++` features are opt-in and complementary.
 
-Each feature below is independently useful, composes well with others, and can be adopted incrementally.
-You can use just the features you need, and they all transpile to clean, idiomatic TypeScript.
-Technically, you can even use none at all, and then Destack is just TypeScript.
+All parts of Destack are designed to be incrementally adoptable and complementary.
+This mindest also extends to the features Destack extends TypeScript with:
 
 | Feature | Description | Tests |
 |---------|-------------|-------|
-| [Expressions](#expressions) | Expression extensions: ranges, tuples, patterns, `loop`, `using` | [expressions/](test/fixtures/mdtest/expressions/) |
+| [Expressions](#expressions) | Expression extensions: "as values", ranges, patterns, `loop`, `using` | [expressions/](test/fixtures/mdtest/expressions/) |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
-| [Annotations](#annotations) | Annotations: decorators (`@`) for any expression | |
-| [Errors](#errors) | Result-first error handling with `?` propagation, panic/throw for bugs | |
-| [Types](#types) | Type system extensions: newtypes, primitives, structs, constraints | [types/](test/fixtures/mdtest/types/) |
+| [Annotations](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | |
+| [Errors](#errors) | `Result`-first error handling with `?` propagation, no exceptions | |
+| [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/mdtest/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
 | [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/mdtest/reflection/) |
-| [Dispatch](#dispatch) | Type-based dispatch: extensions and overloading | [dispatch/](test/fixtures/mdtest/dispatch/) |
-| [Ownership](#ownership) | Value ownership (`&T`, `^T`), mutability (`const`/`var`), and explicit dispatch | [ownership/](test/fixtures/mdtest/ownership/) |
+| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/mdtest/dispatch/) |
+| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/mdtest/ownership/) |
 
 ## Expressions
 
-In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value.
+In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value out. 
+Same with `switch` and most other control flow (except ternary ifs).
 In Destack, everything is an expression.
-The last non-statement expression (no trailing `;`) becomes the value.
+The last non-statement expression (no trailing `;`) becomes the value of the expression.
 This enables more ergonomic expressions for complex control flow.
 
 ```
-const result = if (condition) { computeA() } else { computeB() };
+const result = if (condition) { 
+    computeA() 
+} else if (condition) {
+    computeB()
+} else {
+    computeB()
+};
 
 function add(a: int, b: int): int {
     a + b // implicit return
@@ -180,7 +186,14 @@ function readConfig(path: string): Result<Config, IOError> {
 
 The `?` operator propagates errors ergonomically, similar to Rust.
 When applied to a `Result`, it returns early with the error if present.
-(In fact, there is nothing special about `Result` at all; it's just a discriminated union with a `Try` operator overload for `?`.)
+The `??` operator provides a default value instead of propagating:
+
+```
+const config = loadConfig() ?? defaultConfig;  // use default on error
+```
+
+Both operators work via the `Try` interface, which `Result` implements.
+For nullable types (`T | null`), `??` behaves exactly like TypeScript's nullish coalescing.
 
 ### Panic (throw)
 
