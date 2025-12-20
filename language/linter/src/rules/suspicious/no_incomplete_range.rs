@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_char_range_a_to_z_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -176,7 +176,7 @@ const range = 'a'..'z'
 
     #[test]
     fn test_char_range_uppercase_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -188,7 +188,7 @@ const range = 'A'..'Z'
 
     #[test]
     fn test_char_range_digits_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -200,7 +200,7 @@ const range = '0'..'9'
 
     #[test]
     fn test_char_range_hex_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -212,7 +212,7 @@ const range = 'a'..'f'
 
     #[test]
     fn test_subtraction_at_end_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -224,7 +224,7 @@ const range = 0..n - 1
 
     #[test]
     fn test_inclusive_char_range_allowed() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -236,7 +236,7 @@ const range = 'a'..='z'
 
     #[test]
     fn test_inclusive_with_subtraction_allowed() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -248,7 +248,7 @@ const range = 0..=n - 1
 
     #[test]
     fn test_numeric_range_without_subtraction_allowed() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -260,7 +260,7 @@ const range = 0..10
 
     #[test]
     fn test_random_char_range_allowed() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -272,7 +272,7 @@ const range = 'b'..'y'
 
     #[test]
     fn test_for_loop_char_range_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -288,7 +288,7 @@ function foo() {
 
     #[test]
     fn test_for_loop_length_minus_one_detected() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -304,7 +304,7 @@ function foo(arr: int[]) {
 
     #[test]
     fn test_standard_length_pattern_allowed() {
-        let test = TestProgram::for_rule(NoIncompleteRange);
+        let test = TestProgram::for_rule_without_builtins(NoIncompleteRange);
         let result = test.lint_ast(
             "test.ds",
             r#"

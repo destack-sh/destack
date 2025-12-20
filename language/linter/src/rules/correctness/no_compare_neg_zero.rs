@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_detects_compare_neg_zero_equality() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -190,7 +190,7 @@ x == -0;
 
     #[test]
     fn test_detects_compare_neg_zero_strict_equality() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -203,7 +203,7 @@ x === -0;
 
     #[test]
     fn test_detects_compare_neg_zero_inequality() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -216,7 +216,7 @@ x != -0;
 
     #[test]
     fn test_detects_neg_zero_on_left() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -229,7 +229,7 @@ let x = 0;
 
     #[test]
     fn test_detects_compare_neg_zero_float() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -242,7 +242,7 @@ x === -0.0;
 
     #[test]
     fn test_allows_compare_regular_zero() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -255,7 +255,7 @@ x === 0;
 
     #[test]
     fn test_allows_compare_positive_numbers() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -268,7 +268,7 @@ x === 1;
 
     #[test]
     fn test_allows_negation_of_variable() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -282,7 +282,7 @@ x === -y;
 
     #[test]
     fn test_fix_strict_equal() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -302,7 +302,7 @@ if (Object.is(x, -0)) { }
 
     #[test]
     fn test_fix_not_equal() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -322,7 +322,7 @@ if (!Object.is(x, -0)) { }
 
     #[test]
     fn test_fix_neg_zero_on_left() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -342,7 +342,7 @@ if (Object.is(x, -0)) { }
 
     #[test]
     fn test_fix_complex_expression() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -362,7 +362,7 @@ let x = Object.is((y + 1), -0);
 
     #[test]
     fn test_no_fix_for_relational() {
-        let test = TestProgram::for_rule(NoCompareNegZero);
+        let test = TestProgram::for_rule_without_builtins(NoCompareNegZero);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_detects_multiple_declarators_with_let() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -79,7 +79,7 @@ let a = 1, b = 2;
 
     #[test]
     fn test_detects_multiple_declarators_with_const() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -91,7 +91,7 @@ const a = 1, b = 2, c = 3;
 
     #[test]
     fn test_detects_multiple_declarators_with_var() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -103,7 +103,7 @@ var x = 1, y = 2;
 
     #[test]
     fn test_detects_multiple_declarators_without_values() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +115,7 @@ let a: int32, b: int32;
 
     #[test]
     fn test_allows_single_declarator_with_let() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -127,7 +127,7 @@ let a = 1;
 
     #[test]
     fn test_allows_single_declarator_with_const() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -139,7 +139,7 @@ const x = 42;
 
     #[test]
     fn test_allows_multiple_separate_statements() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +153,7 @@ let c = 3;
 
     #[test]
     fn test_allows_single_declarator_without_value() {
-        let test = TestProgram::for_rule(NoMultiDeclarators);
+        let test = TestProgram::for_rule_without_builtins(NoMultiDeclarators);
         let result = test.lint_ast(
             "test.ds",
             r#"

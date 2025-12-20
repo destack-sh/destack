@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_struct_fields() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -137,7 +137,7 @@ struct TooMany {
 
     #[test]
     fn test_detects_too_many_class_fields() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -155,7 +155,7 @@ class TooMany {
 
     #[test]
     fn test_detects_too_many_interface_fields() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -173,7 +173,7 @@ interface TooMany {
 
     #[test]
     fn test_allows_few_fields() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 5);
         let result = test.lint_ast(
             "test.ds",
@@ -189,7 +189,7 @@ struct Point {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -206,7 +206,7 @@ struct AtLimit {
 
     #[test]
     fn test_ignores_methods() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 2);
         let result = test.lint_ast(
             "test.ds",
@@ -226,7 +226,7 @@ struct WithMethods {
 
     #[test]
     fn test_uses_default_limit() {
-        let test = TestProgram::for_rule(MaxTypeFields);
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields);
         // default is 30, so this should pass
         let result = test.lint_ast(
             "test.ds",
@@ -242,7 +242,7 @@ struct ManyFields {
 
     #[test]
     fn test_detects_too_many_object_type_fields() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -255,7 +255,7 @@ type TooMany = { a: int32, b: int32, c: int32, d: int32 }
 
     #[test]
     fn test_allows_few_object_type_fields() {
-        let test = TestProgram::for_rule(MaxTypeFields)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeFields)
             .with_options(|options| options.max_type_fields = 5);
         let result = test.lint_ast(
             "test.ds",

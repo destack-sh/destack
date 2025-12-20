@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_detects_nested_switch() {
-        let test = TestProgram::for_rule(NoNestedSwitch);
+        let test = TestProgram::for_rule_without_builtins(NoNestedSwitch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -132,7 +132,7 @@ switch (x) {
 
     #[test]
     fn test_allows_single_switch() {
-        let test = TestProgram::for_rule(NoNestedSwitch);
+        let test = TestProgram::for_rule_without_builtins(NoNestedSwitch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +149,7 @@ switch (x) {
 
     #[test]
     fn test_allows_switch_in_separate_function() {
-        let test = TestProgram::for_rule(NoNestedSwitch);
+        let test = TestProgram::for_rule_without_builtins(NoNestedSwitch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -175,7 +175,7 @@ switch (x) {
 
     #[test]
     fn test_allows_sequential_switches() {
-        let test = TestProgram::for_rule(NoNestedSwitch);
+        let test = TestProgram::for_rule_without_builtins(NoNestedSwitch);
         let result = test.lint_ast(
             "test.ds",
             r#"

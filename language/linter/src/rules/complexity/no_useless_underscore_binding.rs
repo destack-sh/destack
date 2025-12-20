@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Pattern};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_has_side_effects;
+use crate::rules::common::has_side_effects;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -68,7 +68,7 @@ impl LintRule for NoUselessUnderscoreBinding {
                 }
 
                 // check if value has side effects
-                if expression_has_side_effects(ctx, value_id) {
+                if has_side_effects(ctx, value_id) {
                     continue;
                 }
 
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_wildcard_with_call_allowed() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -114,7 +114,7 @@ let _ = doSomething()
 
     #[test]
     fn test_wildcard_with_literal_detected() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -127,7 +127,7 @@ let _ = 42
 
     #[test]
     fn test_underscore_name_with_literal_detected() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -140,7 +140,7 @@ let _unused = "hello"
 
     #[test]
     fn test_underscore_name_with_call_allowed() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +153,7 @@ let _result = fetchData()
 
     #[test]
     fn test_normal_binding_with_literal_allowed() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -166,7 +166,7 @@ let x = 42
 
     #[test]
     fn test_wildcard_with_variable_detected() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +179,7 @@ let _ = someVariable
 
     #[test]
     fn test_wildcard_with_await_allowed() {
-        let test = TestProgram::for_rule(NoUselessUnderscoreBinding);
+        let test = TestProgram::for_rule_without_builtins(NoUselessUnderscoreBinding);
         let result = test.lint_ast(
             "test.ds",
             r#"

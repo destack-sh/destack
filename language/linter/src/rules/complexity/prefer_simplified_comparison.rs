@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_gte_plus_one_detected() {
-        let test = TestProgram::for_rule(PreferSimplifiedComparison);
+        let test = TestProgram::for_rule_without_builtins(PreferSimplifiedComparison);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -159,7 +159,7 @@ function foo(x: int32, y: int32): bool {
 
     #[test]
     fn test_gt_comparison_allowed() {
-        let test = TestProgram::for_rule(PreferSimplifiedComparison);
+        let test = TestProgram::for_rule_without_builtins(PreferSimplifiedComparison);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -174,7 +174,7 @@ function foo(x: int32, y: int32): bool {
 
     #[test]
     fn test_lte_minus_one_detected() {
-        let test = TestProgram::for_rule(PreferSimplifiedComparison);
+        let test = TestProgram::for_rule_without_builtins(PreferSimplifiedComparison);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -189,7 +189,7 @@ function foo(x: int32, y: int32): bool {
 
     #[test]
     fn test_normal_comparison_allowed() {
-        let test = TestProgram::for_rule(PreferSimplifiedComparison);
+        let test = TestProgram::for_rule_without_builtins(PreferSimplifiedComparison);
         let result = test.lint_ast(
             "test.ds",
             r#"

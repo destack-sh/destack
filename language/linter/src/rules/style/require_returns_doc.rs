@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_function_with_return_no_doc_detected() {
-        let test = TestProgram::for_rule(RequireReturnsDoc);
+        let test = TestProgram::for_rule_without_builtins(RequireReturnsDoc);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -127,7 +127,7 @@ export function foo(): int32 {
 
     #[test]
     fn test_function_with_returns_doc_allowed() {
-        let test = TestProgram::for_rule(RequireReturnsDoc);
+        let test = TestProgram::for_rule_without_builtins(RequireReturnsDoc);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -143,7 +143,7 @@ export function foo(): int32 {
 
     #[test]
     fn test_void_function_allowed() {
-        let test = TestProgram::for_rule(RequireReturnsDoc);
+        let test = TestProgram::for_rule_without_builtins(RequireReturnsDoc);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ export function foo() {
 
     #[test]
     fn test_private_function_allowed() {
-        let test = TestProgram::for_rule(RequireReturnsDoc);
+        let test = TestProgram::for_rule_without_builtins(RequireReturnsDoc);
         let result = test.lint_ast(
             "test.ds",
             r#"

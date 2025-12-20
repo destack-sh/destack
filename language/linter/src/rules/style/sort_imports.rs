@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_unsorted_members_detected() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -256,7 +256,7 @@ import { z, a, m } from "utils"
 
     #[test]
     fn test_sorted_members_allowed() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -268,7 +268,7 @@ import { a, m, z } from "utils"
 
     #[test]
     fn test_member_sorting_case_insensitive() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -280,7 +280,7 @@ import { Alpha, beta, Gamma } from "utils"
 
     #[test]
     fn test_single_member_allowed() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -292,7 +292,7 @@ import { foo } from "utils"
 
     #[test]
     fn test_external_before_sibling_required() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -305,7 +305,7 @@ import { external } from "external"
 
     #[test]
     fn test_correct_group_order_allowed() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -320,7 +320,7 @@ import { sibling } from "./sibling"
 
     #[test]
     fn test_internal_before_parent_required() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -333,7 +333,7 @@ import { internal } from "@/internal"
 
     #[test]
     fn test_parent_before_sibling_required() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -346,7 +346,7 @@ import { parent } from "../parent"
 
     #[test]
     fn test_alphabetical_within_external_group() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -359,7 +359,7 @@ import { a } from "axios"
 
     #[test]
     fn test_alphabetical_within_sibling_group() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -372,7 +372,7 @@ import { a } from "./a"
 
     #[test]
     fn test_sorted_within_groups_allowed() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -389,7 +389,7 @@ import { z } from "./z"
 
     #[test]
     fn test_both_member_and_declaration_issues() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -403,7 +403,7 @@ import { foo } from "external"
 
     #[test]
     fn test_internal_alias_paths() {
-        let test = TestProgram::for_rule(SortImports);
+        let test = TestProgram::for_rule_without_builtins(SortImports);
         let result = test.lint_ast(
             "test.ds",
             r#"

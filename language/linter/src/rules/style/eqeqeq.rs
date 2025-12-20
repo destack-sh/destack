@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_detects_loose_equality() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -108,7 +108,7 @@ if (a == b) {
 
     #[test]
     fn test_detects_loose_inequality() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -122,7 +122,7 @@ if (a != b) {
 
     #[test]
     fn test_allows_strict_equality() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +136,7 @@ if (a === b) {
 
     #[test]
     fn test_allows_strict_inequality() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +150,7 @@ if (a !== b) {
 
     #[test]
     fn test_allows_other_operators() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -164,7 +164,7 @@ if (a < b && c > d) {
 
     #[test]
     fn test_fix_loose_equality() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -180,7 +180,7 @@ if (a === b) { x() }
 
     #[test]
     fn test_fix_loose_inequality() {
-        let test = TestProgram::for_rule(Eqeqeq);
+        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"

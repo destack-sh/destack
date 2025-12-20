@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_detects_deeply_nested_callbacks() {
-        let test = TestProgram::for_rule(MaxNestedCallbacks);
+        let test = TestProgram::for_rule_without_builtins(MaxNestedCallbacks);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -188,7 +188,7 @@ foo(() => {
 
     #[test]
     fn test_allows_shallow_callbacks() {
-        let test = TestProgram::for_rule(MaxNestedCallbacks);
+        let test = TestProgram::for_rule_without_builtins(MaxNestedCallbacks);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -204,7 +204,7 @@ foo(() => {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule(MaxNestedCallbacks);
+        let test = TestProgram::for_rule_without_builtins(MaxNestedCallbacks);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -224,7 +224,7 @@ foo(() => {
 
     #[test]
     fn test_non_callback_functions_dont_count() {
-        let test = TestProgram::for_rule(MaxNestedCallbacks);
+        let test = TestProgram::for_rule_without_builtins(MaxNestedCallbacks);
         let result = test.lint_ast(
             "test.ds",
             r#"

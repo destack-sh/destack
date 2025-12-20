@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_detects_var() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -90,7 +90,7 @@ var x = 1
 
     #[test]
     fn test_allows_let() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -102,7 +102,7 @@ let x = 1
 
     #[test]
     fn test_allows_const() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -114,7 +114,7 @@ const x = 1
 
     #[test]
     fn test_detects_var_in_for() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -128,7 +128,7 @@ for (var i = 0; i < 10; i++) {
 
     #[test]
     fn test_allows_let_in_for() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -142,7 +142,7 @@ for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_fix_var_to_let() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ let x = 1;
 
     #[test]
     fn test_fix_var_in_for() {
-        let test = TestProgram::for_rule(NoVar);
+        let test = TestProgram::for_rule_without_builtins(NoVar);
         let result = test.lint_ast(
             "test.ds",
             r#"

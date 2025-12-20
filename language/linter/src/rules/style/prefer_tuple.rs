@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_detects_heterogeneous_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -188,7 +188,7 @@ let data = ["hello", 42, true]
 
     #[test]
     fn test_detects_string_number_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -200,7 +200,7 @@ let pair = ["name", 123]
 
     #[test]
     fn test_allows_homogeneous_string_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -212,7 +212,7 @@ let names = ["alice", "bob", "charlie"]
 
     #[test]
     fn test_allows_homogeneous_number_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -224,7 +224,7 @@ let nums = [1, 2, 3]
 
     #[test]
     fn test_allows_single_element_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -236,7 +236,7 @@ let single = [42]
 
     #[test]
     fn test_allows_empty_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -248,7 +248,7 @@ let empty = []
 
     #[test]
     fn test_allows_non_literal_array() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -260,7 +260,7 @@ let data = [x, y, z]
 
     #[test]
     fn test_fix_converts_to_tuple() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -278,7 +278,7 @@ let data = ("hello", 42,);
 
     #[test]
     fn test_ignores_typescript_files() {
-        let test = TestProgram::for_rule(PreferTuple);
+        let test = TestProgram::for_rule_without_builtins(PreferTuple);
         let result = test.lint_ast(
             "test.ts",
             r#"

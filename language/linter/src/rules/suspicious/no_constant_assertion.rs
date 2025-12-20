@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_assert_true_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -199,7 +199,7 @@ assert(true)
 
     #[test]
     fn test_assert_false_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -211,7 +211,7 @@ assert(false)
 
     #[test]
     fn test_console_assert_true_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -223,7 +223,7 @@ console.assert(true)
 
     #[test]
     fn test_console_assert_false_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -235,7 +235,7 @@ console.assert(false)
 
     #[test]
     fn test_assert_zero_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -247,7 +247,7 @@ assert(0)
 
     #[test]
     fn test_assert_nonzero_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -259,7 +259,7 @@ assert(1)
 
     #[test]
     fn test_assert_empty_string_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -271,7 +271,7 @@ assert("")
 
     #[test]
     fn test_assert_non_empty_string_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -283,7 +283,7 @@ assert("hello")
 
     #[test]
     fn test_assert_null_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -295,7 +295,7 @@ assert(null)
 
     #[test]
     fn test_assert_variable_allowed() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -307,7 +307,7 @@ assert(isValid)
 
     #[test]
     fn test_assert_comparison_allowed() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -319,7 +319,7 @@ assert(x > 0)
 
     #[test]
     fn test_assert_function_call_allowed() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -331,7 +331,7 @@ assert(validate())
 
     #[test]
     fn test_non_assert_call_allowed() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -343,7 +343,7 @@ log(true)
 
     #[test]
     fn test_debug_assert_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -355,7 +355,7 @@ Debug.assert(true)
 
     #[test]
     fn test_parenthesized_true_detected() {
-        let test = TestProgram::for_rule(NoConstantAssertion);
+        let test = TestProgram::for_rule_without_builtins(NoConstantAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"

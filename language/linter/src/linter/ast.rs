@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_allow_suppresses_by_id() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -246,7 +246,7 @@ function foo() {}
 
     #[test]
     fn test_allow_suppresses_by_code() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -259,7 +259,7 @@ function foo() {}
 
     #[test]
     fn test_allow_on_block() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -272,7 +272,7 @@ function foo() {}
 
     #[test]
     fn test_allow_does_not_affect_other_lints() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -285,7 +285,7 @@ function foo() {}
 
     #[test]
     fn test_forbid_prevents_inner_allow() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -302,7 +302,7 @@ function outer() {
 
     #[test]
     fn test_warn_changes_severity() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -316,7 +316,7 @@ function foo() {}
 
     #[test]
     fn test_deny_changes_severity() {
-        let test = TestProgram::for_rule(NoEmpty);
+        let test = TestProgram::for_rule_with_builtins(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"

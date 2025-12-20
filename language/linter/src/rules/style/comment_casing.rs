@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_inline_comment_lowercase_allowed() {
-        let test = TestProgram::for_rule(CommentCasing);
+        let test = TestProgram::for_rule_without_builtins(CommentCasing);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -144,7 +144,7 @@ let x = 1 // this is fine
 
     #[test]
     fn test_inline_comment_uppercase_detected() {
-        let test = TestProgram::for_rule(CommentCasing);
+        let test = TestProgram::for_rule_without_builtins(CommentCasing);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -156,7 +156,7 @@ let x = 1 // This should be lowercase
 
     #[test]
     fn test_doc_comment_uppercase_allowed() {
-        let test = TestProgram::for_rule(CommentCasing);
+        let test = TestProgram::for_rule_without_builtins(CommentCasing);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -169,7 +169,7 @@ function foo() {}
 
     #[test]
     fn test_doc_comment_lowercase_detected() {
-        let test = TestProgram::for_rule(CommentCasing);
+        let test = TestProgram::for_rule_without_builtins(CommentCasing);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -182,7 +182,7 @@ function foo() {}
 
     #[test]
     fn test_special_markers_skipped() {
-        let test = TestProgram::for_rule(CommentCasing);
+        let test = TestProgram::for_rule_without_builtins(CommentCasing);
         let result = test.lint_ast(
             "test.ds",
             r#"

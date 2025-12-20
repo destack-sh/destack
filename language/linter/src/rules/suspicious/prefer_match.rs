@@ -21,8 +21,6 @@ declare_lint! {
     "Prefer match over complex if-else-if or switch statements"
 }
 
-// nocheckin: expand prefer-match to cover switch statements (incl. fix?)
-
 // minimum number of else-if branches to trigger the suggestion
 const MIN_BRANCHES: usize = 3;
 
@@ -207,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_detects_long_if_else_chain() {
-        let test = TestProgram::for_rule(PreferMatch);
+        let test = TestProgram::for_rule_without_builtins(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -225,7 +223,7 @@ if (x == 1) {
 
     #[test]
     fn test_detects_with_else_block() {
-        let test = TestProgram::for_rule(PreferMatch);
+        let test = TestProgram::for_rule_without_builtins(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -243,7 +241,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_short_if_else() {
-        let test = TestProgram::for_rule(PreferMatch);
+        let test = TestProgram::for_rule_without_builtins(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -259,7 +257,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_different_variables() {
-        let test = TestProgram::for_rule(PreferMatch);
+        let test = TestProgram::for_rule_without_builtins(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -277,7 +275,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_non_equality_conditions() {
-        let test = TestProgram::for_rule(PreferMatch);
+        let test = TestProgram::for_rule_without_builtins(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"

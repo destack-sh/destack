@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_cases() {
-        let test = TestProgram::for_rule(MaxSwitchCases)
+        let test = TestProgram::for_rule_without_builtins(MaxSwitchCases)
             .with_options(|options| options.max_switch_cases = 5);
         let result = test.lint_ast(
             "test.ds",
@@ -89,7 +89,7 @@ switch (x) {
 
     #[test]
     fn test_allows_few_cases() {
-        let test = TestProgram::for_rule(MaxSwitchCases);
+        let test = TestProgram::for_rule_without_builtins(MaxSwitchCases);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -106,7 +106,7 @@ switch (x) {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule(MaxSwitchCases)
+        let test = TestProgram::for_rule_without_builtins(MaxSwitchCases)
             .with_options(|options| options.max_switch_cases = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -124,7 +124,7 @@ switch (x) {
 
     #[test]
     fn test_ignores_match_expression() {
-        let test = TestProgram::for_rule(MaxSwitchCases)
+        let test = TestProgram::for_rule_without_builtins(MaxSwitchCases)
             .with_options(|options| options.max_switch_cases = 2);
         // match expressions are not switch statements
         let result = test.lint_ast(

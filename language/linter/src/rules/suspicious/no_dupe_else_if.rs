@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expressions_equal;
+use crate::rules::common::is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -55,7 +55,7 @@ impl LintRule for NoDupeElseIf {
             // check for duplicates using structural comparison
             for i in 0..conditions.len() {
                 for j in (i + 1)..conditions.len() {
-                    if expressions_equal(ctx, conditions[i], conditions[j]) {
+                    if is_equal(ctx, conditions[i], conditions[j]) {
                         let severity = ctx.get_effective_severity(meta, conditions[j]);
                         if !severity.is_enabled() {
                             continue;
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_else_if() {
-        let test = TestProgram::for_rule(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +150,7 @@ if (x > 0) {
 
     #[test]
     fn test_detects_duplicate_in_longer_chain() {
-        let test = TestProgram::for_rule(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -168,7 +168,7 @@ if (x > 0) {
 
     #[test]
     fn test_allows_different_conditions() {
-        let test = TestProgram::for_rule(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -186,7 +186,7 @@ if (x > 0) {
 
     #[test]
     fn test_allows_simple_if_else() {
-        let test = TestProgram::for_rule(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"

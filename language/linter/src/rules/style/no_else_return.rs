@@ -2,7 +2,6 @@ use destack_ast::{self as ast, Block};
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_get_block_span_str;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -57,7 +56,7 @@ impl LintRule for NoElseReturn {
                 // make fix: if-then on one line, else content on next
                 let if_then_span = Span::new(if_span.file, if_span.start, then_span.end);
                 let if_then_text = ctx.get_span_text(if_then_span);
-                let else_text = expression_get_block_span_str(ctx, *else_id);
+                let else_text = get_block_span_str(ctx, *else_id);
                 let replacement = format!("{if_then_text}\n{else_text}");
                 let edits = ctx
                     .edit_builder()
@@ -81,6 +80,28 @@ impl LintRule for NoElseReturn {
             }
         }
     }
+}
+
+/// Get the content of a block expression, stripping outer braces if present.
+fn get_block_span_str(
+    ctx: &LintModuleAstContext<'_>,
+    expr_id: ast::LocalNodeId<ast::Expression>,
+) -> String {
+    let expr = ctx.tree.get(expr_id);
+
+    // if it's a block, get the content inside the braces
+    if let ast::Expression::Block(block_id) = expr {
+        let block: &ast::Block = ctx.tree.get(*block_id);
+        if let (Some(&first), Some(&last)) = (block.expressions.first(), block.expressions.last()) {
+            let first_span = ctx.tree.get_span(first);
+            let last_span = ctx.tree.get_span(last);
+            let content_span = Span::new(first_span.file, first_span.start, last_span.end);
+            return ctx.get_span_text(content_span).to_string();
+        }
+    }
+
+    // otherwise just return the whole expression text
+    ctx.get_span_text(ctx.tree.get_span(expr_id)).to_string()
 }
 
 fn ends_with_return(
@@ -110,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_detects_else_after_return() {
-        let test = TestProgram::for_rule(NoElseReturn);
+        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -128,7 +149,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_allows_no_else() {
-        let test = TestProgram::for_rule(NoElseReturn);
+        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -145,7 +166,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_allows_else_without_return_in_if() {
-        let test = TestProgram::for_rule(NoElseReturn);
+        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -163,7 +184,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_fix_else_after_return() {
-        let test = TestProgram::for_rule(NoElseReturn);
+        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"

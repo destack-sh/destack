@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_detects_default_export_function() {
-        let test = TestProgram::for_rule(NoDefaultExport);
+        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
         let result = test.lint(
             "test.ds",
             "export default function foo() {}",
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_detects_default_export_class() {
-        let test = TestProgram::for_rule(NoDefaultExport);
+        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
         let result = test.lint("test.ds", "export default class Foo {}", LintLevel::Dir);
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_allows_named_export_function() {
-        let test = TestProgram::for_rule(NoDefaultExport);
+        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
         let result = test.lint("test.ds", "export function foo() {}", LintLevel::Dir);
         test.check_clean();
         test.result(result).assert_no_lint("no-default-export");
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_allows_named_export_class() {
-        let test = TestProgram::for_rule(NoDefaultExport);
+        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
         let result = test.lint("test.ds", "export class Foo {}", LintLevel::Dir);
         test.check_clean();
         test.result(result).assert_no_lint("no-default-export");
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_detects_default_export_identifier() {
-        let test = TestProgram::for_rule(NoDefaultExport);
+        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
         let result = test.lint(
             "test.ds",
             "const foo = 1;\nexport default foo;",

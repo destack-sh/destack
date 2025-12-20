@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_detects_for_with_unconditional_return() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -167,7 +167,7 @@ for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_detects_foreach_with_unconditional_return() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -181,7 +181,7 @@ for (item in items) {
 
     #[test]
     fn test_detects_while_with_unconditional_break() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -195,7 +195,7 @@ while (true) {
 
     #[test]
     fn test_detects_loop_with_unconditional_throw() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -209,7 +209,7 @@ loop {
 
     #[test]
     fn test_allows_conditional_return() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -226,7 +226,7 @@ for (item in items) {
 
     #[test]
     fn test_allows_conditional_break() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -243,7 +243,7 @@ while (true) {
 
     #[test]
     fn test_allows_normal_loop() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -258,7 +258,7 @@ for (item in items) {
 
     #[test]
     fn test_allows_empty_loop() {
-        let test = TestProgram::for_rule(NoLoopSingleIteration);
+        let test = TestProgram::for_rule_without_builtins(NoLoopSingleIteration);
         let result = test.lint_ast(
             "test.ds",
             r#"

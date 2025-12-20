@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_detects_add_assignment() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ x = x + 1
 
     #[test]
     fn test_detects_multiply_assignment() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -171,7 +171,7 @@ x = x * 3
 
     #[test]
     fn test_allows_compound_assignment() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -184,7 +184,7 @@ x += 1
 
     #[test]
     fn test_allows_different_variable() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -198,7 +198,7 @@ x = y + 1
 
     #[test]
     fn test_allows_non_compound_operators() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -211,7 +211,7 @@ x = x == 1
 
     #[test]
     fn test_fix_add_assignment() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -231,7 +231,7 @@ x += 1;
 
     #[test]
     fn test_fix_multiply_assignment() {
-        let test = TestProgram::for_rule(OperatorAssignment);
+        let test = TestProgram::for_rule_without_builtins(OperatorAssignment);
         let result = test.lint_ast(
             "test.ds",
             r#"

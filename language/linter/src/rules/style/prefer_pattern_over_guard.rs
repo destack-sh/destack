@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_equality_guard_detected() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -178,7 +178,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_strict_equality_guard_detected() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -195,7 +195,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_reversed_equality_guard_detected() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -212,7 +212,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_literal_pattern_allowed() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -230,7 +230,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_complex_guard_allowed() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -249,7 +249,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_guard_with_different_var_allowed() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -268,7 +268,7 @@ function foo(x: int32, y: int32) {
 
     #[test]
     fn test_guard_with_method_call_allowed() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -287,7 +287,7 @@ function foo(x: string) {
 
     #[test]
     fn test_no_guard_allowed() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -306,7 +306,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_inequality_guard_allowed() {
-        let test = TestProgram::for_rule(PreferPatternOverGuard);
+        let test = TestProgram::for_rule_without_builtins(PreferPatternOverGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"

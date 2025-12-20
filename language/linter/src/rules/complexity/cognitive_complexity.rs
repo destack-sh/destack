@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_detects_high_cognitive_complexity() {
-        let test = TestProgram::for_rule(CognitiveComplexity)
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity)
             .with_options(|options| options.max_cognitive_complexity = 15);
         // nested structures have higher cognitive complexity
         let result = test.lint_ast(
@@ -275,7 +275,7 @@ function complex(a: bool, b: bool, c: bool) {
 
     #[test]
     fn test_allows_simple_function() {
-        let test = TestProgram::for_rule(CognitiveComplexity);
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -293,7 +293,7 @@ function simple(x: int32): int32 {
 
     #[test]
     fn test_nesting_increases_complexity() {
-        let test = TestProgram::for_rule(CognitiveComplexity);
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -318,7 +318,7 @@ function nested(a: bool) {
 
     #[test]
     fn test_flat_ifs_lower_complexity() {
-        let test = TestProgram::for_rule(CognitiveComplexity);
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -342,7 +342,7 @@ function flat(a: bool) {
 
     #[test]
     fn test_logical_operator_sequences() {
-        let test = TestProgram::for_rule(CognitiveComplexity);
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -357,7 +357,7 @@ function logical(a: bool): bool {
 
     #[test]
     fn test_mixed_logical_operators() {
-        let test = TestProgram::for_rule(CognitiveComplexity);
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -372,7 +372,7 @@ function mixed(a: bool): bool {
 
     #[test]
     fn test_loops_add_complexity() {
-        let test = TestProgram::for_rule(CognitiveComplexity);
+        let test = TestProgram::for_rule_without_builtins(CognitiveComplexity);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_single_arm_match_detected() {
-        let test = TestProgram::for_rule(PreferIfLet);
+        let test = TestProgram::for_rule_without_builtins(PreferIfLet);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -99,7 +99,7 @@ function foo(x: int32?) {
 
     #[test]
     fn test_if_let_allowed() {
-        let test = TestProgram::for_rule(PreferIfLet);
+        let test = TestProgram::for_rule_without_builtins(PreferIfLet);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +115,7 @@ function foo(x: int32?) {
 
     #[test]
     fn test_multi_arm_match_allowed() {
-        let test = TestProgram::for_rule(PreferIfLet);
+        let test = TestProgram::for_rule_without_builtins(PreferIfLet);
         let result = test.lint_ast(
             "test.ds",
             r#"

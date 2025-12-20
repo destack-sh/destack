@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expressions_equal;
+use crate::rules::common::is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -63,7 +63,7 @@ impl LintRule for NoDuplicateMatchArms {
                 // check against previously seen bodies
                 let is_duplicate = seen_bodies
                     .iter()
-                    .any(|(_, prev_body)| expressions_equal(ctx, *prev_body, body_id));
+                    .any(|(_, prev_body)| is_equal(ctx, *prev_body, body_id));
                 if is_duplicate {
                     let severity = ctx.get_effective_severity(meta, body_id);
                     if !severity.is_enabled() {
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_match_arms() {
-        let test = TestProgram::for_rule(NoDuplicateMatchArms);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateMatchArms);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -112,7 +112,7 @@ match (x) {
 
     #[test]
     fn test_allows_different_bodies() {
-        let test = TestProgram::for_rule(NoDuplicateMatchArms);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateMatchArms);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -128,7 +128,7 @@ match (x) {
 
     #[test]
     fn test_detects_duplicate_literals() {
-        let test = TestProgram::for_rule(NoDuplicateMatchArms);
+        let test = TestProgram::for_rule_without_builtins(NoDuplicateMatchArms);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_union_members() {
-        let test = TestProgram::for_rule(MaxTypeVariants)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 5);
         let result = test.lint_ast(
             "test.ds",
@@ -165,7 +165,7 @@ type BigUnion = A | B | C | D | E | F;
 
     #[test]
     fn test_allows_few_union_members() {
-        let test = TestProgram::for_rule(MaxTypeVariants);
+        let test = TestProgram::for_rule_without_builtins(MaxTypeVariants);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -177,7 +177,7 @@ type SmallUnion = A | B | C;
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule(MaxTypeVariants)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 5);
         let result = test.lint_ast(
             "test.ds",
@@ -190,7 +190,7 @@ type AtLimit = A | B | C | D | E;
 
     #[test]
     fn test_counts_in_function_parameter() {
-        let test = TestProgram::for_rule(MaxTypeVariants)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -203,7 +203,7 @@ function test(x: A | B | C | D): void {}
 
     #[test]
     fn test_detects_too_many_enum_variants() {
-        let test = TestProgram::for_rule(MaxTypeVariants)
+        let test = TestProgram::for_rule_without_builtins(MaxTypeVariants)
             .with_options(|options| options.max_type_variants = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -221,7 +221,7 @@ enum TooMany {
 
     #[test]
     fn test_allows_few_enum_variants() {
-        let test = TestProgram::for_rule(MaxTypeVariants);
+        let test = TestProgram::for_rule_without_builtins(MaxTypeVariants);
         let result = test.lint_ast(
             "test.ds",
             r#"

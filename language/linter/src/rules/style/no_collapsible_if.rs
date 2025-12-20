@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_nested_if_without_else_detected() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -191,7 +191,7 @@ function foo(a: bool, b: bool) {
 
     #[test]
     fn test_nested_three_levels_detected() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -212,7 +212,7 @@ function foo(a: bool, b: bool, c: bool) {
 
     #[test]
     fn test_outer_has_else_allowed() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -232,7 +232,7 @@ function foo(a: bool, b: bool) {
 
     #[test]
     fn test_inner_has_else_allowed() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -252,7 +252,7 @@ function foo(a: bool, b: bool) {
 
     #[test]
     fn test_multiple_statements_in_then_allowed() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -271,7 +271,7 @@ function foo(a: bool, b: bool) {
 
     #[test]
     fn test_simple_if_allowed() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -287,7 +287,7 @@ function foo(a: bool) {
 
     #[test]
     fn test_if_else_allowed() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -305,7 +305,7 @@ function foo(a: bool) {
 
     #[test]
     fn test_already_combined_condition_allowed() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -321,7 +321,7 @@ function foo(a: bool, b: bool) {
 
     #[test]
     fn test_fix_nested_if() {
-        let test = TestProgram::for_rule(NoCollapsibleIf);
+        let test = TestProgram::for_rule_without_builtins(NoCollapsibleIf);
         let result = test.lint_ast(
             "test.ds",
             r#"

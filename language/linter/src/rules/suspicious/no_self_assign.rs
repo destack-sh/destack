@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_detects_simple_self_assign() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -113,7 +113,7 @@ x = x
 
     #[test]
     fn test_detects_member_self_assign() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -125,7 +125,7 @@ obj.x = obj.x
 
     #[test]
     fn test_detects_index_self_assign() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -137,7 +137,7 @@ arr[0] = arr[0]
 
     #[test]
     fn test_allows_different_assignment() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +149,7 @@ x = y
 
     #[test]
     fn test_allows_different_member_assignment() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -161,7 +161,7 @@ obj.x = obj.y
 
     #[test]
     fn test_allows_compound_assignment() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -173,7 +173,7 @@ x += x
 
     #[test]
     fn test_fix_self_assign() {
-        let test = TestProgram::for_rule(NoSelfAssign);
+        let test = TestProgram::for_rule_without_builtins(NoSelfAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"

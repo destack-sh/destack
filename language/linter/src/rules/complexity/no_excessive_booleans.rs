@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_detects_excessive_boolean_params() {
-        let test = TestProgram::for_rule(NoExcessiveBooleans);
+        let test = TestProgram::for_rule_without_builtins(NoExcessiveBooleans);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ function process(a: boolean, b: boolean, c: boolean, d: boolean) {
 
     #[test]
     fn test_allows_few_boolean_params() {
-        let test = TestProgram::for_rule(NoExcessiveBooleans);
+        let test = TestProgram::for_rule_without_builtins(NoExcessiveBooleans);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -172,7 +172,7 @@ function process(a: boolean, b: boolean, c: boolean) {
 
     #[test]
     fn test_detects_excessive_boolean_fields() {
-        let test = TestProgram::for_rule(NoExcessiveBooleans);
+        let test = TestProgram::for_rule_without_builtins(NoExcessiveBooleans);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -189,7 +189,7 @@ struct Options {
 
     #[test]
     fn test_allows_few_boolean_fields() {
-        let test = TestProgram::for_rule(NoExcessiveBooleans);
+        let test = TestProgram::for_rule_without_builtins(NoExcessiveBooleans);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -205,7 +205,7 @@ struct Options {
 
     #[test]
     fn test_allows_non_boolean_params() {
-        let test = TestProgram::for_rule(NoExcessiveBooleans);
+        let test = TestProgram::for_rule_without_builtins(NoExcessiveBooleans);
         let result = test.lint_ast(
             "test.ds",
             r#"

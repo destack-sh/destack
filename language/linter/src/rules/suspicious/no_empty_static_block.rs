@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_static_block() {
-        let test = TestProgram::for_rule(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -93,7 +93,7 @@ class Foo {
 
     #[test]
     fn test_allows_static_block_with_code() {
-        let test = TestProgram::for_rule(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -109,7 +109,7 @@ class Foo {
 
     #[test]
     fn test_allows_static_block_with_comment() {
-        let test = TestProgram::for_rule(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -123,7 +123,7 @@ class Foo {
 
     #[test]
     fn test_fix_removes_empty_static_block() {
-        let test = TestProgram::for_rule(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"

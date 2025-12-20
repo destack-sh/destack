@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_new_struct_detected() {
-        let test = TestProgram::for_rule(PreferStructLiteral);
+        let test = TestProgram::for_rule_without_builtins(PreferStructLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -118,7 +118,7 @@ const p = new Point(1, 2)
 
     #[test]
     fn test_struct_literal_allowed() {
-        let test = TestProgram::for_rule(PreferStructLiteral);
+        let test = TestProgram::for_rule_without_builtins(PreferStructLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -130,7 +130,7 @@ const p = Point { x: 1, y: 2 }
 
     #[test]
     fn test_new_namespaced_struct_detected() {
-        let test = TestProgram::for_rule(PreferStructLiteral);
+        let test = TestProgram::for_rule_without_builtins(PreferStructLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -142,7 +142,7 @@ const p = new geom.Point(1, 2)
 
     #[test]
     fn test_new_lowercase_allowed() {
-        let test = TestProgram::for_rule(PreferStructLiteral);
+        let test = TestProgram::for_rule_without_builtins(PreferStructLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -155,7 +155,7 @@ const p = new factory(1, 2)
 
     #[test]
     fn test_multiple_new_calls_detected() {
-        let test = TestProgram::for_rule(PreferStructLiteral);
+        let test = TestProgram::for_rule_without_builtins(PreferStructLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -170,7 +170,7 @@ const b = new Vector(3, 4)
 
     #[test]
     fn test_new_without_args_detected() {
-        let test = TestProgram::for_rule(PreferStructLiteral);
+        let test = TestProgram::for_rule_without_builtins(PreferStructLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"

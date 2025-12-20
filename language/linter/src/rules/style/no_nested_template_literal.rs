@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_detects_nested_template() {
-        let test = TestProgram::for_rule(NoNestedTemplateLiteral);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTemplateLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -123,7 +123,7 @@ let outer = `hello ${`world ${name}`}`;
 
     #[test]
     fn test_allows_simple_template() {
-        let test = TestProgram::for_rule(NoNestedTemplateLiteral);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTemplateLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +136,7 @@ let greeting = `hello ${name}`;
 
     #[test]
     fn test_allows_sequential_templates() {
-        let test = TestProgram::for_rule(NoNestedTemplateLiteral);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTemplateLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +150,7 @@ let b = `goodbye ${name}`;
 
     #[test]
     fn test_allows_template_in_function_call() {
-        let test = TestProgram::for_rule(NoNestedTemplateLiteral);
+        let test = TestProgram::for_rule_without_builtins(NoNestedTemplateLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"

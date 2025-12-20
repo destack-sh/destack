@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_detects_non_default_after_default() {
-        let test = TestProgram::for_rule(DefaultParamLast);
+        let test = TestProgram::for_rule_without_builtins(DefaultParamLast);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -143,7 +143,7 @@ function foo(a: int32 = 1, b: int32) {}
 
     #[test]
     fn test_detects_non_default_after_default_in_arrow() {
-        let test = TestProgram::for_rule(DefaultParamLast);
+        let test = TestProgram::for_rule_without_builtins(DefaultParamLast);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -155,7 +155,7 @@ let foo = (a: int32 = 1, b: int32) => {}
 
     #[test]
     fn test_allows_defaults_last() {
-        let test = TestProgram::for_rule(DefaultParamLast);
+        let test = TestProgram::for_rule_without_builtins(DefaultParamLast);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -167,7 +167,7 @@ function foo(a: int32, b: int32 = 1) {}
 
     #[test]
     fn test_allows_all_defaults() {
-        let test = TestProgram::for_rule(DefaultParamLast);
+        let test = TestProgram::for_rule_without_builtins(DefaultParamLast);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +179,7 @@ function foo(a: int32 = 1, b: int32 = 2) {}
 
     #[test]
     fn test_allows_no_defaults() {
-        let test = TestProgram::for_rule(DefaultParamLast);
+        let test = TestProgram::for_rule_without_builtins(DefaultParamLast);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -191,7 +191,7 @@ function foo(a: int32, b: int32) {}
 
     #[test]
     fn test_allows_variadic_after_default() {
-        let test = TestProgram::for_rule(DefaultParamLast);
+        let test = TestProgram::for_rule_without_builtins(DefaultParamLast);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_if_else_if_without_else_detected() {
-        let test = TestProgram::for_rule(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +115,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_if_else_if_else_allowed() {
-        let test = TestProgram::for_rule(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +136,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_simple_if_allowed() {
-        let test = TestProgram::for_rule(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +153,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_simple_if_else_allowed() {
-        let test = TestProgram::for_rule(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"

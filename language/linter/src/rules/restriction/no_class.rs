@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_detects_class() {
-        let test = TestProgram::for_rule(NoClass);
+        let test = TestProgram::for_rule_without_builtins(NoClass);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -78,7 +78,7 @@ class MyClass {
 
     #[test]
     fn test_detects_exported_class() {
-        let test = TestProgram::for_rule(NoClass);
+        let test = TestProgram::for_rule_without_builtins(NoClass);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -92,7 +92,7 @@ export class MyClass {
 
     #[test]
     fn test_detects_abstract_class() {
-        let test = TestProgram::for_rule(NoClass);
+        let test = TestProgram::for_rule_without_builtins(NoClass);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -106,7 +106,7 @@ abstract class BaseClass {
 
     #[test]
     fn test_allows_struct() {
-        let test = TestProgram::for_rule(NoClass);
+        let test = TestProgram::for_rule_without_builtins(NoClass);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -120,7 +120,7 @@ struct MyStruct {
 
     #[test]
     fn test_allows_interface() {
-        let test = TestProgram::for_rule(NoClass);
+        let test = TestProgram::for_rule_without_builtins(NoClass);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -134,7 +134,7 @@ interface MyInterface {
 
     #[test]
     fn test_allows_function() {
-        let test = TestProgram::for_rule(NoClass);
+        let test = TestProgram::for_rule_without_builtins(NoClass);
         let result = test.lint_ast(
             "test.ts",
             r#"

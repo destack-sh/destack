@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_detects_computed_string_key() {
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -133,7 +133,7 @@ const obj = { ["x"]: 1 }
 
     #[test]
     fn test_detects_computed_string_key_multi_char() {
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -145,7 +145,7 @@ const obj = { ["foo"]: 1 }
 
     #[test]
     fn test_allows_non_identifier_computed_key() {
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ const obj = { ["Content-Type"]: "json" }
 
     #[test]
     fn test_allows_variable_computed_key() {
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -172,7 +172,7 @@ const obj = { [key]: 1 }
 
     #[test]
     fn test_allows_static_key() {
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -186,7 +186,7 @@ const obj = { x: 1 }
     #[test]
     fn test_allows_numeric_string_key() {
         // numeric strings aren't valid identifiers
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -199,7 +199,7 @@ const obj = { ["123"]: 1 }
 
     #[test]
     fn test_fix_computed_to_static() {
-        let test = TestProgram::for_rule(NoUselessComputedKey);
+        let test = TestProgram::for_rule_without_builtins(NoUselessComputedKey);
         let result = test.lint_ast(
             "test.ds",
             r#"

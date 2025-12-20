@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_constructor() {
-        let test = TestProgram::for_rule(NoUselessConstructor);
+        let test = TestProgram::for_rule_without_builtins(NoUselessConstructor);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -110,7 +110,7 @@ class Foo {
 
     #[test]
     fn test_allows_constructor_with_initialization() {
-        let test = TestProgram::for_rule(NoUselessConstructor);
+        let test = TestProgram::for_rule_without_builtins(NoUselessConstructor);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -126,7 +126,7 @@ class Foo {
 
     #[test]
     fn test_allows_constructor_with_params() {
-        let test = TestProgram::for_rule(NoUselessConstructor);
+        let test = TestProgram::for_rule_without_builtins(NoUselessConstructor);
         let result = test.lint_ast(
             "test.ds",
             r#"

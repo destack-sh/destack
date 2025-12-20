@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_detects_self_equal() {
-        let test = TestProgram::for_rule(NoSelfCompare);
+        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
         let result = test.lint(
             "test.ds",
             r#"
@@ -112,7 +112,7 @@ x == x;
 
     #[test]
     fn test_detects_self_not_equal() {
-        let test = TestProgram::for_rule(NoSelfCompare);
+        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
         let result = test.lint(
             "test.ds",
             r#"
@@ -127,7 +127,7 @@ x != x;
 
     #[test]
     fn test_detects_self_less() {
-        let test = TestProgram::for_rule(NoSelfCompare);
+        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
         let result = test.lint(
             "test.ds",
             r#"
@@ -142,7 +142,7 @@ x < x;
 
     #[test]
     fn test_no_self_compare_different_vars() {
-        let test = TestProgram::for_rule(NoSelfCompare);
+        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
         let result = test.lint(
             "test.ds",
             r#"
@@ -158,7 +158,7 @@ x == y;
 
     #[test]
     fn test_no_self_compare_arithmetic() {
-        let test = TestProgram::for_rule(NoSelfCompare);
+        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
         let result = test.lint(
             "test.ds",
             r#"

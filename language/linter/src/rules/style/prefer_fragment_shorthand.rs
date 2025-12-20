@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_fragment_detected() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -184,7 +184,7 @@ let elem = <Fragment><Child /></Fragment>
 
     #[test]
     fn test_shorthand_allowed() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -197,7 +197,7 @@ let elem = <><Child /></>
 
     #[test]
     fn test_empty_fragment_detected() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -209,7 +209,7 @@ let elem = <Fragment></Fragment>
 
     #[test]
     fn test_empty_shorthand_allowed() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -222,7 +222,7 @@ let elem = <></>
 
     #[test]
     fn test_fragment_with_key_allowed() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -236,7 +236,7 @@ let elem = <Fragment key={id}><Child /></Fragment>
 
     #[test]
     fn test_other_element_allowed() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -249,7 +249,7 @@ let elem = <div><Child /></div>
 
     #[test]
     fn test_multiple_children_detected() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -264,7 +264,7 @@ let elem = <Fragment>
 
     #[test]
     fn test_qualified_fragment_detected() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -276,7 +276,7 @@ let elem = <React.Fragment><Child /></React.Fragment>
 
     #[test]
     fn test_fix_fragment_to_shorthand() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -294,7 +294,7 @@ let elem = <><Child /></>;
 
     #[test]
     fn test_fix_empty_fragment() {
-        let test = TestProgram::for_rule(PreferFragmentShorthand);
+        let test = TestProgram::for_rule_without_builtins(PreferFragmentShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
