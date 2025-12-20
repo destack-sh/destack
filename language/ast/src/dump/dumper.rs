@@ -1346,16 +1346,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match case {
             MatchCase::Expression {
-                pattern: _,
+                selector: _,
                 body: _,
-                guard: _,
             } => {
                 self.node("MatchCase::Expression", _id.id).end();
             }
             MatchCase::Block {
-                pattern: _,
+                selector: _,
                 body: _,
-                guard: _,
             } => {
                 self.node("MatchCase::Block", _id.id).end();
             }

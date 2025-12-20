@@ -3,8 +3,8 @@ use std::cmp::Ordering;
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, MatchCase,
-    MatchKind, NodeTree, Pattern, PostfixPosition, Property, ScalarLiteral, TypeUnaryOperator,
-    WhileKind, YieldCardinality,
+    MatchKind, MatchSelector, NodeTree, Pattern, PostfixPosition, Property, ScalarLiteral,
+    TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -1405,55 +1405,56 @@ fn format_match_case<'ast>(
 ) -> FormatResult<()> {
     let case = f.context().tree.get(case_id);
 
-    // extract pattern, guard, and body based on case variant
-    let (pattern_id, guard, body_format): (
-        LocalNodeId<Pattern>,
-        Option<LocalNodeId<Expression>>,
+    // extract selector and body based on case variant
+    let (selector, body_format): (
+        &MatchSelector,
         Box<dyn Fn(&mut DestackFormatter<'ast, '_>) -> FormatResult<()> + '_>,
     ) = match case {
-        MatchCase::Expression {
-            pattern,
-            body,
-            guard,
-        } => (*pattern, *guard, Box::new(move |f| write!(f, [*body]))),
-        MatchCase::Block {
-            pattern,
-            body,
-            guard,
-        } => (*pattern, *guard, Box::new(move |f| write!(f, [*body]))),
+        MatchCase::Expression { selector, body } => {
+            (selector, Box::new(move |f| write!(f, [*body])))
+        }
+        MatchCase::Block { selector, body } => (selector, Box::new(move |f| write!(f, [*body]))),
     };
 
     // write prefix annotations
     write!(f, [f.context().any_prefix_annotations(case_id)])?;
 
-    let pattern = f.context().tree.get(pattern_id);
-    let is_default = matches!(pattern, Pattern::Wildcard);
-
     match kind {
         MatchKind::Match => {
             // match style: pattern => body
-            write!(f, [pattern_id])?;
-            if let Some(guard) = guard {
-                write!(
-                    f,
-                    [space(), Keyword::If, space(), token("("), guard, token(")")]
-                )?;
+            match selector {
+                MatchSelector::Pattern { pattern, guard } => {
+                    write!(f, [*pattern])?;
+                    if let Some(guard) = guard {
+                        write!(
+                            f,
+                            [space(), Keyword::If, space(), token("("), *guard, token(")")]
+                        )?;
+                    }
+                }
+                MatchSelector::Default => {
+                    // shouldn't happen in match expressions, but handle gracefully
+                    write!(f, [token("_")])?;
+                }
             }
             write!(f, [space(), token("=>"), space()])?;
             body_format(f)?;
         }
         MatchKind::Switch => {
             // switch style: case pattern: or default:
-            if is_default {
-                write!(f, [Keyword::Default, token(":")])?;
-            } else {
-                write!(f, [Keyword::Case, space(), pattern_id, token(":")])?;
-            }
-            if let Some(guard) = guard {
-                write!(
-                    f,
-                    [space(), Keyword::If, space(), token("("), guard, token(")")]
-                )?;
+            match selector {
+                MatchSelector::Pattern { pattern, guard } => {
+                    write!(f, [Keyword::Case, space(), *pattern, token(":")])?;
+                    if let Some(guard) = guard {
+                        write!(
+                            f,
+                            [space(), Keyword::If, space(), token("("), *guard, token(")")]
+                        )?;
+                    }
+                }
+                MatchSelector::Default => {
+                    write!(f, [Keyword::Default, token(":")])?;
+                }
             }
             write!(f, [space()])?;
             body_format(f)?;

@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
     Decorator, DependencyItem, Doc, EnumField, Expression, FunctionSignature, Generics, Heritage,
-    Key, LocalNodeId, MatchCase, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Property, TemplateLiteral, WhereClause,
+    Key, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -1198,6 +1198,21 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk the MatchSelector.
+fn walk_match_selector<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, selector: &MatchSelector) {
+    match selector {
+        MatchSelector::Pattern { pattern, guard } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(guard_expr) = guard {
+                let guard_node = tree.get(*guard_expr);
+                visitor.visit_expression(tree, *guard_expr, guard_node);
+            }
+        }
+        MatchSelector::Default => {}
+    }
+}
+
 /// Walk the MatchCase.
 pub fn walk_match_case<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -1207,33 +1222,15 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::MatchCase, id.id);
     match match_case {
-        MatchCase::Expression {
-            pattern,
-            body,
-            guard,
-        } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
+        MatchCase::Expression { selector, body } => {
+            walk_match_selector(visitor, tree, selector);
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
-            if let Some(guard_expr) = guard {
-                let guard_node = tree.get(*guard_expr);
-                visitor.visit_expression(tree, *guard_expr, guard_node);
-            }
         }
-        MatchCase::Block {
-            pattern,
-            body,
-            guard,
-        } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
+        MatchCase::Block { selector, body } => {
+            walk_match_selector(visitor, tree, selector);
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
-            if let Some(guard_expr) = guard {
-                let guard_node = tree.get(*guard_expr);
-                visitor.visit_expression(tree, *guard_expr, guard_node);
-            }
         }
     }
 }

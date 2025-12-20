@@ -13,22 +13,34 @@ pub enum MatchSource {
     Must,
 }
 
+/// A MatchSelector determines which case is selected in a match/switch expression.
+///
+/// For match expressions, this is a pattern with an optional guard.
+/// For switch expressions, this can also be `Default` (the `default:` case).
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchSelector {
+    /// A pattern with an optional guard (e.g., `x if x > 0`).
+    Pattern {
+        pattern: LocalNodeId<Pattern>,
+        guard: Option<LocalNodeId<Expression>>,
+    },
+    /// The default case in a switch statement (`default:`).
+    Default,
+}
+
 /// A MatchCase is a match case inside a Match expression.
-/// MatchCases can be any Pattern and can have an optional `if` guard.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {
-        pattern: LocalNodeId<Pattern>,
+        selector: MatchSelector,
         body: LocalNodeId<Expression>,
-        guard: Option<LocalNodeId<Expression>>,
         scope: LocalScopeId,
     },
     /// A match case with a block body.
     Block {
-        pattern: LocalNodeId<Pattern>,
+        selector: MatchSelector,
         body: LocalNodeId<Block>,
-        guard: Option<LocalNodeId<Expression>>,
         scope: LocalScopeId,
     },
 }

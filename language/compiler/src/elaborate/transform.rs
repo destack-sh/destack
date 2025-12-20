@@ -1,10 +1,13 @@
 use destack_dir::{
-    BinaryOperator, Expression, IfKind, LocalNodeId, MatchCase, MatchSource, NodeTree, NodeType,
-    Pattern, PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
+    BinaryOperator, Expression, IfKind, LocalNodeId, MatchCase, MatchSelector, MatchSource,
+    NodeTree, NodeType, Pattern, PatternField, ScalarLiteral, StringId, SymbolTable,
+    TypeBinaryOperator, TypeTable,
 };
 use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult};
+
+// nocheckin TODO #Incomplete: elaborate transform (if let, match, expressions as values)
 
 impl Compiler {
     /// Transform a module with target-independent simplifications:
@@ -19,13 +22,13 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let types = dir.types.read();
 
-        // pass 1: if-let → if + binding
+        // 1. if-let → if + binding
         self.transform_if_let(&mut tree, &symbols, &types)?;
 
-        // pass 2: match → decision trees
+        // 2. match → decision trees
         self.transform_match(&mut tree, &symbols, &types)?;
 
-        // pass 3: expressions as values → temp + assignments (must be last)
+        // 3. expressions as values → temp + assignments
         self.transform_expression_as_value(&mut tree, &symbols, &types)?;
 
         Ok(())
@@ -46,7 +49,7 @@ impl Compiler {
         _symbols: &SymbolTable,
         _types: &TypeTable,
     ) -> ElaborateResult<()> {
-        // NOTE #Incomplete: transform if-let expressions
+        // #Incomplete: transform if-let expressions
         Ok(())
     }
 
@@ -103,7 +106,6 @@ impl Compiler {
         let Expression::Match { value, cases, .. } = tree.get(match_id).clone() else {
             return Ok(());
         };
-
         if cases.is_empty() {
             return Ok(());
         }
@@ -136,26 +138,21 @@ impl Compiler {
         }
 
         let case = tree.get(cases[index]).clone();
-        let (pattern_id, body, guard) = match &case {
-            MatchCase::Expression {
-                pattern,
-                body,
-                guard,
-                ..
-            } => (*pattern, *body, *guard),
-            MatchCase::Block {
-                pattern,
-                body,
-                guard,
-                ..
-            } => {
+        let (selector, body) = match &case {
+            MatchCase::Expression { selector, body, .. } => (selector.clone(), *body),
+            MatchCase::Block { selector, body, .. } => {
                 // wrap block in a block expression
                 let block_expr_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let block_expr: LocalNodeId<Expression> =
                     tree.insert(block_expr_id, Expression::Block { block: *body });
-                (*pattern, block_expr, *guard)
+                (selector.clone(), block_expr)
             }
+        };
+
+        // default selector: return the body (it always matches)
+        let MatchSelector::Pattern { pattern: pattern_id, guard } = selector else {
+            return Ok(Some(body));
         };
 
         let pattern = tree.get(pattern_id).clone();
@@ -169,7 +166,7 @@ impl Compiler {
         if let Pattern::Binding { pattern: None, .. } = &pattern {
             if guard.is_none() {
                 // binding with no guard: return the body
-                // NOTE #Incomplete: need to emit the let binding for the variable
+                // #Incomplete: need to emit the let binding for the variable
                 return Ok(Some(body));
             }
 
@@ -318,7 +315,7 @@ impl Compiler {
             return Ok(Some(body_with_bindings));
         }
 
-        // NOTE #Incomplete: remaining pattern types (Range, Union, Array, Maybe, etc.)
+        // #Incomplete: remaining pattern types (Range, Union, Array, Maybe, etc.)
         Ok(Some(body))
     }
 
@@ -473,7 +470,7 @@ impl Compiler {
                         let access = self.build_index_access(match_id, value, i, tree, scope);
                         bindings.push((name, symbol, mutability, access));
                     }
-                    // NOTE #Incomplete: handle nested patterns in positional fields
+                    // #Incomplete: handle nested patterns in positional fields
                 }
                 PatternField::Named {
                     name,
@@ -488,7 +485,7 @@ impl Compiler {
                 PatternField::Spread { .. }
                 | PatternField::Alias { .. }
                 | PatternField::Elision => {
-                    // NOTE #Incomplete: handle spread/alias/elision in tuple patterns
+                    // #Incomplete: handle spread/alias/elision in tuple patterns
                 }
             }
         }
@@ -538,7 +535,7 @@ impl Compiler {
                 PatternField::Positional { .. }
                 | PatternField::Spread { .. }
                 | PatternField::Elision => {
-                    // NOTE #Incomplete: handle positional/spread/elision in object patterns
+                    // #Incomplete: handle positional/spread/elision in object patterns
                 }
             }
         }
@@ -548,7 +545,7 @@ impl Compiler {
 
     /// Wrap body in a block with the given let bindings.
     ///
-    /// NOTE #Incomplete: Currently returns body unchanged.
+    /// #Incomplete: Currently returns body unchanged.
     /// Proper let binding emission requires creating Expression::Let with
     /// DeclarationDescriptor, Declarator, and Pattern nodes. The pattern
     /// symbols from the original match arm need to be connected to the
@@ -567,7 +564,7 @@ impl Compiler {
         _tree: &mut NodeTree,
         _scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
     ) -> LocalNodeId<Expression> {
-        // NOTE #Incomplete: emit let bindings for pattern destructuring
+        // #Incomplete: emit let bindings for pattern destructuring
         // For now, return body unchanged - the pattern symbols are still
         // referenced in the body but won't have proper initialization.
         // Codegen will need to handle this or we need to emit proper Let nodes.
@@ -590,7 +587,7 @@ impl Compiler {
         _symbols: &SymbolTable,
         _types: &TypeTable,
     ) -> ElaborateResult<()> {
-        // NOTE #Incomplete: transform expressions as values
+        // #Incomplete: transform expressions as values
         Ok(())
     }
 }

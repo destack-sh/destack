@@ -47,19 +47,22 @@ impl LintRule for PreferPatternOverGuard {
         for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
             let match_case = ctx.tree.get(node_id);
 
-            let (pattern_id, guard_id) = match match_case {
-                MatchCase::Expression { pattern, guard, .. } => (*pattern, *guard),
-                MatchCase::Block { pattern, guard, .. } => (*pattern, *guard),
+            let selector = match match_case {
+                MatchCase::Expression { selector, .. } => selector,
+                MatchCase::Block { selector, .. } => selector,
             };
 
-            // only check cases with guards
-            let Some(guard_expr_id) = guard_id else {
+            // only check pattern selectors with guards
+            let ast::MatchSelector::Pattern { pattern: pattern_id, guard } = selector else {
+                continue;
+            };
+            let Some(guard_expr_id) = guard else {
                 continue;
             };
 
             // check if the pattern is a simple binding and the guard compares it to a literal
-            let pattern = ctx.tree.get(pattern_id);
-            let guard_expression = ctx.tree.get(guard_expr_id);
+            let pattern = ctx.tree.get(*pattern_id);
+            let guard_expression = ctx.tree.get(*guard_expr_id);
             if let Some(binding_name) = get_simple_binding_name(ctx, pattern)
                 && is_equality_with_literal(ctx, guard_expression, &binding_name)
             {

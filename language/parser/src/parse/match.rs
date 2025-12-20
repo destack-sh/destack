@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, NodeType, Pattern,
-    TokenType,
+    Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, MatchSelector,
+    NodeType, TokenType,
 };
 
 impl Parser {
@@ -109,59 +109,54 @@ impl Parser {
     fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<MatchCase>> {
         let start = self.mark();
 
-        let (pattern_id, guard) = {
-            match kind {
-                MatchKind::Switch => {
-                    // default case
-                    if self.peek_keyword(Keyword::Default).is_ok() {
-                        self.bump();
-                        self.eat_colon()?;
-                        self.eat_newlines_maybe()?;
-                        let pattern_id = self
-                            .tree
-                            .insert(Pattern::Wildcard, self.get_span_from(start));
-
-                        (pattern_id, None)
-                    }
-                    // regular case
-                    else {
-                        self.eat_keyword(Keyword::Case)?;
-                        let pattern_id = self.eat_pattern()?;
-                        self.eat_colon()?;
-                        self.eat_newlines_maybe()?;
-                        let guard = None;
-
-                        (pattern_id, guard)
+        let selector = match kind {
+            MatchKind::Switch => {
+                // default case
+                if self.peek_keyword(Keyword::Default).is_ok() {
+                    self.bump();
+                    self.eat_colon()?;
+                    self.eat_newlines_maybe()?;
+                    MatchSelector::Default
+                }
+                // regular case
+                else {
+                    self.eat_keyword(Keyword::Case)?;
+                    let pattern = self.eat_pattern()?;
+                    self.eat_colon()?;
+                    self.eat_newlines_maybe()?;
+                    MatchSelector::Pattern {
+                        pattern,
+                        guard: None,
                     }
                 }
-                // match-kind
-                MatchKind::Match => {
-                    // pattern
-                    let pattern_id = self.with_options(self.options.in_match_case(), |parser| {
-                        parser.eat_pattern()
-                    })?;
+            }
+            // match-kind
+            MatchKind::Match => {
+                // pattern
+                let pattern = self.with_options(self.options.in_match_case(), |parser| {
+                    parser.eat_pattern()
+                })?;
 
-                    // guard
-                    let guard = if self.peek_keyword(Keyword::If).is_ok() {
-                        self.eat_keyword(Keyword::If)?;
-                        let guard = self.with_options(
-                            ParserOptions {
-                                in_match_case: true,
-                                in_before_block: true,
-                                ..Default::default()
-                            },
-                            |parser| parser.eat_expression_parenthesized_maybe(),
-                        )?;
-                        Some(guard)
-                    } else {
-                        None
-                    };
+                // guard
+                let guard = if self.peek_keyword(Keyword::If).is_ok() {
+                    self.eat_keyword(Keyword::If)?;
+                    let guard = self.with_options(
+                        ParserOptions {
+                            in_match_case: true,
+                            in_before_block: true,
+                            ..Default::default()
+                        },
+                        |parser| parser.eat_expression_parenthesized_maybe(),
+                    )?;
+                    Some(guard)
+                } else {
+                    None
+                };
 
-                    // "arrow"
-                    self.eat_arrow()?;
+                // "arrow"
+                self.eat_arrow()?;
 
-                    (pattern_id, guard)
-                }
+                MatchSelector::Pattern { pattern, guard }
             }
         };
 
@@ -170,9 +165,8 @@ impl Parser {
             let block_id = self.eat_block()?;
             let match_case_id = self.tree.insert(
                 MatchCase::Block {
-                    pattern: pattern_id,
+                    selector,
                     body: block_id,
-                    guard,
                 },
                 self.get_span_from(start),
             );
@@ -200,9 +194,8 @@ impl Parser {
             let match_case_id = if expressions.len() == 1 {
                 self.tree.insert(
                     MatchCase::Expression {
-                        pattern: pattern_id,
+                        selector,
                         body: expressions[0],
-                        guard,
                     },
                     self.get_span_from(start),
                 )
@@ -218,9 +211,8 @@ impl Parser {
                 );
                 self.tree.insert(
                     MatchCase::Block {
-                        pattern: pattern_id,
+                        selector,
                         body: block_id,
-                        guard,
                     },
                     self.get_span_from(start),
                 )
@@ -232,9 +224,8 @@ impl Parser {
             let expression_id = self.try_eat_expression(TokenType::Newline)?;
             let match_case_id = self.tree.insert(
                 MatchCase::Expression {
-                    pattern: pattern_id,
+                    selector,
                     body: expression_id,
-                    guard,
                 },
                 self.get_span_from(start),
             );
@@ -245,7 +236,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Block, Expression, MatchCase, MatchKind, Pattern, ScalarLiteral};
+    use destack_ast::{Block, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral};
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -273,7 +264,7 @@ match x {
             assert_eq!(cases.len(), 4);
 
             // case 0: 1 => 10
-            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -282,7 +273,7 @@ match x {
             });
 
             // case 1: 2 => 20
-            assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
@@ -291,7 +282,7 @@ match x {
             });
 
             // case 2: x => x
-            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body: _, guard } => {
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body: _ } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: _ } => {
                     assert_string!(parser, *name, "x");
@@ -299,7 +290,7 @@ match x {
             });
 
             // case 3: _ => 0
-            assert_node!(parser.tree, cases[3], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[3], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -324,7 +315,7 @@ match x {
             assert_eq!(cases.len(), 1);
 
             // case: 2 if true => 20
-            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 // guard: true
                 let guard_id = guard.expect("expected guard");
                 assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
@@ -364,7 +355,7 @@ match self {
             assert_eq!(cases.len(), 3);
 
             // TetrisPieceShape.I => Color.Blue
-            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 // TetrisPieceShape.I
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -375,7 +366,7 @@ match self {
             });
 
             // TetrisPieceShape.J => Color.Red
-            assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 // TetrisPieceShape.J
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -386,7 +377,7 @@ match self {
             });
 
             // _ => Color.Gray
-            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // Color.Gray
@@ -425,7 +416,7 @@ switch (left.type) {
             assert_eq!(cases.len(), 4);
 
             // case 'static' (block)
-            assert_node!(parser.tree, cases[0], MatchCase::Block { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[0], MatchCase::Block { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 // 'static'
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -440,7 +431,7 @@ switch (left.type) {
             });
 
             // case 'dynamic' (block)
-            assert_node!(parser.tree, cases[1], MatchCase::Block { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[1], MatchCase::Block { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 // 'dynamic'
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -455,7 +446,7 @@ switch (left.type) {
             });
 
             // case 'literal' (expression)
-            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body, guard } => {
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
                 // 'literal'
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
@@ -470,9 +461,7 @@ switch (left.type) {
             });
 
             // case default (block)
-            assert_node!(parser.tree, cases[3], MatchCase::Block { pattern, body, guard } => {
-                assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+            assert_node!(parser.tree, cases[3], MatchCase::Block { selector: MatchSelector::Default, body } => {
                 // body
                 assert_node!(parser.tree, *body, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 2);

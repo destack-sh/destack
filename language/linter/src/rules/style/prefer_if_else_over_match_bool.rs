@@ -97,11 +97,15 @@ fn get_case_pattern(
 ) -> Option<bool> {
     let case = ctx.tree.get(case_id);
 
-    let pattern_id = match case {
-        MatchCase::Block { pattern, .. } | MatchCase::Expression { pattern, .. } => *pattern,
+    let selector = match case {
+        MatchCase::Block { selector, .. } | MatchCase::Expression { selector, .. } => selector,
     };
 
-    let pattern = ctx.tree.get(pattern_id);
+    let ast::MatchSelector::Pattern { pattern: pattern_id, .. } = selector else {
+        return None;
+    };
+
+    let pattern = ctx.tree.get(*pattern_id);
 
     // check if it's an expression pattern with a boolean literal
     let Pattern::Expression { value } = pattern else {

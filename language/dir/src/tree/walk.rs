@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField,
-    Expression, FunctionSignature, Generics, Heritage, LocalNodeId, MatchCase, Member, NodeTree,
-    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
-    WhereClause,
+    Expression, FunctionSignature, Generics, Heritage, LocalNodeId, MatchCase, MatchSelector,
+    Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
+    TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -1261,6 +1261,25 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     }
 }
 
+/// Walk the MatchSelector.
+fn walk_match_selector<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    selector: &MatchSelector,
+) {
+    match selector {
+        MatchSelector::Pattern { pattern, guard } => {
+            let pattern_node = tree.get(*pattern);
+            visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(guard_id) = guard {
+                let guard_expression = tree.get(*guard_id);
+                visitor.visit_expression(tree, *guard_id, guard_expression);
+            }
+        }
+        MatchSelector::Default => {}
+    }
+}
+
 /// Walk the MatchCase.
 pub fn walk_match_case<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
@@ -1271,34 +1290,22 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::MatchCase, id.id);
     match match_case {
         MatchCase::Expression {
-            pattern,
+            selector,
             body,
-            guard,
             scope: _,
         } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
+            walk_match_selector(visitor, tree, selector);
             let body_expression = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expression);
-            if let Some(guard_id) = guard {
-                let guard_expression = tree.get(*guard_id);
-                visitor.visit_expression(tree, *guard_id, guard_expression);
-            }
         }
         MatchCase::Block {
-            pattern,
+            selector,
             body,
-            guard,
             scope: _,
         } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
+            walk_match_selector(visitor, tree, selector);
             let body_block = tree.get(*body);
             visitor.visit_block(tree, *body, body_block);
-            if let Some(guard_id) = guard {
-                let guard_expression = tree.get(*guard_id);
-                visitor.visit_expression(tree, *guard_id, guard_expression);
-            }
         }
     }
 }
