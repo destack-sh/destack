@@ -689,3 +689,71 @@ block0:
 }";
     assert_eq!(output, expected);
 }
+
+/// Intrinsic instructions via the builder.
+#[test]
+fn test_build_intrinsics() {
+    use crate::Intrinsic;
+
+    // setup
+    let mut module = ModuleBuilder::new();
+    let f64_type = module.type_f64();
+
+    // build function with intrinsics
+    let mut builder = module.function("intrinsic_test", &[f64_type, f64_type], f64_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    // chain of intrinsic operations
+    let x = builder.function_parameter(0);
+    let y = builder.function_parameter(1);
+    let sqrt_x = builder.intrinsic(Intrinsic::Sqrt, vec![x]);
+    let min_val = builder.intrinsic(Intrinsic::Min, vec![sqrt_x, y]);
+    let result = builder.intrinsic(Intrinsic::Abs, vec![min_val]);
+    builder.return_(Some(result));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @intrinsic_test(v0: f64, v1: f64) -> f64 {
+block0:
+    v2 = intrinsic.sqrt(v0)
+    v3 = intrinsic.min(v2, v1)
+    v4 = intrinsic.abs(v3)
+    return v4
+}";
+    assert_eq!(output, expected);
+}
+
+/// Void intrinsic instruction via the builder.
+#[test]
+fn test_build_void_intrinsic() {
+    use crate::Intrinsic;
+
+    // setup
+    let mut module = ModuleBuilder::new();
+    let void_type = module.type_void();
+
+    // build function with void intrinsic
+    let mut builder = module.function("fence_test", &[], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    builder.intrinsic_void(Intrinsic::AtomicFence, vec![]);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @fence_test() -> void {
+block0:
+    intrinsic.atomic_fence()
+    return
+}";
+    assert_eq!(output, expected);
+}
