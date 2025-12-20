@@ -15,7 +15,7 @@ pub struct Module {
     /// The id of the Module itself.
     pub id: ModuleId,
     /// The version of the Module (increments on each recompilation).
-    pub version: ModuleVersion,
+    pub version: ModuleVersion, // nocheckin: should we embed ModuleVersion in ModuleAst/Dir/Mir too?
     /// The version of the source File this module was compiled from.
     pub source_version: FileVersion,
     /// The underlying source File (might be empty if placeholder or synthetic module).

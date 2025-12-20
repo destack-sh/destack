@@ -9,7 +9,7 @@ use destack_source::ModuleId;
 pub enum ExecuteTask {
     /// Execute comptime code for a module.
     #[task(code = 1, trace = "module={module}")]
-    ExecuteModule { module: ModuleId }, // (placeholder, not sure yet how to structure comptime execution)
+    ExecuteModule { module: ModuleId },
 }
 
 impl Compiler {
@@ -17,19 +17,10 @@ impl Compiler {
     pub fn process_execute(&self, task: ExecuteTask) -> ExecuteResult<()> {
         match task {
             ExecuteTask::ExecuteModule { module } => {
-                self.require_verify_module(module)?;
-                self.execute_module(module)?;
+                // (placeholder, not sure yet how to structure comptime execution)
+                todo!("#Incomplete: execute comptime code for module {module}");
             }
         }
-        Ok(())
-    }
-
-    /// Execute comptime code for a module.
-    fn execute_module(&self, _module: ModuleId) -> ExecuteResult<()> {
-        // NOTE #Incomplete: implement comptime execution
-        // - evaluate comptime expressions
-        // - substitute results back into MIR
-        Ok(())
     }
 
     /// Ensure a module's comptime code has been executed.
