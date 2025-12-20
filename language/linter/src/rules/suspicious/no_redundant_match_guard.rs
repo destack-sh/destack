@@ -36,12 +36,16 @@ impl LintRule for NoRedundantMatchGuard {
         for node_id in ctx.tree.iter_nodes::<ast::MatchCase>() {
             let match_case = ctx.tree.get(node_id);
 
-            let guard_id = match match_case {
-                ast::MatchCase::Expression { guard, .. } => guard,
-                ast::MatchCase::Block { guard, .. } => guard,
+            let selector = match match_case {
+                ast::MatchCase::Expression { selector, .. } => selector,
+                ast::MatchCase::Block { selector, .. } => selector,
             };
 
-            let Some(guard_id) = guard_id else {
+            let ast::MatchSelector::Pattern { guard, .. } = selector else {
+                continue;
+            };
+
+            let Some(guard_id) = guard else {
                 continue;
             };
 

@@ -1,9 +1,36 @@
 use destack_fir::format::FormatResult;
 
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{Keyword, LocalNodeId, MatchCase};
+use destack_ast::{Keyword, LocalNodeId, MatchCase, MatchSelector};
 use destack_fir::prelude::*;
 use destack_fir::write;
+
+/// Format the selector (pattern + guard or default).
+fn format_selector(f: &mut DestackFormatter<'_, '_>, selector: &MatchSelector) -> FormatResult<()> {
+    match selector {
+        MatchSelector::Pattern { pattern, guard } => {
+            write!(f, [*pattern])?;
+            if let Some(guard) = guard {
+                write!(
+                    f,
+                    [
+                        space(),
+                        Keyword::If,
+                        space(),
+                        token("("),
+                        *guard,
+                        token(")")
+                    ]
+                )?;
+            }
+        }
+        MatchSelector::Default => {
+            // For match-style formatting, output underscore for default
+            write!(f, [token("_")])?;
+        }
+    }
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
@@ -14,48 +41,12 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            MatchCase::Expression {
-                pattern,
-                body,
-                guard,
-            } => {
-                // pattern and optional guard before expression body
-                write!(f, [*pattern])?;
-                if let Some(guard) = guard {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            Keyword::If,
-                            space(),
-                            token("("),
-                            *guard,
-                            token(")")
-                        ]
-                    )?;
-                }
+            MatchCase::Expression { selector, body } => {
+                format_selector(f, selector)?;
                 write!(f, [space(), token("=>"), space(), *body])?;
             }
-            MatchCase::Block {
-                pattern,
-                body,
-                guard,
-            } => {
-                // format pattern, guard, and block body
-                write!(f, [*pattern])?;
-                if let Some(guard) = guard {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            Keyword::If,
-                            space(),
-                            token("("),
-                            *guard,
-                            token(")")
-                        ]
-                    )?;
-                }
+            MatchCase::Block { selector, body } => {
+                format_selector(f, selector)?;
                 write!(f, [space(), token("=>"), space(), *body])?;
             }
         }

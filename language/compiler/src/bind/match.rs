@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, NodeTree, NodeType,
-    ScopeKind, SymbolBinding, SymbolTable, TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, MatchSelector, NodeTree,
+    NodeType, ScopeKind, SymbolBinding, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -10,6 +10,53 @@ use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Bind an AST MatchSelector to a DIR MatchSelector.
+    fn bind_match_selector(
+        &self,
+        module: &Module,
+        ast: &ModuleAst,
+        scope_id: LocalScopeId,
+        ast_selector: &ast::MatchSelector,
+        parent_id: LocalNodeIdAny,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
+    ) -> MatchSelector {
+        match ast_selector {
+            ast::MatchSelector::Pattern {
+                pattern: ast_pattern,
+                guard: ast_guard,
+            } => {
+                let pattern = self.bind_pattern(
+                    module,
+                    ast,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    None,
+                    SymbolBinding::Runtime,
+                    *ast_pattern,
+                    Some(parent_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let guard = ast_guard.map(|guard| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        (scope_id, symbols.get_scope_mark(scope_id)),
+                        guard,
+                        Some(parent_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                MatchSelector::Pattern { pattern, guard }
+            }
+            ast::MatchSelector::Default => MatchSelector::Default,
+        }
+    }
+
     /// Bind a match case to a DIR match case.
     pub(super) fn bind_match_case(
         &self,
@@ -29,18 +76,15 @@ impl Compiler {
             self.bind_anonymous_local_with_scope(module, ast, ScopeKind::Block, scope, symbols);
         let match_case = match ast_match_case {
             ast::MatchCase::Expression {
-                pattern,
+                selector: ast_selector,
                 body,
-                guard,
             } => {
-                let pattern = self.bind_pattern(
+                let selector = self.bind_match_selector(
                     module,
                     ast,
-                    (scope_id, symbols.get_scope_mark(scope_id)),
-                    None,
-                    SymbolBinding::Runtime,
-                    *pattern,
-                    Some(match_case_id),
+                    scope_id,
+                    ast_selector,
+                    match_case_id,
                     tree,
                     symbols,
                     types,
@@ -55,38 +99,22 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let guard = guard.map(|guard| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        (scope_id, symbols.get_scope_mark(scope_id)),
-                        guard,
-                        Some(match_case_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
                 MatchCase::Expression {
-                    pattern,
+                    selector,
                     body,
-                    guard,
                     scope: scope_id,
                 }
             }
             ast::MatchCase::Block {
-                pattern,
+                selector: ast_selector,
                 body,
-                guard,
             } => {
-                let pattern = self.bind_pattern(
+                let selector = self.bind_match_selector(
                     module,
                     ast,
-                    (scope_id, symbols.get_scope_mark(scope_id)),
-                    None,
-                    SymbolBinding::Runtime,
-                    *pattern,
-                    Some(match_case_id),
+                    scope_id,
+                    ast_selector,
+                    match_case_id,
                     tree,
                     symbols,
                     types,
@@ -101,22 +129,9 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let guard = guard.map(|guard| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        (scope_id, symbols.get_scope_mark(scope_id)),
-                        guard,
-                        Some(match_case_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
                 MatchCase::Block {
-                    pattern,
+                    selector,
                     body,
-                    guard,
                     scope: scope_id,
                 }
             }

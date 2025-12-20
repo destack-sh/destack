@@ -4,6 +4,7 @@ use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     FunctionAbstraction, FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
+    Timing,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -33,6 +34,10 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     // accessor
     if modifiers.accessor == Some(AccessorKind::Accessor) {
         write!(f, [Keyword::Accessor, space()])?;
+    }
+    // timing
+    if modifiers.timing == Some(Timing::Comptime) {
+        write!(f, [Keyword::Comptime, space()])?;
     }
     Ok(())
 }

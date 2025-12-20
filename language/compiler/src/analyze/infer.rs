@@ -3,8 +3,8 @@ use destack_dir::{
     Argument, Block, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
     EnumField, Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId,
     GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField, PrimitiveType,
-    Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable,
+    MatchCase, MatchSelector, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField,
+    PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable,
     WhereClause,
 };
 use destack_workspace::Module;
@@ -669,35 +669,44 @@ impl Compiler {
                 let mut result_ty_id = None;
                 for case_id in cases {
                     let case = tree.get(*case_id);
-                    let (pattern, guard, body_expr) = match case {
+                    let (selector, body_expr) = match case {
                         MatchCase::Expression {
-                            pattern,
+                            selector,
                             body,
-                            guard,
                             scope: _,
-                        } => (*pattern, *guard, Some(*body)),
+                        } => (selector, Some(*body)),
                         MatchCase::Block {
-                            pattern,
+                            selector,
                             body,
-                            guard,
                             scope: _,
                         } => {
                             self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
-                            (*pattern, *guard, None)
+                            (selector, None)
                         }
                     };
-                    self.infer_pattern(
-                        module,
-                        pattern,
-                        Some(value_ty_id),
-                        tree,
-                        symbols,
-                        types,
-                        &mut ctx,
-                    )?;
-                    if let Some(guard_expr) = guard {
-                        self.infer_expression(module, guard_expr, tree, symbols, types, &mut ctx)?;
+                    // infer pattern and guard from selector
+                    if let MatchSelector::Pattern { pattern, guard } = selector {
+                        self.infer_pattern(
+                            module,
+                            *pattern,
+                            Some(value_ty_id),
+                            tree,
+                            symbols,
+                            types,
+                            &mut ctx,
+                        )?;
+                        if let Some(guard_expr) = guard {
+                            self.infer_expression(
+                                module,
+                                *guard_expr,
+                                tree,
+                                symbols,
+                                types,
+                                &mut ctx,
+                            )?;
+                        }
                     }
+                    // default selector has no pattern or guard to infer
                     if let Some(expr) = body_expr {
                         let case_ty_id =
                             self.infer_expression(module, expr, tree, symbols, types, &mut ctx)?;

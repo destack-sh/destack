@@ -12,7 +12,6 @@ use super::FunctionBuilder;
 pub struct ModuleBuilder {
     /// The node tree being built.
     tree: NodeTree,
-
     /// String pool for names.
     strings: StringPool,
 }

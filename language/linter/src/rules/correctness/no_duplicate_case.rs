@@ -44,9 +44,14 @@ impl LintRule for NoDuplicateCase {
             let mut seen: Vec<ast::LocalNodeId<ast::Expression>> = Vec::new();
             for case_id in cases {
                 let case = ctx.tree.get(*case_id);
-                let pattern_id = match case {
-                    ast::MatchCase::Expression { pattern, .. } => pattern,
-                    ast::MatchCase::Block { pattern, .. } => pattern,
+                let selector = match case {
+                    ast::MatchCase::Expression { selector, .. } => selector,
+                    ast::MatchCase::Block { selector, .. } => selector,
+                };
+
+                // skip default cases
+                let ast::MatchSelector::Pattern { pattern: pattern_id, .. } = selector else {
+                    continue;
                 };
 
                 let pattern = ctx.tree.get(*pattern_id);

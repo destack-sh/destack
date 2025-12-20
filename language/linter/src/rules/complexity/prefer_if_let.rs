@@ -41,12 +41,17 @@ impl LintRule for PreferIfLet {
                 continue;
             }
 
-            // check if second case is a wildcard
+            // check if second case is a wildcard or default
             let second_case = ctx.tree.get(cases[1]);
             let is_wildcard = match second_case {
-                MatchCase::Block { pattern, .. } | MatchCase::Expression { pattern, .. } => {
-                    let pat = ctx.tree.get(*pattern);
-                    matches!(pat, ast::Pattern::Wildcard)
+                MatchCase::Block { selector, .. } | MatchCase::Expression { selector, .. } => {
+                    match selector {
+                        ast::MatchSelector::Default => true,
+                        ast::MatchSelector::Pattern { pattern, .. } => {
+                            let pat = ctx.tree.get(*pattern);
+                            matches!(pat, ast::Pattern::Wildcard)
+                        }
+                    }
                 }
             };
 

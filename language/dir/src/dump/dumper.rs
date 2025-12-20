@@ -1617,9 +1617,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match match_case {
             MatchCase::Expression {
-                pattern: _,
+                selector: _,
                 body: _,
-                guard: _,
                 scope,
             } => {
                 self.node("MatchCase::Expression", id.id)
@@ -1627,9 +1626,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             MatchCase::Block {
-                pattern: _,
+                selector: _,
                 body: _,
-                guard: _,
                 scope,
             } => {
                 self.node("MatchCase::Block", id.id)
