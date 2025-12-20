@@ -63,14 +63,6 @@ pub enum Intrinsic {
     /// Unchecked shift right (UB if shift >= bit width).
     UncheckedShr,
 
-    // wrapping arithmetic (two's complement wrap on overflow)
-    /// Wrapping add.
-    WrappingAdd,
-    /// Wrapping subtract.
-    WrappingSub,
-    /// Wrapping multiply.
-    WrappingMul,
-
     // saturating arithmetic (clamps to min/max on overflow)
     /// Saturating add.
     SatAdd,
@@ -256,11 +248,6 @@ impl Intrinsic {
             Intrinsic::UncheckedShl => "unchecked_shl",
             Intrinsic::UncheckedShr => "unchecked_shr",
 
-            // wrapping arithmetic
-            Intrinsic::WrappingAdd => "wrapping_add",
-            Intrinsic::WrappingSub => "wrapping_sub",
-            Intrinsic::WrappingMul => "wrapping_mul",
-
             // saturating arithmetic
             Intrinsic::SatAdd => "sat_add",
             Intrinsic::SatSub => "sat_sub",
@@ -375,9 +362,6 @@ impl Intrinsic {
                 | Intrinsic::UncheckedRem
                 | Intrinsic::UncheckedShl
                 | Intrinsic::UncheckedShr
-                | Intrinsic::WrappingAdd
-                | Intrinsic::WrappingSub
-                | Intrinsic::WrappingMul
                 | Intrinsic::SatAdd
                 | Intrinsic::SatSub
                 | Intrinsic::Transmute
@@ -476,9 +460,6 @@ impl FromStr for Intrinsic {
             "unchecked_rem" => Ok(Intrinsic::UncheckedRem),
             "unchecked_shl" => Ok(Intrinsic::UncheckedShl),
             "unchecked_shr" => Ok(Intrinsic::UncheckedShr),
-            "wrapping_add" => Ok(Intrinsic::WrappingAdd),
-            "wrapping_sub" => Ok(Intrinsic::WrappingSub),
-            "wrapping_mul" => Ok(Intrinsic::WrappingMul),
             "sat_add" => Ok(Intrinsic::SatAdd),
             "sat_sub" => Ok(Intrinsic::SatSub),
             "memcpy" => Ok(Intrinsic::Memcpy),
@@ -702,11 +683,6 @@ impl Intrinsic {
             | Intrinsic::UncheckedRem
             | Intrinsic::UncheckedShl
             | Intrinsic::UncheckedShr => IntrinsicSignature::Binary,
-
-            // wrapping arithmetic
-            Intrinsic::WrappingAdd | Intrinsic::WrappingSub | Intrinsic::WrappingMul => {
-                IntrinsicSignature::Binary
-            }
 
             // saturating arithmetic
             Intrinsic::SatAdd | Intrinsic::SatSub => IntrinsicSignature::Binary,

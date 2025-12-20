@@ -1,8 +1,16 @@
 use std::fmt;
 use std::str::FromStr;
 
-// nocheckin: deduplicate MIR operators vs intrinsics?
 /// Binary arithmetic/logic operator.
+///
+/// These operators have **wrapping semantics** for integer operations:
+/// - `iadd`, `isub`, `imul` wrap on overflow (two's complement)
+/// - `ishl`, `sshr`, `ushr` mask the shift amount to the bit width
+///
+/// For other overflow behaviors, use intrinsics:
+/// - `add_overflow`, etc. for checked arithmetic (returns tuple with overflow flag)
+/// - `unchecked_add`, etc. for UB on overflow (enables optimizer assumptions)
+/// - `sat_add`, `sat_sub` for saturating arithmetic (clamps to min/max)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOperator {
     // integer arithmetic
