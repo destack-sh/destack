@@ -274,5 +274,4 @@ newtype Type<T> =
 /// t.name                   // "User"
 /// t.kind                   // "struct"
 /// ```
-@intrinsic
 declare function typeOf<T>(value: T): Type<T>;
