@@ -39,7 +39,7 @@ impl Compiler {
                 // initialize DIR
                 {
                     let mut module = module.write();
-                    module.dir = Some(ModuleDir::new(module.id));
+                    module.dir = Some(ModuleDir::new(module.id, module.version));
                 }
                 // bind module roots
                 let roots = {

@@ -1,13 +1,16 @@
 use destack_ast::{self as ast};
 use destack_base::StringPool;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion};
 
 /// AST-level module data.
-/// NOTE #Performance: revisit required ModuleAst state (tokens add ~10-20% memory overhead)
+/// NOTE #Performance: revisit actually required ModuleAst state (tokens add ~10-20% memory overhead)
 #[derive(Debug)]
 pub struct ModuleAst {
     /// The id of the Module.
     pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+
     /// The AST of the Module (may be empty).
     pub tree: ast::NodeTree,
     /// The AST parent index.
@@ -24,9 +27,10 @@ pub struct ModuleAst {
 
 impl ModuleAst {
     /// Create a new empty ModuleAst.
-    pub fn new(id: ModuleId) -> Self {
+    pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
         Self {
             id,
+            version,
             tree: ast::NodeTree::new(),
             parents: ast::NodeParentIndex::new(),
             roots: Vec::new(),
@@ -39,6 +43,7 @@ impl ModuleAst {
     /// Create a ModuleAst from a tree.
     pub fn from_tree(
         id: ModuleId,
+        version: ModuleVersion,
         tree: ast::NodeTree,
         roots: Vec<ast::LocalNodeId<ast::Expression>>,
         strings: StringPool,
@@ -48,6 +53,7 @@ impl ModuleAst {
         let parents = ast::NodeParentIndex::from_tree(&tree);
         Self {
             id,
+            version,
             tree,
             parents,
             roots,

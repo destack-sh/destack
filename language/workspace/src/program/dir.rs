@@ -1,6 +1,6 @@
 use destack_base::StringId;
 use destack_dir::{self as dir};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 
@@ -9,6 +9,8 @@ use parking_lot::RwLock;
 pub struct ModuleDir {
     /// The id of the Module.
     pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
 
     /// The main DIR node tree of the Module.
     pub tree: RwLock<dir::NodeTree>,
@@ -35,7 +37,7 @@ pub struct ModuleDir {
 
 impl ModuleDir {
     /// Create a new ModuleDir.
-    pub fn new(id: ModuleId) -> Self {
+    pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
         // set up default namespace and default symbol
         let mut symbols = dir::SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
@@ -61,10 +63,13 @@ impl ModuleDir {
 
         Self {
             id,
+            version,
+
             tree: RwLock::new(dir::NodeTree::new(id)),
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
+
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
             default_symbol: default_symbol_id,

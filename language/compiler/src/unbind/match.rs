@@ -46,15 +46,27 @@ impl Compiler {
         let span = self.unbind_span(module, case_id.into());
         let ast_case = match case {
             dir::MatchCase::Expression { selector, body, .. } => {
-                let selector =
-                    self.unbind_match_selector(module, selector, tree, symbols, ast_tree, ast_strings);
+                let selector = self.unbind_match_selector(
+                    module,
+                    selector,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                );
                 let body =
                     self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
                 ast::MatchCase::Expression { selector, body }
             }
             dir::MatchCase::Block { selector, body, .. } => {
-                let selector =
-                    self.unbind_match_selector(module, selector, tree, symbols, ast_tree, ast_strings);
+                let selector = self.unbind_match_selector(
+                    module,
+                    selector,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                );
                 let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings);
                 ast::MatchCase::Block { selector, body }
             }

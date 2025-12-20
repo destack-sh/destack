@@ -50,7 +50,11 @@ impl LintRule for NoDuplicateCase {
                 };
 
                 // skip default cases
-                let ast::MatchSelector::Pattern { pattern: pattern_id, .. } = selector else {
+                let ast::MatchSelector::Pattern {
+                    pattern: pattern_id,
+                    ..
+                } = selector
+                else {
                     continue;
                 };
 

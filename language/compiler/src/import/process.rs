@@ -82,6 +82,7 @@ impl Compiler {
         let mut module = module.write();
         module.ast = Some(ModuleAst::from_tree(
             module_id,
+            module.version,
             parser.tree,
             expressions,
             parser.strings,

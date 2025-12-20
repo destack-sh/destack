@@ -101,7 +101,11 @@ fn get_case_pattern(
         MatchCase::Block { selector, .. } | MatchCase::Expression { selector, .. } => selector,
     };
 
-    let ast::MatchSelector::Pattern { pattern: pattern_id, .. } = selector else {
+    let ast::MatchSelector::Pattern {
+        pattern: pattern_id,
+        ..
+    } = selector
+    else {
         return None;
     };
 

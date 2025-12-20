@@ -4,8 +4,8 @@ use destack_dir::{
     EnumField, Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId,
     GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
     MatchCase, MatchSelector, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField,
-    PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable,
-    WhereClause,
+    PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
+    TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
