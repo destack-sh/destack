@@ -23,6 +23,8 @@ declare_lint! {
     "Disallow match guards that are always true or false"
 }
 
+// #Incomplete: no-redundant-match-guard should also check for mergability with main pattern?
+
 impl LintRule for NoRedundantMatchGuard {
     fn meta(&self) -> &'static crate::LintMeta {
         NoRedundantMatchGuard::meta()

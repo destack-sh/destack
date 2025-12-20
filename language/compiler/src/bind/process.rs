@@ -58,8 +58,18 @@ impl Compiler {
                     let mut tree = dir.tree.write();
                     let mut symbols = dir.symbols.write();
                     let mut types = dir.types.write();
-                    let scope = (dir.namespace_scope, symbols.get_scope_mark(dir.namespace_scope));
-                    self.attach_annotations(&module, ast, scope, &mut tree, &mut symbols, &mut types);
+                    let scope = (
+                        dir.namespace_scope,
+                        symbols.get_scope_mark(dir.namespace_scope),
+                    );
+                    self.attach_annotations(
+                        &module,
+                        ast,
+                        scope,
+                        &mut tree,
+                        &mut symbols,
+                        &mut types,
+                    );
                 }
                 // bind module exports
                 {

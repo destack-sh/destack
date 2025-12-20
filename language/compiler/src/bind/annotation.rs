@@ -9,7 +9,6 @@ use destack_workspace::{Module, ModuleAst};
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind and attach all annotations for a module.
-    /// nocheckin TODO #Incomplete: attach DIR annotations in compiler
     pub fn attach_annotations(
         &self,
         module: &Module,
