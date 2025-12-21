@@ -1379,6 +1379,19 @@ impl Compiler {
                 );
                 Expression::Await { expression }
             }
+            ast::Expression::AwaitMaybe { expression } => {
+                let expression = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::AwaitMaybe { expression }
+            }
             ast::Expression::Comptime { body } => {
                 let body = self.bind_expression(
                     module,

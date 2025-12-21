@@ -1128,6 +1128,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Await { expression: _ } => {
                 self.node("Expression::Await", id.id).end();
             }
+            Expression::AwaitMaybe { expression: _ } => {
+                self.node("Expression::AwaitMaybe", id.id).end();
+            }
             Expression::Comptime { body: _ } => {
                 self.node("Expression::Comptime", id.id).end();
             }

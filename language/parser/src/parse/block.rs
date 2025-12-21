@@ -316,6 +316,7 @@ impl Parser {
     /// Examples:
     /// ```
     /// await someFunction()
+    /// await? someFallibleAsync()
     /// ```
     pub fn eat_await(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -323,18 +324,28 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Await)?;
 
+        // check for await? (sugar for (await expr)?)
+        let is_maybe = self.peek_token(TokenType::Maybe).is_ok();
+        if is_maybe {
+            self.bump(); // eat ?
+        }
+
         // expression
         let expression_id = self.with_options(self.options.not_in_position(), |parser| {
             parser.eat_expression()
         })?;
 
-        // await
-        let await_id = self.tree.insert(
+        // await or await?
+        let expression = if is_maybe {
+            Expression::AwaitMaybe {
+                expression: expression_id,
+            }
+        } else {
             Expression::Await {
                 expression: expression_id,
-            },
-            self.get_span_from(start),
-        );
+            }
+        };
+        let await_id = self.tree.insert(expression, self.get_span_from(start));
         Ok(await_id)
     }
 
@@ -621,6 +632,21 @@ mod tests {
         let await_id = parser.eat_await().unwrap();
         // await someFunction()
         assert_node!(parser.tree, await_id, Expression::Await { expression } => {
+            // someFunction()
+            assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
+                assert!(dynamic_arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_await_maybe_expression() {
+        let mut test = TestParser::new("await? someFunction()");
+        let mut parser = test.prepare();
+        let await_id = parser.eat_await().unwrap();
+        // await? someFunction()
+        assert_node!(parser.tree, await_id, Expression::AwaitMaybe { expression } => {
             // someFunction()
             assert_node!(parser.tree, *expression, Expression::Call { position: _, left, static_arguments: None, dynamic_arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
