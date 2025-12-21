@@ -115,9 +115,9 @@ test-ecosystem:
 test-resolver:
     cargo test --release -p destack_resolver
 
-# run spec tests (type checking specification)
-test-spec:
-    cargo test --release --test spec
+# run specification tests (type checking specification)
+test-specification:
+    cargo test --release --test specification
 
 # run query tests (IDE/LSP queries)
 test-query:

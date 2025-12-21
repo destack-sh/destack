@@ -25,12 +25,12 @@ pub struct SpecSuite {
 }
 
 impl SpecSuite {
-    /// Load all spec tests from the fixtures/spec directory.
+    /// Load all specification tests from the fixtures/specification directory.
     pub fn load() -> Self {
         let fixtures = fixtures_dir();
         let mut suite = Self::default();
 
-        let spec_dir = fixtures.join("spec");
+        let spec_dir = fixtures.join("specification");
         for md_path in discover_md_files(&spec_dir).unwrap_or_default() {
             suite.add_file(&spec_dir, &md_path);
         }
@@ -56,7 +56,7 @@ impl SpecSuite {
                 slug(&case.section),
                 slug(&case.name)
             );
-            let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::spec")
+            let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::specification")
                 .with_skipped(case.skip);
 
             self.tests.insert(test_case.full_name(), case);
@@ -67,7 +67,7 @@ impl SpecSuite {
 
 impl Suite for SpecSuite {
     fn name(&self) -> &'static str {
-        "spec"
+        "specification"
     }
 
     fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {

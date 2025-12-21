@@ -10,7 +10,7 @@ Integration and fixture-based tests for the Destack language toolchain.
 |-------|----------|-------------|
 | **Smoke** | `fixtures/smoke/` | Parser and compiler don't crash, no errors on valid input |
 | **Codegen** | `fixtures/codegen/` | Transpilation output matches expected snapshots |
-| **Spec** | `fixtures/spec/` | MDTest-driven type checking and diagnostics |
+| **Specification** | `fixtures/specification/` | MDTest-driven type checking and diagnostics |
 | **Query** | `fixtures/query/` | MDTest-driven IDE/LSP queries (goto definition, completion, rename) |
 | **Conformance** | `fixtures/conformance/` | Parser conformance against established test suites |
 | **Formatter** | `fixtures/formatter/` | Format roundtrip stability |
@@ -27,14 +27,14 @@ cargo test -p destack_test
 # run specific test suites
 cargo test --test smoke           # smoke tests only
 cargo test --test codegen         # codegen tests only
-cargo test --test spec            # type checking spec tests
+cargo test --test specification   # type checking specification tests
 cargo test --test query           # IDE query tests
 cargo test --test stress          # stress tests (requires generated fixtures)
 
 # filter by name
 cargo test --test smoke -- parser      # only parser smoke tests
 cargo test --test smoke -- compiler    # only compiler smoke tests
-cargo test --test spec -- basics       # filter spec tests by path
+cargo test --test specification -- basics       # filter specification tests by path
 
 # list tests without running
 cargo test --test smoke -- --list
@@ -50,7 +50,7 @@ cd language
 just test                # run all language tests
 just test-smoke          # run smoke tests
 just test-codegen        # run codegen tests
-just test-spec           # run type checking spec tests
+just test-specification  # run type checking specification tests
 just test-query          # run IDE query tests
 just test-conformance    # run conformance tests
 just test-formatter      # run formatter tests
@@ -59,12 +59,12 @@ just test-stress         # run stress tests
 
 ## MDTest Framework
 
-The MDTest framework powers both **Spec** and **Query** tests using markdown-driven test definitions.
+The MDTest framework powers both **Specification** and **Query** tests using markdown-driven test definitions.
 
-### Spec Tests (`fixtures/spec/`)
+### Specification Tests (`fixtures/specification/`)
 
 Type checking specification tests. Tests are markdown files with code blocks and expected error messages.
-See `fixtures/spec/README.md` for format details.
+See `fixtures/specification/README.md` for format details.
 
 ### Query Tests (`fixtures/query/`)
 

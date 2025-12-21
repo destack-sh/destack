@@ -27,8 +27,8 @@ path = "src/formatter/main.rs"
 harness = false
 
 [[test]]
-name = "spec"
-path = "src/spec/main.rs"
+name = "specification"
+path = "src/specification/main.rs"
 harness = false
 
 [[test]]
