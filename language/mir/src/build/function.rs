@@ -454,6 +454,21 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Insert a floating point constant.
+    pub fn fconst(&mut self, value: f64, width: u8) -> Value {
+        let destination = self.allocate_value();
+        let bits = if width == 32 {
+            f32::to_bits(value as f32) as u64
+        } else {
+            value.to_bits()
+        };
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Float { bits, width },
+        });
+        destination
+    }
+
     // instruction builders: binary operations
 
     /// Insert a binary operation.
@@ -466,6 +481,16 @@ impl<'a> FunctionBuilder<'a> {
             right: right_value,
         });
         destination
+    }
+
+    /// Insert a binary operation with an explicit operator.
+    pub fn binary_op(
+        &mut self,
+        operator: BinaryOperator,
+        left_value: Value,
+        right_value: Value,
+    ) -> Value {
+        self.binary(operator, left_value, right_value)
     }
 
     /// Integer addition.

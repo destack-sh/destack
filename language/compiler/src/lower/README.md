@@ -1719,6 +1719,7 @@ Atomic operations are sequentially consistent by default and accept explicit ord
 Non atomic loads and stores have no cross thread ordering guarantees.
 Data races on shared non atomic memory are undefined behavior on native targets.
 This preserves JS and TS semantics while enabling native performance when code uses atomics.
+JS targets follow JS semantics even under data races, with no undefined behavior.
 
 ## Atomics and Shared Memory
 

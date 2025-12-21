@@ -20,7 +20,7 @@ fn test_format_simple_add() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @add(v0: i32, v1: i32) -> void {
@@ -51,7 +51,7 @@ fn test_format_with_locals() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @with_locals() -> i64 {
@@ -107,7 +107,7 @@ fn test_format_branch() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @select(v0: bool) -> i32 {
@@ -141,7 +141,7 @@ fn test_format_void_return() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @noop() -> void {
@@ -173,7 +173,7 @@ fn test_format_ssa_variable() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @var_test() -> i32 {
@@ -209,7 +209,7 @@ fn test_format_global_variable() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 global @counter: i32 = zeroinit ; mut
@@ -250,7 +250,7 @@ fn test_format_global_constant() {
     builder.finish();
 
     // verify formatted output
-    let (tree, strings) = module.finish();
+    let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 global @MAGIC: i64 = 42i64 ; const

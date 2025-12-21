@@ -9,6 +9,8 @@ use std::time::Duration;
 use destack_ast::NodeParentIndex;
 use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_machine::{Interpreter, MachineOptions, Value};
+use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType, MemoryFileSystem,
     ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
@@ -18,7 +20,7 @@ use parking_lot::RwLock;
 
 use crate::{
     AnalyzeTask, BindTask, Compiler, CompilerOptions, ElaborateTask, ImportTask, LintTask,
-    ResolveTask, Task, default_workers,
+    LowerTask, ResolveTask, Task, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -217,6 +219,14 @@ impl TestProgram {
         self.enqueue(ElaborateTask::ElaborateModule { module });
     }
 
+    /// Enqueue Lower task for a module.
+    pub fn lower_module(&self, module: ModuleId, target: &str) {
+        self.enqueue(LowerTask::LowerModule {
+            module,
+            target: target.to_string(),
+        });
+    }
+
     /// Enqueue a task (does not run it).
     pub fn enqueue<T: Into<Task>>(&self, task: T) {
         self.compiler.enqueue(task);
@@ -410,6 +420,56 @@ impl TestProgram {
         results.join("\n")
     }
 
+    /// Format a module's MIR to a string.
+    pub fn mir_to_string(&self, module_id: ModuleId, target: &str) -> String {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let mir = module.mir(target);
+        let tree = mir.tree.read();
+        let strings = mir.strings.clone().into_immutable();
+        format_mir(&tree, &strings, MirFormatOptions::default())
+    }
+
+    /// Create a fresh MIR interpreter for the module and target.
+    pub fn mir_interpreter(&self, module_id: ModuleId, target: &str) -> Interpreter {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let mir = module.mir(target);
+        let tree = mir.tree.read().clone();
+        let strings = mir.strings.clone().into_immutable();
+        Interpreter::with_options(tree, strings, MachineOptions::test())
+    }
+
+    /// Run a MIR function by name and return its output value.
+    pub fn run_mir_function(
+        &self,
+        module_id: ModuleId,
+        target: &str,
+        function: &str,
+        arguments: &[Value],
+    ) -> Value {
+        let mut interpreter = self.mir_interpreter(module_id, target);
+        let output = interpreter
+            .run_function_by_name(function, arguments)
+            .expect("execution failed");
+        output.value
+    }
+
+    /// Assert a MIR function's output matches the expected value.
+    pub fn assert_mir_function_output(
+        &self,
+        module_id: ModuleId,
+        target: &str,
+        function: &str,
+        arguments: &[Value],
+        expected: Value,
+    ) {
+        let actual = self.run_mir_function(module_id, target, function, arguments);
+        if actual != expected {
+            panic!("mir function output mismatch\nexpected: {expected:?}\nactual: {actual:?}");
+        }
+    }
+
     /// Assert that a module's DIR has been elaborated to the given AST.
     pub fn assert_elaborated(&self, module_id: ModuleId, expected: &str) {
         let unbound = self.unbind_to_string(module_id);
@@ -429,6 +489,17 @@ impl TestProgram {
         if unbound != expected {
             print_diff(expected, unbound, &DiffOptions::new());
             panic!("bound code mismatch");
+        }
+    }
+
+    /// Assert that a module's MIR matches the expected text format.
+    pub fn assert_mir(&self, module_id: ModuleId, target: &str, expected: &str) {
+        let actual = self.mir_to_string(module_id, target);
+        let actual = actual.trim();
+        let expected = expected.trim();
+        if actual != expected {
+            print_diff(expected, actual, &DiffOptions::new());
+            panic!("mir code mismatch");
         }
     }
 }

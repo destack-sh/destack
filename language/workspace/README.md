@@ -39,7 +39,12 @@ Child packages inherit from parent `dsconfig.json` with "most restrictive wins" 
 
 ### Target
 
-Build target configuration:
+Targets define what we build and where the code ultimately runs.
+Runtime and platform define semantics and APIs.
+Target triples define native ABI and architecture.
+(Codegen backends actually generate the code for some specific target.)
+
+**Build target configuration:**
 
 ```ds
 struct Target {
