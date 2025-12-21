@@ -104,10 +104,10 @@ impl Compiler {
 
     /// Bind a lower bound for an inference variable type.
     fn bind_lower(sup: LocalTypeId, sub: LocalTypeId, types: &TypeTable, bounds: &mut [Bounds]) {
-        if let Some(infer_id) = Self::infer_var_id_for_type(sup, types) {
-            if let Some(bound) = bounds.get_mut(infer_id.0 as usize) {
-                bound.lower.push(sub);
-            }
+        if let Some(infer_id) = Self::infer_var_id_for_type(sup, types)
+            && let Some(bound) = bounds.get_mut(infer_id.0 as usize)
+        {
+            bound.lower.push(sub);
         }
     }
 

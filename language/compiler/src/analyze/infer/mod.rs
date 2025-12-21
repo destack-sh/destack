@@ -2,8 +2,8 @@ mod assign;
 mod context;
 mod infer;
 mod infer_table;
-mod solve;
 mod process;
+mod solve;
 mod r#type;
 
 pub use assign::*;

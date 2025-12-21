@@ -1,7 +1,8 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, LocalNodeId, LocalTypeId, NodeTree, SymbolTable, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator, UnaryOperator,
+    BindingKind, Declaration, DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalTypeId,
+    Mutability, NodeTree, Property, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
+    TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -74,6 +75,55 @@ impl Compiler {
         Ok(types.insert_type_from(ty, expression_id))
     }
 
+    /// Evaluate a function signature into a Type.
+    fn evaluate_function_signature_to_type(
+        &self,
+        module: &Module,
+        signature: &FunctionSignature,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Type> {
+        // evaluate parameter types
+        let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len());
+        for parameter_id in signature.dynamic_parameters.iter() {
+            let declared_type_id = types
+                .get_declared_type_id(parameter_id.into_global(module.id).into())
+                .unwrap_or_else(|| {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, *parameter_id)
+                });
+
+            self.evaluate_type(module, declared_type_id, tree, symbols, types)?;
+
+            dynamic_parameters.push(declared_type_id);
+        }
+
+        // evaluate return type
+        let return_type = if let Some(return_type_id) = signature.return_type {
+            Some(self.try_evaluate_expression_to_type(
+                module,
+                return_type_id,
+                tree,
+                symbols,
+                types,
+            )?)
+        } else {
+            None
+        };
+
+        // build function type
+        Ok(Type::Function {
+            asynchrony: signature.asynchrony,
+            cardinality: signature.cardinality,
+            static_parameters: Vec::new(),
+            dynamic_parameters,
+            return_type,
+        })
+    }
+
     /// Evaluate an Expression into a Type.
     fn evaluate_expression_to_type(
         &self,
@@ -83,7 +133,8 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Type>> {
-        let expression = tree.get(expression_id);
+        // clone to avoid holding a tree borrow across recursive evaluation
+        let expression = tree.get(expression_id).clone();
 
         let ty = match expression {
             Expression::ScalarLiteral { value } => Type::TypeLiteral {
@@ -93,13 +144,25 @@ impl Compiler {
                 value: value.clone(),
             },
 
+            Expression::Declaration { declaration } => {
+                let declaration = tree.get(declaration).clone();
+                if let Declaration::Function { signature, .. } = declaration {
+                    self.evaluate_function_signature_to_type(
+                        module, &signature, tree, symbols, types,
+                    )?
+                } else {
+                    // NOTE #Incomplete: only function declarations are evaluable as types here
+                    return Ok(None);
+                }
+            }
+
             // not
             Expression::Unary {
                 operator: UnaryOperator::Not,
                 right,
             } => {
                 let type_id =
-                    self.try_evaluate_expression_to_type(module, *right, tree, symbols, types)?;
+                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
                     right: type_id,
@@ -108,7 +171,7 @@ impl Compiler {
             // maybe
             Expression::Maybe { left } => {
                 let type_id =
-                    self.try_evaluate_expression_to_type(module, *left, tree, symbols, types)?;
+                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Maybe,
                     right: type_id,
@@ -117,7 +180,7 @@ impl Compiler {
             // must
             Expression::Must { left } => {
                 let type_id =
-                    self.try_evaluate_expression_to_type(module, *left, tree, symbols, types)?;
+                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
                     right: type_id,
@@ -129,10 +192,8 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let mutability = *mutability;
-                let variance = *variance;
                 let type_id =
-                    self.try_evaluate_expression_to_type(module, *right, tree, symbols, types)?;
+                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
                 Type::ValueOf {
                     mutability,
                     variance,
@@ -145,10 +206,8 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let mutability = *mutability;
-                let variance = *variance;
                 let type_id =
-                    self.try_evaluate_expression_to_type(module, *right, tree, symbols, types)?;
+                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
                 Type::ReferenceOf {
                     mutability,
                     variance,
@@ -156,7 +215,7 @@ impl Compiler {
                 }
             }
             // unary
-            &Expression::TypeUnary { operator, right } => {
+            Expression::TypeUnary { operator, right } => {
                 let right_id =
                     self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
                 Type::Unary {
@@ -165,7 +224,7 @@ impl Compiler {
                 }
             }
             // binary
-            &Expression::TypeBinary {
+            Expression::TypeBinary {
                 left,
                 operator,
                 right,
@@ -182,7 +241,7 @@ impl Compiler {
             }
 
             // references
-            // NOTE #Incomplete: evaluate static arguments
+            // NOTE #Incomplete: evaluate/instance static arguments
             Expression::LocalReference {
                 target_symbol,
                 static_arguments: _,
@@ -198,16 +257,27 @@ impl Compiler {
                 static_arguments: _,
                 ..
             } => Type::Reference {
-                symbol: *target_symbol,
+                symbol: target_symbol,
                 static_arguments: None,
             },
 
-            // NOTE #Incomplete: evaluate tuples/objects to types
             // tuple (anonymous)
-            Expression::TupleExpression { .. } => {
-                return Err(AnalyzeError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
-                });
+            Expression::TupleExpression { elements } => {
+                // evaluate element types
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let value_id = {
+                        let argument = tree.get(element_id);
+                        argument.value()
+                    };
+                    let value_ty_id = self
+                        .try_evaluate_expression_to_type(module, value_id, tree, symbols, types)?;
+                    element_types.push(value_ty_id);
+                }
+
+                Type::Tuple {
+                    elements: element_types,
+                }
             }
             // sequence expression (comma operator)
             Expression::SequenceExpression { .. } => {
@@ -216,14 +286,102 @@ impl Compiler {
                 });
             }
             // object (anonymous)
-            Expression::ObjectExpression { .. } => {
-                return Err(AnalyzeError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
-                });
+            Expression::ObjectExpression { properties } => {
+                // evaluate object fields
+                let mut fields = Vec::with_capacity(properties.len());
+                for property_id in properties {
+                    let property = tree.get(property_id).clone();
+                    let field = match property {
+                        Property::Field {
+                            modifiers,
+                            key,
+                            value,
+                            ..
+                        } => {
+                            let key = match key {
+                                Some(DynamicKey::Name(name)) => StaticKey::Name(name),
+                                _ => {
+                                    return Err(AnalyzeError::UnsupportedConstruct {
+                                        node: property_id.into_global_any(module.id),
+                                    });
+                                }
+                            };
+
+                            let ty = if let Some(value_id) = value {
+                                self.try_evaluate_expression_to_type(
+                                    module, value_id, tree, symbols, types,
+                                )?
+                            } else {
+                                let ty = Type::TypeLiteral {
+                                    value: TypeLiteral::Unknown,
+                                };
+                                types.insert_type_from(ty, property_id)
+                            };
+
+                            let is_optional = modifiers.is_some_and(|modifiers| {
+                                modifiers.kind == Some(BindingKind::Maybe)
+                            });
+                            let is_readonly = modifiers.is_some_and(|modifiers| {
+                                modifiers.mutability == Some(Mutability::Immutable)
+                            });
+
+                            TypeField {
+                                key,
+                                ty,
+                                is_optional,
+                                is_readonly,
+                            }
+                        }
+                        Property::Method {
+                            modifiers,
+                            key,
+                            signature,
+                            ..
+                        } => {
+                            let key = match key {
+                                Some(DynamicKey::Name(name)) => StaticKey::Name(name),
+                                _ => {
+                                    return Err(AnalyzeError::UnsupportedConstruct {
+                                        node: property_id.into_global_any(module.id),
+                                    });
+                                }
+                            };
+
+                            let ty = self.evaluate_function_signature_to_type(
+                                module, &signature, tree, symbols, types,
+                            )?;
+                            let ty_id = types.insert_type_from(ty, property_id);
+
+                            let is_optional = modifiers.is_some_and(|modifiers| {
+                                modifiers.kind == Some(BindingKind::Maybe)
+                            });
+                            let is_readonly = modifiers.is_some_and(|modifiers| {
+                                modifiers.mutability == Some(Mutability::Immutable)
+                            });
+
+                            TypeField {
+                                key,
+                                ty: ty_id,
+                                is_optional,
+                                is_readonly,
+                            }
+                        }
+                        Property::Spread { .. } => {
+                            // #Incomplete: spread properties into types
+                            return Err(AnalyzeError::UnsupportedConstruct {
+                                node: property_id.into_global_any(module.id),
+                            });
+                        }
+                    };
+
+                    fields.push(field);
+                }
+
+                Type::Object { fields }
             }
 
             // array or slice
-            &Expression::Index { left, right } => {
+            Expression::Index { left, right } => {
                 // array with static length
                 if let Some(right) = right {
                     let left_id =

@@ -104,7 +104,7 @@ Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 - Relatedly, we like to just use `use crate::x` directly (when possible)
 - Prefer re-defining variables if we're just transforming them about
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
-- Fix all the lints from `cargo check --release -p <crate>`
+- Fix all the lints from `cargo check --release -p <crate>` and `cargo clippy --release -p <crate>`
 
 
 ## Commands

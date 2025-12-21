@@ -39,3 +39,14 @@ x satisfies [];
 const x = [1, "two", true];
 x satisfies [1, "two", true];
 ```
+
+## Contextual Arrays
+
+### contextual array literal
+
+> Array literals use contextual types for element inference.
+
+```ds
+const values: number[] = [1, 2, 3];
+values satisfies number[];
+```

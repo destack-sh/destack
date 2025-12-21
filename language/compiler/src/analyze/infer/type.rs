@@ -77,14 +77,18 @@ impl Compiler {
         let (left_lit, right_lit) = Self::extract_scalar_literals(left, right)?;
 
         // compare integers
-        if let (ScalarLiteral::Integer(l), ScalarLiteral::Integer(r)) = (left_lit, right_lit) {
+        if let (ScalarLiteral::Integer(left_value), ScalarLiteral::Integer(right_value)) =
+            (left_lit, right_lit)
+        {
             let result = match operator {
-                BinaryOperator::Equal | BinaryOperator::EqualStrict => l == r,
-                BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => l != r,
-                BinaryOperator::LessThan => l < r,
-                BinaryOperator::LessThanOrEqual => l <= r,
-                BinaryOperator::GreaterThan => l > r,
-                BinaryOperator::GreaterThanOrEqual => l >= r,
+                BinaryOperator::Equal | BinaryOperator::EqualStrict => left_value == right_value,
+                BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => {
+                    left_value != right_value
+                }
+                BinaryOperator::LessThan => left_value < right_value,
+                BinaryOperator::LessThanOrEqual => left_value <= right_value,
+                BinaryOperator::GreaterThan => left_value > right_value,
+                BinaryOperator::GreaterThanOrEqual => left_value >= right_value,
                 _ => return None,
             };
             return Some(Type::TypeLiteral {
@@ -93,14 +97,14 @@ impl Compiler {
         }
 
         // compare floats (or mixed int/float)
-        let (l, r) = Self::to_f64_pair(left_lit, right_lit)?;
+        let (left_value, right_value) = Self::to_f64_pair(left_lit, right_lit)?;
         let result = match operator {
-            BinaryOperator::Equal | BinaryOperator::EqualStrict => l == r,
-            BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => l != r,
-            BinaryOperator::LessThan => l < r,
-            BinaryOperator::LessThanOrEqual => l <= r,
-            BinaryOperator::GreaterThan => l > r,
-            BinaryOperator::GreaterThanOrEqual => l >= r,
+            BinaryOperator::Equal | BinaryOperator::EqualStrict => left_value == right_value,
+            BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict => left_value != right_value,
+            BinaryOperator::LessThan => left_value < right_value,
+            BinaryOperator::LessThanOrEqual => left_value <= right_value,
+            BinaryOperator::GreaterThan => left_value > right_value,
+            BinaryOperator::GreaterThanOrEqual => left_value >= right_value,
             _ => return None,
         };
         Some(Type::TypeLiteral {
@@ -118,10 +122,12 @@ impl Compiler {
         // extract boolean literals from both sides
         let (left_lit, right_lit) = Self::extract_scalar_literals(left, right)?;
 
-        if let (ScalarLiteral::Boolean(l), ScalarLiteral::Boolean(r)) = (left_lit, right_lit) {
+        if let (ScalarLiteral::Boolean(left_value), ScalarLiteral::Boolean(right_value)) =
+            (left_lit, right_lit)
+        {
             let result = match operator {
-                BinaryOperator::And => *l && *r,
-                BinaryOperator::Or => *l || *r,
+                BinaryOperator::And => *left_value && *right_value,
+                BinaryOperator::Or => *left_value || *right_value,
                 _ => return None,
             };
             return Some(Type::TypeLiteral {
@@ -143,28 +149,30 @@ impl Compiler {
         let (left_lit, right_lit) = Self::extract_scalar_literals(left, right)?;
 
         // try to fold integer operations (preserves integer type)
-        if let (ScalarLiteral::Integer(l), ScalarLiteral::Integer(r)) = (left_lit, right_lit) {
+        if let (ScalarLiteral::Integer(left_value), ScalarLiteral::Integer(right_value)) =
+            (left_lit, right_lit)
+        {
             let result = match operator {
-                BinaryOperator::Add => l.checked_add(*r),
-                BinaryOperator::Subtract => l.checked_sub(*r),
-                BinaryOperator::Multiply => l.checked_mul(*r),
+                BinaryOperator::Add => left_value.checked_add(*right_value),
+                BinaryOperator::Subtract => left_value.checked_sub(*right_value),
+                BinaryOperator::Multiply => left_value.checked_mul(*right_value),
                 BinaryOperator::Divide => {
-                    if *r != 0 {
-                        l.checked_div(*r)
+                    if *right_value != 0 {
+                        left_value.checked_div(*right_value)
                     } else {
                         None
                     }
                 }
                 BinaryOperator::Remainder => {
-                    if *r != 0 {
-                        l.checked_rem(*r)
+                    if *right_value != 0 {
+                        left_value.checked_rem(*right_value)
                     } else {
                         None
                     }
                 }
                 BinaryOperator::Exponent => {
-                    if *r >= 0 && *r <= u32::MAX as i64 {
-                        l.checked_pow(*r as u32)
+                    if *right_value >= 0 && *right_value <= u32::MAX as i64 {
+                        left_value.checked_pow(*right_value as u32)
                     } else {
                         None
                     }
@@ -182,14 +190,14 @@ impl Compiler {
         if matches!(left_lit, ScalarLiteral::Float(_))
             || matches!(right_lit, ScalarLiteral::Float(_))
         {
-            let (l, r) = Self::to_f64_pair(left_lit, right_lit)?;
+            let (left_value, right_value) = Self::to_f64_pair(left_lit, right_lit)?;
             let result = match operator {
-                BinaryOperator::Add => l + r,
-                BinaryOperator::Subtract => l - r,
-                BinaryOperator::Multiply => l * r,
-                BinaryOperator::Divide => l / r,
-                BinaryOperator::Remainder => l % r,
-                BinaryOperator::Exponent => l.powf(r),
+                BinaryOperator::Add => left_value + right_value,
+                BinaryOperator::Subtract => left_value - right_value,
+                BinaryOperator::Multiply => left_value * right_value,
+                BinaryOperator::Divide => left_value / right_value,
+                BinaryOperator::Remainder => left_value % right_value,
+                BinaryOperator::Exponent => left_value.powf(right_value),
                 _ => return None,
             };
             return Some(Type::TypeLiteral {
@@ -220,16 +228,16 @@ impl Compiler {
         None
     }
 
+    /// Check whether a type is string like for concatenation.
     fn is_string_like(ty: &Type) -> bool {
-        match ty {
+        matches!(
+            ty,
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
-            } => true,
-            Type::TypeLiteral {
+            } | Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
-            } => true,
-            _ => false,
-        }
+            }
+        )
     }
 
     /// Extract scalar literals from two types.
@@ -240,29 +248,29 @@ impl Compiler {
         match (left, right) {
             (
                 Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(l),
+                    value: TypeLiteral::ScalarLiteral(left_literal),
                 },
                 Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(r),
+                    value: TypeLiteral::ScalarLiteral(right_literal),
                 },
-            ) => Some((l, r)),
+            ) => Some((left_literal, right_literal)),
             _ => None,
         }
     }
 
     /// Convert two scalar literals to f64 values (for numeric operations).
     fn to_f64_pair(left: &ScalarLiteral, right: &ScalarLiteral) -> Option<(f64, f64)> {
-        let l = match left {
+        let left_value = match left {
             ScalarLiteral::Integer(i) => *i as f64,
             ScalarLiteral::Float(f) => *f,
             _ => return None,
         };
-        let r = match right {
+        let right_value = match right {
             ScalarLiteral::Integer(i) => *i as f64,
             ScalarLiteral::Float(f) => *f,
             _ => return None,
         };
-        Some((l, r))
+        Some((left_value, right_value))
     }
 
     /// Widen two numeric types to a common type.
@@ -272,8 +280,11 @@ impl Compiler {
         let right_prim = Self::to_numeric_primitive(right);
         match (left_prim, right_prim) {
             // if both are known primitives, return the wider one
-            (Some(l), Some(r)) => Type::TypeLiteral {
-                value: TypeLiteral::Primitive(Self::wider_numeric_primitive(&l, &r)),
+            (Some(left_primitive), Some(right_primitive)) => Type::TypeLiteral {
+                value: TypeLiteral::Primitive(Self::wider_numeric_primitive(
+                    &left_primitive,
+                    &right_primitive,
+                )),
             },
             // if one side is a primitive, use it
             (Some(p), None) | (None, Some(p)) => Type::TypeLiteral {
@@ -321,8 +332,12 @@ impl Compiler {
         }
         // float is wider than int; pick the wider float
         match (left, right) {
-            (PrimitiveType::Float(l), PrimitiveType::Float(r)) => {
-                let wider = if l.width() >= r.width() { *l } else { *r };
+            (PrimitiveType::Float(left_float), PrimitiveType::Float(right_float)) => {
+                let wider = if left_float.width() >= right_float.width() {
+                    *left_float
+                } else {
+                    *right_float
+                };
                 return PrimitiveType::Float(wider);
             }
             (PrimitiveType::Float(f), _) | (_, PrimitiveType::Float(f)) => {
@@ -336,12 +351,12 @@ impl Compiler {
         }
         // compare int widths and return the wider one
         match (left, right) {
-            (PrimitiveType::Int(l), PrimitiveType::Int(r)) => {
+            (PrimitiveType::Int(left_int), PrimitiveType::Int(right_int)) => {
                 // if either is signed, result should be signed
-                let is_signed = l.is_signed() || r.is_signed();
-                match (l.width(), r.width()) {
-                    (Some(lw), Some(rw)) => {
-                        let width = lw.max(rw);
+                let is_signed = left_int.is_signed() || right_int.is_signed();
+                match (left_int.width(), right_int.width()) {
+                    (Some(left_width), Some(right_width)) => {
+                        let width = left_width.max(right_width);
                         PrimitiveType::Int(IntType::Arbitrary { width, is_signed })
                     }
                     // pointer-sized ints: can't determine width at compile time
