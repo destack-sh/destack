@@ -26,6 +26,13 @@ block0:
 }
 "#,
     );
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "add",
+        &[Value::int32(1), Value::int32(2)],
+        Value::int32(3),
+    );
 }
 
 #[test]

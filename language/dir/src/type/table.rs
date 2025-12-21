@@ -21,10 +21,14 @@ pub struct TypeTable {
     pub(crate) types: Arena<Type>,
     /// The source ids of all types. Index is the type id.
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
+
+    // node types
     /// The declared type by node id (type annotations live on nodes).
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The inferred type by node id (expression-like types at specific locations).
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+
+    // symbol types
     /// The instance type by symbol id (for type declarations: the shape of instances).
     pub(crate) instance_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// The value type by symbol id (the type when used as a value).
@@ -74,8 +78,11 @@ impl TypeTable {
             next_type_id: 0,
             types: Arena::new(),
             source_id_by_type_id: Vec::new(),
+
+            // node types
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
+            // symbol types
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
             // instances

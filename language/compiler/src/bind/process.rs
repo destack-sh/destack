@@ -1,8 +1,6 @@
+use crate::{BindResult, Compiler};
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::ModuleDir;
-
-use crate::{BindResult, Compiler, TaskDependencyError};
 
 /// Task to bind AST into DIR (including syntactic desugaring).
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -25,7 +23,6 @@ pub enum BindTask {
     BindModuleValidate { module: ModuleId },
 }
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Process a bind task.
     pub fn process_bind(&self, task: BindTask) -> BindResult<()> {
@@ -34,81 +31,15 @@ impl Compiler {
                 self.require_bind_module_desugar(module)?;
             }
             BindTask::BindModuleBuild { module } => {
-                self.require_import_module(module)?;
-                let module = self.program.modules.get(module);
-                // initialize DIR
-                {
-                    let mut module = module.write();
-                    module.dir = Some(ModuleDir::new(module.id, module.version));
-                }
-                // bind module roots
-                let roots = {
-                    let module = module.read();
-                    self.bind_module_roots(&module, module.ast())
-                };
-                {
-                    let mut module = module.write();
-                    module.dir_mut().roots.extend(roots);
-                };
-                // attach annotations
-                {
-                    let module = module.read();
-                    let dir = module.dir();
-                    let ast = module.ast();
-                    let mut tree = dir.tree.write();
-                    let mut symbols = dir.symbols.write();
-                    let mut types = dir.types.write();
-                    let scope = (
-                        dir.namespace_scope,
-                        symbols.get_scope_mark(dir.namespace_scope),
-                    );
-                    self.attach_annotations(
-                        &module,
-                        ast,
-                        scope,
-                        &mut tree,
-                        &mut symbols,
-                        &mut types,
-                    );
-                }
-                // bind module exports
-                {
-                    let mut module = module.write();
-                    self.bind_module_exports(&mut module);
-                }
+                self.bind_module_build(module)?;
             }
             BindTask::BindModuleDesugar { module } => {
-                self.require_bind_module_build(module)?;
-                let module = self.program.modules.get(module);
-                let module = module.read();
-                self.bind_module_desugar(&module);
+                self.bind_module_desugar_phase(module)?;
             }
             BindTask::BindModuleValidate { module } => {
-                self.require_bind_module_desugar(module)?;
-                let module = self.program.modules.get(module);
-                let module = module.read();
-                self.validate_binding_names(&module);
-                self.validate_binding_conflicts(&module);
+                self.bind_module_validate(module)?;
             }
         }
         Ok(())
-    }
-
-    /// Ensure a module has been bound (DIR built).
-    pub fn require_bind_module_build(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(BindTask::BindModuleBuild { module })
-    }
-
-    /// Ensure a module has been desugared after binding.
-    pub fn require_bind_module_desugar(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(BindTask::BindModuleDesugar { module })
-    }
-
-    /// Ensure a module has been validated after binding.
-    pub fn require_bind_module_validate(
-        &self,
-        module: ModuleId,
-    ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(BindTask::BindModuleValidate { module })
     }
 }

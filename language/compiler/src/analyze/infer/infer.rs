@@ -1373,7 +1373,7 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
-                // register the function type as the value_type for the function's symbol
+                // register the function type as the value_type for the function's symbol #Suspicious
                 types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
 
                 if let Some(body) = body {
