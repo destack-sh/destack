@@ -66,7 +66,7 @@ block0:
 #[test]
 fn test_mutable_global() {
     let mir = r#"
-global @counter: i32 = 0i32 ; var
+global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
@@ -94,7 +94,7 @@ block0:
 #[test]
 fn test_zeroinit_global() {
     let mir = r#"
-global @data: i64 = zeroinit ; var
+global @data: i64 = zeroinit ; mut
 
 function @get_data() -> i64 {
 block0:

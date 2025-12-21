@@ -119,7 +119,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
 
                             // mutability annotation
                             if local.mutability == Mutability::Mutable {
-                                write!(f, [token(","), space(), token("var")])?;
+                                write!(f, [token(","), space(), token("mut")])?;
                             }
 
                             write!(f, [hard_line_break()])?;

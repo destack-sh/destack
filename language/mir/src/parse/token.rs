@@ -12,6 +12,8 @@ pub enum TokenType {
     Function,
     /// `global`
     Global,
+    /// `type`
+    Type,
     /// `block`
     Block,
     /// `local`
@@ -32,7 +34,7 @@ pub enum TokenType {
     Void,
     /// `bool`
     Bool,
-    /// `rawptr`
+    /// `rawptr` // nocheckin: rename rawptr->ptr? "ref" is also just "ref"?
     RawPtr,
     /// `ref`
     Ref,
@@ -102,8 +104,8 @@ pub enum TokenType {
     // annotations
     /// `owned`, `borrowed`, `copy`
     Ownership,
-    /// `var`
-    Var,
+    /// `mut`
+    Mut,
     /// `const`
     Const,
 

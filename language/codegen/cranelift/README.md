@@ -41,6 +41,13 @@ MIR maps fairly directly to Cranelift IR since both are SSA-based:
 
 The lowerer handles type mapping (MIR types to Cranelift types) and calling convention translation.
 
+## Debug Symbols
+
+Native debug info is emitted via DWARF using Cranelift's debug support.
+Lower provides source spans, function names, local variable names, scopes, and
+type descriptors; Cranelift maps these to DWARF line tables and debug info
+entries (DIEs). This enables source-level debugging in lldb/gdb.
+
 ## Optimization Levels
 
 Cranelift supports three optimization levels:

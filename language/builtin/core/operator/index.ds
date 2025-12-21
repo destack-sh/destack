@@ -1,12 +1,5 @@
-// Operator interfaces
-//
-// Types for overloadable operators:
-// - Arithmetic: +, -, *, /, %, **, etc.
-// - Comparison: ==, <, >, etc.
-// - Indexing: [], []=, *, *=
-// - Formatting: Display, Debug
-
 export * from "./arithmetic.ds";
 export * from "./comparison.ds";
 export * from "./subscript.ds";
 export * from "./format.ds";
+export * from "./drop.ds";

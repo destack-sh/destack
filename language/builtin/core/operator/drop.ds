@@ -1,0 +1,6 @@
+/// Release owned resources for this value.
+///
+/// Called when a `^T` value is dropped or goes out of scope.
+export newtype interface Drop {
+    drop(): void
+}

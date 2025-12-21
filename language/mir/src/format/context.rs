@@ -2,14 +2,16 @@
 
 use std::collections::HashMap;
 
-use destack_base::ImmutableStringPool;
+use destack_base::{ImmutableStringPool, StringId};
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
 use destack_fir::write;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::{Block, Function, Global, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl};
+use crate::{
+    Block, Function, Global, Local, LocalNodeId, Node, NodeTree, NodeTreeImpl, Type, TypeAlias,
+};
 
 pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
 
@@ -84,6 +86,8 @@ pub struct MirFormatContext<'a> {
     pub block_indices: HashMap<LocalNodeId<Block>, usize>,
     /// Map from local ID to its index in the current function's local list.
     pub local_indices: HashMap<LocalNodeId<Local>, usize>,
+    /// Map from type ID to its alias name (if any).
+    pub type_alias_by_type: HashMap<LocalNodeId<Type>, StringId>,
 }
 
 impl<'a> std::fmt::Debug for MirFormatContext<'a> {
@@ -101,6 +105,11 @@ impl<'a> MirFormatContext<'a> {
         strings: &'a ImmutableStringPool,
         options: MirFormatOptions,
     ) -> Self {
+        let type_alias_by_type = tree
+            .iter_nodes::<TypeAlias>()
+            .map(|(_, alias)| (alias.ty, alias.name))
+            .collect();
+
         Self {
             options,
             tree,
@@ -108,6 +117,7 @@ impl<'a> MirFormatContext<'a> {
             file: File::empty_text(FileType::Destack),
             block_indices: HashMap::new(),
             local_indices: HashMap::new(),
+            type_alias_by_type,
         }
     }
 
@@ -125,6 +135,11 @@ impl<'a> MirFormatContext<'a> {
             .get(&id)
             .copied()
             .unwrap_or(id.id as usize)
+    }
+
+    /// Get the alias name for a type, if one exists.
+    pub fn type_alias_name(&self, ty: LocalNodeId<Type>) -> Option<StringId> {
+        self.type_alias_by_type.get(&ty).copied()
     }
 }
 
@@ -183,9 +198,19 @@ struct FormatAllItems;
 impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let tree = f.context().tree;
+        let type_alias_ids: Vec<_> = tree.iter_nodes::<TypeAlias>().map(|(id, _)| id).collect();
         let global_ids: Vec<_> = tree.iter_nodes::<Global>().map(|(id, _)| id).collect();
         let function_ids: Vec<_> = tree.iter_nodes::<Function>().map(|(id, _)| id).collect();
         let mut first = true;
+
+        // format type aliases first
+        for type_alias_id in &type_alias_ids {
+            if !first {
+                write!(f, [hard_line_break()])?;
+            }
+            first = false;
+            write!(f, [type_alias_id, hard_line_break()])?;
+        }
 
         // format globals first
         for global_id in &global_ids {

@@ -349,16 +349,22 @@ Using a value after ownership transfer is an error (suppressible to warning).
 
 **Drop as soon as possible:**
 
-When a `^T` value is no longer used without being transferred, it is dropped (destructor called):
+`^T` values are dropped at their last proven use (non-lexical).
+The compiler inserts a drop as soon as it can prove the value is no longer needed,
+even if the lexical scope continues.
 
 ```
 function process() {
     const data = ^LargeData { ... }  // we own this
     doWork(&data)                     // borrow it
-}   // data dropped here → destructor called
+    log("done")                       // data can be dropped before this line
+}
 ```
 
 Types can implement `Drop` to customize cleanup, enabling RAII patterns.
+
+Strings follow the same ownership spectrum: `string` is GC-managed by default,
+`&string` is a borrowed view, and `^string` is explicitly owned.
 
 **Returning references:**
 
@@ -734,6 +740,14 @@ The `typeOf` function returns a descriptor for a value's type (unlike `typeof`, 
 const p = Point { x: 1, y: 2 };
 const t = typeOf(p);          // Type<Point>
 ```
+
+### Runtime Type Identity
+
+Runtime type identity (RTTI) is demand-driven. The compiler only emits RTTI for types that
+are used at runtime (e.g., `typeOf`, `instanceof`, `any`/`unknown`, or runtime reflection).
+Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
+unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
+property rather than a global WeakMap, preserving "plain object" semantics.
 
 ### Decorator Metadata
 
@@ -1685,6 +1699,7 @@ x if x.isValid()     // with method call
 ### Errors and Exceptions
 
 Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics.
+The builtin `Error` interface is the conventional error shape, but any type can be used as `E`.
 For compatibility with existing JS/TS, we do support `throw` in JS targets.
 
 #### Result and the ? Operator

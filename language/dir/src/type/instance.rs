@@ -61,6 +61,7 @@ impl Display for LocalInstanceId {
 }
 
 /// An Instance is a concrete instantiation of a statically parameterized ("generic") declaration.
+/// Basically, an Instance is a monomorphized version of a polymorphic DIR declaration.
 ///
 /// Arguments are stored **flattened**: inherited arguments first (from enclosing generic
 /// contexts), then own arguments (declared by this symbol).

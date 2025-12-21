@@ -84,7 +84,7 @@ fn test_build_function_with_locals() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @with_local() -> i64 {
-    local0: i64 ; owned, var
+    local0: i64 ; owned, mut
 block0:
     v0 = iconst 42i64
     local.set local0, v0

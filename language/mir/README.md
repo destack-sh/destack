@@ -66,6 +66,8 @@ Each instruction defines at most one `Value`.
 | Allocation | `managed.alloc`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
 
+`field.get/set` and `element.get/set` operate on aggregate values *or* pointers/references
+to aggregates (managed, raw, or stack pointers).
 `Local`s are stack slots for mutable bindings.
 SSA values are immutable.
 To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new value).
@@ -127,6 +129,46 @@ newtype Type =
 Structs include byte offsets for each field.
 Layout is fully computed.
 This is what makes MIR "machine-level": no abstract sizes, everything is concrete.
+
+Field names are optional in MIR types and are for readability only:
+
+```mir
+type @Point = struct { x: f32, y: f32 }
+```
+
+### Debug Info
+
+MIR preserves enough information to produce high quality native debug info later in codegen.
+Lowering records source spans, names, and lexical scope boundaries so codegen can emit DWARF or platform equivalents.
+Debug metadata is not required for execution, but it is required to provide precise variable scopes, call stacks, and type names in debuggers.
+
+At a minimum, lowering should provide:
+- source spans for every instruction and terminator
+- named locals and parameters
+- lexical scope boundaries per block and per inlined callsite
+- type descriptors for variables and fields
+
+The concrete shape of this metadata belongs in MIR so all backends can consume it consistently.
+Cranelift codegen maps this metadata to its own debug facilities and then into DWARF.
+
+### Type Aliases
+
+The MIR text format supports named type aliases for readability.
+Aliases are purely syntactic sugar over concrete layouts.
+
+```mir
+type @Point = struct { i32, i32 }
+type @PointRef = ref<@Point>
+
+function @use_point(v0: ref<@Point>) -> ref<@Point> {
+block0(v0: ref<@Point>):
+    return v0
+}
+```
+
+Aliases are referenced with `@Name` in type positions.
+The underlying MIR still stores and uses the concrete type.
+This makes some documentation and tests much more readable.
 
 ## Functions and Globals
 

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     BinaryOperator, Block, CastKind, Constant, Field, Function, Global, GlobalInitializer,
     Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
-    Ownership, SwitchCase, Terminator, Type, TypedValue, UnaryOperator, Value,
+    Ownership, SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -30,6 +30,8 @@ pub struct Parser<'a> {
     function_map: HashMap<String, LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
     global_map: HashMap<String, LocalNodeId<Global>>,
+    /// Map from type alias names to their ids (for references).
+    type_alias_map: HashMap<String, LocalNodeId<Type>>,
 }
 
 impl<'a> Parser<'a> {
@@ -44,6 +46,7 @@ impl<'a> Parser<'a> {
             block_map: HashMap::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
+            type_alias_map: HashMap::new(),
         }
     }
 
@@ -66,6 +69,23 @@ impl<'a> Parser<'a> {
             let token = &self.tokens[pos];
             if !token.ty.is_trivia() {
                 return Some(token);
+            }
+            pos += 1;
+        }
+        None
+    }
+
+    /// Peek the Nth non-trivia token, where 0 is the current token.
+    fn peek_nth_token(&self, n: usize) -> Option<&Token<'a>> {
+        let mut pos = self.pos;
+        let mut seen = 0usize;
+        while pos < self.tokens.len() {
+            let token = &self.tokens[pos];
+            if !token.ty.is_trivia() {
+                if seen == n {
+                    return Some(token);
+                }
+                seen += 1;
             }
             pos += 1;
         }
@@ -131,7 +151,7 @@ impl<'a> Parser<'a> {
         self.peek().map(|t| t.text).unwrap_or("")
     }
 
-    /// Parse a module (list of globals and functions).
+    /// Parse a module (list of type aliases, globals, and functions).
     fn parse_module(&mut self) -> ParseResult<()> {
         while !self.peek_token(TokenType::End) {
             // parse optional linkage prefix: extern or export
@@ -145,13 +165,21 @@ impl<'a> Parser<'a> {
                 Linkage::Local // default
             };
 
-            if self.peek_token(TokenType::Global) {
+            if self.peek_token(TokenType::Type) {
+                if linkage != Linkage::Local {
+                    return Err(ParseError::new(
+                        "type aliases cannot be extern or export",
+                        self.pos(),
+                    ));
+                }
+                self.parse_type_alias()?;
+            } else if self.peek_token(TokenType::Global) {
                 self.parse_global(linkage)?;
             } else if self.peek_token(TokenType::Function) {
                 self.parse_function(linkage)?;
             } else {
                 return Err(ParseError::new(
-                    "expected 'function' or 'global'",
+                    "expected 'type', 'function', or 'global'",
                     self.pos(),
                 ));
             }
@@ -159,8 +187,34 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Parse a type alias.
+    /// Syntax: `type @name = type`
+    fn parse_type_alias(&mut self) -> ParseResult<LocalNodeId<TypeAlias>> {
+        self.eat_token(TokenType::Type)?;
+        self.eat_token(TokenType::At)?;
+
+        let name_token = self.eat_token(TokenType::Identifier)?;
+        let name = name_token.text.to_string();
+        let name_start = name_token.start;
+        if self.type_alias_map.contains_key(&name) {
+            return Err(ParseError::invalid(
+                &format!("duplicate type alias '@{name}'"),
+                name_start,
+            ));
+        }
+
+        self.eat_token(TokenType::Equals)?;
+        let ty = self.parse_type()?;
+
+        let name_id = self.strings.intern(&name);
+        let alias = TypeAlias { name: name_id, ty };
+        let id = self.tree.insert(alias);
+        self.type_alias_map.insert(name, ty);
+        Ok(id)
+    }
+
     /// Parse a global definition or declaration.
-    /// Syntax: `[export|extern] global @name: type [= init] ; var|const`
+    /// Syntax: `[export|extern] global @name: type [= init] ; mut|const`
     fn parse_global(&mut self, linkage: Linkage) -> ParseResult<LocalNodeId<Global>> {
         self.eat_token(TokenType::Global)?;
         self.eat_token(TokenType::At)?;
@@ -181,10 +235,10 @@ impl<'a> Parser<'a> {
             Some(self.parse_data_init()?)
         };
 
-        // mutability annotation: ; var or ; const
+        // mutability annotation: ; mut or ; const
         let mut mutability = Mutability::Immutable;
         if self.eat_token_maybe(TokenType::Semicolon) {
-            if self.eat_token_maybe(TokenType::Var) {
+            if self.eat_token_maybe(TokenType::Mut) {
                 mutability = Mutability::Mutable;
             } else if self.eat_token_maybe(TokenType::Const) {
                 mutability = Mutability::Immutable;
@@ -401,7 +455,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Colon)?;
         let ty = self.parse_type()?;
 
-        // parse annotations: ; owned, var
+        // parse annotations: ; owned, mut
         let mut ownership = Ownership::Owned;
         let mut mutability = Mutability::Immutable;
 
@@ -418,7 +472,7 @@ impl<'a> Parser<'a> {
                 self.bump();
             }
             // mutability
-            if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Var) {
+            if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Mut) {
                 mutability = Mutability::Mutable;
             }
         }
@@ -965,6 +1019,15 @@ impl<'a> Parser<'a> {
         let token_start = token.start;
 
         let ty = match token_ty {
+            TokenType::At => {
+                self.bump();
+                let name_token = self.eat_token(TokenType::Identifier)?;
+                let name = name_token.text.to_string();
+                let ty = self.type_alias_map.get(&name).copied().ok_or_else(|| {
+                    ParseError::invalid(&format!("unknown type alias '@{name}'"), token_start)
+                })?;
+                return Ok(ty);
+            }
             TokenType::Void => {
                 self.bump();
                 Type::Void
@@ -1047,12 +1110,20 @@ impl<'a> Parser<'a> {
                 let mut fields = Vec::new();
                 let mut offset = 0u32;
                 while !self.peek_token(TokenType::CloseBrace) {
+                    let mut name = None;
+                    if self.peek_token(TokenType::Identifier)
+                        && let Some(next_token) = self.peek_nth_token(1)
+                        && next_token.ty == TokenType::Colon
+                    {
+                        let name_text = {
+                            let name_token = self.eat_token(TokenType::Identifier)?;
+                            name_token.text.to_string()
+                        };
+                        self.eat_token(TokenType::Colon)?;
+                        name = Some(self.strings.intern(&name_text));
+                    }
                     let ty = self.parse_type()?;
-                    let field = Field {
-                        name: None,
-                        ty,
-                        offset,
-                    };
+                    let field = Field { name, ty, offset };
                     fields.push(self.tree.insert(field));
                     offset += 1; // simplified offset, real offset would need size info
                     if !self.eat_token_maybe(TokenType::Comma) {

@@ -4,6 +4,7 @@ use destack_base::Arena;
 
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Type,
+    TypeAlias,
 };
 
 /// MIR node tree for a single module.
@@ -26,6 +27,7 @@ pub struct NodeTree {
     pub(crate) instructions: Arena<Instruction>,
     pub(crate) locals: Arena<Local>,
     pub(crate) types: Arena<Type>,
+    pub(crate) type_aliases: Arena<TypeAlias>,
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
 
@@ -43,6 +45,7 @@ impl Debug for NodeTree {
             .field("instructions", &self.instructions.len())
             .field("locals", &self.locals.len())
             .field("types", &self.types.len())
+            .field("type_aliases", &self.type_aliases.len())
             .field("fields", &self.fields.len())
             .field("globals", &self.globals.len())
             .finish()
@@ -73,6 +76,7 @@ impl NodeTree {
             instructions: Arena::new(),
             locals: Arena::new(),
             types: Arena::new(),
+            type_aliases: Arena::new(),
             fields: Arena::new(),
             globals: Arena::new(),
 
@@ -213,5 +217,6 @@ impl_node_tree!(Block, blocks);
 impl_node_tree!(Instruction, instructions);
 impl_node_tree!(Local, locals);
 impl_node_tree!(Type, types);
+impl_node_tree!(TypeAlias, type_aliases);
 impl_node_tree!(Field, fields);
 impl_node_tree!(Global, globals);

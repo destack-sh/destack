@@ -1,6 +1,6 @@
 use crate::{
     Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeTree, NodeType,
-    NodeVisitor, Type,
+    NodeVisitor, Type, TypeAlias,
 };
 
 /// Walk any node.
@@ -35,6 +35,11 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let id = LocalNodeId::new(node_id);
             let ty = tree.get(id);
             visitor.visit_type(tree, id, ty);
+        }
+        NodeType::TypeAlias => {
+            let id = LocalNodeId::new(node_id);
+            let type_alias = tree.get(id);
+            visitor.visit_type_alias(tree, id, type_alias);
         }
         NodeType::Field => {
             let id = LocalNodeId::new(node_id);
@@ -146,6 +151,18 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         }
         Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => {}
     }
+}
+
+/// Walk a TypeAlias.
+pub fn walk_type_alias<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<TypeAlias>,
+    type_alias: &TypeAlias,
+) {
+    visitor.visit_any(tree, NodeType::TypeAlias, id.id);
+    let aliased_ty = tree.get(type_alias.ty);
+    visitor.visit_type(tree, type_alias.ty, aliased_ty);
 }
 
 /// Walk a Field.
