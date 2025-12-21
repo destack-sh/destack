@@ -344,9 +344,6 @@ impl Compiler {
     }
 
     /// Build type check expression: `value is Type`.
-    ///
-    /// The type check is emitted as-is; how it's implemented at runtime is
-    /// target-specific (see module-level docs for design philosophy).
     fn build_type_check(
         &self,
         match_id: LocalNodeId<Expression>,
@@ -376,7 +373,7 @@ impl Compiler {
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
     ) -> LocalNodeId<Expression> {
         match guard {
-            Some(guard_expr) => {
+            Some(guard_expression) => {
                 let and_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 tree.insert(
@@ -384,7 +381,7 @@ impl Compiler {
                     Expression::Binary {
                         left: condition,
                         operator: BinaryOperator::And,
-                        right: guard_expr,
+                        right: guard_expression,
                     },
                 )
             }

@@ -40,6 +40,7 @@ impl ModuleLowerer<'_> {
                 arguments: _,
             } => {
                 // NOTE #Incomplete: properly generate JS decorators after elaborate phase
+                //  (or would that be a special js::Expression::Decorated or something..?)
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: annotation_id.into_global_any(self.module.id),
                     message: None,

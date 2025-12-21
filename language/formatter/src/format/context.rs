@@ -40,7 +40,7 @@ pub struct DestackFormatOptions {
     /// Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false).
     pub bracket_spacing: bool = true,
     /// Arrow function parentheses policy.
-    pub arrow_parens: ArrowParentheses = ArrowParentheses::Always,
+    pub arrow_parentheses: ArrowParentheses = ArrowParentheses::Always,
     /// Object property quoting policy.
     pub quote_props: QuoteProperty = QuoteProperty::AsNeeded,
 
@@ -128,7 +128,7 @@ impl DestackFormatOptions {
             quote_style: options.quote_style,
             trailing_comma: options.trailing_comma,
             bracket_spacing: options.bracket_spacing,
-            arrow_parens: options.arrow_parentheses,
+            arrow_parentheses: options.arrow_parentheses,
             quote_props: options.quote_property,
             bracket_same_line: options.bracket_same_line,
             single_attribute_per_line: options.single_attribute_per_line,

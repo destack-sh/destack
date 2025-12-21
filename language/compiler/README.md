@@ -1,22 +1,22 @@
 # Destack Compiler
 
-The Destack compiler takes JavaScript, TypeScript and Destack sources and translates them into _some_ artifacts via a classic multi-phase compilation pipeline.
+The Destack compiler takes JavaScript, TypeScript and Destack sources (`.(ds|ts|tsx|js|jsx)`) and by the power of magic and the art of computer science transforms them into executable artifacts like (`.(js|ts|wasm|o)`) with a modern-ish multi-phase compilation pipeline.
 
 ## Pipeline
 
 Like most compilers, the Destack compiler has three main regions:
- 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → typed, elaborated DIR)
- 2. Middle-end (target-independent DIR → target-specific MIR)
- 3. Back-end (DIR/MIR → emitted artifacts).
-(For JS/TS targets, the middle-end may be skipped entirely.)
+ 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → typed, elaborated "canonical" DIR)
+ 2. Middle-end (target-independent "canonical" DIR → target-specific "canonical" MIR)
+ 3. Back-end ("canonical" DIR/MIR → emitted artifacts depending on target).
+(For JS/TS targets, the middle-end may be skipped partially or entirely, depending on comptime requirements.)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                FRONT-END                                    │
 │                                                                             │
 │   source ───► Import ───► Bind ───► Resolve ───► Analyze ───► Elaborate     │
-│                 │          │           │            │             │         │
-│    Text        AST     DIR (canon)  Symbols       Types       Elaborated    │
+│      │           │         │           │            │             │         │
+│    Text        AST        DIR       Symbols       Types     Canonical DIR   │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -25,7 +25,7 @@ Like most compilers, the Destack compiler has three main regions:
 │                                                                             │
 │         Lower ───────► Verify ───────► Execute ───────► Optimize            │
 │           │              │                │                │                │
-│          MIR            CFG           Comptime         Better MIR           │
+│          MIR            CFG           Comptime       Canonical MIR          │
 │                                                                             │
 │              (may be skipped for some targets like JS/TS)                   │
 └─────────────────────────────────────────────────────────────────────────────┘

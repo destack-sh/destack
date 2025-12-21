@@ -1,9 +1,11 @@
-# Destack Built-ins
+# builtin
 
 Language built-in definitions shipped with the toolchain.
-These are automatically loaded by the compiler based on target configuration.
+The compiler automatically loads these based on target configuration.
 
-## Structure
+## Overview
+
+Builtins are organized into three layers, each building on the previous:
 
 ```
                           ┌─────────────────────────────────────────┐
@@ -17,24 +19,26 @@ These are automatically loaded by the compiler based on target configuration.
 ┌───────────────┐                   ┌─────────────────┐                   ┌─────────────────┐
 │    core/      │                   │      std/       │                   │      lib/       │
 │               │                   │                 │                   │                 │
-│   Operators   │◄──────────────────│   Extensions    │◄──────────────────│  Concrete Types │
-│   & Traits    │   imports from    │   & Utilities   │   imports from    │  (per target)   │
+│  "Intrinsics" │◄──────────────────│  "Extensions"   │◄──────────────────│"Target-specific"│
+│               │   imports from    │   "Utilities"   │   imports from    │                 │
 │               │                   │                 │                   │                 │
-│  (universal)  │                   │  (universal API)│                   │ Array, Map, ... │
+│  (universal)  │                   │  (universal)    │                   │    (per target) │
 └───────────────┘                   └─────────────────┘                   └─────────────────┘
 ```
 
 ## Layers
 
-### `core/` — Language Primitives
+### `core/` - Language Primitives
 
-**Universal, compiler-known.** Always loaded, same on all targets:
+Universal, compiler-known types.
+Always loaded, same on all targets.
+The compiler has special knowledge of `core/` types.
+Desugaring like `a + b` → `a.add(b)` and `foo()?` → early return depends on these definitions.
+
+What's in `core/`:
 - **Operator interfaces**: `Add`, `Eq`, `Compare`, `Index`, `Iterator`, etc.
-- **Error handling**: `Result`, `Try`
+- **Error handling**: `Result`, `Try`, `Ok`, `Err`
 - **Reflection**: `Type`, `typeOf`
-
-The compiler has special knowledge of `core/` types (language items, intrinsics).
-Desugaring like `a + b` → `a.add(b)` and `foo()?` → early return depends on `core/`.
 
 ```
 // core/operator/arithmetic.ds
@@ -46,19 +50,20 @@ newtype interface Add<T, R = Self> {
 newtype Result<T, E> = Ok<T> | Err<E>
 ```
 
-### `std/` — Universal Extensions
+### `std/` - Universal Extensions
 
-Adds Destack-specific functionality to types provided by `lib/` (e.g., `Array<T>`).
+Adds Destack-specific functionality, sometimes attaching to types or re-defining types from `lib/`.
+These are extensions that work the same on all targets (ideally).
 
 ```
-// std/array.ds - extensions that work on Array<T>
+// std/array.ds
 extension<T> for Array<T> {
     /// Sum all elements (not in JS Array)
     sum(): T where T: Add<T> {
         this.reduce((a, b) => a + b)
     }
 
-    /// Get first element or null (ergonomic helper)
+    /// Get first element or null
     first(): T | null {
         if (this.length > 0) { this[0] } else { null }
     }
@@ -71,23 +76,21 @@ extension<T> for Array<T> {
 For operations that need different implementations per target, we use `if (comptime ..)`:
 
 ```
-// std/array.ds
 extension<T> for Array<T> {
     sort(cmp: (T, T) => Ordering): Array<T> {
         if (comptime target.isJS) {
-            // use JS sort
             this.toSorted((a, b) => cmp(a, b).toInt())
         } else {
-            // native quicksort implementation
             quicksort(this, cmp)
         }
     }
 }
 ```
 
-### `lib/` — Target-specific Extensions
+### `lib/` - Target-Specific Definitions
 
-`lib/` is where concrete types like `Array<T>`, `Map<K,V>`, `Set<T>`, `Promise<T>` are actually defined per target (along with some target-specific stuff).
+This is where concrete types like `Array<T>`, `Map<K,V>`, `Set<T>`, `Promise<T>` are actually defined.
+Different targets get different implementations.
 
 | Directory | Provides | When Loaded |
 |-----------|----------|-------------|
@@ -96,21 +99,8 @@ extension<T> for Array<T> {
 | `lib/node/` | `Buffer`, `fs`, `path`, Node.js APIs | `runtime: node` |
 | `lib/worker/` | `WorkerGlobalScope`, Web Worker APIs | `runtime: worker` |
 
+## Builtin vs Library
 
-## Relationship to `library/`
-
-The `language/builtin/` directory is for **language-level** primitives that the compiler ships.
-
-The `library/` directory (at repo root) contains **application-level** packages:
-- `@destack/schema` — Schema validation
-- `@destack/ui` — UI framework
-- `@destack/entity` — Entity system
-- etc.
-
-These are regular packages that import from `@destack/core` and `@destack/std`.
-The compiler has no special knowledge of them.
-
-```
-language/builtin/     →  Compiler ships this, has special knowledge
-library/              →  First-party packages, no compiler magic
-```
+There is some overlap between "builtin" and "library" since the whole stack is intended to be well integrated.
+Conceptually, the `language/builtin/` stuff is for language-level primitives that the compiler ships and needs to know about.
+Everything else is a library that the compiler doesn't need to know or assume anything about (ideally).

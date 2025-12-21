@@ -8,21 +8,24 @@ This document describes how Destack's high-level semantic representation (elabor
 
 ## Objectives
 
-The overarching goal is **Rust performance with TypeScript semantics and ergonomics**.
-These are targets, not guarantees; actual performance depends on workload and optimization maturity:
+The overarching dream is **Rust performance with TypeScript semantics and ergonomics**.
+Naturally, these two are in some tension, and we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance without requiring any changes:  
 
 - **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
 - **Average case (target):** Go-tier performance (efficient GC, good concurrency)
 - **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
 
-AOT compilation provides predictable performance without warmup, but V8's speculative optimization can beat static compilation on some dynamic patterns. Our advantage is consistency and control.
+AOT compilation provides predictable performance without warmup, but lots of engineering effort goes into making V8's speculative optimization beat static compilation on some dynamic patterns. 
+Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime anymore.
 
-Specifically, Destack lowering enables:
-1. **TypeScript semantics**: TS and Destack code behaves identically in native
+Specifically, Destack lowering is focused on:
+1. **TypeScript semantics**: TS and Destack code behaves identically in native*
 2. **Comptime**: Full compile-time evaluation
 3. **Reflection**: Types-as-values for comptime and runtime reflection
 4. **Ownership**: Manual memory or GC as needed
 5. **Erasure**: Clean codegen to JS/TS
+
+*Where behavior differs between JS/TS runtimes and native, this difference should be obvious or warned against at compile time.
 
 ## Pipeline
 
@@ -37,7 +40,7 @@ DIR (elaborated, canonical, target-independent)
       MIR (monomorphized, typed, target-specific)
        │
        ├─→ Verify: validate control flow, types, safety
-       ├─→ Execute: run comptime blocks, substitute results
+       ├─→ Execute: run comptime blocks, feed results back
        ├─→ Optimize: inline, eliminate dead code, etc.
        │
        └─→ Generate

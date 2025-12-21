@@ -91,7 +91,7 @@ pub struct Function {
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
-    pub allocation_mode: AllocationMode,
+    pub allocation: AllocationMode,
     /// The kind of coroutine, if this function is a coroutine.
     /// `None` for regular functions, `Some(kind)` for generators/async.
     pub coroutine: Option<CoroutineKind>,
@@ -127,7 +127,7 @@ impl Function {
             parameters,
             return_type,
             linkage: Linkage::Local,
-            allocation_mode: AllocationMode::Any,
+            allocation: AllocationMode::Any,
             coroutine: None,
             locals: Vec::new(),
             blocks: Vec::new(),
@@ -147,7 +147,7 @@ impl Function {
             parameters,
             return_type,
             linkage: Linkage::Import,
-            allocation_mode: AllocationMode::Any,
+            allocation: AllocationMode::Any,
             coroutine: None,
             locals: Vec::new(),
             blocks: Vec::new(),
