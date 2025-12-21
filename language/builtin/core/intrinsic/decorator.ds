@@ -87,6 +87,22 @@ export newtype intrinsic = (string,) | ();
 /// ```
 export newtype languageItem = (string,) | ();
 
+/// Forbid managed allocations in a function.
+///
+/// ```
+/// @noManaged
+/// function processFrame() { }
+/// ```
+export newtype noManaged = ();
+
+/// Forbid all heap allocations in a function (managed or raw).
+///
+/// ```
+/// @stackOnly
+/// function processFrame() { }
+/// ```
+export newtype stackOnly = ();
+
 /// Inline hint for the optimizer.
 ///
 /// Suggests that this function should be inlined at call sites.

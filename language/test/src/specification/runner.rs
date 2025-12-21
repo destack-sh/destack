@@ -56,8 +56,9 @@ impl SpecSuite {
                 slug(&case.section),
                 slug(&case.name)
             );
-            let test_case = TestCase::file(name, md_path.to_path_buf(), "destack_test::specification")
-                .with_skipped(case.skip);
+            let test_case =
+                TestCase::file(name, md_path.to_path_buf(), "destack_test::specification")
+                    .with_skipped(case.skip);
 
             self.tests.insert(test_case.full_name(), case);
             self.cases.push(test_case);

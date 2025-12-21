@@ -332,8 +332,9 @@ impl Interpreter {
                     (agg, val)
                 };
 
-                // create new aggregate with one field replaced
+                // create new aggregate or update referenced storage
                 let result = match aggregate {
+                    // set field directly in aggregate
                     Value::Aggregate(mut fields) => {
                         if (*index as usize) < fields.len() {
                             fields[*index as usize] = value;
@@ -344,6 +345,57 @@ impl Interpreter {
                             }));
                         }
                         Value::Aggregate(fields)
+                    }
+                    // set field indirectly on managed reference
+                    Value::ManagedReference(handle) => {
+                        if handle.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
+                        let mut invalid_field_count = None;
+                        if let Some(cell) = self.managed_heap.get_mut(handle) {
+                            if (*index as usize) < cell.slots.len() {
+                                cell.slots[*index as usize] = value;
+                            } else {
+                                invalid_field_count = Some(cell.slots.len());
+                            }
+                        } else {
+                            return Err(self.make_error(Error::InvalidHeapHandle));
+                        }
+                        if let Some(field_count) = invalid_field_count {
+                            return Err(self.make_error(Error::InvalidFieldAccess {
+                                index: *index,
+                                field_count,
+                            }));
+                        }
+                        Value::ManagedReference(handle)
+                    }
+                    // set field indirectly on raw pointer
+                    Value::RawPointer(ptr) => {
+                        if ptr.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
+                        let mut invalid_field_count = None;
+                        if let Some(cell) = self.raw_heap.get_mut(ptr) {
+                            if (*index as usize) < cell.slots.len() {
+                                cell.slots[*index as usize] = value;
+                            } else {
+                                invalid_field_count = Some(cell.slots.len());
+                            }
+                        } else {
+                            return Err(self.make_error(Error::InvalidHeapHandle));
+                        }
+                        if let Some(field_count) = invalid_field_count {
+                            return Err(self.make_error(Error::InvalidFieldAccess {
+                                index: *index,
+                                field_count,
+                            }));
+                        }
+                        Value::RawPointer(ptr)
+                    }
+                    // set field indirectly on stack pointer
+                    Value::StackPointer(sp) => {
+                        self.store_stack_slot(sp, *index as usize, value)?;
+                        Value::StackPointer(sp)
                     }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
@@ -373,6 +425,7 @@ impl Interpreter {
 
                 // extract element at dynamic index
                 let value = match arr {
+                    // extract element directly from aggregate
                     Value::Aggregate(elements) => {
                         elements.get(idx_val as usize).cloned().ok_or_else(|| {
                             self.make_error(Error::InvalidArrayAccess {
@@ -381,6 +434,40 @@ impl Interpreter {
                             })
                         })?
                     }
+                    // extract element indirectly from managed reference
+                    Value::ManagedReference(handle) => {
+                        if handle.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
+                        if let Some(cell) = self.managed_heap.get(handle) {
+                            cell.slots.get(idx_val as usize).cloned().ok_or_else(|| {
+                                self.make_error(Error::InvalidArrayAccess {
+                                    index: idx_val,
+                                    length: cell.slots.len() as u64,
+                                })
+                            })?
+                        } else {
+                            return Err(self.make_error(Error::InvalidHeapHandle));
+                        }
+                    }
+                    // extract element indirectly from raw pointer
+                    Value::RawPointer(ptr) => {
+                        if ptr.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
+                        if let Some(cell) = self.raw_heap.get(ptr) {
+                            cell.slots.get(idx_val as usize).cloned().ok_or_else(|| {
+                                self.make_error(Error::InvalidArrayAccess {
+                                    index: idx_val,
+                                    length: cell.slots.len() as u64,
+                                })
+                            })?
+                        } else {
+                            return Err(self.make_error(Error::InvalidHeapHandle));
+                        }
+                    }
+                    // extract element directly from aggregate
+                    Value::StackPointer(sp) => self.load_stack_slot(sp, idx_val as usize)?,
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
                             expected: "array".to_string(),
@@ -409,7 +496,7 @@ impl Interpreter {
                 };
                 let idx_val = idx.as_uint().unwrap_or(0);
 
-                // create new array with one element replaced
+                // create new array or update referenced storage
                 let result = match array {
                     Value::Aggregate(mut elements) => {
                         if (idx_val as usize) < elements.len() {
@@ -421,6 +508,54 @@ impl Interpreter {
                             }));
                         }
                         Value::Aggregate(elements)
+                    }
+                    Value::ManagedReference(handle) => {
+                        if handle.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
+                        let mut invalid_length = None;
+                        if let Some(cell) = self.managed_heap.get_mut(handle) {
+                            if (idx_val as usize) < cell.slots.len() {
+                                cell.slots[idx_val as usize] = val;
+                            } else {
+                                invalid_length = Some(cell.slots.len() as u64);
+                            }
+                        } else {
+                            return Err(self.make_error(Error::InvalidHeapHandle));
+                        }
+                        if let Some(length) = invalid_length {
+                            return Err(self.make_error(Error::InvalidArrayAccess {
+                                index: idx_val,
+                                length,
+                            }));
+                        }
+                        Value::ManagedReference(handle)
+                    }
+                    Value::RawPointer(ptr) => {
+                        if ptr.is_null() {
+                            return Err(self.make_error(Error::NullPointerDereference));
+                        }
+                        let mut invalid_length = None;
+                        if let Some(cell) = self.raw_heap.get_mut(ptr) {
+                            if (idx_val as usize) < cell.slots.len() {
+                                cell.slots[idx_val as usize] = val;
+                            } else {
+                                invalid_length = Some(cell.slots.len() as u64);
+                            }
+                        } else {
+                            return Err(self.make_error(Error::InvalidHeapHandle));
+                        }
+                        if let Some(length) = invalid_length {
+                            return Err(self.make_error(Error::InvalidArrayAccess {
+                                index: idx_val,
+                                length,
+                            }));
+                        }
+                        Value::RawPointer(ptr)
+                    }
+                    Value::StackPointer(sp) => {
+                        self.store_stack_slot(sp, idx_val as usize, val)?;
+                        Value::StackPointer(sp)
                     }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {

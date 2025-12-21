@@ -38,7 +38,7 @@ impl Compiler {
             module.mirs.push(ModuleMir::new(module_id, version, target));
         }
 
-        // nocheckin: lower basic MIR nodes
+        // nocheckin TODO #Incomplete: lower basic MIR nodes
 
         Ok(())
     }

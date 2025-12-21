@@ -79,6 +79,8 @@ newtype Value =
 
 Aggregates (structs, tuples, arrays) are boxed slices of values.
 Pointers are handles into the appropriate heap/storage.
+Aggregate instructions (`field.get/set`, `element.get/set`) can operate on aggregate values
+or on managed/raw/stack pointers to aggregates.
 
 ## Execution
 

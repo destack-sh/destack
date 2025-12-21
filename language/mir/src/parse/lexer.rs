@@ -151,6 +151,7 @@ impl<'a> Lexer<'a> {
             "export" => TokenType::Export,
             "function" => TokenType::Function,
             "global" => TokenType::Global,
+            "type" => TokenType::Type,
             "return" => TokenType::Return,
             "jump" => TokenType::Jump,
             "branch" => TokenType::Branch,
@@ -172,7 +173,7 @@ impl<'a> Lexer<'a> {
             "struct" => TokenType::Struct,
             "true" | "false" => TokenType::BoolLiteral,
             "owned" | "borrowed" | "copy" => TokenType::Ownership,
-            "var" => TokenType::Var,
+            "mut" => TokenType::Mut,
             "const" => TokenType::Const,
             _ => {
                 // value

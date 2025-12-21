@@ -55,7 +55,7 @@ fn test_format_with_locals() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @with_locals() -> i64 {
-    local0: i64 ; owned, var
+    local0: i64 ; owned, mut
 block0:
     v0 = iconst 42i64
     local.set local0, v0
@@ -212,7 +212,7 @@ fn test_format_global_variable() {
     let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-global @counter: i32 = zeroinit ; var
+global @counter: i32 = zeroinit ; mut
 function @increment() -> void {
 block0:
     v0 = global.addr @counter

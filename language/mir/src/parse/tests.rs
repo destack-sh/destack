@@ -393,6 +393,28 @@ block0(v0: struct { i32, f64 }):
 }
 
 #[test]
+fn test_roundtrip_struct_type_named_fields() {
+    // struct type with field names in function signature
+    roundtrip(
+        r#"function @struct_named_test(v0: struct { x: i32, y: f64 }) -> struct { x: i32, y: f64 } {
+block0(v0: struct { x: i32, y: f64 }):
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_type_alias() {
+    roundtrip(
+        r#"type @Point = struct { i32, i32 }
+function @use_point(v0: ref<@Point>) -> ref<@Point> {
+block0(v0: ref<@Point>):
+    return v0
+}"#,
+    );
+}
+
+#[test]
 fn test_roundtrip_call_indirect() {
     // call through function pointer
     roundtrip(

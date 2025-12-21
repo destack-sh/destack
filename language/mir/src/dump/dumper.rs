@@ -689,7 +689,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.write(": ");
                 self.write_colored(&self.format_type_id(local.ty), Color::Magenta);
                 match local.mutability {
-                    Mutability::Mutable => self.write(" (var)"),
+                    Mutability::Mutable => self.write(" (mut)"),
                     Mutability::Immutable => self.write(" (const)"),
                 }
                 match local.ownership {
@@ -779,7 +779,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             self.dump_data_init(init);
         }
         match global.mutability {
-            Mutability::Mutable => self.write(" ; var"),
+            Mutability::Mutable => self.write(" ; mut"),
             Mutability::Immutable => self.write(" ; const"),
         }
         self.write("\n");

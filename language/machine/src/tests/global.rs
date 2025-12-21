@@ -21,7 +21,7 @@ block0:
 #[test]
 fn test_global_set() {
     let mir = r#"
-global @counter: i32 = 0i32 ; var
+global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
@@ -61,7 +61,7 @@ block0:
 #[test]
 fn test_global_persists_across_calls() {
     let mir = r#"
-global @counter: i32 = 0i32 ; var
+global @counter: i32 = 0i32 ; mut
 
 function @inc() -> void {
 block0:
@@ -96,7 +96,7 @@ block0:
 #[test]
 fn test_global_zeroinit() {
     let mir = r#"
-global @data: i32 = zeroinit ; var
+global @data: i32 = zeroinit ; mut
 
 function @read() -> i32 {
 block0:
@@ -112,7 +112,7 @@ block0:
 #[test]
 fn test_global_zeroinit_float() {
     let mir = r#"
-global @data: f64 = zeroinit ; var
+global @data: f64 = zeroinit ; mut
 
 function @read() -> f64 {
 block0:
@@ -128,7 +128,7 @@ block0:
 #[test]
 fn test_global_zeroinit_bool() {
     let mir = r#"
-global @flag: bool = zeroinit ; var
+global @flag: bool = zeroinit ; mut
 
 function @read() -> bool {
 block0:
@@ -162,7 +162,7 @@ fn test_multiple_globals() {
     let mir = r#"
 global @a: i32 = 10i32 ; const
 global @b: i32 = 20i32 ; const
-global @c: i32 = 30i32 ; var
+global @c: i32 = 30i32 ; mut
 
 function @sum() -> i32 {
 block0:
@@ -182,7 +182,7 @@ block0:
 #[test]
 fn test_global_multiple_writes() {
     let mir = r#"
-global @value: i32 = 0i32 ; var
+global @value: i32 = 0i32 ; mut
 
 function @test() -> i32 {
 block0:
@@ -239,7 +239,7 @@ block0:
 #[test]
 fn test_global_bool() {
     let mir = r#"
-global @flag: bool = true ; var
+global @flag: bool = true ; mut
 
 function @toggle() -> bool {
 block0:

@@ -65,7 +65,7 @@ This region may be skipped for targets that don't require low-level IR (e.g., JS
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
-| Lower | `M` | DIR | MIR | Lower high-level DIR to machine-level IR |
+| Lower | `M` | DIR | MIR | Lower high-level DIR to machine-level IR (monomorphization, layouts, RTTI as needed) |
 | Verify | `V` | MIR | MIR | Verify and flow-check MIR (safety, borrowing, control flow) |
 | Execute | `X` | MIR | MIR | Execute comptime code and substitute results |
 | Optimize | `O` | MIR | MIR | Optimization passes |

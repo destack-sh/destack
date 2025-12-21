@@ -959,9 +959,10 @@ fn expression_precedence(expr: &Expression) -> u16 {
         Expression::Assign { operator, .. } => operator.precedence(),
 
         // ternary: lower than all binary/assignment operators
-        Expression::If { kind: IfKind::Ternary, .. } => {
-            OperatorPrecedence::AssignmentBoolean as u16 - 1
-        }
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => OperatorPrecedence::AssignmentBoolean as u16 - 1,
 
         // atomic/primary expressions: highest precedence (never need parens)
         _ => u16::MAX,

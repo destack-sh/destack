@@ -378,6 +378,11 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 if let Some(aggregate_type_id) = type_map.get(aggregate) {
                     let aggregate_type = self.tree.get(*aggregate_type_id);
+                    let aggregate_type = match aggregate_type {
+                        mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
+                        mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                        _ => aggregate_type,
+                    };
                     match aggregate_type {
                         mir::Type::Struct { fields } => {
                             if let Some(field_id) = fields.get(*index as usize) {
@@ -409,6 +414,11 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 if let Some(array_type_id) = type_map.get(array) {
                     let array_type = self.tree.get(*array_type_id);
+                    let array_type = match array_type {
+                        mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
+                        mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                        _ => array_type,
+                    };
                     if let mir::Type::Array { element, .. } = array_type {
                         return Some((*destination, *element));
                     }
@@ -726,6 +736,11 @@ impl<'a> FunctionLowerer<'a> {
                             message: Some("could not infer type for aggregate in FieldGet".into()),
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
+                let aggregate_type = match aggregate_type {
+                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
+                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    _ => aggregate_type,
+                };
 
                 // field offset and type
                 let (field_offset, field_type_id) = match aggregate_type {
@@ -791,6 +806,11 @@ impl<'a> FunctionLowerer<'a> {
                             message: Some("could not infer type for aggregate in FieldSet".into()),
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
+                let aggregate_type = match aggregate_type {
+                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
+                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    _ => aggregate_type,
+                };
 
                 // field
                 let field_offset = match aggregate_type {
@@ -846,6 +866,11 @@ impl<'a> FunctionLowerer<'a> {
                             message: Some("could not infer type for array in ElementGet".into()),
                         })?;
                 let array_type = self.tree.get(*array_type_id);
+                let array_type = match array_type {
+                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
+                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    _ => array_type,
+                };
 
                 // element type
                 let element_type_id = match array_type {
@@ -886,6 +911,11 @@ impl<'a> FunctionLowerer<'a> {
                             message: Some("could not infer type for array in ElementSet".into()),
                         })?;
                 let array_type = self.tree.get(*array_type_id);
+                let array_type = match array_type {
+                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
+                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    _ => array_type,
+                };
 
                 // element type
                 let element_type_id = match array_type {

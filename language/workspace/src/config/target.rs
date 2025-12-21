@@ -550,6 +550,7 @@ impl Target {
     }
 
     /// Derive library files from runtime and platform.
+    /// nocheckin TODO #Incomplete: load and reference std/libs
     /// If `lib` is explicitly set, returns it. Otherwise derives from runtime and platform:
     /// - ES version comes from runtime capabilities
     /// - Runtime-specific libs (dom, node, deno, worker, etc.)

@@ -154,3 +154,16 @@ pub struct Field {
 impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
 }
+
+/// A named type alias in MIR text format.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeAlias {
+    /// Alias name (without the leading `@`).
+    pub name: StringId,
+    /// The aliased type.
+    pub ty: LocalNodeId<Type>,
+}
+
+impl Node for TypeAlias {
+    const TYPE: NodeType = NodeType::TypeAlias;
+}

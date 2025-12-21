@@ -33,6 +33,29 @@ Most canonical DIR constructs map directly to JS/TS equivalents:
 
 Some features require runtime support or "polyfills".
 
+## Runtime Type Identity (RTTI)
+
+Type identity is demand-driven on JS targets. Most structs compile to plain objects
+with no runtime tag. If a type needs runtime reflection (`typeOf`, `instanceof`,
+`any`/`unknown`, or union discrimination), codegen emits a hidden symbol property
+on instances:
+
+```ts
+const RTTI = Symbol.for("destack.rtti")
+
+function makeUser(name: string) {
+    const obj = { name }
+    Object.defineProperty(obj, RTTI, {
+        value: TYPEID_USER,
+        enumerable: false,
+    })
+    return obj
+}
+```
+
+This keeps JS semantics intact (no enumerable fields, no prototype changes) while
+allowing runtime type checks without a global WeakMap.
+
 ## Output Formats
 
 The JS codegen backend supports both `.js` and `.ts` output (and `.d.ts` for JavaScript + TypeScript):

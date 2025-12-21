@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult};
 
-// nocheckin: elaborate reify (ranges, trees, types-as-values/comptime, ...)
+// nocheckin TODO #Incomplete: elaborate reify (ranges, trees, types-as-values/comptime, ...)
 
 impl Compiler {
     /// Reify a module to make abstractions concrete:

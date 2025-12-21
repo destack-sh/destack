@@ -119,7 +119,8 @@ pub enum Instruction {
         index: u32,
     },
     /// Insert a value into a struct or tuple field (field.set).
-    /// (Semantically creates a new aggregate; backends optimize to in-place mutation when possible.)
+    /// For value aggregates, this creates a new aggregate.
+    /// For reference aggregates, this performs an in-place mutation.
     FieldSet {
         /// The SSA value to define with the new aggregate.
         destination: Value,
@@ -140,7 +141,8 @@ pub enum Instruction {
         index: Value,
     },
     /// Insert a value into an array element (element.set).
-    /// (Semantically creates a new array; backends optimize to in-place mutation when possible.)
+    /// For value arrays, this creates a new array.
+    /// For reference arrays, this performs an in-place mutation.
     ElementSet {
         /// The SSA value to define with the new array.
         destination: Value,

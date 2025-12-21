@@ -463,6 +463,14 @@ parse(User, data);  // User IS the schema
 
 <sub>See [test/fixtures/mdtest/reflection/](test/fixtures/mdtest/reflection/) for specification tests.</sub>
 
+### Runtime Type Identity
+
+Runtime type identity (RTTI) is demand-driven. The compiler only emits RTTI for types that
+are used at runtime (e.g., `typeOf`, `instanceof`, `any`/`unknown`, or runtime reflection).
+Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
+unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
+property rather than a global WeakMap, preserving "plain object" semantics.
+
 ## Dispatch
 
 TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch (by design).
@@ -574,18 +582,22 @@ consume(^node)    // ownership transferred
 print(node.value) // ERROR: use after ownership transfer
 ```
 
-When a `^T` value is no longer used without being transferred, it is **dropped** (destructor called):
+`^T` values are dropped at their last proven use (non-lexical), not just at end of scope:
 
 ```
 function process() {
     const data = ^LargeData { ... }  // we own this
     doWork(&data)                     // borrow it
-    // data dropped here → destructor called
+    log("done")                       // data can be dropped before this line
 }
 ```
 
 This enables RAII patterns (files close, locks release, resources clean up).
 Types can implement `Drop` to customize cleanup behavior.
+The builtin `Error` interface is the conventional error shape for `Result<T, E>`, but any type can be used as `E`.
+
+Strings follow the same ownership spectrum: `string` is GC-managed by default,
+`&string` is a borrowed view, and `^string` is explicitly owned.
 
 ### Returning References
 
