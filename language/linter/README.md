@@ -1,7 +1,44 @@
-# Destack Linter
+# linter
 
-Static analysis rules for Destack (`.ds`, `.ts`, `.tsx`, `.js`, `.jsx`) files.
-Lints run at any of the IR levels (AST, DIR, MIR), usually per module.
+Static analysis rules for Destack, TypeScript, and JavaScript.
+Lints run at different IR levels (AST, DIR, MIR), usually per module.
+
+## Overview
+
+The linter is a separate crate from the compiler, but deeply integrated.
+It runs directly on the same IRs and takes advantage of the same task parallelization.
+Rules can operate on AST (syntax patterns), DIR (typed IR), or MIR (low-level IR).
+
+We draw inspiration from linters across the ecosystem: ESLint, TypeScript-ESLint, Biome, Clippy, Ruff, SonarQube, Semgrep.
+Each rule notes its source if following an established rule (we also try to keep the name, severity, and fixability the same).
+
+## Architecture
+
+Rules implement the `LintRule` trait:
+
+```ds
+interface LintRule {
+    meta(): LintMeta
+    checkModuleAst(severity: LintSeverity, ctx: LintModuleAstContext): void
+    checkModuleDir(severity: LintSeverity, ctx: LintModuleDirContext): void
+    // ...
+}
+```
+
+The `LintRunner` orchestrates execution, filtering rules by their level (AST/DIR/MIR) and checking configuration.
+Rules can provide automatic fixes, which the runner collects alongside diagnostics.
+
+Rules are declared using the `declare_lint!` macro, which generates the boilerplate:
+
+```ds
+@lint({
+    category: Correctness,
+    level: Dir,
+    fixable: No,
+})
+/// Disallow `delete` on arrays (creates holes).
+class NoArrayDelete implements LintRule { ... }
+```
 
 ## Categories
 

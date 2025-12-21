@@ -1,13 +1,42 @@
 # codegen/js
 
-Destack to JavaScript/TypeScript code generation.
-Transforms DIR into JavaScript/TypeScript source code.
+JavaScript and TypeScript code generation.
+Takes elaborated DIR and produces `.js` or `.ts` source files.
 
-## Layout
+## Pipeline
 
-| Path | Purpose | Description |
-| --- | --- | --- |
-| `transpile/` | Transform | DIR → JS/TS AST transformation. |
-| `format/` | Formatting | JS/TS AST → source text formatting. |
-| `diagnostic/` | Diagnostics | Code generation errors and warnings. |
-| `tests/` | Tests | Code generation tests. |
+```
+DIR → JS AST → FIR Document → Source Text
+      (lower)    (format)      (print)
+```
+
+1. **Lower** (`lower/`): Walk DIR, emit a simplified JS AST
+2. **Format** (`format/`): Convert JS AST to FIR document nodes
+3. **Print**: Use FIR printer to produce final source text
+
+The intermediate JS AST (`tree/`) is simpler than the Destack AST.
+It only has constructs that exist in JavaScript/TypeScript.
+
+## What Gets Lowered
+
+Most canonical DIR constructs map directly to JS/TS equivalents:
+
+| Destack | JavaScript/TypeScript |
+|---------|----------------------|
+| `struct Point { x, y }` | `type Point = { x: number, y: number }` |
+| `match (x) { ... }` | `switch` or chained `if` |
+| `(a, b)` tuple | `[a, b]` array |
+| `1..10` range | `Array.from(...)` or loop |
+| `Result<T, E>` | Union type with discriminant |
+| `comptime { ... }` | Evaluated, result inlined |
+| `&T`, `^T` | Just `T`, maybe cloned (ownership erased) |
+
+Some features require runtime support or "polyfills".
+
+## Output Formats
+
+The JS codegen backend supports both `.js` and `.ts` output (and `.d.ts` for JavaScript + TypeScript):
+
+- **TypeScript** (`.ts`): Preserves type annotations, interfaces, generics
+- **JavaScript** (`.js`): Strips types, emits runtime-only code
+- **TypeScript Declaration** (`.d.ts`): TypeScript declaration file

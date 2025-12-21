@@ -669,7 +669,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     && !has_static_parameters
                     && signature.cardinality != FunctionCardinality::Generator
                     && signature.dynamic_parameters.len() == 1
-                    && matches!(f.context().options.arrow_parens, ArrowParentheses::Avoid)
+                    && matches!(f.context().options.arrow_parentheses, ArrowParentheses::Avoid)
                     && {
                         let param = f.context().tree.get(signature.dynamic_parameters[0]);
                         matches!(
