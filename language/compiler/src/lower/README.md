@@ -1697,6 +1697,73 @@ Closure calls: load `fnPtr` and `env`, call with env prepended to arguments.
 
 ---
 
+# Concurrency and Memory Model
+
+Destack preserves JS and TS concurrency semantics by default while enabling native level parallelism on supported targets.
+The core ideas are a single threaded event loop by default, `Promise` and `async` for concurrency, and `Worker` for parallelism.
+Target specific implementations keep surface semantics consistent across JS, WASM, and native targets.
+
+## Threading Model
+
+Default behavior is a single threaded event loop with microtask and macrotask queues.
+Native targets support worker threads with the same `Worker` API.
+JS targets map to real JS `Worker` instances.
+WASM targets map to host specific workers when available.
+Native targets map to OS threads with message passing.
+Shared memory is explicit and opt-in.
+
+## Memory Model
+
+Shared memory follows JS Atomics semantics.
+Atomic operations are sequentially consistent by default and accept explicit orderings when needed.
+Non atomic loads and stores have no cross thread ordering guarantees.
+Data races on shared non atomic memory are undefined behavior on native targets.
+This preserves JS and TS semantics while enabling native performance when code uses atomics.
+
+## Atomics and Shared Memory
+
+Shared memory is exposed via `SharedArrayBuffer`-style APIs and MIR atomic intrinsics.
+
+**MIR example, atomic increment with acquire release:**
+```mir
+function @worker_increment(v0: rawptr<i32>) -> i32 {
+block0(v0: rawptr<i32>):
+    v1 = iconst 1i32
+    v2 = intrinsic.atomic.fetch.add(v0, v1, acq_rel)
+    return v2
+}
+```
+
+**Fence example:**
+```mir
+function @fence() -> void {
+block0:
+    intrinsic.atomic.fence(seq_cst)
+    return
+}
+```
+
+## GC and Threads
+
+GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.
+GC managed objects are not shared across workers unless explicitly frozen or copied.
+Shared memory uses raw pointers or explicit shared buffers.
+Native targets may add a shared heap mode in the future, which would require atomic write barriers and a defined cross thread memory model.
+
+## Send and Sync Safety
+
+On native targets, the runtime can enforce that only thread safe values cross worker boundaries.
+Types can auto derive `Send` and `Sync` when all fields are `Send` or `Sync`.
+GC managed types are not `Send` unless explicitly frozen or copied.
+Value types and raw pointers are `Send` by default, and `Sync` when they are immutable or explicitly synchronized.
+
+## Systems Concurrency
+
+Systems workloads rely on worker pools, channels, and atomics.
+These are provided in the standard library with comptime ifs for target specific backends.
+JS builds use `Worker` and message channels or fall back to single threaded stubs.
+Native builds use OS threads, work stealing pools, and lock free primitives.
+
 # Control Flow
 
 Control flow constructs (errors, async, generators) lower to MIR blocks and terminators.
