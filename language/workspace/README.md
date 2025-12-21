@@ -51,6 +51,18 @@ struct Target {
     optimize: boolean,
     optimizeLevel: OptimizeLevel,
     debug: boolean,
+    boundsChecks: BoundsCheckPolicy,
+    overflowChecks: OverflowCheckPolicy,
+    panic: PanicStrategy,
+    unwind: UnwindFormat,
+    debugInfo: DebugInfoLevel,
+    strip: StripLevel,
+    allocator: Allocator,
+    relocationModel: RelocationModel,
+    linkMode: LinkMode,
+    targetTriple: string | null,
+    cpu: string | null,
+    cpuFeatures: string[],
     // ...
 }
 ```

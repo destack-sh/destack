@@ -117,6 +117,299 @@ pub enum ShrinkLevel {
     S3,
 }
 
+/// Relocation model for native codegen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RelocationModel {
+    /// Static relocation model.
+    Static,
+    /// Position-independent code.
+    Pic,
+    /// Position-independent executable.
+    Pie,
+}
+
+impl Default for RelocationModel {
+    fn default() -> Self {
+        Self::Pic
+    }
+}
+
+impl std::str::FromStr for RelocationModel {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "static" => Ok(Self::Static),
+            "pic" => Ok(Self::Pic),
+            "pie" => Ok(Self::Pie),
+            _ => Err(()),
+        }
+    }
+}
+
+impl RelocationModel {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Link mode for native targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkMode {
+    /// Prefer static linking.
+    Static,
+    /// Prefer dynamic linking.
+    Dynamic,
+}
+
+impl Default for LinkMode {
+    fn default() -> Self {
+        Self::Dynamic
+    }
+}
+
+impl std::str::FromStr for LinkMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "static" => Ok(Self::Static),
+            "dynamic" | "shared" => Ok(Self::Dynamic),
+            _ => Err(()),
+        }
+    }
+}
+
+impl LinkMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Debug info emission policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DebugInfoLevel {
+    /// No debug info.
+    None,
+    /// Line tables only.
+    Line,
+    /// Full debug info.
+    Full,
+}
+
+impl Default for DebugInfoLevel {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl std::str::FromStr for DebugInfoLevel {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" => Ok(Self::None),
+            "line" | "lines" => Ok(Self::Line),
+            "full" => Ok(Self::Full),
+            _ => Err(()),
+        }
+    }
+}
+
+impl DebugInfoLevel {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Symbol stripping policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StripLevel {
+    /// Keep all symbols.
+    None,
+    /// Strip local symbols.
+    Partial,
+    /// Strip all symbols.
+    Full,
+}
+
+impl Default for StripLevel {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl std::str::FromStr for StripLevel {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" => Ok(Self::None),
+            "partial" => Ok(Self::Partial),
+            "full" | "all" => Ok(Self::Full),
+            _ => Err(()),
+        }
+    }
+}
+
+impl StripLevel {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Panic strategy for unrecoverable errors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanicStrategy {
+    /// Abort immediately.
+    Abort,
+    /// Unwind the stack.
+    Unwind,
+}
+
+impl Default for PanicStrategy {
+    fn default() -> Self {
+        Self::Abort
+    }
+}
+
+impl std::str::FromStr for PanicStrategy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "abort" => Ok(Self::Abort),
+            "unwind" => Ok(Self::Unwind),
+            _ => Err(()),
+        }
+    }
+}
+
+impl PanicStrategy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Unwind info format for native targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnwindFormat {
+    /// No unwind info.
+    None,
+    /// DWARF unwind info.
+    Dwarf,
+    /// Windows SEH unwind info.
+    Seh,
+}
+
+impl Default for UnwindFormat {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl std::str::FromStr for UnwindFormat {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" => Ok(Self::None),
+            "dwarf" => Ok(Self::Dwarf),
+            "seh" => Ok(Self::Seh),
+            _ => Err(()),
+        }
+    }
+}
+
+impl UnwindFormat {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Integer overflow checking policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverflowCheckPolicy {
+    /// Always emit overflow checks.
+    Always,
+    /// Emit overflow checks only in debug builds.
+    Debug,
+    /// Never emit overflow checks.
+    Never,
+}
+
+impl Default for OverflowCheckPolicy {
+    fn default() -> Self {
+        Self::Debug
+    }
+}
+
+impl std::str::FromStr for OverflowCheckPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "always" => Ok(Self::Always),
+            "debug" => Ok(Self::Debug),
+            "never" | "off" => Ok(Self::Never),
+            _ => Err(()),
+        }
+    }
+}
+
+impl OverflowCheckPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Global allocator selection for native targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Allocator {
+    /// Use the platform default allocator.
+    System,
+    /// Use mimalloc.
+    MiMalloc,
+    /// Use jemalloc.
+    JeMalloc,
+    /// Use a custom allocator provided by the runtime.
+    Custom,
+}
+
+impl Default for Allocator {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
+impl std::str::FromStr for Allocator {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "system" => Ok(Self::System),
+            "mimalloc" => Ok(Self::MiMalloc),
+            "jemalloc" => Ok(Self::JeMalloc),
+            "custom" => Ok(Self::Custom),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Allocator {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 impl From<u8> for ShrinkLevel {
     fn from(level: u8) -> Self {
         match level {
@@ -136,6 +429,43 @@ impl From<ShrinkLevel> for u8 {
             ShrinkLevel::S2 => 2,
             ShrinkLevel::S3 => 3,
         }
+    }
+}
+
+/// Bounds check policy for array and slice accesses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundsCheckPolicy {
+    /// Always emit bounds checks.
+    Always,
+    /// Emit bounds checks only in debug builds.
+    Debug,
+    /// Never emit bounds checks (unsafe, fastest).
+    Never,
+}
+
+impl Default for BoundsCheckPolicy {
+    fn default() -> Self {
+        Self::Debug
+    }
+}
+
+impl std::str::FromStr for BoundsCheckPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "always" => Ok(Self::Always),
+            "debug" => Ok(Self::Debug),
+            "never" | "off" => Ok(Self::Never),
+            _ => Err(()),
+        }
+    }
+}
+
+impl BoundsCheckPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
     }
 }
 
@@ -345,6 +675,16 @@ pub struct Target {
     pub runtime: Runtime,
     /// Target platform (web, windows, macos, linux, ios, android, etc.).
     pub platform: Platform,
+    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
+    pub target_triple: Option<String>,
+    /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
+    pub cpu: Option<String>,
+    /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
+    pub cpu_features: Vec<String>,
+    /// Relocation model for native codegen.
+    pub relocation_model: RelocationModel,
+    /// Link mode for native targets.
+    pub link_mode: LinkMode,
     /// Emit declaration files (.d.ts) alongside JS output.
     pub declaration: bool,
     /// Emit source maps.
@@ -359,6 +699,20 @@ pub struct Target {
     pub optimize_level: OptimizeLevel,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
+    /// Debug info emission policy.
+    pub debug_info: DebugInfoLevel,
+    /// Symbol stripping policy.
+    pub strip: StripLevel,
+    /// Panic strategy for unrecoverable errors.
+    pub panic: PanicStrategy,
+    /// Unwind info format for native targets.
+    pub unwind: UnwindFormat,
+    /// Integer overflow checking policy.
+    pub overflow_checks: OverflowCheckPolicy,
+    /// Bounds check policy for array and slice accesses.
+    pub bounds_checks: BoundsCheckPolicy,
+    /// Global allocator selection for native targets.
+    pub allocator: Allocator,
 
     // output paths
     /// Output directory for this target (relative to package, defaults to "dist").
@@ -387,6 +741,11 @@ impl Default for Target {
             output: OutputFormat::default(),
             runtime: Runtime::default(),
             platform: Platform::default(),
+            target_triple: None,
+            cpu: None,
+            cpu_features: Vec::new(),
+            relocation_model: RelocationModel::default(),
+            link_mode: LinkMode::default(),
             declaration: false,
             source_map: false,
 
@@ -395,6 +754,13 @@ impl Default for Target {
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             shrink_level: ShrinkLevel::S0,
+            debug_info: DebugInfoLevel::default(),
+            strip: StripLevel::default(),
+            panic: PanicStrategy::default(),
+            unwind: UnwindFormat::default(),
+            overflow_checks: OverflowCheckPolicy::default(),
+            bounds_checks: BoundsCheckPolicy::default(),
+            allocator: Allocator::default(),
 
             // output paths
             out_dir: PathBuf::from(DEFAULT_OUT_DIR),
@@ -549,6 +915,77 @@ impl Target {
         self
     }
 
+    /// Set target triple for native codegen.
+    pub fn with_target_triple(mut self, target_triple: impl Into<String>) -> Self {
+        self.target_triple = Some(target_triple.into());
+        self
+    }
+
+    /// Set CPU name for native codegen.
+    pub fn with_cpu(mut self, cpu: impl Into<String>) -> Self {
+        self.cpu = Some(cpu.into());
+        self
+    }
+
+    /// Set CPU feature flags for native codegen.
+    pub fn with_cpu_features(mut self, cpu_features: Vec<String>) -> Self {
+        self.cpu_features = cpu_features;
+        self
+    }
+
+    /// Set relocation model for native codegen.
+    pub fn with_relocation_model(mut self, relocation_model: RelocationModel) -> Self {
+        self.relocation_model = relocation_model;
+        self
+    }
+
+    /// Set link mode for native targets.
+    pub fn with_link_mode(mut self, link_mode: LinkMode) -> Self {
+        self.link_mode = link_mode;
+        self
+    }
+
+    /// Set bounds check policy for array and slice accesses.
+    pub fn with_bounds_checks(mut self, bounds_checks: BoundsCheckPolicy) -> Self {
+        self.bounds_checks = bounds_checks;
+        self
+    }
+
+    /// Set overflow check policy for integer operations.
+    pub fn with_overflow_checks(mut self, overflow_checks: OverflowCheckPolicy) -> Self {
+        self.overflow_checks = overflow_checks;
+        self
+    }
+
+    /// Set debug info emission policy.
+    pub fn with_debug_info(mut self, debug_info: DebugInfoLevel) -> Self {
+        self.debug_info = debug_info;
+        self
+    }
+
+    /// Set symbol stripping policy.
+    pub fn with_strip(mut self, strip: StripLevel) -> Self {
+        self.strip = strip;
+        self
+    }
+
+    /// Set panic strategy.
+    pub fn with_panic(mut self, panic: PanicStrategy) -> Self {
+        self.panic = panic;
+        self
+    }
+
+    /// Set unwind info format.
+    pub fn with_unwind(mut self, unwind: UnwindFormat) -> Self {
+        self.unwind = unwind;
+        self
+    }
+
+    /// Set global allocator selection.
+    pub fn with_allocator(mut self, allocator: Allocator) -> Self {
+        self.allocator = allocator;
+        self
+    }
     /// Derive library files from runtime and platform.
     /// nocheckin TODO #Incomplete: load and reference std/libs
     /// If `lib` is explicitly set, returns it. Otherwise derives from runtime and platform:

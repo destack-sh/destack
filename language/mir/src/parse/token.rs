@@ -34,7 +34,7 @@ pub enum TokenType {
     Void,
     /// `bool`
     Bool,
-    /// `rawptr` // nocheckin: rename rawptr->ptr? "ref" is also just "ref"?
+    /// `rawptr`
     RawPtr,
     /// `ref`
     Ref,
