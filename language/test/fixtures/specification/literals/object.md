@@ -41,3 +41,13 @@ x satisfies { a: { b: 1 } };
 const value: { a: number, b: string } = { a: 1, b: "hi" };
 value satisfies { a: number, b: string };
 ```
+
+### contextual object literal mismatch
+
+> Object literal properties must satisfy contextual field types.
+
+```ds
+const value: { a: number, b: string } = { a: 1, b: 2 };
+```
+
+- contains: type { a: number, b: 2 } is not assignable to type { a: number, b: string }

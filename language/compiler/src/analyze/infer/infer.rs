@@ -430,6 +430,8 @@ impl Compiler {
                 let expected_element_types =
                     self.expected_element_types(ctx.expected_type, elements.len(), types);
 
+
+                // infer elargumentement types
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
@@ -445,6 +447,7 @@ impl Compiler {
                     )?;
                 }
 
+                // collect element types
                 let element_tys: Vec<LocalTypeId> = elements
                     .iter()
                     .map(|element_id| {
@@ -1669,8 +1672,42 @@ impl Compiler {
                     let ctx = ctx
                         .reset()
                         .in_function_with_signature(declaration_id.into_any(), signature);
-                    let mut ctx = ctx.with_return_type(return_type);
-                    self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                    let mut ctx = ctx
+                        .with_return_type(return_type)
+                        .with_expected_type(return_type);
+
+                    // infer the function body with implicit return typing
+                    let body_ty_id = self
+                        .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+
+                    // constrain implicit return types against the declared return type
+                    if let Some(return_ty_id) = return_type
+                        && self.has_implicit_return(*body, tree)
+                    {
+                        infer.push_constraint(Constraint::Subtype {
+                            sub: body_ty_id,
+                            sup: return_ty_id,
+                            variance: None,
+                        });
+
+                        if !self.is_infer_var_type(return_ty_id, types)
+                            && !self.is_infer_var_type(body_ty_id, types)
+                            && self.check_is_type_assignable(return_ty_id, body_ty_id, types)
+                                == Assignability::NotAssignable
+                        {
+                            self.error(AnalyzeError::UnassignableType {
+                                node: body.into_global_any(module.id),
+                                expected_ty: GlobalTypeId {
+                                    module_id: module.id,
+                                    local_id: return_ty_id,
+                                },
+                                actual_ty: GlobalTypeId {
+                                    module_id: module.id,
+                                    local_id: body_ty_id,
+                                },
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -1804,8 +1841,42 @@ impl Compiler {
                     let ctx = ctx
                         .reset()
                         .in_function_with_signature(property_id.into_any(), signature);
-                    let mut ctx = ctx.with_return_type(return_type);
-                    self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                    let mut ctx = ctx
+                        .with_return_type(return_type)
+                        .with_expected_type(return_type);
+
+                    // infer the method body with implicit return typing
+                    let body_ty_id = self
+                        .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+
+                    // constrain implicit return types against the declared return type
+                    if let Some(return_ty_id) = return_type
+                        && self.has_implicit_return(*body, tree)
+                    {
+                        infer.push_constraint(Constraint::Subtype {
+                            sub: body_ty_id,
+                            sup: return_ty_id,
+                            variance: None,
+                        });
+
+                        if !self.is_infer_var_type(return_ty_id, types)
+                            && !self.is_infer_var_type(body_ty_id, types)
+                            && self.check_is_type_assignable(return_ty_id, body_ty_id, types)
+                                == Assignability::NotAssignable
+                        {
+                            self.error(AnalyzeError::UnassignableType {
+                                node: body.into_global_any(module.id),
+                                expected_ty: GlobalTypeId {
+                                    module_id: module.id,
+                                    local_id: return_ty_id,
+                                },
+                                actual_ty: GlobalTypeId {
+                                    module_id: module.id,
+                                    local_id: body_ty_id,
+                                },
+                            });
+                        }
+                    }
                 }
                 Ok(None)
             }
@@ -1915,8 +1986,42 @@ impl Compiler {
                     let ctx = ctx
                         .reset()
                         .in_function_with_signature(member_id.into_any(), signature);
-                    let mut ctx = ctx.with_return_type(return_type);
-                    self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                    let mut ctx = ctx
+                        .with_return_type(return_type)
+                        .with_expected_type(return_type);
+
+                    // infer the method body with implicit return typing
+                    let body_ty_id = self
+                        .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+
+                    // constrain implicit return types against the declared return type
+                    if let Some(return_ty_id) = return_type
+                        && self.has_implicit_return(*body, tree)
+                    {
+                        infer.push_constraint(Constraint::Subtype {
+                            sub: body_ty_id,
+                            sup: return_ty_id,
+                            variance: None,
+                        });
+
+                        if !self.is_infer_var_type(return_ty_id, types)
+                            && !self.is_infer_var_type(body_ty_id, types)
+                            && self.check_is_type_assignable(return_ty_id, body_ty_id, types)
+                                == Assignability::NotAssignable
+                        {
+                            self.error(AnalyzeError::UnassignableType {
+                                node: body.into_global_any(module.id),
+                                expected_ty: GlobalTypeId {
+                                    module_id: module.id,
+                                    local_id: return_ty_id,
+                                },
+                                actual_ty: GlobalTypeId {
+                                    module_id: module.id,
+                                    local_id: body_ty_id,
+                                },
+                            });
+                        }
+                    }
                 }
 
                 // return a field if we have a static key
@@ -3032,6 +3137,32 @@ impl Compiler {
         match types.get_type(fn_ty_id) {
             Type::Function { return_type, .. } => *return_type,
             _ => None,
+        }
+    }
+
+    /// Check whether an expression participates in implicit return typing.
+    fn has_implicit_return(&self, expression_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
+        match tree.get(expression_id) {
+            Expression::Statement { .. }
+            | Expression::Return { .. }
+            | Expression::Break { .. }
+            | Expression::Continue { .. } => false,
+            Expression::Block { block } => {
+                let block = tree.get(*block);
+
+                let Some(last_expression_id) = block.expressions.last() else {
+                    return false;
+                };
+
+                !matches!(
+                    tree.get(*last_expression_id),
+                    Expression::Statement { .. }
+                        | Expression::Return { .. }
+                        | Expression::Break { .. }
+                        | Expression::Continue { .. }
+                )
+            }
+            _ => true,
         }
     }
 }

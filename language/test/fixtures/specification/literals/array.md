@@ -50,3 +50,13 @@ x satisfies [1, "two", true];
 const values: number[] = [1, 2, 3];
 values satisfies number[];
 ```
+
+### contextual array literal mismatch
+
+> Array literal elements must satisfy contextual element types.
+
+```ds
+const values: number[] = [1, "two"];
+```
+
+- contains: type (number, "two") is not assignable to type number[]

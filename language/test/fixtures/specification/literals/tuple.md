@@ -32,3 +32,13 @@ x satisfies (1, (2, 3));
 const pair: (number, string) = (1, "hi");
 pair satisfies (number, string);
 ```
+
+### contextual tuple literal mismatch
+
+> Tuple literal elements must satisfy contextual element types.
+
+```ds
+const pair: (number, string) = (1, 2);
+```
+
+- contains: type (number, 2) is not assignable to type (number, string)
