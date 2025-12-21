@@ -182,6 +182,21 @@ impl TypeTable {
         self.inferred_type_by_node_id.get(&node_id).copied()
     }
 
+    /// Get declared or fallback to inferred type for a node.
+    pub fn get_declared_or_inferred_type(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
+        self.get_declared_type(node_id)
+            .or_else(|| self.get_inferred_type(node_id))
+    }
+
+    /// Get declared or fallback to inferred type id for a node.
+    pub fn get_declared_or_inferred_type_id(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<LocalTypeId> {
+        self.get_declared_type_id(node_id)
+            .or_else(|| self.get_inferred_type_id(node_id))
+    }
+
     /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);

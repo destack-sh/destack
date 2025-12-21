@@ -1,4 +1,4 @@
-use crate::{Compiler, LowerResult, TaskDependencyError};
+use crate::{Compiler, LowerResult, ModuleLowerer, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
@@ -10,7 +10,12 @@ use destack_workspace::ModuleMir;
 pub enum LowerTask {
     /// Lower a module into MIR.
     #[task(code = 1, trace = "module={module} target={target}")]
-    LowerModule { module: ModuleId, target: String },
+    LowerModule {
+        /// Identify the module to lower.
+        module: ModuleId,
+        /// Identify the target backend for lowering.
+        target: String,
+    },
 }
 
 impl Compiler {
@@ -35,10 +40,37 @@ impl Compiler {
             let version = module.version;
             // replace existing MIR for this target, if any
             module.mirs.retain(|mir| mir.target != target);
-            module.mirs.push(ModuleMir::new(module_id, version, target));
+            module
+                .mirs
+                .push(ModuleMir::new(module_id, version, target.clone()));
         }
 
-        // nocheckin TODO #Incomplete: lower basic MIR nodes
+        // lower the module
+        let (mir_tree, mir_strings) = {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let dir = module.dir();
+            let dir_tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            let types = dir.types.read();
+
+            let mut lowerer = ModuleLowerer::new(
+                self, &module, &dir_tree, &dir.roots, &symbols, &types, &target,
+            );
+            lowerer.lower_module()?;
+            lowerer.finish()
+        };
+
+        // update the module with the new lowered MIR
+        let module = self.program.modules.get(module_id);
+        let mut module = module.write();
+        let mir = module
+            .mirs
+            .iter_mut()
+            .find(|mir| mir.target == target)
+            .expect("missing ModuleMir for target");
+        *mir.tree.write() = mir_tree;
+        mir.strings = mir_strings;
 
         Ok(())
     }

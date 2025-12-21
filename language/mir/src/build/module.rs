@@ -232,10 +232,13 @@ impl ModuleBuilder {
     }
 
     /// Finish building the module.
-    ///
-    /// Returns the completed node tree and string pool.
-    pub fn finish(self) -> (NodeTree, ImmutableStringPool) {
+    pub fn finish_immutable(self) -> (NodeTree, ImmutableStringPool) {
         (self.tree, self.strings.into_immutable())
+    }
+
+    /// Finish building the module with a mutable string pool.
+    pub fn finish_mutable(self) -> (NodeTree, StringPool) {
+        (self.tree, self.strings)
     }
 }
 

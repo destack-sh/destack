@@ -118,20 +118,15 @@ pub enum ShrinkLevel {
 }
 
 /// Relocation model for native codegen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RelocationModel {
     /// Static relocation model.
     Static,
     /// Position-independent code.
+    #[default]
     Pic,
     /// Position-independent executable.
     Pie,
-}
-
-impl Default for RelocationModel {
-    fn default() -> Self {
-        Self::Pic
-    }
 }
 
 impl std::str::FromStr for RelocationModel {
@@ -155,18 +150,13 @@ impl RelocationModel {
 }
 
 /// Link mode for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LinkMode {
     /// Prefer static linking.
     Static,
     /// Prefer dynamic linking.
+    #[default]
     Dynamic,
-}
-
-impl Default for LinkMode {
-    fn default() -> Self {
-        Self::Dynamic
-    }
 }
 
 impl std::str::FromStr for LinkMode {
@@ -189,20 +179,15 @@ impl LinkMode {
 }
 
 /// Debug info emission policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DebugInfoLevel {
     /// No debug info.
+    #[default]
     None,
     /// Line tables only.
     Line,
     /// Full debug info.
     Full,
-}
-
-impl Default for DebugInfoLevel {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl std::str::FromStr for DebugInfoLevel {
@@ -226,20 +211,15 @@ impl DebugInfoLevel {
 }
 
 /// Symbol stripping policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StripLevel {
     /// Keep all symbols.
+    #[default]
     None,
     /// Strip local symbols.
     Partial,
     /// Strip all symbols.
     Full,
-}
-
-impl Default for StripLevel {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl std::str::FromStr for StripLevel {
@@ -263,18 +243,13 @@ impl StripLevel {
 }
 
 /// Panic strategy for unrecoverable errors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PanicStrategy {
     /// Abort immediately.
+    #[default]
     Abort,
     /// Unwind the stack.
     Unwind,
-}
-
-impl Default for PanicStrategy {
-    fn default() -> Self {
-        Self::Abort
-    }
 }
 
 impl std::str::FromStr for PanicStrategy {
@@ -297,20 +272,15 @@ impl PanicStrategy {
 }
 
 /// Unwind info format for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UnwindFormat {
     /// No unwind info.
+    #[default]
     None,
     /// DWARF unwind info.
     Dwarf,
     /// Windows SEH unwind info.
     Seh,
-}
-
-impl Default for UnwindFormat {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl std::str::FromStr for UnwindFormat {
@@ -334,20 +304,15 @@ impl UnwindFormat {
 }
 
 /// Integer overflow checking policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OverflowCheckPolicy {
     /// Always emit overflow checks.
     Always,
     /// Emit overflow checks only in debug builds.
+    #[default]
     Debug,
     /// Never emit overflow checks.
     Never,
-}
-
-impl Default for OverflowCheckPolicy {
-    fn default() -> Self {
-        Self::Debug
-    }
 }
 
 impl std::str::FromStr for OverflowCheckPolicy {
@@ -371,9 +336,10 @@ impl OverflowCheckPolicy {
 }
 
 /// Global allocator selection for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Allocator {
     /// Use the platform default allocator.
+    #[default]
     System,
     /// Use mimalloc.
     MiMalloc,
@@ -381,12 +347,6 @@ pub enum Allocator {
     JeMalloc,
     /// Use a custom allocator provided by the runtime.
     Custom,
-}
-
-impl Default for Allocator {
-    fn default() -> Self {
-        Self::System
-    }
 }
 
 impl std::str::FromStr for Allocator {
@@ -433,20 +393,15 @@ impl From<ShrinkLevel> for u8 {
 }
 
 /// Bounds check policy for array and slice accesses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BoundsCheckPolicy {
     /// Always emit bounds checks.
     Always,
     /// Emit bounds checks only in debug builds.
+    #[default]
     Debug,
     /// Never emit bounds checks (unsafe, fastest).
     Never,
-}
-
-impl Default for BoundsCheckPolicy {
-    fn default() -> Self {
-        Self::Debug
-    }
 }
 
 impl std::str::FromStr for BoundsCheckPolicy {

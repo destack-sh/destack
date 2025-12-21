@@ -13,9 +13,9 @@ use crate::{
 };
 
 use super::target::{
-    Allocator, BoundsCheckPolicy, DebugInfoLevel, LinkMode, OptimizeLevel, OverflowCheckPolicy,
-    OutputFormat, OutputMode, PanicStrategy, Platform, RelocationModel, Runtime, ShrinkLevel,
-    StripLevel, Target, TargetDiscovery, UnwindFormat,
+    Allocator, BoundsCheckPolicy, DebugInfoLevel, LinkMode, OptimizeLevel, OutputFormat,
+    OutputMode, OverflowCheckPolicy, PanicStrategy, Platform, RelocationModel, Runtime,
+    ShrinkLevel, StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 
@@ -566,6 +566,8 @@ pub struct DsConfigTargetOptions {
     pub runtime: Runtime,
     /// Target platform (web, windows, macos, linux, ios, android, etc.).
     pub platform: Platform,
+    /// Target triple for native codegen.
+    /// This selects the ABI and CPU architecture for native targets.
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
     /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
@@ -785,7 +787,10 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .map(OptimizeLevel::from)
                 .unwrap_or_default(),
             shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
-            debug_info: json.debug_info.map(DebugInfoLevel::from).unwrap_or_default(),
+            debug_info: json
+                .debug_info
+                .map(DebugInfoLevel::from)
+                .unwrap_or_default(),
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             panic: json.panic.map(PanicStrategy::from).unwrap_or_default(),
             unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
