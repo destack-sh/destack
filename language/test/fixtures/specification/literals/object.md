@@ -30,3 +30,14 @@ x satisfies {};
 const x = { a: { b: 1 } };
 x satisfies { a: { b: 1 } };
 ```
+
+## Contextual Objects
+
+### contextual object literal
+
+> Object literals use contextual types for property inference.
+
+```ds
+const value: { a: number, b: string } = { a: 1, b: "hi" };
+value satisfies { a: number, b: string };
+```

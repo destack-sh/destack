@@ -37,7 +37,8 @@ impl InferTable {
     pub fn bind_type(&mut self, id: InferVarId, ty_id: LocalTypeId) {
         let index = id.0 as usize;
         if self.type_by_var_id.len() <= index {
-            self.type_by_var_id.resize(index + 1, LocalTypeId::new(u32::MAX));
+            self.type_by_var_id
+                .resize(index + 1, LocalTypeId::new(u32::MAX));
         }
         self.type_by_var_id[index] = ty_id;
     }
@@ -116,7 +117,10 @@ impl ConstraintGroupId {
 #[derive(Debug, Clone)]
 pub enum Constraint {
     /// Require two types to be equal.
-    Equal { left: LocalTypeId, right: LocalTypeId },
+    Equal {
+        left: LocalTypeId,
+        right: LocalTypeId,
+    },
     /// Require one type to be a subtype of another.
     Subtype {
         sub: LocalTypeId,

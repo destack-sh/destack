@@ -9,4 +9,5 @@ Type inference for literal expressions.
 - **Boolean literals**: `true`, `false`
 - **Array literals**: Homogeneous, heterogeneous, empty
 - **Object literals**: Property inference, nested objects
+- **Tuple literals**: Heterogeneous, nested, contextual
 - **Template literals**: Interpolation, tagged templates

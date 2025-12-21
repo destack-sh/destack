@@ -4,12 +4,11 @@ use crate::{
 };
 use destack_dir::{
     Argument, Block, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
-    EnumField, Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalNodeIdAny,
-    GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId,
-    MatchCase, MatchSelector, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField,
-    PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
-    TypeTable, WhereClause,
+    EnumField, Expression, Extension, ExtensionKind, FunctionKind, FunctionSignature, Generics,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny,
+    LocalSymbolId, LocalTypeId, MatchCase, MatchSelector, MatchSource, Member, NodeTree, Parameter,
+    Pattern, PatternField, PrimitiveType, Property, ScalarLiteral, StaticKey, SymbolTable, Type,
+    TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -36,10 +35,38 @@ impl Compiler {
             // declaration -> analyze the declaration
             Expression::Declaration { declaration } => {
                 self.infer_declaration(module, *declaration, tree, symbols, types, infer, ctx)?;
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Void,
-                };
-                types.insert_type_from(ty, expression_id)
+                let declaration = tree.get(*declaration);
+
+                // lambda declarations evaluate to function values
+                if let Declaration::Function {
+                    descriptor,
+                    signature,
+                    ..
+                } = declaration
+                {
+                    if matches!(signature.kind, FunctionKind::Lambda) {
+                        if let Some(value_ty_id) =
+                            types.get_value_type_id(descriptor.symbol.into_global(module.id))
+                        {
+                            value_ty_id
+                        } else {
+                            let ty = Type::TypeLiteral {
+                                value: TypeLiteral::Void,
+                            };
+                            types.insert_type_from(ty, expression_id)
+                        }
+                    } else {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Void,
+                        };
+                        types.insert_type_from(ty, expression_id)
+                    }
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
             }
 
             // block -> analyze the block
@@ -230,8 +257,18 @@ impl Compiler {
             // assignment operations -> void
             Expression::Assign { left, right } => {
                 let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
-                let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+
+                // use the left type as the expected type for the right expression
+                let mut right_ctx = ctx.fork().with_expected_type(Some(left_ty_id));
+                let right_ty_id = self.infer_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut right_ctx,
+                )?;
 
                 // type check: right must be assignable to left
                 infer.push_constraint(Constraint::Subtype {
@@ -359,10 +396,17 @@ impl Compiler {
 
             // scalar literal -> derive type from value
             Expression::ScalarLiteral { value } => {
-                let ty = Type::TypeLiteral {
-                    value: self.infer_scalar_literal(value),
-                };
-                types.insert_type_from(ty, expression_id)
+                // apply contextual typing when a matching expected type is available
+                if let Some(expected_ty_id) =
+                    self.expected_type_for_scalar_literal(value, ctx.expected_type, types)
+                {
+                    expected_ty_id
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: self.infer_scalar_literal(value),
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
             }
 
             // type literal -> use the given type literal?
@@ -382,9 +426,25 @@ impl Compiler {
 
             // array / tuple expression -> precise tuple type for each element
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
-                for element_id in elements {
-                    self.infer_argument(module, *element_id, None, tree, symbols, types, infer, ctx)?;
+                // infer element types using any contextual type
+                let expected_element_types =
+                    self.expected_element_types(ctx.expected_type, elements.len(), types);
+
+                for (index, element_id) in elements.iter().enumerate() {
+                    let expected_element_ty_id =
+                        expected_element_types.get(index).copied().flatten();
+                    self.infer_argument(
+                        module,
+                        *element_id,
+                        expected_element_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
+
                 let element_tys: Vec<LocalTypeId> = elements
                     .iter()
                     .map(|element_id| {
@@ -402,9 +462,32 @@ impl Compiler {
             // sequence expression (comma operator) -> type of last expression
             Expression::SequenceExpression { expressions } => {
                 let mut last_ty = None;
-                for expr_id in expressions {
-                    last_ty =
-                        Some(self.infer_expression(module, *expr_id, tree, symbols, types, infer, ctx)?);
+                for (index, expr_id) in expressions.iter().enumerate() {
+                    let is_last = index + 1 == expressions.len();
+                    if is_last {
+                        let mut expr_ctx =
+                            ctx.fork().with_expected_type(ctx.expected_type);
+                        last_ty = Some(self.infer_expression(
+                            module,
+                            *expr_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            &mut expr_ctx,
+                        )?);
+                    } else {
+                        let mut expr_ctx = ctx.fork().with_expected_type(None);
+                        last_ty = Some(self.infer_expression(
+                            module,
+                            *expr_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            &mut expr_ctx,
+                        )?);
+                    }
                 }
                 // return the type of the last expression, or void if empty (shouldn't be empty?)
                 last_ty.unwrap_or_else(|| {
@@ -424,10 +507,22 @@ impl Compiler {
 
             // object expression -> object type
             Expression::ObjectExpression { properties } => {
+                // apply contextual object type when available
+                let expected_object_ty_id =
+                    self.expected_object_type_id(ctx.expected_type, types);
+
                 let mut fields = Vec::new();
                 for property_id in properties {
-                    if let Some(field) =
-                        self.infer_property(module, *property_id, tree, symbols, types, infer, ctx)?
+                    if let Some(field) = self.infer_property(
+                        module,
+                        *property_id,
+                        expected_object_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
                     {
                         fields.push(field);
                     }
@@ -446,10 +541,33 @@ impl Compiler {
                 let callee_ty_id =
                     self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
 
-                // analyze arguments
+                // extract callee signature for contextual typing
+                let callee_signature = match types.get_type(callee_ty_id) {
+                    Type::Function {
+                        dynamic_parameters,
+                        return_type,
+                        ..
+                    } => Some((dynamic_parameters.clone(), *return_type)),
+                    _ => None,
+                };
+
+                // analyze arguments with contextual parameter types
                 let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-                for arg in dynamic_arguments {
-                    self.infer_argument(module, *arg, None, tree, symbols, types, infer, ctx)?;
+                for (index, arg) in dynamic_arguments.iter().enumerate() {
+                    let expected_arg_ty_id = callee_signature
+                        .as_ref()
+                        .and_then(|(params, _)| params.get(index).copied());
+                    self.infer_argument(
+                        module,
+                        *arg,
+                        expected_arg_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+
                     let arg_expr = tree.get(*arg);
                     let arg_value_id = arg_expr.value();
                     let argument_ty_id =
@@ -458,13 +576,8 @@ impl Compiler {
                 }
 
                 // check callee type and get return type
-                let callee_ty = types.get_type(callee_ty_id);
-                match callee_ty {
-                    Type::Function {
-                        dynamic_parameters,
-                        return_type,
-                        ..
-                    } => {
+                match callee_signature {
+                    Some((dynamic_parameters, return_type)) => {
                         // add argument constraints against parameters
                         for (argument_ty_id, param_ty_id) in
                             argument_ty_ids.iter().zip(dynamic_parameters.iter())
@@ -477,10 +590,8 @@ impl Compiler {
                         }
 
                         // type check arguments against parameters
-                        let param_types = dynamic_parameters.clone();
-                        let return_type = *return_type;
                         for (i, (argument_ty_id, param_ty_id)) in
-                            argument_ty_ids.iter().zip(param_types.iter()).enumerate()
+                            argument_ty_ids.iter().zip(dynamic_parameters.iter()).enumerate()
                         {
                             if !self.is_infer_var_type(*param_ty_id, types)
                                 && !self.is_infer_var_type(*argument_ty_id, types)
@@ -592,13 +703,34 @@ impl Compiler {
                 else_expression,
             } => {
                 self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
-                let then_ty_id =
-                    self.infer_expression(module, *then_expression, tree, symbols, types, infer, ctx)?;
+
+                // then
+                let mut then_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                let then_ty_id = self.infer_expression(
+                    module,
+                    *then_expression,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut then_ctx,
+                )?;
+
+                // else
                 if let Some(else_expr) = else_expression {
-                    let _else_ty_id =
-                        self.infer_expression(module, *else_expr, tree, symbols, types, infer, ctx)?;
-                    // #Incomplete: compute union or common type of then/else branches
+                    let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                    let _else_ty_id = self.infer_expression(
+                        module,
+                        *else_expr,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut else_ctx,
+                    )?;
                 }
+
+                // #Incomplete: compute union or common type of then/else branches
                 then_ty_id
             }
 
@@ -696,20 +828,17 @@ impl Compiler {
                 let mut result_ty_id = None;
                 for case_id in cases {
                     let case = tree.get(*case_id);
-                    let (selector, body_expr) = match case {
+                    let (selector, body_expr, block_body) = match case {
                         MatchCase::Expression {
                             selector,
                             body,
                             scope: _,
-                        } => (selector, Some(*body)),
+                        } => (selector, Some(*body), None),
                         MatchCase::Block {
                             selector,
                             body,
                             scope: _,
-                        } => {
-                            self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
-                            (selector, None)
-                        }
+                        } => (selector, None, Some(*body)),
                     };
                     // infer pattern and guard from selector
                     if let MatchSelector::Pattern { pattern, guard } = selector {
@@ -735,14 +864,39 @@ impl Compiler {
                             )?;
                         }
                     }
+
+                    // apply contextual typing to the case body
+                    let mut case_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+
                     // default selector has no pattern or guard to infer
                     if let Some(expr) = body_expr {
-                        let case_ty_id =
-                            self.infer_expression(module, expr, tree, symbols, types, infer, &mut ctx)?;
+                        let case_ty_id = self.infer_expression(
+                            module,
+                            expr,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            &mut case_ctx,
+                        )?;
                         if result_ty_id.is_none() {
                             result_ty_id = Some(case_ty_id);
                         }
                     }
+
+                    // body
+                    if let Some(body) = block_body {
+                        self.infer_block(
+                            module,
+                            body,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            &mut case_ctx,
+                        )?;
+                    }
+
                     // #Incomplete: compute union of case types
                 }
                 result_ty_id.unwrap_or_else(|| {
@@ -787,8 +941,16 @@ impl Compiler {
 
                 // constrain return value to the function return type
                 if let Some(val) = value {
-                    let value_ty_id =
-                        self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
+                    let mut return_ctx = ctx.fork().with_expected_type(ctx.return_type);
+                    let value_ty_id = self.infer_expression(
+                        module,
+                        *val,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut return_ctx,
+                    )?;
                     if let Some(return_ty_id) = ctx.return_type {
                         infer.push_constraint(Constraint::Subtype {
                             sub: value_ty_id,
@@ -978,15 +1140,40 @@ impl Compiler {
             }
             Expression::TaggedTupleExpression { ty, elements } => {
                 let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
-                for elem in elements {
-                    self.infer_argument(module, *elem, None, tree, symbols, types, infer, ctx)?;
+                let expected_element_types =
+                    self.expected_element_types(Some(ty_id), elements.len(), types);
+
+                for (index, elem) in elements.iter().enumerate() {
+                    let expected_element_ty_id =
+                        expected_element_types.get(index).copied().flatten();
+                    self.infer_argument(
+                        module,
+                        *elem,
+                        expected_element_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
                 ty_id
             }
             Expression::TaggedObjectExpression { ty, properties } => {
                 let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                let expected_object_ty_id = self.expected_object_type_id(Some(ty_id), types);
+
                 for prop_id in properties {
-                    self.infer_property(module, *prop_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_property(
+                        module,
+                        *prop_id,
+                        expected_object_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
                 ty_id
             }
@@ -1062,13 +1249,36 @@ impl Compiler {
         }
 
         let block = tree.get(block_id);
-        for expression_id in &block.expressions {
-            self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
+        // infer all but the last expression without contextual typing
+        let last_index = block.expressions.len().saturating_sub(1);
+        for (index, expression_id) in block.expressions.iter().enumerate() {
+            if index == last_index {
+                continue;
+            }
+            let mut expr_ctx = ctx.fork().with_expected_type(None);
+            self.infer_expression(
+                module,
+                *expression_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                &mut expr_ctx,
+            )?;
         }
 
-        // type is last expression type
+        // infer the last expression with contextual typing
         let ty_id = if let Some(last_expression_id) = block.expressions.last() {
-            self.infer_expression(module, *last_expression_id, tree, symbols, types, infer, ctx)?
+            let mut last_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+            self.infer_expression(
+                module,
+                *last_expression_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                &mut last_ctx,
+            )?
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
@@ -1105,7 +1315,15 @@ impl Compiler {
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 for expression_id in expressions {
-                    self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(
+                        module,
+                        *expression_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
             }
 
@@ -1242,8 +1460,8 @@ impl Compiler {
                 // type fields
                 let mut fields = Vec::new();
                 for member_id in members {
-                    if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, infer, &mut ctx)?
+                    if let Some(field) = self
+                        .infer_member(module, *member_id, tree, symbols, types, infer, &mut ctx)?
                     {
                         fields.push(field);
                     }
@@ -1436,6 +1654,7 @@ impl Compiler {
                     declaration_id.into_any(),
                     descriptor.symbol.into_global(module.id),
                     signature,
+                    ctx.expected_type,
                     tree,
                     symbols,
                     types,
@@ -1464,6 +1683,7 @@ impl Compiler {
         &self,
         module: &Module,
         property_id: LocalNodeId<Property>,
+        expected_object_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1486,9 +1706,23 @@ impl Compiler {
                     DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                 });
 
+                // derive an expected field type from the contextual object type
+                let expected_field_ty_id = static_key
+                    .as_ref()
+                    .and_then(|key| self.expected_field_type_id(expected_object_ty_id, key, types));
+
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
-                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?
+                    let mut value_ctx = ctx.fork().with_expected_type(expected_field_ty_id);
+                    self.infer_expression(
+                        module,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut value_ctx,
+                    )?
                 } else {
                     // no value, return unknown type
                     let ty = Type::TypeLiteral {
@@ -1497,9 +1731,18 @@ impl Compiler {
                     types.insert_type(ty)
                 };
 
-                // default
+                // infer default with the same expected type
                 if let Some(default) = default {
-                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                    let mut default_ctx = ctx.fork().with_expected_type(expected_field_ty_id);
+                    self.infer_expression(
+                        module,
+                        *default,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut default_ctx,
+                    )?;
                 }
 
                 // is optional
@@ -1525,13 +1768,43 @@ impl Compiler {
                 }
             }
             Property::Method {
-                signature, body, ..
+                key,
+                signature,
+                body,
+                symbol,
+                ..
             } => {
                 // #Incomplete: infer method type
+                let expected_method_ty_id = key
+                    .and_then(|key| match key {
+                        DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                        DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                    })
+                    .and_then(|key| {
+                        self.expected_field_type_id(expected_object_ty_id, &key, types)
+                    });
+
+                // infer the method signature with contextual typing
+                let method_ty_id = self.infer_signature(
+                    module,
+                    property_id.into_any(),
+                    symbol.into_global(module.id),
+                    signature,
+                    expected_method_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+
+                // body
                 if let Some(body) = body {
-                    let mut ctx = ctx
+                    let return_type = self.function_return_type(method_ty_id, types);
+                    let ctx = ctx
                         .reset()
                         .in_function_with_signature(property_id.into_any(), signature);
+                    let mut ctx = ctx.with_return_type(return_type);
                     self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 }
                 Ok(None)
@@ -1628,6 +1901,7 @@ impl Compiler {
                     member_id.into_any(),
                     member.symbol().into_global(module.id),
                     signature,
+                    None,
                     tree,
                     symbols,
                     types,
@@ -1775,6 +2049,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         owner_symbol: GlobalSymbolId,
         signature: &FunctionSignature,
+        expected_fn_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1786,6 +2061,9 @@ impl Compiler {
             self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
         }
 
+        // extract any contextual function signature
+        let expected_signature = self.expected_function_signature(expected_fn_ty_id, types);
+
         // collect parameter types
         let scope = InferScope {
             owner: owner_symbol,
@@ -1793,12 +2071,15 @@ impl Compiler {
         };
 
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
-        for parameter_id in &signature.dynamic_parameters {
+        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let declared_ty_id =
                 types.get_declared_type_id(parameter_id.into_global_any(module.id));
+            let expected_param_ty_id = expected_signature
+                .as_ref()
+                .and_then(|signature| signature.dynamic_parameters.get(index).copied());
 
             let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
-            let param_ty_id = declared_ty_id.unwrap_or_else(|| {
+            let param_ty_id = declared_ty_id.or(expected_param_ty_id).unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
                     infer,
                     types,
@@ -1825,14 +2106,25 @@ impl Compiler {
 
         // get return type
         let return_type = if let Some(return_type_expr_id) = signature.return_type {
-            let return_ty_id =
-                self.infer_expression(module, return_type_expr_id, tree, symbols, types, infer, ctx)?;
+            let return_ty_id = self.infer_expression(
+                module,
+                return_type_expr_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
             // unwrap Value type if present
             let return_ty = types.get_type(return_ty_id);
             match return_ty {
                 Type::Value { value } => Some(*value),
                 _ => Some(return_ty_id),
             }
+        } else if let Some(return_type) =
+            expected_signature.and_then(|signature| signature.return_type)
+        {
+            Some(return_type)
         } else {
             Some(self.infer_var_type_for_node(
                 infer,
@@ -1953,7 +2245,7 @@ impl Compiler {
         &self,
         module: &Module,
         argument_id: LocalNodeId<Argument>,
-        _binding_ty_id: Option<LocalTypeId>,
+        expected_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1961,18 +2253,53 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let argument = tree.get(argument_id);
+        // apply the expected type to the argument value
+        let mut argument_ctx = ctx.fork().with_expected_type(expected_ty_id);
+
         match argument {
             Argument::Positional { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
             }
             Argument::Named { name: _, value } => {
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
             }
             Argument::Labeled { label: _, value } => {
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
             }
             Argument::Spread { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
             }
         }
         Ok(())
@@ -2084,13 +2411,31 @@ impl Compiler {
                 mutability: _,
                 right,
             } => {
-                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, infer, ctx)?;
+                self.infer_pattern(
+                    module,
+                    *right,
+                    binding_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
             }
             Pattern::ValueOf {
                 mutability: _,
                 right,
             } => {
-                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, infer, ctx)?;
+                self.infer_pattern(
+                    module,
+                    *right,
+                    binding_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
             }
             Pattern::Binding {
                 mutability: _,
@@ -2287,7 +2632,9 @@ impl Compiler {
                     None
                 }
             };
-            self.infer_pattern_field(module, *field_id, field_ty, tree, symbols, types, infer, ctx)?;
+            self.infer_pattern_field(
+                module, *field_id, field_ty, tree, symbols, types, infer, ctx,
+            )?;
         }
         Ok(())
     }
@@ -2344,7 +2691,16 @@ impl Compiler {
                 }
             }
             PatternField::Positional { pattern } => {
-                self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, infer, ctx)?;
+                self.infer_pattern(
+                    module,
+                    *pattern,
+                    binding_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
             }
             PatternField::Spread {
                 mutability: _,
@@ -2382,7 +2738,21 @@ impl Compiler {
         let declared_ty_id =
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
         let inferred_ty_id = if let Some(value) = value {
-            Some(self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?)
+            // apply declared type as the expected type when available
+            let mut value_ctx = if let Some(declared_ty_id) = declared_ty_id {
+                ctx.fork().with_expected_type(Some(declared_ty_id))
+            } else {
+                ctx.fork()
+            };
+            Some(self.infer_expression(
+                module,
+                *value,
+                tree,
+                symbols,
+                types,
+                infer,
+                &mut value_ctx,
+            )?)
         } else {
             None
         };
@@ -2420,9 +2790,182 @@ impl Compiler {
 
         // infer pattern bindings from declared or inferred type
         let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-        self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, infer, ctx)?;
+        self.infer_pattern(
+            module,
+            *pattern,
+            binding_ty_id,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        )?;
 
         Ok(())
+    }
+
+    /// Derive an expected function signature from a contextual type.
+    fn expected_function_signature(
+        &self,
+        expected_ty_id: Option<LocalTypeId>,
+        types: &TypeTable,
+    ) -> Option<ExpectedFunctionSignature> {
+        let expected_ty_id = self.expected_value_type_id(expected_ty_id, types)?;
+        match types.get_type(expected_ty_id) {
+            Type::Function {
+                dynamic_parameters,
+                return_type,
+                ..
+            } => Some(ExpectedFunctionSignature {
+                dynamic_parameters: dynamic_parameters.clone(),
+                return_type: *return_type,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Derive an expected object type id from a contextual type.
+    fn expected_object_type_id(
+        &self,
+        expected_ty_id: Option<LocalTypeId>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let expected_ty_id = self.expected_value_type_id(expected_ty_id, types)?;
+        match types.get_type(expected_ty_id) {
+            Type::Object { .. } => Some(expected_ty_id),
+            Type::Reference { symbol, .. } => types.get_instance_type_id(*symbol),
+            _ => None,
+        }
+    }
+
+    /// Resolve an expected field type from a contextual object type and key.
+    fn expected_field_type_id(
+        &self,
+        expected_object_ty_id: Option<LocalTypeId>,
+        key: &StaticKey,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let expected_object_ty_id = expected_object_ty_id?;
+        match types.get_type(expected_object_ty_id) {
+            Type::Object { fields } => fields
+                .iter()
+                .find(|field| &field.key == key)
+                .map(|field| field.ty),
+            _ => None,
+        }
+    }
+
+    /// Resolve contextual element types for array and tuple expressions.
+    fn expected_element_types(
+        &self,
+        expected_ty_id: Option<LocalTypeId>,
+        element_count: usize,
+        types: &TypeTable,
+    ) -> Vec<Option<LocalTypeId>> {
+        let mut expected = vec![None; element_count];
+        let expected_ty_id = match self.expected_value_type_id(expected_ty_id, types) {
+            Some(expected_ty_id) => expected_ty_id,
+            None => return expected,
+        };
+
+        match types.get_type(expected_ty_id) {
+            Type::Tuple { elements } => {
+                for (index, element_ty_id) in elements.iter().enumerate().take(element_count) {
+                    expected[index] = Some(*element_ty_id);
+                }
+            }
+            Type::Array {
+                element: Some(element_ty_id),
+            } => {
+                expected.fill(Some(*element_ty_id));
+            }
+            _ => {}
+        }
+
+        expected
+    }
+
+    /// Match a scalar literal against a contextual type when possible.
+    fn expected_type_for_scalar_literal(
+        &self,
+        value: &ScalarLiteral,
+        expected_ty_id: Option<LocalTypeId>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let expected_ty_id = self.expected_value_type_id(expected_ty_id, types)?;
+        self.match_scalar_literal_expected(value, expected_ty_id, types)
+    }
+
+    /// Strip a Type::Value wrapper from a type id when present.
+    fn expected_value_type_id(
+        &self,
+        expected_ty_id: Option<LocalTypeId>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let expected_ty_id = expected_ty_id?;
+        let expected_ty_id = self.unwrap_value_type_id(expected_ty_id, types);
+        if self.is_infer_var_type(expected_ty_id, types) {
+            None
+        } else {
+            Some(expected_ty_id)
+        }
+    }
+
+    /// Unwrap Type::Value to its underlying type.
+    fn unwrap_value_type_id(&self, ty_id: LocalTypeId, types: &TypeTable) -> LocalTypeId {
+        match types.get_type(ty_id) {
+            Type::Value { value } => *value,
+            _ => ty_id,
+        }
+    }
+
+    /// Match a scalar literal against an expected type.
+    fn match_scalar_literal_expected(
+        &self,
+        value: &ScalarLiteral,
+        expected_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        match types.get_type(expected_ty_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            } => match value {
+                ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => Some(expected_ty_id),
+                _ => None,
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            } => match value {
+                ScalarLiteral::String(_) => Some(expected_ty_id),
+                _ => None,
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            } => match value {
+                ScalarLiteral::Boolean(_) => Some(expected_ty_id),
+                _ => None,
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(expected_literal),
+            } => {
+                if expected_literal == value {
+                    Some(expected_ty_id)
+                } else {
+                    None
+                }
+            }
+            Type::Union { elements } => {
+                for element in elements {
+                    if let Some(matched) =
+                        self.match_scalar_literal_expected(value, *element, types)
+                    {
+                        return Some(matched);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     /// Get or create an inference variable type for a symbol.
@@ -2435,12 +2978,11 @@ impl Compiler {
         scope: InferScope,
     ) -> LocalTypeId {
         // reuse existing inference variable when available
-        if let Some(var_id) = infer.var_by_symbol_id.get(&symbol).copied() {
-            if let Some(ty_id) = infer.type_for_var(var_id) {
-                if ty_id.0 != u32::MAX {
-                    return ty_id;
-                }
-            }
+        if let Some(var_id) = infer.var_by_symbol_id.get(&symbol).copied()
+            && let Some(ty_id) = infer.type_for_var(var_id)
+            && ty_id.0 != u32::MAX
+        {
+            return ty_id;
         }
 
         // allocate and bind a new inference variable
@@ -2461,12 +3003,11 @@ impl Compiler {
         scope: InferScope,
     ) -> LocalTypeId {
         // reuse existing inference variable when available
-        if let Some(var_id) = infer.var_by_node_id.get(&node_id).copied() {
-            if let Some(ty_id) = infer.type_for_var(var_id) {
-                if ty_id.0 != u32::MAX {
-                    return ty_id;
-                }
-            }
+        if let Some(var_id) = infer.var_by_node_id.get(&node_id).copied()
+            && let Some(ty_id) = infer.type_for_var(var_id)
+            && ty_id.0 != u32::MAX
+        {
+            return ty_id;
         }
 
         // allocate and bind a new inference variable
@@ -2493,6 +3034,15 @@ impl Compiler {
             _ => None,
         }
     }
+}
+
+/// Contextual function signature derived from an expected type.
+#[derive(Debug, Clone)]
+struct ExpectedFunctionSignature {
+    /// Expected dynamic parameter types.
+    dynamic_parameters: Vec<LocalTypeId>,
+    /// Expected return type.
+    return_type: Option<LocalTypeId>,
 }
 
 #[cfg(test)]
@@ -3012,73 +3562,6 @@ let x = greeting;
         );
     }
 
-    /// Verify circular imports work during analysis.
-    // TODO #Broken: make TypeTable access granular per-usage (no &mut TypeTable)
-    #[test]
-    #[ignore]
-    fn test_analyze_circular_type_dependency() {
-        let test = TestProgram::memory_sequential();
-        test.add_file(
-            "a.ds",
-            r#"
-import { B } from "./b.ds";
-
-export struct A { value: B }
-
-export function helperA(): A { throw "not implemented" }
-"#,
-        );
-        test.add_file(
-            "b.ds",
-            r#"
-import { A } from "./a.ds";
-
-export struct B { value: A }
-
-export function helperB(): B { throw "not implemented" }
-"#,
-        );
-        let module_id = test.add_module(
-            "main.ds",
-            r#"
-import { A, helperA } from "./a.ds";
-import { B, helperB } from "./b.ds";
-
-declare const a: A = helperA();
-declare const b: B = helperB();
-"#,
-        );
-        test.analyze_module(module_id);
-        test.compile_dump_clean();
-
-        let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
-        let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
-
-        // struct A { value: B } -> typeOf(A.value) should point to canonical B
-        let a_module = test.program.modules.get(a_symbol_id.module_id);
-        let a_module = a_module.read();
-        let a_types = a_module.dir().types.read();
-        let a_ty_id = a_types.get_value_type_id(a_symbol_id).unwrap();
-        assert_type!(a_types, a_ty_id, Type::Object { fields } => {
-            assert_eq!(fields.len(), 1);
-            assert_type!(a_types, fields[0].ty, Type::Reference { symbol, static_arguments: _ } => {
-                assert_eq!(*symbol, b_symbol_id);
-            });
-        });
-
-        // struct B { value: A } -> typeOf(B.value) should point to canonical A
-        let b_module = test.program.modules.get(b_symbol_id.module_id);
-        let b_module = b_module.read();
-        let b_types = b_module.dir().types.read();
-        let b_ty_id = b_types.get_value_type_id(b_symbol_id).unwrap();
-        assert_type!(b_types, b_ty_id, Type::Object { fields } => {
-            assert_eq!(fields.len(), 1);
-            assert_type!(b_types, fields[0].ty, Type::Reference { symbol, static_arguments: _ } => {
-                assert_eq!(*symbol, a_symbol_id);
-            });
-        });
-    }
-
     /// Resolve member access on object literal to field type.
     #[test]
     fn test_analyze_member_access_object_field() {
@@ -3305,6 +3788,218 @@ function greet(name = "hi") {
             let return_type = return_type.expect("expected return type");
             assert_type!(types, return_type, Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            });
+        });
+    }
+
+    #[test]
+    fn test_analyze_contextual_lambda_from_annotation() {
+        // infers lambda signature from contextual function type
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+const add: (a: number, b: number) => number = (a, b) => a + b;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
+
+        let expression_id = module.dir().roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
+        let let_expression = tree.get(expression_id);
+        let Expression::Let { declarators, .. } = let_expression else {
+            panic!("expected let expression");
+        };
+        let declarator_id = declarators.first().unwrap();
+        let declarator = tree.get(*declarator_id);
+        let value_id = declarator.value.expect("expected function value");
+        let value_ty_id = types
+            .get_inferred_type_id(value_id.into_global_any(module.id))
+            .expect("expected function type");
+
+        assert_type!(types, value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+            assert_eq!(dynamic_parameters.len(), 2);
+            assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+            assert_type!(types, dynamic_parameters[1], Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+            let return_type = return_type.expect("expected return type");
+            assert_type!(types, return_type, Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+        });
+    }
+
+    #[test]
+    fn test_analyze_contextual_lambda_from_argument() {
+        // infers lambda signature from argument type
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function apply(fn: (a: number) => number): number {
+    return fn(1);
+}
+apply((a) => a + 1);
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
+
+        let call_root_id = module.dir().roots[1];
+        let call_root = tree.get(call_root_id);
+        let &Expression::Statement {
+            statement: call_expression_id,
+        } = call_root
+        else {
+            panic!("expected statement");
+        };
+        let call_expression = tree.get(call_expression_id);
+        let Expression::Call {
+            dynamic_arguments, ..
+        } = call_expression
+        else {
+            panic!("expected call expression");
+        };
+        let argument_id = dynamic_arguments.first().expect("expected argument");
+        let argument = tree.get(*argument_id);
+        let argument_value_id = argument.value();
+        let argument_ty_id = types
+            .get_inferred_type_id(argument_value_id.into_global_any(module.id))
+            .expect("expected argument type");
+
+        assert_type!(types, argument_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+            let return_type = return_type.expect("expected return type");
+            assert_type!(types, return_type, Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+        });
+    }
+
+    #[test]
+    fn test_analyze_contextual_object_literal() {
+        // infers object literal field types from contextual type
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+const point: { x: number, y: string } = { x: 1, y: "hi" };
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
+
+        let expression_id = module.dir().roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
+        let let_expression = tree.get(expression_id);
+        let Expression::Let { declarators, .. } = let_expression else {
+            panic!("expected let expression");
+        };
+        let declarator_id = declarators.first().unwrap();
+        let declarator = tree.get(*declarator_id);
+        let value_id = declarator.value.expect("expected object value");
+        let value_ty_id = types
+            .get_inferred_type_id(value_id.into_global_any(module.id))
+            .expect("expected object type");
+
+        assert_type!(types, value_ty_id, Type::Object { fields } => {
+            assert_eq!(fields.len(), 2);
+            let mut saw_number = false;
+            let mut saw_string = false;
+            for field in fields {
+                match types.get_type(field.ty) {
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::Number),
+                    } => saw_number = true,
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::String),
+                    } => saw_string = true,
+                    _ => {}
+                }
+            }
+            assert!(saw_number);
+            assert!(saw_string);
+        });
+    }
+
+    #[test]
+    fn test_analyze_contextual_array_literal() {
+        // infers array literal element types from contextual type
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+const numbers: number[] = [1, 2];
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
+
+        let expression_id = module.dir().roots[0];
+        let expression = tree.get(expression_id);
+        let &Expression::Statement {
+            statement: expression_id,
+        } = expression
+        else {
+            panic!("expected statement");
+        };
+        let let_expression = tree.get(expression_id);
+        let Expression::Let { declarators, .. } = let_expression else {
+            panic!("expected let expression");
+        };
+        let declarator_id = declarators.first().unwrap();
+        let declarator = tree.get(*declarator_id);
+        let value_id = declarator.value.expect("expected array value");
+        let value_ty_id = types
+            .get_inferred_type_id(value_id.into_global_any(module.id))
+            .expect("expected array type");
+
+        assert_type!(types, value_ty_id, Type::Tuple { elements } => {
+            assert_eq!(elements.len(), 2);
+            assert_type!(types, elements[0], Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+            assert_type!(types, elements[1], Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
             });
         });
     }

@@ -31,13 +31,7 @@ impl Compiler {
             self.collect(
                 &mut collector,
                 self.infer_expression(
-                    &module,
-                    *root_id,
-                    &tree,
-                    &symbols,
-                    &mut types,
-                    &mut infer,
-                    &mut ctx,
+                    &module, *root_id, &tree, &symbols, &mut types, &mut infer, &mut ctx,
                 ),
             );
         }
