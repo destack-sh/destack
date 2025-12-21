@@ -38,6 +38,9 @@ pub enum Type {
     /// Scalar type literal.
     TypeLiteral { value: TypeLiteral },
 
+    /// Inference variable used during type analysis (should not be used outside of analysis).
+    InferVar { id: InferVarId },
+
     /// Type-as-value: runtime representation of a type (for reflection and instanceof).
     Value { value: LocalTypeId },
 
@@ -111,7 +114,7 @@ pub enum Type {
 impl Type {
     /// Whether the type is evaluated.
     pub fn is_evaluated(&self) -> bool {
-        !matches!(self, Type::Unevaluated { .. })
+        !matches!(self, Type::Unevaluated { .. } | Type::InferVar { .. })
     }
 
     /// Get the type symbol if this type is a direct reference to a declared type.
@@ -163,6 +166,18 @@ impl LocalTypeId {
             module_id,
             local_id: self,
         }
+    }
+}
+
+/// Unique identifier for inference variables.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct InferVarId(pub u32);
+
+impl InferVarId {
+    /// Wrap an id as an InferVarId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
     }
 }
 

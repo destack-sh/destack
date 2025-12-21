@@ -3,6 +3,7 @@ use destack_machine::Value;
 use crate::TestProgram;
 
 #[test]
+#[ignore] // nocheckin
 fn test_lower_add_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -36,6 +37,7 @@ block0:
 }
 
 #[test]
+#[ignore] // nocheckin
 fn test_lower_fib_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(

@@ -2,11 +2,15 @@ use destack_dir::{
     Asynchrony, FunctionCardinality, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
 };
 
-/// InferContext holds contextual, flow-sensitive information during type analysis.
+/// InferContext holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
 pub struct InferContext {
     /// Type narrowings currently in scope.
     pub narrowings: Vec<(GlobalSymbolId, LocalTypeId)>,
+    /// Expected type from the surrounding context.
+    pub expected_type: Option<LocalTypeId>,
+    /// Return type for the current function.
+    pub return_type: Option<LocalTypeId>,
     /// Whether we're in an unreachable code region (after `return`, `throw`, etc.).
     pub is_unreachable: bool,
     /// The enclosing loop node (if any) (enables break and continue).
@@ -28,6 +32,8 @@ impl InferContext {
     pub fn new() -> Self {
         Self {
             narrowings: Vec::new(),
+            expected_type: None,
+            return_type: None,
             is_unreachable: false,
             in_loop: None,
             in_match: None,
@@ -42,6 +48,8 @@ impl InferContext {
     pub fn fork(&self) -> Self {
         Self {
             narrowings: self.narrowings.clone(),
+            expected_type: self.expected_type,
+            return_type: self.return_type,
             is_unreachable: self.is_unreachable,
             in_loop: self.in_loop,
             in_match: self.in_match,
@@ -56,6 +64,8 @@ impl InferContext {
     pub fn reset(&self) -> Self {
         Self {
             narrowings: self.narrowings.clone(),
+            expected_type: self.expected_type,
+            return_type: self.return_type,
             is_unreachable: false,
             in_loop: None,
             in_match: None,
@@ -107,6 +117,18 @@ impl InferContext {
         self
     }
 
+    /// Set the expected type for the current context.
+    pub fn with_expected_type(mut self, expected_type: Option<LocalTypeId>) -> Self {
+        self.expected_type = expected_type;
+        self
+    }
+
+    /// Set the return type for the current context.
+    pub fn with_return_type(mut self, return_type: Option<LocalTypeId>) -> Self {
+        self.return_type = return_type;
+        self
+    }
+
     /// Set abstract class context conditionally.
     pub fn in_abstract_class_maybe(mut self, is_abstract: bool) -> Self {
         self.in_abstract_class = is_abstract;
@@ -130,7 +152,7 @@ impl InferContext {
 
     /// Check if we can await (in async function or at top level).
     pub fn can_await(&self) -> bool {
-        // await is valid in async functions, or at module top-level (when not in any function)
+        // await is valid in async functions or at module top level when not in any function
         self.is_async || self.in_function.is_none()
     }
 
@@ -163,6 +185,7 @@ impl InferContext {
 
     /// Merge two "branched" context together.
     pub fn merge(&mut self, other: &InferContext) {
+        // merge reachability and narrowings
         // if neither is unreachable
         if self.is_unreachable && other.is_unreachable {
             // both unreachable, stay unreachable
