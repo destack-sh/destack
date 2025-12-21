@@ -46,6 +46,7 @@ impl Compiler {
     fn is_type_assignable(&self, target: &Type, source: &Type, types: &TypeTable) -> Assignability {
         // handle special target types first
         match target {
+            Type::InferVar { .. } => return Assignability::Assignable,
             // any accepts everything
             Type::TypeLiteral {
                 value: TypeLiteral::Any,
@@ -66,6 +67,7 @@ impl Compiler {
 
         // handle special source types
         match source {
+            Type::InferVar { .. } => return Assignability::Assignable,
             // never is assignable to everything (bottom type)
             Type::TypeLiteral {
                 value: TypeLiteral::Never,

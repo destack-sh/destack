@@ -50,6 +50,7 @@ pub fn format_type(
             static_arguments,
         } => format_type_reference(*symbol, static_arguments.as_deref(), modules, strings),
         dir::Type::Unevaluated(_) => "<unevaluated>".to_string(),
+        dir::Type::InferVar { id } => format!("<infer {}>", id.0),
         dir::Type::Unary { operator, right } => {
             format_type_unary(*operator, *right, types, modules, strings)
         }

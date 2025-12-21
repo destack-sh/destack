@@ -724,6 +724,7 @@ dependencies = [
  "destack_resolver",
  "destack_source",
  "destack_workspace",
+ "indexmap",
  "parking_lot",
  "rayon",
  "serde",

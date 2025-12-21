@@ -33,6 +33,7 @@ destack_workspace = { workspace = true }
 # general
 crossbeam-deque = { workspace = true }
 dashmap = { workspace = true }
+indexmap = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }

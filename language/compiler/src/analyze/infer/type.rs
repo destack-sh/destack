@@ -58,7 +58,8 @@ impl Compiler {
             | BinaryOperator::Divide
             | BinaryOperator::Remainder
             | BinaryOperator::Exponent => self
-                .try_fold_arithmetic(operator, left, right)
+                .try_infer_string_concatenation(operator, left, right)
+                .or_else(|| self.try_fold_arithmetic(operator, left, right))
                 .unwrap_or_else(|| self.widen_numeric_types(left, right)),
 
             _ => left.clone(),
@@ -197,6 +198,38 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Try to infer string concatenation for add.
+    fn try_infer_string_concatenation(
+        &self,
+        operator: &BinaryOperator,
+        left: &Type,
+        right: &Type,
+    ) -> Option<Type> {
+        if !matches!(operator, BinaryOperator::Add) {
+            return None;
+        }
+
+        if Self::is_string_like(left) || Self::is_string_like(right) {
+            return Some(Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            });
+        }
+
+        None
+    }
+
+    fn is_string_like(ty: &Type) -> bool {
+        match ty {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            } => true,
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+            } => true,
+            _ => false,
+        }
     }
 
     /// Extract scalar literals from two types.
@@ -698,6 +731,12 @@ impl Compiler {
             Type::TypeLiteral { value } => types.insert_type_from(
                 Type::TypeLiteral {
                     value: value.clone(),
+                },
+                expression_id,
+            ),
+            Type::InferVar { .. } => types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
                 },
                 expression_id,
             ),

@@ -72,9 +72,6 @@ MIR is generated per-target with target-specific decisions:
 - Calling conventions (C, System, etc.)
 - Alignment requirements
 
-MIR examples in this document use `type @Name = ...` aliases for readability.
-See `language/mir/README.md` for the text format details.
-
 ---
 
 # Interoperability
@@ -1109,7 +1106,7 @@ Destack's types-as-values feature makes `Type<T>` a first-class value, enabling
 both compile-time and runtime reflection (as needed). 
 
 **Source-level API** (from `@destack-sh/core/reflection`):
-```
+```ds
 Type<T> = StructType<T> | ClassType<T> | EnumType<T> | ...
 
 struct StructType<T> {
@@ -1125,7 +1122,7 @@ struct StructType<T> {
 Type operations execute in the Machine interpreter (which runs MIR), so comptime and runtime share the same representation.
 This simplifies the design: there's no separate "comptime type format" vs "runtime type format".
 
-```
+```ds
 const PROP_COUNT = comptime User.properties.length;    // → literal 3
 const HAS_NAME = comptime User.properties.some(p => p.name == "name")  // → true
 
@@ -1139,7 +1136,7 @@ The RTTI table is a static array embedded in the binary.
 The native RTTI representation is a compact binary format that maps to the high-level
 `Type<T>` API from `language/builtin/core/reflect/type.ds`:
 
-```
+```ds
 // high-level API
 newtype Type<T> = StructType<T> | ClassType<T> | EnumType<T> | ...
 

@@ -1,5 +1,6 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, InferContext, TaskDependencyError, TaskResultCollector,
+    AnalyzeError, AnalyzeResult, Compiler, InferContext, InferTable, TaskDependencyError,
+    TaskResultCollector,
 };
 use destack_source::ModuleId;
 
@@ -24,11 +25,20 @@ impl Compiler {
         let mut collector = TaskResultCollector::new();
 
         // analyze all expressions
+        let mut infer = InferTable::default();
         let mut ctx = InferContext::new();
         for root_id in dir.roots.iter() {
             self.collect(
                 &mut collector,
-                self.infer_expression(&module, *root_id, &tree, &symbols, &mut types, &mut ctx),
+                self.infer_expression(
+                    &module,
+                    *root_id,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                    &mut infer,
+                    &mut ctx,
+                ),
             );
         }
 
@@ -36,6 +46,9 @@ impl Compiler {
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
         }
+
+        // solve constraints and commit inferred types
+        self.solve_infer_table(&infer, &mut types);
 
         Ok(())
     }

@@ -1,8 +1,12 @@
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{
+    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferOrigin,
+    InferScope, InferTable,
+};
 use destack_dir::{
     Argument, Block, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
-    EnumField, Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId,
-    GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    EnumField, Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId,
     MatchCase, MatchSelector, MatchSource, Member, NodeTree, Parameter, Pattern, PatternField,
     PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
     TypeTable, WhereClause,
@@ -20,6 +24,7 @@ impl Compiler {
             tree: &NodeTree,
             symbols: &SymbolTable,
             types: &mut TypeTable,
+            infer: &mut InferTable,
             ctx: &mut InferContext,
         ) -> AnalyzeResult<LocalTypeId> {
             if let Some(ty_id) = types.get_inferred_type_id(expression_id.into_global_any(module.id)) {
@@ -30,7 +35,7 @@ impl Compiler {
         let ty_id: LocalTypeId = match expression {
             // declaration -> analyze the declaration
             Expression::Declaration { declaration } => {
-                self.infer_declaration(module, *declaration, tree, symbols, types, ctx)?;
+                self.infer_declaration(module, *declaration, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -39,12 +44,12 @@ impl Compiler {
 
             // block -> analyze the block
             Expression::Block { block } => {
-                self.infer_block(module, *block, tree, symbols, types, ctx)?
+                self.infer_block(module, *block, tree, symbols, types, infer, ctx)?
             }
 
             // statement -> analyze the statement
             Expression::Statement { statement } => {
-                self.infer_expression(module, *statement, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *statement, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -57,7 +62,7 @@ impl Compiler {
                 body: body_id,
                 symbol: _,
             } => {
-                self.infer_expression(module, *body_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *body_id, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -79,11 +84,11 @@ impl Compiler {
                 arguments,
             } => {
                 for item_id in items {
-                    self.infer_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
+                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.infer_argument(module, *argument_id, None, tree, symbols, types, ctx)?;
+                        self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
                     }
                 }
                 let ty = Type::TypeLiteral {
@@ -104,7 +109,7 @@ impl Compiler {
                 items,
             } => {
                 for item_id in items {
-                    self.infer_dependency_item(module, *item_id, tree, symbols, types, ctx)?;
+                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -126,6 +131,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
@@ -138,7 +144,7 @@ impl Compiler {
             // type operations
             Expression::TypeUnary { operator, right } => {
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 let ty = self.infer_type_unary_operation(operator, right_ty_id, types);
                 types.insert_type_from(ty, expression_id)
             }
@@ -147,9 +153,9 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 let ty = self.infer_type_binary_operation(
                     module,
                     expression_id,
@@ -165,7 +171,7 @@ impl Compiler {
             // #Incomplete: resolve unary operator overloads
             Expression::Unary { operator, right } => {
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 let ty = self.infer_unary_operation(operator, types.get_type(right_ty_id));
                 types.insert_type_from(ty, expression_id)
             }
@@ -177,7 +183,7 @@ impl Compiler {
                 right,
             } => {
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 let ty = self.infer_value_of_operation(
                     *mutability,
                     *variance,
@@ -193,7 +199,7 @@ impl Compiler {
                 right,
             } => {
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 let ty = self.infer_reference_of_operation(
                     *mutability,
                     *variance,
@@ -209,9 +215,9 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
 
                 let ty = self.infer_binary_operation(
                     operator,
@@ -223,13 +229,20 @@ impl Compiler {
 
             // assignment operations -> void
             Expression::Assign { left, right } => {
-                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
 
                 // type check: right must be assignable to left
-                if self.check_is_type_assignable(left_ty_id, right_ty_id, types)
-                    == Assignability::NotAssignable
+                infer.push_constraint(Constraint::Subtype {
+                    sub: right_ty_id,
+                    sup: left_ty_id,
+                    variance: None,
+                });
+                if !self.is_infer_var_type(left_ty_id, types)
+                    && !self.is_infer_var_type(right_ty_id, types)
+                    && self.check_is_type_assignable(left_ty_id, right_ty_id, types)
+                        == Assignability::NotAssignable
                 {
                     return Err(AnalyzeError::UnassignableType {
                         node: expression_id.into_global_any(module.id),
@@ -255,9 +268,9 @@ impl Compiler {
                 right,
             } => {
                 let _left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 let _right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -267,7 +280,7 @@ impl Compiler {
             // delete operation -> void
             Expression::Delete { value } => {
                 let _value_ty_id =
-                    self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -370,14 +383,14 @@ impl Compiler {
             // array / tuple expression -> precise tuple type for each element
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 for element_id in elements {
-                    self.infer_argument(module, *element_id, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *element_id, None, tree, symbols, types, infer, ctx)?;
                 }
                 let element_tys: Vec<LocalTypeId> = elements
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
                         let element_id = element.value();
-                        self.infer_expression(module, element_id, tree, symbols, types, ctx)
+                        self.infer_expression(module, element_id, tree, symbols, types, infer, ctx)
                     })
                     .collect::<Result<Vec<_>, AnalyzeError>>()?;
                 let ty = Type::Tuple {
@@ -391,7 +404,7 @@ impl Compiler {
                 let mut last_ty = None;
                 for expr_id in expressions {
                     last_ty =
-                        Some(self.infer_expression(module, *expr_id, tree, symbols, types, ctx)?);
+                        Some(self.infer_expression(module, *expr_id, tree, symbols, types, infer, ctx)?);
                 }
                 // return the type of the last expression, or void if empty (shouldn't be empty?)
                 last_ty.unwrap_or_else(|| {
@@ -407,14 +420,14 @@ impl Compiler {
             // parenthesized -> same type as inner
             Expression::Parenthesized {
                 expression: inner_id,
-            } => self.infer_expression(module, *inner_id, tree, symbols, types, ctx)?,
+            } => self.infer_expression(module, *inner_id, tree, symbols, types, infer, ctx)?,
 
             // object expression -> object type
             Expression::ObjectExpression { properties } => {
                 let mut fields = Vec::new();
                 for property_id in properties {
                     if let Some(field) =
-                        self.infer_property(module, *property_id, tree, symbols, types, ctx)?
+                        self.infer_property(module, *property_id, tree, symbols, types, infer, ctx)?
                     {
                         fields.push(field);
                     }
@@ -431,16 +444,16 @@ impl Compiler {
                 dynamic_arguments,
             } => {
                 let callee_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
 
                 // analyze arguments
                 let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
                 for arg in dynamic_arguments {
-                    self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *arg, None, tree, symbols, types, infer, ctx)?;
                     let arg_expr = tree.get(*arg);
                     let arg_value_id = arg_expr.value();
                     let argument_ty_id =
-                        self.infer_expression(module, arg_value_id, tree, symbols, types, ctx)?;
+                        self.infer_expression(module, arg_value_id, tree, symbols, types, infer, ctx)?;
                     argument_ty_ids.push(argument_ty_id);
                 }
 
@@ -452,14 +465,27 @@ impl Compiler {
                         return_type,
                         ..
                     } => {
+                        // add argument constraints against parameters
+                        for (argument_ty_id, param_ty_id) in
+                            argument_ty_ids.iter().zip(dynamic_parameters.iter())
+                        {
+                            infer.push_constraint(Constraint::Subtype {
+                                sub: *argument_ty_id,
+                                sup: *param_ty_id,
+                                variance: None,
+                            });
+                        }
+
                         // type check arguments against parameters
                         let param_types = dynamic_parameters.clone();
                         let return_type = *return_type;
                         for (i, (argument_ty_id, param_ty_id)) in
                             argument_ty_ids.iter().zip(param_types.iter()).enumerate()
                         {
-                            if self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types)
-                                == Assignability::NotAssignable
+                            if !self.is_infer_var_type(*param_ty_id, types)
+                                && !self.is_infer_var_type(*argument_ty_id, types)
+                                && self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types)
+                                    == Assignability::NotAssignable
                             {
                                 // get the argument node for error reporting
                                 let argument_node = dynamic_arguments
@@ -502,7 +528,7 @@ impl Compiler {
                 name,
                 static_arguments: _,
             } => {
-                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                let left_ty_id = self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 let left_ty = types.get_type(left_ty_id).clone();
 
                 // look up member type on the left type (including extensions)
@@ -529,9 +555,9 @@ impl Compiler {
             // index -> element type
             Expression::Index { left, right } => {
                 let _left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 if let Some(right) = right {
-                    self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
                 }
                 // #Incomplete: resolve element type from array/tuple type
                 let ty = Type::TypeLiteral {
@@ -547,9 +573,9 @@ impl Compiler {
                 dynamic_arguments,
             } => {
                 let _left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 for arg in dynamic_arguments {
-                    self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *arg, None, tree, symbols, types, infer, ctx)?;
                 }
                 // #Incomplete: resolve instance type from constructor
                 let ty = Type::TypeLiteral {
@@ -565,12 +591,12 @@ impl Compiler {
                 then_expression,
                 else_expression,
             } => {
-                self.infer_expression(module, *condition, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
                 let then_ty_id =
-                    self.infer_expression(module, *then_expression, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *then_expression, tree, symbols, types, infer, ctx)?;
                 if let Some(else_expr) = else_expression {
                     let _else_ty_id =
-                        self.infer_expression(module, *else_expr, tree, symbols, types, ctx)?;
+                        self.infer_expression(module, *else_expr, tree, symbols, types, infer, ctx)?;
                     // #Incomplete: compute union or common type of then/else branches
                 }
                 then_ty_id
@@ -585,10 +611,10 @@ impl Compiler {
                 symbol: _,
             } => {
                 if let Some(cond) = condition {
-                    self.infer_expression(module, *cond, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *cond, tree, symbols, types, infer, ctx)?;
                 }
                 let mut ctx = ctx.fork().in_loop(expression_id.into_any());
-                self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
+                self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 // #Incomplete: loop return type depends on break value
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -607,7 +633,7 @@ impl Compiler {
                 symbol: _,
             } => {
                 let iterator_ty_id =
-                    self.infer_expression(module, *iterator, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *iterator, tree, symbols, types, infer, ctx)?;
                 self.infer_pattern(
                     module,
                     *pattern,
@@ -615,10 +641,11 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
                 let mut ctx = ctx.fork().in_loop(expression_id.into_any());
-                self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
+                self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -635,16 +662,16 @@ impl Compiler {
                 symbol: _,
             } => {
                 if let Some(initialization) = initialization {
-                    self.infer_expression(module, *initialization, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *initialization, tree, symbols, types, infer, ctx)?;
                 }
                 if let Some(condition) = condition {
-                    self.infer_expression(module, *condition, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
                 }
                 if let Some(increment) = increment {
-                    self.infer_expression(module, *increment, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *increment, tree, symbols, types, infer, ctx)?;
                 }
                 let mut ctx = ctx.fork().in_loop(expression_id.into_any());
-                self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
+                self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -660,7 +687,7 @@ impl Compiler {
                 symbol: _,
             } => {
                 let value_ty_id =
-                    self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 let mut ctx = if *source == MatchSource::Match {
                     ctx.fork().in_match(expression_id.into_any())
                 } else {
@@ -680,7 +707,7 @@ impl Compiler {
                             body,
                             scope: _,
                         } => {
-                            self.infer_block(module, *body, tree, symbols, types, &mut ctx)?;
+                            self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
                             (selector, None)
                         }
                     };
@@ -693,6 +720,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            infer,
                             &mut ctx,
                         )?;
                         if let Some(guard_expr) = guard {
@@ -702,6 +730,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
+                                infer,
                                 &mut ctx,
                             )?;
                         }
@@ -709,7 +738,7 @@ impl Compiler {
                     // default selector has no pattern or guard to infer
                     if let Some(expr) = body_expr {
                         let case_ty_id =
-                            self.infer_expression(module, expr, tree, symbols, types, &mut ctx)?;
+                            self.infer_expression(module, expr, tree, symbols, types, infer, &mut ctx)?;
                         if result_ty_id.is_none() {
                             result_ty_id = Some(case_ty_id);
                         }
@@ -734,29 +763,51 @@ impl Compiler {
                 symbol: _,
             } => {
                 let try_ty_id =
-                    self.infer_expression(module, *try_expression, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *try_expression, tree, symbols, types, infer, ctx)?;
                 if let Some(catch_pat) = catch_pattern {
-                    self.infer_pattern(module, *catch_pat, None, tree, symbols, types, ctx)?;
+                    self.infer_pattern(module, *catch_pat, None, tree, symbols, types, infer, ctx)?;
                 }
                 if let Some(catch_expr) = catch_expression {
-                    self.infer_expression(module, *catch_expr, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *catch_expr, tree, symbols, types, infer, ctx)?;
                 }
                 if let Some(finally_expr) = finally_expression {
-                    self.infer_expression(module, *finally_expr, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *finally_expr, tree, symbols, types, infer, ctx)?;
                 }
                 try_ty_id
             }
 
             // return -> never (control flow)
             Expression::Return { value } => {
+                // validate return position
                 if !ctx.can_return() {
                     self.error(AnalyzeError::InvalidReturn {
                         node: expression_id.into_global_any(module.id),
                     });
                 }
+
+                // constrain return value to the function return type
                 if let Some(val) = value {
-                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
+                    let value_ty_id =
+                        self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
+                    if let Some(return_ty_id) = ctx.return_type {
+                        infer.push_constraint(Constraint::Subtype {
+                            sub: value_ty_id,
+                            sup: return_ty_id,
+                            variance: None,
+                        });
+                    }
+                } else if let Some(return_ty_id) = ctx.return_type {
+                    let void_ty_id = types.insert_type(Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    });
+                    infer.push_constraint(Constraint::Subtype {
+                        sub: void_ty_id,
+                        sup: return_ty_id,
+                        variance: None,
+                    });
                 }
+
+                // return expressions always end control flow
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
@@ -772,7 +823,7 @@ impl Compiler {
                     });
                 }
                 if let Some(val) = value {
-                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
@@ -787,7 +838,7 @@ impl Compiler {
                     });
                 }
                 if let Some(val) = value {
-                    self.infer_expression(module, *val, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
                 }
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
@@ -823,7 +874,7 @@ impl Compiler {
 
             // throw -> never (control flow)
             Expression::Throw { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
@@ -838,7 +889,7 @@ impl Compiler {
                     });
                 }
                 let _inner_ty_id =
-                    self.infer_expression(module, *expression, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
                 // #Incomplete: unwrap Promise type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -854,7 +905,7 @@ impl Compiler {
             // comptime -> type of body (evaluated at compile time)
             Expression::Comptime { body } => {
                 // #Incomplete: validate that body can be evaluated at comptime
-                self.infer_expression(module, *body, tree, symbols, types, ctx)?
+                self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?
             }
 
             // yield -> yielded type
@@ -868,7 +919,7 @@ impl Compiler {
                     });
                 }
                 if let Some(value_id) = value {
-                    self.infer_expression(module, *value_id, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value_id, tree, symbols, types, infer, ctx)?;
                 }
                 // #Incomplete: yield type depends on generator context
                 let ty = Type::TypeLiteral {
@@ -880,7 +931,7 @@ impl Compiler {
             // maybe/must unwrap -> inner type or error
             Expression::Maybe { left } | Expression::Must { left } => {
                 let _inner_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 // #Incomplete: unwrap optional type
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -896,7 +947,7 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
             Expression::TaggedTemplateExpression { tag, value: _ } => {
-                let _tag_ty_id = self.infer_expression(module, *tag, tree, symbols, types, ctx)?;
+                let _tag_ty_id = self.infer_expression(module, *tag, tree, symbols, types, infer, ctx)?;
                 // #Incomplete: tagged template return type from tag function
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -911,8 +962,8 @@ impl Compiler {
                 end,
                 is_inclusive: _,
             } => {
-                self.infer_expression(module, *start, tree, symbols, types, ctx)?;
-                self.infer_expression(module, *end, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *start, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(module, *end, tree, symbols, types, infer, ctx)?;
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -921,21 +972,21 @@ impl Compiler {
 
             // tagged expressions for newtype construction
             Expression::TaggedScalarExpression { ty, value } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 ty_id
             }
             Expression::TaggedTupleExpression { ty, elements } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
                 for elem in elements {
-                    self.infer_argument(module, *elem, None, tree, symbols, types, ctx)?;
+                    self.infer_argument(module, *elem, None, tree, symbols, types, infer, ctx)?;
                 }
                 ty_id
             }
             Expression::TaggedObjectExpression { ty, properties } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
                 for prop_id in properties {
-                    self.infer_property(module, *prop_id, tree, symbols, types, ctx)?;
+                    self.infer_property(module, *prop_id, tree, symbols, types, infer, ctx)?;
                 }
                 ty_id
             }
@@ -947,16 +998,16 @@ impl Compiler {
                 elements,
             } => {
                 if let Some(left) = left {
-                    self.infer_expression(module, *left, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
                 }
                 if let Some(args) = arguments {
                     for arg in args {
-                        self.infer_argument(module, *arg, None, tree, symbols, types, ctx)?;
+                        self.infer_argument(module, *arg, None, tree, symbols, types, infer, ctx)?;
                     }
                 }
                 if let Some(elems) = elements {
                     for elem in elems {
-                        self.infer_argument(module, *elem, None, tree, symbols, types, ctx)?;
+                        self.infer_argument(module, *elem, None, tree, symbols, types, infer, ctx)?;
                     }
                 }
                 // #Incomplete: JSX element type
@@ -1003,6 +1054,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(ty_id) = types.get_inferred_type_id(block_id.into_global_any(module.id)) {
@@ -1011,12 +1063,12 @@ impl Compiler {
 
         let block = tree.get(block_id);
         for expression_id in &block.expressions {
-            self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
+            self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
         }
 
         // type is last expression type
         let ty_id = if let Some(last_expression_id) = block.expressions.last() {
-            self.infer_expression(module, *last_expression_id, tree, symbols, types, ctx)?
+            self.infer_expression(module, *last_expression_id, tree, symbols, types, infer, ctx)?
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
@@ -1037,6 +1089,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let declaration = tree.get(declaration_id);
@@ -1050,9 +1103,9 @@ impl Compiler {
                 expressions,
             } => {
                 // walk
-                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 for expression_id in expressions {
-                    self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
                 }
             }
 
@@ -1067,13 +1120,22 @@ impl Compiler {
                 // walk
                 if let Some(parameters) = static_parameters {
                     for parameter_id in parameters {
-                        self.infer_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
+                        self.infer_parameter(
+                            module,
+                            *parameter_id,
+                            None,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
                     }
                 }
 
                 // type instance type -> type value
                 let instance_ty_id =
-                    self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 match *kind {
                     TypeKind::Structural => {
                         types.set_instance_type(
@@ -1108,7 +1170,7 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
                     module,
                     heritage,
@@ -1117,6 +1179,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
 
@@ -1124,7 +1187,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1159,7 +1222,7 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
                     module,
                     heritage,
@@ -1168,6 +1231,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
 
@@ -1179,7 +1243,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, &mut ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, infer, &mut ctx)?
                     {
                         fields.push(field);
                     }
@@ -1216,7 +1280,7 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
                     module,
                     heritage,
@@ -1225,13 +1289,14 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
                 for field_id in fields {
-                    self.infer_enum_field(module, *field_id, tree, symbols, types, ctx)?;
+                    self.infer_enum_field(module, *field_id, tree, symbols, types, infer, ctx)?;
                 }
                 for member_id in members {
-                    self.infer_member(module, *member_id, tree, symbols, types, ctx)?;
+                    self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?;
                 }
 
                 // enum instance type -> enum value type
@@ -1261,8 +1326,8 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
-                self.infer_expression(module, *target_type, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(module, *target_type, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
                     module,
                     heritage,
@@ -1271,6 +1336,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
 
@@ -1278,7 +1344,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1315,7 +1381,7 @@ impl Compiler {
                 members,
             } => {
                 // walk
-                self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
                     module,
                     heritage,
@@ -1324,6 +1390,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
 
@@ -1331,7 +1398,7 @@ impl Compiler {
                 let mut fields = Vec::new();
                 for member_id in members {
                     if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, ctx)?
+                        self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?
                     {
                         fields.push(field);
                     }
@@ -1367,20 +1434,24 @@ impl Compiler {
                 let fn_ty_id = self.infer_signature(
                     module,
                     declaration_id.into_any(),
+                    descriptor.symbol.into_global(module.id),
                     signature,
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
                 // register the function type as the value_type for the function's symbol #Suspicious
                 types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
 
                 if let Some(body) = body {
-                    let mut ctx = ctx
+                    let return_type = self.function_return_type(fn_ty_id, types);
+                    let ctx = ctx
                         .reset()
                         .in_function_with_signature(declaration_id.into_any(), signature);
-                    self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
+                    let mut ctx = ctx.with_return_type(return_type);
+                    self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 }
             }
         }
@@ -1396,6 +1467,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<TypeField>> {
         let property = tree.get(property_id);
@@ -1416,7 +1488,7 @@ impl Compiler {
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
-                    self.infer_expression(module, *value, tree, symbols, types, ctx)?
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?
                 } else {
                     // no value, return unknown type
                     let ty = Type::TypeLiteral {
@@ -1427,7 +1499,7 @@ impl Compiler {
 
                 // default
                 if let Some(default) = default {
-                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                 }
 
                 // is optional
@@ -1460,13 +1532,13 @@ impl Compiler {
                     let mut ctx = ctx
                         .reset()
                         .in_function_with_signature(property_id.into_any(), signature);
-                    self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
+                    self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 }
                 Ok(None)
             }
             Property::Spread { value, .. } => {
                 // #Incomplete: expand spread type into object type
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 Ok(None)
             }
         }
@@ -1480,6 +1552,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<TypeField>> {
         let member = tree.get(member_id);
@@ -1500,7 +1573,7 @@ impl Compiler {
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
-                    self.infer_expression(module, *value, tree, symbols, types, ctx)?
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?
                 } else {
                     // no value, return unknown type
                     let ty = Type::TypeLiteral {
@@ -1511,7 +1584,7 @@ impl Compiler {
 
                 // analyze default if present
                 if let Some(default) = default {
-                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                 }
 
                 // check if the field is optional
@@ -1553,19 +1626,23 @@ impl Compiler {
                 let method_ty_id = self.infer_signature(
                     module,
                     member_id.into_any(),
+                    member.symbol().into_global(module.id),
                     signature,
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
 
                 // body
                 if let Some(body) = body {
-                    let mut ctx = ctx
+                    let return_type = self.function_return_type(method_ty_id, types);
+                    let ctx = ctx
                         .reset()
                         .in_function_with_signature(member_id.into_any(), signature);
-                    self.infer_expression(module, *body, tree, symbols, types, &mut ctx)?;
+                    let mut ctx = ctx.with_return_type(return_type);
+                    self.infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
                 }
 
                 // return a field if we have a static key
@@ -1582,11 +1659,11 @@ impl Compiler {
             }
             Member::Embed { value, .. } => {
                 // #Incomplete: expand embedded type into member fields?
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 Ok(None)
             }
             Member::StaticBlock { body, .. } => {
-                self.infer_expression(module, *body, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?;
                 Ok(None)
             }
         }
@@ -1600,16 +1677,26 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         if let Some(static_parameters) = &generics.static_parameters {
             for parameter_id in static_parameters {
-                self.infer_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
+                self.infer_parameter(
+                    module,
+                    *parameter_id,
+                    None,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
             }
         }
         if let Some(clauses) = &generics.where_clauses {
             for clause_id in clauses {
-                self.infer_where_clause(module, *clause_id, tree, symbols, types, ctx)?;
+                self.infer_where_clause(module, *clause_id, tree, symbols, types, infer, ctx)?;
             }
         }
         Ok(())
@@ -1625,13 +1712,14 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // analyze and extract extends symbols
         let mut extends_symbols = Vec::new();
         if let Some(extend_types) = &heritage.extends_types {
             for expression_id in extend_types {
-                self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
                 let expression = tree.get(*expression_id);
                 if let Some(target_symbol) = expression.target_symbol() {
                     extends_symbols.push(target_symbol);
@@ -1643,7 +1731,7 @@ impl Compiler {
         let mut implements_symbols = Vec::new();
         if let Some(implements_types) = &heritage.implements_types {
             for expression_id in implements_types {
-                self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
                 let expression = tree.get(*expression_id);
                 if let Some(target_symbol) = expression.target_symbol() {
                     implements_symbols.push(target_symbol);
@@ -1655,7 +1743,7 @@ impl Compiler {
         let mut embedded_symbols = Vec::new();
         if let Some(embedded_types) = &heritage.embedded_types {
             for expression_id in embedded_types {
-                self.infer_expression(module, *expression_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
                 let expression = tree.get(*expression_id);
                 if let Some(target_symbol) = expression.target_symbol() {
                     embedded_symbols.push(target_symbol);
@@ -1685,38 +1773,60 @@ impl Compiler {
         &self,
         module: &Module,
         node_id: LocalNodeIdAny,
+        owner_symbol: GlobalSymbolId,
         signature: &FunctionSignature,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // walk generics
         if let Some(generics) = &signature.generics {
-            self.infer_generics(module, generics, tree, symbols, types, ctx)?;
+            self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
         }
 
         // collect parameter types
+        let scope = InferScope {
+            owner: owner_symbol,
+            function_id: Some(node_id.into_global(module.id)),
+        };
+
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for parameter_id in &signature.dynamic_parameters {
-            self.infer_parameter(module, *parameter_id, tree, symbols, types, ctx)?;
-            // get the declared type for this parameter
-            let param_ty_id = types
-                .get_declared_type_id(parameter_id.into_global_any(module.id))
-                .unwrap_or_else(|| {
-                    // no declared type: infer unknown
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, *parameter_id)
-                });
+            let declared_ty_id =
+                types.get_declared_type_id(parameter_id.into_global_any(module.id));
+
+            let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+            let param_ty_id = declared_ty_id.unwrap_or_else(|| {
+                self.infer_var_type_for_symbol(
+                    infer,
+                    types,
+                    param_symbol,
+                    InferOrigin::Parameter(parameter_id.into_global_any(module.id)),
+                    scope,
+                )
+            });
+
+            self.infer_parameter(
+                module,
+                *parameter_id,
+                Some(param_ty_id),
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+
+            types.set_value_type(param_symbol, param_ty_id);
             dynamic_param_types.push(param_ty_id);
         }
 
         // get return type
         let return_type = if let Some(return_type_expr_id) = signature.return_type {
             let return_ty_id =
-                self.infer_expression(module, return_type_expr_id, tree, symbols, types, ctx)?;
+                self.infer_expression(module, return_type_expr_id, tree, symbols, types, infer, ctx)?;
             // unwrap Value type if present
             let return_ty = types.get_type(return_ty_id);
             match return_ty {
@@ -1724,9 +1834,16 @@ impl Compiler {
                 _ => Some(return_ty_id),
             }
         } else {
-            None
+            Some(self.infer_var_type_for_node(
+                infer,
+                types,
+                node_id.into_global(module.id),
+                InferOrigin::Return(node_id.into_global(module.id)),
+                scope,
+            ))
         };
 
+        // build the function type for this signature
         let ty = Type::Function {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
@@ -1744,9 +1861,11 @@ impl Compiler {
         &self,
         module: &Module,
         parameter_id: LocalNodeId<Parameter>,
+        binding_ty_id: Option<LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let parameter = tree.get(parameter_id);
@@ -1755,32 +1874,75 @@ impl Compiler {
                 modifiers: _,
                 name: _,
                 default,
-                symbol: _,
+                symbol,
             } => {
+                // bind parameter symbol to its type
+                if let Some(binding_ty_id) = binding_ty_id {
+                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                }
+
+                // infer default expression and constrain to parameter type
                 if let Some(default) = default {
-                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
+                    let default_ty_id =
+                        self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                    if let Some(binding_ty_id) = binding_ty_id {
+                        infer.push_constraint(Constraint::Subtype {
+                            sub: default_ty_id,
+                            sup: binding_ty_id,
+                            variance: None,
+                        });
+                    }
                 }
             }
             Parameter::Pattern {
                 modifiers: _,
                 pattern,
                 default,
-                symbol: _,
+                symbol,
             } => {
-                // infer type from default if present
+                // bind parameter symbol to its type
+                if let Some(binding_ty_id) = binding_ty_id {
+                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                }
+
+                // infer default expression and pick a binding type
                 let default_ty_id = if let Some(default) = default {
-                    Some(self.infer_expression(module, *default, tree, symbols, types, ctx)?)
+                    Some(self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?)
                 } else {
                     None
                 };
-                self.infer_pattern(module, *pattern, default_ty_id, tree, symbols, types, ctx)?;
+                let binding_ty_id = binding_ty_id.or(default_ty_id);
+
+                // constrain default to the binding type
+                if let (Some(default_ty_id), Some(binding_ty_id)) = (default_ty_id, binding_ty_id) {
+                    infer.push_constraint(Constraint::Subtype {
+                        sub: default_ty_id,
+                        sup: binding_ty_id,
+                        variance: None,
+                    });
+                }
+
+                // infer bindings within the pattern
+                self.infer_pattern(
+                    module,
+                    *pattern,
+                    binding_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
             }
             Parameter::Variadic {
                 modifiers: _,
                 name: _,
-                symbol: _,
+                symbol,
             } => {
-                // nothing to do
+                // bind variadic parameter symbol to its type
+                if let Some(binding_ty_id) = binding_ty_id {
+                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                }
             }
         }
         Ok(())
@@ -1795,21 +1957,22 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let argument = tree.get(argument_id);
         match argument {
             Argument::Positional { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
             }
             Argument::Named { name: _, value } => {
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
             }
             Argument::Labeled { label: _, value } => {
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
             }
             Argument::Spread { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
             }
         }
         Ok(())
@@ -1823,6 +1986,7 @@ impl Compiler {
         tree: &NodeTree,
         _symbols: &SymbolTable,
         _types: &mut TypeTable,
+        _infer: &mut InferTable,
         _ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let item = tree.get(item_id);
@@ -1854,15 +2018,16 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let clause = tree.get(clause_id);
         match clause {
             WhereClause::Assertion { left: _, right } => {
-                self.infer_expression(module, *right, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
             }
             WhereClause::Guard { guard } => {
-                self.infer_expression(module, *guard, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *guard, tree, symbols, types, infer, ctx)?;
             }
         }
         Ok(())
@@ -1876,11 +2041,12 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let field = tree.get(field_id);
         if let Some(value) = field.value {
-            self.infer_expression(module, value, tree, symbols, types, ctx)?;
+            self.infer_expression(module, value, tree, symbols, types, infer, ctx)?;
         }
         Ok(())
     }
@@ -1894,6 +2060,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let pattern = tree.get(pattern_id);
@@ -1909,6 +2076,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
             }
@@ -1916,13 +2084,13 @@ impl Compiler {
                 mutability: _,
                 right,
             } => {
-                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, infer, ctx)?;
             }
             Pattern::ValueOf {
                 mutability: _,
                 right,
             } => {
-                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *right, binding_ty_id, tree, symbols, types, infer, ctx)?;
             }
             Pattern::Binding {
                 mutability: _,
@@ -1941,12 +2109,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
             }
             Pattern::Expression { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, ctx)?;
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
             }
             Pattern::Range {
                 start,
@@ -1961,6 +2130,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
@@ -1972,6 +2142,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
@@ -1987,11 +2158,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
             }
             Pattern::TaggedTuple { ty, fields } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
                 self.infer_pattern_sequence(
                     module,
                     fields,
@@ -2002,6 +2174,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
             }
@@ -2016,6 +2189,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     ctx,
                 )?;
             }
@@ -2028,12 +2202,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
             }
             Pattern::TaggedObject { ty, fields } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, ctx)?;
+                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
                 for field_id in fields {
                     self.infer_pattern_field(
                         module,
@@ -2042,6 +2217,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
@@ -2055,6 +2231,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
@@ -2074,6 +2251,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let binding_ty_fields = binding_ty_id
@@ -2109,7 +2287,7 @@ impl Compiler {
                     None
                 }
             };
-            self.infer_pattern_field(module, *field_id, field_ty, tree, symbols, types, ctx)?;
+            self.infer_pattern_field(module, *field_id, field_ty, tree, symbols, types, infer, ctx)?;
         }
         Ok(())
     }
@@ -2123,6 +2301,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let field = tree.get(field_id);
@@ -2145,6 +2324,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        infer,
                         ctx,
                     )?;
                 }
@@ -2160,11 +2340,11 @@ impl Compiler {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
                 if let Some(default) = default {
-                    self.infer_expression(module, *default, tree, symbols, types, ctx)?;
+                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                 }
             }
             PatternField::Positional { pattern } => {
-                self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
+                self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, infer, ctx)?;
             }
             PatternField::Spread {
                 mutability: _,
@@ -2191,6 +2371,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let declarator = tree.get(declarator_id);
@@ -2201,46 +2382,153 @@ impl Compiler {
         let declared_ty_id =
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
         let inferred_ty_id = if let Some(value) = value {
-            Some(self.infer_expression(module, *value, tree, symbols, types, ctx)?)
+            Some(self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?)
         } else {
             None
         };
 
         // type check: if both declared and inferred, check assignability
-        if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id)
-            && self.check_is_type_assignable(declared, inferred, types)
-                == Assignability::NotAssignable
-        {
-            return Err(AnalyzeError::UnassignableType {
-                node: declarator_id.into_global(module.id).into(),
-                expected_ty: GlobalTypeId {
-                    module_id: module.id,
-                    local_id: declared,
-                },
-                actual_ty: GlobalTypeId {
-                    module_id: module.id,
-                    local_id: inferred,
-                },
+        if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id) {
+            infer.push_constraint(Constraint::Subtype {
+                sub: inferred,
+                sup: declared,
+                variance: None,
             });
+            if !self.is_infer_var_type(declared, types)
+                && !self.is_infer_var_type(inferred, types)
+                && self.check_is_type_assignable(declared, inferred, types)
+                    == Assignability::NotAssignable
+            {
+                return Err(AnalyzeError::UnassignableType {
+                    node: declarator_id.into_global(module.id).into(),
+                    expected_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: declared,
+                    },
+                    actual_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: inferred,
+                    },
+                });
+            }
         }
 
         // analyze the type expression if present
         if let Some(ty_id) = ty {
-            self.infer_expression(module, *ty_id, tree, symbols, types, ctx)?;
+            self.infer_expression(module, *ty_id, tree, symbols, types, infer, ctx)?;
         }
 
+        // infer pattern bindings from declared or inferred type
         let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-        self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, ctx)?;
+        self.infer_pattern(module, *pattern, binding_ty_id, tree, symbols, types, infer, ctx)?;
 
         Ok(())
+    }
+
+    /// Get or create an inference variable type for a symbol.
+    fn infer_var_type_for_symbol(
+        &self,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
+        symbol: GlobalSymbolId,
+        origin: InferOrigin,
+        scope: InferScope,
+    ) -> LocalTypeId {
+        // reuse existing inference variable when available
+        if let Some(var_id) = infer.var_by_symbol_id.get(&symbol).copied() {
+            if let Some(ty_id) = infer.type_for_var(var_id) {
+                if ty_id.0 != u32::MAX {
+                    return ty_id;
+                }
+            }
+        }
+
+        // allocate and bind a new inference variable
+        let var_id = infer.new_var(origin, scope);
+        let ty_id = types.insert_type(Type::InferVar { id: var_id });
+        infer.bind_type(var_id, ty_id);
+        infer.var_by_symbol_id.insert(symbol, var_id);
+        ty_id
+    }
+
+    /// Get or create an inference variable type for a node.
+    fn infer_var_type_for_node(
+        &self,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
+        node_id: GlobalNodeIdAny,
+        origin: InferOrigin,
+        scope: InferScope,
+    ) -> LocalTypeId {
+        // reuse existing inference variable when available
+        if let Some(var_id) = infer.var_by_node_id.get(&node_id).copied() {
+            if let Some(ty_id) = infer.type_for_var(var_id) {
+                if ty_id.0 != u32::MAX {
+                    return ty_id;
+                }
+            }
+        }
+
+        // allocate and bind a new inference variable
+        let var_id = infer.new_var(origin, scope);
+        let ty_id = types.insert_type(Type::InferVar { id: var_id });
+        infer.bind_type(var_id, ty_id);
+        infer.var_by_node_id.insert(node_id, var_id);
+        ty_id
+    }
+
+    /// Check whether a type id points at an inference variable.
+    fn is_infer_var_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+        matches!(types.get_type(ty_id), Type::InferVar { .. })
+    }
+
+    /// Extract the return type from a function type.
+    fn function_return_type(
+        &self,
+        fn_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        match types.get_type(fn_ty_id) {
+            Type::Function { return_type, .. } => *return_type,
+            _ => None,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{Expression, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
+    use destack_dir::{
+        Declaration, Expression, LocalNodeId, NodeTree, PrimitiveType, ScalarLiteral, Type,
+        TypeLiteral,
+    };
+    use destack_source::ModuleId;
 
     use crate::{TestProgram, assert_type};
+
+    fn first_function_symbol(
+        module_id: ModuleId,
+        tree: &NodeTree,
+        roots: &[LocalNodeId<Expression>],
+    ) -> destack_dir::GlobalSymbolId {
+        for root_id in roots {
+            let expression = tree.get(*root_id);
+            let declaration_id = match expression {
+                Expression::Declaration { declaration } => Some(*declaration),
+                Expression::Statement { statement } => match tree.get(*statement) {
+                    Expression::Declaration { declaration } => Some(*declaration),
+                    _ => None,
+                },
+                _ => None,
+            };
+            if let Some(declaration_id) = declaration_id {
+                let declaration = tree.get(declaration_id);
+                if let Declaration::Function { descriptor, .. } = declaration {
+                    return descriptor.symbol.into_global(module_id);
+                }
+            }
+        }
+        panic!("expected function declaration");
+    }
 
     #[test]
     fn test_analyze_number_literal() {
@@ -2941,5 +3229,83 @@ import { Point } from "./point.ds";
         let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
         let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
         // #Incomplete: #Extensions
+    }
+
+    #[test]
+    fn test_analyze_infer_parameter_types_from_call_arguments() {
+        // infers parameter types from call arguments
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function add(a, b) {
+    return a + b
+}
+add(1, 2)
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
+
+        let fn_symbol = first_function_symbol(module.id, &tree, &module.dir().roots);
+        let fn_ty_id = types
+            .get_value_type_id(fn_symbol)
+            .expect("expected function type");
+
+        assert_type!(types, fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+            assert_eq!(dynamic_parameters.len(), 2);
+            assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
+            });
+            assert_type!(types, dynamic_parameters[1], Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(2))
+            });
+            let return_type = return_type.expect("expected return type");
+            assert_type!(types, return_type, Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number)
+            });
+        });
+    }
+
+    #[test]
+    fn test_analyze_infer_parameter_type_from_default() {
+        // infers parameter type from default value
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function greet(name = "hi") {
+    return name
+}
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let types = module.dir().types.read();
+
+        let fn_symbol = first_function_symbol(module.id, &tree, &module.dir().roots);
+        let fn_ty_id = types
+            .get_value_type_id(fn_symbol)
+            .expect("expected function type");
+
+        assert_type!(types, fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+            assert_eq!(dynamic_parameters.len(), 1);
+            assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            });
+            let return_type = return_type.expect("expected return type");
+            assert_type!(types, return_type, Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            });
+        });
     }
 }
