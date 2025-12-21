@@ -342,7 +342,7 @@ fn.bind(obj)        // lowers to: closure capturing obj as this
 
 ---
 
-# Types
+# Lowering Model
 
 Destack's type system maps TypeScript's structural, polymorphic types to native representations with concrete, monomorphic layouts.
 Each generic instantiation becomes specialized code with known sizes and offsets.
@@ -492,6 +492,11 @@ block4(v5: @string):
 In the `Cat | Dog` case we could also have used an `Animal` interface / base type, and then this would be solved with vtable dispatch instead of dynamic resolution.
 (The general principle still applies.)
 
+# Types and Layout
+
+This section defines the concrete runtime representation of types in MIR.
+All layouts here are post-monomorphization and target-specific.
+
 ## Type Representation
 
 ### Primitives
@@ -507,7 +512,7 @@ In the `Cat | Dog` case we could also have used an `Animal` interface / base typ
 ### Overflow Behavior
 
 Integer arithmetic has defined overflow semantics (unlike C, inspired by Zig and Rust).
-Default overflow behavior is configurable per-project in build configuration.
+Default overflow behavior is configurable per-target in build configuration (`overflowChecks`).
 
 **Default (debug mode):** Trap on overflow.
 Like Zig and Rust debug builds, arithmetic operations trap on overflow.
@@ -718,6 +723,13 @@ call @Array.push(v0, v4)
 ; a.length
 v5 = field.get v0, 1        ; load length field
 ```
+
+**Bounds checks:**
+Array and slice indexing emits bounds checks by default.
+The policy is configured per target (`boundsChecks` in `dsconfig.json`):
+- `always`: checks in all builds
+- `debug`: checks only when `target.debug` is true (default)
+- `never`: no checks (unsafe, fastest)
 
 ### Structs and Classes
 
@@ -1390,6 +1402,7 @@ Users can annotate functions with `@noManaged` or `@stackOnly` decorators to enf
 
 `ManagedAlloc` creates GC-tracked objects.
 The runtime provides garbage collection; Lower just emits the allocation instructions.
+Allocator selection for native targets is configured per-target (`allocator`).
 
 ```mir
 type @Point = struct { f32, f32 }
@@ -1762,6 +1775,8 @@ The `catch` block receives the error value from the `Err` variant.
 
 `throw` indicates an unrecoverable error (bug, invariant violation).
 Unlike traditional exceptions, panics are not meant to be caught.
+On native targets, `throw` aborts without unwinding.
+Panic strategy is configured per target (`panic`), but unwind is reserved for future use.
 
 ```
 function assertPositive(n: int) {
@@ -1955,6 +1970,7 @@ See `language/codegen/` for target-specific backends (Cranelift for native/WASM)
 
 Lower preserves source information so native code can emit high-quality debug symbols.
 This is required for source-level debugging, accurate stack traces, and profiling.
+Debug info emission is configured per target (`debugInfo`).
 
 **What Lower records:**
 - Source spans on every block and instruction (file, line, column)

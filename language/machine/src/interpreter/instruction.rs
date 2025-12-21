@@ -498,6 +498,7 @@ impl Interpreter {
 
                 // create new array or update referenced storage
                 let result = match array {
+                    // set element directly in aggregate
                     Value::Aggregate(mut elements) => {
                         if (idx_val as usize) < elements.len() {
                             elements[idx_val as usize] = val;
@@ -509,6 +510,7 @@ impl Interpreter {
                         }
                         Value::Aggregate(elements)
                     }
+                    // set element indirectly on managed reference
                     Value::ManagedReference(handle) => {
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
@@ -531,6 +533,7 @@ impl Interpreter {
                         }
                         Value::ManagedReference(handle)
                     }
+                    // set element indirectly on raw pointer
                     Value::RawPointer(ptr) => {
                         if ptr.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
@@ -553,6 +556,7 @@ impl Interpreter {
                         }
                         Value::RawPointer(ptr)
                     }
+                    // set element indirectly on stack pointer
                     Value::StackPointer(sp) => {
                         self.store_stack_slot(sp, idx_val as usize, val)?;
                         Value::StackPointer(sp)

@@ -238,7 +238,7 @@
             "null"
           ]
         },
-        "noUncheckedIndexedAccess": {
+        "noIndexedAccessUnchecked": {
           "description": "Add `undefined` to index signature results (safer array access).",
           "type": [
             "boolean",
@@ -317,6 +317,13 @@
         },
         "noManaged": {
           "description": "Forbid managed runtime features entirely (no &T at all, pure value types only).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noRuntime": {
+          "description": "Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).",
           "type": [
             "boolean",
             "null"
@@ -1148,6 +1155,52 @@
             "null"
           ]
         },
+        "targetTriple": {
+          "description": "Target triple for native codegen (e.g., \"x86_64-unknown-linux-gnu\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cpu": {
+          "description": "CPU name for native codegen (e.g., \"native\", \"x86-64\", \"znver3\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cpuFeatures": {
+          "description": "CPU feature flags for native codegen (e.g., \"+sse4.2\", \"+aes\").",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "relocationModel": {
+          "description": "Relocation model.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelocationModelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linkMode": {
+          "description": "Link mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LinkModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "declaration": {
           "description": "Emit declaration files (.d.ts) alongside JS output.",
           "type": "boolean",
@@ -1232,6 +1285,83 @@
           "format": "uint8",
           "minimum": 0,
           "maximum": 255
+        },
+        "debugInfo": {
+          "description": "Debug info emission policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DebugInfoLevelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strip": {
+          "description": "Symbol stripping policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StripLevelJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "panic": {
+          "description": "Panic strategy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PanicStrategyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unwind": {
+          "description": "Unwind info format.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnwindFormatJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "overflowChecks": {
+          "description": "Overflow checking policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverflowCheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boundsChecks": {
+          "description": "Bounds check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoundsCheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allocator": {
+          "description": "Global allocator selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AllocatorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -1257,6 +1387,181 @@
           "description": "Native binary.",
           "type": "string",
           "const": "native"
+        }
+      ]
+    },
+    "RelocationModelJson": {
+      "description": "Relocation model for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Static relocation model.",
+          "type": "string",
+          "const": "static"
+        },
+        {
+          "description": "Position-independent code.",
+          "type": "string",
+          "const": "pic"
+        },
+        {
+          "description": "Position-independent executable.",
+          "type": "string",
+          "const": "pie"
+        }
+      ]
+    },
+    "LinkModeJson": {
+      "description": "Link mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Prefer static linking.",
+          "type": "string",
+          "const": "static"
+        },
+        {
+          "description": "Prefer dynamic linking.",
+          "type": "string",
+          "const": "dynamic"
+        }
+      ]
+    },
+    "DebugInfoLevelJson": {
+      "description": "Debug info emission policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "No debug info.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Line tables only.",
+          "type": "string",
+          "const": "line"
+        },
+        {
+          "description": "Full debug info.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
+    },
+    "StripLevelJson": {
+      "description": "Symbol stripping policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Keep all symbols.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Strip local symbols.",
+          "type": "string",
+          "const": "partial"
+        },
+        {
+          "description": "Strip all symbols.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
+    },
+    "PanicStrategyJson": {
+      "description": "Panic strategy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Abort immediately.",
+          "type": "string",
+          "const": "abort"
+        },
+        {
+          "description": "Unwind the stack.",
+          "type": "string",
+          "const": "unwind"
+        }
+      ]
+    },
+    "UnwindFormatJson": {
+      "description": "Unwind info format for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "No unwind info.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "DWARF unwind info.",
+          "type": "string",
+          "const": "dwarf"
+        },
+        {
+          "description": "Windows SEH unwind info.",
+          "type": "string",
+          "const": "seh"
+        }
+      ]
+    },
+    "OverflowCheckPolicyJson": {
+      "description": "Overflow checking policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always emit overflow checks.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit overflow checks only in debug builds.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit overflow checks.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "BoundsCheckPolicyJson": {
+      "description": "Bounds check policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always emit bounds checks.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit bounds checks only in debug builds.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit bounds checks.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "AllocatorJson": {
+      "description": "Allocator selection for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Use the platform default allocator.",
+          "type": "string",
+          "const": "system"
+        },
+        {
+          "description": "Use mimalloc.",
+          "type": "string",
+          "const": "mimalloc"
+        },
+        {
+          "description": "Use jemalloc.",
+          "type": "string",
+          "const": "jemalloc"
+        },
+        {
+          "description": "Use a custom allocator provided by the runtime.",
+          "type": "string",
+          "const": "custom"
         }
       ]
     }

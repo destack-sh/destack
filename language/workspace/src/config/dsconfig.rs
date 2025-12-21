@@ -13,8 +13,9 @@ use crate::{
 };
 
 use super::target::{
-    OptimizeLevel, OutputFormat, OutputMode, Platform, Runtime, ShrinkLevel, Target,
-    TargetDiscovery,
+    Allocator, BoundsCheckPolicy, DebugInfoLevel, LinkMode, OptimizeLevel, OverflowCheckPolicy,
+    OutputFormat, OutputMode, PanicStrategy, Platform, RelocationModel, Runtime, ShrinkLevel,
+    StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 
@@ -565,6 +566,16 @@ pub struct DsConfigTargetOptions {
     pub runtime: Runtime,
     /// Target platform (web, windows, macos, linux, ios, android, etc.).
     pub platform: Platform,
+    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
+    pub target_triple: Option<String>,
+    /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
+    pub cpu: Option<String>,
+    /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
+    pub cpu_features: Vec<String>,
+    /// Relocation model for native codegen.
+    pub relocation_model: RelocationModel,
+    /// Link mode for native targets.
+    pub link_mode: LinkMode,
     /// Emit declaration files (.d.ts) alongside JS output.
     pub declaration: bool,
     /// Emit source maps.
@@ -595,6 +606,20 @@ pub struct DsConfigTargetOptions {
     pub optimize_level: OptimizeLevel,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
+    /// Debug info emission policy.
+    pub debug_info: DebugInfoLevel,
+    /// Symbol stripping policy.
+    pub strip: StripLevel,
+    /// Panic strategy for unrecoverable errors.
+    pub panic: PanicStrategy,
+    /// Unwind info format for native targets.
+    pub unwind: UnwindFormat,
+    /// Integer overflow checking policy.
+    pub overflow_checks: OverflowCheckPolicy,
+    /// Bounds check policy for array and slice accesses.
+    pub bounds_checks: BoundsCheckPolicy,
+    /// Global allocator selection for native targets.
+    pub allocator: Allocator,
 }
 
 impl Default for DsConfigTargetOptions {
@@ -607,6 +632,11 @@ impl Default for DsConfigTargetOptions {
             output: OutputFormat::default(),
             runtime: Runtime::default(),
             platform: Platform::default(),
+            target_triple: None,
+            cpu: None,
+            cpu_features: Vec::new(),
+            relocation_model: RelocationModel::default(),
+            link_mode: LinkMode::default(),
             declaration: false,
             source_map: false,
             out_dir: PathBuf::from(super::target::DEFAULT_OUT_DIR),
@@ -619,6 +649,13 @@ impl Default for DsConfigTargetOptions {
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             shrink_level: ShrinkLevel::S0,
+            debug_info: DebugInfoLevel::default(),
+            strip: StripLevel::default(),
+            panic: PanicStrategy::default(),
+            unwind: UnwindFormat::default(),
+            overflow_checks: OverflowCheckPolicy::default(),
+            bounds_checks: BoundsCheckPolicy::default(),
+            allocator: Allocator::default(),
         }
     }
 }
@@ -654,6 +691,11 @@ impl DsConfigTargetOptions {
             output: self.output,
             runtime: self.runtime,
             platform: self.platform,
+            target_triple: self.target_triple.clone(),
+            cpu: self.cpu.clone(),
+            cpu_features: self.cpu_features.clone(),
+            relocation_model: self.relocation_model,
+            link_mode: self.link_mode,
             declaration: self.declaration,
             source_map: self.source_map,
             out_dir: self.out_dir.clone(),
@@ -666,6 +708,13 @@ impl DsConfigTargetOptions {
             optimize: self.optimize,
             optimize_level: self.optimize_level,
             shrink_level: self.shrink_level,
+            debug_info: self.debug_info,
+            strip: self.strip,
+            panic: self.panic,
+            unwind: self.unwind,
+            overflow_checks: self.overflow_checks,
+            bounds_checks: self.bounds_checks,
+            allocator: self.allocator,
         }
     }
 }
@@ -701,6 +750,14 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .as_deref()
                 .and_then(Platform::parse)
                 .unwrap_or_default(),
+            target_triple: json.target_triple.clone(),
+            cpu: json.cpu.clone(),
+            cpu_features: json.cpu_features.clone().unwrap_or_default(),
+            relocation_model: json
+                .relocation_model
+                .map(RelocationModel::from)
+                .unwrap_or_default(),
+            link_mode: json.link_mode.map(LinkMode::from).unwrap_or_default(),
             declaration: json.declaration,
             source_map: json.source_map,
             out_dir: json
@@ -728,6 +785,19 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .map(OptimizeLevel::from)
                 .unwrap_or_default(),
             shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
+            debug_info: json.debug_info.map(DebugInfoLevel::from).unwrap_or_default(),
+            strip: json.strip.map(StripLevel::from).unwrap_or_default(),
+            panic: json.panic.map(PanicStrategy::from).unwrap_or_default(),
+            unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
+            overflow_checks: json
+                .overflow_checks
+                .map(OverflowCheckPolicy::from)
+                .unwrap_or_default(),
+            bounds_checks: json
+                .bounds_checks
+                .map(BoundsCheckPolicy::from)
+                .unwrap_or_default(),
+            allocator: json.allocator.map(Allocator::from).unwrap_or_default(),
         }
     }
 }
@@ -758,6 +828,243 @@ impl From<OutputFormatJson> for OutputFormat {
             OutputFormatJson::Ts => OutputFormat::Ts,
             OutputFormatJson::Wasm => OutputFormat::Wasm,
             OutputFormatJson::Native => OutputFormat::Native,
+        }
+    }
+}
+
+/// Relocation model for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RelocationModelJson {
+    /// Static relocation model.
+    #[serde(alias = "static")]
+    Static,
+    /// Position-independent code.
+    #[serde(alias = "position_independent")]
+    #[serde(alias = "position_independent_code")]
+    #[serde(alias = "position_independent_executable")]
+    Pic,
+    /// Position-independent executable.
+    #[serde(alias = "pie")]
+    Pie,
+}
+
+impl From<RelocationModelJson> for RelocationModel {
+    fn from(value: RelocationModelJson) -> Self {
+        match value {
+            RelocationModelJson::Static => RelocationModel::Static,
+            RelocationModelJson::Pic => RelocationModel::Pic,
+            RelocationModelJson::Pie => RelocationModel::Pie,
+        }
+    }
+}
+
+/// Link mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum LinkModeJson {
+    /// Prefer static linking.
+    #[serde(alias = "static")]
+    Static,
+    /// Prefer dynamic linking.
+    #[serde(alias = "shared")]
+    Dynamic,
+}
+
+impl From<LinkModeJson> for LinkMode {
+    fn from(value: LinkModeJson) -> Self {
+        match value {
+            LinkModeJson::Static => LinkMode::Static,
+            LinkModeJson::Dynamic => LinkMode::Dynamic,
+        }
+    }
+}
+
+/// Debug info emission policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DebugInfoLevelJson {
+    /// No debug info.
+    #[serde(alias = "off")]
+    None,
+    /// Line tables only.
+    #[serde(alias = "lines")]
+    #[serde(alias = "line_tables")]
+    Line,
+    /// Full debug info.
+    #[serde(alias = "full")]
+    Full,
+}
+
+impl From<DebugInfoLevelJson> for DebugInfoLevel {
+    fn from(value: DebugInfoLevelJson) -> Self {
+        match value {
+            DebugInfoLevelJson::None => DebugInfoLevel::None,
+            DebugInfoLevelJson::Line => DebugInfoLevel::Line,
+            DebugInfoLevelJson::Full => DebugInfoLevel::Full,
+        }
+    }
+}
+
+/// Symbol stripping policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum StripLevelJson {
+    /// Keep all symbols.
+    #[serde(alias = "none")]
+    None,
+    /// Strip local symbols.
+    #[serde(alias = "locals")]
+    Partial,
+    /// Strip all symbols.
+    #[serde(alias = "all")]
+    Full,
+}
+
+impl From<StripLevelJson> for StripLevel {
+    fn from(value: StripLevelJson) -> Self {
+        match value {
+            StripLevelJson::None => StripLevel::None,
+            StripLevelJson::Partial => StripLevel::Partial,
+            StripLevelJson::Full => StripLevel::Full,
+        }
+    }
+}
+
+/// Panic strategy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum PanicStrategyJson {
+    /// Abort immediately.
+    #[serde(alias = "abort")]
+    Abort,
+    /// Unwind the stack.
+    #[serde(alias = "unwind")]
+    Unwind,
+}
+
+impl From<PanicStrategyJson> for PanicStrategy {
+    fn from(value: PanicStrategyJson) -> Self {
+        match value {
+            PanicStrategyJson::Abort => PanicStrategy::Abort,
+            PanicStrategyJson::Unwind => PanicStrategy::Unwind,
+        }
+    }
+}
+
+/// Unwind info format for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum UnwindFormatJson {
+    /// No unwind info.
+    #[serde(alias = "none")]
+    None,
+    /// DWARF unwind info.
+    #[serde(alias = "dwarf")]
+    Dwarf,
+    /// Windows SEH unwind info.
+    #[serde(alias = "seh")]
+    Seh,
+}
+
+impl From<UnwindFormatJson> for UnwindFormat {
+    fn from(value: UnwindFormatJson) -> Self {
+        match value {
+            UnwindFormatJson::None => UnwindFormat::None,
+            UnwindFormatJson::Dwarf => UnwindFormat::Dwarf,
+            UnwindFormatJson::Seh => UnwindFormat::Seh,
+        }
+    }
+}
+
+/// Overflow checking policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OverflowCheckPolicyJson {
+    /// Always emit overflow checks.
+    #[serde(alias = "always")]
+    Always,
+    /// Emit overflow checks only in debug builds.
+    #[serde(alias = "debug")]
+    Debug,
+    /// Never emit overflow checks.
+    #[serde(alias = "never")]
+    #[serde(alias = "off")]
+    Never,
+}
+
+impl From<OverflowCheckPolicyJson> for OverflowCheckPolicy {
+    fn from(value: OverflowCheckPolicyJson) -> Self {
+        match value {
+            OverflowCheckPolicyJson::Always => OverflowCheckPolicy::Always,
+            OverflowCheckPolicyJson::Debug => OverflowCheckPolicy::Debug,
+            OverflowCheckPolicyJson::Never => OverflowCheckPolicy::Never,
+        }
+    }
+}
+
+/// Bounds check policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum BoundsCheckPolicyJson {
+    /// Always emit bounds checks.
+    #[serde(alias = "always")]
+    Always,
+    /// Emit bounds checks only in debug builds.
+    #[serde(alias = "debug")]
+    Debug,
+    /// Never emit bounds checks.
+    #[serde(alias = "never")]
+    #[serde(alias = "off")]
+    Never,
+}
+
+impl From<BoundsCheckPolicyJson> for BoundsCheckPolicy {
+    fn from(value: BoundsCheckPolicyJson) -> Self {
+        match value {
+            BoundsCheckPolicyJson::Always => BoundsCheckPolicy::Always,
+            BoundsCheckPolicyJson::Debug => BoundsCheckPolicy::Debug,
+            BoundsCheckPolicyJson::Never => BoundsCheckPolicy::Never,
+        }
+    }
+}
+
+/// Allocator selection for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum AllocatorJson {
+    /// Use the platform default allocator.
+    #[serde(alias = "system")]
+    System,
+    /// Use mimalloc.
+    #[serde(alias = "mimalloc")]
+    #[serde(alias = "mi_malloc")]
+    MiMalloc,
+    /// Use jemalloc.
+    #[serde(alias = "jemalloc")]
+    #[serde(alias = "je_malloc")]
+    JeMalloc,
+    /// Use a custom allocator provided by the runtime.
+    #[serde(alias = "custom")]
+    Custom,
+}
+
+impl From<AllocatorJson> for Allocator {
+    fn from(value: AllocatorJson) -> Self {
+        match value {
+            AllocatorJson::System => Allocator::System,
+            AllocatorJson::MiMalloc => Allocator::MiMalloc,
+            AllocatorJson::JeMalloc => Allocator::JeMalloc,
+            AllocatorJson::Custom => Allocator::Custom,
         }
     }
 }
@@ -1022,6 +1329,16 @@ pub struct DsConfigTargetJson {
     pub runtime: Option<String>,
     /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).
     pub platform: Option<String>,
+    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
+    pub target_triple: Option<String>,
+    /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
+    pub cpu: Option<String>,
+    /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
+    pub cpu_features: Option<Vec<String>>,
+    /// Relocation model.
+    pub relocation_model: Option<RelocationModelJson>,
+    /// Link mode.
+    pub link_mode: Option<LinkModeJson>,
     /// Emit declaration files (.d.ts) alongside JS output.
     #[serde(default)]
     pub declaration: bool,
@@ -1056,6 +1373,20 @@ pub struct DsConfigTargetJson {
     pub optimize_level: Option<u8>,
     /// Shrink level (0-3).
     pub shrink_level: Option<u8>,
+    /// Debug info emission policy.
+    pub debug_info: Option<DebugInfoLevelJson>,
+    /// Symbol stripping policy.
+    pub strip: Option<StripLevelJson>,
+    /// Panic strategy.
+    pub panic: Option<PanicStrategyJson>,
+    /// Unwind info format.
+    pub unwind: Option<UnwindFormatJson>,
+    /// Overflow checking policy.
+    pub overflow_checks: Option<OverflowCheckPolicyJson>,
+    /// Bounds check policy.
+    pub bounds_checks: Option<BoundsCheckPolicyJson>,
+    /// Global allocator selection.
+    pub allocator: Option<AllocatorJson>,
 }
 
 /// Quote style for JSON deserialization (Prettier: `singleQuote`).
