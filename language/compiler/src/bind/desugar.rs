@@ -5,8 +5,9 @@ use crate::Compiler;
 
 #[allow(clippy::single_match)]
 impl Compiler {
-    /// Desugare module syntactically: transforms that don't need type information:
+    /// Desugar module syntactically: transforms that don't need type information:
     /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
+    /// - `AwaitMaybe` → `Maybe` + `Await` (`await? x` → `(await x)?`)
     pub(super) fn bind_module_desugar(&self, module: &Module) {
         let mut tree = module.dir().tree.write();
 
@@ -49,6 +50,18 @@ impl Compiler {
                         right: binary_id,
                     },
                 );
+            }
+
+            // AwaitMaybe -> Maybe with Await expression
+            Expression::AwaitMaybe { expression } => {
+                // Await: await expression
+                let await_id =
+                    tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+                let await_id: LocalNodeId<Expression> =
+                    tree.insert(await_id, Expression::Await { expression });
+
+                // replace AwaitMaybe with Maybe
+                tree.replace(expression_id, Expression::Maybe { left: await_id });
             }
 
             _ => {}
@@ -117,6 +130,30 @@ x += 1;
             r#"
 let x = 0;
 x = x + 1;
+"#,
+        );
+    }
+
+    #[test]
+    fn test_desugar_await_maybe_to_maybe_await() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+async function test() {
+    await? someFallibleAsync();
+}
+"#,
+        );
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+        test.assert_bound(
+            module_id,
+            r#"
+async function test() {
+    await someFallibleAsync()?;
+}
 "#,
         );
     }

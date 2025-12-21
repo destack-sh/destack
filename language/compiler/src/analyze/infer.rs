@@ -846,6 +846,11 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            // await? should be desugared to Maybe { Await } before analysis
+            Expression::AwaitMaybe { .. } => {
+                unreachable!("AwaitMaybe should be desugared before analysis")
+            }
+
             // comptime -> type of body (evaluated at compile time)
             Expression::Comptime { body } => {
                 // #Incomplete: validate that body can be evaluated at comptime

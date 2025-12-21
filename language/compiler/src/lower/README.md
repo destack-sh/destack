@@ -1057,7 +1057,7 @@ Type operations execute in the compiler; no runtime representation needed.
 const PROP_COUNT = comptime User.properties.length;    // → literal 3
 const HAS_NAME = comptime User.properties.some(p => p.name == "name")  // → true
 
-comptime if (User.properties.some(p => p.type == string)) {
+if (comptime User.properties.some(p => p.type == string)) {
     // branch selected at compile time, other branch eliminated
 }
 ```

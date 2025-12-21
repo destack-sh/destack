@@ -68,13 +68,13 @@ extension<T> for Array<T> {
 }
 ```
 
-For operations that need different implementations per target, we use `comptime if`:
+For operations that need different implementations per target, we use `if (comptime ..)`:
 
 ```
 // std/array.ds
 extension<T> for Array<T> {
     sort(cmp: (T, T) => Ordering): Array<T> {
-        comptime if (target.isJS) { // nocheckin: `comptime if (..)`? or `if (comptime ..)`?
+        if (comptime target.isJS) {
             // use JS sort
             this.toSorted((a, b) => cmp(a, b).toInt())
         } else {

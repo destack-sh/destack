@@ -313,6 +313,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *expression, expression_node);
         }
 
+        Expression::AwaitMaybe { expression } => {
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
+        }
+
         Expression::Yield {
             cardinality: _,
             value,

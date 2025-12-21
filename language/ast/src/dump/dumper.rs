@@ -828,6 +828,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Await { expression: _ } => {
                 self.node("Expression::Await", _id.id).end();
             }
+            Expression::AwaitMaybe { expression: _ } => {
+                self.node("Expression::AwaitMaybe", _id.id).end();
+            }
             Expression::Yield {
                 cardinality,
                 value: _,

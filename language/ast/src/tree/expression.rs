@@ -292,19 +292,22 @@ pub enum Expression {
     Continue { label: Option<StringId> },
 
     /// Await an expression.
-    /// This is more similar to `go` than classic `await`, but the meaning is context & runtime specific.
-    /// We keep the keyword because I don't know any better ones and it's well known.
     ///
     /// Examples:
     /// ```
     /// await someLongFunction()
     /// ```
-    // nocheckin: support `await? <expr>` for `(await <expr>)?` (?)
     Await { expression: LocalNodeId<Expression> },
 
+    /// Await an expression with immediate error propagation (`await? expr`).
+    ///
+    /// Examples:
+    /// ```
+    /// await? someLongAsyncFunction()
+    /// ```
+    AwaitMaybe { expression: LocalNodeId<Expression> },
+
     /// Yield an expression.
-    /// Suspends execution and returns a value to the caller in some way.
-    /// Conceptually, this is exactly like a state machine with yield/await as suspension points.
     ///
     /// Examples:
     /// ```
@@ -317,7 +320,7 @@ pub enum Expression {
         value: Option<LocalNodeId<Expression>>,
     },
 
-    /// Throw expression.
+    /// Throw an expression.
     ///
     /// Examples:
     /// ```
@@ -326,7 +329,7 @@ pub enum Expression {
     /// ```
     Throw { value: LocalNodeId<Expression> },
 
-    /// Return expression.
+    /// Return an expression.
     ///
     /// Examples:
     /// ```

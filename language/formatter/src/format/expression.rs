@@ -2254,6 +2254,11 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [Keyword::Await, space(), expression])?;
         }
 
+        // await?
+        Expression::AwaitMaybe { expression } => {
+            write!(f, [Keyword::Await, token("?"), space(), expression])?;
+        }
+
         // comptime
         Expression::Comptime { body } => {
             write!(f, [Keyword::Comptime, space(), body])?;
