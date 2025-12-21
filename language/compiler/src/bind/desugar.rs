@@ -152,7 +152,7 @@ async function test() {
             module_id,
             r#"
 async function test() {
-    await someFallibleAsync()?;
+    (await someFallibleAsync())?;
 }
 "#,
         );

@@ -3,8 +3,8 @@ use std::cmp::Ordering;
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, MatchCase,
-    MatchKind, MatchSelector, NodeTree, Pattern, PostfixPosition, Property, ScalarLiteral,
-    TypeUnaryOperator, WhileKind, YieldCardinality,
+    MatchKind, MatchSelector, NodeTree, OperatorPrecedence, Pattern, PostfixPosition, Property,
+    ScalarLiteral, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -919,6 +919,66 @@ fn format_call_expression<'ast>(
     Ok(())
 }
 
+/// Get the precedence of an expression.
+///
+/// Returns the operator precedence for expressions that have one, or `u16::MAX` for
+/// atomic/primary expressions (identifiers, literals, parenthesized, etc.).
+fn expression_precedence(expr: &Expression) -> u16 {
+    match expr {
+        // postfix operators (2000)
+        Expression::Call { .. }
+        | Expression::Member { .. }
+        | Expression::Index { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. } => OperatorPrecedence::Postfix as u16,
+
+        // postfix unary (2000)
+        Expression::Unary { operator, .. } if operator.is_postfix() => {
+            OperatorPrecedence::Postfix as u16
+        }
+
+        // prefix unary (1900)
+        Expression::Unary { .. } => OperatorPrecedence::Prefix as u16,
+
+        // prefix expressions (1900)
+        Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Yield { .. }
+        | Expression::Delete { .. }
+        | Expression::Throw { .. }
+        | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,
+
+        // type unary: use operator's precedence
+        Expression::TypeUnary { operator, .. } => operator.precedence(),
+
+        // binary: use operator's precedence
+        Expression::Binary { operator, .. } => operator.precedence(),
+        Expression::TypeBinary { operator, .. } => operator.precedence(),
+
+        // assignment: use operator's precedence
+        Expression::Assign { operator, .. } => operator.precedence(),
+
+        // ternary: lower than all binary/assignment operators
+        Expression::If { kind: IfKind::Ternary, .. } => {
+            OperatorPrecedence::AssignmentBoolean as u16 - 1
+        }
+
+        // atomic/primary expressions: highest precedence (never need parens)
+        _ => u16::MAX,
+    }
+}
+
+/// Returns true if the expression needs parentheses when used as the operand
+/// of a postfix operator like `?` or `!`.
+///
+/// Postfix operators (precedence 2000) bind tighter than all other operators.
+/// For example, `await x?` parses as `await (x?)`, not `(await x)?`.
+/// So when formatting `Maybe { left: Await { expr } }`, we need to output `(await expr)?`.
+#[inline]
+fn needs_parens_in_postfix_position(tree: &NodeTree, expr_id: LocalNodeId<Expression>) -> bool {
+    expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix as u16
+}
+
 /// Format a maybe expression without considering chaining.
 #[inline]
 fn format_maybe_expression<'ast>(
@@ -926,7 +986,12 @@ fn format_maybe_expression<'ast>(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Maybe { left, position } = f.context().tree.get(node_id) {
-        write!(f, [*left])?;
+        let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, *left);
+        if needs_parentheses {
+            write!(f, [token("("), *left, token(")")])?;
+        } else {
+            write!(f, [*left])?;
+        }
         match position {
             PostfixPosition::Direct => write!(f, [token("?")])?,
             PostfixPosition::Indirect => write!(f, [token("."), token("?")])?,
@@ -2596,7 +2661,12 @@ pub(crate) fn format_expression<'ast>(
 
         // must
         Expression::Must { position, left } => {
-            write!(f, [left])?;
+            let needs_parentheses = needs_parens_in_postfix_position(tree, *left);
+            if needs_parentheses {
+                write!(f, [token("("), left, token(")")])?;
+            } else {
+                write!(f, [left])?;
+            }
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
             }
@@ -3275,6 +3345,63 @@ mod tests {
             "<Button\n    variant=\"primary\"\n    size=\"large\"\n    disabled\n/>",
             |p| p.eat_expression(),
             options
+        );
+    }
+
+    /// Prefix expressions inside postfix operators get parenthesized.
+    #[test]
+    fn test_format_await_inside_maybe_gets_parenthesized() {
+        // this tests the case where we have Maybe { left: Await { expr } }
+        // which should format as (await expr)? not await expr?
+        assert_format!(
+            "(await foo())?",
+            "(await foo())?",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Unary prefix inside maybe gets parenthesized.
+    #[test]
+    fn test_format_unary_inside_maybe_gets_parenthesized() {
+        assert_format!(
+            "(-x)?",
+            "(-x)?",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Postfix inside postfix doesn't need extra parentheses.
+    #[test]
+    fn test_format_postfix_inside_maybe_no_extra_parens() {
+        assert_format!(
+            "x.foo?",
+            "x.foo?",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Call expression inside maybe doesn't need parentheses.
+    #[test]
+    fn test_format_call_inside_maybe_no_parens() {
+        assert_format!(
+            "foo()?",
+            "foo()?",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Await? syntactic sugar stays as is.
+    #[test]
+    fn test_format_await_maybe_sugar() {
+        assert_format!(
+            "await? foo()",
+            "await? foo()",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
         );
     }
 }
