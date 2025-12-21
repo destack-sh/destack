@@ -1,5 +1,5 @@
+use super::literal::evaluate_numeric_literal;
 use crate::Compiler;
-use crate::bind::literal::evaluate_numeric_literal;
 use destack_ast as ast;
 use destack_dir::{
     DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable, TypeTable,

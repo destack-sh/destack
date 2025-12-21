@@ -14,7 +14,9 @@ impl BlockLowerer<'_, '_> {
         let expression = self.dir_tree.get(expression_id);
         match expression {
             Expression::Parenthesized { expression } => self.lower_value_expression(*expression),
-            Expression::LocalReference { target_symbol, .. } => {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
                 let variable = *self.locals_by_symbol.get(target_symbol).ok_or_else(|| {
                     LowerError::UnsupportedConstruct {
                         node: expression_id.into_global_any(self.module_id),
@@ -57,7 +59,7 @@ impl BlockLowerer<'_, '_> {
                         }
                         _ => Err(LowerError::UnsupportedConstruct {
                             node: expression_id.into_global_any(self.module_id),
-                            message: format!("unsupported scalar literal '{:?}'", value),
+                            message: format!("unsupported scalar literal '{value:?}'"),
                         })?,
                     }
                 }
@@ -76,7 +78,7 @@ impl BlockLowerer<'_, '_> {
                 }
                 _ => Err(LowerError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module_id),
-                    message: format!("unsupported scalar literal '{:?}'", value),
+                    message: format!("unsupported scalar literal '{value:?}'"),
                 })?,
             },
             Expression::Binary {
@@ -213,7 +215,7 @@ impl BlockLowerer<'_, '_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module_id),
-                    message: format!("unsupported binary operator '{:?}'", operator),
+                    message: format!("unsupported binary operator '{operator:?}'"),
                 });
             }
         };

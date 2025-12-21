@@ -1,24 +1,15 @@
 use destack_dir::{AssignOperator, BinaryOperator, Expression, LocalNodeId, NodeTree, NodeType};
-use destack_workspace::Module;
 
 use crate::Compiler;
 
 #[allow(clippy::single_match)]
 impl Compiler {
-    /// Desugar module syntactically: transforms that don't need type information:
-    /// - `AssignBinary` → `Assign` + `Binary` (`x += 1` → `x = x + 1`)
-    /// - `AwaitMaybe` → `Maybe` + `Await` (`await? x` → `(await x)?`)
-    pub(super) fn bind_module_desugar(&self, module: &Module) {
-        let mut tree = module.dir().tree.write();
-
-        // desugar expressions
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.desugar_expression(expression_id, &mut tree);
-        }
-    }
-
     /// Desugar an expression.
-    fn desugar_expression(&self, expression_id: LocalNodeId<Expression>, tree: &mut NodeTree) {
+    pub(super) fn desugar_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &mut NodeTree,
+    ) {
         let scope = tree.get_scope(expression_id);
         let expression = tree.get(expression_id).clone();
         match expression {

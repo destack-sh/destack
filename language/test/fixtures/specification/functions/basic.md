@@ -17,8 +17,9 @@ function f(): void {}
 > Functions can have typed parameters.
 
 ```ds
-function add(a: number, b: number): number {
-    return a + b;
+function add(a: number, b: number): void {
+    a satisfies number;
+    b satisfies number;
 }
 ```
 
@@ -28,7 +29,10 @@ function add(a: number, b: number): number {
 
 ```ds
 function greet(name: string): string {
-    return "hello " + name;
+    name satisfies string;
+    let result = "hello " + name;
+    result satisfies string;
+    return result;
 }
 ```
 
