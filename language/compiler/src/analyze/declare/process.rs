@@ -17,7 +17,7 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir();
-        let mut tree = dir.tree.write();
+        let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
@@ -27,7 +27,7 @@ impl Compiler {
             let ty_id = LocalTypeId::new(i);
             self.collect(
                 &mut collector,
-                self.evaluate_type(&module, ty_id, &mut tree, &symbols, &mut types),
+                self.evaluate_type(&module, ty_id, &tree, &symbols, &mut types),
             );
         }
 

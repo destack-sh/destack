@@ -1,8 +1,8 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    BindingKind, Declaration, DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalTypeId,
-    Mutability, NodeTree, Property, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
-    TypeTable, TypeUnaryOperator, UnaryOperator,
+    Argument, BindingKind, Declaration, DynamicKey, Expression, FunctionSignature, LocalNodeId,
+    LocalTypeId, Mutability, NodeTree, Property, StaticArgument, StaticExpression, StaticKey,
+    SymbolTable, Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -14,7 +14,7 @@ impl Compiler {
         &self,
         module: &Module,
         ty_id: LocalTypeId,
-        tree: &mut NodeTree,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
@@ -26,7 +26,7 @@ impl Compiler {
             expression_id
         };
 
-        // evaluate and update in-place
+        // evaluate and update in place
         let evaluated_ty = self.try_evaluate_expression_to_type_value(
             module,
             expression_id,
@@ -42,11 +42,11 @@ impl Compiler {
 
     /// Try to evaluate an Expression as a Type.
     /// Returns the evaluated Type value, or a Type::Unevaluated if it fails.
-    fn try_evaluate_expression_to_type_value(
+    pub(crate) fn try_evaluate_expression_to_type_value(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
@@ -57,11 +57,11 @@ impl Compiler {
     }
 
     /// Try to evaluate an Expression as a Type id.
-    fn try_evaluate_expression_to_type(
+    pub(crate) fn try_evaluate_expression_to_type(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -80,7 +80,7 @@ impl Compiler {
         &self,
         module: &Module,
         signature: &FunctionSignature,
-        tree: &mut NodeTree,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
@@ -124,12 +124,152 @@ impl Compiler {
         })
     }
 
+    /// Evaluate static arguments for a type reference.
+    fn evaluate_static_arguments(
+        &self,
+        module: &Module,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        let Some(static_arguments) = static_arguments else {
+            return Ok(None);
+        };
+
+        let mut evaluated_arguments = Vec::with_capacity(static_arguments.len());
+
+        for argument_id in static_arguments {
+            let argument = tree.get(*argument_id);
+            let name = match argument {
+                Argument::Named { name, .. } => Some(*name),
+                _ => None,
+            };
+
+            let expression_id = argument.value();
+
+            if let Some(value) = self.evaluate_static_expression_value_for_type(
+                module,
+                expression_id,
+                tree,
+                symbols,
+                types,
+            )? {
+                evaluated_arguments.push(StaticArgument::Evaluated { name, value });
+                continue;
+            }
+
+            let ty_id =
+                self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
+
+            if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
+                evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
+                continue;
+            }
+
+            evaluated_arguments.push(StaticArgument::Evaluated {
+                name,
+                value: StaticExpression::Type { ty: ty_id },
+            });
+        }
+
+        Ok(Some(evaluated_arguments))
+    }
+
+    /// Evaluate an expression into a static value expression.
+    #[allow(clippy::only_used_in_recursion)]
+    fn evaluate_static_expression_value_for_type(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<StaticExpression>> {
+        let expression = tree.get(expression_id);
+
+        let value = match expression {
+            Expression::ScalarLiteral { value } => StaticExpression::ScalarLiteral {
+                value: value.clone(),
+            },
+            Expression::TypeLiteral { value } => StaticExpression::TypeLiteral {
+                value: value.clone(),
+            },
+            Expression::Type { value } => StaticExpression::Type { ty: *value },
+            Expression::RangeExpression {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                let start_value = self.evaluate_static_expression_value_for_type(
+                    module, *start, tree, symbols, types,
+                )?;
+                let end_value = self.evaluate_static_expression_value_for_type(
+                    module, *end, tree, symbols, types,
+                )?;
+
+                let (Some(start_value), Some(end_value)) = (start_value, end_value) else {
+                    return Ok(None);
+                };
+
+                StaticExpression::RangeExpression {
+                    start: Box::new(start_value),
+                    end: Box::new(end_value),
+                    is_inclusive: *is_inclusive,
+                }
+            }
+            Expression::ArrayExpression { elements } => {
+                let mut values = Vec::with_capacity(elements.len());
+
+                for element_id in elements {
+                    let element = tree.get(*element_id);
+                    let value = self.evaluate_static_expression_value_for_type(
+                        module,
+                        element.value(),
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    let Some(value) = value else {
+                        return Ok(None);
+                    };
+                    values.push(value);
+                }
+
+                StaticExpression::ArrayExpression { elements: values }
+            }
+            Expression::TupleExpression { elements } => {
+                let mut values = Vec::with_capacity(elements.len());
+
+                for element_id in elements {
+                    let element = tree.get(*element_id);
+                    let value = self.evaluate_static_expression_value_for_type(
+                        module,
+                        element.value(),
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    let Some(value) = value else {
+                        return Ok(None);
+                    };
+                    values.push(value);
+                }
+
+                StaticExpression::TupleExpression { elements: values }
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(value))
+    }
+
     /// Evaluate an Expression into a Type.
     fn evaluate_expression_to_type(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
-        tree: &mut NodeTree,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Type>> {
@@ -151,7 +291,7 @@ impl Compiler {
                         module, &signature, tree, symbols, types,
                     )?
                 } else {
-                    // NOTE #Incomplete: only function declarations are evaluable as types here
+                    // NOTE #Incomplete: only function declarations are evaluable as types (?)
                     return Ok(None);
                 }
             }
@@ -241,24 +381,29 @@ impl Compiler {
             }
 
             // references
-            // NOTE #Incomplete: evaluate/instance static arguments
             Expression::LocalReference {
                 target_symbol,
-                static_arguments: _,
+                static_arguments,
                 ..
             }
             | Expression::ModuleReference {
                 target_symbol,
-                static_arguments: _,
+                static_arguments,
                 ..
             }
             | Expression::GlobalReference {
                 target_symbol,
-                static_arguments: _,
+                static_arguments,
                 ..
             } => Type::Reference {
                 symbol: target_symbol,
-                static_arguments: None,
+                static_arguments: self.evaluate_static_arguments(
+                    module,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                )?,
             },
 
             // tuple (anonymous)
@@ -288,6 +433,7 @@ impl Compiler {
             // object (anonymous)
             Expression::ObjectExpression { properties } => {
                 // evaluate object fields
+                // #Cleanup: extract property -> type field evaluation?
                 let mut fields = Vec::with_capacity(properties.len());
                 for property_id in properties {
                     let property = tree.get(property_id).clone();
@@ -317,7 +463,6 @@ impl Compiler {
                                 };
                                 types.insert_type_from(ty, property_id)
                             };
-
                             let is_optional = modifiers.is_some_and(|modifiers| {
                                 modifiers.kind == Some(BindingKind::Maybe)
                             });

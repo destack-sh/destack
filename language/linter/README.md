@@ -90,6 +90,7 @@ High-confidence issues that are almost always wrong.
 | `no-array-delete` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow `delete` on arrays (creates holes) |
 | `no-async-promise-executor` | ESLint | DIR | ✗ | 🔶 | Unsafe | Disallow async functions as Promise executor |
 | `no-base-to-string` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow `.toString()` on objects without useful representation |
+| `no-borrow-across-await` | Destack | DIR | ✓ | 🔶 | None | Disallow holding borrows across await points |
 | `no-class-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning class/struct declarations |
 | `no-compare-neg-zero` | ESLint | AST | ✓ | ✅ | Safe | Disallow comparing against negative zero |
 | `no-const-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning const variables |
@@ -105,6 +106,7 @@ High-confidence issues that are almost always wrong.
 | `no-floating-promises` | TS-ESLint | DIR | ✗ | 🔶 | Suggestion | Require Promises to be awaited or returned |
 | `no-for-in-array` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow iterating over arrays with for-in |
 | `no-func-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning function declarations |
+| `no-implicit-any-in-export` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow implicit `any` in public APIs |
 | `no-index-out-of-bounds` | Destack | DIR | ✗ | 🔶 | None | Disallow array access where index is not proven in bounds |
 | `no-infinite-iterator` | Destack | DIR | ✗ | 🔶 | None | Disallow using methods that produce infinite iterators |
 | `no-infinite-recursion` | ErrorProne | DIR | ✗ | 🔶 | None | Disallow functions that unconditionally call themselves |
@@ -121,7 +123,9 @@ High-confidence issues that are almost always wrong.
 | `no-sparse-arrays` | ESLint | AST | ✓ | ✅ | None | Disallow sparse arrays with holes |
 | `no-struct-identity-compare` | Destack | DIR | ✓ | 🔶 | Safe | Disallow identity comparison on value types |
 | `no-this-before-super` | ESLint | DIR | ✓ | 🔶 | None | Disallow `this` before calling `super()` in constructors |
+| `no-throw-in-result-function` | Destack | DIR | ✗ | 🔶 | None | Disallow `throw` in functions returning `Result` |
 | `no-unchecked-overflow` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow arithmetic that may overflow without explicit handling |
+| `no-unchecked-type-assertion` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow type assertions without validation |
 | `no-unhandled-result` | Destack | DIR | ✓ | 🔶 | Suggestion | Require Result values to be handled |
 | `no-unsafe-finally` | ESLint | AST | ✓ | ✅ | Safe | Disallow control flow statements in finally blocks |
 | `no-unsafe-negation` | ESLint | AST | ✓ | ✅ | Safe | Disallow negating the left operand of relational operators |
@@ -144,13 +148,16 @@ Code that is likely unintentional but may occasionally be intentional.
 |------|--------|-------|-------|--------|------------|-------------|
 | `guard-for-in` | ESLint | AST | ✓ | ✅ | Suggestion | Require `hasOwnProperty` guard in for-in loops |
 | `no-async-foreach` | Destack | DIR | ✗ | 🔶 | Unsafe | Disallow `forEach` with async callback (doesn't await) |
+| `no-async-map-without-await` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow async callbacks in `.map()` without awaiting results |
 | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow assignment operators in conditional expressions |
+| `no-conflicting-decorators` | Destack | DIR | ✓ | 🔶 | None | Disallow decorator combinations that conflict |
 | `no-confusing-assignment` | Destack | AST | ✓ | ✅ | Suggestion | Warn on assignments that look like comparisons |
 | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow non-null assertions after optional chain expressions |
 | `no-constant-assertion` | Destack | AST | ✓ | ✅ | Safe | Disallow assertions on constant values |
 | `no-constructor-return` | ESLint | AST | ✓ | ✅ | Safe | Disallow returning values from constructors |
 | `no-debugger` | ESLint | AST | ✓ | ✅ | Safe | Disallow debugger statements |
 | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | None | Disallow duplicate conditions in if-else-if chains |
+| `no-duplicate-decorators` | Destack | AST | ✓ | 🔶 | Safe | Disallow duplicate decorators on the same target |
 | `no-duplicate-match-arms` | Destack | AST | ✓ | ✅ | None | Warn on match arms with identical bodies |
 | `no-empty` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow empty block statements |
 | `no-empty-function` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow empty functions |
@@ -171,6 +178,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-missing-override` | ErrorProne | DIR | ✗ | 🔶 | Safe | Warn when method overrides parent without `override` keyword |
 | `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | Safe | Disallow negation in the left operand of equality tests |
 | `no-prototype-builtins` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow calling Object.prototype methods directly on objects |
+| `no-redundant-await` | Destack | DIR | ✓ | 🔶 | Safe | Disallow redundant `await` expressions |
 | `no-redundant-match-guard` | Destack | AST | ✓ | ✅ | Safe | Disallow match guards that are always true or false |
 | `no-redundant-pattern` | Destack | AST | ✓ | ✅ | Safe | Disallow patterns that bind nothing useful |
 | `no-return-assign` | ESLint | AST | ✓ | ✅ | None | Disallow assignment operators in return statements |
@@ -181,10 +189,12 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-throw-literal` | ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow throwing literals instead of Error objects |
 | `no-unknown-rule-decorator` | Destack | AST | ✓ | ✅ | None | Disallow unknown rule decorators |
 | `no-unnecessary-clone` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Warn on cloning values that are not used afterward |
+| `no-unnecessary-reflection` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow reflection on fully known types |
 | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type assertions that do not change the type |
 | `no-unsafe-declaration-merging` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow unsafe declaration merging |
 | `no-unused-except-recursion` | Destack | DIR | ✓ | 🔶 | Suggestion | Warn on function arguments only used for recursion |
 | `no-useless-backreference` | ESLint | AST | ✓ | ✅ | Safe | Disallow useless backreferences in regular expressions |
+| `no-useless-cast` | Clippy | DIR | ✓ | 🔶 | Safe | Disallow casts that do not change the type |
 | `no-useless-catch` | ESLint | AST | ✓ | ✅ | Safe | Disallow catch clauses that only rethrow |
 | `no-useless-computed-key` | ESLint | AST | ✓ | ✅ | Safe | Disallow unnecessary computed property keys |
 | `no-useless-concat` | ESLint | AST | ✓ | ✅ | Safe | Disallow unnecessary concatenation of literals |
@@ -215,6 +225,7 @@ Patterns that may expose the application to attacks.
 | `no-eval` | ESLint | DIR | ✗ | 🔶 | None | Disallow the use of `eval()` |
 | `no-hardcoded-ip` | SonarQube | AST | ✓ | ✅ | None | Disallow hardcoded IP addresses |
 | `no-implied-eval` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow `setTimeout` and `setInterval` with string arguments |
+| `no-insecure-random` | Semgrep | DIR | ✗ | 🔶 | None | Disallow insecure random number generators |
 | `no-mass-assignment` | Semgrep | DIR | ✗ | 🔶 | Suggestion | Disallow `Object.assign` from untrusted input |
 | `no-new-func` | ESLint | DIR | ✗  | 🔶 | None | Disallow `new Function()` |
 | `no-open-redirect` | Semgrep | DIR | ✗ | 🔶 | None | Disallow redirects using user-controlled URLs |
@@ -225,6 +236,8 @@ Patterns that may expose the application to attacks.
 | `no-secrets` | Biome | AST | ✓ | ✅ | None | Disallow hardcoded secrets and credentials |
 | `no-sensitive-log` | Bearer | DIR | ✗ | 🔶 | Suggestion | Disallow logging data marked as sensitive |
 | `no-sql-injection` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in SQL queries |
+| `no-unsafe-deserialization` | Semgrep | DIR | ✗ | 🔶 | None | Disallow unsafe deserialization of untrusted input |
+| `no-unsafe-templating` | Semgrep | DIR | ✗ | 🔶 | None | Disallow untrusted data in string templating sinks |
 | `no-weak-crypto` | Semgrep | DIR | ✗ | 🔶 | Suggestion | Disallow weak cryptographic algorithms |
 | `no-xss` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in DOM manipulation |
 
@@ -237,10 +250,13 @@ Correct code that could be faster or use less memory.
 | Rule | Source | Level | Ready | Status | Fixability | Description |
 |------|--------|-------|-------|--------|------------|-------------|
 | `no-accumulating-spread` | Biome | DIR | ✗ | 🔶 | Unsafe | Disallow spreading in accumulators (causes O(n²) allocations) |
+| `no-alloc-in-loop` | Clippy | MIR | ✗ | 🔶 | None | Disallow heap allocations inside loops |
 | `no-array-for-each` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer for-of over `Array.forEach()` |
 | `no-array-unshift-loop` | Destack | DIR | ✗ | 🔶 | Unsafe | Disallow `unshift` in loops (causes O(n²) reallocations) |
 | `no-await-in-loop` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow await inside of loops |
 | `no-barrel-file` | Biome | AST | ✓ | ✅ | None | Disallow barrel files that re-export everything |
+| `no-boxing-in-loop` | Destack | MIR | ✗ | 🔶 | None | Disallow implicit boxing inside loops |
+| `no-intermediate-collect` | Clippy | DIR | ✗ | 🔶 | Suggestion | Disallow collecting only to immediately iterate once |
 | `no-json-clone` | Destack | AST | ✗ | 🔶 | Unsafe | Disallow `JSON.parse(JSON.stringify())` for cloning |
 | `no-nested-array-includes` | Destack | DIR | ✗ | 🔶 | Unsafe | Disallow `includes`/`indexOf` inside loops over another array |
 | `no-object-spread-in-reduce` | Destack | DIR | ✗ | 🔶 | Unsafe | Disallow object spread in reduce accumulators |
@@ -254,7 +270,9 @@ Correct code that could be faster or use less memory.
 | `prefer-array-some` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer `.some()` over `.find() !== undefined` |
 | `prefer-for-of` | TS-ESLint | DIR | ✗ | 🔶 | Safe | Prefer for-of loops over index-based for loops |
 | `prefer-includes` | TS-ESLint | DIR | ✗ | 🔶 | Safe | Prefer `.includes()` over `.indexOf() !== -1` |
-| `prefer-set-has` | Destack | DIR | ✗ | 🔶 | Unsafe | Suggest `Set` when array is used only for membership testing |
+| `prefer-reserve` | Clippy | DIR | ✗ | 🔶 | Suggestion | Prefer reserving capacity when the size is known |
+| `prefer-slice` | Destack | DIR | ✓ | 🔶 | Suggestion | Prefer borrowing slices over copying data |
+| `prefer-static-dispatch` | Destack | DIR | ✓ | 🔶 | Suggestion | Prefer static dispatch when dynamic dispatch is avoidable |
 | `prefer-string-endswith` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer `.endsWith()` over `.slice(-n) === suffix` |
 | `prefer-string-startswith` | Unicorn | DIR | ✗ | 🔶 | Safe | Prefer `.startsWith()` over `.indexOf() === 0` |
 | `prefer-typed-array` | Destack | DIR | ✗ | 🔶 | Unsafe | Suggest `TypedArray` for numeric buffers |
@@ -276,10 +294,12 @@ Subjective preferences for consistent coding style.
 | `consistent-extension-style` | Destack | AST | ✓ | ✅ | Unsafe | Enforce consistent use of named or anonymous extensions |
 | `consistent-type-definitions` | TS-ESLint | AST | ✓ | ✅ | Safe | Enforce type definitions to use either `interface` or `type` |
 | `consistent-type-imports` | TS-ESLint | AST | ✓ | ✅ | Safe | Enforce consistent usage of type imports |
+| `consistent-visibility` | Destack | AST | ✓ | 🔶 | Suggestion | Enforce consistent visibility modifiers |
 | `default-param-last` | ESLint | AST | ✓ | ✅ | Unsafe | Enforce default parameters to be last |
 | `dot-notation` | ESLint | AST | ✓ | ✅ | Safe | Enforce dot notation whenever possible |
 | `eqeqeq` | ESLint | AST | ✓ | ✅ | Safe | Require `===` and `!==` |
 | `explicit-function-return-type` | TS-ESLint | AST | ✓ | ✅ | Suggestion | Require explicit return types on functions |
+| `explicit-module-boundary-types` | TS-ESLint | AST | ✓ | 🔶 | Suggestion | Require explicit types on exported APIs |
 | `filename-case` | Unicorn | AST | ✓ | ✅ | Unsafe | Enforce a case style for filenames |
 | `grouped-accessor-pairs` | ESLint | AST | ✓ | ✅ | None | Require grouped accessor pairs in object literals and classes |
 | `no-boolean-literal-compare` | Unicorn | AST | ✓ | ✅ | Safe | Disallow comparing boolean expressions to boolean literals |
@@ -328,6 +348,7 @@ Subjective preferences for consistent coding style.
 | `prefer-propagate-operator` | Destack | DIR | ✗ | 🟡 | Safe | Prefer `?` propagation over manual Result matching |
 | `prefer-range-contains` | Destack | AST | ✓ | ✅ | Safe | Prefer range contains method over comparison chains |
 | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Safe | Prefer range literals over C-style for loops |
+| `prefer-readonly` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Prefer `readonly` for non-mutated fields |
 | `prefer-result-type` | Destack | DIR | ✓ | 🔶 | Suggestion | Prefer `Result<T, E>` return type over throwing |
 | `prefer-self-closing-tree` | Destack | AST | ✓ | ✅ | Safe | Prefer self-closing tree elements when possible |
 | `prefer-set-over-empty-map` | Destack | DIR | ✗ | 🔶 | Safe | Suggest `Set<K>` over `Map<K, void>` |
@@ -357,7 +378,9 @@ Overly complex code that is harder to understand and maintain.
 |------|--------|-------|-------|--------|------------|-------------|
 | `cognitive-complexity` | Biome | AST | ✓ | ✅ | None | Enforce a maximum cognitive complexity |
 | `cyclomatic-complexity` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum cyclomatic complexity |
+| `max-branching-factor` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum branching factor in conditionals |
 | `max-depth` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested blocks |
+| `max-generic-params` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum number of generic parameters |
 | `max-lines` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per file |
 | `max-lines-per-function` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per function |
 | `max-nested-callbacks` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested callbacks |
@@ -366,6 +389,7 @@ Overly complex code that is harder to understand and maintain.
 | `max-statements` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of statements per function |
 | `max-switch-cases` | SonarQube | AST | ✓ | ✅ | None | Enforce a maximum number of cases in a switch statement |
 | `max-type-fields` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of fields in a struct, class, interface, or object type |
+| `max-type-nesting` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum nesting depth for types |
 | `max-type-variants` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of variants in a union type or enum |
 | `no-complex-boolean-expression` | Destack | AST | ✓ | ✅ | Safe | Suggest simplifying complex boolean expressions |
 | `no-complex-type` | Destack | AST | ✓ | ✅ | None | Warn on overly complex types that should be aliased |
@@ -397,6 +421,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-class` | Destack | AST | ✓ | ✅ | Unsafe | Disallow class declarations (prefer structs) |
 | `no-console` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow the use of `console` |
 | `no-continue` | ESLint | AST | ✓ | ✅ | None | Disallow `continue` statements |
+| `no-cross-target-import` | Destack | DIR | ✓ | 🔶 | None | Disallow imports across target boundaries |
 | `no-default-export` | Import | AST | ✓ | ✅ | Unsafe | Disallow default exports |
 | `no-enum` | Biome | AST | ✓ | ✅ | Unsafe | Disallow TypeScript enums (prefer union types) |
 | `no-explicit-any` | TS-ESLint | AST | ✓ | ✅ | Suggestion | Disallow the `any` type |
@@ -412,10 +437,12 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-plusplus` | ESLint | AST | ✓ | ✅ | Safe | Disallow `++` and `--` operators |
 | `no-process-exit` | Unicorn | DIR | ✗ | 🔶 | None | Disallow `process.exit()` |
 | `no-require-imports` | TS-ESLint | DIR | ✗ | 🟡 | Safe | Disallow `require()` imports |
+| `no-runtime-reflection` | Destack | DIR | ✗ | 🔶 | None | Disallow runtime reflection (ban RTTI) |
 | `no-sequences` | ESLint | AST | ✓ | ✅ | None | Disallow comma operators |
 | `no-shadow` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow shadowing by rebinding a value |
 | `no-struct` | Destack | AST | ✓ | ✅ | Unsafe | Disallow struct declarations (prefer classes) |
 | `no-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow ternary operators |
+| `no-unsafe-ffi` | Destack | DIR | ✓ | 🔶 | None | Disallow FFI without explicit `@unsafe` |
 | `no-void` | ESLint | AST | ✗ | 🔶 | Safe | Disallow the `void` operator |
 | `no-warning-comments` | ESLint | AST | ✓ | ✅ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Unsafe | Disallow wildcard imports |

@@ -1,3 +1,3 @@
 # Functions
 
-Function declarations and calls.
+Function declarations, calls, and generic instancing.

@@ -4,6 +4,37 @@ use crate::{Assignability, Compiler};
 
 use super::{Constraint, InferTable};
 
+/// Track bounds for a single inference variable.
+#[derive(Debug, Clone)]
+struct Bounds {
+    /// Lower bounds collected for the variable.
+    lower: Vec<LocalTypeId>,
+    /// Upper bounds collected for the variable.
+    upper: Vec<LocalTypeId>,
+    /// Default type used when no bounds resolve.
+    default: Option<LocalTypeId>,
+}
+
+impl Bounds {
+    /// Create bounds from an inference variable.
+    fn from_var(var: &super::InferVar) -> Self {
+        Self {
+            lower: var.lower_bounds.clone(),
+            upper: var.upper_bounds.clone(),
+            default: var.default,
+        }
+    }
+}
+
+/// Select the join operation used for bounds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JoinKind {
+    /// Join bounds into a union.
+    Union,
+    /// Join bounds into an intersection.
+    Intersection,
+}
+
 /// The resolved types for all inference variables.
 #[derive(Debug, Default)]
 pub struct InferSolution {
@@ -239,33 +270,4 @@ impl Compiler {
             }
         }
     }
-}
-
-/// Track bounds for a single inference variable.
-#[derive(Debug, Clone)]
-struct Bounds {
-    /// Lower bounds collected for the variable.
-    lower: Vec<LocalTypeId>,
-    /// Upper bounds collected for the variable.
-    upper: Vec<LocalTypeId>,
-    /// Default type used when no bounds resolve.
-    default: Option<LocalTypeId>,
-}
-
-impl Bounds {
-    /// Create bounds from an inference variable.
-    fn from_var(var: &super::InferVar) -> Self {
-        Self {
-            lower: var.lower_bounds.clone(),
-            upper: var.upper_bounds.clone(),
-            default: var.default,
-        }
-    }
-}
-
-/// Select the join operation used for bounds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum JoinKind {
-    Union,
-    Intersection,
 }

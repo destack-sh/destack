@@ -17,6 +17,7 @@ and readable constraints.
 | `where/` | Readable generic constraints |
 | `refinements/` | Constrained types with validation |
 | `references/` | Reference and value type annotations |
+| `generics/` | Static parameter type references |
 
 ## Example
 

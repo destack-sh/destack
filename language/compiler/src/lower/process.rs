@@ -62,6 +62,7 @@ impl Compiler {
         };
 
         // update the module with the new lowered MIR
+        // (#Cleanup: should we mutate the ModuleMir in place..?)
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
         let mir = module

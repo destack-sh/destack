@@ -359,7 +359,7 @@ impl Compiler {
                         let width = left_width.max(right_width);
                         PrimitiveType::Int(IntType::Arbitrary { width, is_signed })
                     }
-                    // pointer-sized ints: can't determine width at compile time
+                    // pointer sized ints: cannot determine width at compile time
                     _ => PrimitiveType::Number,
                 }
             }
@@ -427,7 +427,7 @@ impl Compiler {
         _right_ty_id: LocalTypeId,
         _types: &TypeTable,
     ) -> Type {
-        // NOTE #Incomplete: type-level unary operation
+        // NOTE #Incomplete: type level unary operation
         Type::TypeLiteral {
             value: TypeLiteral::Unknown,
         }
@@ -470,7 +470,7 @@ impl Compiler {
                 types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
-                // NOTE #Suspicious: unsure about auto-unwrapping Type::Value in satisfies?
+                // NOTE #Suspicious: unsure about auto unwrapping Type::Value in satisfies?
                 // unwrap Type::Value if the right side is a class/struct used as a type
                 // (class references have value type = Type::Value { value: instance_ty })
                 let target_ty_id = match types.get_type(right_ty_id) {
@@ -498,7 +498,7 @@ impl Compiler {
                 types.get_type(left_ty_id).clone()
             }
             _ => {
-                // NOTE #Incomplete: other type-level binary operations (is, instanceof, extends, etc.)
+                // NOTE #Incomplete: other type level binary operations (is, instanceof, extends, etc.)
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 }
@@ -541,11 +541,10 @@ impl Compiler {
             // object type: look up field directly
             Type::Object { fields } => fields.iter().find(|f| &f.key == member_key).map(|f| f.ty),
 
-            // reference to a nominal type: look up in the declaration's instance type, then heritage, then extensions
-            Type::Reference {
-                symbol,
-                static_arguments: None,
-            } => self.infer_member_of_symbol(module, *symbol, member_key, types, visited),
+            // reference to a nominal type: look up in the declaration instance type and extensions
+            Type::Reference { symbol, .. } => {
+                self.infer_member_of_symbol(module, *symbol, member_key, types, visited)
+            }
 
             // union type: require all elements to have the field, return union of field types
             Type::Union { elements } => {
@@ -608,7 +607,7 @@ impl Compiler {
         visited: &mut Vec<GlobalSymbolId>,
     ) -> Option<LocalTypeId> {
         // cycle detection: if we've already visited this symbol, stop
-        // NOTE #Suspicious: should we really just return None for already-visited symbol types?
+        // NOTE #Suspicious: should we really just return None for already visited symbol types?
         if visited.contains(&symbol) {
             return None;
         }
@@ -674,9 +673,9 @@ impl Compiler {
     }
 
     /// Check if an extension is visible from the given module:
-    /// - Native: Extension in same module as target type, always visible wherever type is used.
-    /// - Anonymous: Extension on foreign type, only visible in the file where it's declared.
-    /// - Named: Extension on foreign type, must be explicitly imported to use.
+    /// Native: Extension in same module as target type, always visible wherever type is used.
+    /// Anonymous: Extension on foreign type, only visible in the file where it is declared.
+    /// Named: Extension on foreign type, must be explicitly imported to use.
     pub(super) fn is_extension_visible(&self, module: &Module, extension: &Extension) -> bool {
         match extension.kind {
             ExtensionKind::Inherent => true,
@@ -731,8 +730,8 @@ impl Compiler {
     }
 
     /// Import a type from a remote module into the current module's TypeTable.
-    ///  - For structural types (arrays, objects, ..): recursively copy the type structure.
-    ///  - For nominal types (Type::Reference): keep them as references to the original symbol.
+    /// For structural types (arrays, objects, ..): recursively copy the type structure.
+    /// For nominal types (Type::Reference): keep them as references to the original symbol.
     pub(super) fn import_type_from_remote(
         &self,
         expression_id: LocalNodeId<Expression>,
