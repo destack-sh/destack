@@ -324,6 +324,8 @@ impl Interpreter {
         function: mir::LocalNodeId<mir::Function>,
         arguments: &[mir::Value],
     ) -> RuntimeResult<()> {
+        let func = self.tree.get(function);
+
         // collect arguments from current frame
         let arguments = {
             let frame = self.current_frame()?;
@@ -332,8 +334,6 @@ impl Interpreter {
                 .map(|v| frame.get_value(*v))
                 .collect::<Result<Vec<_>, _>>()?
         };
-
-        let func = self.tree.get(function);
 
         // execute imported function
         if func.is_import() {

@@ -2,7 +2,7 @@ use crate::{Compiler, LowerResult, ModuleLowerer, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::ModuleMir;
+use destack_workspace::{ModuleMir, TargetId};
 
 /// Task to lower a DIR into MIR.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -33,16 +33,20 @@ impl Compiler {
     /// Lower a module.
     fn lower_module(&self, module_id: ModuleId, target: String) -> LowerResult<()> {
         let module = self.program.modules.get(module_id);
+        let target_id = {
+            let module = module.read();
+            TargetId::new(module.package_id, target.clone())
+        };
 
         // initialize MIR for this target
         {
             let mut module = module.write();
             let version = module.version;
             // replace existing MIR for this target, if any
-            module.mirs.retain(|mir| mir.target != target);
+            module.mirs.retain(|mir| mir.target != target_id);
             module
                 .mirs
-                .push(ModuleMir::new(module_id, version, target.clone()));
+                .push(ModuleMir::new(module_id, version, target_id.clone()));
         }
 
         // lower the module
@@ -68,7 +72,7 @@ impl Compiler {
         let mir = module
             .mirs
             .iter_mut()
-            .find(|mir| mir.target == target)
+            .find(|mir| mir.target == target_id)
             .expect("missing ModuleMir for target");
         *mir.tree.write() = mir_tree;
         mir.strings = mir_strings;

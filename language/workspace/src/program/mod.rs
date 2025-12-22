@@ -4,8 +4,10 @@ mod dir;
 mod mir;
 mod module;
 mod package;
+mod profile;
 mod program;
 mod specifier;
+mod target;
 
 pub use artifact::*;
 pub use ast::*;
@@ -13,5 +15,7 @@ pub use dir::*;
 pub use mir::*;
 pub use module::*;
 pub use package::*;
+pub use profile::*;
 pub use program::*;
 pub use specifier::*;
+pub use target::*;

@@ -2,7 +2,7 @@ use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
 use destack_codegen_cranelift::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{GlobalNodeIdAny, LocalNodeIdAny};
 use destack_source::ModuleId;
-use destack_workspace::Target;
+use destack_workspace::{Target, TargetId};
 
 impl Compiler {
     /// Generate native/WASM code for a module using Cranelift.
@@ -113,7 +113,8 @@ impl Compiler {
     ) -> Option<GlobalNodeIdAny> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mir_tree = module.mir(target_name).tree.read();
+        let target_id = TargetId::new(module.package_id, target_name);
+        let mir_tree = module.mir(&target_id).tree.read();
 
         let dir_node_id = mir_tree.get_source(mir_node.id)?;
         let dir_tree = module.dir().tree.read();

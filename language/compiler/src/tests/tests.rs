@@ -18,7 +18,7 @@ use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType, MemoryFileSystem,
     ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
 };
-use destack_workspace::{Module, Program, Session};
+use destack_workspace::{Module, Program, Session, TargetId};
 use parking_lot::RwLock;
 
 use crate::{
@@ -536,7 +536,8 @@ impl TestProgram {
     pub fn mir_to_string(&self, module_id: ModuleId, target: &str) -> String {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mir = module.mir(target);
+        let target_id = TargetId::new(module.package_id, target);
+        let mir = module.mir(&target_id);
         let tree = mir.tree.read();
         let strings = mir.strings.clone().into_immutable();
         format_mir(&tree, &strings, MirFormatOptions::default())
@@ -546,7 +547,8 @@ impl TestProgram {
     pub fn mir_interpreter(&self, module_id: ModuleId, target: &str) -> Interpreter {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let mir = module.mir(target);
+        let target_id = TargetId::new(module.package_id, target);
+        let mir = module.mir(&target_id);
         let tree = mir.tree.read().clone();
         let strings = mir.strings.clone().into_immutable();
         Interpreter::with_options(tree, strings, MachineOptions::test())

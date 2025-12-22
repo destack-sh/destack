@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{ModuleAst, ModuleDir, ModuleMir, ModuleType, TsConfigId};
+use crate::{ModuleAst, ModuleDir, ModuleMir, ModuleType, TargetId, TsConfigId};
 
 /// A Module is a single source unit.
 /// Destack treats all modules as "strict mode".
@@ -146,10 +146,10 @@ impl Module {
     /// # Panics
     /// Panics if called before Lower phase completes.
     #[inline]
-    pub fn mir(&self, target: &str) -> &ModuleMir {
+    pub fn mir(&self, target: &TargetId) -> &ModuleMir {
         self.mirs
             .iter()
-            .find(|mir| mir.target == target)
+            .find(|mir| &mir.target == target)
             .unwrap_or_else(|| panic!("no MIR for target {target:?} on {self:?}"))
     }
 }

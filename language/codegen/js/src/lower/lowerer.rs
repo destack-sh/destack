@@ -9,7 +9,7 @@ use destack_dir::{SymbolTable, TypeTable};
 use destack_source::FileType;
 use destack_workspace::{
     Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, Module, ModuleAst,
-    OutputFormat, Target,
+    OutputFormat, Target, TargetId,
 };
 
 use crate::tree::NodeTree as JsTree;
@@ -213,7 +213,7 @@ impl<'a> ModuleLowerer<'a> {
                 id: registry_next_id(),
                 version: ArtifactVersion::INITIAL,
                 scope: ArtifactScope::Module(self.module.id),
-                target: self.target.name.clone(),
+                target: TargetId::new(self.module.package_id, self.target.name.clone()),
                 uri,
                 content,
                 source: None,

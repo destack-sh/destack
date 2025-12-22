@@ -21,11 +21,11 @@ function add(a: int32, b: int32): int32 {
         "native",
         r#"
 function @add(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
 }
-"#,
+        "#,
     );
     test.assert_mir_function_output(
         module_id,
@@ -58,7 +58,7 @@ function fib(n: number): number {
         "native",
         r#"
 function @fib(v0: f64) -> f64 {
-block0:
+block0(v0: f64):
     v1 = fconst 2f64
     v2 = fcmp_lt v0, v1
     branch v2, block1, block2
