@@ -125,8 +125,8 @@ impl Compiler {
                 // type fields
                 let mut fields = Vec::new();
                 for member_id in members {
-                    if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?
+                    if let Some(field) = self
+                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?
                     {
                         fields.push(field);
                     }
@@ -181,9 +181,9 @@ impl Compiler {
                 // type fields
                 let mut fields = Vec::new();
                 for member_id in members {
-                    if let Some(field) = self
-                        .infer_member(module, *member_id, tree, symbols, types, infer, &mut ctx)?
-                    {
+                    if let Some(field) = self.infer_member(
+                        module, *member_id, tree, symbols, types, infer, &mut ctx, None,
+                    )? {
                         fields.push(field);
                     }
                 }
@@ -231,27 +231,42 @@ impl Compiler {
                     infer,
                     ctx,
                 )?;
-                for field_id in fields {
-                    self.infer_enum_field(module, *field_id, tree, symbols, types, infer, ctx)?;
-                }
-                for member_id in members {
-                    self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?;
-                }
-
-                // enum instance type: enum value type
+                // enum instance type: nominal enum value
+                let enum_symbol = descriptor.symbol.into_global(module.id);
                 let instance_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
+                    symbol: enum_symbol,
                     static_arguments: None,
                 };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+                types.set_instance_type(enum_symbol, instance_ty_id);
 
-                // enum instance type: enum value type
-                let value_ty = Type::Value {
-                    value: instance_ty_id,
+                // enum fields are exposed on the enum value
+                let mut value_fields = Vec::new();
+                for field_id in fields {
+                    self.infer_enum_field(module, *field_id, tree, symbols, types, infer, ctx)?;
+
+                    let field = tree.get(*field_id);
+                    let field_symbol = field.symbol.into_global(module.id);
+                    types.set_value_type(field_symbol, instance_ty_id);
+
+                    value_fields.push(TypeField {
+                        key: StaticKey::Name(field.name),
+                        ty: instance_ty_id,
+                        is_optional: false,
+                        is_readonly: true,
+                    });
+                }
+
+                for member_id in members {
+                    self.infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
+                }
+
+                // enum value type: object with variant fields
+                let value_ty = Type::Object {
+                    fields: value_fields,
                 };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+                types.set_value_type(enum_symbol, value_ty_id);
             }
 
             // extension
@@ -279,12 +294,23 @@ impl Compiler {
                     ctx,
                 )?;
 
+                // assign this to the target type when available
+                let this_ty_id = target_symbol.and_then(|target| {
+                    types.get_instance_type_id(target).or_else(|| {
+                        let ty = Type::Reference {
+                            symbol: target,
+                            static_arguments: None,
+                        };
+                        Some(types.insert_type_from(ty, declaration_id))
+                    })
+                });
+
                 // collect type fields from members
                 let mut fields = Vec::new();
                 for member_id in members {
-                    if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?
-                    {
+                    if let Some(field) = self.infer_member(
+                        module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
+                    )? {
                         fields.push(field);
                     }
                 }
@@ -336,8 +362,8 @@ impl Compiler {
                 // collect type fields from members
                 let mut fields = Vec::new();
                 for member_id in members {
-                    if let Some(field) =
-                        self.infer_member(module, *member_id, tree, symbols, types, infer, ctx)?
+                    if let Some(field) = self
+                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?
                     {
                         fields.push(field);
                     }
@@ -443,6 +469,7 @@ impl Compiler {
         types: &mut TypeTable,
         infer: &mut InferTable,
         ctx: &mut InferContext,
+        this_ty_id: Option<LocalTypeId>,
     ) -> AnalyzeResult<Option<TypeField>> {
         let member = tree.get(member_id);
         match member {
@@ -505,6 +532,15 @@ impl Compiler {
                 modifiers: _,
                 ..
             } => {
+                // assign this type for method bodies when available
+                if let Some(this_ty_id) = this_ty_id {
+                    let this_name = self.program.strings.intern("this");
+                    let (_scope_id, scope, _mark) = symbols.get_scope(member_id, tree);
+                    if let Some(this_symbol) = scope.find(StaticKey::Name(this_name)) {
+                        types.set_value_type(this_symbol.into_global(module.id), this_ty_id);
+                    }
+                }
+
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|k| match k {
                     DynamicKey::Name(name) => Some(StaticKey::Name(name)),
@@ -636,17 +672,41 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
+        _infer: &mut InferTable,
+        _ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
+        // resolve heritage targets from evaluated types when possible
+        let collect_symbol = |expression_id: LocalNodeId<Expression>,
+                              symbols: &SymbolTable,
+                              types: &mut TypeTable|
+         -> AnalyzeResult<Option<GlobalSymbolId>> {
+            let ty_id =
+                self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
+            let ty = types.get_type(ty_id);
+            let type_symbol = match ty {
+                Type::Reference { symbol, .. } => Some(*symbol),
+                Type::Value { value } => match types.get_type(*value) {
+                    Type::Reference { symbol, .. } => Some(*symbol),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            if let Some(type_symbol) = type_symbol {
+                return Ok(Some(type_symbol));
+            }
+
+            let expression = tree.get(expression_id);
+            Ok(expression.target_symbol())
+        };
+
         // analyze and extract extends symbols
         let mut extends_symbols = Vec::new();
         if let Some(extend_types) = &heritage.extends_types {
             for expression_id in extend_types {
-                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
-                let expression = tree.get(*expression_id);
-                if let Some(target_symbol) = expression.target_symbol() {
-                    extends_symbols.push(target_symbol);
+                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                    let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+                    extends_symbols.push(canonical_symbol);
                 }
             }
         }
@@ -655,10 +715,9 @@ impl Compiler {
         let mut implements_symbols = Vec::new();
         if let Some(implements_types) = &heritage.implements_types {
             for expression_id in implements_types {
-                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
-                let expression = tree.get(*expression_id);
-                if let Some(target_symbol) = expression.target_symbol() {
-                    implements_symbols.push(target_symbol);
+                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                    let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+                    implements_symbols.push(canonical_symbol);
                 }
             }
         }
@@ -667,10 +726,9 @@ impl Compiler {
         let mut embedded_symbols = Vec::new();
         if let Some(embedded_types) = &heritage.embedded_types {
             for expression_id in embedded_types {
-                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
-                let expression = tree.get(*expression_id);
-                if let Some(target_symbol) = expression.target_symbol() {
-                    embedded_symbols.push(target_symbol);
+                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                    let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+                    embedded_symbols.push(canonical_symbol);
                 }
             }
         }

@@ -2,12 +2,12 @@ use destack_builtin::LanguageItem;
 use destack_dir::{AssignOperator, BinaryOperator, UnaryOperator};
 
 /// Extension trait to get the LanguageItem for an operator.
-pub trait OperatorLanguageItem {
+pub trait OperatorLanguageItemExt {
     /// Get the LanguageItem for this operator, if one exists.
     fn language_item(&self) -> Option<LanguageItem>;
 }
 
-impl OperatorLanguageItem for BinaryOperator {
+impl OperatorLanguageItemExt for BinaryOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
             // arithmetic
@@ -40,9 +40,7 @@ impl OperatorLanguageItem for BinaryOperator {
 
             // comparison
             BinaryOperator::Equal | BinaryOperator::NotEqual => Some(LanguageItem::Equal),
-            BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict => {
-                Some(LanguageItem::Equal)
-            }
+            BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict => None,
             BinaryOperator::LessThan
             | BinaryOperator::LessThanOrEqual
             | BinaryOperator::GreaterThan
@@ -57,7 +55,7 @@ impl OperatorLanguageItem for BinaryOperator {
     }
 }
 
-impl OperatorLanguageItem for UnaryOperator {
+impl OperatorLanguageItemExt for UnaryOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
             UnaryOperator::Negate | UnaryOperator::WrappingNegate => Some(LanguageItem::Negate),
@@ -80,7 +78,7 @@ impl OperatorLanguageItem for UnaryOperator {
     }
 }
 
-impl OperatorLanguageItem for AssignOperator {
+impl OperatorLanguageItemExt for AssignOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
             // arithmetic

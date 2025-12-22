@@ -3,10 +3,10 @@
 // This module defines what gets automatically imported into every Destack file.
 // It re-exports the most fundamental types and traits from core/.
 
-// Reflection
+// reflection
 export { Type, typeOf } from "./reflect/type.ds";
 
-// Control flow
+// control flow
 export { Try } from "./control/try.ds";
 export { Ok, Err, Result, AsyncResult } from "./control/result.ds";
 export {
@@ -20,10 +20,10 @@ export {
     RangeFull,
 } from "./control/range.ds";
 
-// Decorator metadata (reflection)
+// decorator metadata (reflection)
 export { DecoratorInfo } from "./reflect/decorator.ds";
 
-// Decorator markers (intrinsics)
+// decorator markers (intrinsics)
 export {
     deprecated,
     experimental,
@@ -40,7 +40,7 @@ export {
     tag,
 } from "./intrinsic/decorator.ds";
 
-// Arithmetic operators
+// arithmetic operators
 export {
     Add,
     Subtract,
@@ -48,6 +48,7 @@ export {
     Divide,
     Remainder,
     Power,
+    Plus,
     Negate,
     And,
     Or,
@@ -59,11 +60,11 @@ export {
     Concatenate,
 } from "./operator/arithmetic.ds";
 
-// Comparison operators
-export { Equal, Compare, Ordering } from "./operator/comparison.ds";
+// comparison operators
+export { Equal, PartialEqual, Compare, PartialCompare, Ordering } from "./operator/comparison.ds";
 
-// Formatting operators
+// formatting operators
 export { Display, Debug } from "./operator/format.ds";
 
-// Subscript operators
+// subscript operators
 export { Index, IndexSet, Deref, DerefSet } from "./operator/subscript.ds";

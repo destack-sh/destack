@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, NodeTree, NodeType,
-    Property, SymbolSpace, SymbolTable, TypeTable,
+    Property, ScopeKind, StaticKey, SymbolSpace, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -170,9 +170,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Member> {
         let ast_member = ast.tree.get(ast_member_id);
-        let member_id =
-            tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
-        let member = match ast_member {
+        match ast_member {
             ast::Member::Field {
                 modifiers,
                 key,
@@ -180,6 +178,8 @@ impl Compiler {
                 default,
                 ..
             } => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
@@ -220,13 +220,16 @@ impl Compiler {
                 });
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Member::Field {
-                    modifiers,
-                    key,
-                    value,
-                    default,
-                    symbol: symbol_id,
-                }
+                tree.insert(
+                    member_id,
+                    Member::Field {
+                        modifiers,
+                        key,
+                        value,
+                        default,
+                        symbol: symbol_id,
+                    },
+                )
             }
             ast::Member::Method {
                 modifiers,
@@ -235,6 +238,20 @@ impl Compiler {
                 body,
                 ..
             } => {
+                let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ast,
+                    ScopeKind::Namespace,
+                    scope,
+                    None,
+                    symbols,
+                );
+                let member_id = tree.reserve_from_source(
+                    NodeType::Member,
+                    ast_member_id.id,
+                    (method_scope_id, LocalScopeMark::end()),
+                    parent_id,
+                );
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
@@ -249,10 +266,21 @@ impl Compiler {
                         types,
                     )
                 });
+                let this_name = self.program.strings.intern("this");
+                let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
+                self.bind_named_local(
+                    module,
+                    ast,
+                    SymbolSpace::Value,
+                    StaticKey::Name(this_name),
+                    method_scope,
+                    symbols,
+                );
+                let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 let signature = self.bind_function_signature(
                     module,
                     ast,
-                    scope,
+                    method_scope,
                     signature,
                     Some(member_id),
                     tree,
@@ -263,7 +291,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        scope,
+                        (method_scope_id, symbols.get_scope_mark(method_scope_id)),
                         body,
                         Some(member_id),
                         tree,
@@ -271,19 +299,22 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Member::Method {
-                    modifiers,
-                    key,
-                    signature,
-                    body,
-                    symbol: symbol_id,
-                }
+                tree.insert(
+                    member_id,
+                    Member::Method {
+                        modifiers,
+                        key,
+                        signature,
+                        body,
+                        symbol: symbol_id,
+                    },
+                )
             }
             ast::Member::Embed {
                 modifiers, value, ..
             } => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let value = self.bind_expression(
@@ -298,13 +329,18 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Member::Embed {
-                    modifiers,
-                    value,
-                    symbol: symbol_id,
-                }
+                tree.insert(
+                    member_id,
+                    Member::Embed {
+                        modifiers,
+                        value,
+                        symbol: symbol_id,
+                    },
+                )
             }
             ast::Member::StaticBlock { modifiers, body } => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 // modifiers are validated in the analyze validate pass
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
@@ -320,13 +356,15 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Member::StaticBlock {
-                    modifiers,
-                    body,
-                    symbol: symbol_id,
-                }
+                tree.insert(
+                    member_id,
+                    Member::StaticBlock {
+                        modifiers,
+                        body,
+                        symbol: symbol_id,
+                    },
+                )
             }
-        };
-        tree.insert(member_id, member)
+        }
     }
 }

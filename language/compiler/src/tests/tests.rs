@@ -133,7 +133,7 @@ impl TestProgram {
     }
 
     /// In-memory, sequential, with prelude injection.
-    pub fn memory_sequential_with_builtins() -> Self {
+    pub fn memory_sequential_with_prelude() -> Self {
         Self::new(
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),

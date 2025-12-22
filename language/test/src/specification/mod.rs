@@ -1,3 +1,3 @@
 mod runner;
 
-pub use runner::SpecSuite;
+pub use runner::SpecificationSuite;

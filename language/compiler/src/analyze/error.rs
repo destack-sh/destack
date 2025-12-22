@@ -127,6 +127,16 @@ pub enum AnalyzeError {
         ty: GlobalTypeId,
     },
 
+    /// Strict equality requires identity types.
+    #[error(
+        code = "EA034",
+        message = "strict equality not supported for non-identity type {ty}"
+    )]
+    InvalidStrictEquality {
+        node: GlobalNodeIdAny,
+        ty: GlobalTypeId,
+    },
+
     /// Missing member on type.
     #[error(
         code = "EA018",

@@ -18,7 +18,8 @@ pub(super) enum StaticParameterKind {
     Value,
 }
 
-/// Store metadata needed to resolve and validate static parameters.
+/// Parameter metadata needed to resolve and validate static parameters.
+/// #Cleanup: maybe move StaticParameter into DIR (next to StaticArgument)?
 #[derive(Debug, Clone)]
 pub(super) struct StaticParameter {
     /// Identify the static parameter symbol.
@@ -193,6 +194,7 @@ impl Compiler {
         let mut referenced_symbols = HashSet::new();
         let mut visited = HashSet::new();
 
+        // parameters
         for parameter in dynamic_parameters {
             self.collect_type_reference_symbols(
                 *parameter,
@@ -202,6 +204,7 @@ impl Compiler {
             );
         }
 
+        // return type
         if let Some(return_type) = return_type {
             self.collect_type_reference_symbols(
                 return_type,
@@ -211,7 +214,7 @@ impl Compiler {
             );
         }
 
-        // classify parameter kinds by usage
+        // classify parameter kinds
         let mut kinds = HashMap::new();
         for parameter in parameters {
             if referenced_symbols.contains(&parameter.symbol) {

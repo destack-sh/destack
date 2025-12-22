@@ -81,7 +81,8 @@ impl<'a> ModuleLowerer<'a> {
         &mut self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<()> {
-        match self.dir_tree.get(expression_id) {
+        let expression = self.dir_tree.get(expression_id);
+        match expression {
             Expression::Declaration { declaration } => {
                 let declaration_id = *declaration;
                 let declaration = self.dir_tree.get(declaration_id);
@@ -89,7 +90,7 @@ impl<'a> ModuleLowerer<'a> {
             }
             _ => Err(LowerError::UnsupportedConstruct {
                 node: expression_id.into_global_any(self.module_id),
-                message: "unsupported non-declaration expression".to_string(),
+                message: format!("unsupported root expression `{}`", expression.kind_name()),
             })?,
         }
     }

@@ -1,9 +1,10 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
+use destack_builtin::LanguageItem;
 use destack_dir::{
-    BinaryOperator, Expression, Extension, ExtensionKind, GlobalSymbolId, GlobalTypeId, IntType,
-    LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticKey, Type,
-    TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId,
+    GlobalTypeId, IntType, LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral,
+    StaticKey, SymbolType, Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -23,6 +24,7 @@ impl Compiler {
         operator: &BinaryOperator,
         left: &Type,
         right: &Type,
+        types: &TypeTable,
     ) -> Type {
         match operator {
             // comparison operators: try constant folding, else return boolean
@@ -58,7 +60,7 @@ impl Compiler {
             | BinaryOperator::Divide
             | BinaryOperator::Remainder
             | BinaryOperator::Exponent => self
-                .try_infer_string_concatenation(operator, left, right)
+                .try_infer_string_concatenation(operator, left, right, types)
                 .or_else(|| self.try_fold_arithmetic(operator, left, right))
                 .unwrap_or_else(|| self.widen_numeric_types(left, right)),
 
@@ -214,12 +216,13 @@ impl Compiler {
         operator: &BinaryOperator,
         left: &Type,
         right: &Type,
+        types: &TypeTable,
     ) -> Option<Type> {
         if !matches!(operator, BinaryOperator::Add) {
             return None;
         }
 
-        if Self::is_string_like(left) || Self::is_string_like(right) {
+        if self.is_string_like_type(left, types) || self.is_string_like_type(right, types) {
             return Some(Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
             });
@@ -228,16 +231,20 @@ impl Compiler {
         None
     }
 
-    /// Check whether a type is string like for concatenation.
-    fn is_string_like(ty: &Type) -> bool {
-        matches!(
-            ty,
+    /// Check whether a type behaves like a string type.
+    pub(super) fn is_string_like_type(&self, ty: &Type, types: &TypeTable) -> bool {
+        match ty {
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
-            } | Type::TypeLiteral {
+            } => true,
+            Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
-            }
-        )
+            } => true,
+            Type::Union { elements } => elements
+                .iter()
+                .all(|element_id| self.is_string_like_type(types.get_type(*element_id), types)),
+            _ => false,
+        }
     }
 
     /// Extract scalar literals from two types.
@@ -540,6 +547,12 @@ impl Compiler {
         match receiver_ty {
             // object type: look up field directly
             Type::Object { fields } => fields.iter().find(|f| &f.key == member_key).map(|f| f.ty),
+
+            // value type: unwrap to the underlying type
+            Type::Value { value } => {
+                let value_ty = types.get_type(*value).clone();
+                self.infer_member_of_type(module, &value_ty, member_key, types, visited)
+            }
 
             // reference to a nominal type: look up in the declaration instance type and extensions
             Type::Reference { symbol, .. } => {
@@ -1073,5 +1086,218 @@ impl Compiler {
                 expression_id,
             ),
         }
+    }
+
+    /// Check whether the receiver explicitly implements a language item interface.
+    pub(super) fn is_interface_implemented(
+        &self,
+        ty: &Type,
+        interface_item: LanguageItem,
+        types: &TypeTable,
+    ) -> bool {
+        let interface_symbol = self.expect_language_item(interface_item);
+        match ty {
+            Type::Reference { symbol, .. } => {
+                self.is_type_lineage_assignable(*symbol, interface_symbol, types)
+            }
+            Type::Union { elements } => elements.iter().all(|element_id| {
+                let element_ty = types.get_type(*element_id);
+                self.is_interface_implemented(element_ty, interface_item, types)
+            }),
+            _ => false,
+        }
+    }
+
+    /// Check whether a type is definitely a struct type.
+    pub(super) fn is_definitely_struct_type(&self, ty: &Type) -> bool {
+        match ty {
+            Type::Reference { symbol, .. } => symbol.ty() == SymbolType::Struct,
+            Type::TypeLiteral {
+                value: TypeLiteral::Composite(DeclarationType::Struct),
+            } => true,
+            _ => false,
+        }
+    }
+
+    /// Check whether a type is unresolved for operator resolution.
+    pub(super) fn is_unresolved_operator_type(&self, ty: &Type, types: &TypeTable) -> bool {
+        match ty {
+            Type::InferVar { .. } => true,
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            } => true,
+            Type::Union { elements } => elements.iter().any(|element_id| {
+                self.is_unresolved_operator_type(types.get_type(*element_id), types)
+            }),
+            _ => false,
+        }
+    }
+
+    /// Check whether a type behaves like a numeric type.
+    pub(super) fn is_numeric_like_type(&self, ty: &Type, types: &TypeTable) -> bool {
+        match ty {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(primitive),
+            } => matches!(
+                primitive,
+                PrimitiveType::Number
+                    | PrimitiveType::Int(_)
+                    | PrimitiveType::Float(_)
+                    | PrimitiveType::Bigint
+            ),
+            Type::TypeLiteral {
+                value:
+                    TypeLiteral::ScalarLiteral(
+                        ScalarLiteral::Integer(_)
+                        | ScalarLiteral::Float(_)
+                        | ScalarLiteral::Bigint(_),
+                    ),
+            } => true,
+            Type::Union { elements } => elements
+                .iter()
+                .all(|element_id| self.is_numeric_like_type(types.get_type(*element_id), types)),
+            _ => false,
+        }
+    }
+
+    /// Check whether a type is a primitive or scalar literal for builtin operators.
+    pub(super) fn is_primitive_literal_type(&self, ty: &Type, types: &TypeTable) -> bool {
+        match ty {
+            Type::TypeLiteral {
+                value:
+                    TypeLiteral::Primitive(_)
+                    | TypeLiteral::ScalarLiteral(_)
+                    | TypeLiteral::Null
+                    | TypeLiteral::Undefined,
+            } => true,
+            Type::Union { elements } => elements.iter().all(|element_id| {
+                self.is_primitive_literal_type(types.get_type(*element_id), types)
+            }),
+            _ => false,
+        }
+    }
+
+    /// Extract the return type from a function type.
+    pub(super) fn function_return_type(
+        &self,
+        fn_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        match types.get_type(fn_ty_id) {
+            Type::Function { return_type, .. } => *return_type,
+            _ => None,
+        }
+    }
+
+    /// Strip nullish types from a type id.
+    pub(super) fn strip_nullish_from_union(
+        &self,
+        ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> (Option<LocalTypeId>, bool) {
+        let ty = types.get_type(ty_id);
+
+        match ty {
+            Type::Union { elements } => {
+                let mut filtered = Vec::new();
+                let mut has_nullish = false;
+
+                for element_id in elements {
+                    let element_ty = types.get_type(*element_id);
+                    if self.is_nullish_type(element_ty) {
+                        has_nullish = true;
+                    } else {
+                        filtered.push(*element_id);
+                    }
+                }
+
+                if !has_nullish {
+                    return (Some(ty_id), false);
+                }
+
+                let non_nullish_ty_id = match filtered.len() {
+                    0 => None,
+                    1 => Some(filtered[0]),
+                    _ => Some(types.insert_type(Type::Union { elements: filtered })),
+                };
+
+                (non_nullish_ty_id, true)
+            }
+            _ if self.is_nullish_type(ty) => (None, true),
+            _ => (Some(ty_id), false),
+        }
+    }
+
+    /// Build a union type from two type ids.
+    pub(super) fn union_type_ids(
+        &self,
+        left_ty_id: LocalTypeId,
+        right_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        if left_ty_id == right_ty_id {
+            return left_ty_id;
+        }
+
+        let mut elements = Vec::new();
+        self.append_union_elements(left_ty_id, &mut elements, types);
+        self.append_union_elements(right_ty_id, &mut elements, types);
+
+        if elements.len() == 1 {
+            elements[0]
+        } else {
+            types.insert_type(Type::Union { elements })
+        }
+    }
+
+    /// Build a union type from a list of type ids.
+    pub(super) fn union_type_ids_from_list(
+        &self,
+        type_ids: Vec<LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let mut elements = Vec::new();
+        for ty_id in type_ids {
+            self.append_union_elements(ty_id, &mut elements, types);
+        }
+
+        if elements.len() == 1 {
+            elements[0]
+        } else {
+            types.insert_type(Type::Union { elements })
+        }
+    }
+
+    /// Append union elements for a type id to a list.
+    fn append_union_elements(
+        &self,
+        ty_id: LocalTypeId,
+        elements: &mut Vec<LocalTypeId>,
+        types: &TypeTable,
+    ) {
+        match types.get_type(ty_id) {
+            Type::Union { elements: union } => {
+                for element_id in union {
+                    if !elements.contains(element_id) {
+                        elements.push(*element_id);
+                    }
+                }
+            }
+            _ => {
+                if !elements.contains(&ty_id) {
+                    elements.push(ty_id);
+                }
+            }
+        }
+    }
+
+    /// Check whether a type is null or undefined.
+    fn is_nullish_type(&self, ty: &Type) -> bool {
+        matches!(
+            ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Null | TypeLiteral::Undefined,
+            }
+        )
     }
 }

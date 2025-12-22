@@ -59,9 +59,3 @@ export interface ImportMeta {
     /// Environment variables (from build configuration).
     readonly env: ImportMetaEnv,
 }
-
-declare;
-global {
-    /// The import.meta object for the current module.
-    const meta: ImportMeta,
-};

@@ -50,15 +50,17 @@ builtin_source!(CORE_INDEX, "index.ds");
 builtin_source!(CORE_PRELUDE, "prelude.ds");
 
 // operator
-builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
 builtin_source!(OPERATOR_COMPARISON, "operator", "comparison.ds");
+builtin_source!(OPERATOR_DROP, "operator", "drop.ds");
+builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_FORMAT, "operator", "format.ds");
 builtin_source!(OPERATOR_SUBSCRIPT, "operator", "subscript.ds");
 
 // control
 builtin_source!(CONTROL_INDEX, "control", "index.ds");
 builtin_source!(CONTROL_TRY, "control", "try.ds");
+builtin_source!(CONTROL_ERROR, "control", "error.ds");
 builtin_source!(CONTROL_RESULT, "control", "result.ds");
 builtin_source!(CONTROL_RANGE, "control", "range.ds");
 
@@ -81,11 +83,13 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     // operator (no deps)
     OPERATOR_ARITHMETIC,
     OPERATOR_COMPARISON,
+    OPERATOR_DROP,
     OPERATOR_SUBSCRIPT,
     OPERATOR_FORMAT,
     OPERATOR_INDEX,
     // control (Try has no deps, Result depends on Try, Range has no deps)
     CONTROL_TRY,
+    CONTROL_ERROR,
     CONTROL_RANGE,
     CONTROL_RESULT,
     CONTROL_INDEX,

@@ -53,6 +53,7 @@ impl Compiler {
     }
 
     /// Check whether a type id points at an inference variable.
+    #[inline]
     pub(super) fn is_infer_var_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
         matches!(types.get_type(ty_id), Type::InferVar { .. })
     }

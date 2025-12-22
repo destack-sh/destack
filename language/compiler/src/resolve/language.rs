@@ -16,8 +16,8 @@ impl Compiler {
             self.require_resolve_module(module_id)?;
         }
 
-        // resolve all required language items
-        for item in LanguageItem::required() {
+        // resolve all language items
+        for item in LanguageItem::all() {
             self.require_language_item(item)?;
         }
 
@@ -83,7 +83,7 @@ mod tests {
     /// Test that language item modules can be looked up correctly.
     #[test]
     fn test_resolve_language_item_symbol() {
-        let test = TestProgram::memory_sequential_with_builtins();
+        let test = TestProgram::memory_sequential_with_prelude();
         test.resolve_builtins();
         test.compile();
 
