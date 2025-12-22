@@ -183,7 +183,7 @@ impl Compiler {
                 } else {
                     SymbolKind::Local
                 };
-                let (descriptor, _scope_id) = self.bind_declaration_descriptor(
+                let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
                     ast,
                     scope,
@@ -201,7 +201,7 @@ impl Compiler {
                             self.bind_parameter(
                                 module,
                                 ast,
-                                scope,
+                                (scope_id, symbols.get_scope_mark(scope_id)),
                                 *param,
                                 Some(declaration_id),
                                 tree,
@@ -211,6 +211,7 @@ impl Compiler {
                         })
                         .collect()
                 });
+                let scope = (scope_id, symbols.get_scope_mark(scope_id));
                 let value = self.bind_expression(
                     module,
                     ast,

@@ -17,14 +17,14 @@ use crate::mdtest::{
 
 /// Test suite for type checking specification tests.
 #[derive(Debug, Default)]
-pub struct SpecSuite {
+pub struct SpecificationSuite {
     /// Map from test full name to the parsed test case.
     tests: HashMap<String, MdTestCase>,
     /// List of discovered test cases.
     cases: Vec<TestCase>,
 }
 
-impl SpecSuite {
+impl SpecificationSuite {
     /// Load all specification tests from the fixtures/specification directory.
     pub fn load() -> Self {
         let fixtures = fixtures_dir();
@@ -66,7 +66,7 @@ impl SpecSuite {
     }
 }
 
-impl Suite for SpecSuite {
+impl Suite for SpecificationSuite {
     fn name(&self) -> &'static str {
         "specification"
     }
@@ -85,7 +85,7 @@ impl Suite for SpecSuite {
         let timeout = context
             .timeout
             .unwrap_or(Duration::from_secs(TEST_TIMEOUT_SECONDS));
-        run_with_timeout(md_test.clone(), timeout, run_spec_test)
+        run_with_timeout(md_test.clone(), timeout, run_specification_test)
     }
 
     fn timeout(&self) -> Option<Duration> {
@@ -94,7 +94,7 @@ impl Suite for SpecSuite {
 }
 
 /// Run a single spec test: compile the code and compare errors against expectations.
-fn run_spec_test(test: &MdTestCase) -> TestResult {
+fn run_specification_test(test: &MdTestCase) -> TestResult {
     let (session, program, _main_path) = setup_test_environment(test);
 
     // compile with single worker for deterministic results
@@ -182,20 +182,19 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         }
     }
 
+    // if no errors are missing or unexpected, return passed
     if missing.is_empty() && unexpected.is_empty() {
         return TestResult::Passed;
     }
 
     // build failure message
     let mut message = String::new();
-
     if !missing.is_empty() {
         message.push_str(&format!("{}\n", color::red("missing expected errors:")));
         for err in &missing {
             message.push_str(&format!("  {}\n", color::red(&format!("- {err}"))));
         }
     }
-
     if !unexpected.is_empty() {
         if !message.is_empty() {
             message.push('\n');

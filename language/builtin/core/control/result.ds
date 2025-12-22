@@ -32,8 +32,9 @@ import { Try } from "./try.ds";
 import { Equal } from "../operator/comparison.ds";
 import { Display, Debug } from "../operator/format.ds";
 
+/// TODO #Cleanup: remove Promise/PromiseConstructor from result.ds once we have a proper Promise type
+
 /// Minimal Promise type used by core async helpers.
-/// #Cleanup: remove this once we have a proper Promise type
 declare interface Promise<T> {
     /// Chain a success callback and return a new Promise.
     then<U>(f: (T) => U): Promise<U>
@@ -43,7 +44,6 @@ declare interface Promise<T> {
 }
 
 /// Constructor for Promise values.
-/// #Cleanup: remove this once we have a proper Promise type
 declare interface PromiseConstructor {
     /// Resolve a value into a Promise.
     resolve<T>(value: T): Promise<T>

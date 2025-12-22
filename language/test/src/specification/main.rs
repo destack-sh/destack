@@ -3,7 +3,7 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use destack_test::harness::{Runner, TestOptions};
-use destack_test::specification::SpecSuite;
+use destack_test::specification::SpecificationSuite;
 
 #[derive(Parser, Debug, Clone)]
 #[command(name = "specification", about = "Run Destack specification tests")]
@@ -14,6 +14,6 @@ struct SpecificationOptions {
 
 fn main() -> ExitCode {
     let options = SpecificationOptions::parse();
-    let suite = SpecSuite::load();
+    let suite = SpecificationSuite::load();
     Runner::run_suite(&suite, &options.test)
 }

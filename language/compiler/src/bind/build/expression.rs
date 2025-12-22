@@ -1047,18 +1047,6 @@ impl Compiler {
                     ast::ForEachKind::In => ForEachKind::In,
                     ast::ForEachKind::Of => ForEachKind::Of,
                 };
-                let pattern = self.bind_pattern(
-                    module,
-                    ast,
-                    scope,
-                    None,
-                    SymbolBinding::Runtime,
-                    *pattern,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                );
                 let iterator = self.bind_expression(
                     module,
                     ast,
@@ -1076,6 +1064,18 @@ impl Compiler {
                     scope,
                     None,
                     symbols,
+                );
+                let pattern = self.bind_pattern(
+                    module,
+                    ast,
+                    (scope_id, symbols.get_scope_mark(scope_id)),
+                    None,
+                    SymbolBinding::Runtime,
+                    *pattern,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
                 );
                 let body = self.bind_block(
                     module,

@@ -426,7 +426,7 @@ impl Compiler {
                     module,
                     ast,
                     SymbolSpace::Value,
-                    StaticKey::Name(name),
+                    StaticKey::Name(alias),
                     binding,
                     scope,
                     export,

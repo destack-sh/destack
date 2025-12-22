@@ -99,6 +99,7 @@ impl Compiler {
                     None,
                     symbols,
                 );
+                let scope = (scope.0, symbols.get_scope_mark(scope.0));
                 let parameter = Parameter::Named {
                     modifiers,
                     name,
@@ -198,6 +199,7 @@ impl Compiler {
                     None,
                     symbols,
                 );
+                let scope = (scope.0, symbols.get_scope_mark(scope.0));
                 let parameter = Parameter::Variadic {
                     modifiers,
                     name,

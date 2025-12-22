@@ -598,6 +598,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
+    use destack_builtin::LanguageItem;
     use destack_dir::{Expression, Pattern, ScalarLiteral};
 
     use crate::{TestProgram, assert_node, assert_string};
@@ -1775,9 +1776,8 @@ import { X } from "./a.ds";
 
     /// Test that prelude items (like Add, Type) are available in user code.
     #[test]
-    #[ignore] // nocheckin
-    fn test_resolve_prelude_items() {
-        let test = TestProgram::memory_sequential_with_builtins();
+    fn test_resolve_builtin_language_items() {
+        let test = TestProgram::memory_sequential_with_prelude();
 
         // code that uses prelude items without importing them
         let module_id = test.add_module(
@@ -1797,8 +1797,12 @@ function printType(t: Type) {
 "#,
         );
 
+        test.resolve_builtins();
         test.resolve_module(module_id);
         test.compile();
         test.check_clean();
+        for item in LanguageItem::all() {
+            test.compiler.expect_language_item(item);
+        }
     }
 }

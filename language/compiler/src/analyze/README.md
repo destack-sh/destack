@@ -68,8 +68,8 @@ High level TypeTable shape:
 struct TypeTable {
     moduleId: ModuleId
 
-    nextTypeId: u32
-    types: Arena<Type>
+    nextTypeId: uint32
+    types: Type[]
     sourceIdByTypeId: LocalNodeIdAny[]
 
     declaredTypeByNodeId: Map<GlobalNodeIdAny, LocalTypeId>
@@ -78,20 +78,20 @@ struct TypeTable {
     instanceTypeBySymbolId: Map<GlobalSymbolId, LocalTypeId>
     valueTypeBySymbolId: Map<GlobalSymbolId, LocalTypeId>
 
-    nextInstanceId: u32
-    instances: Arena<Instance>
+    nextInstanceId: uint32
+    instances: Instance[]
     instanceByNodeId: Map<GlobalNodeIdAny, LocalInstanceId>
 
-    nextResolutionId: u32
-    resolutions: Arena<Resolution>
+    nextResolutionId: uint32
+    resolutions: Resolution[]
     resolutionByNodeId: Map<GlobalNodeIdAny, LocalResolutionId>
 
-    nextLineageId: u32
-    lineages: Arena<Lineage>
+    nextLineageId: uint32
+    lineages: Lineage[]
     lineageBySymbolId: Map<GlobalSymbolId, LocalLineageId>
 
-    nextExtensionId: u32
-    extensions: Arena<Extension>
+    nextExtensionId: uint32
+    extensions: Extension[]
     extensionBySymbol: Map<GlobalSymbolId, LocalExtensionId>
     extensionsByTarget: Map<GlobalSymbolId, LocalExtensionId[]>
 }
@@ -127,7 +127,7 @@ struct InferTable {
 struct InferVar {
     lowerBounds: LocalTypeId[]
     upperBounds: LocalTypeId[]
-    defaultType: LocalTypeId | undefined
+    defaultType?: LocalTypeId
     origin: InferOrigin
     scope: InferScope
 }
@@ -141,7 +141,7 @@ newtype InferOrigin =
 
 struct InferScope {
     owner: GlobalSymbolId
-    functionId: GlobalNodeIdAny | undefined
+    functionId?: GlobalNodeIdAny
 }
 
 newtype Constraint =
@@ -150,7 +150,7 @@ newtype Constraint =
           kind: "Subtype" = "Subtype"
           sub: LocalTypeId
           sup: LocalTypeId
-          variance: VarianceBound | undefined
+          variance?: VarianceBound
       }
     | { kind: "Join" = "Join", target: InferVarId, sources: LocalTypeId[] }
     | {
@@ -179,13 +179,13 @@ High level InferContext shape:
 
 ```ds
 struct InferContext {
-    narrowings: [GlobalSymbolId, LocalTypeId][]
-    expectedType: LocalTypeId | undefined
-    returnType: LocalTypeId | undefined
+    narrowings: (GlobalSymbolId, LocalTypeId)[]
+    expectedType?: LocalTypeId
+    returnType?: LocalTypeId
     isUnreachable: boolean
-    inLoop: LocalNodeIdAny | undefined
-    inMatch: LocalNodeIdAny | undefined
-    inFunction: LocalNodeIdAny | undefined
+    inLoop?: LocalNodeIdAny
+    inMatch?: LocalNodeIdAny
+    inFunction?: LocalNodeIdAny
     isAsync: boolean
     isGenerator: boolean
     inAbstractClass: boolean
@@ -213,7 +213,7 @@ newtype Type =
     | {
           kind: "Reference" = "Reference"
           symbol: GlobalSymbolId
-          staticArguments: StaticArgument[] | undefined
+          staticArguments?: StaticArgument[]
       }
     | { kind: "Unevaluated" = "Unevaluated", node: LocalNodeId<Expression> }
 
@@ -221,14 +221,14 @@ newtype Type =
     | { kind: "Mutable" = "Mutable", mutability: Mutability, right: LocalTypeId }
     | {
           kind: "ValueOf" = "ValueOf"
-          mutability: Mutability | undefined
-          variance: VarianceBound | undefined
+          mutability?: Mutability
+          variance?: VarianceBound
           right: LocalTypeId
       }
     | {
           kind: "ReferenceOf" = "ReferenceOf"
-          mutability: Mutability | undefined
-          variance: VarianceBound | undefined
+          mutability?: Mutability
+          variance?: VarianceBound
           right: LocalTypeId
       }
     | {
@@ -243,7 +243,7 @@ newtype Type =
           element: LocalTypeId
           count: LocalNodeId<Expression>
       }
-    | { kind: "Array" = "Array", element: LocalTypeId | undefined }
+    | { kind: "Array" = "Array", element?: LocalTypeId }
     | { kind: "Tuple" = "Tuple", elements: LocalTypeId[] }
     | { kind: "Object" = "Object", fields: TypeField[] }
     | {
@@ -252,7 +252,7 @@ newtype Type =
           cardinality: FunctionCardinality
           staticParameters: LocalTypeId[]
           dynamicParameters: LocalTypeId[]
-          returnType: LocalTypeId | undefined
+          returnType?: LocalTypeId
       }
 
     | { kind: "Union" = "Union", elements: LocalTypeId[] }
@@ -318,9 +318,9 @@ High level StaticParameter shape:
 ```ds
 struct StaticParameter {
     symbol: GlobalSymbolId
-    name: StringId | undefined
+    name?: StringId
     declaredTypeId: LocalTypeId
-    defaultExpression: GlobalNodeId<Expression> | undefined
+    defaultExpression?: GlobalNodeId<Expression>
 }
 ```
 
@@ -331,7 +331,7 @@ newtype StaticArgument =
     | { kind: "Unevaluated" = "Unevaluated", node: LocalNodeId<Argument> }
     | {
           kind: "Evaluated" = "Evaluated"
-          name: StringId | undefined
+          name?: StringId
           value: StaticExpression
       }
 ```
@@ -346,7 +346,7 @@ newtype StaticExpression =
     | {
           kind: "Declaration" = "Declaration"
           declaration: LocalNodeId<Declaration>
-          staticArguments: StaticArgument[] | undefined
+          staticArguments?: StaticArgument[]
       }
     | { kind: "Type" = "Type", ty: LocalTypeId }
     | {
@@ -366,19 +366,19 @@ High level Resolution shape:
 newtype Resolution =
     | {
           kind: "Unresolved" = "Unresolved"
-          receiver: LocalTypeId | undefined
+          receiver?: LocalTypeId
           missingKeys: DispatchKey[]
           candidates: ResolutionCandidate[]
       }
-    | { kind: "Builtin" = "Builtin", receiver: LocalTypeId | undefined }
+    | { kind: "Builtin" = "Builtin", receiver?: LocalTypeId }
     | {
           kind: "Static" = "Static"
-          receiver: LocalTypeId | undefined
+          receiver?: LocalTypeId
           candidate: ResolutionCandidate
       }
     | {
           kind: "Dynamic" = "Dynamic"
-          receiver: LocalTypeId | undefined
+          receiver?: LocalTypeId
           candidates: ResolutionCandidate[]
       }
 
@@ -387,9 +387,9 @@ newtype DispatchKey =
     | { kind: "Multiple" = "Multiple", types: LocalTypeId[] }
 
 struct ResolutionCandidate {
-    key: DispatchKey | undefined
+    key?: DispatchKey
     targetSymbol: GlobalSymbolId
-    instance: LocalInstanceId | undefined
+    instance?: LocalInstanceId
 }
 ```
 
@@ -397,7 +397,7 @@ High level Lineage shape:
 
 ```ds
 struct Lineage {
-    extends: GlobalSymbolId | undefined
+    extends?: GlobalSymbolId
     implements: GlobalSymbolId[]
     embedded: GlobalSymbolId[]
 }
@@ -415,7 +415,7 @@ struct Extension {
     symbol: GlobalSymbolId
     kind: ExtensionKind
     target: GlobalSymbolId
-    lineage: LocalLineageId | undefined
+    lineage?: LocalLineageId
 }
 ```
 
@@ -547,6 +547,11 @@ Analyze resolves member access and overloads at use sites.
 Member access selects a member symbol from a Type, including Extensions.
 Call and operator sites choose the best overload by assignability.
 Union receivers may produce Dynamic Resolutions for runtime dispatch.
+Static Resolutions may still dispatch via vtable for virtual symbols.
+Dynamic Resolutions are required when union members resolve to different symbols or Instances.
+Operator expressions map to builtin operator interfaces and reuse the Resolution machinery.
+Builtin operator cases record Resolution::Builtin instead of a target symbol.
+Operator overloads record the selected interface member and dispatch key when needed.
 
 Resolutions are recorded in the TypeTable and never recomputed later.
 
@@ -613,33 +618,6 @@ When an expression references a symbol from another module, Analyze copies the r
 Structural types are copied recursively, and nominal references retain their GlobalSymbolId identity.
 InferVar values from remote modules are replaced with Unknown to keep inference local.
 Exports should have declared Types for stable cross module typing.
-
----
-
-# Implementation Status // nocheckin: remove status when done
-
-Analyze is implemented in layers that match the pipeline contract.
-The current implementation covers the following.
-
-1. Type evaluation for function declarations, object types, tuple types, array types, and literal types.
-   Declared Types are recorded for annotated nodes.
-2. Expression inference for literals, arrays, tuples, objects, calls, and lambdas.
-   Contextual typing drives lambda parameter types and literal widening.
-3. Instance creation for function references, member access, and call sites with static arguments.
-   Static argument inference uses the InferTable and is recorded on the originating node.
-4. Assignability checks for literal types, unions, arrays, tuples, and objects.
-   Errors are recorded without aborting the analysis pass.
-
-The current implementation does not yet cover the following.
-
-1. Resolution and overload selection at call and member sites.
-   Resolution records are not populated yet.
-2. CFG based flow typing with branch sensitive environments.
-   InferContext stores narrowings but no CFG is constructed.
-3. Where clause lowering into constraint groups.
-   Where clauses are parsed but are not applied during Analyze yet.
-4. Full declaration level evaluation for classes, enums, interfaces, and module scope statements.
-   Only function declaration evaluation is implemented now.
 
 ---
 

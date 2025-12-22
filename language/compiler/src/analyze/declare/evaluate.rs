@@ -1,8 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BindingKind, Declaration, DynamicKey, Expression, FunctionSignature, LocalNodeId,
-    LocalTypeId, Mutability, NodeTree, Property, StaticArgument, StaticExpression, StaticKey,
-    SymbolTable, Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionSignature,
+    LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument, StaticExpression,
+    StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -377,6 +378,69 @@ impl Compiler {
                     left: left_id,
                     operator,
                     right: right_id,
+                }
+            }
+
+            // union and intersection types
+            Expression::Binary {
+                left,
+                operator,
+                right,
+                ..
+            } => {
+                let left_id =
+                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
+                let right_id =
+                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+
+                match operator {
+                    BinaryOperator::ElementwiseOr => {
+                        let mut elements = Vec::new();
+
+                        if let Type::Union {
+                            elements: union_elements,
+                        } = types.get_type(left_id)
+                        {
+                            elements.extend(union_elements.iter().copied());
+                        } else {
+                            elements.push(left_id);
+                        }
+
+                        if let Type::Union {
+                            elements: union_elements,
+                        } = types.get_type(right_id)
+                        {
+                            elements.extend(union_elements.iter().copied());
+                        } else {
+                            elements.push(right_id);
+                        }
+
+                        Type::Union { elements }
+                    }
+                    BinaryOperator::ElementwiseAnd => {
+                        let mut elements = Vec::new();
+
+                        if let Type::Intersection {
+                            elements: intersection_elements,
+                        } = types.get_type(left_id)
+                        {
+                            elements.extend(intersection_elements.iter().copied());
+                        } else {
+                            elements.push(left_id);
+                        }
+
+                        if let Type::Intersection {
+                            elements: intersection_elements,
+                        } = types.get_type(right_id)
+                        {
+                            elements.extend(intersection_elements.iter().copied());
+                        } else {
+                            elements.push(right_id);
+                        }
+
+                        Type::Intersection { elements }
+                    }
+                    _ => return Ok(None),
                 }
             }
 

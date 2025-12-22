@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::parameter::{StaticParameter, StaticParameterKind};
 use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferOrigin, InferScope,
-    InferTable,
+    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferOrigin,
+    InferScope, InferTable,
 };
 use destack_dir::{
     Argument, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
@@ -30,21 +30,19 @@ pub(super) enum MissingStaticArgument<'a> {
     },
 }
 
-/// Resolved static arguments for a function instantiation.
+/// Inherited static arguments and substitutions for a type reference.
 #[derive(Debug, Clone)]
-pub(super) struct ResolvedStaticArguments {
-    /// Dynamic parameter types after substitution.
-    pub(super) dynamic_parameters: Vec<LocalTypeId>,
-    /// Return type after substitution.
-    pub(super) return_type: Option<LocalTypeId>,
-    /// Static arguments in declared order.
-    pub(super) static_arguments: Vec<StaticArgument>,
+pub(super) struct InheritedStaticArguments {
+    /// Static arguments inherited from the receiver.
+    pub(super) arguments: Vec<StaticArgument>,
+    /// Substitutions for type parameters in inherited arguments.
+    pub(super) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Map static argument values to parameters by name and position.
-    fn assign_static_argument_values(
+    pub(super) fn assign_static_argument_values(
         &self,
         module_id: destack_source::ModuleId,
         node_id: LocalNodeIdAny,
@@ -120,6 +118,125 @@ impl Compiler {
         }
 
         assigned
+    }
+
+    /// Resolve inherited static arguments and substitutions for a receiver type.
+    pub(super) fn resolve_inherited_static_arguments(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeIdAny,
+        receiver_ty: &Type,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<InheritedStaticArguments> {
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = receiver_ty
+        else {
+            return Ok(InheritedStaticArguments {
+                arguments: Vec::new(),
+                substitutions: HashMap::new(),
+            });
+        };
+
+        let resolved = self.resolve_type_reference_static_arguments(
+            module,
+            receiver_id,
+            *symbol,
+            static_arguments.as_deref(),
+            tree,
+            symbols,
+            types,
+        )?;
+        let Some(resolved_arguments) = resolved else {
+            return Ok(InheritedStaticArguments {
+                arguments: Vec::new(),
+                substitutions: HashMap::new(),
+            });
+        };
+
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            *symbol,
+            &resolved_arguments,
+            tree,
+            symbols,
+            types,
+        );
+
+        Ok(InheritedStaticArguments {
+            arguments: resolved_arguments,
+            substitutions,
+        })
+    }
+
+    /// Infer a dynamic argument value with contextual typing.
+    pub(super) fn infer_argument(
+        &self,
+        module: &Module,
+        argument_id: LocalNodeId<Argument>,
+        expected_ty_id: Option<LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<()> {
+        let argument = tree.get(argument_id);
+
+        // apply the expected type to the argument value
+        let mut argument_ctx = ctx.fork().with_expected_type(expected_ty_id);
+
+        match argument {
+            Argument::Positional { value } => {
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
+            }
+            Argument::Named { name: _, value } => {
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
+            }
+            Argument::Labeled { label: _, value } => {
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
+            }
+            Argument::Spread { value } => {
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut argument_ctx,
+                )?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Resolve a static argument for a parameter.
@@ -406,7 +523,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
-        // load static parameter symbols for the declaration
+        // collect static parameter symbols for the declaration
         let parameter_symbols =
             self.collect_static_parameter_symbols_for_symbol(module, symbol, tree, symbols);
         let Some(parameter_symbols) = parameter_symbols else {
@@ -594,168 +711,6 @@ impl Compiler {
         };
 
         types.insert_type(ty)
-    }
-
-    /// Resolve static arguments and substitutions for a function type.
-    pub(super) fn resolve_function_static_arguments(
-        &self,
-        module: &Module,
-        node_id: LocalNodeIdAny,
-        owner_symbol: Option<GlobalSymbolId>,
-        static_argument_ids: Option<&[LocalNodeId<Argument>]>,
-        static_parameters: &[LocalTypeId],
-        dynamic_parameters: &[LocalTypeId],
-        return_type: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<ResolvedStaticArguments>> {
-        // handle fast paths when there are no static parameters
-        let has_static_arguments = static_argument_ids.is_some_and(|args| !args.is_empty());
-
-        if static_parameters.is_empty() && !has_static_arguments {
-            return Ok(None);
-        }
-
-        if static_parameters.is_empty() {
-            if let Some(argument_ids) = static_argument_ids {
-                for argument_id in argument_ids {
-                    self.error(AnalyzeError::MissingType {
-                        node: argument_id.into_global_any(module.id),
-                    });
-                }
-            }
-
-            return Ok(Some(ResolvedStaticArguments {
-                dynamic_parameters: dynamic_parameters.to_vec(),
-                return_type,
-                static_arguments: Vec::new(),
-            }));
-        }
-
-        // collect static parameter metadata
-        // collect static parameter symbols from the function type
-        let static_parameter_symbols = static_parameters
-            .iter()
-            .filter_map(|parameter_id| match types.get_type(*parameter_id) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let static_parameters = self.collect_static_parameters_for_symbols(
-            module,
-            &static_parameter_symbols,
-            tree,
-            symbols,
-            types,
-        );
-        let static_parameter_kinds = self.collect_static_parameter_kinds_for_function(
-            &static_parameters,
-            dynamic_parameters,
-            return_type,
-            types,
-        );
-
-        // map arguments to parameters
-        let argument_ids = static_argument_ids.unwrap_or(&[]);
-        let argument_values = argument_ids
-            .iter()
-            .map(|argument_id| StaticArgument::Unevaluated { node: *argument_id })
-            .collect::<Vec<_>>();
-        let assigned_arguments = self.assign_static_argument_values(
-            module.id,
-            node_id,
-            &argument_values,
-            &static_parameters,
-            tree,
-        );
-
-        // resolve each parameter and build substitutions
-        let mut substitutions = HashMap::new();
-        let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
-
-        for (index, static_parameter) in static_parameters.iter().enumerate() {
-            // decide which argument and kind apply to the parameter
-            let parameter_kind = static_parameter_kinds
-                .get(&static_parameter.symbol)
-                .copied()
-                .unwrap_or(StaticParameterKind::Type);
-            let assigned_argument = assigned_arguments.get(index).cloned().flatten();
-
-            let error_node = if let Some(argument) = &assigned_argument {
-                match argument {
-                    StaticArgument::Unevaluated { node } => node.into_global_any(module.id),
-                    StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
-                }
-            } else if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-                GlobalNodeIdAny::new(
-                    default_expression.module_id,
-                    default_expression.local_id.into_any(),
-                )
-            } else {
-                node_id.into_global(module.id)
-            };
-
-            // resolve the static argument value
-            let resolved_argument = self.resolve_static_argument_for_parameter(
-                module,
-                static_parameter,
-                parameter_kind,
-                assigned_argument,
-                tree,
-                symbols,
-                types,
-                MissingStaticArgument::Function {
-                    node_id,
-                    owner_symbol,
-                    infer,
-                },
-            )?;
-
-            // record substitutions and constraints
-            if let Some(substitution_ty_id) = self.validate_static_argument(
-                module,
-                error_node,
-                static_parameter,
-                parameter_kind,
-                &resolved_argument,
-                types,
-                Some(infer),
-            ) {
-                substitutions.insert(static_parameter.symbol, substitution_ty_id);
-            }
-
-            resolved_arguments.push(resolved_argument);
-        }
-
-        // apply substitutions to the dynamic signature
-        let mut cache = HashMap::new();
-        let resolved_dynamic_parameters = dynamic_parameters
-            .iter()
-            .map(|parameter| {
-                self.substitute_static_parameters_in_type(
-                    *parameter,
-                    &substitutions,
-                    types,
-                    &mut cache,
-                )
-            })
-            .collect::<Vec<_>>();
-        let resolved_return_type = return_type.map(|return_type| {
-            self.substitute_static_parameters_in_type(
-                return_type,
-                &substitutions,
-                types,
-                &mut cache,
-            )
-        });
-
-        Ok(Some(ResolvedStaticArguments {
-            dynamic_parameters: resolved_dynamic_parameters,
-            return_type: resolved_return_type,
-            static_arguments: resolved_arguments,
-        }))
     }
 
     /// Create a fallback static argument for function instantiation.

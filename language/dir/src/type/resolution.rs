@@ -102,13 +102,13 @@ impl DispatchKey {
     }
 }
 
-/// Resolution of a symbol lookup at some usage site.
-/// - **Member access**: `a.foo` → resolves to the member symbol
-/// - **Field access**: `{ x }` pattern → resolves to the field symbol  
-/// - **Call/operator dispatch**: `a + b` or `foo(x)` → resolves to overload(s)
+/// Resolution of a symbol lookup at a usage site.
+/// Member access like `a.foo` resolves to the member symbol.
+/// Field access in patterns like `{ x }` resolves to the field symbol.
+/// Call and operator dispatch like `a + b` or `foo(x)` resolve to overloads.
 ///
-/// The `receiver` type (if any) identifies the "family" of implementations.
-/// For dispatch cases, candidates have dispatch keys for runtime selection.
+/// The receiver type identifies the family of implementations when present.
+/// Dispatch cases carry keys for runtime selection.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Resolution {
     /// Resolution failed: couldn't find a valid target.
@@ -127,6 +127,7 @@ pub enum Resolution {
     },
     /// Static resolution: exactly one target, known at compile time.
     /// Used for both simple lookups (member, field) and single-overload calls.
+    /// A static target may still dispatch via vtable if the symbol is virtual.
     Static {
         /// The receiver type (None for free functions/lookups).
         receiver: Option<LocalTypeId>,
@@ -134,7 +135,7 @@ pub enum Resolution {
         candidate: ResolutionCandidate,
     },
     /// Dynamic resolution: runtime dispatch needed based on argument types.
-    /// Only used when the receiver is a union and different implementations may apply.
+    /// Used when different union members resolve to different target symbols or instances.
     Dynamic {
         /// The receiver type (the union type).
         receiver: Option<LocalTypeId>,
@@ -159,9 +160,9 @@ impl Resolution {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolutionCandidate {
     /// The dispatch key for runtime overload selection.
-    /// - `None` for simple lookups (member access, field access)
-    /// - `Some(Single { ty })` for single-argument dispatch (e.g., `a + b` on `b`'s type)
-    /// - `Some(Multiple { types })` for multi-argument dispatch
+    /// Use `None` for simple lookups such as member or field access.
+    /// Use `Some(Single { ty })` for single argument dispatch like `a + b` on `b` type.
+    /// Use `Some(Multiple { types })` for multi argument dispatch.
     pub key: Option<DispatchKey>,
     /// The resolved target symbol.
     pub target_symbol: GlobalSymbolId,

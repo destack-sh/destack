@@ -2,53 +2,6 @@ use indexmap::IndexMap;
 
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalTypeId, VarianceBound};
 
-/// Store inference variables and constraints for a module.
-#[derive(Debug, Default)]
-pub struct InferTable {
-    /// All inference variables allocated in this module.
-    pub vars: Vec<InferVar>,
-    /// All constraints collected during inference.
-    pub constraints: Vec<Constraint>,
-    /// Inference variables associated with nodes.
-    pub var_by_node_id: IndexMap<GlobalNodeIdAny, InferVarId>,
-    /// Inference variables associated with symbols.
-    pub var_by_symbol_id: IndexMap<GlobalSymbolId, InferVarId>,
-    /// Inference variables associated with type parameters.
-    pub var_by_type_parameter: IndexMap<GlobalSymbolId, InferVarId>,
-    /// Types that wrap inference variables by id.
-    pub type_by_var_id: Vec<LocalTypeId>,
-}
-
-impl InferTable {
-    /// Allocate a new inference variable.
-    pub fn new_var(&mut self, origin: InferOrigin, scope: InferScope) -> InferVarId {
-        let id = InferVarId::new(self.vars.len() as u32);
-        self.vars.push(InferVar::new(origin, scope));
-        self.type_by_var_id.push(LocalTypeId::new(u32::MAX));
-        id
-    }
-
-    /// Push a new constraint.
-    pub fn push_constraint(&mut self, constraint: Constraint) {
-        self.constraints.push(constraint);
-    }
-
-    /// Bind a type to an inference variable id.
-    pub fn bind_type(&mut self, id: InferVarId, ty_id: LocalTypeId) {
-        let index = id.0 as usize;
-        if self.type_by_var_id.len() <= index {
-            self.type_by_var_id
-                .resize(index + 1, LocalTypeId::new(u32::MAX));
-        }
-        self.type_by_var_id[index] = ty_id;
-    }
-
-    /// Get the type that wraps an inference variable.
-    pub fn type_for_var(&self, id: InferVarId) -> Option<LocalTypeId> {
-        self.type_by_var_id.get(id.0 as usize).copied()
-    }
-}
-
 /// Represent a single inference variable with bounds and defaults.
 #[derive(Debug, Clone)]
 pub struct InferVar {
@@ -149,4 +102,52 @@ pub enum Constraint {
         id: ConstraintGroupId,
         options: Vec<Vec<Constraint>>,
     },
+}
+
+/// Store inference variables and constraints for a module.
+#[derive(Debug, Default)]
+pub struct InferTable {
+    /// All inference variables allocated in this module.
+    pub vars: Vec<InferVar>,
+    /// All constraints collected during inference.
+    pub constraints: Vec<Constraint>,
+    /// Inference variables associated with nodes.
+    pub var_by_node_id: IndexMap<GlobalNodeIdAny, InferVarId>,
+    /// Inference variables associated with symbols.
+    pub var_by_symbol_id: IndexMap<GlobalSymbolId, InferVarId>,
+    /// Inference variables associated with type parameters.
+    pub var_by_type_parameter: IndexMap<GlobalSymbolId, InferVarId>,
+    /// Types that wrap inference variables by id.
+    pub type_by_var_id: Vec<LocalTypeId>,
+}
+
+impl InferTable {
+    /// Allocate a new inference variable.
+    pub fn new_var(&mut self, origin: InferOrigin, scope: InferScope) -> InferVarId {
+        let id = InferVarId::new(self.vars.len() as u32);
+        self.vars.push(InferVar::new(origin, scope));
+        self.type_by_var_id.push(LocalTypeId::new(u32::MAX));
+        id
+    }
+
+    /// Push a new constraint.
+    #[inline]
+    pub fn push_constraint(&mut self, constraint: Constraint) {
+        self.constraints.push(constraint);
+    }
+
+    /// Bind a type to an inference variable id.
+    pub fn bind_type(&mut self, id: InferVarId, ty_id: LocalTypeId) {
+        let index = id.0 as usize;
+        if self.type_by_var_id.len() <= index {
+            self.type_by_var_id
+                .resize(index + 1, LocalTypeId::new(u32::MAX));
+        }
+        self.type_by_var_id[index] = ty_id;
+    }
+
+    /// Get the type that wraps an inference variable.
+    pub fn type_for_var(&self, id: InferVarId) -> Option<LocalTypeId> {
+        self.type_by_var_id.get(id.0 as usize).copied()
+    }
 }

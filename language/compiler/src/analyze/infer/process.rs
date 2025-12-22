@@ -24,6 +24,9 @@ impl Compiler {
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
 
+        // require builtins for analysis (#Architecture: should we?)
+        self.require_resolve_builtins()?;
+
         // analyze all expressions
         let mut infer = InferTable::default();
         let mut ctx = InferContext::new();
