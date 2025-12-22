@@ -201,7 +201,7 @@ impl InferContext {
         else if other.is_unreachable {
             // keep self's state
         }
-        // both reachable -> keep only narrowings that exist in both
+        // both reachable: keep only narrowings that exist in both
         else {
             self.narrowings.retain(|(s, ty)| {
                 other

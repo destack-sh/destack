@@ -28,6 +28,13 @@ pub enum AnalyzeError {
     #[error(code = "EA003", message = "missing type")]
     MissingType { node: GlobalNodeIdAny },
 
+    /// Static arguments specified on both the member and the call.
+    #[error(
+        code = "EA033",
+        message = "static arguments specified on both member and call"
+    )]
+    ConflictingStaticArguments { node: GlobalNodeIdAny },
+
     /// Type is not assignable to the expected type.
     #[error(
         code = "EA004",

@@ -36,6 +36,11 @@ impl Compiler {
             );
         }
 
+        self.collect(
+            &mut collector,
+            self.register_instances(&module, &tree, &symbols, &mut types),
+        );
+
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });

@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use crate::{
     Arena, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage, LocalExtensionId,
     LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId,
-    Node, Resolution, Type,
+    Node, Resolution, StaticArgument, Type,
 };
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
@@ -268,6 +268,21 @@ impl TypeTable {
     /// Get the instance used by a node id.
     pub fn get_instance_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstanceId> {
         self.instance_by_node_id.get(&node_id).copied()
+    }
+
+    /// Find an existing instance by symbol and static arguments.
+    pub fn find_instance(
+        &self,
+        symbol_id: GlobalSymbolId,
+        static_arguments: &[StaticArgument],
+    ) -> Option<LocalInstanceId> {
+        for (index, instance) in self.instances.iter().enumerate() {
+            if instance.symbol_id == symbol_id && instance.static_arguments == static_arguments {
+                return Some(LocalInstanceId::new(index as u32));
+            }
+        }
+
+        None
     }
 
     /// Insert a new resolution.

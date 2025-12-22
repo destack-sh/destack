@@ -393,8 +393,8 @@ impl Compiler {
             IntType::Uint64 => (0, u64::MAX as i128),
             IntType::Uint128 | IntType::Uint256 => (0, i128::MAX), // (can't represent u128::MAX in i128)
             IntType::IntP | IntType::UintP => {
-                // pointer-sized integers: use target platform's pointer size
-                // for now, assume 64-bit
+                // pointer sized integers: use target platform pointer size
+                // for now, assume 64 bit
                 if int_type.is_signed() {
                     (i64::MIN as i128, i64::MAX as i128)
                 } else {
@@ -429,7 +429,7 @@ impl Compiler {
             // number accepts any numeric type (JS compatibility)
             (PrimitiveType::Number, PrimitiveType::Int(_) | PrimitiveType::Float(_)) => true,
 
-            // float widening: float32 -> float64
+            // float widening: float32 to float64
             (PrimitiveType::Float(target_float), PrimitiveType::Float(source_float)) => {
                 target_float.width() >= source_float.width()
             }
@@ -437,7 +437,7 @@ impl Compiler {
             // int to float: always allowed (may lose precision for large ints)
             (PrimitiveType::Float(_), PrimitiveType::Int(_)) => true,
 
-            // signed int widening: int8 -> int16 -> int32 -> int64 -> int128
+            // signed int widening: int8 to int16 to int32 to int64 to int128
             (PrimitiveType::Int(target_int), PrimitiveType::Int(source_int)) => {
                 match (target_int.width(), source_int.width()) {
                     (Some(tw), Some(sw)) => {
@@ -453,7 +453,7 @@ impl Compiler {
                             false
                         }
                     }
-                    // pointer-sized ints: only allow same signedness
+                    // pointer sized ints: only allow same signedness
                     _ => false,
                 }
             }
@@ -530,7 +530,7 @@ impl Compiler {
     }
 
     /// Check if source_symbol is a subtype of target_symbol via lineage (follows inheritance chain).
-    /// This also checks visible extensions that add `implements` clauses to the source type.
+    /// (This also checks visible extensions that add `implements` clauses to the source type.)
     pub fn is_type_lineage_assignable(
         &self,
         source_symbol: GlobalSymbolId,
@@ -1211,7 +1211,7 @@ let x: number = getNumber();
         );
     }
 
-    /// Integer literal 1000 is not assignable to int8 (range: -128 to 127).
+    /// Integer literal 1000 is not assignable to int8 (range: minus 128 to 127).
     #[test]
     fn test_analyze_assignability_int_out_of_range() {
         let test = TestProgram::memory_sequential();
@@ -1295,7 +1295,7 @@ let x: number = getNumber();
             Assignability::NotAssignable
         );
     }
-    /// Verify lineage chain for multi-level inheritance.
+    /// Verify lineage chain for multilevel inheritance.
     #[test]
     fn test_analyze_lineage_chain_multilevel() {
         let test = TestProgram::memory_sequential();
@@ -1319,19 +1319,19 @@ class Labrador extends Dog { color: string }
         let module = module.read();
         let types = module.dir().types.read();
 
-        // Labrador extends Dog
+        // labrador extends dog
         let labrador_lineage = types
             .get_lineage_for_symbol(labrador_id)
             .expect("Labrador should have lineage");
         assert_eq!(labrador_lineage.extends, Some(dog_id));
 
-        // Dog extends Animal
+        // dog extends animal
         let dog_lineage = types
             .get_lineage_for_symbol(dog_id)
             .expect("Dog should have lineage");
         assert_eq!(dog_lineage.extends, Some(animal_id));
 
-        // Animal has no extends (or empty lineage)
+        // animal has no extends (or empty lineage)
         let animal_lineage = types.get_lineage_for_symbol(animal_id);
         assert!(
             animal_lineage.is_none() || animal_lineage.unwrap().extends.is_none(),

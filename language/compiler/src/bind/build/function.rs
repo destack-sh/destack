@@ -88,6 +88,9 @@ impl Compiler {
             )
         });
 
+        // refresh scope mark so static parameters are visible to later bindings
+        let scope = (scope.0, symbols.get_scope_mark(scope.0));
+
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()

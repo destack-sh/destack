@@ -7,7 +7,10 @@ use std::thread;
 use std::time::Duration;
 
 use destack_ast::NodeParentIndex;
-use destack_dir::{DumperOptions, GlobalSymbolId, Symbol};
+use destack_dir::{
+    Declaration, Declarator, DumperOptions, DynamicKey, Expression, GlobalSymbolId, LocalNodeId,
+    StringId, Symbol,
+};
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_machine::{Interpreter, MachineOptions, Value};
 use destack_mir::{MirFormatOptions, format_mir};
@@ -182,6 +185,115 @@ impl TestProgram {
         self.compiler
             .resolve_path_to_module(&PathBuf::from(path))
             .unwrap_or_else(|e| panic!("failed to register module: {e:?}"))
+    }
+
+    /// Get the first function symbol declared in a module.
+    pub fn expect_first_function_symbol(&self, module_id: ModuleId) -> GlobalSymbolId {
+        // load the module tree and roots
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let roots = &module.dir().roots;
+
+        // scan for the first function declaration
+        for root_id in roots {
+            let expression = tree.get(*root_id);
+            let declaration_id = match expression {
+                Expression::Declaration { declaration } => Some(*declaration),
+                Expression::Statement { statement } => match tree.get(*statement) {
+                    Expression::Declaration { declaration } => Some(*declaration),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            if let Some(declaration_id) = declaration_id {
+                let declaration = tree.get(declaration_id);
+                if let Declaration::Function { descriptor, .. } = declaration {
+                    return descriptor.symbol.into_global(module_id);
+                }
+            }
+        }
+
+        panic!("expected function declaration");
+    }
+
+    /// Get the first let declarator declared in a module.
+    pub fn expect_first_let_declarator(&self, module_id: ModuleId) -> LocalNodeId<Declarator> {
+        // load the module tree and roots
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let roots = &module.dir().roots;
+
+        // scan for the first let expression
+        for root_id in roots {
+            let expression = tree.get(*root_id);
+            let let_expression_id = match expression {
+                Expression::Let { .. } => Some(*root_id),
+                Expression::Statement { statement } => match tree.get(*statement) {
+                    Expression::Let { .. } => Some(*statement),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            let Some(let_expression_id) = let_expression_id else {
+                continue;
+            };
+
+            let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
+                continue;
+            };
+
+            let declarator_id = declarators.first().copied();
+
+            if let Some(declarator_id) = declarator_id {
+                return declarator_id;
+            }
+        }
+
+        panic!("expected let expression");
+    }
+
+    /// Get the symbol for a named interface member in a module.
+    pub fn expect_interface_member_symbol(
+        &self,
+        module_id: ModuleId,
+        interface_symbol: GlobalSymbolId,
+        member_name: StringId,
+    ) -> GlobalSymbolId {
+        // load the module tree and symbol table
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let tree = module.dir().tree.read();
+        let symbols = module.dir().symbols.read();
+
+        // resolve the interface declaration and scan members
+        let interface_entry = symbols.get_symbol(interface_symbol.local_id);
+        let interface_declaration_id = interface_entry
+            .primary_declaration
+            .expect("expected interface declaration")
+            .into_local_typed::<Declaration>();
+        let declaration = tree.get(interface_declaration_id);
+        let members = match declaration {
+            Declaration::Interface { members, .. } => members,
+            _ => panic!("expected interface declaration"),
+        };
+
+        for member_id in members {
+            let member = tree.get(*member_id);
+            let member_name_id = member.key().and_then(|key| match key {
+                DynamicKey::Name(name) => Some(name),
+                DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+            });
+
+            if member_name_id.is_some_and(|name| *name == member_name) {
+                return member.symbol().into_global(module_id);
+            }
+        }
+
+        panic!("expected member symbol");
     }
 
     /// Enqueue Import task for a module.
