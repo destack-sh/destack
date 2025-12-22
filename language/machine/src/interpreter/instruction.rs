@@ -102,7 +102,7 @@ impl Interpreter {
                     }
                 };
 
-                // reuse the direct call implementation
+                // direct call
                 self.execute_call(*destination, function, arguments)?;
             }
 

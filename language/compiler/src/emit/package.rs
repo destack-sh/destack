@@ -1,6 +1,7 @@
 use crate::{Compiler, EmitError, EmitResult};
 
 use destack_source::PackageId;
+use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit all outputs for a package target.
@@ -22,10 +23,11 @@ impl Compiler {
         }
 
         // get all artifacts for this package + target
+        let target_id = TargetId::new(package_id, target_name);
         let artifacts = self
             .program
             .artifacts
-            .get_by_package_target(package_id, target_name);
+            .get_by_package_target(package_id, &target_id);
 
         // emit each artifact using its precomputed output path
         for artifact in artifacts {

@@ -18,6 +18,7 @@ use super::target::{
     ShrinkLevel, StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
+use super::{ProfileConfig, ProfileConfigJson};
 
 /// Destack configuration (from `dsconfig.json`, 1:1 with Package).
 #[derive(Debug, Clone)]
@@ -105,6 +106,12 @@ impl DsConfig {
         // inherit lib (child overrides if set)
         if compiler.lib.is_empty() {
             compiler.lib = parent_compiler.lib.clone();
+        }
+        if compiler.profile.is_none() {
+            compiler.profile = parent_compiler.profile.clone();
+        }
+        if compiler.comptime_env.is_none() {
+            compiler.comptime_env = parent_compiler.comptime_env.clone();
         }
 
         // inherit TypeScript-compatible checking options (stricter wins)
@@ -259,6 +266,16 @@ impl DsConfig {
                 self.options.targets.insert(name.clone(), target.clone());
             }
         }
+
+        // extend profiles (add missing profiles from parent)
+        for (name, profile) in &parent.profiles {
+            if !self.options.profiles.contains_key(name) {
+                self.options.profiles.insert(name.clone(), profile.clone());
+            }
+        }
+        if self.options.default_target.is_none() {
+            self.options.default_target = parent.default_target.clone();
+        }
     }
 
     /// "Build" the root dsconfig in place, finalizing options.
@@ -285,6 +302,10 @@ pub struct DsConfigOptions {
     pub linter: LinterOptions,
     /// Build targets.
     pub targets: IndexMap<String, DsConfigTargetOptions>,
+    /// Named profiles for semantic configuration.
+    pub profiles: IndexMap<String, ProfileConfig>,
+    /// Default target for workspace.
+    pub default_target: Option<String>,
 }
 
 /// Path alias mapping (resolved from dsconfig paths).
@@ -309,6 +330,10 @@ pub struct DsConfigCompilerOptions {
     pub es_target: EsTarget,
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
+    /// Default profile for IDEs and CLI usage.
+    pub profile: Option<String>,
+    /// Comptime environment whitelist (if omitted, all env keys are visible).
+    pub comptime_env: Option<Vec<String>>,
 
     // TypeScript-compatible checking
     /// Enable all TypeScript-compatible strict type-checking options.
@@ -421,6 +446,8 @@ impl Default for DsConfigCompilerOptions {
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: Vec::new(), // derived from runtime/platform if empty
+            profile: None,
+            comptime_env: None,
 
             // TypeScript-compatible checking
             strict,
@@ -503,6 +530,10 @@ pub struct DsConfigJson {
     pub linter: DsConfigLinterJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
+    /// Named profiles for semantic configuration.
+    pub profiles: Option<IndexMap<String, ProfileConfigJson>>,
+    /// Default target for workspace.
+    pub default_target: Option<String>,
 }
 
 impl From<&DsConfigJson> for DsConfigOptions {
@@ -531,6 +562,17 @@ impl From<&DsConfigJson> for DsConfigOptions {
                         .collect()
                 })
                 .unwrap_or_default(),
+            profiles: json
+                .profiles
+                .as_ref()
+                .map(|profiles| {
+                    profiles
+                        .iter()
+                        .map(|(name, profile)| (name.clone(), ProfileConfig::from_json(profile)))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            default_target: json.default_target.clone(),
         }
     }
 }
@@ -598,6 +640,8 @@ pub struct DsConfigTargetOptions {
     pub es_target: EsTarget,
     /// Library files for this target. If `None`, derived automatically from runtime and platform.
     pub lib: Option<Vec<String>>,
+    /// Explicit profile name for this target.
+    pub profile: Option<String>,
 
     // optimization
     /// Whether this is a debug build.
@@ -647,6 +691,7 @@ impl Default for DsConfigTargetOptions {
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: None,
+            profile: None,
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
@@ -706,6 +751,7 @@ impl DsConfigTargetOptions {
             module: self.module,
             es_target: self.es_target,
             lib: self.lib.clone(),
+            profile: self.profile.clone(),
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
@@ -780,6 +826,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
             lib: json.lib.clone(),
+            profile: json.profile.clone(),
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -1136,6 +1183,10 @@ pub struct CompilerOptionsJson {
     pub target: Option<String>,
     /// Library files to include (e.g., ["es2024", "dom"]).
     pub lib: Option<Vec<String>>,
+    /// Default profile for IDEs and CLI usage.
+    pub profile: Option<String>,
+    /// Comptime environment whitelist (if omitted, all env keys are visible).
+    pub comptime_env: Option<Vec<String>>,
 
     // TypeScript-compatible checking
     /// Enable all TypeScript-derived strict type-checking options. Default: true for .ds files.
@@ -1255,6 +1306,8 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
             lib: json.lib.clone().unwrap_or_default(),
+            profile: json.profile.clone(),
+            comptime_env: json.comptime_env.clone(),
 
             // TypeScript-compatible checking
             strict,
@@ -1366,6 +1419,8 @@ pub struct DsConfigTargetJson {
     pub es_target: Option<String>,
     /// Library files for this target (overrides derived libs).
     pub lib: Option<Vec<String>>,
+    /// Explicit profile name for this target.
+    pub profile: Option<String>,
 
     // optimization
     /// Whether this is a debug build.

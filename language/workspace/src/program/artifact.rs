@@ -4,6 +4,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dashmap::DashMap;
 use destack_source::{FileContent, FileType, ModuleId, PackageId, Uri};
 
+use crate::TargetId;
+
 /// The id of an Artifact.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -96,8 +98,8 @@ pub struct Artifact {
     pub version: ArtifactVersion,
     /// The scope (module or package).
     pub scope: ArtifactScope,
-    /// The target name (e.g., "npm", "wasm").
-    pub target: String,
+    /// The target id (e.g., package + name).
+    pub target: TargetId,
     /// The output URI (where this artifact would be written).
     pub uri: Uri,
     /// The generated content.
@@ -216,26 +218,23 @@ impl ArtifactContent {
 pub struct ArtifactKey {
     /// The scope (module or package).
     pub scope: ArtifactScope,
-    /// The target name.
-    pub target: String,
+    /// The target id.
+    pub target: TargetId,
 }
 
 impl ArtifactKey {
     /// Create a new artifact key.
-    pub fn new(scope: ArtifactScope, target: impl Into<String>) -> Self {
-        Self {
-            scope,
-            target: target.into(),
-        }
+    pub fn new(scope: ArtifactScope, target: TargetId) -> Self {
+        Self { scope, target }
     }
 
     /// Create a key for a module-scoped artifact.
-    pub fn module(module: ModuleId, target: impl Into<String>) -> Self {
+    pub fn module(module: ModuleId, target: TargetId) -> Self {
         Self::new(ArtifactScope::Module(module), target)
     }
 
     /// Create a key for a package-scoped artifact.
-    pub fn package(package: PackageId, target: impl Into<String>) -> Self {
+    pub fn package(package: PackageId, target: TargetId) -> Self {
         Self::new(ArtifactScope::Package(package), target)
     }
 }
@@ -295,10 +294,10 @@ impl ArtifactRegistry {
     pub fn get_by_key(
         &self,
         scope: ArtifactScope,
-        target: &str,
+        target: &TargetId,
         file_type: FileType,
     ) -> Option<Arc<Artifact>> {
-        let key = ArtifactKey::new(scope, target);
+        let key = ArtifactKey::new(scope, target.clone());
         let id = self.artifacts_by_key.get(&(key, file_type))?;
         self.get(*id)
     }
@@ -307,7 +306,7 @@ impl ArtifactRegistry {
     pub fn get_module(
         &self,
         module: ModuleId,
-        target: &str,
+        target: &TargetId,
         file_type: FileType,
     ) -> Option<Arc<Artifact>> {
         self.get_by_key(ArtifactScope::Module(module), target, file_type)
@@ -317,7 +316,7 @@ impl ArtifactRegistry {
     pub fn get_package(
         &self,
         package: PackageId,
-        target: &str,
+        target: &TargetId,
         file_type: FileType,
     ) -> Option<Arc<Artifact>> {
         self.get_by_key(ArtifactScope::Package(package), target, file_type)
@@ -329,19 +328,19 @@ impl ArtifactRegistry {
     }
 
     /// Get all artifacts for a target.
-    pub fn get_by_target(&self, target: &str) -> Vec<Arc<Artifact>> {
+    pub fn get_by_target(&self, target: &TargetId) -> Vec<Arc<Artifact>> {
         self.artifacts_by_id
             .iter()
-            .filter(|r| r.value().target == target)
+            .filter(|r| &r.value().target == target)
             .map(|r| r.value().clone())
             .collect()
     }
 
     /// Get all module-scoped artifacts for a target.
-    pub fn get_modules_by_target(&self, target: &str) -> Vec<Arc<Artifact>> {
+    pub fn get_modules_by_target(&self, target: &TargetId) -> Vec<Arc<Artifact>> {
         self.artifacts_by_id
             .iter()
-            .filter(|r| r.value().target == target && r.value().scope.module().is_some())
+            .filter(|r| &r.value().target == target && r.value().scope.module().is_some())
             .map(|r| r.value().clone())
             .collect()
     }
@@ -356,11 +355,11 @@ impl ArtifactRegistry {
     }
 
     /// Get all artifacts for a module and specific target (across all file types).
-    pub fn get_by_module_target(&self, module: ModuleId, target: &str) -> Vec<Arc<Artifact>> {
+    pub fn get_by_module_target(&self, module: ModuleId, target: &TargetId) -> Vec<Arc<Artifact>> {
         self.artifacts_by_id
             .iter()
             .filter(|r| {
-                r.value().scope == ArtifactScope::Module(module) && r.value().target == target
+                r.value().scope == ArtifactScope::Module(module) && &r.value().target == target
             })
             .map(|r| r.value().clone())
             .collect()
@@ -376,12 +375,16 @@ impl ArtifactRegistry {
     }
 
     /// Get all artifacts for a package and specific target (across all file types).
-    pub fn get_by_package_target(&self, package: PackageId, target: &str) -> Vec<Arc<Artifact>> {
+    pub fn get_by_package_target(
+        &self,
+        package: PackageId,
+        target: &TargetId,
+    ) -> Vec<Arc<Artifact>> {
         self.artifacts_by_id
             .iter()
             .filter(|r| {
                 let artifact = r.value();
-                artifact.target == target
+                &artifact.target == target
                     && match artifact.scope {
                         ArtifactScope::Module(module_id) => module_id.package == package,
                         ArtifactScope::Package(pkg_id) => pkg_id == package,

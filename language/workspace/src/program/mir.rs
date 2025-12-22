@@ -3,6 +3,8 @@ use destack_mir::{self as mir};
 use destack_source::{ModuleId, ModuleVersion};
 use parking_lot::RwLock;
 
+use crate::TargetId;
+
 /// MIR-level module data.
 #[derive(Debug)]
 pub struct ModuleMir {
@@ -12,7 +14,7 @@ pub struct ModuleMir {
     pub version: ModuleVersion,
 
     /// The target this is for.
-    pub target: String,
+    pub target: TargetId,
     /// The MIR of the Module (may be empty initially).
     pub tree: RwLock<mir::NodeTree>,
     /// The string pool of the Module's MIR stuff.
@@ -21,7 +23,7 @@ pub struct ModuleMir {
 
 impl ModuleMir {
     /// Create a new ModuleMir.
-    pub fn new(id: ModuleId, version: ModuleVersion, target: String) -> Self {
+    pub fn new(id: ModuleId, version: ModuleVersion, target: TargetId) -> Self {
         Self {
             id,
             version,

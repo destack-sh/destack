@@ -7,7 +7,7 @@ use destack_codegen_lib::CodegenBackend;
 use destack_source::{FileType, ModuleId};
 use destack_workspace::{
     Artifact, ArtifactContent, ArtifactId, ArtifactScope, ArtifactVersion, ModuleMir, OutputFormat,
-    Program, Target,
+    Program, Target, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -213,7 +213,8 @@ pub fn generate_module(
 
     // compile
     let name = module.uri.last_segment().unwrap_or("module");
-    let mir = module.mir(target.name.as_str());
+    let target_id = TargetId::new(module.package_id, target.name.clone());
+    let mir = module.mir(&target_id);
     let compile_output = backend.compile_module(mir, name)?;
 
     // determine file type and create artifact
@@ -238,7 +239,7 @@ pub fn generate_module(
         id: registry_next_id(),
         version: ArtifactVersion::INITIAL,
         scope: ArtifactScope::Module(module_id),
-        target: target.name.clone(),
+        target: target_id,
         uri,
         content,
         source: None,

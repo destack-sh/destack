@@ -11,8 +11,8 @@ use indexmap::IndexMap;
 
 use crate::{
     ArtifactRegistry, DsConfigOptions, FormatterOptions, LanguageBuiltins, LinterOptions, Module,
-    ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, TsConfigOptions,
-    TsConfigRegistry,
+    ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, ProfileRegistry,
+    TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -65,6 +65,8 @@ pub struct Program {
     pub strings: Arc<StringPool>,
     /// Generated artifacts (from codegen).
     pub artifacts: Arc<ArtifactRegistry>,
+    /// The profiles in this program.
+    pub profiles: Arc<ProfileRegistry>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
 
@@ -103,6 +105,7 @@ impl Program {
         let packages = Arc::new(PackageRegistry::new());
         let tsconfigs = Arc::new(TsConfigRegistry::new());
         let artifacts = Arc::new(ArtifactRegistry::new());
+        let profiles = Arc::new(ProfileRegistry::new());
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
 
@@ -121,6 +124,7 @@ impl Program {
             packages,
             tsconfigs,
             artifacts,
+            profiles,
             strings,
             diagnostics,
             builtins: None,
@@ -145,6 +149,7 @@ impl Program {
         builtins: Option<Arc<LanguageBuiltins>>,
     ) -> Self {
         let diagnostics = DiagnosticCollector::new();
+        let profiles = Arc::new(ProfileRegistry::new());
 
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =
@@ -161,6 +166,7 @@ impl Program {
             packages,
             tsconfigs,
             artifacts,
+            profiles,
             strings,
             diagnostics,
             builtins,

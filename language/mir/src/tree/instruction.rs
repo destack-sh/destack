@@ -10,8 +10,8 @@ use crate::{
     Node, NodeType, Type, UnaryOperator, Value,
 };
 
-/// Instructions produce SSA values and perform operations.
-/// Each instruction defines at most one value via the `destination` field.
+/// Instructions produce SSA values and perform "operations".
+/// Each instruction produces at most one value via the `destination` field.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
     // constants

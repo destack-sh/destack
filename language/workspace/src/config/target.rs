@@ -624,6 +624,8 @@ pub struct Target {
     pub es_target: EsTarget,
     /// Library files for this target. If `None`, derived automatically from runtime and platform.
     pub lib: Option<Vec<String>>,
+    /// Explicit profile name for this target.
+    pub profile: Option<String>,
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
     /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
@@ -693,6 +695,7 @@ impl Default for Target {
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: None,
+            profile: None,
             output: OutputFormat::default(),
             runtime: Runtime::default(),
             platform: Platform::default(),
@@ -855,6 +858,12 @@ impl Target {
     /// Set library files explicitly (overrides automatic derivation).
     pub fn with_lib(mut self, lib: Vec<String>) -> Self {
         self.lib = Some(lib);
+        self
+    }
+
+    /// Set an explicit profile name for this target.
+    pub fn with_profile(mut self, profile: impl Into<String>) -> Self {
+        self.profile = Some(profile.into());
         self
     }
 
