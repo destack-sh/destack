@@ -12,7 +12,7 @@ use destack_dir::{
     FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
 use destack_source::{FileType, ModuleId, PackageId, Uri};
-use destack_workspace::Program;
+use destack_workspace::{ProfileId, Program, TargetId};
 
 use destack_workspace::format::{format_global_type, format_symbol_name};
 
@@ -65,6 +65,26 @@ impl DiagnosticFormat for PackageId {
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| format!("<package:{}>", self.0))
         })
+    }
+}
+
+impl DiagnosticFormat for TargetId {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        format!(
+            "{}:{}",
+            self.package_id.diagnostic_fmt(program),
+            self.name.diagnostic_fmt(program)
+        )
+    }
+}
+
+impl DiagnosticFormat for ProfileId {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        program
+            .profiles
+            .get(*self)
+            .map(|p| p.id.to_string())
+            .unwrap_or_else(|| format!("#{}", self.0))
     }
 }
 

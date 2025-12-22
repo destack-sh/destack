@@ -61,40 +61,40 @@ impl PackageId {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
     /// The package this module belongs to.
-    pub package: PackageId,
+    pub package_id: PackageId,
     /// Local identifier within the package (hash of relative path).
-    pub local: u32,
+    pub local_id: u32,
 }
 
 impl std::fmt::Debug for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{:08x}", self.package, self.local)
+        write!(f, "{}:{:08x}", self.package_id, self.local_id)
     }
 }
 
 impl std::fmt::Display for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{:08x}", self.package, self.local)
+        write!(f, "{}:{:08x}", self.package_id, self.local_id)
     }
 }
 
 impl ModuleId {
     /// Well-known ID for ephemeral/virtual modules (REPL, root).
     pub const EPHEMERAL: Self = Self {
-        package: PackageId::EPHEMERAL,
-        local: 0,
+        package_id: PackageId::EPHEMERAL,
+        local_id: 0,
     };
 
     /// Create a ModuleId from package and local id.
     pub fn new(package: PackageId, local: u32) -> Self {
-        Self { package, local }
+        Self { package_id: package, local_id: local }
     }
 
     /// Create a ModuleId from a package and relative path within the package.
     pub fn from_relative_path(package: PackageId, relative_path: &Path) -> Self {
         Self {
-            package,
-            local: fnv1a_32(relative_path.to_string_lossy().as_bytes()),
+            package_id: package,
+            local_id: fnv1a_32(relative_path.to_string_lossy().as_bytes()),
         }
     }
 

@@ -386,7 +386,7 @@ impl ArtifactRegistry {
                 let artifact = r.value();
                 &artifact.target == target
                     && match artifact.scope {
-                        ArtifactScope::Module(module_id) => module_id.package == package,
+                        ArtifactScope::Module(module_id) => module_id.package_id == package,
                         ArtifactScope::Package(pkg_id) => pkg_id == package,
                     }
             })

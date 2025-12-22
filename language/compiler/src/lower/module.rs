@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_base::StringPool;
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::Module;
+use destack_workspace::{Module, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, LowerError, LowerResult};
@@ -29,7 +29,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
     /// Identify the target backend for lowering.
-    pub(crate) target: &'a str,
+    pub(crate) target: &'a TargetId,
 
     /// Build MIR nodes for this module.
     pub(crate) builder: mir::ModuleBuilder,
@@ -48,7 +48,7 @@ impl<'a> ModuleLowerer<'a> {
         dir_roots: &'a [LocalNodeId<dir::Expression>],
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
-        target: &'a str,
+        target: &'a TargetId,
     ) -> Self {
         let mut builder = mir::ModuleBuilder::new();
         let type_lowerer = TypeLowerer::new(&mut builder);

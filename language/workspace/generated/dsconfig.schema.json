@@ -66,6 +66,23 @@
       "additionalProperties": {
         "$ref": "#/$defs/DsConfigTargetJson"
       }
+    },
+    "profiles": {
+      "description": "Named profiles for semantic configuration.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/ProfileConfigJson"
+      }
+    },
+    "defaultTarget": {
+      "description": "Default target for workspace.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "$defs": {
@@ -125,6 +142,23 @@
         },
         "lib": {
           "description": "Library files to include (e.g., [\"es2024\", \"dom\"]).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "profile": {
+          "description": "Default profile for IDEs and CLI usage.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "comptimeEnv": {
+          "description": "Comptime environment whitelist (if omitted, all env keys are visible).",
           "type": [
             "array",
             "null"
@@ -1256,6 +1290,13 @@
             "type": "string"
           }
         },
+        "profile": {
+          "description": "Explicit profile name for this target.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "debug": {
           "description": "Whether this is a debug build.",
           "type": "boolean",
@@ -1309,10 +1350,10 @@
           ]
         },
         "panic": {
-          "description": "Panic strategy.",
+          "description": "Panic policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/PanicStrategyJson"
+              "$ref": "#/$defs/PanicPolicyJson"
             },
             {
               "type": "null"
@@ -1465,8 +1506,8 @@
         }
       ]
     },
-    "PanicStrategyJson": {
-      "description": "Panic strategy for JSON deserialization.",
+    "PanicPolicyJson": {
+      "description": "Panic policy for JSON deserialization.",
       "oneOf": [
         {
           "description": "Abort immediately.",
@@ -1564,6 +1605,64 @@
           "const": "custom"
         }
       ]
+    },
+    "ProfileConfigJson": {
+      "description": "Profile configuration JSON (from dsconfig.json).",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Output format (js, ts, wasm, native).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputFormatJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime": {
+          "description": "Runtime environment (browser, node, wasm-wasi, destack, etc.).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform": {
+          "description": "Target platform (web, windows, macos, linux, ios, android, etc.).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lib": {
+          "description": "Library files for this profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "debug": {
+          "description": "Debug build flag (affects import.meta.debug).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "comptimeEnv": {
+          "description": "Comptime environment whitelist (if omitted, all env keys are visible).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

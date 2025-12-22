@@ -5,29 +5,28 @@ use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit all outputs for a package target.
-    pub(super) fn emit_package(&self, package_id: PackageId, target_name: &str) -> EmitResult<()> {
+    pub(super) fn emit_package(&self, package_id: PackageId, target_id: &TargetId) -> EmitResult<()> {
         // ensure linking is complete
-        self.require_link_module(package_id, target_name)?;
+        self.require_link_module(package_id, target_id)?;
 
         // verify target exists
         let has_target = {
             let package_ref = self.program.packages.get(package_id);
             let package = package_ref.read();
-            package.targets.contains_key(target_name)
+            package.targets.contains_key(target_id)
         };
         if !has_target {
             return Err(EmitError::TargetNotFound {
                 package: package_id,
-                target: target_name.to_string(),
+                target: target_id.clone(),
             });
         }
 
         // get all artifacts for this package + target
-        let target_id = TargetId::new(package_id, target_name);
         let artifacts = self
             .program
             .artifacts
-            .get_by_package_target(package_id, &target_id);
+            .get_by_package_target(package_id, target_id);
 
         // emit each artifact using its precomputed output path
         for artifact in artifacts {

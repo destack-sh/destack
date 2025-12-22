@@ -14,8 +14,8 @@ use crate::{
 
 use super::target::{
     Allocator, BoundsCheckPolicy, DebugInfoLevel, LinkMode, OptimizeLevel, OutputFormat,
-    OutputMode, OverflowCheckPolicy, PanicStrategy, Platform, RelocationModel, Runtime,
-    ShrinkLevel, StripLevel, Target, TargetDiscovery, UnwindFormat,
+    OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, RelocationModel, Runtime, ShrinkLevel,
+    StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 use super::{ProfileConfig, ProfileConfigJson};
@@ -656,8 +656,8 @@ pub struct DsConfigTargetOptions {
     pub debug_info: DebugInfoLevel,
     /// Symbol stripping policy.
     pub strip: StripLevel,
-    /// Panic strategy for unrecoverable errors.
-    pub panic: PanicStrategy,
+    /// Panic policy for unrecoverable errors.
+    pub panic: PanicPolicy,
     /// Unwind info format for native targets.
     pub unwind: UnwindFormat,
     /// Integer overflow checking policy.
@@ -698,7 +698,7 @@ impl Default for DsConfigTargetOptions {
             shrink_level: ShrinkLevel::S0,
             debug_info: DebugInfoLevel::default(),
             strip: StripLevel::default(),
-            panic: PanicStrategy::default(),
+            panic: PanicPolicy::default(),
             unwind: UnwindFormat::default(),
             overflow_checks: OverflowCheckPolicy::default(),
             bounds_checks: BoundsCheckPolicy::default(),
@@ -839,7 +839,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .map(DebugInfoLevel::from)
                 .unwrap_or_default(),
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
-            panic: json.panic.map(PanicStrategy::from).unwrap_or_default(),
+            panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
             unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
             overflow_checks: json
                 .overflow_checks
@@ -987,11 +987,11 @@ impl From<StripLevelJson> for StripLevel {
     }
 }
 
-/// Panic strategy for JSON deserialization.
+/// Panic policy for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum PanicStrategyJson {
+pub enum PanicPolicyJson {
     /// Abort immediately.
     #[serde(alias = "abort")]
     Abort,
@@ -1000,11 +1000,11 @@ pub enum PanicStrategyJson {
     Unwind,
 }
 
-impl From<PanicStrategyJson> for PanicStrategy {
-    fn from(value: PanicStrategyJson) -> Self {
+impl From<PanicPolicyJson> for PanicPolicy {
+    fn from(value: PanicPolicyJson) -> Self {
         match value {
-            PanicStrategyJson::Abort => PanicStrategy::Abort,
-            PanicStrategyJson::Unwind => PanicStrategy::Unwind,
+            PanicPolicyJson::Abort => PanicPolicy::Abort,
+            PanicPolicyJson::Unwind => PanicPolicy::Unwind,
         }
     }
 }
@@ -1437,8 +1437,8 @@ pub struct DsConfigTargetJson {
     pub debug_info: Option<DebugInfoLevelJson>,
     /// Symbol stripping policy.
     pub strip: Option<StripLevelJson>,
-    /// Panic strategy.
-    pub panic: Option<PanicStrategyJson>,
+    /// Panic policy.
+    pub panic: Option<PanicPolicyJson>,
     /// Unwind info format.
     pub unwind: Option<UnwindFormatJson>,
     /// Overflow checking policy.

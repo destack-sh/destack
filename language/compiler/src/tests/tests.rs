@@ -333,9 +333,12 @@ impl TestProgram {
 
     /// Enqueue Lower task for a module.
     pub fn lower_module(&self, module: ModuleId, target: &str) {
+        let module_ref = self.program.modules.get(module);
+        let package_id = module_ref.read().package_id;
+        let target_id = TargetId::new(package_id, target);
         self.enqueue(LowerTask::LowerModule {
             module,
-            target: target.to_string(),
+            target: target_id,
         });
     }
 

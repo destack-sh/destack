@@ -2,6 +2,7 @@ use crate::{Compiler, TaskDependencyError, VerifyResult};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
+use destack_workspace::TargetId;
 
 /// Task to verify something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -9,7 +10,7 @@ use destack_source::ModuleId;
 pub enum VerifyTask {
     /// Verify a module.
     #[task(code = 1, trace = "module={module} target={target}")]
-    VerifyModule { module: ModuleId, target: String },
+    VerifyModule { module: ModuleId, target: TargetId },
 }
 
 impl Compiler {
@@ -18,14 +19,14 @@ impl Compiler {
         match task {
             VerifyTask::VerifyModule { module, target } => {
                 self.require_lower_module(module, &target)?;
-                self.verify_module(module, target)?;
+                self.verify_module(module, &target)?;
             }
         }
         Ok(())
     }
 
     /// Verify a module's MIR.
-    fn verify_module(&self, _module: ModuleId, _target: String) -> VerifyResult<()> {
+    fn verify_module(&self, _module: ModuleId, _target: &TargetId) -> VerifyResult<()> {
         // NOTE #Incomplete: implement verify
         // - ownership/borrow checking
         // - type checking at MIR level?
@@ -37,11 +38,11 @@ impl Compiler {
     pub fn require_verify_module(
         &self,
         module: ModuleId,
-        target: impl Into<String>,
+        target: &TargetId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(VerifyTask::VerifyModule {
             module,
-            target: target.into(),
+            target: target.clone(),
         })
     }
 }
