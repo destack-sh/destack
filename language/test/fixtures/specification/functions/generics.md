@@ -66,6 +66,19 @@ function choose<Flag: boolean = true>(value: number): number {
 choose(1);
 ```
 
+### default static value argument mismatch
+
+> Default static values must satisfy declared types.
+
+```ds
+function broken<Flag: boolean = 1>(value: number): number {
+    return value
+}
+broken(1);
+```
+
+- contains: type 1 is not assignable to type boolean
+
 ### default static type parameters
 
 > Static type parameters fall back to defaults when omitted.
@@ -76,6 +89,22 @@ declare function make<T = number>(): T;
 const value = make();
 value satisfies number;
 ```
+
+### inherited static arguments on member calls
+
+> Member calls apply inherited static arguments from the receiver type.
+
+```ds
+interface Container<T> {
+    map<U>(value: T): U
+}
+
+declare function getContainer(): Container<number>;
+
+getContainer().map<string>("hello");
+```
+
+- contains: type "hello" is not assignable to type number
 
 ### member static arguments on member expressions
 
