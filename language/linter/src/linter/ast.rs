@@ -4,7 +4,7 @@ use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, 
 use destack_source::{EditBuilder, File};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 
-use crate::{LintDiagnostic, LintMeta};
+use crate::{ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse};
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +37,9 @@ pub struct LintModuleAstContext<'a> {
 
     /// Whether to compute fixes for diagnostics.
     pub compute_fixes: bool,
+
+    /// Cached analysis results.
+    pub analysis: LintAstAnalysisCache,
 
     /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
@@ -74,6 +77,7 @@ impl<'a> LintModuleAstContext<'a> {
             strings,
             options,
             compute_fixes,
+            analysis: LintAstAnalysisCache::default(),
             diagnostics: Vec::new(),
         }
     }
@@ -223,6 +227,41 @@ impl<'a> LintModuleAstContext<'a> {
     /// Create an EditBuilder with source text for text-aware operations.
     pub fn edit_builder(&self) -> EditBuilder<'_> {
         EditBuilder::from_file(self.module.file_id, self.file.text())
+    }
+
+    /// Return a constant value if the expression can be evaluated.
+    pub fn const_value(&mut self, id: ast::LocalNodeId<ast::Expression>) -> Option<ConstValue> {
+        self.analysis.const_value(self.tree, id)
+    }
+
+    /// Return a constant boolean value if the expression can be evaluated.
+    pub fn const_bool(&mut self, id: ast::LocalNodeId<ast::Expression>) -> Option<bool> {
+        self.const_value(id).map(ConstValue::to_bool)
+    }
+
+    /// Return cached regex parse info for a pattern string.
+    pub fn regex_parse(&mut self, id: ast::StringId) -> LintRegexParse {
+        self.analysis.regex_parse(self.strings, id)
+    }
+
+    /// Return a control character found in the pattern string.
+    pub fn regex_control_character(&self, id: ast::StringId) -> Option<char> {
+        let pattern = self.strings.get(id);
+        crate::find_control_character(pattern.as_ref())
+    }
+
+    /// Return a misleading character class description for the pattern string.
+    pub fn regex_misleading_character_class(&self, id: ast::StringId) -> Option<&'static str> {
+        let pattern = self.strings.get(id);
+        crate::find_misleading_character_class(pattern.as_ref())
+    }
+
+    /// Return a useless backreference description for the pattern string.
+    pub fn regex_useless_backreference(&mut self, id: ast::StringId) -> Option<String> {
+        let parse = self.regex_parse(id);
+        let error_kind = parse.error.as_ref().map(|error| &error.kind);
+        let pattern = self.strings.get(id);
+        crate::find_useless_backreference(pattern.as_ref(), error_kind)
     }
 }
 

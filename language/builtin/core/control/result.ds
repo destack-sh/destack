@@ -32,6 +32,32 @@ import { Try } from "./try.ds";
 import { Equal } from "../operator/comparison.ds";
 import { Display, Debug } from "../operator/format.ds";
 
+/// Minimal Promise type used by core async helpers.
+/// #Cleanup: remove this once we have a proper Promise type
+declare interface Promise<T> {
+    /// Chain a success callback and return a new Promise.
+    then<U>(f: (T) => U): Promise<U>
+
+    /// Chain an error callback and return a new Promise.
+    "catch"<F>(f: (any) => F): Promise<T | F>
+}
+
+/// Constructor for Promise values.
+/// #Cleanup: remove this once we have a proper Promise type
+declare interface PromiseConstructor {
+    /// Resolve a value into a Promise.
+    resolve<T>(value: T): Promise<T>
+
+    /// Wait for all values to resolve.
+    all(values: any): Promise<any>
+
+    /// Resolve or reject on the first completion.
+    race(values: any): Promise<any>
+}
+
+/// Global Promise constructor.
+declare var Promise: PromiseConstructor;
+
 /// Success variant of Result.
 export struct Ok<T> {
     kind: "ok" = "ok",
@@ -65,8 +91,8 @@ extension<T, E> for Result<T, E> {
     /// Returns true if this is Ok.
     isOk(): boolean {
         match (this) {
-            Ok _ => true
-            Err _ => false
+            Ok { value: _ } => true
+            Err { error: _ } => false
         }
     }
 
@@ -82,7 +108,7 @@ extension<T, E> for Result<T, E> {
     unwrap(): T {
         match (this) {
             Ok { value } => value
-            Err { error } => throw new Error(`called unwrap() on Err: ${error}`)
+            Err { error } => throw `called unwrap() on Err: ${error}`
         }
     }
 
@@ -90,7 +116,7 @@ extension<T, E> for Result<T, E> {
     unwrapOr(default: T): T {
         match (this) {
             Ok { value } => value
-            Err _ => default
+            Err { error: _ } => default
         }
     }
 
@@ -105,7 +131,7 @@ extension<T, E> for Result<T, E> {
     /// Returns the contained Err value, or panics if Ok.
     unwrapErr(): E {
         match (this) {
-            Ok { value } => throw new Error(`called unwrapErr() on Ok: ${value}`)
+            Ok { value } => throw `called unwrapErr() on Ok: ${value}`
             Err { error } => error
         }
     }
@@ -148,7 +174,7 @@ extension<T, E> for Result<T, E> {
     /// Returns the Ok value if both are Ok, otherwise returns the first Err.
     and<U>(other: Result<U, E>): Result<U, E> {
         match (this) {
-            Ok _ => other
+            Ok { value: _ } => other
             Err { error } => Result.err(error)
         }
     }
@@ -157,7 +183,7 @@ extension<T, E> for Result<T, E> {
     or(other: Result<T, E>): Result<T, E> {
         match (this) {
             Ok { value } => Result.ok(value)
-            Err _ => other
+            Err { error: _ } => other
         }
     }
 
@@ -166,7 +192,7 @@ extension<T, E> for Result<T, E> {
     /// - `Ok(null)` becomes `null`
     /// - `Ok(value)` becomes `Ok(value)`
     /// - `Err(e)` becomes `Err(e)`
-    transpose(): Result<NonNullable<T>, E> | null {
+    transpose(): Result<T, E> | null {
         match (this) {
             Ok { value: null } => null
             Ok { value } => Result.ok(value)
@@ -189,10 +215,19 @@ extension<T, E> for Result<T, E> implements Try<T, E> {
 /// Result equality when both T and E implement Equal.
 extension<T: Equal<T>, E: Equal<E>> for Result<T, E> implements Equal<Result<T, E>> {
     equal(other: Result<T, E>): boolean {
-        match ((this, other)) {
-            (Ok { value: a }, Ok { value: b }) => a.equal(b)
-            (Err { error: a }, Err { error: b }) => a.equal(b)
-            _ => false
+        match (this) {
+            Ok { value: a } => {
+                match (other) {
+                    Ok { value: b } => a.equal(b)
+                    Err { error: _ } => false
+                }
+            }
+            Err { error: a } => {
+                match (other) {
+                    Err { error: b } => a.equal(b)
+                    Ok { value: _ } => false
+                }
+            }
         }
     }
 }
@@ -254,8 +289,7 @@ extension<T, E> for AsyncResult<T, E> {
     static fromPromise<T2>(promise: Promise<T2>): AsyncResult<T2, unknown> {
         AsyncResult(
             promise
-                .then(value => Result.ok(value))
-                .catch(error => Result.err(error))
+                .then(value => Result.ok(value))["catch"](error => Result.err(error))
         )
     }
 
@@ -267,7 +301,7 @@ extension<T, E> for AsyncResult<T, E> {
     ///     return response.json();
     /// });
     /// ```
-    static try<T2>(f: () => Promise<T2>): AsyncResult<T2, unknown> {
+    static "try"<T2>(f: () => Promise<T2>): AsyncResult<T2, unknown> {
         AsyncResult.fromPromise(f())
     }
 

@@ -1,9 +1,6 @@
+use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
-use regex_syntax::ast::ErrorKind;
-use regex_syntax::ast::parse::Parser as RegexParser;
-
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow useless backreferences in regular expressions.
@@ -39,119 +36,29 @@ impl LintRule for NoUselessBackreference {
                 continue;
             };
 
-            let regex_content = ctx.strings.get(*content);
-            let regex_str = regex_content.as_ref();
-
-            if let Some(problem) = find_useless_backreference(regex_str) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_USELESS_BACKREFERENCE.id,
-                        NO_USELESS_BACKREFERENCE.code,
-                        NO_USELESS_BACKREFERENCE.category,
-                        severity,
-                        problem,
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("this backreference will never match"),
-                );
+            let problem = ctx.regex_useless_backreference(*content);
+            let Some(problem) = problem.as_deref() else {
+                continue;
+            };
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
             }
+
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_USELESS_BACKREFERENCE.id,
+                    NO_USELESS_BACKREFERENCE.code,
+                    NO_USELESS_BACKREFERENCE.category,
+                    severity,
+                    problem,
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("this backreference will never match"),
+            );
         }
     }
-}
-
-/// Find useless backreferences in a regex pattern.
-/// Uses regex-syntax to detect backreferences (which it reports as errors),
-/// then validates them against the group structure.
-fn find_useless_backreference(regex: &str) -> Option<String> {
-    // Try to parse with regex-syntax. If it reports UnsupportedBackreference,
-    // we know there's a backreference. We then analyze it manually.
-    if let Err(err) = RegexParser::new().parse(regex)
-        && matches!(err.kind(), ErrorKind::UnsupportedBackreference)
-    {
-        // regex-syntax found a backreference. Now analyze if it's valid.
-        return analyze_backreferences(regex);
-    }
-    // No backreferences or other parse error - not our concern
-    None
-}
-
-/// Analyze backreferences in a regex pattern manually.
-/// Returns a description of the problem if a useless backreference is found.
-fn analyze_backreferences(regex: &str) -> Option<String> {
-    let mut group_count = 0;
-    let mut chars = regex.chars().peekable();
-    let mut in_char_class = false;
-
-    while let Some(c) = chars.next() {
-        match c {
-            '\\' => {
-                if let Some(&next) = chars.peek() {
-                    if next.is_ascii_digit() && next != '0' && !in_char_class {
-                        // found a backreference like \1, \2, etc.
-                        chars.next();
-                        let mut num_str = String::from(next);
-
-                        // collect multi-digit backreference
-                        while let Some(&d) = chars.peek() {
-                            if d.is_ascii_digit() {
-                                num_str.push(d);
-                                chars.next();
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if let Ok(backref_num) = num_str.parse::<usize>()
-                            && backref_num > group_count
-                        {
-                            return Some(format!(
-                                "backreference \\{backref_num} references non-existent group \
-                                     (only {group_count} groups defined so far)"
-                            ));
-                        }
-                    } else {
-                        // skip escaped character
-                        chars.next();
-                    }
-                }
-            }
-            '[' if !in_char_class => {
-                in_char_class = true;
-            }
-            ']' if in_char_class => {
-                in_char_class = false;
-            }
-            '(' if !in_char_class => {
-                // check if this is a capturing group
-                if chars.peek() != Some(&'?') {
-                    group_count += 1;
-                } else {
-                    // might be (?:...) or (?=...) etc., check for named group
-                    let mut temp_chars = chars.clone();
-                    temp_chars.next(); // skip ?
-                    if temp_chars.peek() == Some(&'<') {
-                        temp_chars.next();
-                        if let Some(&c) = temp_chars.peek()
-                            && c != '='
-                            && c != '!'
-                        {
-                            // named capturing group (?<name>...)
-                            group_count += 1;
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    None
 }
 
 #[cfg(test)]

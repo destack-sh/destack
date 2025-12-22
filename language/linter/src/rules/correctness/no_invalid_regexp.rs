@@ -1,8 +1,6 @@
+use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
-use regex_syntax::Parser;
-
-use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
     /// Disallow invalid regular expression strings.
@@ -38,27 +36,27 @@ impl LintRule for NoInvalidRegexp {
                 continue;
             };
 
-            // try to parse the regex
-            let regex_content = ctx.strings.get(*content);
-            let regex_str = regex_content.as_ref();
-            if let Err(e) = Parser::new().parse(regex_str) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_INVALID_REGEXP.id,
-                        NO_INVALID_REGEXP.code,
-                        NO_INVALID_REGEXP.category,
-                        severity,
-                        format!("invalid regular expression: {e}"),
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("this regex is invalid"),
-                );
+            let parse = ctx.regex_parse(*content);
+            let Some(error) = parse.error.as_ref() else {
+                continue;
+            };
+            let parse_error = &error.message;
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
             }
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_INVALID_REGEXP.id,
+                    NO_INVALID_REGEXP.code,
+                    NO_INVALID_REGEXP.category,
+                    severity,
+                    format!("invalid regular expression: {parse_error}"),
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("this regex is invalid"),
+            );
         }
     }
 }

@@ -1,7 +1,6 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_constant_expression;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -36,8 +35,7 @@ impl LintRule for NoConstantCondition {
                 ast::Expression::While { condition, .. } => *condition,
                 _ => continue,
             };
-            let condition = ctx.tree.get(condition_id);
-            if is_constant_expression(ctx, condition) {
+            if ctx.const_value(condition_id).is_some() {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;

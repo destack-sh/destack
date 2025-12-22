@@ -1,6 +1,5 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
-use regex_syntax::Parser;
 use regex_syntax::hir::{Hir, HirKind};
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -54,63 +53,48 @@ impl LintRule for NoSuperLinearRegex {
                 continue;
             };
 
-            let regex_content = ctx.strings.get(*content);
-            let regex_str = regex_content.as_ref();
-
-            // parse the regex into HIR for analysis
-            let Ok(hir) = Parser::new().parse(regex_str) else {
-                // invalid regex: handled by no-invalid-regexp
+            let parse = ctx.regex_parse(*content);
+            let Some(hir) = parse.hir.as_deref() else {
                 continue;
             };
-
-            if let Some(problem) = find_super_linear_pattern(&hir) {
-                let severity = ctx.get_effective_severity(meta, node_id);
-                if !severity.is_enabled() {
-                    continue;
-                }
-                ctx.report(
-                    LintDiagnostic::new(
-                        NO_SUPER_LINEAR_REGEX.id,
-                        NO_SUPER_LINEAR_REGEX.code,
-                        NO_SUPER_LINEAR_REGEX.category,
-                        severity,
-                        problem,
-                        ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
-                    )
-                    .with_label("this pattern may cause catastrophic backtracking"),
-                );
+            let problem = check_nested_quantifiers(hir, false);
+            let Some(problem) = problem.as_deref() else {
+                continue;
+            };
+            let severity = ctx.get_effective_severity(meta, node_id);
+            if !severity.is_enabled() {
+                continue;
             }
+            ctx.report(
+                LintDiagnostic::new(
+                    NO_SUPER_LINEAR_REGEX.id,
+                    NO_SUPER_LINEAR_REGEX.code,
+                    NO_SUPER_LINEAR_REGEX.category,
+                    severity,
+                    problem,
+                    ctx.module.file_id,
+                    ctx.tree.get_span(node_id),
+                )
+                .with_label("this pattern may cause catastrophic backtracking"),
+            );
         }
     }
 }
 
-/// Find super-linear (exponential/polynomial) patterns in a regex HIR.
-/// Returns a description of the problem if found.
-fn find_super_linear_pattern(hir: &Hir) -> Option<String> {
-    check_nested_quantifiers(hir, false)
-}
-
-/// Recursively check for nested quantifiers.
-/// `in_unbounded_quantifier` is true when we're inside an unbounded repetition.
+/// Walk the HIR for nested quantifiers and overlapping alternations.
 fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<String> {
     match hir.kind() {
         HirKind::Repetition(rep) => {
-            // check if this is a truly unbounded repetition (+ or * or {n,})
-            // bounded repetitions like {1,3} don't cause exponential backtracking
             let is_unbounded = rep.max.is_none();
 
             if in_unbounded_quantifier && is_unbounded {
-                // nested unbounded quantifier found
                 return Some("nested quantifiers can cause exponential backtracking".to_string());
             }
 
-            // check inside the repetition, marking that we're in an unbounded quantifier
             check_nested_quantifiers(&rep.sub, is_unbounded)
         }
 
         HirKind::Concat(items) => {
-            // check all items in sequence
             for item in items {
                 if let Some(problem) = check_nested_quantifiers(item, in_unbounded_quantifier) {
                     return Some(problem);
@@ -120,14 +104,12 @@ fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<
         }
 
         HirKind::Alternation(alts) => {
-            // check all alternatives
             for alt in alts {
                 if let Some(problem) = check_nested_quantifiers(alt, in_unbounded_quantifier) {
                     return Some(problem);
                 }
             }
 
-            // also check for overlapping alternatives inside an unbounded quantifier
             if in_unbounded_quantifier && alts.len() >= 2 && check_overlapping_alternatives(alts) {
                 return Some(
                     "overlapping alternatives in quantifier can cause exponential backtracking"
@@ -140,19 +122,14 @@ fn check_nested_quantifiers(hir: &Hir, in_unbounded_quantifier: bool) -> Option<
 
         HirKind::Capture(cap) => check_nested_quantifiers(&cap.sub, in_unbounded_quantifier),
 
-        // literals and other terminals don't cause super-linear behavior
         HirKind::Empty | HirKind::Literal(_) | HirKind::Class(_) | HirKind::Look(_) => None,
     }
 }
 
-/// Check if alternatives have overlapping prefixes (e.g., `(a|ab)` or `(a|a)`).
-/// This is a simplified check that looks for alternatives that both start
-/// with the same character class or literal.
+/// Return whether alternations overlap on their first character class.
 fn check_overlapping_alternatives(alts: &[Hir]) -> bool {
-    // get the first character possibility for each alternative
     let first_chars: Vec<_> = alts.iter().filter_map(get_first_char_class).collect();
 
-    // check for overlaps between any pair
     for i in 0..first_chars.len() {
         for j in (i + 1)..first_chars.len() {
             if classes_overlap(&first_chars[i], &first_chars[j]) {
@@ -164,41 +141,35 @@ fn check_overlapping_alternatives(alts: &[Hir]) -> bool {
     false
 }
 
-/// Represents a set of characters that can match.
+/// Describe the first character class for overlap checks.
 #[derive(Clone)]
 enum CharClass {
-    /// A specific literal character.
+    /// A literal character.
     Literal(char),
-    /// Any character (from `.`).
+    /// Any character in the pattern.
     Any,
-    /// A Unicode class.
+    /// A character class in the pattern.
     Class,
 }
 
-/// Get the first character class from an HIR.
+/// Extract the first character class for a HIR subtree.
 fn get_first_char_class(hir: &Hir) -> Option<CharClass> {
     match hir.kind() {
         HirKind::Literal(lit) => {
-            // get the first character from the literal
             let s = std::str::from_utf8(&lit.0).ok()?;
             s.chars().next().map(CharClass::Literal)
         }
 
         HirKind::Class(_) => Some(CharClass::Class),
 
-        HirKind::Concat(items) => {
-            // get first from first item
-            items.first().and_then(get_first_char_class)
-        }
+        HirKind::Concat(items) => items.first().and_then(get_first_char_class),
 
         HirKind::Alternation(alts) => {
-            // if any branch can match any character, return Any
             for alt in alts {
                 if let Some(CharClass::Any) = get_first_char_class(alt) {
                     return Some(CharClass::Any);
                 }
             }
-            // otherwise return Class (simplification)
             if !alts.is_empty() {
                 Some(CharClass::Class)
             } else {
@@ -209,7 +180,6 @@ fn get_first_char_class(hir: &Hir) -> Option<CharClass> {
         HirKind::Capture(cap) => get_first_char_class(&cap.sub),
 
         HirKind::Repetition(rep) => {
-            // if it can match zero times, it doesn't contribute a required first char
             if rep.min == 0 {
                 None
             } else {
@@ -217,19 +187,15 @@ fn get_first_char_class(hir: &Hir) -> Option<CharClass> {
             }
         }
 
-        HirKind::Empty => None,
-        HirKind::Look(_) => None,
+        HirKind::Empty | HirKind::Look(_) => None,
     }
 }
 
-/// Check if two character classes could match the same character.
+/// Return whether two character classes overlap.
 fn classes_overlap(a: &CharClass, b: &CharClass) -> bool {
     match (a, b) {
-        // any overlaps with everything
         (CharClass::Any, _) | (_, CharClass::Any) => true,
-        // class overlaps with anything (simplification)
         (CharClass::Class, _) | (_, CharClass::Class) => true,
-        // literals overlap if they're the same
         (CharClass::Literal(c1), CharClass::Literal(c2)) => c1 == c2,
     }
 }
