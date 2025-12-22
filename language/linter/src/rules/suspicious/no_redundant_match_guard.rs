@@ -1,7 +1,6 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::constant_to_bool;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -23,7 +22,7 @@ declare_lint! {
     "Disallow match guards that are always true or false"
 }
 
-// #Incomplete: no-redundant-match-guard should also check for mergability with main pattern?
+// TODO #Incomplete: check whether the guard can be merged with the main pattern
 
 impl LintRule for NoRedundantMatchGuard {
     fn meta(&self) -> &'static crate::LintMeta {
@@ -49,8 +48,7 @@ impl LintRule for NoRedundantMatchGuard {
                 continue;
             };
 
-            let guard_expr = ctx.tree.get(*guard_id);
-            let Some(is_truthy) = constant_to_bool(ctx, guard_expr) else {
+            let Some(is_truthy) = ctx.const_bool(*guard_id) else {
                 continue;
             };
 

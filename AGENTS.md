@@ -94,6 +94,7 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 
 - Place imports at the top, prefer `use std::time::Instant` patterns
+- Comments/documentation goes before *all* attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Avoid `unwrap`/`expect` outside tests; fail explicitly
 - Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)

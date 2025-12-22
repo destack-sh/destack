@@ -95,7 +95,7 @@ const a = 1, b = 2, c = 3;
         let result = test.lint_ast(
             "test.ds",
             r#"
-^mut x = 1, y = 2;
+var x = 1, y = 2;
 "#,
         );
         test.result(result).assert_lint("no-multi-declarators");

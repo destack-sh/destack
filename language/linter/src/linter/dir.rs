@@ -6,7 +6,7 @@ use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::{LintDiagnostic, LintMeta};
+use crate::{ConstValue, LintDiagnostic, LintDirAnalysisCache, LintMeta};
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
 #[derive(Debug, Clone, Copy)]
@@ -54,6 +54,9 @@ pub struct LintModuleDirContext<'a> {
 
     /// Whether to compute fixes for diagnostics.
     pub compute_fixes: bool,
+
+    /// Cached analysis results.
+    analysis: LintDirAnalysisCache,
 
     /// Collected diagnostics.
     diagnostics: Vec<LintDiagnostic>,
@@ -105,6 +108,7 @@ impl<'a> LintModuleDirContext<'a> {
             exported_symbols,
             options,
             compute_fixes,
+            analysis: LintDirAnalysisCache::default(),
             diagnostics: Vec::new(),
         }
     }
@@ -269,6 +273,16 @@ impl<'a> LintModuleDirContext<'a> {
     /// Create an EditBuilder with source text for text-aware operations.
     pub fn edit_builder(&self) -> EditBuilder<'_> {
         EditBuilder::from_file(self.module.file_id, self.file.text())
+    }
+
+    /// Return a constant value if the expression can be evaluated.
+    pub fn const_value(&mut self, id: dir::LocalNodeId<dir::Expression>) -> Option<ConstValue> {
+        self.analysis.const_value(self.tree, id)
+    }
+
+    /// Return a constant boolean value if the expression can be evaluated.
+    pub fn const_bool(&mut self, id: dir::LocalNodeId<dir::Expression>) -> Option<bool> {
+        self.const_value(id).map(ConstValue::to_bool)
     }
 }
 
