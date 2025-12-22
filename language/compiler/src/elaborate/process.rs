@@ -39,31 +39,13 @@ impl Compiler {
                 self.require_elaborate_module_reify(module)?;
             }
             ElaborateTask::ElaborateModuleTransform { module } => {
-                self.require_analyze_module(module)?;
-                self.elaborate_module_transform(module)?;
+                self.elaborate_module_transform_phase(module)?;
             }
             ElaborateTask::ElaborateModuleReify { module } => {
-                self.require_elaborate_module_transform(module)?;
-                self.elaborate_module_reify(module)?;
+                self.elaborate_module_reify_phase(module)?;
             }
         }
         Ok(())
-    }
-
-    /// Ensure a module has been transformed (post-analysis simplification).
-    pub fn require_elaborate_module_transform(
-        &self,
-        module: ModuleId,
-    ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(ElaborateTask::ElaborateModuleTransform { module })
-    }
-
-    /// Ensure a module has been reified (abstractions made concrete).
-    pub fn require_elaborate_module_reify(
-        &self,
-        module: ModuleId,
-    ) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(ElaborateTask::ElaborateModuleReify { module })
     }
 
     /// Ensure a module has been elaborated.

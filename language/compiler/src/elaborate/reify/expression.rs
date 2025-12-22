@@ -12,7 +12,7 @@ impl Compiler {
     /// - Operators → resolved method calls (`a + b` → `a.add(b)` based on Resolution)
     /// - Type descriptors → runtime type objects (`Type<T>` → actual descriptor)
     /// - Maybe/Must → explicit error handling (if not overloaded)
-    pub(super) fn elaborate_module_reify(&self, module_id: ModuleId) -> ElaborateResult<()> {
+    pub(crate) fn elaborate_module_reify(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir();
@@ -80,7 +80,7 @@ impl Compiler {
         _symbols: &SymbolTable,
         _types: &TypeTable,
     ) -> ElaborateResult<()> {
-        // NOTE #Incomplete: reify operators based on Resolution
+        // NOTE #Incomplete: reify operators based on Resolutions
         //  - static: a + b → a.add(b)
         //  - dynamic: a + b → match typeof(..) { T1 => ..., T2 => ... } (conceptually, use if-else)
         Ok(())
