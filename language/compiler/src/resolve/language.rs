@@ -1,9 +1,15 @@
 use destack_builtin::LanguageItem;
 use destack_dir::{GlobalSymbolId, StaticKey};
+use destack_workspace::ProfileId;
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
+    /// Resolve a profile's libraries.
+    pub fn resolve_libs(&self, profile: ProfileId) -> ResolveResult<()> {
+        todo!("resolve libs for profile {profile:?}");
+    }
+
     /// Resolve all builtin modules and required language items.
     pub fn resolve_builtins(&self) -> ResolveResult<()> {
         let Some(builtins) = self.program.builtins.as_ref() else {

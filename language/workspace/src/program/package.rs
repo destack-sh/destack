@@ -8,7 +8,7 @@ use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{DsConfig, Target, TsConfigId};
+use crate::{DsConfig, Target, TargetId, TsConfigId};
 
 /// Kind of package based on how it was discovered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -46,13 +46,13 @@ pub struct Package {
     /// The root tsconfig of the package (in TsConfigRegistry, supports nesting).
     pub tsconfig: Option<TsConfigId>,
     /// Build targets for this package (usually from `dsconfig.json`.targets).
-    pub targets: IndexMap<String, Target>,
+    pub targets: IndexMap<TargetId, Target>,
 }
 
 impl Package {
     /// Get a target by name.
-    pub fn target(&self, name: &str) -> Option<&Target> {
-        self.targets.get(name)
+    pub fn target(&self, target: &TargetId) -> Option<&Target> {
+        self.targets.get(target)
     }
 
     /// Get the default target (first one, if any).

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions, EmitTask};
 use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
-use destack_workspace::{DsConfig, Session, Target};
+use destack_workspace::{DsConfig, Session, Target, TargetId};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -130,7 +130,8 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
                 let new_out_dir = out_dir_str.replacen("dist/", "dist-actual/", 1);
                 target.out_dir = PathBuf::from(new_out_dir);
             }
-            package.targets.insert(name, target);
+            let target_id = TargetId::new(package_id, &name);
+            package.targets.insert(target_id, target);
         }
     }
 
@@ -146,9 +147,10 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
 
     // emit
     for (target_name, _) in &targets {
+        let target_id = TargetId::new(package_id, target_name);
         compiler.enqueue(EmitTask::EmitPackage {
             package: package_id,
-            target: target_name.clone(),
+            target: target_id,
         });
     }
     compiler.compile();

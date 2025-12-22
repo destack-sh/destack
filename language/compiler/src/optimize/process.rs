@@ -2,6 +2,7 @@ use crate::{Compiler, OptimizeResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
+use destack_workspace::TargetId;
 
 /// Task to optimize something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -9,7 +10,7 @@ use destack_source::ModuleId;
 pub enum OptimizeTask {
     /// Optimize a module's MIR.
     #[task(code = 1, trace = "module={module} target={target}")]
-    OptimizeModule { module: ModuleId, target: String },
+    OptimizeModule { module: ModuleId, target: TargetId },
 }
 
 impl Compiler {
@@ -18,7 +19,7 @@ impl Compiler {
         match task {
             OptimizeTask::OptimizeModule { module, target } => {
                 self.require_verify_module(module, &target)?;
-                self.optimize_module(module, target)?;
+                self.optimize_module(module, &target)?;
             }
         }
         Ok(())
@@ -28,16 +29,16 @@ impl Compiler {
     pub fn require_optimize(
         &self,
         module: ModuleId,
-        target: impl Into<String>,
+        target: &TargetId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(OptimizeTask::OptimizeModule {
             module,
-            target: target.into(),
+            target: target.clone(),
         })
     }
 
     /// Optimize a module's MIR.
-    fn optimize_module(&self, _module: ModuleId, _target: String) -> OptimizeResult<()> {
+    fn optimize_module(&self, _module: ModuleId, _target: &TargetId) -> OptimizeResult<()> {
         // NOTE #Incomplete: implement optimize
         // - dead code elimination
         // - constant folding

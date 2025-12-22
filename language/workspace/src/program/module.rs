@@ -150,7 +150,19 @@ impl Module {
         self.mirs
             .iter()
             .find(|mir| &mir.target == target)
-            .unwrap_or_else(|| panic!("no MIR for target {target:?} on {self:?}"))
+            .unwrap_or_else(|| panic!("no MIR for target {target:?}"))
+    }
+
+    /// Get the MIR for a target mutably.
+    ///
+    /// # Panics
+    /// Panics if called before Lower phase completes.
+    #[inline]
+    pub fn mir_mut(&mut self, target: &TargetId) -> &mut ModuleMir {
+        self.mirs
+            .iter_mut()
+            .find(|mir| &mir.target == target)
+            .unwrap_or_else(|| panic!("no MIR for target {target:?}"))
     }
 }
 

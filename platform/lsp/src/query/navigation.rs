@@ -132,8 +132,8 @@ pub fn call_hierarchy_item_to_lsp(
 
     // store symbol_id in data for incoming/outgoing calls
     let data = Some(json!({
-        "package": item.symbol_id.module_id.package.0,
-        "module": item.symbol_id.module_id.local,
+        "package": item.symbol_id.module_id.package_id.0,
+        "module": item.symbol_id.module_id.local_id,
         "symbol": item.symbol_id.local_id.id,
     }));
 
@@ -218,8 +218,8 @@ pub fn type_hierarchy_item_to_lsp(
 
     // store symbol_id in data for supertypes/subtypes
     let data = Some(json!({
-        "package": item.symbol_id.module_id.package.0,
-        "module": item.symbol_id.module_id.local,
+        "package": item.symbol_id.module_id.package_id.0,
+        "module": item.symbol_id.module_id.local_id,
         "symbol": item.symbol_id.local_id.id,
     }));
 

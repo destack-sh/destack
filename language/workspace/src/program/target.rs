@@ -3,7 +3,10 @@ use destack_source::PackageId;
 /// Unique identifier for a build target within a package.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TargetId {
+    /// The package id.
     pub package_id: PackageId,
+    /// The name of the target.
+    /// NOTE #Performance: TargetId.name should be interned (but where? no obvious)
     pub name: String,
 }
 

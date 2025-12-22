@@ -5,7 +5,7 @@ use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit a single module's output for a target.
-    pub(super) fn emit_module(&self, module_id: ModuleId, target_name: &str) -> EmitResult<()> {
+    pub(super) fn emit_module(&self, module_id: ModuleId, target_id: &TargetId) -> EmitResult<()> {
         // get the package for this module
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -13,27 +13,26 @@ impl Compiler {
         drop(module);
 
         // ensure linking is complete
-        self.require_link_module(package_id, target_name)?;
+        self.require_link_module(package_id, target_id)?;
 
         // verify target exists
         let has_target = {
             let package_ref = self.program.packages.get(package_id);
             let package = package_ref.read();
-            package.targets.contains_key(target_name)
+            package.targets.contains_key(target_id)
         };
         if !has_target {
             return Err(EmitError::TargetNotFound {
                 package: package_id,
-                target: target_name.to_string(),
+                target: target_id.clone(),
             });
         }
 
         // get artifacts for this module + target
-        let target_id = TargetId::new(package_id, target_name);
         let artifacts = self
             .program
             .artifacts
-            .get_by_module_target(module_id, &target_id);
+            .get_by_module_target(module_id, target_id);
 
         // emit each artifact using its precomputed output path
         for artifact in artifacts {

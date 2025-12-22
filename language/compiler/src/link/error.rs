@@ -3,7 +3,7 @@ use crate::{
 };
 use destack_compiler_macros::DefineError;
 use destack_source::PackageId;
-use destack_workspace::Program;
+use destack_workspace::{Program, TargetId};
 
 /// Errors during the link phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -23,13 +23,16 @@ pub enum LinkError {
 
     /// Missing target.
     #[error(code = "EK003", message = "missing target: {target}")]
-    MissingTarget { package: PackageId, target: String },
+    MissingTarget {
+        package: PackageId,
+        target: TargetId,
+    },
 
     /// Invalid target configuration.
     #[error(code = "EK004", message = "invalid target: {target}: {message}")]
     InvalidTarget {
         package: PackageId,
-        target: String,
+        target: TargetId,
         message: String,
     },
 }

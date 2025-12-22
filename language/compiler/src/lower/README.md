@@ -1841,7 +1841,7 @@ The `catch` block receives the error value from the `Err` variant.
 `throw` indicates an unrecoverable error (bug, invariant violation).
 Unlike traditional exceptions, panics are not meant to be caught.
 On native targets, `throw` aborts without unwinding.
-Panic strategy is configured per target (`panic`), but unwind is reserved for future use.
+Panic policy is configured per target (`panic`), but unwind is reserved for future use.
 
 ```
 function assertPositive(n: int) {

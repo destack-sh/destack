@@ -2,6 +2,7 @@ use crate::{Compiler, LinkResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::PackageId;
+use destack_workspace::TargetId;
 
 /// Task to link generated artifacts.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -12,8 +13,8 @@ pub enum LinkTask {
     LinkTarget {
         /// The package containing the target.
         package: PackageId,
-        /// The target name.
-        target: String,
+        /// The target id.
+        target: TargetId,
     },
 }
 
@@ -29,11 +30,11 @@ impl Compiler {
     pub fn require_link_module(
         &self,
         package: PackageId,
-        target: &str,
+        target: &TargetId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(LinkTask::LinkTarget {
             package,
-            target: target.to_string(),
+            target: target.clone(),
         })
     }
 }

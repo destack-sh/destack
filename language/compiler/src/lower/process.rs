@@ -14,7 +14,7 @@ pub enum LowerTask {
         /// Identify the module to lower.
         module: ModuleId,
         /// Identify the target backend for lowering.
-        target: String,
+        target: TargetId,
     },
 }
 
@@ -31,12 +31,8 @@ impl Compiler {
     }
 
     /// Lower a module.
-    fn lower_module(&self, module_id: ModuleId, target: String) -> LowerResult<()> {
+    fn lower_module(&self, module_id: ModuleId, target_id: TargetId) -> LowerResult<()> {
         let module = self.program.modules.get(module_id);
-        let target_id = {
-            let module = module.read();
-            TargetId::new(module.package_id, target.clone())
-        };
 
         // initialize MIR for this target
         {
@@ -59,7 +55,7 @@ impl Compiler {
             let types = dir.types.read();
 
             let mut lowerer = ModuleLowerer::new(
-                self, &module, &dir_tree, &dir.roots, &symbols, &types, &target,
+                self, &module, &dir_tree, &dir.roots, &symbols, &types, &target_id,
             );
             lowerer.lower_module()?;
             lowerer.finish()
@@ -69,11 +65,7 @@ impl Compiler {
         // (#Cleanup: should we mutate the ModuleMir in place..?)
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
-        let mir = module
-            .mirs
-            .iter_mut()
-            .find(|mir| mir.target == target_id)
-            .expect("missing ModuleMir for target");
+        let mir = module.mir_mut(&target_id);
         *mir.tree.write() = mir_tree;
         mir.strings = mir_strings;
 
@@ -84,11 +76,11 @@ impl Compiler {
     pub fn require_lower_module(
         &self,
         module: ModuleId,
-        target: impl Into<String>,
+        target: &TargetId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(LowerTask::LowerModule {
             module,
-            target: target.into(),
+            target: target.clone(),
         })
     }
 }

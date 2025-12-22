@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_compiler_macros::DefineError;
 use destack_source::{FileType, PackageId, Uri};
-use destack_workspace::{ArtifactId, Program};
+use destack_workspace::{ArtifactId, Program, TargetId};
 
 /// Errors during the emit phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -21,7 +21,10 @@ pub enum EmitError {
 
     /// Target not found in package.
     #[error(code = "EW002", message = "target not found: {target}")]
-    TargetNotFound { package: PackageId, target: String },
+    TargetNotFound {
+        package: PackageId,
+        target: TargetId,
+    },
 
     /// Artifact has invalid or missing output path.
     #[error(code = "EW003", message = "artifact has invalid output path: {uri}")]

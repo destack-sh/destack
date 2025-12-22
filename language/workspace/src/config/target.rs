@@ -242,9 +242,9 @@ impl StripLevel {
     }
 }
 
-/// Panic strategy for unrecoverable errors.
+/// Panic policy for unrecoverable errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum PanicStrategy {
+pub enum PanicPolicy {
     /// Abort immediately.
     #[default]
     Abort,
@@ -252,7 +252,7 @@ pub enum PanicStrategy {
     Unwind,
 }
 
-impl std::str::FromStr for PanicStrategy {
+impl std::str::FromStr for PanicPolicy {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -264,7 +264,7 @@ impl std::str::FromStr for PanicStrategy {
     }
 }
 
-impl PanicStrategy {
+impl PanicPolicy {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
@@ -602,7 +602,7 @@ pub const DEFAULT_OUT_DIR: &str = "dist";
 ///
 /// Can be constructed from dsconfig.json or programmatically.
 /// This is the type used by compiler/codegen - independent of dsconfig parsing.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,
@@ -660,8 +660,8 @@ pub struct Target {
     pub debug_info: DebugInfoLevel,
     /// Symbol stripping policy.
     pub strip: StripLevel,
-    /// Panic strategy for unrecoverable errors.
-    pub panic: PanicStrategy,
+    /// Panic policy for unrecoverable errors.
+    pub panic: PanicPolicy,
     /// Unwind info format for native targets.
     pub unwind: UnwindFormat,
     /// Integer overflow checking policy.
@@ -678,54 +678,6 @@ pub struct Target {
     pub out_file: Option<PathBuf>,
     /// Separate directory for declaration files.
     pub declaration_dir: Option<PathBuf>,
-}
-
-impl Default for Target {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-
-            // discovery
-            discovery: TargetDiscovery::default(),
-            entry: Vec::new(),
-            include: Vec::new(),
-            exclude: Vec::new(),
-
-            // output generation
-            module: ModuleTarget::default(),
-            es_target: EsTarget::default(),
-            lib: None,
-            profile: None,
-            output: OutputFormat::default(),
-            runtime: Runtime::default(),
-            platform: Platform::default(),
-            target_triple: None,
-            cpu: None,
-            cpu_features: Vec::new(),
-            relocation_model: RelocationModel::default(),
-            link_mode: LinkMode::default(),
-            declaration: false,
-            source_map: false,
-
-            // optimization
-            debug: true,
-            optimize: false,
-            optimize_level: OptimizeLevel::O0,
-            shrink_level: ShrinkLevel::S0,
-            debug_info: DebugInfoLevel::default(),
-            strip: StripLevel::default(),
-            panic: PanicStrategy::default(),
-            unwind: UnwindFormat::default(),
-            overflow_checks: OverflowCheckPolicy::default(),
-            bounds_checks: BoundsCheckPolicy::default(),
-            allocator: Allocator::default(),
-
-            // output paths
-            out_dir: PathBuf::from(DEFAULT_OUT_DIR),
-            out_file: None,
-            declaration_dir: None,
-        }
-    }
 }
 
 impl Target {
@@ -934,7 +886,7 @@ impl Target {
     }
 
     /// Set panic strategy.
-    pub fn with_panic(mut self, panic: PanicStrategy) -> Self {
+    pub fn with_panic(mut self, panic: PanicPolicy) -> Self {
         self.panic = panic;
         self
     }

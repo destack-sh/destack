@@ -1,11 +1,11 @@
 use crate::{Compiler, LinkError, LinkResult, TaskResultCollector};
 
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::TargetDiscovery;
+use destack_workspace::{TargetDiscovery, TargetId};
 
 impl Compiler {
     /// Link all modules for a target.
-    pub(super) fn link_target(&self, package_id: PackageId, target_name: &str) -> LinkResult<()> {
+    pub(super) fn link_target(&self, package_id: PackageId, target_id: &TargetId) -> LinkResult<()> {
         // get package and target configuration
         let package = self.program.packages.get(package_id);
         let package = package.read();
@@ -13,18 +13,18 @@ impl Compiler {
         let target =
             package
                 .targets
-                .get(target_name)
+                .get(target_id)
                 .cloned()
                 .ok_or_else(|| LinkError::MissingTarget {
                     package: package_id,
-                    target: target_name.to_string(),
+                    target: target_id.clone(),
                 })?;
 
         // find modules to generate based on discovery mode
         let modules: Vec<ModuleId> = match target.discovery {
             // resolve entry points to module IDs
             TargetDiscovery::Entry => {
-                self.discover_entry_modules(package_id, &package_path, &target)?
+                self.discover_entry_modules(package_id, &package_path, &target, target_id)?
             }
             // match all modules in package against include/exclude patterns
             TargetDiscovery::Include => {
@@ -35,7 +35,7 @@ impl Compiler {
         // generate all discovered modules
         let mut collector = TaskResultCollector::new();
         for module_id in modules {
-            let result = self.require_generate_module(module_id, target_name);
+            let result = self.require_generate_module(module_id, target_id);
             collector.try_collect(result);
         }
 

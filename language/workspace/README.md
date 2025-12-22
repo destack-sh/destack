@@ -58,7 +58,7 @@ struct Target {
     debug: boolean,
     boundsChecks: BoundsCheckPolicy,
     overflowChecks: OverflowCheckPolicy,
-    panic: PanicStrategy,
+    panic: PanicPolicy,
     unwind: UnwindFormat,
     debugInfo: DebugInfoLevel,
     strip: StripLevel,

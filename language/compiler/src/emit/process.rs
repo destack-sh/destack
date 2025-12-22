@@ -2,6 +2,7 @@ use crate::{Compiler, EmitResult};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::{ModuleId, PackageId};
+use destack_workspace::TargetId;
 
 /// Task to emit compiled output to disk.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -13,7 +14,7 @@ pub enum EmitTask {
         /// The module to emit.
         module: ModuleId,
         /// The target name.
-        target: String,
+        target: TargetId,
     },
     /// Emit all outputs for a package target.
     #[task(code = 2, trace = "package={package} target={target}")]
@@ -21,13 +22,13 @@ pub enum EmitTask {
         /// The package to emit.
         package: PackageId,
         /// The target name.
-        target: String,
+        target: TargetId,
     },
     /// Emit all outputs for the entire program.
     #[task(code = 3, trace = "target={target}")]
     EmitProgram {
         /// The target name.
-        target: String,
+        target: TargetId,
     },
 }
 

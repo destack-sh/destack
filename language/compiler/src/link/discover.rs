@@ -1,7 +1,7 @@
 use crate::{Compiler, LinkError, LinkResult};
 
 use destack_source::{ModuleId, PackageId, matches as glob_matches};
-use destack_workspace::Target;
+use destack_workspace::{Target, TargetId};
 
 impl Compiler {
     /// Discover modules from entry points.
@@ -10,12 +10,13 @@ impl Compiler {
         package_id: PackageId,
         package_path: &Option<std::path::PathBuf>,
         target: &Target,
+        target_id: &TargetId,
     ) -> LinkResult<Vec<ModuleId>> {
         let package_dir = package_path
             .as_ref()
             .ok_or_else(|| LinkError::InvalidTarget {
                 package: package_id,
-                target: target.name.clone(),
+                target: target_id.clone(),
                 message: "entry-based discovery requires package path".to_string(),
             })?;
 
