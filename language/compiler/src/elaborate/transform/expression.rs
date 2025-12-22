@@ -14,7 +14,7 @@ impl Compiler {
     /// 1. `if let` → if + explicit binding
     /// 2. `match` → decision trees (if-else chains)
     /// 3. Expressions as values → temp + assignments
-    pub(super) fn elaborate_module_transform(&self, module_id: ModuleId) -> ElaborateResult<()> {
+    pub(crate) fn elaborate_module_transform(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir();
