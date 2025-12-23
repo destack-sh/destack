@@ -123,9 +123,7 @@ mapper("hi");
 
 - contains: type "hi" is not assignable to type number
 
-### _conflicting static arguments on member calls
-
-> nocheckin #Broken: parser does not attach postfix static arguments to non path expressions, so this syntax never produces both member and call static arguments, add postfix instantiation parsing for any expression when `<...>` precedes `(` to make the conflict representable
+### conflicting static arguments on member calls
 
 > Static arguments cannot appear on both a member and its call.
 

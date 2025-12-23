@@ -53,7 +53,7 @@ impl Compiler {
 
         // resolve inherited static arguments and the callee symbol
         let mut inherited_static_arguments = Vec::new();
-        let callee_symbol = match tree.get(unwrapped_left_id) {
+        let (callee_symbol, has_static_argument_conflict) = match tree.get(unwrapped_left_id) {
             Expression::Member {
                 left: receiver_id,
                 name,
@@ -108,7 +108,10 @@ impl Compiler {
                     .as_ref()
                     .is_some_and(|arguments| !arguments.is_empty());
 
-                if call_has_static_arguments && member_has_static_arguments {
+                // detect and report static argument conflicts
+                let has_static_argument_conflict =
+                    call_has_static_arguments && member_has_static_arguments;
+                if has_static_argument_conflict {
                     self.error(AnalyzeError::ConflictingStaticArguments {
                         node: expression_id.into_global_any(module.id),
                     });
@@ -123,12 +126,21 @@ impl Compiler {
                     );
                 }
 
-                member_symbol
+                (member_symbol, has_static_argument_conflict)
             }
-            _ => self.reference_symbol_for_expression(module, unwrapped_left_id, tree, symbols),
+            _ => (
+                self.reference_symbol_for_expression(module, unwrapped_left_id, tree, symbols),
+                false,
+            ),
         };
 
         // resolve the callee signature and static arguments
+        // (skip call's static arguments if there was a conflict, as the error is already reported)
+        let effective_static_arguments = if has_static_argument_conflict {
+            None
+        } else {
+            static_arguments
+        };
         let ty_id = match types.get_type(callee_ty_id).clone() {
             Type::Function {
                 static_parameters,
@@ -140,7 +152,7 @@ impl Compiler {
                     module,
                     expression_id.into_any(),
                     callee_symbol,
-                    static_arguments,
+                    effective_static_arguments,
                     &static_parameters,
                     &dynamic_parameters,
                     return_type,

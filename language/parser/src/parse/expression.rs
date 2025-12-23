@@ -1230,6 +1230,28 @@ impl Parser {
                 };
                 left_expression_id = self.eat_call(left_expression_id, None, position)?;
             }
+            // statically parameterized call (like `(expr)<T>()`)
+            else if self.peek_token(TokenType::LessThan).is_ok()
+                && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
+                && !self.options.in_new_receiver
+            {
+                // speculatively try to parse static arguments
+                let speculative_start = self.mark();
+                let speculative_start_idx = self.tree.next_id();
+                if let Ok(static_arguments) = self.eat_static_arguments()
+                    && self.peek_token(TokenType::OpenParenthesis).is_ok()
+                {
+                    left_expression_id = self.eat_call(
+                        left_expression_id,
+                        Some(static_arguments),
+                        PostfixPosition::Direct,
+                    )?;
+                } else {
+                    // not static arguments followed by call, restore and exit postfix loop
+                    self.restore(speculative_start, speculative_start_idx);
+                    break;
+                }
+            }
             // maybe or ternary if
             // (like `x?`, `x.?`, `x?.` or `cond ? then : else`)
             else if self.peek_token(TokenType::Maybe).is_ok()
