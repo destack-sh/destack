@@ -1,19 +1,22 @@
 use destack_dir::{
-    BinaryOperator, BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor,
-    DeclarationKind, Declarator, Expression, IfKind, LocalNodeId, LocalSymbolId, MatchCase,
-    MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern, PatternField,
-    ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
+    BinaryOperator, BindingAnchor, Block, Declaration, DeclarationAbstraction,
+    DeclarationDescriptor, DeclarationKind, Declarator, Expression, IfKind, LocalNodeId,
+    LocalSymbolId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern,
+    PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
 };
 use destack_source::ModuleId;
 
 use crate::{Compiler, ElaborateResult};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Transform a module with target-independent simplifications:
     /// 0. Split multi-declarator lets into individual lets
-    /// 1. `if let` → if + explicit binding
-    /// 2. `match` → decision trees (if-else chains)
-    /// 3. Expressions as values → temp + assignments
+    /// 1. Unwrap single-expression blocks in SOURCE if/else (enables ternary)
+    /// 2. `if let` → if + explicit binding
+    /// 3. `match` → decision trees (if-else chains with proper blocks)
+    /// 4. Ternary optimization for simple if/else
+    /// 5. Implicit returns → explicit `return` statements
     pub(crate) fn elaborate_module_transform(&self, module_id: ModuleId) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -27,14 +30,25 @@ impl Compiler {
             self.transform_split_declarators(&mut tree)?;
         }
 
-        // 1. if-let → if + binding
+        // 1. unwrap single-expression blocks in SOURCE if/else
+        // this must happen BEFORE match transform so match-generated blocks stay
+        self.unwrap_single_expression_blocks(&mut tree)?;
+
+        // 2. if-let → if + binding
         self.transform_if_let(&mut tree, &symbols, &types)?;
 
-        // 2. match → decision trees
+        // 3. match → decision trees (creates proper blocks)
         self.transform_match(&mut tree, &symbols, &types)?;
 
-        // 3. expressions as values → temp + assignments
-        self.transform_expression_as_value(&mut tree, &symbols, &types)?;
+        // 4. ternary optimization (only for source if/else that were unwrapped)
+        if self.options.elaborate_with_ternary {
+            self.transform_if_to_ternary(&mut tree)?;
+        }
+
+        // 5. implicit returns → explicit return statements
+        if self.options.elaborate_explicit_return {
+            self.transform_explicit_return(&mut tree, &symbols)?;
+        }
 
         Ok(())
     }
@@ -62,6 +76,7 @@ impl Compiler {
 
     /// Wrap an expression in a block with the given scope.
     /// Returns an Expression::Block containing the expression.
+    /// If the expression is already a block, returns it unchanged.
     fn wrap_in_block(
         &self,
         origin_id: LocalNodeId<Expression>,
@@ -69,6 +84,11 @@ impl Compiler {
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         tree: &mut NodeTree,
     ) -> LocalNodeId<Expression> {
+        // don't double-wrap if already a block
+        if matches!(tree.get(body), Expression::Block { .. }) {
+            return body;
+        }
+
         // create the Block node
         let block_id = tree.reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
         let block: LocalNodeId<Block> = tree.insert(
@@ -150,8 +170,12 @@ impl Compiler {
 
                 // wrap in statement if original was wrapped
                 let final_expr = if is_statement {
-                    let stmt_id =
-                        tree.reserve_from(NodeType::Expression, let_expr_id.into_any(), scope, None);
+                    let stmt_id = tree.reserve_from(
+                        NodeType::Expression,
+                        let_expr_id.into_any(),
+                        scope,
+                        None,
+                    );
                     tree.insert(stmt_id, Expression::Statement { statement: new_let })
                 } else {
                     new_let
@@ -310,7 +334,7 @@ impl Compiler {
 
         let pattern = tree.get(pattern_id).clone();
 
-        // wildcard: return the body (it always matches)
+        // wildcard: return the body directly (it always matches)
         if matches!(pattern, Pattern::Wildcard) && guard.is_none() {
             return Ok(Some(body));
         }
@@ -318,14 +342,17 @@ impl Compiler {
         // binding pattern without further nested pattern: introduces binding, always matches
         if let Pattern::Binding { pattern: None, .. } = &pattern {
             if guard.is_none() {
-                // binding with no guard: return the body
+                // binding with no guard: return the body wrapped in block
                 // #Incomplete: need to emit the let binding for the variable
-                return Ok(Some(body));
+                return Ok(Some(self.wrap_in_block(match_id, body, scope, tree)));
             }
 
             // binding with guard: guard becomes the condition
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+
+            let then_block = self.wrap_in_block(match_id, body, scope, tree);
+            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -333,8 +360,8 @@ impl Compiler {
                 Expression::If {
                     kind: IfKind::If,
                     condition: guard.unwrap(),
-                    then_expression: body,
-                    else_expression: else_expr,
+                    then_expression: then_block,
+                    else_expression: else_block,
                 },
             );
             return Ok(Some(if_expr));
@@ -352,11 +379,15 @@ impl Compiler {
             // skip the condition check - the pattern must match if we reach here
             // (assuming exhaustive match, which is enforced by analysis)
             if else_expr.is_none() && guard.is_none() {
-                return Ok(Some(body));
+                return Ok(Some(self.wrap_in_block(match_id, body, scope, tree)));
             }
 
             let condition = self.build_equality_check(match_id, value, *pattern_value, tree, scope);
             let condition = self.combine_with_guard(match_id, condition, guard, tree, scope);
+
+            // wrap then/else in blocks for proper structure
+            let then_block = self.wrap_in_block(match_id, body, scope, tree);
+            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -364,8 +395,8 @@ impl Compiler {
                 Expression::If {
                     kind: IfKind::If,
                     condition,
-                    then_expression: body,
-                    else_expression: else_expr,
+                    then_expression: then_block,
+                    else_expression: else_block,
                 },
             );
             return Ok(Some(if_expr));
@@ -378,11 +409,13 @@ impl Compiler {
             let condition = self.combine_with_guard(match_id, condition, guard, tree, scope);
 
             // wrap body with field bindings (index accesses for tuple fields)
+            // this already creates a block
             let body_with_bindings =
                 self.wrap_with_tuple_bindings(match_id, value, fields, body, tree, scope);
 
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -391,7 +424,7 @@ impl Compiler {
                     kind: IfKind::If,
                     condition,
                     then_expression: body_with_bindings,
-                    else_expression: else_expr,
+                    else_expression: else_block,
                 },
             );
             return Ok(Some(if_expr));
@@ -409,6 +442,7 @@ impl Compiler {
 
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -417,7 +451,7 @@ impl Compiler {
                     kind: IfKind::If,
                     condition,
                     then_expression: body_with_bindings,
-                    else_expression: else_expr,
+                    else_expression: else_block,
                 },
             );
             return Ok(Some(if_expr));
@@ -425,6 +459,7 @@ impl Compiler {
 
         // anonymous tuple patterns: no type check, just index accesses
         if let Pattern::Tuple { fields } = &pattern {
+            // this already creates a block
             let body_with_bindings =
                 self.wrap_with_tuple_bindings(match_id, value, fields, body, tree, scope);
 
@@ -432,6 +467,7 @@ impl Compiler {
             if let Some(guard_expr) = guard {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -440,7 +476,7 @@ impl Compiler {
                         kind: IfKind::If,
                         condition: guard_expr,
                         then_expression: body_with_bindings,
-                        else_expression: else_expr,
+                        else_expression: else_block,
                     },
                 );
                 return Ok(Some(if_expr));
@@ -451,6 +487,7 @@ impl Compiler {
 
         // anonymous object patterns: no type check, just member accesses
         if let Pattern::Object { fields } = &pattern {
+            // this already creates a block
             let body_with_bindings =
                 self.wrap_with_object_bindings(match_id, value, fields, body, tree, scope);
 
@@ -458,6 +495,7 @@ impl Compiler {
             if let Some(guard_expr) = guard {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -466,7 +504,7 @@ impl Compiler {
                         kind: IfKind::If,
                         condition: guard_expr,
                         then_expression: body_with_bindings,
-                        else_expression: else_expr,
+                        else_expression: else_block,
                     },
                 );
                 return Ok(Some(if_expr));
@@ -497,6 +535,9 @@ impl Compiler {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
 
+                let then_block = self.wrap_in_block(match_id, body, scope, tree);
+                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -504,19 +545,21 @@ impl Compiler {
                     Expression::If {
                         kind: IfKind::If,
                         condition,
-                        then_expression: body,
-                        else_expression: else_expr,
+                        then_expression: then_block,
+                        else_expression: else_block,
                     },
                 );
                 return Ok(Some(if_expr));
             } else {
                 // range with no bounds matches everything
                 if guard.is_none() {
-                    return Ok(Some(body));
+                    return Ok(Some(self.wrap_in_block(match_id, body, scope, tree)));
                 }
                 // guard only
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+                let then_block = self.wrap_in_block(match_id, body, scope, tree);
+                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -524,8 +567,8 @@ impl Compiler {
                     Expression::If {
                         kind: IfKind::If,
                         condition: guard.unwrap(),
-                        then_expression: body,
-                        else_expression: else_expr,
+                        then_expression: then_block,
+                        else_expression: else_block,
                     },
                 );
                 return Ok(Some(if_expr));
@@ -534,12 +577,14 @@ impl Compiler {
 
         // union patterns: emit OR check for each alternative
         if let Pattern::Union { patterns } = &pattern {
-            let condition =
-                self.build_union_check(match_id, value, patterns, tree, scope);
+            let condition = self.build_union_check(match_id, value, patterns, tree, scope);
             let condition = self.combine_with_guard(match_id, condition, guard, tree, scope);
 
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+
+            let then_block = self.wrap_in_block(match_id, body, scope, tree);
+            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -547,8 +592,8 @@ impl Compiler {
                 Expression::If {
                     kind: IfKind::If,
                     condition,
-                    then_expression: body,
-                    else_expression: else_expr,
+                    then_expression: then_block,
+                    else_expression: else_block,
                 },
             );
             return Ok(Some(if_expr));
@@ -556,12 +601,14 @@ impl Compiler {
 
         // array patterns: similar to tuple, use index access
         if let Pattern::Array { fields } = &pattern {
+            // this already creates a block
             let body_with_bindings =
                 self.wrap_with_tuple_bindings(match_id, value, fields, body, tree, scope);
 
             if let Some(guard_expr) = guard {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
+                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -570,7 +617,7 @@ impl Compiler {
                         kind: IfKind::If,
                         condition: guard_expr,
                         then_expression: body_with_bindings,
-                        else_expression: else_expr,
+                        else_expression: else_block,
                     },
                 );
                 return Ok(Some(if_expr));
@@ -585,8 +632,8 @@ impl Compiler {
         // reference/value patterns: unwrap and match inner
         // #Incomplete: ReferenceOf and ValueOf patterns
 
-        // fallback: return body (unhandled pattern type)
-        Ok(Some(body))
+        // fallback: return body wrapped in block (unhandled pattern type)
+        Ok(Some(self.wrap_in_block(match_id, body, scope, tree)))
     }
 
     /// Build a range check: value >= start && value <= end (or < for exclusive).
@@ -713,8 +760,7 @@ impl Compiler {
         // combine all checks with ||
         if checks.is_empty() {
             // empty union: emit false (shouldn't happen in practice)
-            let lit_id =
-                tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+            let lit_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             return tree.insert(
                 lit_id,
                 Expression::ScalarLiteral {
@@ -968,7 +1014,12 @@ impl Compiler {
     fn wrap_with_let_bindings(
         &self,
         match_id: LocalNodeId<Expression>,
-        bindings: Vec<(StringId, LocalSymbolId, Option<Mutability>, LocalNodeId<Expression>)>,
+        bindings: Vec<(
+            StringId,
+            LocalSymbolId,
+            Option<Mutability>,
+            LocalNodeId<Expression>,
+        )>,
         body: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
@@ -983,8 +1034,7 @@ impl Compiler {
 
         for (name, symbol, mutability, value) in bindings {
             // create Pattern::Binding for the declarator
-            let pattern_id =
-                tree.reserve_from(NodeType::Pattern, match_id.into_any(), scope, None);
+            let pattern_id = tree.reserve_from(NodeType::Pattern, match_id.into_any(), scope, None);
             let pattern: LocalNodeId<Pattern> = tree.insert(
                 pattern_id,
                 Pattern::Binding {
@@ -1018,8 +1068,7 @@ impl Compiler {
             };
 
             // create Expression::Let
-            let let_id =
-                tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+            let let_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let let_expr: LocalNodeId<Expression> = tree.insert(
                 let_id,
                 Expression::Let {
@@ -1030,10 +1079,13 @@ impl Compiler {
             );
 
             // wrap in statement
-            let stmt_id =
-                tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-            let stmt: LocalNodeId<Expression> =
-                tree.insert(stmt_id, Expression::Statement { statement: let_expr });
+            let stmt_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
+            let stmt: LocalNodeId<Expression> = tree.insert(
+                stmt_id,
+                Expression::Statement {
+                    statement: let_expr,
+                },
+            );
 
             expressions.push(stmt);
         }
@@ -1057,42 +1109,77 @@ impl Compiler {
         tree.insert(block_expr_id, Expression::Block { block })
     }
 
-    /// Transform expressions used as values into temporaries and assignments.
-    /// Also optimizes simple if-else to ternary when enabled.
+    /// Unwrap single-expression blocks in if/else branches.
+    /// This enables ternary optimization for `if (cond) { a } else { b }`.
     ///
-    /// For simple if-else (when elaborate_with_ternary is true):
-    /// ```ds
-    /// if (cond) a else b
-    /// ```
-    /// ->
-    /// ```ds
-    /// cond ? a : b
-    /// ```
-    ///
-    /// For complex cases (future):
-    /// ```ds
-    /// const result = if (cond) { a } else { b };
-    /// ```
-    /// ->
-    /// ```ds
-    /// let result;
-    /// if (cond) { result = a; } else { result = b; }
-    /// ```
-    fn transform_expression_as_value(
-        &self,
-        tree: &mut NodeTree,
-        _symbols: &SymbolTable,
-        _types: &TypeTable,
-    ) -> ElaborateResult<()> {
-        // optimize simple if-else to ternary
-        if self.options.elaborate_with_ternary {
-            self.transform_if_to_ternary(tree)?;
+    /// NOTE: This must run BEFORE match transform so that match-generated blocks are preserved.
+    fn unwrap_single_expression_blocks(&self, tree: &mut NodeTree) -> ElaborateResult<()> {
+        let if_ids: Vec<_> = tree
+            .iter_node_ids_of_type::<Expression>()
+            .into_iter()
+            .filter(|id| matches!(tree.get(*id), Expression::If { .. }))
+            .collect();
+
+        for if_id in if_ids {
+            let Expression::If {
+                kind,
+                condition,
+                then_expression,
+                else_expression,
+            } = tree.get(if_id).clone()
+            else {
+                continue;
+            };
+
+            // try to unwrap then_expression if it's a single-expression block
+            let new_then = self.try_unwrap_block(then_expression, tree);
+
+            // try to unwrap else_expression if it's a single-expression block
+            let new_else = else_expression.map(|e| self.try_unwrap_block(e, tree));
+
+            // only update if something changed
+            if new_then != then_expression || new_else != else_expression {
+                tree.replace(
+                    if_id,
+                    Expression::If {
+                        kind,
+                        condition,
+                        then_expression: new_then,
+                        else_expression: new_else,
+                    },
+                );
+            }
         }
 
-        // #Incomplete: complex expression-as-value transforms
-        // (temp + assignment chains for complex if/match)
-
         Ok(())
+    }
+
+    /// Try to unwrap a single-expression block to its inner expression.
+    /// Returns the inner expression if the block contains exactly one expression
+    /// that is not a statement. Otherwise returns the original expression.
+    fn try_unwrap_block(
+        &self,
+        expr_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> LocalNodeId<Expression> {
+        let Expression::Block { block } = tree.get(expr_id) else {
+            return expr_id;
+        };
+
+        let block_node = tree.get(*block);
+        if block_node.expressions.len() != 1 {
+            return expr_id;
+        }
+
+        let inner_expr_id = block_node.expressions[0];
+        let inner_expr = tree.get(inner_expr_id);
+
+        // don't unwrap if the inner expression is a statement (has side effects)
+        // or if it's a let/declaration
+        match inner_expr {
+            Expression::Statement { .. } | Expression::Let { .. } => expr_id,
+            _ => inner_expr_id,
+        }
     }
 
     /// Transform simple if-else expressions to ternary expressions.
@@ -1194,6 +1281,168 @@ impl Compiler {
             _ => false,
         }
     }
+
+    /// Transform implicit returns into explicit `return` statements.
+    ///
+    /// ```ds
+    /// function f() { 42 }
+    /// ```
+    /// ->
+    /// ```ds
+    /// function f() { return 42; }
+    /// ```
+    ///
+    /// This also handles if/else branches:
+    /// ```ds
+    /// function f(cond) {
+    ///     if (cond) { 1 } else { 2 }
+    /// }
+    /// ```
+    /// ->
+    /// ```ds
+    /// function f(cond) {
+    ///     if (cond) { return 1; } else { return 2; }
+    /// }
+    /// ```
+    fn transform_explicit_return(
+        &self,
+        tree: &mut NodeTree,
+        _symbols: &SymbolTable,
+    ) -> ElaborateResult<()> {
+        // collect all function declarations
+        let function_ids: Vec<_> = tree
+            .iter_node_ids_of_type::<Declaration>()
+            .into_iter()
+            .filter(|id| matches!(tree.get(*id), Declaration::Function { .. }))
+            .collect();
+
+        for func_id in function_ids {
+            let Declaration::Function {
+                body: Some(body_id),
+                ..
+            } = tree.get(func_id).clone()
+            else {
+                continue;
+            };
+
+            let scope = tree.get_scope(body_id);
+            self.make_return_explicit(body_id, tree, scope)?;
+        }
+
+        Ok(())
+    }
+
+    /// Make the implicit return in an expression explicit.
+    /// For blocks, this transforms the last expression.
+    /// For if/else, this transforms both branches recursively.
+    fn make_return_explicit(
+        &self,
+        expr_id: LocalNodeId<Expression>,
+        tree: &mut NodeTree,
+        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
+    ) -> ElaborateResult<()> {
+        let expr = tree.get(expr_id).clone();
+
+        match expr {
+            Expression::Block { block } => {
+                let block_node = tree.get(block).clone();
+                if let Some(last_expr_id) = block_node.expressions.last().copied() {
+                    // recursively transform the last expression
+                    self.make_return_explicit(last_expr_id, tree, scope)?;
+                }
+            }
+
+            Expression::If {
+                kind: IfKind::If,
+                condition: _,
+                then_expression,
+                else_expression,
+            } => {
+                // for if-else (not ternary), transform both branches
+                self.make_return_explicit(then_expression, tree, scope)?;
+                if let Some(else_expr) = else_expression {
+                    self.make_return_explicit(else_expr, tree, scope)?;
+                }
+            }
+
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            } => {
+                // for ternary, return the whole expression as a statement
+                // reserve a new node for the original expression
+                let orig_id =
+                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
+                let orig_expr_id: LocalNodeId<Expression> = tree.insert(orig_id, expr);
+
+                // create return expression
+                let return_id =
+                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
+                let return_expr: LocalNodeId<Expression> = tree.insert(
+                    return_id,
+                    Expression::Return {
+                        value: Some(orig_expr_id),
+                    },
+                );
+
+                // replace the original node with a statement wrapping the return
+                tree.replace(
+                    expr_id,
+                    Expression::Statement {
+                        statement: return_expr,
+                    },
+                );
+            }
+
+            Expression::Match { .. } => {
+                unreachable!("match should be transformed to if/else in transform_match_chain");
+            }
+
+            Expression::Return { .. } => {
+                // already explicit, do nothing
+            }
+
+            Expression::Statement { statement } => {
+                // recursively transform the inner statement
+                self.make_return_explicit(statement, tree, scope)?;
+            }
+
+            Expression::Let { .. } => {
+                // let is a statement, don't wrap in return
+            }
+
+            _ => {
+                // wrap value expression in return statement
+                // strategy: create nodes for the original expression and return,
+                // then replace expr_id with Statement wrapping the Return
+
+                // reserve a new node for the original expression
+                let orig_id =
+                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
+                let orig_expr_id: LocalNodeId<Expression> = tree.insert(orig_id, expr);
+
+                // create return expression
+                let return_id =
+                    tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
+                let return_expr: LocalNodeId<Expression> = tree.insert(
+                    return_id,
+                    Expression::Return {
+                        value: Some(orig_expr_id),
+                    },
+                );
+
+                // replace the original node with a statement wrapping the return
+                tree.replace(
+                    expr_id,
+                    Expression::Statement {
+                        statement: return_expr,
+                    },
+                );
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1222,7 +1471,7 @@ function test(): number {
     let a = 1;
     let b = 2;
     let c = 3;
-    a + b + c
+    return a + b + c;
 }
 "#,
         );
@@ -1249,7 +1498,7 @@ function test(): number {
 function test(): number {
     let a = 1;
     let b = 2;
-    a + b
+    return a + b;
 }
 "#,
         );
@@ -1275,7 +1524,7 @@ function test(): number {
             r#"
 function test(): number {
     let a = 1;
-    a
+    return a;
 }
 "#,
         );
@@ -1283,7 +1532,7 @@ function test(): number {
 
     #[test]
     fn test_transform_match_literal_patterns() {
-        // match on literal values transforms to if-else chain
+        // match on literal values transforms to nested if-else with proper blocks
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1304,7 +1553,15 @@ function check(x: number): string {
             module_id,
             r#"
 function check(x): string {
-    if (x == 1) "one" else if (x == 2) "two" else "other"
+    if (x == 1) {
+        return "one";
+    } else {
+        if (x == 2) {
+            return "two";
+        } else {
+            return "other";
+        }
+    }
 }
 "#,
         );
@@ -1312,7 +1569,7 @@ function check(x): string {
 
     #[test]
     fn test_transform_match_boolean() {
-        // match on boolean transforms to ternary (last case optimized away)
+        // match on boolean: exhaustive optimization skips last check
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1328,12 +1585,15 @@ function check(b: boolean): number {
         test.elaborate_module(module_id);
         test.compile();
         test.check_clean();
-        // optimization: last case skips check (exhaustive), then if-else becomes ternary
         test.assert_elaborated(
             module_id,
             r#"
 function check(b): number {
-    b == true ? 1 : 0
+    if (b == true) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 "#,
         );
@@ -1341,7 +1601,7 @@ function check(b): number {
 
     #[test]
     fn test_transform_match_with_guard() {
-        // match with guard clause transforms to nested if
+        // match with guard clause transforms to nested if-else
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1361,7 +1621,15 @@ function classify(x: number): string {
             module_id,
             r#"
 function classify(x): string {
-    if (n > 0) "positive" else if (n < 0) "negative" else "zero"
+    if (n > 0) {
+        return "positive";
+    } else {
+        if (n < 0) {
+            return "negative";
+        } else {
+            return "zero";
+        }
+    }
 }
 "#,
         );
@@ -1369,7 +1637,7 @@ function classify(x): string {
 
     #[test]
     fn test_transform_match_wildcard_only() {
-        // match with only wildcard becomes the body directly
+        // match with only wildcard becomes the body in a block with explicit return
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1387,7 +1655,7 @@ function always(x: number): number {
             module_id,
             r#"
 function always(x): number {
-    42
+    return 42;
 }
 "#,
         );
@@ -1395,7 +1663,7 @@ function always(x): number {
 
     #[test]
     fn test_transform_match_range_pattern() {
-        // range patterns transform to comparison checks
+        // range patterns transform to nested if-else
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1415,7 +1683,15 @@ function grade(score: number): string {
             module_id,
             r#"
 function grade(score): string {
-    if (score >= 90 && score < 100) 'A' else if (score >= 80 && score < 90) 'B' else 'C'
+    if (score >= 90 && score < 100) {
+        return 'A';
+    } else {
+        if (score >= 80 && score < 90) {
+            return 'B';
+        } else {
+            return 'C';
+        }
+    }
 }
 "#,
         );
@@ -1423,7 +1699,7 @@ function grade(score): string {
 
     #[test]
     fn test_transform_match_union_pattern() {
-        // union patterns transform to OR checks, then to ternary
+        // union patterns transform to OR checks with proper blocks
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1442,7 +1718,11 @@ function isWeekend(day: number): boolean {
             module_id,
             r#"
 function isWeekend(day): boolean {
-    day == 0 || day == 6 ? true : false
+    if (day == 0 || day == 6) {
+        return true;
+    } else {
+        return false;
+    }
 }
 "#,
         );
@@ -1450,8 +1730,7 @@ function isWeekend(day): boolean {
 
     #[test]
     fn test_transform_if_else_with_blocks() {
-        // if-else with block branches stays as if-else (not converted to ternary)
-        // because the parser wraps branches in blocks
+        // source if-else: blocks are unwrapped for ternary, then return added
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1467,16 +1746,15 @@ function abs(x: number): number {
             module_id,
             r#"
 function abs(x): number {
-    if (x < 0) { -x } else { x }
+    return x < 0 ? -x : x;
 }
 "#,
         );
     }
 
     #[test]
-    fn test_transform_match_to_ternary() {
-        // match with simple branches becomes ternary because match generates
-        // simple expressions (not blocks) for the branches
+    fn test_transform_match_to_if_else() {
+        // match generates if-else with proper blocks
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1495,7 +1773,11 @@ function sign(x: number): number {
             module_id,
             r#"
 function sign(x): number {
-    x == 0 ? 0 : 1
+    if (x == 0) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 "#,
         );

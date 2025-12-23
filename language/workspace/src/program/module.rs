@@ -39,7 +39,7 @@ pub struct Module {
     /// The AST-level module data (syntactic). None until Import phase completes.
     pub ast: Option<ModuleAst>,
     /// The DIR-level module data (semantic, target-independent). None until Bind phase completes.
-    pub dir: Option<ModuleDir>,
+    pub dir: Option<ModuleDir>, // nocheckin: make ModuleDir per-profile (reuse bind-only ModuleDir somehow?)
     /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
     pub mirs: Vec<ModuleMir>,
 }
