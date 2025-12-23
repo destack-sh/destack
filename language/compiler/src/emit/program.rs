@@ -24,7 +24,10 @@ impl Compiler {
         // emit each package
         for package_id in packages_with_target {
             let pkg_target_id = TargetId::new(package_id, target_name);
-            self.collect(&mut collector, self.emit_package(package_id, &pkg_target_id));
+            self.collect(
+                &mut collector,
+                self.emit_package(package_id, &pkg_target_id),
+            );
         }
 
         // yield on any yield

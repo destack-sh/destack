@@ -44,6 +44,12 @@ pub struct CompilerOptions {
     /// Whether to generate source maps.
     pub source_map: bool,
 
+    /// Whether to use ternary expressions for simple if-else value expressions.
+    pub elaborate_with_ternary: bool,
+    /// Whether to split multi-declarator let statements into individual lets.
+    /// e.g., `let a = 1, b = 2` → `let a = 1; let b = 2;`
+    pub elaborate_split_declarators: bool,
+
     /// Whether to overwrite existing files.
     pub emit_overwrite: bool,
     /// Whether to create parent directories if they don't exist.
@@ -66,6 +72,9 @@ impl Default for CompilerOptions {
             inject_prelude: true,
 
             source_map: true,
+
+            elaborate_with_ternary: true,
+            elaborate_split_declarators: true,
 
             emit_overwrite: true,
             emit_create_dirs: true,
