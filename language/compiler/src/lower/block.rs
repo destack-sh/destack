@@ -24,6 +24,15 @@ impl Terminates {
     }
 }
 
+/// Track a lowered local binding for value expressions.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct LocalBinding {
+    /// The MIR variable holding the binding value.
+    pub(crate) variable: mir::Variable,
+    /// The MIR type of the binding.
+    pub(crate) ty: mir::LocalNodeId<mir::Type>,
+}
+
 /// Lower statement-level expressions into MIR blocks.
 pub(crate) struct BlockLowerer<'a, 'b> {
     /// Identify the module being lowered.
@@ -41,7 +50,7 @@ pub(crate) struct BlockLowerer<'a, 'b> {
     /// Emit MIR into the current function builder.
     pub(crate) builder: &'b mut mir::FunctionBuilder<'a>,
     /// Track locals by symbol for variable resolution.
-    pub(crate) locals_by_symbol: &'b mut HashMap<GlobalSymbolId, mir::Variable>,
+    pub(crate) locals_by_symbol: &'b mut HashMap<GlobalSymbolId, LocalBinding>,
 }
 
 impl<'a, 'b> BlockLowerer<'a, 'b> {

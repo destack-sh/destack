@@ -17,20 +17,14 @@ impl BlockLowerer<'_, '_> {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
-                let variable = *self.locals_by_symbol.get(target_symbol).ok_or_else(|| {
+                let binding = self.locals_by_symbol.get(target_symbol).ok_or_else(|| {
                     LowerError::UnsupportedConstruct {
                         node: expression_id.into_global_any(self.module_id),
                         message: "missing local reference target symbol".to_string(),
                     }
                 })?;
-                let value = self.builder.use_variable(variable);
-                let ty: mir::LocalNodeId<mir::Type> = self
-                    .mir_type_for_expression(expression_id)
-                    .ok_or(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
-                    message: "missing local reference type".to_string(),
-                })?;
-                Ok((value, ty))
+                let value = self.builder.use_variable(binding.variable);
+                Ok((value, binding.ty))
             }
             Expression::ScalarLiteral { value } => match value {
                 dir::ScalarLiteral::Boolean(value) => {

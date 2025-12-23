@@ -3,7 +3,6 @@ use destack_machine::Value;
 use crate::TestProgram;
 
 #[test]
-#[ignore] // nocheckin
 fn test_lower_add_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -15,13 +14,13 @@ function add(a: int32, b: int32): int32 {
 "#,
     );
     test.lower_module(module_id, "native");
-    test.compile_dump_check();
+    test.compile_check_clean();
     test.assert_mir(
         module_id,
         "native",
         r#"
 function @add(v0: i32, v1: i32) -> i32 {
-block0(v0: i32, v1: i32):
+block0:
     v2 = iadd v0, v1
     return v2
 }
@@ -37,7 +36,7 @@ block0(v0: i32, v1: i32):
 }
 
 #[test]
-#[ignore] // nocheckin
+#[ignore] // nocheckin: fix lower error
 fn test_lower_fib_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -52,13 +51,13 @@ function fib(n: number): number {
 "#,
     );
     test.lower_module(module_id, "native");
-    test.compile_dump_check();
+    test.compile_check_clean();
     test.assert_mir(
         module_id,
         "native",
         r#"
 function @fib(v0: f64) -> f64 {
-block0(v0: f64):
+block0:
     v1 = fconst 2f64
     v2 = fcmp_lt v0, v1
     branch v2, block1, block2
