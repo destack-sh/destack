@@ -87,7 +87,10 @@ impl ModuleId {
 
     /// Create a ModuleId from package and local id.
     pub fn new(package: PackageId, local: u32) -> Self {
-        Self { package_id: package, local_id: local }
+        Self {
+            package_id: package,
+            local_id: local,
+        }
     }
 
     /// Create a ModuleId from a package and relative path within the package.

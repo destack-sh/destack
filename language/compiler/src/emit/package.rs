@@ -5,7 +5,11 @@ use destack_workspace::TargetId;
 
 impl Compiler {
     /// Emit all outputs for a package target.
-    pub(super) fn emit_package(&self, package_id: PackageId, target_id: &TargetId) -> EmitResult<()> {
+    pub(super) fn emit_package(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+    ) -> EmitResult<()> {
         // ensure linking is complete
         self.require_link_module(package_id, target_id)?;
 

@@ -5,7 +5,11 @@ use destack_workspace::{TargetDiscovery, TargetId};
 
 impl Compiler {
     /// Link all modules for a target.
-    pub(super) fn link_target(&self, package_id: PackageId, target_id: &TargetId) -> LinkResult<()> {
+    pub(super) fn link_target(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+    ) -> LinkResult<()> {
         // get package and target configuration
         let package = self.program.packages.get(package_id);
         let package = package.read();

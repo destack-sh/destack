@@ -347,6 +347,12 @@ impl TestProgram {
         self.compiler.enqueue(task);
     }
 
+    /// Enqueue a task and run to completion.
+    pub fn run<T: Into<Task>>(&self, task: T) {
+        self.enqueue(task);
+        self.compile();
+    }
+
     /// Run all queued tasks to completion (with 5s timeout).
     pub fn compile(&self) {
         let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
@@ -369,15 +375,15 @@ impl TestProgram {
         }
     }
 
-    /// Enqueue a task and run to completion.
-    pub fn run<T: Into<Task>>(&self, task: T) {
-        self.enqueue(task);
-        self.compile();
-    }
-
     /// Check no errors.
     pub fn check_clean(&self) {
         self.check_no_diagnostic(DiagnosticSeverity::Error);
+    }
+
+    /// Compile and check no diagnostics.
+    pub fn compile_check_clean(&self) {
+        self.compile();
+        self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
     /// Compile, dump and check no diagnostics.
