@@ -6,7 +6,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::block::{BlockLowerer, Terminates};
+use super::block::{BlockLowerer, LocalBinding, Terminates};
 use super::{ModuleLowerer, TypeLowerer};
 
 /// Lower a single function body into MIR.
@@ -26,7 +26,7 @@ pub(crate) struct FunctionLowerer<'a> {
     /// Emit MIR into the current function builder.
     pub(crate) builder: mir::FunctionBuilder<'a>,
     /// Track locals by symbol for variable resolution.
-    pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, mir::Variable>,
+    pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
 }
 
 impl<'a> FunctionLowerer<'a> {
@@ -101,24 +101,11 @@ impl ModuleLowerer<'_> {
         })?;
         let name = self.compiler.program.strings.get(name_id).to_string();
 
+        let symbol_id = descriptor.symbol.into_global(self.module_id);
+
         // return type
-        let return_type = match signature.return_type {
-            Some(return_type) => {
-                let return_node = GlobalNodeId::new(self.module_id, return_type).into();
-                let declared = self
-                    .types
-                    .get_declared_or_inferred_type_id(return_node)
-                    .ok_or(LowerError::MissingType { node: return_node })?;
-                self.type_lowerer.lower_type(
-                    self.types,
-                    declared,
-                    self.module_id,
-                    return_node,
-                    &mut self.builder,
-                )?
-            }
-            None => self.type_lowerer.ty_void,
-        };
+        let return_type =
+            self.resolve_function_return_type(symbol_id, signature.return_type, declaration_id)?;
 
         // parameter types
         let mut parameter_types = Vec::new();
@@ -143,7 +130,6 @@ impl ModuleLowerer<'_> {
         // build the function
         let builder = self.builder.function(&name, &parameter_types, return_type);
         let function_id = builder.function_id();
-        let symbol_id = descriptor.symbol.into_global(self.module_id);
         self.functions_by_symbol.insert(symbol_id, function_id);
         let mut function_lowerer = FunctionLowerer::new(
             self.module_id,
@@ -167,7 +153,9 @@ impl ModuleLowerer<'_> {
             let variable = function_lowerer.builder.create_variable(ty);
             let value = function_lowerer.builder.function_parameter(index);
             function_lowerer.builder.define_variable(variable, value);
-            function_lowerer.locals_by_symbol.insert(symbol, variable);
+            function_lowerer
+                .locals_by_symbol
+                .insert(symbol, LocalBinding { variable, ty });
         }
 
         // lower body
@@ -189,5 +177,46 @@ impl ModuleLowerer<'_> {
 
         function_lowerer.builder.finish();
         Ok(function_id)
+    }
+
+    /// Resolve a function return type for lowering. nocheckin #Suspicious
+    fn resolve_function_return_type(
+        &mut self,
+        function_symbol: GlobalSymbolId,
+        return_type_expr: Option<dir::LocalNodeId<dir::Expression>>,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        if let Some(function_type_id) = self.types.get_value_type_id(function_symbol) {
+            let function_type = self.types.get_type(function_type_id);
+            if let dir::Type::Function { return_type, .. } = function_type {
+                if let Some(return_type) = return_type {
+                    return self.type_lowerer.lower_type(
+                        self.types,
+                        *return_type,
+                        self.module_id,
+                        declaration_id.into_global_any(self.module_id),
+                        &mut self.builder,
+                    );
+                }
+                return Ok(self.type_lowerer.ty_void);
+            }
+        }
+
+        let return_type_expr = return_type_expr.ok_or(LowerError::UnsupportedConstruct {
+            node: declaration_id.into_global_any(self.module_id),
+            message: "missing return type".to_string(),
+        })?;
+        let return_node = GlobalNodeId::new(self.module_id, return_type_expr).into();
+        let declared = self
+            .types
+            .get_declared_or_inferred_type_id(return_node)
+            .ok_or(LowerError::MissingType { node: return_node })?;
+        self.type_lowerer.lower_type(
+            self.types,
+            declared,
+            self.module_id,
+            return_node,
+            &mut self.builder,
+        )
     }
 }

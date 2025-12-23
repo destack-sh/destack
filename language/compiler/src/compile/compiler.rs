@@ -49,6 +49,9 @@ pub struct CompilerOptions {
     /// Whether to split multi-declarator let statements into individual lets.
     /// e.g., `let a = 1, b = 2` → `let a = 1; let b = 2;`
     pub elaborate_split_declarators: bool,
+    /// Whether to make implicit returns explicit.
+    /// e.g., `function f() { 42 }` → `function f() { return 42; }`
+    pub elaborate_explicit_return: bool,
 
     /// Whether to overwrite existing files.
     pub emit_overwrite: bool,
@@ -75,6 +78,7 @@ impl Default for CompilerOptions {
 
             elaborate_with_ternary: true,
             elaborate_split_declarators: true,
+            elaborate_explicit_return: true,
 
             emit_overwrite: true,
             emit_create_dirs: true,
