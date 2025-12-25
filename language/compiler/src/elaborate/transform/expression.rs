@@ -206,14 +206,11 @@ impl Compiler {
     /// ```ds
     /// { let __m = expr; if (__m is Some) { let x = __m.value; body } }
     /// ```
-    ///
-    /// NOTE: if-let syntax is parsed as an If expression with a Let expression
-    /// as the condition. The transformation requires:
-    /// 1. Detecting If nodes where condition is a Let with a refutable pattern
-    /// 2. Extracting the pattern and the value expression
-    /// 3. Creating the temp binding, type check, and inner bindings
-    ///
-    /// This is TBD pending full if-let support in the binder and analysis phases.
+    /// 
+    /// if-let syntax is an If expression with a refutable Let expression as the condition:
+    /// 1. Detect If nodes where condition is a Let with a refutable pattern
+    /// 2. Extract the pattern and the value expression
+    /// 3. Create the temp binding, type check, and inner bindings
     fn transform_if_let(
         &self,
         _tree: &mut NodeTree,
@@ -1111,8 +1108,6 @@ impl Compiler {
 
     /// Unwrap single-expression blocks in if/else branches.
     /// This enables ternary optimization for `if (cond) { a } else { b }`.
-    ///
-    /// NOTE: This must run BEFORE match transform so that match-generated blocks are preserved.
     fn unwrap_single_expression_blocks(&self, tree: &mut NodeTree) -> ElaborateResult<()> {
         let if_ids: Vec<_> = tree
             .iter_node_ids_of_type::<Expression>()

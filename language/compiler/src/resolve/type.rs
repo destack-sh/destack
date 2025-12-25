@@ -1,7 +1,7 @@
 use crate::Compiler;
 use destack_dir::{
     FloatType, IntType, LocalScopeId, LocalScopeMark, LocalSymbolId, PrimitiveType, Scope,
-    SymbolKind, SymbolTable, TypeLiteral,
+    SymbolKind, SymbolTable, SymbolType, TypeLiteral,
 };
 
 /// Builtin type name resolution.
@@ -15,11 +15,22 @@ impl Compiler {
     ) -> Option<LocalSymbolId> {
         let mut current_scope = scope;
         loop {
-            // check if this scope has an owner that is an Item (class/struct/enum)
+            // check if this scope has an owner that is a type (class/struct/enum/etc.)
             if let Some(owner_id) = current_scope.1.owner_id {
                 let owner_symbol = symbols.get_symbol(owner_id);
-                // Item kind symbols are types (struct/class/enum), Local is for variables
-                if owner_symbol.kind == SymbolKind::Item {
+                // only types that can have Self: struct, class, enum, newtype, interface, extension
+                // (not functions/methods which also have SymbolKind::Item but SymbolType::Void)
+                if owner_symbol.kind == SymbolKind::Item
+                    && matches!(
+                        owner_symbol.ty,
+                        SymbolType::Struct
+                            | SymbolType::Class
+                            | SymbolType::Enum
+                            | SymbolType::Newtype
+                            | SymbolType::Interface
+                            | SymbolType::Extension
+                    )
+                {
                     return Some(owner_id);
                 }
             }
@@ -280,7 +291,6 @@ string;
 
     /// Test that Self resolves to the enclosing struct.
     #[test]
-    #[ignore] // nocheckin
     fn test_self_type_in_struct() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
