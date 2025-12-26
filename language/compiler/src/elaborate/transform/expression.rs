@@ -206,7 +206,7 @@ impl Compiler {
     /// ```ds
     /// { let __m = expr; if (__m is Some) { let x = __m.value; body } }
     /// ```
-    /// 
+    ///
     /// if-let syntax is an If expression with a refutable Let expression as the condition:
     /// 1. Detect If nodes where condition is a Let with a refutable pattern
     /// 2. Extract the pattern and the value expression

@@ -7,21 +7,36 @@ use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
 };
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalInstanceId,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable,
+    Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::Module;
 
-/// Resolved static arguments for a function instantiation.
+/// Resolved function signature after static argument substitution.
 #[derive(Debug, Clone)]
-pub(super) struct ResolvedStaticArguments {
+pub(super) struct ResolvedFunctionSignature {
     /// Dynamic parameter types after substitution.
     pub(super) dynamic_parameters: Vec<LocalTypeId>,
     /// Return type after substitution.
     pub(super) return_type: Option<LocalTypeId>,
     /// Static arguments in declared order.
     pub(super) static_arguments: Vec<StaticArgument>,
+}
+
+/// Resolved member function for an operator invocation.
+#[derive(Debug)]
+pub(super) struct ResolvedMemberFunction {
+    /// The resolved function signature (parameters and return type).
+    pub(super) signature: ResolvedFunctionSignature,
+    /// The member resolution for dispatch recording.
+    pub(super) member_resolution: MemberResolution,
+    /// The resolved member symbol (if statically known).
+    pub(super) member_symbol: Option<GlobalSymbolId>,
+    /// Inherited static arguments from the receiver type.
+    pub(super) inherited_arguments: Vec<StaticArgument>,
+    /// Whether the member was found on the receiver type.
+    pub(super) has_member: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -348,7 +363,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<ResolvedStaticArguments> {
+    ) -> AnalyzeResult<ResolvedFunctionSignature> {
         let resolved = self.resolve_function_static_arguments(
             module,
             node_id,
@@ -367,7 +382,7 @@ impl Compiler {
             return Ok(resolved);
         }
 
-        Ok(ResolvedStaticArguments {
+        Ok(ResolvedFunctionSignature {
             dynamic_parameters: dynamic_parameters.to_vec(),
             return_type,
             static_arguments: Vec::new(),
@@ -388,7 +403,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<ResolvedStaticArguments>> {
+    ) -> AnalyzeResult<Option<ResolvedFunctionSignature>> {
         // handle fast paths when there are no static parameters
         let has_static_arguments = static_argument_ids.is_some_and(|args| !args.is_empty());
 
@@ -405,7 +420,7 @@ impl Compiler {
                 }
             }
 
-            return Ok(Some(ResolvedStaticArguments {
+            return Ok(Some(ResolvedFunctionSignature {
                 dynamic_parameters: dynamic_parameters.to_vec(),
                 return_type,
                 static_arguments: Vec::new(),
@@ -531,10 +546,157 @@ impl Compiler {
             )
         });
 
-        Ok(Some(ResolvedStaticArguments {
+        Ok(Some(ResolvedFunctionSignature {
             dynamic_parameters: resolved_dynamic_parameters,
             return_type: resolved_return_type,
             static_arguments: resolved_arguments,
         }))
+    }
+
+    /// Resolve a member function for an operator invocation.
+    ///
+    /// Handles the common pattern of looking up a member on a receiver type,
+    /// applying inherited substitutions, and resolving the function signature.
+    pub(super) fn resolve_member_function(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        receiver_expression_id: LocalNodeId<Expression>,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) -> AnalyzeResult<Option<ResolvedMemberFunction>> {
+        // inherit static arguments and substitutions from the receiver
+        let inherited = self.resolve_inherited_static_arguments(
+            module,
+            receiver_expression_id.into_any(),
+            receiver_ty,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // resolve member dispatch for the receiver type
+        let member_resolution =
+            self.resolve_member_resolution(module, receiver_ty, member_key, tree, symbols, types);
+        let member_symbol = match &member_resolution {
+            MemberResolution::Static { symbol } => Some(*symbol),
+            _ => None,
+        };
+
+        // infer the member type
+        let mut member_type_visited = Vec::new();
+        let member_ty_id = self.infer_member_of_type(
+            module,
+            receiver_ty,
+            member_key,
+            types,
+            &mut member_type_visited,
+        );
+        let has_member = member_ty_id.is_some();
+
+        // bail of we don't know the member type
+        let Some(member_ty_id) = member_ty_id else {
+            return Ok(Some(ResolvedMemberFunction {
+                signature: ResolvedFunctionSignature {
+                    dynamic_parameters: Vec::new(),
+                    return_type: None,
+                    static_arguments: Vec::new(),
+                },
+                member_resolution,
+                member_symbol,
+                inherited_arguments: inherited.arguments,
+                has_member: false,
+            }));
+        };
+
+        // apply inherited substitutions
+        let member_ty_id = if !inherited.substitutions.is_empty() {
+            let mut cache = HashMap::new();
+            self.substitute_static_parameters_in_type(
+                member_ty_id,
+                &inherited.substitutions,
+                types,
+                &mut cache,
+            )
+        } else {
+            member_ty_id
+        };
+
+        // resolve function signature
+        let Type::Function {
+            static_parameters,
+            dynamic_parameters,
+            return_type,
+            ..
+        } = types.get_type(member_ty_id).clone()
+        else {
+            return Ok(None);
+        };
+        let signature = self.resolve_function_type_for_call(
+            module,
+            expression_id.into_any(),
+            member_symbol,
+            None,
+            &static_parameters,
+            &dynamic_parameters,
+            return_type,
+            tree,
+            symbols,
+            types,
+            infer,
+        )?;
+
+        Ok(Some(ResolvedMemberFunction {
+            signature,
+            member_resolution,
+            member_symbol,
+            inherited_arguments: inherited.arguments,
+            has_member,
+        }))
+    }
+
+    /// Register an instance and record resolution for a member function invocation.
+    ///
+    /// Returns the instance ID if one was registered.
+    pub(super) fn finalize_member_invocation(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        receiver_ty_id: LocalTypeId,
+        resolved: &ResolvedMemberFunction,
+        types: &mut TypeTable,
+    ) -> Option<LocalInstanceId> {
+        let mut instance_id = None;
+
+        // register instance if needed
+        if let Some(member_symbol) = resolved.member_symbol {
+            let mut instance_arguments = resolved.inherited_arguments.clone();
+            instance_arguments.extend(resolved.signature.static_arguments.clone());
+
+            if !instance_arguments.is_empty() {
+                instance_id = Some(self.register_instance_for_node(
+                    expression_id.into_global_any(module.id),
+                    member_symbol,
+                    instance_arguments,
+                    types,
+                ));
+            }
+        }
+
+        // record member resolution
+        self.record_member_resolution(
+            expression_id.into_global_any(module.id),
+            Some(receiver_ty_id),
+            &resolved.member_resolution,
+            instance_id,
+            resolved.has_member,
+            types,
+        );
+
+        instance_id
     }
 }

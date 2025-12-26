@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::resolution::MemberResolution;
 use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
@@ -50,19 +48,6 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         };
 
-        let operator_key = self.operator_member_key(operator_item);
-        let mut member_instance_id = None;
-
-        // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
-            module,
-            right_id.into_any(),
-            &right_ty,
-            tree,
-            symbols,
-            types,
-        )?;
-
         // require explicit operator interface implementation
         if !self.is_interface_implemented(&right_ty, operator_item, types) {
             self.error(AnalyzeError::NoOverload {
@@ -75,104 +60,32 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        // resolve member dispatch for the receiver type
-        let member_resolution =
-            self.resolve_member_resolution(module, &right_ty, &operator_key, tree, symbols, types);
-        let member_symbol = match &member_resolution {
-            MemberResolution::Static { symbol } => Some(*symbol),
-            _ => None,
-        };
-
-        // infer the operator member type
-        let mut member_type_visited = Vec::new();
-        let member_ty_id = self.infer_member_of_type(
+        // resolve the operator member function
+        let operator_key = self.operator_member_key(operator_item);
+        let Some(resolved) = self.resolve_member_function(
             module,
+            expression_id,
+            right_id,
             &right_ty,
             &operator_key,
+            tree,
+            symbols,
             types,
-            &mut member_type_visited,
-        );
-        let has_member = member_ty_id.is_some();
-        let resolved_return_ty_id = if let Some(member_ty_id) = member_ty_id {
-            let member_ty_id = if !inherited.substitutions.is_empty() {
-                let mut cache = HashMap::new();
-                self.substitute_static_parameters_in_type(
-                    member_ty_id,
-                    &inherited.substitutions,
-                    types,
-                    &mut cache,
-                )
-            } else {
-                member_ty_id
+            infer,
+        )?
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
             };
+            return Ok(types.insert_type_from(ty, expression_id));
+        };
 
-            // resolve operator signature and register instance when needed
-            match types.get_type(member_ty_id).clone() {
-                Type::Function {
-                    static_parameters,
-                    dynamic_parameters,
-                    return_type,
-                    ..
-                } => {
-                    let resolved = self.resolve_function_type_for_call(
-                        module,
-                        expression_id.into_any(),
-                        member_symbol,
-                        None,
-                        &static_parameters,
-                        &dynamic_parameters,
-                        return_type,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                    )?;
-
-                    // unary operators expect no dynamic parameters
-                    if !resolved.dynamic_parameters.is_empty() {
-                        self.error(AnalyzeError::NoOverload {
-                            node: expression_id.into_global_any(module.id),
-                            receiver_ty: right_ty_id.into_global(module.id),
-                        });
-                    }
-
-                    if let Some(member_symbol) = member_symbol {
-                        let mut instance_arguments = inherited.arguments.clone();
-                        instance_arguments.extend(resolved.static_arguments);
-
-                        if !instance_arguments.is_empty() {
-                            let instance_id = self.register_instance_for_node(
-                                expression_id.into_global_any(module.id),
-                                member_symbol,
-                                instance_arguments,
-                                types,
-                            );
-                            member_instance_id = Some(instance_id);
-                        }
-                    }
-
-                    resolved.return_type.unwrap_or_else(|| {
-                        types.insert_type_from(
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Void,
-                            },
-                            expression_id,
-                        )
-                    })
-                }
-                _ => {
-                    self.error(AnalyzeError::MissingType {
-                        node: expression_id.into_global_any(module.id),
-                    });
-                    types.insert_type_from(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        },
-                        expression_id,
-                    )
-                }
-            }
-        } else {
+        // handle missing member
+        if !resolved.has_member {
+            self.finalize_member_invocation(module, expression_id, right_ty_id, &resolved, types);
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: right_ty_id.into_global(module.id),
@@ -180,20 +93,30 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            types.insert_type_from(ty, expression_id)
-        };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
-        // record member resolution
-        self.record_member_resolution(
-            expression_id.into_global_any(module.id),
-            Some(right_ty_id),
-            &member_resolution,
-            member_instance_id,
-            has_member,
-            types,
-        );
+        // unary operators expect no dynamic parameters
+        if !resolved.signature.dynamic_parameters.is_empty() {
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id.into_global_any(module.id),
+                receiver_ty: right_ty_id.into_global(module.id),
+            });
+        }
 
-        Ok(resolved_return_ty_id)
+        // finalize resolution and instance registration
+        self.finalize_member_invocation(module, expression_id, right_ty_id, &resolved, types);
+
+        let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
+            types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                },
+                expression_id,
+            )
+        });
+
+        Ok(return_ty_id)
     }
 
     /// Infer a binary operator expression.
@@ -278,19 +201,6 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         };
 
-        let operator_key = self.operator_member_key(operator_item);
-        let mut member_instance_id = None;
-
-        // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
-            module,
-            left_id.into_any(),
-            &left_ty,
-            tree,
-            symbols,
-            types,
-        )?;
-
         // require explicit operator interface implementation
         if !self.is_interface_implemented(&left_ty, operator_item, types) {
             self.error(AnalyzeError::NoOverload {
@@ -303,129 +213,32 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        // resolve member dispatch for the receiver type
-        let member_resolution =
-            self.resolve_member_resolution(module, &left_ty, &operator_key, tree, symbols, types);
-        let member_symbol = match &member_resolution {
-            MemberResolution::Static { symbol } => Some(*symbol),
-            _ => None,
-        };
-
-        // infer the operator member type
-        let mut member_type_visited = Vec::new();
-        let member_ty_id = self.infer_member_of_type(
+        // resolve the operator member function
+        let operator_key = self.operator_member_key(operator_item);
+        let Some(resolved) = self.resolve_member_function(
             module,
+            expression_id,
+            left_id,
             &left_ty,
             &operator_key,
+            tree,
+            symbols,
             types,
-            &mut member_type_visited,
-        );
-        let has_member = member_ty_id.is_some();
-        let resolved_return_ty_id = if let Some(member_ty_id) = member_ty_id {
-            let member_ty_id = if !inherited.substitutions.is_empty() {
-                let mut cache = HashMap::new();
-                self.substitute_static_parameters_in_type(
-                    member_ty_id,
-                    &inherited.substitutions,
-                    types,
-                    &mut cache,
-                )
-            } else {
-                member_ty_id
+            infer,
+        )?
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
             };
+            return Ok(types.insert_type_from(ty, expression_id));
+        };
 
-            // resolve operator signature and register instance when needed
-            match types.get_type(member_ty_id).clone() {
-                Type::Function {
-                    static_parameters,
-                    dynamic_parameters,
-                    return_type,
-                    ..
-                } => {
-                    let resolved = self.resolve_function_type_for_call(
-                        module,
-                        expression_id.into_any(),
-                        member_symbol,
-                        None,
-                        &static_parameters,
-                        &dynamic_parameters,
-                        return_type,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                    )?;
-
-                    // binary operators expect one dynamic parameter
-                    let parameter_ty_id = resolved.dynamic_parameters.first().copied();
-                    if resolved.dynamic_parameters.len() != 1 {
-                        self.error(AnalyzeError::NoOverload {
-                            node: expression_id.into_global_any(module.id),
-                            receiver_ty: left_ty_id.into_global(module.id),
-                        });
-                    }
-
-                    if let Some(parameter_ty_id) = parameter_ty_id {
-                        infer.push_constraint(Constraint::Subtype {
-                            sub: right_ty_id,
-                            sup: parameter_ty_id,
-                            variance: None,
-                        });
-
-                        if !self.is_infer_var_type(parameter_ty_id, types)
-                            && !self.is_infer_var_type(right_ty_id, types)
-                            && self.check_is_type_assignable(parameter_ty_id, right_ty_id, types)
-                                == Assignability::NotAssignable
-                        {
-                            return Err(AnalyzeError::UnassignableType {
-                                node: expression_id.into_global_any(module.id),
-                                expected_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: parameter_ty_id,
-                                },
-                                actual_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: right_ty_id,
-                                },
-                            });
-                        }
-                    }
-
-                    if let Some(member_symbol) = member_symbol {
-                        let mut instance_arguments = inherited.arguments.clone();
-                        instance_arguments.extend(resolved.static_arguments);
-
-                        if !instance_arguments.is_empty() {
-                            let instance_id = self.register_instance_for_node(
-                                expression_id.into_global_any(module.id),
-                                member_symbol,
-                                instance_arguments,
-                                types,
-                            );
-                            member_instance_id = Some(instance_id);
-                        }
-                    }
-
-                    resolved.return_type.unwrap_or_else(|| {
-                        types.insert_type_from(
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Void,
-                            },
-                            expression_id,
-                        )
-                    })
-                }
-                _ => {
-                    self.error(AnalyzeError::MissingType {
-                        node: expression_id.into_global_any(module.id),
-                    });
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, expression_id)
-                }
-            }
-        } else {
+        // handle missing member
+        if !resolved.has_member {
+            self.finalize_member_invocation(module, expression_id, left_ty_id, &resolved, types);
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: left_ty_id.into_global(module.id),
@@ -433,20 +246,58 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            types.insert_type_from(ty, expression_id)
-        };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
-        // record member resolution
-        self.record_member_resolution(
-            expression_id.into_global_any(module.id),
-            Some(left_ty_id),
-            &member_resolution,
-            member_instance_id,
-            has_member,
-            types,
-        );
+        // binary operators expect one dynamic parameter
+        let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
+        if resolved.signature.dynamic_parameters.len() != 1 {
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id.into_global_any(module.id),
+                receiver_ty: left_ty_id.into_global(module.id),
+            });
+        }
 
-        Ok(resolved_return_ty_id)
+        // check argument assignability
+        if let Some(parameter_ty_id) = parameter_ty_id {
+            infer.push_constraint(Constraint::Subtype {
+                sub: right_ty_id,
+                sup: parameter_ty_id,
+                variance: None,
+            });
+
+            if !self.is_infer_var_type(parameter_ty_id, types)
+                && !self.is_infer_var_type(right_ty_id, types)
+                && self.check_is_type_assignable(parameter_ty_id, right_ty_id, types)
+                    == Assignability::NotAssignable
+            {
+                return Err(AnalyzeError::UnassignableType {
+                    node: expression_id.into_global_any(module.id),
+                    expected_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: parameter_ty_id,
+                    },
+                    actual_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: right_ty_id,
+                    },
+                });
+            }
+        }
+
+        // finalize resolution and instance registration
+        self.finalize_member_invocation(module, expression_id, left_ty_id, &resolved, types);
+
+        let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
+            types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                },
+                expression_id,
+            )
+        });
+
+        Ok(return_ty_id)
     }
 
     /// Infer an assignment expression.
@@ -670,144 +521,38 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        let mut member_instance_id = None;
-
-        // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
+        // resolve the index member function
+        let member_key = self.operator_member_key(LanguageItem::Index);
+        let Some(resolved) = self.resolve_member_function(
             module,
-            receiver_id.into_any(),
+            expression_id,
+            receiver_id,
             &receiver_ty,
+            &member_key,
             tree,
             symbols,
             types,
-        )?;
-
-        // resolve member dispatch for the receiver type
-        let member_key = self.operator_member_key(LanguageItem::Index);
-        let member_resolution =
-            self.resolve_member_resolution(module, &receiver_ty, &member_key, tree, symbols, types);
-        let member_symbol = match &member_resolution {
-            MemberResolution::Static { symbol } => Some(*symbol),
-            _ => None,
+            infer,
+        )?
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
         };
 
-        // infer the index member type
-        let mut member_type_visited = Vec::new();
-        let member_ty_id = self.infer_member_of_type(
-            module,
-            &receiver_ty,
-            &member_key,
-            types,
-            &mut member_type_visited,
-        );
-        let has_member = member_ty_id.is_some();
-        let value_ty_id = if let Some(member_ty_id) = member_ty_id {
-            let member_ty_id = if !inherited.substitutions.is_empty() {
-                let mut cache = HashMap::new();
-                self.substitute_static_parameters_in_type(
-                    member_ty_id,
-                    &inherited.substitutions,
-                    types,
-                    &mut cache,
-                )
-            } else {
-                member_ty_id
-            };
-
-            // resolve index signature and register instance when needed
-            match types.get_type(member_ty_id).clone() {
-                Type::Function {
-                    static_parameters,
-                    dynamic_parameters,
-                    return_type,
-                    ..
-                } => {
-                    let resolved = self.resolve_function_type_for_call(
-                        module,
-                        expression_id.into_any(),
-                        member_symbol,
-                        None,
-                        &static_parameters,
-                        &dynamic_parameters,
-                        return_type,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                    )?;
-
-                    // index access expects one dynamic parameter
-                    let parameter_ty_id = resolved.dynamic_parameters.first().copied();
-                    if resolved.dynamic_parameters.len() != 1 {
-                        self.error(AnalyzeError::NoOverload {
-                            node: expression_id.into_global_any(module.id),
-                            receiver_ty: receiver_ty_id.into_global(module.id),
-                        });
-                    }
-
-                    if let (Some(parameter_ty_id), Some(index_ty_id)) =
-                        (parameter_ty_id, index_ty_id)
-                    {
-                        infer.push_constraint(Constraint::Subtype {
-                            sub: index_ty_id,
-                            sup: parameter_ty_id,
-                            variance: None,
-                        });
-
-                        if !self.is_infer_var_type(parameter_ty_id, types)
-                            && !self.is_infer_var_type(index_ty_id, types)
-                            && self.check_is_type_assignable(parameter_ty_id, index_ty_id, types)
-                                == Assignability::NotAssignable
-                        {
-                            return Err(AnalyzeError::UnassignableType {
-                                node: expression_id.into_global_any(module.id),
-                                expected_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: parameter_ty_id,
-                                },
-                                actual_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: index_ty_id,
-                                },
-                            });
-                        }
-                    }
-
-                    if let Some(member_symbol) = member_symbol {
-                        let mut instance_arguments = inherited.arguments.clone();
-                        instance_arguments.extend(resolved.static_arguments);
-
-                        if !instance_arguments.is_empty() {
-                            let instance_id = self.register_instance_for_node(
-                                expression_id.into_global_any(module.id),
-                                member_symbol,
-                                instance_arguments,
-                                types,
-                            );
-                            member_instance_id = Some(instance_id);
-                        }
-                    }
-
-                    resolved.return_type.unwrap_or_else(|| {
-                        types.insert_type_from(
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Unknown,
-                            },
-                            expression_id,
-                        )
-                    })
-                }
-                _ => {
-                    self.error(AnalyzeError::MissingType {
-                        node: expression_id.into_global_any(module.id),
-                    });
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, expression_id)
-                }
-            }
-        } else {
+        // handle missing member
+        if !resolved.has_member {
+            self.finalize_member_invocation(
+                module,
+                expression_id,
+                receiver_ty_id,
+                &resolved,
+                types,
+            );
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: receiver_ty_id.into_global(module.id),
@@ -815,18 +560,56 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            types.insert_type_from(ty, expression_id)
-        };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
-        // record member resolution
-        self.record_member_resolution(
-            expression_id.into_global_any(module.id),
-            Some(receiver_ty_id),
-            &member_resolution,
-            member_instance_id,
-            has_member,
-            types,
-        );
+        // index access expects one dynamic parameter
+        let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
+        if resolved.signature.dynamic_parameters.len() != 1 {
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id.into_global_any(module.id),
+                receiver_ty: receiver_ty_id.into_global(module.id),
+            });
+        }
+
+        // check index argument assignability
+        if let (Some(parameter_ty_id), Some(index_ty_id)) = (parameter_ty_id, index_ty_id) {
+            infer.push_constraint(Constraint::Subtype {
+                sub: index_ty_id,
+                sup: parameter_ty_id,
+                variance: None,
+            });
+
+            if !self.is_infer_var_type(parameter_ty_id, types)
+                && !self.is_infer_var_type(index_ty_id, types)
+                && self.check_is_type_assignable(parameter_ty_id, index_ty_id, types)
+                    == Assignability::NotAssignable
+            {
+                return Err(AnalyzeError::UnassignableType {
+                    node: expression_id.into_global_any(module.id),
+                    expected_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: parameter_ty_id,
+                    },
+                    actual_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: index_ty_id,
+                    },
+                });
+            }
+        }
+
+        // finalize resolution and instance registration
+        self.finalize_member_invocation(module, expression_id, receiver_ty_id, &resolved, types);
+
+        let value_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
+            types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                expression_id,
+            )
+        });
 
         Ok(value_ty_id)
     }
@@ -862,6 +645,7 @@ impl Compiler {
             None
         };
 
+        // handle builtin index assignment
         let builtin_value_ty_id = self.infer_builtin_index_access(&receiver_ty, index_ty_id, types);
         if let Some(builtin_value_ty_id) = builtin_value_ty_id {
             let mut value_ctx = ctx.fork().with_expected_type(Some(builtin_value_ty_id));
@@ -921,166 +705,108 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        let mut member_instance_id = None;
-
-        // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
+        // resolve the index set member function
+        let member_key = self.operator_member_key(LanguageItem::IndexSet);
+        let Some(resolved) = self.resolve_member_function(
             module,
-            receiver_id.into_any(),
+            expression_id,
+            *receiver_id,
             &receiver_ty,
+            &member_key,
             tree,
             symbols,
             types,
-        )?;
-
-        // resolve member dispatch for the receiver type
-        let member_key = self.operator_member_key(LanguageItem::IndexSet);
-        let member_resolution =
-            self.resolve_member_resolution(module, &receiver_ty, &member_key, tree, symbols, types);
-        let member_symbol = match &member_resolution {
-            MemberResolution::Static { symbol } => Some(*symbol),
-            _ => None,
+            infer,
+        )?
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
         };
 
-        // infer the index set member type
-        let mut member_type_visited = Vec::new();
-        let member_ty_id = self.infer_member_of_type(
-            module,
-            &receiver_ty,
-            &member_key,
-            types,
-            &mut member_type_visited,
-        );
-        let has_member = member_ty_id.is_some();
-        if let Some(member_ty_id) = member_ty_id {
-            let member_ty_id = if !inherited.substitutions.is_empty() {
-                let mut cache = HashMap::new();
-                self.substitute_static_parameters_in_type(
-                    member_ty_id,
-                    &inherited.substitutions,
-                    types,
-                    &mut cache,
-                )
-            } else {
-                member_ty_id
+        // handle missing member
+        if !resolved.has_member {
+            self.finalize_member_invocation(
+                module,
+                expression_id,
+                receiver_ty_id,
+                &resolved,
+                types,
+            );
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id.into_global_any(module.id),
+                receiver_ty: receiver_ty_id.into_global(module.id),
+            });
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
             };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
-            // resolve index set signature and register instance when needed
-            match types.get_type(member_ty_id).clone() {
-                Type::Function {
-                    static_parameters,
-                    dynamic_parameters,
-                    return_type,
-                    ..
-                } => {
-                    let resolved = self.resolve_function_type_for_call(
-                        module,
-                        expression_id.into_any(),
-                        member_symbol,
-                        None,
-                        &static_parameters,
-                        &dynamic_parameters,
-                        return_type,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                    )?;
-
-                    // index set expects two dynamic parameters
-                    let key_param_ty_id = resolved.dynamic_parameters.first().copied();
-                    let value_param_ty_id = resolved.dynamic_parameters.get(1).copied();
-                    if resolved.dynamic_parameters.len() != 2 {
-                        self.error(AnalyzeError::NoOverload {
-                            node: expression_id.into_global_any(module.id),
-                            receiver_ty: receiver_ty_id.into_global(module.id),
-                        });
-                    }
-
-                    if let (Some(key_param_ty_id), Some(index_ty_id)) =
-                        (key_param_ty_id, index_ty_id)
-                    {
-                        infer.push_constraint(Constraint::Subtype {
-                            sub: index_ty_id,
-                            sup: key_param_ty_id,
-                            variance: None,
-                        });
-                    }
-
-                    let mut value_ctx = ctx.fork().with_expected_type(value_param_ty_id);
-                    let value_ty_id = self.infer_expression(
-                        module,
-                        value_expression_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut value_ctx,
-                    )?;
-
-                    if let Some(value_param_ty_id) = value_param_ty_id {
-                        infer.push_constraint(Constraint::Subtype {
-                            sub: value_ty_id,
-                            sup: value_param_ty_id,
-                            variance: None,
-                        });
-
-                        if !self.is_infer_var_type(value_param_ty_id, types)
-                            && !self.is_infer_var_type(value_ty_id, types)
-                            && self.check_is_type_assignable(value_param_ty_id, value_ty_id, types)
-                                == Assignability::NotAssignable
-                        {
-                            return Err(AnalyzeError::UnassignableType {
-                                node: expression_id.into_global_any(module.id),
-                                expected_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: value_param_ty_id,
-                                },
-                                actual_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: value_ty_id,
-                                },
-                            });
-                        }
-                    }
-
-                    if let Some(member_symbol) = member_symbol {
-                        let mut instance_arguments = inherited.arguments.clone();
-                        instance_arguments.extend(resolved.static_arguments);
-
-                        if !instance_arguments.is_empty() {
-                            let instance_id = self.register_instance_for_node(
-                                expression_id.into_global_any(module.id),
-                                member_symbol,
-                                instance_arguments,
-                                types,
-                            );
-                            member_instance_id = Some(instance_id);
-                        }
-                    }
-                }
-                _ => {
-                    self.error(AnalyzeError::MissingType {
-                        node: expression_id.into_global_any(module.id),
-                    });
-                }
-            }
-        } else {
+        // index set expects two dynamic parameters (key, value)
+        let key_param_ty_id = resolved.signature.dynamic_parameters.first().copied();
+        let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
+        if resolved.signature.dynamic_parameters.len() != 2 {
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: receiver_ty_id.into_global(module.id),
             });
         }
 
-        // record member resolution
-        self.record_member_resolution(
-            expression_id.into_global_any(module.id),
-            Some(receiver_ty_id),
-            &member_resolution,
-            member_instance_id,
-            has_member,
+        // check key argument assignability
+        if let (Some(key_param_ty_id), Some(index_ty_id)) = (key_param_ty_id, index_ty_id) {
+            infer.push_constraint(Constraint::Subtype {
+                sub: index_ty_id,
+                sup: key_param_ty_id,
+                variance: None,
+            });
+        }
+
+        // infer value expression with contextual typing
+        let mut value_ctx = ctx.fork().with_expected_type(value_param_ty_id);
+        let value_ty_id = self.infer_expression(
+            module,
+            value_expression_id,
+            tree,
+            symbols,
             types,
-        );
+            infer,
+            &mut value_ctx,
+        )?;
+
+        // check value argument assignability
+        if let Some(value_param_ty_id) = value_param_ty_id {
+            infer.push_constraint(Constraint::Subtype {
+                sub: value_ty_id,
+                sup: value_param_ty_id,
+                variance: None,
+            });
+
+            if !self.is_infer_var_type(value_param_ty_id, types)
+                && !self.is_infer_var_type(value_ty_id, types)
+                && self.check_is_type_assignable(value_param_ty_id, value_ty_id, types)
+                    == Assignability::NotAssignable
+            {
+                return Err(AnalyzeError::UnassignableType {
+                    node: expression_id.into_global_any(module.id),
+                    expected_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: value_param_ty_id,
+                    },
+                    actual_ty: GlobalTypeId {
+                        module_id: module.id,
+                        local_id: value_ty_id,
+                    },
+                });
+            }
+        }
+
+        // finalize resolution and instance registration
+        self.finalize_member_invocation(module, expression_id, receiver_ty_id, &resolved, types);
 
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
@@ -1166,117 +892,76 @@ impl Compiler {
         types: &mut TypeTable,
         infer: &mut InferTable,
     ) -> AnalyzeResult<TryBranchResolution> {
-        let mut member_instance_id = None;
-
-        // inherit static arguments and substitutions from the receiver
-        let inherited = self.resolve_inherited_static_arguments(
+        // resolve the branch member function
+        let member_key = self.try_branch_member_key();
+        let Some(resolved) = self.resolve_member_function(
             module,
-            receiver_expression_id.into_any(),
+            expression_id,
+            receiver_expression_id,
             receiver_ty,
+            &member_key,
             tree,
             symbols,
             types,
-        )?;
-
-        // resolve member dispatch for the receiver type
-        let member_key = self.try_branch_member_key();
-        let member_resolution =
-            self.resolve_member_resolution(module, receiver_ty, &member_key, tree, symbols, types);
-        let member_symbol = match &member_resolution {
-            MemberResolution::Static { symbol } => Some(*symbol),
-            _ => None,
+            infer,
+        )?
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
+            return Ok(TryBranchResolution {
+                value_type_id: None,
+                member_resolution: MemberResolution::None,
+                member_instance_id: None,
+                has_member: false,
+            });
         };
 
-        // infer the branch member type
-        let mut member_type_visited = Vec::new();
-        let member_ty_id = self.infer_member_of_type(
-            module,
-            receiver_ty,
-            &member_key,
-            types,
-            &mut member_type_visited,
-        );
-        let has_member = member_ty_id.is_some();
-        let value_type_id = if let Some(member_ty_id) = member_ty_id {
-            let member_ty_id = if !inherited.substitutions.is_empty() {
-                let mut cache = HashMap::new();
-                self.substitute_static_parameters_in_type(
-                    member_ty_id,
-                    &inherited.substitutions,
+        // handle missing member
+        if !resolved.has_member {
+            return Ok(TryBranchResolution {
+                value_type_id: None,
+                member_resolution: resolved.member_resolution,
+                member_instance_id: None,
+                has_member: false,
+            });
+        }
+
+        // branch expects no dynamic parameters
+        if !resolved.signature.dynamic_parameters.is_empty() {
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id.into_global_any(module.id),
+                receiver_ty: receiver_ty_id.into_global(module.id),
+            });
+        }
+
+        // register instance if needed
+        let mut member_instance_id = None;
+        if let Some(member_symbol) = resolved.member_symbol {
+            let mut instance_arguments = resolved.inherited_arguments.clone();
+            instance_arguments.extend(resolved.signature.static_arguments.clone());
+
+            if !instance_arguments.is_empty() {
+                member_instance_id = Some(self.register_instance_for_node(
+                    expression_id.into_global_any(module.id),
+                    member_symbol,
+                    instance_arguments,
                     types,
-                    &mut cache,
-                )
-            } else {
-                member_ty_id
-            };
-
-            // resolve branch signature and register instance when needed
-            match types.get_type(member_ty_id).clone() {
-                Type::Function {
-                    static_parameters,
-                    dynamic_parameters,
-                    return_type,
-                    ..
-                } => {
-                    let resolved = self.resolve_function_type_for_call(
-                        module,
-                        expression_id.into_any(),
-                        member_symbol,
-                        None,
-                        &static_parameters,
-                        &dynamic_parameters,
-                        return_type,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                    )?;
-
-                    // branch expects no dynamic parameters
-                    if !resolved.dynamic_parameters.is_empty() {
-                        self.error(AnalyzeError::NoOverload {
-                            node: expression_id.into_global_any(module.id),
-                            receiver_ty: receiver_ty_id.into_global(module.id),
-                        });
-                    }
-
-                    if let Some(member_symbol) = member_symbol {
-                        let mut instance_arguments = inherited.arguments.clone();
-                        instance_arguments.extend(resolved.static_arguments);
-
-                        if !instance_arguments.is_empty() {
-                            let instance_id = self.register_instance_for_node(
-                                expression_id.into_global_any(module.id),
-                                member_symbol,
-                                instance_arguments,
-                                types,
-                            );
-                            member_instance_id = Some(instance_id);
-                        }
-                    }
-
-                    if let Some(return_type_id) = resolved.return_type {
-                        self.try_extract_branch_value_type(return_type_id, types)
-                    } else {
-                        None
-                    }
-                }
-                _ => {
-                    self.error(AnalyzeError::MissingType {
-                        node: expression_id.into_global_any(module.id),
-                    });
-                    None
-                }
+                ));
             }
-        } else {
-            None
-        };
+        }
+
+        // extract the value type from the return type
+        let value_type_id = resolved
+            .signature
+            .return_type
+            .and_then(|return_type_id| self.try_extract_branch_value_type(return_type_id, types));
 
         Ok(TryBranchResolution {
             value_type_id,
-            member_resolution,
+            member_resolution: resolved.member_resolution,
             member_instance_id,
-            has_member,
+            has_member: true,
         })
     }
 
