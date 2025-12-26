@@ -1,12 +1,12 @@
-use super::resolution::MemberResolution;
+use super::resolve::MemberResolution;
 use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
     OperatorLanguageItemExt,
 };
 use destack_builtin::LanguageItem;
 use destack_dir::{
-    BinaryOperator, Expression, GlobalTypeId, LocalInstanceId, LocalNodeId, LocalTypeId, NodeTree,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, UnaryOperator,
+    BinaryOperator, Expression, LocalInstanceId, LocalNodeId, LocalTypeId, NodeTree, ScalarLiteral,
+    StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -85,7 +85,13 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.finalize_member_invocation(module, expression_id, right_ty_id, &resolved, types);
+            self.record_member_call_resolution(
+                module,
+                expression_id,
+                right_ty_id,
+                &resolved,
+                types,
+            );
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: right_ty_id.into_global(module.id),
@@ -105,7 +111,7 @@ impl Compiler {
         }
 
         // finalize resolution and instance registration
-        self.finalize_member_invocation(module, expression_id, right_ty_id, &resolved, types);
+        self.record_member_call_resolution(module, expression_id, right_ty_id, &resolved, types);
 
         let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
             types.insert_type_from(
@@ -156,10 +162,7 @@ impl Compiler {
             if let Some(struct_ty_id) = struct_ty_id {
                 self.error(AnalyzeError::InvalidStrictEquality {
                     node: expression_id.into_global_any(module.id),
-                    ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: struct_ty_id,
-                    },
+                    ty: struct_ty_id.into_global(module.id),
                 });
             }
         }
@@ -238,7 +241,7 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.finalize_member_invocation(module, expression_id, left_ty_id, &resolved, types);
+            self.record_member_call_resolution(module, expression_id, left_ty_id, &resolved, types);
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: left_ty_id.into_global(module.id),
@@ -261,8 +264,8 @@ impl Compiler {
         // check argument assignability
         if let Some(parameter_ty_id) = parameter_ty_id {
             infer.push_constraint(Constraint::Subtype {
-                sub: right_ty_id,
-                sup: parameter_ty_id,
+                sub_type: right_ty_id,
+                super_type: parameter_ty_id,
                 variance: None,
             });
 
@@ -273,20 +276,14 @@ impl Compiler {
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
-                    expected_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: parameter_ty_id,
-                    },
-                    actual_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: right_ty_id,
-                    },
+                    expected_ty: parameter_ty_id.into_global(module.id),
+                    actual_ty: right_ty_id.into_global(module.id),
                 });
             }
         }
 
         // finalize resolution and instance registration
-        self.finalize_member_invocation(module, expression_id, left_ty_id, &resolved, types);
+        self.record_member_call_resolution(module, expression_id, left_ty_id, &resolved, types);
 
         let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
             types.insert_type_from(
@@ -345,8 +342,8 @@ impl Compiler {
 
         // add the subtype constraint
         infer.push_constraint(Constraint::Subtype {
-            sub: right_ty_id,
-            sup: left_ty_id,
+            sub_type: right_ty_id,
+            super_type: left_ty_id,
             variance: None,
         });
 
@@ -358,14 +355,8 @@ impl Compiler {
         {
             return Err(AnalyzeError::UnassignableType {
                 node: expression_id.into_global_any(module.id),
-                expected_ty: GlobalTypeId {
-                    module_id: module.id,
-                    local_id: left_ty_id,
-                },
-                actual_ty: GlobalTypeId {
-                    module_id: module.id,
-                    local_id: right_ty_id,
-                },
+                expected_ty: left_ty_id.into_global(module.id),
+                actual_ty: right_ty_id.into_global(module.id),
             });
         }
 
@@ -546,7 +537,7 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.finalize_member_invocation(
+            self.record_member_call_resolution(
                 module,
                 expression_id,
                 receiver_ty_id,
@@ -575,8 +566,8 @@ impl Compiler {
         // check index argument assignability
         if let (Some(parameter_ty_id), Some(index_ty_id)) = (parameter_ty_id, index_ty_id) {
             infer.push_constraint(Constraint::Subtype {
-                sub: index_ty_id,
-                sup: parameter_ty_id,
+                sub_type: index_ty_id,
+                super_type: parameter_ty_id,
                 variance: None,
             });
 
@@ -587,20 +578,14 @@ impl Compiler {
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
-                    expected_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: parameter_ty_id,
-                    },
-                    actual_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: index_ty_id,
-                    },
+                    expected_ty: parameter_ty_id.into_global(module.id),
+                    actual_ty: index_ty_id.into_global(module.id),
                 });
             }
         }
 
         // finalize resolution and instance registration
-        self.finalize_member_invocation(module, expression_id, receiver_ty_id, &resolved, types);
+        self.record_member_call_resolution(module, expression_id, receiver_ty_id, &resolved, types);
 
         let value_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
             types.insert_type_from(
@@ -660,8 +645,8 @@ impl Compiler {
             )?;
 
             infer.push_constraint(Constraint::Subtype {
-                sub: value_ty_id,
-                sup: builtin_value_ty_id,
+                sub_type: value_ty_id,
+                super_type: builtin_value_ty_id,
                 variance: None,
             });
 
@@ -672,14 +657,8 @@ impl Compiler {
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
-                    expected_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: builtin_value_ty_id,
-                    },
-                    actual_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: value_ty_id,
-                    },
+                    expected_ty: builtin_value_ty_id.into_global(module.id),
+                    actual_ty: value_ty_id.into_global(module.id),
                 });
             }
 
@@ -730,7 +709,7 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.finalize_member_invocation(
+            self.record_member_call_resolution(
                 module,
                 expression_id,
                 receiver_ty_id,
@@ -760,8 +739,8 @@ impl Compiler {
         // check key argument assignability
         if let (Some(key_param_ty_id), Some(index_ty_id)) = (key_param_ty_id, index_ty_id) {
             infer.push_constraint(Constraint::Subtype {
-                sub: index_ty_id,
-                sup: key_param_ty_id,
+                sub_type: index_ty_id,
+                super_type: key_param_ty_id,
                 variance: None,
             });
         }
@@ -781,8 +760,8 @@ impl Compiler {
         // check value argument assignability
         if let Some(value_param_ty_id) = value_param_ty_id {
             infer.push_constraint(Constraint::Subtype {
-                sub: value_ty_id,
-                sup: value_param_ty_id,
+                sub_type: value_ty_id,
+                super_type: value_param_ty_id,
                 variance: None,
             });
 
@@ -793,20 +772,14 @@ impl Compiler {
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
-                    expected_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: value_param_ty_id,
-                    },
-                    actual_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: value_ty_id,
-                    },
+                    expected_ty: value_param_ty_id.into_global(module.id),
+                    actual_ty: value_ty_id.into_global(module.id),
                 });
             }
         }
 
         // finalize resolution and instance registration
-        self.finalize_member_invocation(module, expression_id, receiver_ty_id, &resolved, types);
+        self.record_member_call_resolution(module, expression_id, receiver_ty_id, &resolved, types);
 
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,

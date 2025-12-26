@@ -4,10 +4,9 @@ use crate::{
 };
 use destack_dir::{
     Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey, EnumField,
-    Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId,
-    GlobalTypeId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Member, NodeTree, Parameter, StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral,
-    TypeTable, WhereClause,
+    Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId, Heritage,
+    Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, Parameter,
+    StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -429,8 +428,8 @@ impl Compiler {
                         && self.has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
-                            sub: body_ty_id,
-                            sup: return_ty_id,
+                            sub_type: body_ty_id,
+                            super_type: return_ty_id,
                             variance: None,
                         });
 
@@ -441,14 +440,8 @@ impl Compiler {
                         {
                             self.error(AnalyzeError::UnassignableType {
                                 node: body.into_global_any(module.id),
-                                expected_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: return_ty_id,
-                                },
-                                actual_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: body_ty_id,
-                                },
+                                expected_ty: return_ty_id.into_global(module.id),
+                                actual_ty: body_ty_id.into_global(module.id),
                             });
                         }
                     }
@@ -580,8 +573,8 @@ impl Compiler {
                         && self.has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
-                            sub: body_ty_id,
-                            sup: return_ty_id,
+                            sub_type: body_ty_id,
+                            super_type: return_ty_id,
                             variance: None,
                         });
 
@@ -592,14 +585,8 @@ impl Compiler {
                         {
                             self.error(AnalyzeError::UnassignableType {
                                 node: body.into_global_any(module.id),
-                                expected_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: return_ty_id,
-                                },
-                                actual_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: body_ty_id,
-                                },
+                                expected_ty: return_ty_id.into_global(module.id),
+                                actual_ty: body_ty_id.into_global(module.id),
                             });
                         }
                     }
@@ -883,8 +870,8 @@ impl Compiler {
                         self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                     if let Some(binding_ty_id) = binding_ty_id {
                         infer.push_constraint(Constraint::Subtype {
-                            sub: default_ty_id,
-                            sup: binding_ty_id,
+                            sub_type: default_ty_id,
+                            super_type: binding_ty_id,
                             variance: None,
                         });
                     }
@@ -912,8 +899,8 @@ impl Compiler {
                 // constrain default to the binding type
                 if let (Some(default_ty_id), Some(binding_ty_id)) = (default_ty_id, binding_ty_id) {
                     infer.push_constraint(Constraint::Subtype {
-                        sub: default_ty_id,
-                        sup: binding_ty_id,
+                        sub_type: default_ty_id,
+                        super_type: binding_ty_id,
                         variance: None,
                     });
                 }
@@ -1062,8 +1049,8 @@ impl Compiler {
         // type check: if both declared and inferred, check assignability
         if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id) {
             infer.push_constraint(Constraint::Subtype {
-                sub: inferred,
-                sup: declared,
+                sub_type: inferred,
+                super_type: declared,
                 variance: None,
             });
             if !self.is_infer_var_type(declared, types)
@@ -1073,14 +1060,8 @@ impl Compiler {
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: declarator_id.into_global(module.id).into(),
-                    expected_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: declared,
-                    },
-                    actual_ty: GlobalTypeId {
-                        module_id: module.id,
-                        local_id: inferred,
-                    },
+                    expected_ty: declared.into_global(module.id),
+                    actual_ty: inferred.into_global(module.id),
                 });
             }
         }

@@ -212,6 +212,15 @@ impl<T: Node> GlobalNodeId<T> {
             local_id,
         }
     }
+
+    /// Turn into a GlobalNodeIdAny.
+    #[inline]
+    pub fn into_any(self) -> GlobalNodeIdAny {
+        GlobalNodeIdAny {
+            module_id: self.module_id,
+            local_id: self.local_id.into_any(),
+        }
+    }
 }
 
 impl<T: Node> Debug for GlobalNodeId<T> {

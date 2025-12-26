@@ -7,7 +7,7 @@ use destack_workspace::Module;
 
 impl Compiler {
     /// Whether a symbol is instantiable (i.e. can have an instance type).
-    pub(super) fn is_instantiable_type_symbol(&self, symbol: GlobalSymbolId) -> bool {
+    pub(super) fn is_instantiable_symbol(&self, symbol: GlobalSymbolId) -> bool {
         matches!(
             symbol.ty(),
             SymbolType::Class
@@ -43,7 +43,7 @@ impl Compiler {
             if source_id.id == u32::MAX || source_id.ty != NodeType::Expression {
                 continue;
             }
-            if !self.is_instantiable_type_symbol(symbol) {
+            if !self.is_instantiable_symbol(symbol) {
                 continue;
             }
 

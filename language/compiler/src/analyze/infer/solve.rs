@@ -93,7 +93,11 @@ impl Compiler {
                 Self::bind_equal(*left, *right, types, bounds);
                 Self::bind_equal(*right, *left, types, bounds);
             }
-            Constraint::Subtype { sub, sup, .. } => {
+            Constraint::Subtype {
+                sub_type: sub,
+                super_type: sup,
+                ..
+            } => {
                 Self::bind_upper(*sub, *sup, types, bounds);
                 Self::bind_lower(*sup, *sub, types, bounds);
             }

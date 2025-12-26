@@ -2,7 +2,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
 };
 use destack_dir::{
-    Block, Declaration, DynamicKey, Expression, FunctionKind, GlobalSymbolId, GlobalTypeId,
+    Argument, Block, Declaration, DynamicKey, Expression, FunctionKind, GlobalSymbolId,
     LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource, NodeTree, Pattern,
     PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
     TypeTable,
@@ -322,7 +322,6 @@ impl Compiler {
             }
 
             // reference: symbol type
-            // nocheckin: extract reference inference somewhere else
             Expression::LocalReference {
                 path: _,
                 target_symbol,
@@ -337,87 +336,17 @@ impl Compiler {
                 path: _,
                 target_symbol,
                 static_arguments,
-            } => {
-                // resolve the canonical symbol for imported references
-                let canonical_symbol =
-                    self.canonical_symbol_id(module, symbols, *target_symbol);
-
-                // pick the base type for the symbol
-                let base_ty_id = {
-                    if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
-                        narrowed_ty_id
-                    } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
-                        value_ty_id
-                    } else if canonical_symbol.module_id != module.id {
-                        self.resolve_remote_symbol_value_type(
-                            module,
-                            expression_id,
-                            canonical_symbol,
-                            types,
-                        )?
-                    } else {
-                        let ty = Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        };
-                        types.insert_type_from(ty, expression_id)
-                    }
-                };
-
-                if let Some(static_argument_ids) = static_arguments.as_deref() {
-                    match types.get_type(base_ty_id).clone() {
-                        Type::Function {
-                            asynchrony,
-                            cardinality,
-                            static_parameters,
-                            dynamic_parameters,
-                            return_type,
-                        } => {
-                            let resolved = self.resolve_function_type_for_call(
-                                module,
-                                expression_id.into_any(),
-                                Some(canonical_symbol),
-                                Some(static_argument_ids),
-                                &static_parameters,
-                                &dynamic_parameters,
-                                return_type,
-                                tree,
-                                symbols,
-                                types,
-                                infer,
-                            )?;
-
-                            let instantiated_fn = Type::Function {
-                                asynchrony,
-                                cardinality,
-                                static_parameters: Vec::new(),
-                                dynamic_parameters: resolved.dynamic_parameters,
-                                return_type: resolved.return_type,
-                            };
-                            let instantiated_ty_id =
-                                types.insert_type_from(instantiated_fn, expression_id);
-
-                            if !resolved.static_arguments.is_empty() {
-                                self.register_instance_for_node(
-                                    expression_id.into_global_any(module.id),
-                                    canonical_symbol,
-                                    resolved.static_arguments,
-                                    types,
-                                );
-                            }
-
-                            instantiated_ty_id
-                        }
-                        _ => {
-                            self.error(AnalyzeError::MissingType {
-                                node: expression_id.into_global_any(module.id),
-                            });
-                            base_ty_id
-                        }
-                    }
-                } else {
-                    base_ty_id
-                }
-            }
+            } => self.infer_reference_expression(
+                module,
+                expression_id,
+                *target_symbol,
+                static_arguments.as_deref(),
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?,
 
             // scalar literal: derive type from value
             Expression::ScalarLiteral { value } => {
@@ -886,8 +815,8 @@ impl Compiler {
                     )?;
                     if let Some(return_ty_id) = ctx.return_type {
                         infer.push_constraint(Constraint::Subtype {
-                            sub: value_ty_id,
-                            sup: return_ty_id,
+                            sub_type: value_ty_id,
+                            super_type: return_ty_id,
                             variance: None,
                         });
                     }
@@ -896,8 +825,8 @@ impl Compiler {
                         value: TypeLiteral::Void,
                     });
                     infer.push_constraint(Constraint::Subtype {
-                        sub: void_ty_id,
-                        sup: return_ty_id,
+                        sub_type: void_ty_id,
+                        super_type: return_ty_id,
                         variance: None,
                     });
                 }
@@ -1391,8 +1320,8 @@ impl Compiler {
                         && self.has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
-                            sub: body_ty_id,
-                            sup: return_ty_id,
+                            sub_type: body_ty_id,
+                            super_type: return_ty_id,
                             variance: None,
                         });
 
@@ -1403,14 +1332,8 @@ impl Compiler {
                         {
                             self.error(AnalyzeError::UnassignableType {
                                 node: body.into_global_any(module.id),
-                                expected_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: return_ty_id,
-                                },
-                                actual_ty: GlobalTypeId {
-                                    module_id: module.id,
-                                    local_id: body_ty_id,
-                                },
+                                expected_ty: return_ty_id.into_global(module.id),
+                                actual_ty: body_ty_id.into_global(module.id),
                             });
                         }
                     }
@@ -1828,5 +1751,89 @@ impl Compiler {
             }
             _ => true,
         }
+    }
+
+    /// Infer a reference expression (local, module, or global).
+    pub(super) fn infer_reference_expression(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // resolve the canonical symbol for imported references
+        let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+
+        // pick the base type for the symbol
+        let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
+            narrowed_ty_id
+        } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
+            value_ty_id
+        } else if canonical_symbol.module_id != module.id {
+            self.resolve_remote_symbol_value_type(module, expression_id, canonical_symbol, types)?
+        } else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            types.insert_type_from(ty, expression_id)
+        };
+
+        // handle static arguments for generic instantiation
+        let Some(static_argument_ids) = static_arguments else {
+            return Ok(base_ty_id);
+        };
+
+        let Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters,
+            dynamic_parameters,
+            return_type,
+        } = types.get_type(base_ty_id).clone()
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
+            return Ok(base_ty_id);
+        };
+
+        let resolved = self.resolve_function_signature(
+            module,
+            expression_id.into_any(),
+            Some(canonical_symbol),
+            Some(static_argument_ids),
+            &static_parameters,
+            &dynamic_parameters,
+            return_type,
+            tree,
+            symbols,
+            types,
+            infer,
+        )?;
+
+        let instantiated_fn = Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters: Vec::new(),
+            dynamic_parameters: resolved.dynamic_parameters,
+            return_type: resolved.return_type,
+        };
+        let instantiated_ty_id = types.insert_type_from(instantiated_fn, expression_id);
+
+        if !resolved.static_arguments.is_empty() {
+            self.register_instance_for_node(
+                expression_id.into_global_any(module.id),
+                canonical_symbol,
+                resolved.static_arguments,
+                types,
+            );
+        }
+
+        Ok(instantiated_ty_id)
     }
 }
