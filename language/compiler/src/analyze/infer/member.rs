@@ -7,7 +7,7 @@ use destack_dir::{
     Argument, Declaration, DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
     NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -33,6 +33,7 @@ impl Compiler {
         // inherit static arguments and substitutions from the receiver
         let inherited = self.resolve_inherited_static_arguments(
             module,
+            ctx.profile,
             left_id.into_any(),
             &left_ty,
             tree,
@@ -89,6 +90,7 @@ impl Compiler {
                             &static_parameters,
                             &dynamic_parameters,
                             return_type,
+                            ctx.profile,
                             tree,
                             symbols,
                             types,
@@ -378,6 +380,7 @@ impl Compiler {
         &self,
         module: &Module,
         symbols: &SymbolTable,
+        profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
         let mut current_symbol = symbol;
@@ -395,7 +398,7 @@ impl Compiler {
             } else {
                 let remote_module = self.program.modules.get(current_symbol.module_id);
                 let remote_module = remote_module.read();
-                let remote_symbols = remote_module.dir().symbols.read();
+                let remote_symbols = remote_module.dir(profile).symbols.read();
                 let symbol_entry = remote_symbols.get_symbol(current_symbol.local_id);
                 (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
             };

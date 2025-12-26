@@ -5,6 +5,7 @@ use destack_dir::{
     PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
 };
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 
 use crate::{Compiler, ElaborateResult};
 
@@ -17,10 +18,14 @@ impl Compiler {
     /// 3. `match` → decision trees (if-else chains with proper blocks)
     /// 4. Ternary optimization for simple if/else
     /// 5. Implicit returns → explicit `return` statements
-    pub(crate) fn elaborate_module_transform(&self, module_id: ModuleId) -> ElaborateResult<()> {
+    pub(crate) fn elaborate_module_transform(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let dir = module.dir(profile);
         let mut tree = dir.tree.write();
         let symbols = dir.symbols.read();
         let types = dir.types.read();

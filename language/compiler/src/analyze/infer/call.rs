@@ -9,7 +9,7 @@ use destack_dir::{
     Argument, Expression, GlobalSymbolId, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 /// Resolved function signature after static argument substitution.
 #[derive(Debug, Clone)]
@@ -89,6 +89,7 @@ impl Compiler {
                 } = &receiver_ty
                     && let Some(resolved) = self.resolve_type_reference_static_arguments(
                         module,
+                        ctx.profile,
                         receiver_id.into_any(),
                         *symbol,
                         static_arguments.as_deref(),
@@ -142,7 +143,13 @@ impl Compiler {
                 (member_symbol, has_static_argument_conflict)
             }
             _ => (
-                self.reference_symbol_for_expression(module, unwrapped_left_id, tree, symbols),
+                self.reference_symbol_for_expression(
+                    module,
+                    unwrapped_left_id,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                ),
                 false,
             ),
         };
@@ -169,6 +176,7 @@ impl Compiler {
                     &static_parameters,
                     &dynamic_parameters,
                     return_type,
+                    ctx.profile,
                     tree,
                     symbols,
                     types,
@@ -351,6 +359,7 @@ impl Compiler {
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -364,6 +373,7 @@ impl Compiler {
             static_parameters,
             dynamic_parameters,
             return_type,
+            profile,
             tree,
             symbols,
             types,
@@ -391,6 +401,7 @@ impl Compiler {
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -432,7 +443,12 @@ impl Compiler {
         let mut referenced_symbols = HashSet::new();
         let mut visited = HashSet::new();
         for ty_id in dynamic_parameters.iter().copied().chain(return_type) {
-            self.collect_type_reference_symbols(ty_id, types, &mut referenced_symbols, &mut visited);
+            self.collect_type_reference_symbols(
+                ty_id,
+                types,
+                &mut referenced_symbols,
+                &mut visited,
+            );
         }
 
         // collect static parameters
@@ -444,7 +460,9 @@ impl Compiler {
                 } else {
                     StaticParameterKind::Value
                 };
-                self.collect_static_parameter(module, *symbol_id, kind, tree, symbols, types)
+                self.collect_static_parameter(
+                    module, *symbol_id, kind, profile, tree, symbols, types,
+                )
             })
             .collect();
 
@@ -482,6 +500,7 @@ impl Compiler {
             // resolve the static argument value
             let resolved_argument = match self.resolve_static_argument(
                 module,
+                profile,
                 static_parameter,
                 assigned_argument,
                 tree,
@@ -544,6 +563,7 @@ impl Compiler {
         receiver_expression_id: LocalNodeId<Expression>,
         receiver_ty: &Type,
         member_key: &StaticKey,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -552,6 +572,7 @@ impl Compiler {
         // inherit static arguments and substitutions from the receiver
         let inherited = self.resolve_inherited_static_arguments(
             module,
+            profile,
             receiver_expression_id.into_any(),
             receiver_ty,
             tree,
@@ -624,6 +645,7 @@ impl Compiler {
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            profile,
             tree,
             symbols,
             types,

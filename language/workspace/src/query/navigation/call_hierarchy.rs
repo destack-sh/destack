@@ -71,7 +71,11 @@ pub fn prepare_call_hierarchy(
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();
@@ -119,7 +123,11 @@ pub fn incoming_calls(
     // find all call expressions that target this function
     for module in session.modules.iter() {
         let module = module.read();
-        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        let Some(ast) = &module.ast else {
+            continue;
+        };
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             continue;
         };
         let module_id = module.id;
@@ -182,7 +190,11 @@ pub fn outgoing_calls(
     // get the module containing this function
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let dir_tree = dir.tree.read();
@@ -230,7 +242,8 @@ pub fn outgoing_calls(
         // only include function calls
         let target_module = session.modules.get(target_symbol_id.module_id);
         let target = target_module.read();
-        let Some(target_dir) = &target.dir else {
+        let target_profile = session.default_profile_for_module(target_symbol_id.module_id);
+        let Some(target_dir) = target.dir_maybe(target_profile) else {
             continue;
         };
         let target_symbols = target_dir.symbols.read();
@@ -331,7 +344,11 @@ pub fn call_hierarchy_item_from_symbol(
 ) -> Option<CallHierarchyItem> {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();

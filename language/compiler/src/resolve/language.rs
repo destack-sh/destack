@@ -11,27 +11,31 @@ impl Compiler {
     }
 
     /// Resolve all builtin modules and required language items.
-    pub fn resolve_builtins(&self) -> ResolveResult<()> {
+    pub fn resolve_builtins(&self, profile: ProfileId) -> ResolveResult<()> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(());
         };
 
         // resolve prelude/core modules
-        self.require_resolve_module(builtins.prelude_module_id)?;
+        self.require_resolve_module(builtins.prelude_module_id, profile)?;
         for &module_id in builtins.core_module_by_path.values() {
-            self.require_resolve_module(module_id)?;
+            self.require_resolve_module(module_id, profile)?;
         }
 
         // resolve all language items
         for item in LanguageItem::all() {
-            self.require_language_item(item)?;
+            self.require_language_item(profile, item)?;
         }
 
         Ok(())
     }
 
     /// Get a required language item, returning an error if not found.
-    pub fn require_language_item(&self, item: LanguageItem) -> ResolveResult<GlobalSymbolId> {
+    pub fn require_language_item(
+        &self,
+        profile: ProfileId,
+        item: LanguageItem,
+    ) -> ResolveResult<GlobalSymbolId> {
         // check if builtins are available
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Err(ResolveError::MissingLanguageItem { item });
@@ -44,12 +48,12 @@ impl Compiler {
 
         // resolve the module for this language item
         let module_id = builtins.module_for_item(item);
-        self.require_resolve_module(module_id)?;
+        self.require_resolve_module(module_id, profile)?;
 
         // resolve the symbol in the module
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let dir = module.dir(profile);
         let symbols = dir.symbols.read();
 
         // find the symbol in the module's namespace scope
@@ -96,7 +100,8 @@ mod tests {
         let language_item_id = test.compiler.expect_language_item(LanguageItem::Add);
         let language_item_module = test.program.modules.get(language_item_id.module_id);
         let language_item_module = language_item_module.read();
-        let language_item_symbols = language_item_module.dir().symbols.read();
+        let profile = test.default_profile_id(language_item_id.module_id);
+        let language_item_symbols = language_item_module.dir(profile).symbols.read();
         let language_item_symbol = language_item_symbols.get_symbol(language_item_id.into_local());
         assert_string!(test.program, language_item_symbol.name().unwrap(), "Add");
     }

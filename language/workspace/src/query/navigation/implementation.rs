@@ -46,7 +46,8 @@ pub fn goto_implementation(
     // 3. check if it's an interface or class (types that can be implemented/extended)
     let target_module = session.modules.get(canonical_id.module_id);
     let target_module = target_module.read();
-    let Some(target_dir) = &target_module.dir else {
+    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let Some(target_dir) = target_module.dir_maybe(profile) else {
         return Some(ImplementationResult::empty());
     };
     let symbols = target_dir.symbols.read();
@@ -64,7 +65,8 @@ pub fn goto_implementation(
     let mut locations = Vec::new();
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(dir) = &module.dir else {
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             continue;
         };
         let types = dir.types.read();

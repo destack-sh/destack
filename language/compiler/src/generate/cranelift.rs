@@ -2,7 +2,7 @@ use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
 use destack_codegen_cranelift::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{GlobalNodeIdAny, LocalNodeIdAny};
 use destack_source::ModuleId;
-use destack_workspace::{Target, TargetId};
+use destack_workspace::{ProfileId, Target, TargetId};
 
 impl Compiler {
     /// Generate native/WASM code for a module using Cranelift.
@@ -10,6 +10,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target: &Target,
+        profile: ProfileId,
     ) -> GenerateResult<()> {
         // construct target id from module's package
         let module = self.program.modules.get(module_id);
@@ -26,18 +27,18 @@ impl Compiler {
             target,
             registry_next_id,
         )
-        .map_err(|e| self.map_cranelift_error(module_id, &target.name, e))?;
+        .map_err(|e| self.map_cranelift_error(module_id, &target.name, profile, e))?;
         for artifact in output.artifacts {
             self.program.artifacts.insert(artifact);
         }
 
         // map warnings/errors
         for warning in output.warnings {
-            let warning = self.map_cranelift_warning(module_id, &target.name, warning);
+            let warning = self.map_cranelift_warning(module_id, &target.name, profile, warning);
             self.warning(warning);
         }
         for error in output.errors {
-            let error = self.map_cranelift_error(module_id, &target.name, error);
+            let error = self.map_cranelift_error(module_id, &target.name, profile, error);
             self.error(error);
         }
 
@@ -49,6 +50,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target_name: &str,
+        profile: ProfileId,
         error: CodegenCraneliftError,
     ) -> GenerateError {
         match error {
@@ -70,21 +72,21 @@ impl Compiler {
             },
             CodegenCraneliftError::UnsupportedType { node, .. } => GenerateError::UnsupportedType {
                 module: module_id,
-                node: self.get_dir_node_id(module_id, target_name, node),
+                node: self.get_dir_node_id(module_id, target_name, profile, node),
             },
             CodegenCraneliftError::MissingType { node, .. } => GenerateError::MissingType {
                 module: module_id,
-                node: self.get_dir_node_id(module_id, target_name, node),
+                node: self.get_dir_node_id(module_id, target_name, profile, node),
             },
             CodegenCraneliftError::UnsupportedInstruction { node, .. } => {
                 GenerateError::UnsupportedConstruct {
                     module: module_id,
-                    node: self.get_dir_node_id(module_id, target_name, node),
+                    node: self.get_dir_node_id(module_id, target_name, profile, node),
                 }
             }
             CodegenCraneliftError::OutOfBounds { node, index, len } => GenerateError::OutOfBounds {
                 module: module_id,
-                node: self.get_dir_node_id(module_id, target_name, node),
+                node: self.get_dir_node_id(module_id, target_name, profile, node),
                 index,
                 len,
             },
@@ -96,13 +98,14 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target_name: &str,
+        profile: ProfileId,
         warning: CodegenCraneliftWarning,
     ) -> GenerateWarning {
         match warning {
             CodegenCraneliftWarning::UnexpectedNode { node, .. } => {
                 GenerateWarning::UnexpectedConstruct {
                     module: module_id,
-                    node: self.get_dir_node_id(module_id, target_name, node),
+                    node: self.get_dir_node_id(module_id, target_name, profile, node),
                 }
             }
         }
@@ -114,6 +117,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target_name: &str,
+        profile: ProfileId,
         mir_node: destack_mir::LocalNodeIdAny,
     ) -> Option<GlobalNodeIdAny> {
         let module = self.program.modules.get(module_id);
@@ -122,7 +126,7 @@ impl Compiler {
         let mir_tree = module.mir(&target_id).tree.read();
 
         let dir_node_id = mir_tree.get_source(mir_node.id)?;
-        let dir_tree = module.dir().tree.read();
+        let dir_tree = module.dir(profile).tree.read();
         let dir_node_type = dir_tree.get_node_type(dir_node_id);
 
         Some(GlobalNodeIdAny::new(

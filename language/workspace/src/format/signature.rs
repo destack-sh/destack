@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use super::types::format_local_type;
-use crate::{Module, ModuleRegistry};
+use crate::{Module, ModuleRegistry, ProfileId};
 
 /// Formatted declaration signature.
 #[derive(Debug, Clone)]
@@ -17,14 +17,15 @@ pub struct FormattedSignature {
 /// Format a declaration's signature with full type information.
 ///
 /// # Panics
-/// Panics if the module's DIR is not available (should only be called after Bind phase).
+/// Panics if the module's DIR for the profile is not available.
 pub fn format_declaration_signature(
     declaration: &dir::Declaration,
     module: &Module,
     modules: &ModuleRegistry,
     strings: &StringPool,
+    profile: ProfileId,
 ) -> FormattedSignature {
-    let dir = module.dir();
+    let dir = module.dir(profile);
     let dir_tree = dir.tree.read();
     let types = dir.types.read();
     let module_id = module.id;
@@ -220,11 +221,12 @@ pub fn format_symbol_signature(
     symbol_id: dir::GlobalSymbolId,
     modules: &ModuleRegistry,
     strings: &StringPool,
+    profile: ProfileId,
 ) -> Option<FormattedSignature> {
     // get module DIR
     let module = modules.get(symbol_id.module_id);
     let module = module.read();
-    let dir = module.dir.as_ref()?;
+    let dir = module.dir_maybe(profile)?;
     let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_id.into_local());
 

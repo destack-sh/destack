@@ -3,6 +3,7 @@ use crate::{
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::{GlobalNodeIdAny, GlobalTypeId};
+use destack_source::ModuleId;
 use destack_workspace::Program;
 
 /// Errors during the lower phase.
@@ -48,5 +49,14 @@ pub enum LowerError {
     MissingType {
         /// Report the node that lacks type information.
         node: GlobalNodeIdAny,
+    },
+
+    /// Internal lowering error.
+    #[error(code = "EM005", message = "internal error: {message}")]
+    Internal {
+        /// Anchor the error to a module.
+        module: ModuleId,
+        /// Describe the internal failure.
+        message: String,
     },
 }

@@ -181,7 +181,11 @@ impl QueryTestSession {
             .resolve_path_to_module(&main_path)
             .expect("failed to resolve module");
 
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+        let profile = program.default_profile_id_for_module(module_id);
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+            module: module_id,
+            profile,
+        });
         compiler.compile();
         drop(compiler);
 

@@ -31,7 +31,11 @@ pub fn find_symbol_at_offset(
     // get module AST/DIR
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let module_id = module.id;
@@ -188,7 +192,8 @@ pub fn find_symbol_at_offset(
 pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(dir) = &module.dir else {
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return symbol_id;
     };
     let symbols = dir.symbols.read();
@@ -213,7 +218,11 @@ pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) 
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
 
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();

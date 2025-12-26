@@ -1,8 +1,10 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
 
-use crate::{OutputFormat, Platform, Runtime};
+use crate::{DsConfigCompilerOptions, OutputFormat, Platform, Runtime};
 
 /// Unique identifier for profiles.
 #[repr(transparent)]
@@ -98,7 +100,7 @@ pub struct ProfileKey {
     /// Debug flag exposed to `import.meta`.
     pub debug: bool,
     /// Comptime environment snapshot for `import.meta.env`.
-    pub comptime_env: ComptimeEnvSnapshot,
+    pub env: ComptimeEnvSnapshot,
     /// Flags that affect semantic behavior.
     pub flags: ProfileFlags,
 }
@@ -159,4 +161,96 @@ impl ProfileRegistry {
     pub fn get(&self, id: ProfileId) -> Option<Profile> {
         self.by_id.get(&id).map(|entry| entry.clone())
     }
+}
+
+impl ComptimeEnvSnapshot {
+    /// Snapshot all environment keys and values.
+    pub fn from_env_all() -> Self {
+        let mut entries: Vec<(String, String)> = std::env::vars().collect();
+        entries.sort_by(|left, right| left.0.cmp(&right.0));
+        let keys = entries.iter().map(|(key, _)| key.clone()).collect();
+        let hash = hash_env_entries(&entries);
+        Self::All { keys, hash }
+    }
+
+    /// Snapshot only whitelisted environment keys and values.
+    pub fn from_env_whitelist(keys: &[String]) -> Self {
+        let keys = normalize_keys(keys.to_vec());
+        let mut entries = Vec::with_capacity(keys.len());
+        for key in &keys {
+            let value = std::env::var(key).unwrap_or_default();
+            entries.push((key.clone(), value));
+        }
+        let hash = hash_env_entries(&entries);
+        Self::Whitelist { keys, hash }
+    }
+}
+
+impl From<&DsConfigCompilerOptions> for ProfileFlags {
+    fn from(options: &DsConfigCompilerOptions) -> Self {
+        Self {
+            no_any: options.no_any,
+            no_unknown: options.no_unknown,
+            no_imprecise_primitives: options.no_imprecise_primitives,
+            no_implicit_conversions: options.no_implicit_conversions,
+            no_unsafe_type_assertions: options.no_unsafe_type_assertions,
+            no_implicit_self: options.no_implicit_self,
+            no_arguments: options.no_arguments,
+            no_redeclared_locals: options.no_redeclared_locals,
+            no_implicit_managed_type: options.no_implicit_managed_type,
+            no_implicit_managed_value: options.no_implicit_managed_value,
+            no_managed: options.no_managed,
+            no_runtime: options.no_runtime,
+            no_referential_equality: options.no_referential_equality,
+            no_dynamic_evaluation: options.no_dynamic_evaluation,
+            no_global_this: options.no_global_this,
+            no_dynamic_import: options.no_dynamic_import,
+            no_dynamic_shapes: options.no_dynamic_shapes,
+            no_computed_property_access: options.no_computed_property_access,
+            no_proxy: options.no_proxy,
+            no_implicit_dynamic_dispatch: options.no_implicit_dynamic_dispatch,
+            no_exceptions: options.no_exceptions,
+        }
+    }
+}
+
+impl ProfileKey {
+    /// Create a profile key with normalized library entries.
+    pub fn new(
+        output: OutputFormat,
+        runtime: Runtime,
+        platform: Platform,
+        lib: Vec<String>,
+        debug: bool,
+        env: ComptimeEnvSnapshot,
+        flags: ProfileFlags,
+    ) -> Self {
+        let lib = normalize_keys(lib);
+        Self {
+            output,
+            runtime,
+            platform,
+            lib,
+            debug,
+            env,
+            flags,
+        }
+    }
+}
+
+/// Normalize a list of keys by sorting and deduplicating.
+fn normalize_keys(mut keys: Vec<String>) -> Vec<String> {
+    keys.sort();
+    keys.dedup();
+    keys
+}
+
+/// Hash a list of environment entries by hashing the key and value.
+fn hash_env_entries(entries: &[(String, String)]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    for (key, value) in entries {
+        key.hash(&mut hasher);
+        value.hash(&mut hasher);
+    }
+    hasher.finish()
 }

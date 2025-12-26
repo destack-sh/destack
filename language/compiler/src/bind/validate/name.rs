@@ -28,7 +28,7 @@ impl Compiler {
 
     /// Check for reserved identifiers used as binding names.
     pub(super) fn validate_binding_names(&self, module: &Module) {
-        let dir = module.dir();
+        let dir = module.dir_base();
         let symbols = dir.symbols.read();
         for scope in symbols.scopes() {
             for (key, symbol_id) in scope.named_symbols.iter() {

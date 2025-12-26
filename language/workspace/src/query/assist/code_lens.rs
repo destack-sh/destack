@@ -108,7 +108,11 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
         return Vec::new();
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let module_id = module.id;
@@ -199,7 +203,10 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(dir) = &module.dir else { continue };
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
+            continue;
+        };
         let dir_tree = dir.tree.read();
 
         for (_, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
@@ -222,7 +229,10 @@ fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize 
 
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(dir) = &module.dir else { continue };
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
+            continue;
+        };
         let types = dir.types.read();
 
         for (_, lineage) in types.iter_lineages() {
@@ -242,7 +252,10 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(dir) = &module.dir else { continue };
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
+            continue;
+        };
         let types = dir.types.read();
 
         for (_, lineage) in types.iter_lineages() {

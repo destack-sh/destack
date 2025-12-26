@@ -62,7 +62,14 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         };
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return ContextResult {
+            context: CompletionContext::Unknown,
+            token: None,
+        };
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return ContextResult {
             context: CompletionContext::Unknown,
             token: None,

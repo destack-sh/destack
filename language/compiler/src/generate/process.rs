@@ -45,11 +45,19 @@ impl Compiler {
             message: format!("target '{}' not found", target_id.name),
         })?;
 
+        let profile = self
+            .program
+            .profile_id_for_target(module_id, target_id)
+            .ok_or_else(|| GenerateError::Internal {
+                module: module_id,
+                message: format!("profile not found for target '{}'", target_id.name),
+            })?;
+
         // dispatch based on output format
         match target.output {
-            OutputFormat::Js | OutputFormat::Ts => self.generate_js(module_id, &target),
+            OutputFormat::Js | OutputFormat::Ts => self.generate_js(module_id, &target, profile),
             OutputFormat::Native | OutputFormat::Wasm => {
-                self.generate_cranelift(module_id, &target)
+                self.generate_cranelift(module_id, &target, profile)
             }
         }
     }

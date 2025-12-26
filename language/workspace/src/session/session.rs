@@ -7,7 +7,7 @@ use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
 use crate::{
     ArtifactRegistry, FormatterOptions, LanguageBuiltins, LinterOptions, ModuleRegistry,
-    PackageRegistry, Program, TsConfigRegistry, Workspace,
+    PackageRegistry, ProfileId, Program, TsConfigRegistry, Workspace,
 };
 
 /// A session is the persistent state for a workspace.
@@ -177,5 +177,17 @@ impl Session {
 
         // fallback: create/get a program for the cwd
         self.get_or_create_program(self.cwd.clone())
+    }
+
+    /// Get the default profile for a module.
+    pub fn default_profile_for_module(&self, module_id: ModuleId) -> ProfileId {
+        let module = self.modules.get(module_id);
+        let module = module.read();
+        let program = module
+            .path
+            .as_ref()
+            .map(|path| self.find_program_for_path(path))
+            .unwrap_or_else(|| self.get_or_create_program(self.cwd.clone()));
+        program.default_profile_id_for_module(module_id)
     }
 }

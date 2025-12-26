@@ -17,11 +17,11 @@ fn test_analyze_number_literal() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -58,11 +58,11 @@ fn test_analyze_string_literal() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -99,11 +99,11 @@ fn test_analyze_boolean_literal() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -140,11 +140,11 @@ fn test_analyze_binary_number_operation() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -181,11 +181,11 @@ fn test_analyze_binary_number_comparison() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -222,9 +222,9 @@ fn test_analyze_let_expression_infer_type() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
-    let let_expr_id = module.dir().roots[0];
+    let let_expr_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
     // no declared type
@@ -261,11 +261,11 @@ fn test_analyze_let_expression_declare_type() {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -323,7 +323,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
     let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
@@ -393,7 +393,7 @@ let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
     let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
@@ -469,7 +469,7 @@ let x = value;
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // x should have literal type 42 (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -511,7 +511,7 @@ let x = items;
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // x should have tuple type [1, 2, 3] with literal elements (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -556,7 +556,7 @@ let x = greeting;
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // x should have literal string type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -763,7 +763,7 @@ add(1, 2)
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     let fn_symbol = test.expect_first_function_symbol(module.id);
     let fn_ty_id = types
@@ -814,7 +814,7 @@ function greet(name = "hi") {
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     let fn_symbol = test.expect_first_function_symbol(module.id);
     let fn_ty_id = types
@@ -861,10 +861,10 @@ identity<number>(1);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
-    let call_root_id = module.dir().roots[1];
+    let call_root_id = module.dir(test.default_profile_id(module_id)).roots[1];
     let call_root = tree.get(call_root_id);
     let &Expression::Statement {
         statement: call_expression_id,
@@ -908,10 +908,10 @@ let one = identity(1);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
-    let expression_id = module.dir().roots[1];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[1];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -962,10 +962,10 @@ let as_number = identity<number>;
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
-    let expression_id = module.dir().roots[1];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[1];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -1027,8 +1027,8 @@ let value: Box<number> = makeBox();
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // locate the type annotation
     let declarator_id = test.expect_first_let_declarator(module.id);
@@ -1089,8 +1089,8 @@ let buffer: Buffer<string> = makeBuffer();
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     let declarator_id = test.expect_first_let_declarator(module.id);
     let declarator = tree.get(declarator_id);
@@ -1161,8 +1161,8 @@ let result = getContainer().map<string>(1);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // locate the initializer expression
     let declarator_id = test.expect_first_let_declarator(module.id);
@@ -1243,8 +1243,8 @@ mapper(1);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // locate the member expression initializer
     let declarator_id = test.expect_first_let_declarator(module.id);
@@ -1324,7 +1324,7 @@ let result = wrap(1);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let types = module.dir().types.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     let result_ty_id = types
         .get_value_type_id(result_symbol)
@@ -1385,11 +1385,11 @@ const add: (a: number, b: number) => number = (a, b) => a + b;
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -1453,10 +1453,10 @@ apply((a) => a + 1);
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
-    let call_root_id = module.dir().roots[1];
+    let call_root_id = module.dir(test.default_profile_id(module_id)).roots[1];
     let call_root = tree.get(call_root_id);
     let &Expression::Statement {
         statement: call_expression_id,
@@ -1516,11 +1516,11 @@ const point: { x: number, y: string } = { x: 1, y: "hi" };
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,
@@ -1584,11 +1584,11 @@ const numbers: number[] = [1, 2];
     // load typed module data
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let tree = module.dir().tree.read();
-    let types = module.dir().types.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
 
     // select the root expression
-    let expression_id = module.dir().roots[0];
+    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
     let expression = tree.get(expression_id);
     let &Expression::Statement {
         statement: expression_id,

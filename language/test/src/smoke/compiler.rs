@@ -72,7 +72,11 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
             };
         }
     };
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+    let profile = program.default_profile_id_for_module(module_id);
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+        module: module_id,
+        profile,
+    });
     compiler.compile();
     drop(compiler);
 

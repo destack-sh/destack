@@ -82,7 +82,11 @@ pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<D
 
     // 5. find all references in this file
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
 

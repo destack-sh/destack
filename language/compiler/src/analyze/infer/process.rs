@@ -3,33 +3,39 @@ use crate::{
     TaskResultCollector,
 };
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Ensure a module's types have been inferred.
     pub fn require_analyze_module_infer(
         &self,
         module: ModuleId,
+        profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
         use crate::AnalyzeTask;
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module })
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module, profile })
     }
 
     /// Phase 2: Infer expression types.
-    pub(crate) fn analyze_module_infer(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+    pub(crate) fn analyze_module_infer(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
 
         // require builtins for analysis (#Architecture: should we?)
-        self.require_resolve_builtins()?;
+        self.require_resolve_builtins(profile)?;
 
         // analyze all expressions
         let mut infer = InferTable::default();
-        let mut ctx = InferContext::new();
+        let mut ctx = InferContext::new(profile);
         for root_id in dir.roots.iter() {
             self.collect(
                 &mut collector,
@@ -41,7 +47,7 @@ impl Compiler {
 
         self.collect(
             &mut collector,
-            self.register_instances(&module, &tree, &symbols, &mut types),
+            self.register_instances(&module, profile, &tree, &symbols, &mut types),
         );
 
         // yield on any yields

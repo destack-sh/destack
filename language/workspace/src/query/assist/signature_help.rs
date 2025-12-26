@@ -90,9 +90,11 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
     // get module AST/DIR
     let module = get_module_by_file_id(session, file)?;
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
         return None;
     };
+    let profile = session.default_profile_for_module(module.id);
+    let dir = module.dir_maybe(profile)?;
     let dir_tree = dir.tree.read();
 
     // find enclosing AST nodes at the offset
@@ -132,8 +134,10 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 | Expression::ModuleReference { target_symbol, .. } => {
                     let target_module = session.modules.get(target_symbol.module_id);
                     let target = target_module.read();
-                    let name =
-                        if let (Some(target_ast), Some(target_dir)) = (&target.ast, &target.dir) {
+                    let name = if let Some(target_ast) = &target.ast {
+                        let target_profile =
+                            session.default_profile_for_module(target_symbol.module_id);
+                        if let Some(target_dir) = target.dir_maybe(target_profile) {
                             let symbols = target_dir.symbols.read();
                             let symbol_data = symbols.get_symbol(target_symbol.local_id);
                             symbol_data
@@ -141,8 +145,11 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                                 .map(|id| target_ast.strings.get(id).to_string())
                         } else {
                             None
-                        };
-                    (name, Some(*target_symbol))
+                        }
+                    } else {
+                        None
+                    };
+                    (name, Some(target_symbol))
                 }
                 // method call: obj.method(...)
                 Expression::Member { name, .. } => {
@@ -155,7 +162,8 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
             let function_name = function_name.unwrap_or_else(|| "<function>".to_string());
 
             // try to get actual parameter names from the function declaration
-            let params = get_function_parameters(session, target_symbol, dynamic_arguments.len());
+            let params =
+                get_function_parameters(session, target_symbol.copied(), dynamic_arguments.len());
 
             let param_labels: Vec<_> = params.iter().map(|p| p.label.clone()).collect();
             let signature_label = format!("{}({})", function_name, param_labels.join(", "));
@@ -194,7 +202,11 @@ fn get_function_parameters(
     if let Some(symbol_id) = target_symbol {
         let target_module = session.modules.get(symbol_id.module_id);
         let target = target_module.read();
-        let (Some(target_ast), Some(target_dir)) = (&target.ast, &target.dir) else {
+        let Some(target_ast) = &target.ast else {
+            return fallback_params(argument_count);
+        };
+        let target_profile = session.default_profile_for_module(symbol_id.module_id);
+        let Some(target_dir) = target.dir_maybe(target_profile) else {
             return fallback_params(argument_count);
         };
         let symbols = target_dir.symbols.read();

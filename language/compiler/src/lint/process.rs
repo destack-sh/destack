@@ -1,6 +1,7 @@
 use destack_compiler_macros::DefineTask;
 use destack_linter::{LintLevel, LintRunner};
 use destack_source::{ModuleId, PackageId};
+use destack_workspace::ProfileId;
 
 use crate::{Compiler, LintError, LintResult, TaskDependencyError, TaskResultCollector};
 
@@ -9,8 +10,11 @@ use crate::{Compiler, LintError, LintResult, TaskDependencyError, TaskResultColl
 #[phase(Lint)]
 pub enum LintTask {
     /// Lint a module.
-    #[task(code = 1, trace = "module={module}")]
-    LintModule { module: ModuleId },
+    #[task(code = 1, trace = "module={module} profile={profile}")]
+    LintModule {
+        module: ModuleId,
+        profile: ProfileId,
+    },
 
     /// Lint a package
     #[task(code = 2, trace = "package={package}")]
@@ -21,9 +25,9 @@ impl Compiler {
     /// Process a lint task.
     pub fn process_lint(&self, task: LintTask) -> LintResult<()> {
         match task {
-            LintTask::LintModule { module } => {
-                self.require_analyze_module(module)?;
-                self.lint_module(module)?
+            LintTask::LintModule { module, profile } => {
+                self.require_analyze_module(module, profile)?;
+                self.lint_module(module, profile)?
             }
             LintTask::LintPackage { package } => self.lint_package(package)?,
         };
@@ -31,8 +35,15 @@ impl Compiler {
     }
 
     /// Ensure a module has been analyzed.
-    pub fn require_lint_module(&self, module_id: ModuleId) -> Result<(), TaskDependencyError> {
-        self.do_require_task_internal_only(LintTask::LintModule { module: module_id })
+    pub fn require_lint_module(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> Result<(), TaskDependencyError> {
+        self.do_require_task_internal_only(LintTask::LintModule {
+            module: module_id,
+            profile,
+        })
     }
 
     /// Ensure a package has been linted.
@@ -43,7 +54,7 @@ impl Compiler {
     }
 
     /// Lint a module.
-    fn lint_module(&self, module_id: ModuleId) -> LintResult<()> {
+    fn lint_module(&self, module_id: ModuleId, profile: ProfileId) -> LintResult<()> {
         let options = self.program.get_linter_options(module_id);
         if !options.enabled {
             return Ok(());
@@ -57,12 +68,14 @@ impl Compiler {
         let ast_diagnostics = runner.lint_module(
             self.program.clone(),
             module.clone(),
+            profile,
             &options,
             LintLevel::Ast,
         );
         let dir_diagnostics = runner.lint_module(
             self.program.clone(),
             module.clone(),
+            profile,
             &options,
             LintLevel::Dir,
         );
@@ -91,7 +104,9 @@ impl Compiler {
         // lint each module
         let mut collector = TaskResultCollector::new();
         for module in modules {
-            let result = self.require_lint_module(module.read().id);
+            let module_id = module.read().id;
+            let profile = self.program.default_profile_id_for_module(module_id);
+            let result = self.require_lint_module(module_id, profile);
             collector.try_collect(result);
         }
 

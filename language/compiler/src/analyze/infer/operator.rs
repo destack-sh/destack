@@ -8,7 +8,7 @@ use destack_dir::{
     BinaryOperator, Expression, LocalInstanceId, LocalNodeId, LocalTypeId, NodeTree, ScalarLiteral,
     StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, UnaryOperator,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -68,6 +68,7 @@ impl Compiler {
             right_id,
             &right_ty,
             &operator_key,
+            ctx.profile,
             tree,
             symbols,
             types,
@@ -224,6 +225,7 @@ impl Compiler {
             left_id,
             &left_ty,
             &operator_key,
+            ctx.profile,
             tree,
             symbols,
             types,
@@ -405,7 +407,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-        _ctx: &mut InferContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // use Try semantics when the receiver implements Try
         if self.is_interface_implemented(left_ty, LanguageItem::Try, types) {
@@ -415,6 +417,7 @@ impl Compiler {
                 left_id,
                 left_ty_id,
                 left_ty,
+                ctx.profile,
                 tree,
                 symbols,
                 types,
@@ -520,6 +523,7 @@ impl Compiler {
             receiver_id,
             &receiver_ty,
             &member_key,
+            ctx.profile,
             tree,
             symbols,
             types,
@@ -692,6 +696,7 @@ impl Compiler {
             *receiver_id,
             &receiver_ty,
             &member_key,
+            ctx.profile,
             tree,
             symbols,
             types,
@@ -820,6 +825,7 @@ impl Compiler {
             left_id,
             left_ty_id,
             &left_ty,
+            ctx.profile,
             tree,
             symbols,
             types,
@@ -860,6 +866,7 @@ impl Compiler {
         receiver_expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -873,6 +880,7 @@ impl Compiler {
             receiver_expression_id,
             receiver_ty,
             &member_key,
+            profile,
             tree,
             symbols,
             types,

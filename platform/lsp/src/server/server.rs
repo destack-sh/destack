@@ -84,7 +84,11 @@ impl DestackLanguageServer {
         let Ok(module_id) = compiler.resolve_path_to_module(&path.to_path_buf()) else {
             return;
         };
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+        let profile = program.default_profile_id_for_module(module_id);
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+            module: module_id,
+            profile,
+        });
         compiler.compile();
 
         // collect diagnostics for this file

@@ -2,7 +2,7 @@ use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, Path, Sym
 
 use crate::{Compiler, ResolveResult};
 
-use destack_workspace::{Module, ModuleDir};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -34,6 +34,7 @@ impl Compiler {
         &self,
         module: &Module,
         dir: &ModuleDir,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -51,6 +52,7 @@ impl Compiler {
                 let remote_module_id = self.resolve_import(
                     module,
                     dir,
+                    profile,
                     expression_id.into_global_any(module.id),
                     DependencySource::ImportStatement,
                     *target,
@@ -72,6 +74,7 @@ impl Compiler {
                 let remote_module_id = self.resolve_import(
                     module,
                     dir,
+                    profile,
                     expression_id.into_global_any(module.id),
                     DependencySource::ExportStatement,
                     *target,
@@ -94,6 +97,7 @@ impl Compiler {
                     module,
                     expression_id,
                     expression_id.into_global_any(module.id),
+                    profile,
                     scope,
                     &path,
                     static_arguments,

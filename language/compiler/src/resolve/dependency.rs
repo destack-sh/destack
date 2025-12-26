@@ -4,7 +4,7 @@ use destack_dir::{
     LocalScopeMark, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleDir};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
 
@@ -20,6 +20,7 @@ impl Compiler {
         &self,
         module: &Module,
         dir: &ModuleDir,
+        _profile: ProfileId,
         node: GlobalNodeIdAny,
         _source: DependencySource,
         target: StringId,
@@ -37,11 +38,9 @@ impl Compiler {
         if !is_relative {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
-            if let Some(&remote_module_id) = global_module
-                .dir()
-                .imported_modules
-                .read()
-                .get(&(None, target))
+            if let Some(global_dir) = global_module.dir_base.as_ref()
+                && let Some(&remote_module_id) =
+                    global_dir.imported_modules.read().get(&(None, target))
             {
                 dir.imported_modules
                     .write()
@@ -76,6 +75,7 @@ impl Compiler {
         &self,
         module: &Module,
         dir: &ModuleDir,
+        profile: ProfileId,
         item_id: LocalNodeId<DependencyItem>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -95,6 +95,7 @@ impl Compiler {
                 let remote_module_id = self.resolve_import(
                     module,
                     dir,
+                    profile,
                     item_id.into_global_any(module.id),
                     *source,
                     *target,
@@ -112,18 +113,17 @@ impl Compiler {
                             module,
                             item_id.into_global_any(module.id),
                             remote_module_id,
+                            profile,
                             key,
                         )?
                     }
                     DependencyMode::Default => {
                         let remote_module = self.program.modules.get(remote_module_id);
                         let remote_module = remote_module.read();
+                        let remote_dir = remote_module.dir_base();
                         (
                             remote_module_id,
-                            remote_module
-                                .dir()
-                                .default_symbol
-                                .into_global(remote_module_id),
+                            remote_dir.default_symbol.into_global(remote_module_id),
                         )
                     }
                     DependencyMode::Namespace => {
@@ -134,12 +134,10 @@ impl Compiler {
                         }
                         let remote_module = self.program.modules.get(remote_module_id);
                         let remote_module = remote_module.read();
+                        let remote_dir = remote_module.dir_base();
                         (
                             remote_module_id,
-                            remote_module
-                                .dir()
-                                .namespace_symbol
-                                .into_global(remote_module_id),
+                            remote_dir.namespace_symbol.into_global(remote_module_id),
                         )
                     }
                 };
@@ -207,11 +205,12 @@ impl Compiler {
         module: &Module,
         node: GlobalNodeIdAny,
         remote_module_id: ModuleId,
+        profile: ProfileId,
         key: StaticKey,
     ) -> ResolveResult<(ModuleId, GlobalSymbolId)> {
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir();
+        let remote_dir = remote_module.dir_base();
         let remote_symbols = remote_dir.symbols.read();
         let remote_scope_id = remote_dir.namespace_scope;
         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);
@@ -233,7 +232,7 @@ impl Compiler {
 
         // search through namespace exports
         let global_symbol = self
-            .resolve_symbol_via_namespace_exports(module, node, remote_module_id, key)
+            .resolve_symbol_via_namespace_exports(module, node, remote_module_id, profile, key)
             .map_err(|e| {
                 // propagate yields, convert other errors to MissingSymbol
                 if matches!(e, ResolveError::Yield { .. }) {
@@ -255,18 +254,17 @@ impl Compiler {
     /// This is used when a symbol isn't found in the direct namespace scope.
     fn resolve_symbol_via_namespace_exports(
         &self,
-        _module: &Module,
+        module: &Module,
         node: GlobalNodeIdAny,
         via_module_id: ModuleId,
+        profile: ProfileId,
         key: StaticKey,
     ) -> ResolveResult<GlobalSymbolId> {
-        // ensure the via module's direct symbols are resolved (so namespace_exports is populated)
-        self.require_resolve_module_direct(via_module_id)?;
-
+        self.require_resolve_module_direct_if_other(module.id, via_module_id, profile)?;
         // get the namespace exports for the via module
         let via_module = self.program.modules.get(via_module_id);
         let via_module = via_module.read();
-        let via_dir = via_module.dir();
+        let via_dir = via_module.dir(profile);
         let via_namespace_scope = via_dir.namespace_scope;
         let namespace_exports: Vec<ModuleId> = via_dir.namespace_exports.read().clone();
         drop(via_module);
@@ -282,12 +280,10 @@ impl Compiler {
             }
             visited.push(namespace_module_id);
 
-            // ensure the namespace module's direct symbols are resolved (may yield)
-            self.require_resolve_module_direct(namespace_module_id)?;
-
+            self.require_resolve_module_direct_if_other(module.id, namespace_module_id, profile)?;
             let namespace_module = self.program.modules.get(namespace_module_id);
             let namespace_module = namespace_module.read();
-            let namespace_dir = namespace_module.dir();
+            let namespace_dir = namespace_module.dir(profile);
             let namespace_symbols = namespace_dir.symbols.read();
 
             // try to find the symbol in this module's namespace

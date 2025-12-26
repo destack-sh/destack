@@ -10,9 +10,10 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, DsConfigOptions, FormatterOptions, LanguageBuiltins, LinterOptions, Module,
-    ModuleAst, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, ProfileRegistry,
-    TsConfigOptions, TsConfigRegistry,
+    ArtifactRegistry, ComptimeEnvSnapshot, DsConfigCompilerOptions, DsConfigOptions,
+    FormatterOptions, LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry,
+    ModuleType, Package, PackageKind, PackageRegistry, ProfileConfig, ProfileFlags, ProfileId,
+    ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -320,5 +321,140 @@ impl Program {
 
         // fall back to program defaults
         self.linter.clone()
+    }
+
+    /// Get the profile id for a module with the default profile selection.
+    pub fn default_profile_id_for_module(&self, module_id: ModuleId) -> ProfileId {
+        let module = self.modules.get(module_id);
+        let module = module.read();
+        let package = self.packages.get(module.package_id);
+        let package = package.read();
+
+        let compiler_options = package
+            .dsconfig
+            .as_ref()
+            .map(|dsconfig| dsconfig.options.compiler.clone())
+            .unwrap_or_default();
+
+        let (target, profile_config) = if let Some(dsconfig) = package.dsconfig.as_ref() {
+            let target = dsconfig
+                .options
+                .default_target
+                .as_ref()
+                .and_then(|name| {
+                    let target_id = TargetId::new(package.id, name);
+                    package.targets.get(&target_id)
+                })
+                .or_else(|| package.targets.values().next())
+                .cloned()
+                .unwrap_or_else(|| Target::js("default"));
+            let profile_config = compiler_options
+                .profile
+                .as_ref()
+                .and_then(|name| dsconfig.options.profiles.get(name));
+            (target, profile_config)
+        } else {
+            (Target::js("default"), None)
+        };
+
+        let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
+        self.profiles.get_or_create(key)
+    }
+
+    /// Get the profile id for a target in the module's package.
+    pub fn profile_id_for_target(
+        &self,
+        module_id: ModuleId,
+        target_id: &TargetId,
+    ) -> Option<ProfileId> {
+        let module = self.modules.get(module_id);
+        let module = module.read();
+        let package = self.packages.get(module.package_id);
+        let package = package.read();
+        let target = package
+            .targets
+            .get(target_id)
+            .cloned()
+            .or_else(|| Self::implicit_target_for_name(&target_id.name))?;
+
+        let compiler_options = package
+            .dsconfig
+            .as_ref()
+            .map(|dsconfig| dsconfig.options.compiler.clone())
+            .unwrap_or_default();
+
+        let profile_config = package.dsconfig.as_ref().and_then(|dsconfig| {
+            target
+                .profile
+                .as_ref()
+                .or(compiler_options.profile.as_ref())
+                .and_then(|name| dsconfig.options.profiles.get(name))
+        });
+
+        let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
+        Some(self.profiles.get_or_create(key))
+    }
+
+    fn implicit_target_for_name(name: &str) -> Option<Target> {
+        match name {
+            "default" => Some(Target::js(name)),
+            "js" => Some(Target::js(name)),
+            "ts" => Some(Target::ts(name)),
+            "node" => Some(Target::node(name)),
+            "wasm" => Some(Target::wasm(name)),
+            "wasm-wasi" | "wasi" => Some(Target::wasm_wasi(name)),
+            "native" => Some(Target::native(name)),
+            _ => None,
+        }
+    }
+
+    /// Build a profile key for a target.
+    fn profile_key_for_target(
+        target: &Target,
+        compiler_options: &DsConfigCompilerOptions,
+        profile_config: Option<&ProfileConfig>,
+    ) -> ProfileKey {
+        let output = profile_config
+            .and_then(|profile| profile.output)
+            .unwrap_or(target.output);
+        let runtime = profile_config
+            .and_then(|profile| profile.runtime)
+            .unwrap_or(target.runtime);
+        let platform = profile_config
+            .and_then(|profile| profile.platform)
+            .unwrap_or(target.platform);
+        let debug = profile_config
+            .and_then(|profile| profile.debug)
+            .unwrap_or(target.debug);
+
+        let lib = profile_config
+            .and_then(|profile| profile.lib.as_ref())
+            .cloned()
+            .or_else(|| target.lib.clone())
+            .or_else(|| {
+                if compiler_options.lib.is_empty() {
+                    None
+                } else {
+                    Some(compiler_options.lib.clone())
+                }
+            })
+            .unwrap_or_else(|| {
+                let derived_target = Target {
+                    runtime,
+                    platform,
+                    ..Target::default()
+                };
+                derived_target.derived_lib()
+            });
+
+        let env = profile_config
+            .and_then(|profile| profile.comptime_env.as_ref())
+            .or(compiler_options.comptime_env.as_ref())
+            .map(|keys| ComptimeEnvSnapshot::from_env_whitelist(keys))
+            .unwrap_or_else(ComptimeEnvSnapshot::from_env_all);
+
+        let flags = ProfileFlags::from(compiler_options);
+
+        ProfileKey::new(output, runtime, platform, lib, debug, env, flags)
     }
 }

@@ -64,7 +64,11 @@ pub fn prepare_type_hierarchy(
     // check if it's a type
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();
@@ -107,7 +111,8 @@ pub fn supertypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierar
     // get the lineage for this type
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let Some(dir) = &module.dir else {
+    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let types = dir.types.read();
@@ -152,7 +157,8 @@ pub fn subtypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarch
     // search all modules for types that extend/implement this type
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(dir) = &module.dir else {
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             continue;
         };
         let types = dir.types.read();
@@ -183,7 +189,11 @@ pub fn type_hierarchy_item_from_symbol(
 ) -> Option<TypeHierarchyItem> {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();

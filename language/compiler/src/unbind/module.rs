@@ -2,7 +2,7 @@ use destack_ast::{self as ast};
 use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_source::{FileId, Span};
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 use crate::Compiler;
 
@@ -26,16 +26,29 @@ impl Compiler {
     }
 
     /// Unbind a module's DIR tree to an AST tree.
-    pub fn unbind_module(&self, module: &Module) -> UnboundModule {
-        let dir = module.dir();
+    pub fn unbind_module(&self, module: &Module, profile: ProfileId) -> UnboundModule {
+        if let Some(dir) = module.dir_maybe(profile) {
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            return self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots);
+        }
+        let dir = module.dir_base();
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
+        self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots)
+    }
 
+    fn unbind_module_from_parts(
+        &self,
+        module: &Module,
+        tree: &dir::NodeTree,
+        symbols: &dir::SymbolTable,
+        roots: &[dir::LocalNodeId<dir::Expression>],
+    ) -> UnboundModule {
         // rebuild the AST tree
         let mut ast_tree = ast::NodeTree::new();
         let mut ast_strings = StringPool::new();
-        let roots: Vec<ast::LocalNodeId<ast::Expression>> = dir
-            .roots
+        let roots: Vec<ast::LocalNodeId<ast::Expression>> = roots
             .iter()
             .map(|expression_id| {
                 self.unbind_expression(

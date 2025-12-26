@@ -3,7 +3,7 @@ use destack_dir::{
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
     SymbolKind, SymbolSpace, SymbolTable,
 };
-use destack_workspace::{BUILTIN_PACKAGE_ID, Module};
+use destack_workspace::{BUILTIN_PACKAGE_ID, Module, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -108,6 +108,7 @@ impl Compiler {
     pub(super) fn resolve_prelude_symbol(
         &self,
         name: StringId,
+        profile: ProfileId,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // check if prelude injection is enabled
         if !self.options.inject_prelude {
@@ -121,12 +122,12 @@ impl Compiler {
         let prelude_module_id = builtins.prelude_module_id;
 
         // ensure the prelude module has been resolved (may yield)
-        self.require_resolve_module(prelude_module_id)?;
+        self.require_resolve_module(prelude_module_id, profile)?;
 
         // get the prelude module
         let prelude_module = self.program.modules.get(prelude_module_id);
         let prelude_module = prelude_module.read();
-        let prelude_dir = prelude_module.dir();
+        let prelude_dir = prelude_module.dir(profile);
         let symbols = prelude_dir.symbols.read();
 
         // look up symbol by name in prelude's namespace scope
@@ -153,6 +154,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         prelude_symbol: GlobalSymbolId,
+        profile: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         tree: &mut NodeTree,
@@ -172,7 +174,7 @@ impl Compiler {
         let prelude_module_id = prelude_symbol.module_id;
         let prelude_module = self.program.modules.get(prelude_module_id);
         let prelude_module = prelude_module.read();
-        let prelude_symbols = prelude_module.dir().symbols.read();
+        let prelude_symbols = prelude_module.dir(profile).symbols.read();
 
         let local_symbol_id = prelude_symbol.local_id;
         let symbol = prelude_symbols.get_symbol(local_symbol_id);
@@ -282,6 +284,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
+        profile: ProfileId,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
@@ -353,13 +356,14 @@ impl Compiler {
 
         // try prelude if enabled (skip for builtin modules to avoid circular dependencies)
         if module.package_id != BUILTIN_PACKAGE_ID
-            && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment)?
+            && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?
         {
             return self.resolve_prelude_path(
                 module,
                 expression_id,
                 node,
                 prelude_symbol,
+                profile,
                 path,
                 static_arguments,
                 tree,
@@ -522,6 +526,7 @@ impl Compiler {
         &self,
         node: GlobalNodeIdAny,
         start_symbol: GlobalSymbolId,
+        profile: ProfileId,
     ) -> ResolveResult<GlobalSymbolId> {
         // track the original calling module (from node)
         // (we don't need to require_task for this module since we're being called DURING its resolution)
@@ -540,14 +545,16 @@ impl Compiler {
             visited.push(current);
 
             // ensure the target module's direct symbols are resolved (may yield) - skip if it's the calling module
-            if current.module_id != calling_module {
-                self.require_resolve_module_direct(current.module_id)?;
-            }
+            self.require_resolve_module_direct_if_other(
+                calling_module,
+                current.module_id,
+                profile,
+            )?;
 
             // get the symbol
             let module = self.program.modules.get(current.module_id);
             let module = module.read();
-            let symbols = module.dir().symbols.read();
+            let symbols = module.dir(profile).symbols.read();
             let symbol = symbols.get_symbol(current.local_id);
 
             // if symbol already has canonical_symbol computed, use it (optimization)
@@ -570,11 +577,12 @@ impl Compiler {
         &self,
         node: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
+        profile: ProfileId,
     ) -> ResolveResult<GlobalSymbolId> {
         // get the target_symbol
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let symbols = module.dir().symbols.read();
+        let symbols = module.dir(profile).symbols.read();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let Some(target_symbol) = symbol.target_symbol else {
             // no target, this symbol is its own final
@@ -584,12 +592,12 @@ impl Compiler {
         drop(module);
 
         // follow the chain from target
-        let canonical_symbol = self.resolve_canonical_symbol_chain(node, target_symbol)?;
+        let canonical_symbol = self.resolve_canonical_symbol_chain(node, target_symbol, profile)?;
 
         // set the canonical_symbol
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let mut symbols = module.dir().symbols.write();
+        let mut symbols = module.dir(profile).symbols.write();
         symbols.get_symbol_mut(symbol_id.local_id).canonical_symbol = Some(canonical_symbol);
 
         Ok(canonical_symbol)
@@ -622,7 +630,8 @@ outer: while (true) {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
 
         // find the outer while loop's symbol
@@ -678,7 +687,8 @@ outer: for (let i = 0; i < 10; i++) {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
 
         // find the continue expression
@@ -731,7 +741,8 @@ myblock: {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -815,7 +826,8 @@ outer: while (true) {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -859,7 +871,8 @@ outer: loop {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
 
         let found_break = tree.iter_nodes_of_type::<Expression>().find(|(_, expr)| {
@@ -899,7 +912,8 @@ let z = y;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let (x_symbol_id, x_node) = test.resolve_to_node::<Pattern>("test.ds", "x").unwrap();
 
@@ -969,10 +983,12 @@ export let B = A + 1;
 
         let module_a = test.module("a.ds");
         let module_a = module_a.read();
-        let tree_a = module_a.dir().tree.read();
+        let profile_a = test.default_profile_id(module_a.id);
+        let tree_a = module_a.dir(profile_a).tree.read();
         let module_b = test.program.modules.get(module_b_id);
         let module_b = module_b.read();
-        let tree_b = module_b.dir().tree.read();
+        let profile_b = test.default_profile_id(module_b_id);
+        let tree_b = module_b.dir(profile_b).tree.read();
 
         // export let A = 1;
         let (a_symbol_id, a_node_id) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
@@ -1450,7 +1466,8 @@ let b = obj.y;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
 
@@ -1500,7 +1517,8 @@ let a = obj.inner.value;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
 
         let (_a_symbol_id, a_node) = test.resolve_to_node::<Pattern>("test.ds", "a").unwrap();
@@ -1557,7 +1575,8 @@ export let C = A + B;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let symbols = dir.symbols.read();
 
         let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();

@@ -6,7 +6,7 @@ use destack_dir::{
     Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
     VarianceBound,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Infer the result type of a scalar literal.
@@ -695,6 +695,7 @@ impl Compiler {
     pub(super) fn resolve_remote_symbol_value_type(
         &self,
         _module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
         types: &mut TypeTable,
@@ -702,12 +703,12 @@ impl Compiler {
         let remote_module_id = target_symbol.module_id;
 
         // ensure the remote module is analyzed (may yield)
-        self.require_analyze_module(remote_module_id)?;
+        self.require_analyze_module(remote_module_id, profile)?;
 
         // look up the type in the remote module's TypeTable
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
-        let remote_types = remote_module.dir().types.read();
+        let remote_types = remote_module.dir(profile).types.read();
 
         // copy the type into our local TypeTable
         if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {

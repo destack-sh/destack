@@ -52,7 +52,8 @@ impl TestProgram {
     pub fn dump_module_nodes(&self, module: &Arc<RwLock<Module>>) {
         let strings = (*self.program.strings).clone().into_immutable();
         let module = module.read();
-        let Some(dir) = &module.dir else {
+        let profile = self.program.default_profile_id_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             println!("{}", "=".repeat(80));
             println!("{} [NODE] (no DIR)", module.uri);
             println!("{}", "=".repeat(80));
@@ -74,7 +75,8 @@ impl TestProgram {
     pub fn dump_module_symbols(&self, module: &Arc<RwLock<Module>>) {
         let strings = (*self.program.strings).clone().into_immutable();
         let module = module.read();
-        let Some(dir) = &module.dir else {
+        let profile = self.program.default_profile_id_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             println!("{}", "=".repeat(80));
             println!("{} [SYMBOL] (no DIR)", module.uri);
             println!("{}", "=".repeat(80));

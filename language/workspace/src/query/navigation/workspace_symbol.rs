@@ -35,7 +35,11 @@ pub fn workspace_symbols(
     // search all modules
     'outer: for module in session.modules.iter() {
         let module = module.read();
-        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        let Some(ast) = &module.ast else {
+            continue;
+        };
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             continue;
         };
         let dir_tree = dir.tree.read();

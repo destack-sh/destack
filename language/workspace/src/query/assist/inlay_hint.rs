@@ -62,7 +62,11 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
         return Vec::new();
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let module_id = module.id;
@@ -182,7 +186,11 @@ fn get_parameter_names(
     // get target module AST/DIR
     let target_module = session.modules.get(symbol_id.module_id);
     let target = target_module.read();
-    let (Some(ast), Some(dir)) = (&target.ast, &target.dir) else {
+    let Some(ast) = &target.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = target.dir_maybe(profile) else {
         return Vec::new();
     };
     let symbols = dir.symbols.read();

@@ -7,7 +7,7 @@ use destack_dir::{
     PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
     TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -1693,6 +1693,7 @@ impl Compiler {
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
@@ -1700,7 +1701,7 @@ impl Compiler {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
-                Some(self.canonical_symbol_id(module, symbols, *target_symbol))
+                Some(self.canonical_symbol_id(module, symbols, profile, *target_symbol))
             }
             _ => None,
         }
@@ -1767,7 +1768,8 @@ impl Compiler {
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // resolve the canonical symbol for imported references
-        let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+        let canonical_symbol =
+            self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
 
         // pick the base type for the symbol
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
@@ -1775,7 +1777,13 @@ impl Compiler {
         } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
         } else if canonical_symbol.module_id != module.id {
-            self.resolve_remote_symbol_value_type(module, expression_id, canonical_symbol, types)?
+            self.resolve_remote_symbol_value_type(
+                module,
+                ctx.profile,
+                expression_id,
+                canonical_symbol,
+                types,
+            )?
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -1810,6 +1818,7 @@ impl Compiler {
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            ctx.profile,
             tree,
             symbols,
             types,

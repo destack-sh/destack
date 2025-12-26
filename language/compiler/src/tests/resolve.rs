@@ -10,7 +10,8 @@ impl TestProgram {
     pub fn resolve_to_symbol(&self, module_uri: &str, path: &str) -> Option<GlobalSymbolId> {
         let module = self.module(module_uri);
         let module = module.read();
-        let dir = module.dir();
+        let profile = self.default_profile_id(module.id);
+        let dir = module.dir(profile);
         let symbols = dir.symbols.read();
 
         let segments: Vec<&str> = path.split('.').collect();
@@ -48,7 +49,8 @@ impl TestProgram {
         let symbol_id = self.resolve_to_symbol(module_uri, path)?;
         let module = self.module(module_uri);
         let module = module.read();
-        let symbols = module.dir().symbols.read();
+        let profile = self.default_profile_id(module.id);
+        let symbols = module.dir(profile).symbols.read();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         Some((symbol_id, symbol.primary_declaration?))
     }
@@ -119,7 +121,8 @@ impl TestProgram {
     pub fn resolve_label_symbol(&self, module_uri: &str, name: &str) -> Option<GlobalSymbolId> {
         let module = self.module(module_uri);
         let module = module.read();
-        let symbols = module.dir().symbols.read();
+        let profile = self.default_profile_id(module.id);
+        let symbols = module.dir(profile).symbols.read();
         let name_id = self.program.strings.intern(name);
 
         // search all symbols for a matching label symbol

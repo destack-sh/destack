@@ -1,6 +1,6 @@
 use crate::{BindResult, Compiler, TaskDependencyError};
 use destack_source::ModuleId;
-use destack_workspace::ModuleDir;
+use destack_workspace::ModuleDirBase;
 
 impl Compiler {
     /// Ensure a module has been bound (DIR built).
@@ -17,7 +17,8 @@ impl Compiler {
         // initialize DIR
         {
             let mut module = module.write();
-            module.dir = Some(ModuleDir::new(module.id, module.version));
+            module.dir_base = Some(ModuleDirBase::new(module.id, module.version));
+            module.dirs.clear();
         }
 
         // bind module roots
@@ -27,13 +28,13 @@ impl Compiler {
         };
         {
             let mut module = module.write();
-            module.dir_mut().roots.extend(roots);
+            module.dir_base_mut().roots.extend(roots);
         };
 
         // attach annotations
         {
             let module = module.read();
-            let dir = module.dir();
+            let dir = module.dir_base();
             let ast = module.ast();
             let mut tree = dir.tree.write();
             let mut symbols = dir.symbols.write();
