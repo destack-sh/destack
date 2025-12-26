@@ -301,7 +301,7 @@ pub fn format_symbol_name(
 ) -> String {
     let module = modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(dir) = &module.dir_base else {
+    let Some(dir) = module.dir_base_maybe() else {
         return "<unknown>".to_string();
     };
     let symbols = dir.symbols.read();

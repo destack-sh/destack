@@ -6,9 +6,7 @@ use parking_lot::RwLock;
 
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{
-    ModuleAst, ModuleDir, ModuleDirBase, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId,
-};
+use crate::{ModuleAst, ModuleDir, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId};
 
 /// A Module is a single source unit.
 /// Destack treats all modules as "strict mode".
@@ -41,7 +39,7 @@ pub struct Module {
     /// The AST-level module data (syntactic). None until Import phase completes.
     pub ast: Option<ModuleAst>,
     /// The base DIR-level module data (bind-only, profile-independent).
-    pub dir_base: Option<ModuleDirBase>,
+    pub dir_base: Option<ModuleDir>,
     /// The DIR-level module data per profile (semantic, profile-dependent).
     pub dirs: Vec<ModuleDir>,
     /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
@@ -134,7 +132,7 @@ impl Module {
     /// # Panics
     /// Panics if called before Bind phase completes.
     #[inline]
-    pub fn dir_base(&self) -> &ModuleDirBase {
+    pub fn dir_base(&self) -> &ModuleDir {
         self.dir_base.as_ref().expect("no base DIR on {self:?}")
     }
 
@@ -143,8 +141,14 @@ impl Module {
     /// # Panics
     /// Panics if called before Bind phase completes.
     #[inline]
-    pub fn dir_base_mut(&mut self) -> &mut ModuleDirBase {
+    pub fn dir_base_mut(&mut self) -> &mut ModuleDir {
         self.dir_base.as_mut().expect("no base DIR on {self:?}")
+    }
+
+    /// Get the base DIR if it exists.
+    #[inline]
+    pub fn dir_base_maybe(&self) -> Option<&ModuleDir> {
+        self.dir_base.as_ref()
     }
 
     /// Get the DIR for a profile.
@@ -155,7 +159,7 @@ impl Module {
     pub fn dir(&self, profile: ProfileId) -> &ModuleDir {
         self.dirs
             .iter()
-            .find(|dir| dir.profile_id == profile)
+            .find(|dir| dir.profile_id == Some(profile))
             .unwrap_or_else(|| panic!("no DIR for profile {profile:?} on {self:?}"))
     }
 
@@ -167,14 +171,14 @@ impl Module {
     pub fn dir_mut(&mut self, profile: ProfileId) -> &mut ModuleDir {
         self.dirs
             .iter_mut()
-            .find(|dir| dir.profile_id == profile)
+            .find(|dir| dir.profile_id == Some(profile))
             .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
     }
 
     /// Get the DIR for a profile if it exists.
     #[inline]
     pub fn dir_maybe(&self, profile: ProfileId) -> Option<&ModuleDir> {
-        self.dirs.iter().find(|dir| dir.profile_id == profile)
+        self.dirs.iter().find(|dir| dir.profile_id == Some(profile))
     }
 
     /// Get the MIR for a target.

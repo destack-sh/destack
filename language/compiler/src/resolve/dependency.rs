@@ -20,7 +20,7 @@ impl Compiler {
         &self,
         module: &Module,
         dir: &ModuleDir,
-        _profile: ProfileId,
+        profile: ProfileId,
         node: GlobalNodeIdAny,
         _source: DependencySource,
         target: StringId,
@@ -36,11 +36,18 @@ impl Compiler {
 
         // check if already resolved globally
         if !is_relative {
+            self.require_resolve_module_prepare_if_other(
+                module.id,
+                self.program.root_module_id,
+                profile,
+            )?;
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
-            if let Some(global_dir) = global_module.dir_base.as_ref()
-                && let Some(&remote_module_id) =
-                    global_dir.imported_modules.read().get(&(None, target))
+            if let Some(&remote_module_id) = global_module
+                .dir(profile)
+                .imported_modules
+                .read()
+                .get(&(None, target))
             {
                 dir.imported_modules
                     .write()
@@ -118,9 +125,14 @@ impl Compiler {
                         )?
                     }
                     DependencyMode::Default => {
+                        self.require_resolve_module_prepare_if_other(
+                            module.id,
+                            remote_module_id,
+                            profile,
+                        )?;
                         let remote_module = self.program.modules.get(remote_module_id);
                         let remote_module = remote_module.read();
-                        let remote_dir = remote_module.dir_base();
+                        let remote_dir = remote_module.dir(profile);
                         (
                             remote_module_id,
                             remote_dir.default_symbol.into_global(remote_module_id),
@@ -132,9 +144,14 @@ impl Compiler {
                             // `export * from "..."` -> register as namespace export
                             dir.namespace_exports.write().push(remote_module_id);
                         }
+                        self.require_resolve_module_prepare_if_other(
+                            module.id,
+                            remote_module_id,
+                            profile,
+                        )?;
                         let remote_module = self.program.modules.get(remote_module_id);
                         let remote_module = remote_module.read();
-                        let remote_dir = remote_module.dir_base();
+                        let remote_dir = remote_module.dir(profile);
                         (
                             remote_module_id,
                             remote_dir.namespace_symbol.into_global(remote_module_id),
@@ -208,9 +225,10 @@ impl Compiler {
         profile: ProfileId,
         key: StaticKey,
     ) -> ResolveResult<(ModuleId, GlobalSymbolId)> {
+        self.require_resolve_module_prepare_if_other(module.id, remote_module_id, profile)?;
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir_base();
+        let remote_dir = remote_module.dir(profile);
         let remote_symbols = remote_dir.symbols.read();
         let remote_scope_id = remote_dir.namespace_scope;
         let remote_scope = remote_symbols.get_scope_by_id(remote_scope_id);

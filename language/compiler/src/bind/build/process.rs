@@ -1,6 +1,6 @@
 use crate::{BindResult, Compiler, TaskDependencyError};
 use destack_source::ModuleId;
-use destack_workspace::ModuleDirBase;
+use destack_workspace::ModuleDir;
 
 impl Compiler {
     /// Ensure a module has been bound (DIR built).
@@ -17,7 +17,7 @@ impl Compiler {
         // initialize DIR
         {
             let mut module = module.write();
-            module.dir_base = Some(ModuleDirBase::new(module.id, module.version));
+            module.dir_base = Some(ModuleDir::new_base(module.id, module.version));
             module.dirs.clear();
         }
 
