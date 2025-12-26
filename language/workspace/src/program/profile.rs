@@ -118,11 +118,11 @@ pub struct Profile {
 #[derive(Debug)]
 pub struct ProfileRegistry {
     /// Next profile id to assign.
-    next_id: AtomicU32,
+    next_profile_id: AtomicU32,
     /// Mapping from profile key to id.
-    by_key: DashMap<ProfileKey, ProfileId>,
+    profile_by_key: DashMap<ProfileKey, ProfileId>,
     /// Mapping from profile id to profile data.
-    by_id: DashMap<ProfileId, Profile>,
+    profile_by_id: DashMap<ProfileId, Profile>,
 }
 
 impl Default for ProfileRegistry {
@@ -135,31 +135,31 @@ impl ProfileRegistry {
     /// Create a new profile registry.
     pub fn new() -> Self {
         Self {
-            next_id: AtomicU32::new(1),
-            by_key: DashMap::new(),
-            by_id: DashMap::new(),
+            next_profile_id: AtomicU32::new(1),
+            profile_by_key: DashMap::new(),
+            profile_by_id: DashMap::new(),
         }
     }
 
     /// Get or create a profile id for the given key.
     pub fn get_or_create(&self, key: ProfileKey) -> ProfileId {
-        if let Some(existing) = self.by_key.get(&key) {
+        if let Some(existing) = self.profile_by_key.get(&key) {
             return *existing;
         }
 
-        let id = ProfileId::new(self.next_id.fetch_add(1, Ordering::Relaxed));
-        let entry = self.by_key.entry(key.clone()).or_insert(id);
+        let id = ProfileId::new(self.next_profile_id.fetch_add(1, Ordering::Relaxed));
+        let entry = self.profile_by_key.entry(key.clone()).or_insert(id);
         if *entry != id {
             return *entry;
         }
 
-        self.by_id.insert(id, Profile { id, key });
+        self.profile_by_id.insert(id, Profile { id, key });
         id
     }
 
     /// Get a profile by id.
     pub fn get(&self, id: ProfileId) -> Option<Profile> {
-        self.by_id.get(&id).map(|entry| entry.clone())
+        self.profile_by_id.get(&id).map(|entry| entry.clone())
     }
 }
 

@@ -5,6 +5,27 @@ use destack_source::ModuleId;
 use destack_workspace::{ModuleDir, ProfileId};
 
 impl Compiler {
+    /// Prepare the per profile DIR by cloning from the base DIR.
+    pub(super) fn resolve_module_prepare(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ResolveResult<()> {
+        let module = self.program.modules.get(module_id);
+        let mut module = module.write();
+        if module
+            .dirs
+            .iter()
+            .any(|dir| dir.profile_id == Some(profile))
+        {
+            return Ok(());
+        }
+        let base = module.dir_base();
+        let dir = ModuleDir::from_base(profile, base);
+        module.dirs.push(dir);
+        Ok(())
+    }
+
     /// Resolve expressions, dependencies, and declarations (phase 1).
     pub(super) fn resolve_module_direct(
         &self,
@@ -12,19 +33,6 @@ impl Compiler {
         profile: ProfileId,
     ) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
-
-        // initialize DIR for this profile
-        {
-            let mut module = module.write();
-            if module.dirs.iter().all(|dir| dir.profile_id != profile) {
-                let dir = {
-                    let base = module.dir_base.as_ref().expect("no base DIR on {module:?}");
-                    ModuleDir::from_base(profile, base)
-                };
-                module.dirs.push(dir);
-            }
-        }
-
         let module = module.read();
         let dir = module.dir(profile);
         let mut tree = dir.tree.write();

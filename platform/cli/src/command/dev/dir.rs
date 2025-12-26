@@ -76,6 +76,7 @@ pub fn run(args: &DirArgs) -> i32 {
 
         for module in result.program.modules.iter() {
             let module = module.read();
+            let profile = result.program.default_profile_id_for_module(module.id);
 
             // dump file representation
             if dump_file {
@@ -88,7 +89,7 @@ pub fn run(args: &DirArgs) -> i32 {
 
             // dump node representation
             if dump_node {
-                let dir = module.dir();
+                let dir = module.dir(profile);
                 let tree = dir.tree.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);
                 console::info("=".repeat(80).as_str());
@@ -103,7 +104,7 @@ pub fn run(args: &DirArgs) -> i32 {
 
             // dump symbol representation
             if dump_symbol {
-                let dir = module.dir();
+                let dir = module.dir(profile);
                 let tree = dir.tree.read();
                 let symbols = dir.symbols.read();
                 let mut dumper = Dumper::new(&strings, &tree, dump_options);

@@ -151,7 +151,7 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
-    // nocheckin TODO #Incomplete: support (profile-keyed?) ImportMeta in DIR
+    // nocheckin TODO #Incomplete: support (per-profile?) ImportMeta in DIR
     //  (as Expression variant? also get it from.. Module?)
 
     /// Unresolved path.
