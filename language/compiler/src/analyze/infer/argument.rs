@@ -379,7 +379,18 @@ impl Compiler {
 
         // validate value arguments against the declared type
         if let StaticArgument::Evaluated { value, .. } = resolved_argument {
-            let value_ty_id = self.convert_static_expression_to_type_id(value, types);
+            let ty = match value {
+                StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(value.clone()),
+                },
+                StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
+                    value: value.clone(),
+                },
+                _ => Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+            };
+            let value_ty_id = types.insert_type(ty);
             if !self.is_infer_var_type(static_parameter.declared_type_id, types)
                 && self.check_is_type_assignable(
                     static_parameter.declared_type_id,
@@ -685,27 +696,6 @@ impl Compiler {
                 },
             },
             StaticArgument::Unevaluated { .. } => Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
-        };
-
-        types.insert_type(ty)
-    }
-
-    /// Convert a static expression into a type id for value checking.
-    pub(super) fn convert_static_expression_to_type_id(
-        &self,
-        expression: &StaticExpression,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        let ty = match expression {
-            StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(value.clone()),
-            },
-            StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
-                value: value.clone(),
-            },
-            _ => Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
         };

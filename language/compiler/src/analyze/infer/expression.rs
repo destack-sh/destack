@@ -343,22 +343,24 @@ impl Compiler {
                     self.canonical_symbol_id(module, symbols, *target_symbol);
 
                 // pick the base type for the symbol
-                let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
-                    narrowed_ty_id
-                } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
-                    value_ty_id
-                } else if canonical_symbol.module_id != module.id {
-                    self.resolve_remote_symbol_value_type(
-                        module,
-                        expression_id,
-                        canonical_symbol,
-                        types,
-                    )?
-                } else {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, expression_id)
+                let base_ty_id = {
+                    if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
+                        narrowed_ty_id
+                    } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
+                        value_ty_id
+                    } else if canonical_symbol.module_id != module.id {
+                        self.resolve_remote_symbol_value_type(
+                            module,
+                            expression_id,
+                            canonical_symbol,
+                            types,
+                        )?
+                    } else {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        types.insert_type_from(ty, expression_id)
+                    }
                 };
 
                 if let Some(static_argument_ids) = static_arguments.as_deref() {

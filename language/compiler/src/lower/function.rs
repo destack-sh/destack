@@ -179,7 +179,8 @@ impl ModuleLowerer<'_> {
         Ok(function_id)
     }
 
-    /// Resolve a function return type for lowering. nocheckin #Suspicious
+    /// Resolve a function return type for lowering.
+    /// nocheckin #Suspicious #Cleanup: why don't all functions have value types post-Analyze?
     fn resolve_function_return_type(
         &mut self,
         function_symbol: GlobalSymbolId,
