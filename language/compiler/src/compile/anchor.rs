@@ -46,7 +46,12 @@ impl DiagnosticAnchor {
             Self::Node(node_id) => {
                 let module = program.modules.get(node_id.module_id);
                 let module = module.read();
-                let source_id = module.dir().tree.read().get_source(node_id.local_id.id);
+                let profile = program.default_profile_id_for_module(module.id);
+                let source_id = module
+                    .dir(profile)
+                    .tree
+                    .read()
+                    .get_source(node_id.local_id.id);
                 let span = module.ast().tree.get_span_by_id(source_id);
                 Some((module.file_id, span))
             }

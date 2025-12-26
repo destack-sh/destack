@@ -76,7 +76,11 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
     // find all import and re-export statements
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let dir_tree = dir.tree.read();

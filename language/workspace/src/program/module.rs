@@ -6,7 +6,9 @@ use parking_lot::RwLock;
 
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{ModuleAst, ModuleDir, ModuleMir, ModuleType, TargetId, TsConfigId};
+use crate::{
+    ModuleAst, ModuleDir, ModuleDirBase, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId,
+};
 
 /// A Module is a single source unit.
 /// Destack treats all modules as "strict mode".
@@ -38,8 +40,10 @@ pub struct Module {
     //   there are significant trade-offs here with fine granularity vs predictable access patterns)
     /// The AST-level module data (syntactic). None until Import phase completes.
     pub ast: Option<ModuleAst>,
-    /// The DIR-level module data (semantic, target-independent). None until Bind phase completes.
-    pub dir: Option<ModuleDir>, // nocheckin: make ModuleDir per-profile (reuse bind-only ModuleDir somehow?)
+    /// The base DIR-level module data (bind-only, profile-independent).
+    pub dir_base: Option<ModuleDirBase>,
+    /// The DIR-level module data per profile (semantic, profile-dependent).
+    pub dirs: Vec<ModuleDir>,
     /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
     pub mirs: Vec<ModuleMir>,
 }
@@ -70,7 +74,8 @@ impl Module {
             module_type,
             language_type,
             ast: None,
-            dir: None,
+            dir_base: None,
+            dirs: Vec::new(),
             mirs: Vec::new(),
         }
     }
@@ -100,7 +105,8 @@ impl Module {
             module_type,
             language_type,
             ast: Some(ast),
-            dir: None,
+            dir_base: None,
+            dirs: Vec::new(),
             mirs: Vec::new(),
         }
     }
@@ -123,22 +129,52 @@ impl Module {
         self.ast.as_mut().expect("no AST on {self:?}")
     }
 
-    /// Get the DIR.
+    /// Get the base DIR.
     ///
     /// # Panics
     /// Panics if called before Bind phase completes.
     #[inline]
-    pub fn dir(&self) -> &ModuleDir {
-        self.dir.as_ref().expect("no DIR on {self:?}")
+    pub fn dir_base(&self) -> &ModuleDirBase {
+        self.dir_base.as_ref().expect("no base DIR on {self:?}")
     }
 
-    /// Get the DIR mutably.
+    /// Get the base DIR mutably.
     ///
     /// # Panics
     /// Panics if called before Bind phase completes.
     #[inline]
-    pub fn dir_mut(&mut self) -> &mut ModuleDir {
-        self.dir.as_mut().expect("no DIR on {self:?}")
+    pub fn dir_base_mut(&mut self) -> &mut ModuleDirBase {
+        self.dir_base.as_mut().expect("no base DIR on {self:?}")
+    }
+
+    /// Get the DIR for a profile.
+    ///
+    /// # Panics
+    /// Panics if called before Resolve phase completes for the profile.
+    #[inline]
+    pub fn dir(&self, profile: ProfileId) -> &ModuleDir {
+        self.dirs
+            .iter()
+            .find(|dir| dir.profile_id == profile)
+            .unwrap_or_else(|| panic!("no DIR for profile {profile:?} on {self:?}"))
+    }
+
+    /// Get the DIR for a profile mutably.
+    ///
+    /// # Panics
+    /// Panics if called before Resolve phase completes for the profile.
+    #[inline]
+    pub fn dir_mut(&mut self, profile: ProfileId) -> &mut ModuleDir {
+        self.dirs
+            .iter_mut()
+            .find(|dir| dir.profile_id == profile)
+            .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
+    }
+
+    /// Get the DIR for a profile if it exists.
+    #[inline]
+    pub fn dir_maybe(&self, profile: ProfileId) -> Option<&ModuleDir> {
+        self.dirs.iter().find(|dir| dir.profile_id == profile)
     }
 
     /// Get the MIR for a target.

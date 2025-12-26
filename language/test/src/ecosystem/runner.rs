@@ -325,7 +325,11 @@ fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
                 };
             }
         };
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+        let profile = program.default_profile_id_for_module(module_id);
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+            module: module_id,
+            profile,
+        });
     }
 
     compiler.compile();

@@ -3,7 +3,7 @@ use destack_dir::{
     Expression, GlobalNodeIdAny, GlobalSymbolId, Instance, LocalInstanceId, LocalNodeId,
     LocalTypeId, NodeTree, NodeType, StaticArgument, SymbolTable, SymbolType, Type, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Whether a symbol is instantiable (i.e. can have an instance type).
@@ -23,6 +23,7 @@ impl Compiler {
     pub(super) fn register_instances(
         &self,
         module: &Module,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -49,6 +50,7 @@ impl Compiler {
 
             if let Some(resolved) = self.resolve_type_reference_static_arguments(
                 module,
+                profile,
                 source_id,
                 symbol,
                 static_arguments.as_deref(),

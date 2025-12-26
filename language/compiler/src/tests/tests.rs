@@ -18,7 +18,7 @@ use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType, MemoryFileSystem,
     ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
 };
-use destack_workspace::{Module, Program, Session, TargetId};
+use destack_workspace::{Module, ProfileId, Program, Session, TargetId};
 use parking_lot::RwLock;
 
 use crate::{
@@ -187,13 +187,26 @@ impl TestProgram {
             .unwrap_or_else(|e| panic!("failed to register module: {e:?}"))
     }
 
+    /// Get the default profile id for a module.
+    pub fn default_profile_id(&self, module_id: ModuleId) -> ProfileId {
+        self.program.default_profile_id_for_module(module_id)
+    }
+
+    /// Get the default profile id for the root module.
+    pub fn default_profile_id_for_root(&self) -> ProfileId {
+        self.program
+            .default_profile_id_for_module(self.program.root_module_id)
+    }
+
     /// Get the first function symbol declared in a module.
     pub fn expect_first_function_symbol(&self, module_id: ModuleId) -> GlobalSymbolId {
         // load the module tree and roots
+        let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir().tree.read();
-        let roots = &module.dir().roots;
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let roots = &dir.roots;
 
         // scan for the first function declaration
         for root_id in roots {
@@ -221,10 +234,12 @@ impl TestProgram {
     /// Get the first let declarator declared in a module.
     pub fn expect_first_let_declarator(&self, module_id: ModuleId) -> LocalNodeId<Declarator> {
         // load the module tree and roots
+        let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir().tree.read();
-        let roots = &module.dir().roots;
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let roots = &dir.roots;
 
         // scan for the first let expression
         for root_id in roots {
@@ -264,10 +279,12 @@ impl TestProgram {
         member_name: StringId,
     ) -> GlobalSymbolId {
         // load the module tree and symbol table
+        let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir().tree.read();
-        let symbols = module.dir().symbols.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
 
         // resolve the interface declaration and scan members
         let interface_entry = symbols.get_symbol(interface_symbol.local_id);
@@ -308,27 +325,32 @@ impl TestProgram {
 
     /// Enqueue Resolve task for a module.
     pub fn resolve_module(&self, module: ModuleId) {
-        self.enqueue(ResolveTask::ResolveModule { module });
+        let profile = self.default_profile_id(module);
+        self.enqueue(ResolveTask::ResolveModule { module, profile });
     }
 
     /// Enqueue ResolveBuiltins task.
     pub fn resolve_builtins(&self) {
-        self.enqueue(ResolveTask::ResolveBuiltins);
+        let profile = self.default_profile_id_for_root();
+        self.enqueue(ResolveTask::ResolveBuiltins { profile });
     }
 
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
-        self.enqueue(AnalyzeTask::AnalyzeModule { module });
+        let profile = self.default_profile_id(module);
+        self.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
     }
 
     /// Enqueue Lint task for a module.
     pub fn lint_module(&self, module: ModuleId) {
-        self.enqueue(LintTask::LintModule { module });
+        let profile = self.default_profile_id(module);
+        self.enqueue(LintTask::LintModule { module, profile });
     }
 
     /// Enqueue Elaborate task for a module.
     pub fn elaborate_module(&self, module: ModuleId) {
-        self.enqueue(ElaborateTask::ElaborateModule { module });
+        let profile = self.default_profile_id(module);
+        self.enqueue(ElaborateTask::ElaborateModule { module, profile });
     }
 
     /// Enqueue Lower task for a module.
@@ -430,9 +452,10 @@ impl TestProgram {
 
     /// Get a symbol by id.
     pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
+        let profile = self.default_profile_id(symbol_id.module_id);
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
-        let symbols = module.dir().symbols.read();
+        let symbols = module.dir(profile).symbols.read();
         symbols.get_symbol(symbol_id.into_local()).clone()
     }
 
@@ -505,7 +528,8 @@ impl TestProgram {
         let module = module.read();
 
         // unbind DIR to AST
-        let unbound = self.compiler.unbind_module(&module);
+        let profile = self.default_profile_id(module.id);
+        let unbound = self.compiler.unbind_module(&module, profile);
 
         // create a synthetic file for formatting (no real source)
         let file = File::from_text(

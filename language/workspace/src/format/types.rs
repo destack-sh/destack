@@ -1,17 +1,18 @@
 use destack_base::StringPool;
 use destack_dir as dir;
 
-use crate::ModuleRegistry;
+use crate::{ModuleRegistry, ProfileId};
 
 /// Format a global type id as a human-readable string.
 pub fn format_global_type(
     ty_id: dir::GlobalTypeId,
     modules: &ModuleRegistry,
     strings: &StringPool,
+    profile: ProfileId,
 ) -> String {
     let module = modules.get(ty_id.module_id);
     let module = module.read();
-    let Some(dir) = &module.dir else {
+    let Some(dir) = module.dir_maybe(profile) else {
         return "<unknown>".to_string();
     };
     let types = dir.types.read();
@@ -300,7 +301,7 @@ pub fn format_symbol_name(
 ) -> String {
     let module = modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(dir) = &module.dir else {
+    let Some(dir) = &module.dir_base else {
         return "<unknown>".to_string();
     };
     let symbols = dir.symbols.read();

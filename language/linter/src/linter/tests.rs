@@ -130,7 +130,9 @@ impl TestProgram {
 
     /// Analyze a module (bind, resolve, type check).
     pub(crate) fn analyze_module(&self, module: ModuleId) {
-        self.compiler.enqueue(AnalyzeTask::AnalyzeModule { module });
+        let profile = self.program.default_profile_id_for_module(module);
+        self.compiler
+            .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
     }
 
     /// Run all queued tasks.
@@ -141,8 +143,14 @@ impl TestProgram {
     /// Lint a module at the given level.
     pub(crate) fn lint_module(&self, module: ModuleId, level: LintLevel) -> Vec<LintDiagnostic> {
         let module = self.program.modules.get(module);
-        self.runner
-            .lint_module(self.program.clone(), module, &self.linter_options, level)
+        let profile = self.program.default_profile_id_for_module(module.read().id);
+        self.runner.lint_module(
+            self.program.clone(),
+            module,
+            profile,
+            &self.linter_options,
+            level,
+        )
     }
 
     /// Add module, compile through analysis, and lint.

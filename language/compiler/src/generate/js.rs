@@ -1,16 +1,22 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_source::ModuleId;
-use destack_workspace::Target;
+use destack_workspace::{ProfileId, Target};
 
 impl Compiler {
     /// Generate JS/TS code for a module.
-    pub(super) fn generate_js(&self, module_id: ModuleId, target: &Target) -> GenerateResult<()> {
-        self.require_elaborate_module(module_id)?;
+    pub(super) fn generate_js(
+        &self,
+        module_id: ModuleId,
+        target: &Target,
+        profile: ProfileId,
+    ) -> GenerateResult<()> {
+        self.require_elaborate_module(module_id, profile)?;
 
         // generate artifact
-        let output = destack_codegen_js::generate_module(self.program.clone(), module_id, target)
-            .map_err(|e| Self::map_js_error(module_id, e))?;
+        let output =
+            destack_codegen_js::generate_module(self.program.clone(), module_id, target, profile)
+                .map_err(|e| Self::map_js_error(module_id, e))?;
         for artifact in output.artifacts {
             self.program.artifacts.insert(artifact);
         }

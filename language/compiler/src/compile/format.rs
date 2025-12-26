@@ -24,7 +24,8 @@ pub trait DiagnosticFormat {
 
 impl DiagnosticFormat for GlobalTypeId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        format_global_type(*self, &program.modules, &program.strings)
+        let profile = program.default_profile_id_for_module(self.module_id);
+        format_global_type(*self, &program.modules, &program.strings, profile)
     }
 }
 

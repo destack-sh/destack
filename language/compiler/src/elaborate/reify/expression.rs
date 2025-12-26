@@ -1,5 +1,6 @@
 use destack_dir::{Expression, LocalNodeId, NodeTree, SymbolTable, TypeTable};
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 
 use crate::{Compiler, ElaborateResult};
 
@@ -12,10 +13,14 @@ impl Compiler {
     /// - Operators → resolved method calls (`a + b` → `a.add(b)` based on Resolution)
     /// - Type descriptors → runtime type objects (`Type<T>` → actual descriptor)
     /// - Maybe/Must → explicit error handling (if not overloaded)
-    pub(crate) fn elaborate_module_reify(&self, module_id: ModuleId) -> ElaborateResult<()> {
+    pub(crate) fn elaborate_module_reify(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ElaborateResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let dir = module.dir(profile);
         let mut tree = dir.tree.write();
         let symbols = dir.symbols.read();
         let types = dir.types.read();

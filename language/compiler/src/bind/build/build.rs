@@ -11,7 +11,7 @@ impl Compiler {
         module: &Module,
         ast: &ModuleAst,
     ) -> Vec<LocalNodeId<Expression>> {
-        let dir = module.dir();
+        let dir = module.dir_base();
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
@@ -37,7 +37,7 @@ impl Compiler {
 
     /// Bind module exports and resolve conflicts.
     pub(super) fn bind_module_exports(&self, module: &mut Module) {
-        let dir = module.dir();
+        let dir = module.dir_base();
         let symbols = dir.symbols.read();
 
         // collect exported symbols

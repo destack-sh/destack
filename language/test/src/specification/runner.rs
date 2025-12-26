@@ -126,7 +126,11 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     };
 
     // run analysis
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+    let profile = program.default_profile_id_for_module(module_id);
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+        module: module_id,
+        profile,
+    });
     compiler.compile();
     drop(compiler);
 

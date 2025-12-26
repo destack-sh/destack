@@ -54,11 +54,15 @@ impl HoverInfo {
 /// Get hover information for the symbol at the given position.
 pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> {
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let profile = session.default_profile_for_module(symbol_at.symbol_id.module_id);
 
     // try rich signature formatting first (for declarations)
-    if let Some(formatted) =
-        format_symbol_signature(symbol_at.symbol_id, &session.modules, &session.strings)
-    {
+    if let Some(formatted) = format_symbol_signature(
+        symbol_at.symbol_id,
+        &session.modules,
+        &session.strings,
+        profile,
+    ) {
         return Some(HoverInfo::signature(formatted.text).with_range(symbol_at.span));
     }
 
@@ -66,9 +70,10 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // get module AST/DIR
     let module = session.modules.get(symbol_at.symbol_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
         return None;
     };
+    let dir = module.dir_maybe(profile)?;
     let symbols = dir.symbols.read();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
     let name = symbol.name().map(|id| ast.strings.get(id).to_string());

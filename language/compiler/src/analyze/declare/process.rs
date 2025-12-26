@@ -1,22 +1,28 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError, TaskResultCollector};
 use destack_dir::LocalTypeId;
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Ensure a module's types have been declared (evaluated).
     pub fn require_analyze_module_declare(
         &self,
         module: ModuleId,
+        profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
         use crate::AnalyzeTask;
-        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleDeclare { module })
+        self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleDeclare { module, profile })
     }
 
     /// Phase 1: Evaluate declarations.
-    pub(crate) fn analyze_module_declare(&self, module_id: ModuleId) -> AnalyzeResult<()> {
+    pub(crate) fn analyze_module_declare(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();

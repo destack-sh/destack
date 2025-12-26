@@ -180,10 +180,15 @@ fn complete_members(
 
     // if we have a receiver symbol, try to get its members
     if let Some(symbol_id) = receiver_symbol {
+        // nocheckin: figure out session helper to get AST/DIR/MIR stuff in query (like this..?)
         // get module AST/DIR
         let module = session.modules.get(symbol_id.module_id);
         let module = module.read();
-        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        let Some(ast) = &module.ast else {
+            return common_member_completions();
+        };
+        let profile = session.default_profile_for_module(symbol_id.module_id);
+        let Some(dir) = module.dir_maybe(profile) else {
             return common_member_completions();
         };
         let symbols = dir.symbols.read();
@@ -276,7 +281,11 @@ fn complete_types(
         return primitive_type_completions(prefix);
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return primitive_type_completions(prefix);
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return primitive_type_completions(prefix);
     };
     let symbols = dir.symbols.read();
@@ -344,7 +353,11 @@ fn complete_values(
         return keyword_completions_filtered(prefix);
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return keyword_completions_filtered(prefix);
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return keyword_completions_filtered(prefix);
     };
     let symbols = dir.symbols.read();
@@ -428,7 +441,11 @@ fn complete_imports(
     // get module AST/DIR
     let module = session.modules.get(module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let symbols = dir.symbols.read();
@@ -463,7 +480,11 @@ fn complete_all(session: &Session, file: FileId, token: Option<&TokenAtCursor>) 
         return keyword_completions_filtered(prefix);
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return keyword_completions_filtered(prefix);
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return keyword_completions_filtered(prefix);
     };
     let symbols = dir.symbols.read();

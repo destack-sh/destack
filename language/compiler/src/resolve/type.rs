@@ -180,7 +180,8 @@ string;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let roots = &dir.roots;
 
@@ -274,7 +275,8 @@ string;
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let dir = module.dir();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let roots = &dir.roots;
 
@@ -312,7 +314,8 @@ struct Foo {
         // verify that Self in return type resolves to Foo
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir().tree.read();
+        let profile = test.default_profile_id(module_id);
+        let tree = module.dir(profile).tree.read();
 
         // find the Self reference in the function return type
         let mut found_self_reference = false;

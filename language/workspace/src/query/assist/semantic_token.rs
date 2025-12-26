@@ -105,7 +105,11 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     };
     let mut tokens = Vec::new();
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let dir_tree = dir.tree.read();
@@ -254,7 +258,8 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::Expression::ModuleReference { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
                 let target_guard = target_module.read();
-                let Some(target_dir) = &target_guard.dir else {
+                let target_profile = session.default_profile_for_module(target_symbol.module_id);
+                let Some(target_dir) = target_guard.dir_maybe(target_profile) else {
                     continue;
                 };
                 let target_symbols = target_dir.symbols.read();
@@ -469,7 +474,8 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::DependencyItem::Remote { target_symbol, .. } => {
                 let target_module = session.modules.get(target_symbol.module_id);
                 let target_guard = target_module.read();
-                if let Some(target_dir) = &target_guard.dir {
+                let target_profile = session.default_profile_for_module(target_symbol.module_id);
+                if let Some(target_dir) = target_guard.dir_maybe(target_profile) {
                     let target_symbols = target_dir.symbols.read();
                     let symbol = target_symbols.get_symbol(target_symbol.local_id);
                     symbol_type_to_token_type(symbol.ty)

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_codegen_lib::CodegenBackend;
 use destack_source::ModuleId;
-use destack_workspace::{OutputFormat, Program, Target};
+use destack_workspace::{OutputFormat, ProfileId, Program, Target};
 
 use crate::lower::{CodegenJsOutput, ModuleLowerer};
 use crate::{CodegenJsError, CodegenJsResult};
@@ -31,6 +31,7 @@ pub fn generate_module(
     program: Arc<Program>,
     module_id: ModuleId,
     target: &Target,
+    profile: ProfileId,
 ) -> CodegenJsResult<CodegenJsOutput> {
     // validate target
     if !matches!(target.output, OutputFormat::Js | OutputFormat::Ts) {
@@ -44,7 +45,7 @@ pub fn generate_module(
     let module_ref = program.modules.get(module_id);
     let module = module_ref.read();
     let ast = module.ast();
-    let dir = module.dir();
+    let dir = module.dir(profile);
     let dir_tree = dir.tree.read();
     let dir_roots = dir.roots.clone();
     let symbols = dir.symbols.read();

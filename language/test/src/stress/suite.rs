@@ -189,7 +189,11 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
     };
 
     // resolve schedules import + bind automatically
-    compiler.enqueue(ResolveTask::ResolveModule { module: module_id });
+    let profile = program.default_profile_id_for_module(module_id);
+    compiler.enqueue(ResolveTask::ResolveModule {
+        module: module_id,
+        profile,
+    });
     compiler.compile();
 
     let elapsed = start.elapsed();
@@ -266,7 +270,11 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
     };
 
     // analyze schedules import + bind + resolve automatically
-    compiler.enqueue(AnalyzeTask::AnalyzeModule { module: module_id });
+    let profile = program.default_profile_id_for_module(module_id);
+    compiler.enqueue(AnalyzeTask::AnalyzeModule {
+        module: module_id,
+        profile,
+    });
     compiler.compile();
 
     let elapsed = start.elapsed();

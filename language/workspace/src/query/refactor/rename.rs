@@ -66,7 +66,11 @@ pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<Pr
     // get the symbol to check if it has a name
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(canonical_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();
@@ -117,7 +121,11 @@ pub fn rename(
     // 5. find all references across all modules
     for module in session.modules.iter() {
         let module = module.read();
-        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        let Some(ast) = &module.ast else {
+            continue;
+        };
+        let profile = session.default_profile_for_module(module.id);
+        let Some(dir) = module.dir_maybe(profile) else {
             continue;
         };
 

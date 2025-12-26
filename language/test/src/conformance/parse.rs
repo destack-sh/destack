@@ -102,7 +102,11 @@ pub(super) fn parse_file(
     );
 
     // run up to analyze
-    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module: module_id });
+    let profile = program.default_profile_id_for_module(module_id);
+    compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+        module: module_id,
+        profile,
+    });
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         compiler.compile();
     }));

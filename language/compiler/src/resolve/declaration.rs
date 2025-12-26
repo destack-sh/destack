@@ -140,7 +140,8 @@ extension for Foo {
         // extension Foo -> struct Foo
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let tree = module.dir().tree.read();
+        let profile = test.default_profile_id(module_id);
+        let tree = module.dir(profile).tree.read();
         let extensions: Vec<_> = tree
             .iter_node_ids_of_type::<Declaration>()
             .into_iter()

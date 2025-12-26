@@ -7,7 +7,7 @@ use destack_dir::{
     TypeTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 /// Describe how a static parameter is used.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +22,8 @@ pub(super) enum StaticParameterKind {
 /// #Cleanup: maybe move StaticParameter into DIR (next to StaticArgument)?
 #[derive(Debug, Clone)]
 pub(super) struct StaticParameter {
+    /// Whether this is a type or value parameter.
+    pub(super) kind: StaticParameterKind,
     /// Identify the static parameter symbol.
     pub(super) symbol: GlobalSymbolId,
     /// Parameter name for mapping and diagnostics.
@@ -30,16 +32,16 @@ pub(super) struct StaticParameter {
     pub(super) declared_type_id: LocalTypeId,
     /// Default expression for missing arguments.
     pub(super) default_expression: Option<GlobalNodeId<Expression>>,
-    /// Whether this is a type or value parameter.
-    pub(super) kind: StaticParameterKind,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect static parameter symbols for a declaration symbol.
     pub(super) fn collect_static_parameter_symbols_for_symbol(
         &self,
         module: &Module,
         symbol: GlobalSymbolId,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<Vec<GlobalSymbolId>> {
@@ -51,8 +53,8 @@ impl Compiler {
         } else {
             let remote_module = self.program.modules.get(symbol.module_id);
             let remote_module = remote_module.read();
-            let remote_tree = remote_module.dir().tree.read();
-            let remote_symbols = remote_module.dir().symbols.read();
+            let remote_tree = remote_module.dir(profile).tree.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
 
             self.collect_static_parameter_symbols_for_symbol_in_module(
                 remote_module.id,
@@ -64,6 +66,7 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols for a declaration in a module.
+    /// nocheckin: merge collect_static_parameter_symbols_for_symbol_in_module into collect_static_parameter_symbols_for_symbol?
     pub(super) fn collect_static_parameter_symbols_for_symbol_in_module(
         &self,
         module_id: ModuleId,
@@ -118,17 +121,20 @@ impl Compiler {
         module: &Module,
         symbol_id: GlobalSymbolId,
         kind: StaticParameterKind,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> StaticParameter {
         let parameter = if symbol_id.module_id == module.id {
-            self.collect_static_parameter_in_module(module.id, symbol_id, kind, tree, symbols, types)
+            self.collect_static_parameter_in_module(
+                module.id, symbol_id, kind, tree, symbols, types,
+            )
         } else {
             let remote_module = self.program.modules.get(symbol_id.module_id);
             let remote_module = remote_module.read();
-            let remote_tree = remote_module.dir().tree.read();
-            let remote_symbols = remote_module.dir().symbols.read();
+            let remote_tree = remote_module.dir(profile).tree.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
 
             self.collect_static_parameter_in_module(
                 remote_module.id,

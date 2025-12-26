@@ -23,7 +23,11 @@ pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<Exporte
     // get module AST/DIR
     let module = session.modules.get(module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
     let module_path = module
@@ -77,7 +81,11 @@ pub fn search_importable_symbols(
             continue;
         }
 
-        let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+        let Some(ast) = &module.ast else {
+            continue;
+        };
+        let profile = session.default_profile_for_module(module_id);
+        let Some(dir) = module.dir_maybe(profile) else {
             continue;
         };
 

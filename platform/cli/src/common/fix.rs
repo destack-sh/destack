@@ -41,15 +41,18 @@ pub fn run_with_fixes(
     let mut all_diagnostics: Vec<LintDiagnostic> = Vec::new();
     for module_id in modules {
         let module = program.modules.get(*module_id);
+        let profile = program.default_profile_id_for_module(*module_id);
         let ast_diagnostics = runner.lint_module(
             program.clone(),
             module.clone(),
+            profile,
             &linter_options,
             LintLevel::Ast,
         );
         let dir_diagnostics = runner.lint_module(
             program.clone(),
             module.clone(),
+            profile,
             &linter_options,
             LintLevel::Dir,
         );

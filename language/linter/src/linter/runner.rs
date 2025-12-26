@@ -3,7 +3,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use destack_source::ModuleId;
-use destack_workspace::{LintPreset, LinterOptions, Module, Program};
+use destack_workspace::{LintPreset, LinterOptions, Module, ProfileId, Program};
 
 use crate::{
     BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
@@ -91,6 +91,7 @@ impl LintRunner {
         &self,
         program: Arc<Program>,
         module: Arc<RwLock<Module>>,
+        profile: ProfileId,
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
@@ -99,7 +100,7 @@ impl LintRunner {
         }
         match level {
             LintLevel::Ast => self.lint_module_ast(program, module, options),
-            LintLevel::Dir => self.lint_module_dir(program, module, options),
+            LintLevel::Dir => self.lint_module_dir(program, module, profile, options),
             LintLevel::Mir => todo!(),
         }
     }
@@ -145,13 +146,14 @@ impl LintRunner {
         &self,
         program: Arc<Program>,
         module: Arc<RwLock<Module>>,
+        profile: ProfileId,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
         // context
         let module = module.read();
         let ast = &module.ast();
         let file = program.files.get(module.file_id);
-        let dir = module.dir();
+        let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let types = dir.types.read();
@@ -197,11 +199,12 @@ impl LintRunner {
         &self,
         program: Arc<Program>,
         module_id: ModuleId,
+        profile: ProfileId,
         options: &LinterOptions,
         level: LintLevel,
     ) -> Vec<LintDiagnostic> {
         let module = program.modules.get(module_id);
-        self.lint_module(program, module, options, level)
+        self.lint_module(program, module, profile, options, level)
     }
 
     /// Lint all modules at a specific level.
@@ -217,7 +220,8 @@ impl LintRunner {
 
         let mut diagnostics = Vec::new();
         for module in program.modules.iter() {
-            diagnostics.extend(self.lint_module(program.clone(), module, options, level));
+            let profile = program.default_profile_id_for_module(module.read().id);
+            diagnostics.extend(self.lint_module(program.clone(), module, profile, options, level));
         }
         diagnostics
     }

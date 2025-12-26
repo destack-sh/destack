@@ -70,7 +70,11 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
         return Vec::new();
     };
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return Vec::new();
+    };
+    let profile = session.default_profile_for_module(module.id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return Vec::new();
     };
 

@@ -7,11 +7,17 @@ use super::dsconfig::OutputFormatJson;
 /// Normalized profile configuration.
 #[derive(Debug, Clone, Default)]
 pub struct ProfileConfig {
+    /// Output format for this profile.
     pub output: Option<OutputFormat>,
+    /// Runtime environment for this profile.
     pub runtime: Option<Runtime>,
+    /// Target platform for this profile.
     pub platform: Option<Platform>,
+    /// Library files for this profile.
     pub lib: Option<Vec<String>>,
+    /// Debug flag exposed to import.meta.
     pub debug: Option<bool>,
+    /// Comptime environment whitelist.
     pub comptime_env: Option<Vec<String>>,
 }
 

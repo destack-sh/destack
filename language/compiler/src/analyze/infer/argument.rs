@@ -10,8 +10,7 @@ use destack_dir::{
     LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticProperty,
     StringId, SymbolTable, Type, TypeField, TypeLiteral, TypeTable,
 };
-use destack_workspace::Module;
-
+use destack_workspace::{Module, ProfileId};
 
 /// Inherited static arguments and substitutions for a type reference.
 #[derive(Debug, Clone)]
@@ -107,6 +106,7 @@ impl Compiler {
     pub(super) fn resolve_inherited_static_arguments(
         &self,
         module: &Module,
+        profile: ProfileId,
         receiver_id: LocalNodeIdAny,
         receiver_ty: &Type,
         tree: &NodeTree,
@@ -126,6 +126,7 @@ impl Compiler {
 
         let resolved = self.resolve_type_reference_static_arguments(
             module,
+            profile,
             receiver_id,
             *symbol,
             static_arguments.as_deref(),
@@ -143,6 +144,7 @@ impl Compiler {
         // build type parameter substitutions
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
             module,
+            profile,
             *symbol,
             &resolved_arguments,
             tree,
@@ -228,6 +230,7 @@ impl Compiler {
     pub(super) fn resolve_static_argument(
         &self,
         module: &Module,
+        profile: ProfileId,
         static_parameter: &StaticParameter,
         assigned_argument: Option<StaticArgument>,
         tree: &NodeTree,
@@ -267,6 +270,7 @@ impl Compiler {
         if let Some(default_expression) = static_parameter.default_expression.as_ref() {
             return self
                 .evaluate_static_default_argument(
+                    profile,
                     static_parameter.kind,
                     static_parameter.name,
                     default_expression,
@@ -357,6 +361,7 @@ impl Compiler {
     pub(super) fn resolve_type_reference_static_arguments(
         &self,
         module: &Module,
+        profile: ProfileId,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -370,8 +375,8 @@ impl Compiler {
         }
 
         // collect parameter symbols for the declaration
-        let parameter_symbols =
-            self.collect_static_parameter_symbols_for_symbol(module, symbol, tree, symbols);
+        let parameter_symbols = self
+            .collect_static_parameter_symbols_for_symbol(module, symbol, profile, tree, symbols);
         let parameter_symbols = match parameter_symbols {
             Some(parameter_symbols) => parameter_symbols,
             None => {
@@ -399,7 +404,12 @@ impl Compiler {
         let mut referenced_symbols = HashSet::new();
         let mut visited = HashSet::new();
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
-            self.collect_type_reference_symbols(ty_id, types, &mut referenced_symbols, &mut visited);
+            self.collect_type_reference_symbols(
+                ty_id,
+                types,
+                &mut referenced_symbols,
+                &mut visited,
+            );
         }
 
         // gather static parameter metadata with kinds
@@ -411,7 +421,9 @@ impl Compiler {
                 } else {
                     StaticParameterKind::Value
                 };
-                self.collect_static_parameter(module, *symbol_id, kind, tree, symbols, types)
+                self.collect_static_parameter(
+                    module, *symbol_id, kind, profile, tree, symbols, types,
+                )
             })
             .collect();
 
@@ -445,7 +457,15 @@ impl Compiler {
 
             // resolve the argument value or synthesize a fallback
             let resolved_argument = self
-                .resolve_static_argument(module, static_parameter, assigned_argument, tree, symbols, types)?
+                .resolve_static_argument(
+                    module,
+                    profile,
+                    static_parameter,
+                    assigned_argument,
+                    tree,
+                    symbols,
+                    types,
+                )?
                 .unwrap_or_else(|| {
                     // fallback for type references: unknown type
                     let fallback_value = match static_parameter.kind {
@@ -490,6 +510,7 @@ impl Compiler {
     pub(super) fn build_type_parameter_substitutions_for_symbol(
         &self,
         module: &Module,
+        profile: ProfileId,
         symbol: GlobalSymbolId,
         resolved_arguments: &[StaticArgument],
         tree: &NodeTree,
@@ -497,8 +518,8 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
         // collect static parameter symbols for the declaration
-        let parameter_symbols =
-            self.collect_static_parameter_symbols_for_symbol(module, symbol, tree, symbols);
+        let parameter_symbols = self
+            .collect_static_parameter_symbols_for_symbol(module, symbol, profile, tree, symbols);
         let Some(parameter_symbols) = parameter_symbols else {
             return HashMap::new();
         };
@@ -510,7 +531,12 @@ impl Compiler {
         let mut referenced_symbols = HashSet::new();
         let mut visited = HashSet::new();
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
-            self.collect_type_reference_symbols(ty_id, types, &mut referenced_symbols, &mut visited);
+            self.collect_type_reference_symbols(
+                ty_id,
+                types,
+                &mut referenced_symbols,
+                &mut visited,
+            );
         }
 
         // collect static parameters with kinds
@@ -522,7 +548,9 @@ impl Compiler {
                 } else {
                     StaticParameterKind::Value
                 };
-                self.collect_static_parameter(module, *symbol_id, kind, tree, symbols, types)
+                self.collect_static_parameter(
+                    module, *symbol_id, kind, profile, tree, symbols, types,
+                )
             })
             .collect();
 
@@ -733,6 +761,7 @@ impl Compiler {
     /// Evaluate a static default expression for a parameter.
     pub(super) fn evaluate_static_default_argument(
         &self,
+        profile: ProfileId,
         parameter_kind: StaticParameterKind,
         name: Option<StringId>,
         default_expression: &GlobalNodeId<Expression>,
@@ -740,8 +769,8 @@ impl Compiler {
     ) -> AnalyzeResult<StaticArgument> {
         let module = self.program.modules.get(default_expression.module_id);
         let module = module.read();
-        let tree = module.dir().tree.read();
-        let symbols = module.dir().symbols.read();
+        let tree = module.dir(profile).tree.read();
+        let symbols = module.dir(profile).symbols.read();
 
         let value = match parameter_kind {
             StaticParameterKind::Type => {

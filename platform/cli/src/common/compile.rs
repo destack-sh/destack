@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, GenerateTask, LintTask};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
-use destack_workspace::{Program, Session};
+use destack_workspace::{Program, Session, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -163,15 +163,22 @@ impl CompilerContext {
     pub fn enqueue_module(&self, module: ModuleId) {
         match &self.mode {
             CompilerMode::Check => {
-                self.compiler.enqueue(AnalyzeTask::AnalyzeModule { module });
+                let profile = self.program.default_profile_id_for_module(module);
+                self.compiler
+                    .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
             }
             CompilerMode::Lint => {
-                self.compiler.enqueue(LintTask::LintModule { module });
+                let profile = self.program.default_profile_id_for_module(module);
+                self.compiler
+                    .enqueue(LintTask::LintModule { module, profile });
             }
             CompilerMode::Build { target } => {
+                let module_ref = self.program.modules.get(module);
+                let package_id = module_ref.read().package_id;
+                let target_id = TargetId::new(package_id, target);
                 self.compiler.enqueue(GenerateTask::GenerateModule {
                     module,
-                    target: target.clone(),
+                    target: target_id,
                 });
             }
         }

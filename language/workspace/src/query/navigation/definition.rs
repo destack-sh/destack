@@ -66,7 +66,11 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
     // get module and dir
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
     let symbols = dir.symbols.read();
@@ -96,7 +100,11 @@ pub fn goto_type_definition(
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let (Some(ast), Some(dir)) = (&module.ast, &module.dir) else {
+    let Some(ast) = &module.ast else {
+        return None;
+    };
+    let profile = session.default_profile_for_module(symbol_id.module_id);
+    let Some(dir) = module.dir_maybe(profile) else {
         return None;
     };
 
@@ -193,7 +201,8 @@ fn get_type_from_declaration_context(
                 // verify target is a type symbol
                 let target_module = session.modules.get(target.module_id);
                 let target_module = target_module.read();
-                let Some(target_dir) = &target_module.dir else {
+                let target_profile = session.default_profile_for_module(target.module_id);
+                let Some(target_dir) = target_module.dir_maybe(target_profile) else {
                     return None;
                 };
                 let symbols = target_dir.symbols.read();

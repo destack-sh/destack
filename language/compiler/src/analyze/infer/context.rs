@@ -1,10 +1,13 @@
 use destack_dir::{
     Asynchrony, FunctionCardinality, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
 };
+use destack_workspace::ProfileId;
 
 /// InferContext holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
 pub struct InferContext {
+    /// The active profile id.
+    pub profile: ProfileId,
     /// Type narrowings currently in scope.
     pub narrowings: Vec<(GlobalSymbolId, LocalTypeId)>,
     /// Expected type from the surrounding context.
@@ -29,8 +32,9 @@ pub struct InferContext {
 
 impl InferContext {
     /// Create a new empty context.
-    pub fn new() -> Self {
+    pub fn new(profile: ProfileId) -> Self {
         Self {
+            profile,
             narrowings: Vec::new(),
             expected_type: None,
             return_type: None,
@@ -47,6 +51,7 @@ impl InferContext {
     /// Fork the context.
     pub fn fork(&self) -> Self {
         Self {
+            profile: self.profile,
             narrowings: self.narrowings.clone(),
             expected_type: self.expected_type,
             return_type: self.return_type,
@@ -63,6 +68,7 @@ impl InferContext {
     /// Reset flow context.
     pub fn reset(&self) -> Self {
         Self {
+            profile: self.profile,
             narrowings: self.narrowings.clone(),
             expected_type: self.expected_type,
             return_type: self.return_type,
@@ -215,6 +221,6 @@ impl InferContext {
 
 impl Default for InferContext {
     fn default() -> Self {
-        Self::new()
+        Self::new(ProfileId::new(0))
     }
 }

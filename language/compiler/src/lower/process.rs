@@ -1,4 +1,4 @@
-use crate::{Compiler, LowerResult, ModuleLowerer, TaskDependencyError};
+use crate::{Compiler, LowerError, LowerResult, ModuleLowerer, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
@@ -23,7 +23,6 @@ impl Compiler {
     pub fn process_lower(&self, task: LowerTask) -> LowerResult<()> {
         match task {
             LowerTask::LowerModule { module, target } => {
-                self.require_elaborate_module(module)?;
                 self.lower_module(module, target)?;
             }
         }
@@ -32,6 +31,16 @@ impl Compiler {
 
     /// Lower a module.
     fn lower_module(&self, module_id: ModuleId, target_id: TargetId) -> LowerResult<()> {
+        let profile = self
+            .program
+            .profile_id_for_target(module_id, &target_id)
+            .ok_or_else(|| LowerError::Internal {
+                module: module_id,
+                message: format!("target '{target_id}' not found for profile resolution"),
+            })?;
+
+        self.require_elaborate_module(module_id, profile)?;
+
         let module = self.program.modules.get(module_id);
 
         // initialize MIR for this target
@@ -49,7 +58,7 @@ impl Compiler {
         let (mir_tree, mir_strings) = {
             let module = self.program.modules.get(module_id);
             let module = module.read();
-            let dir = module.dir();
+            let dir = module.dir(profile);
             let dir_tree = dir.tree.read();
             let symbols = dir.symbols.read();
             let types = dir.types.read();

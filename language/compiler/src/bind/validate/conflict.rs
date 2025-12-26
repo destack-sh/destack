@@ -60,7 +60,7 @@ impl Compiler {
             .unwrap_or(!module.language_type.is_destack());
 
         // cross-check all named symbols in all scopes in the module
-        let symbols = module.dir().symbols.read();
+        let symbols = module.dir_base().symbols.read();
         for scope in symbols.scopes() {
             for (key, symbol_id) in scope.named_symbols.iter() {
                 let symbol = symbols.get_symbol(*symbol_id);

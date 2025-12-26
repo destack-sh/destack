@@ -660,7 +660,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         _infer: &mut InferTable,
-        _ctx: &mut InferContext,
+        ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // resolve heritage targets from evaluated types when possible
         let collect_symbol = |expression_id: LocalNodeId<Expression>,
@@ -692,7 +692,8 @@ impl Compiler {
         if let Some(extend_types) = &heritage.extends_types {
             for expression_id in extend_types {
                 if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
-                    let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+                    let canonical_symbol =
+                        self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
                     extends_symbols.push(canonical_symbol);
                 }
             }
@@ -703,7 +704,8 @@ impl Compiler {
         if let Some(implements_types) = &heritage.implements_types {
             for expression_id in implements_types {
                 if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
-                    let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+                    let canonical_symbol =
+                        self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
                     implements_symbols.push(canonical_symbol);
                 }
             }
@@ -714,7 +716,8 @@ impl Compiler {
         if let Some(embedded_types) = &heritage.embedded_types {
             for expression_id in embedded_types {
                 if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
-                    let canonical_symbol = self.canonical_symbol_id(module, symbols, target_symbol);
+                    let canonical_symbol =
+                        self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
                     embedded_symbols.push(canonical_symbol);
                 }
             }
