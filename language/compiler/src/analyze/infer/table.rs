@@ -76,8 +76,8 @@ pub enum Constraint {
     },
     /// Require one type to be a subtype of another.
     Subtype {
-        sub: LocalTypeId,
-        sup: LocalTypeId,
+        sub_type: LocalTypeId,
+        super_type: LocalTypeId,
         variance: Option<VarianceBound>,
     },
     /// Require a variable to join multiple source types.
@@ -88,8 +88,8 @@ pub enum Constraint {
     /// Require instantiation of a generic type.
     Instantiate {
         target: InferVarId,
-        generic: LocalTypeId,
-        args: Vec<LocalTypeId>,
+        generic_type: LocalTypeId,
+        static_arguments: Vec<LocalTypeId>,
     },
     /// Require a type based on a guard condition.
     Conditional {

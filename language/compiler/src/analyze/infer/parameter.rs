@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::Compiler;
 use destack_dir::{
@@ -24,12 +24,14 @@ pub(super) enum StaticParameterKind {
 pub(super) struct StaticParameter {
     /// Identify the static parameter symbol.
     pub(super) symbol: GlobalSymbolId,
-    /// Store the parameter name for mapping and diagnostics.
+    /// Parameter name for mapping and diagnostics.
     pub(super) name: Option<StringId>,
-    /// Store the declared type for validation.
+    /// Declared type for validation.
     pub(super) declared_type_id: LocalTypeId,
-    /// Store the default expression for missing arguments.
+    /// Default expression for missing arguments.
     pub(super) default_expression: Option<GlobalNodeId<Expression>>,
+    /// Whether this is a type or value parameter.
+    pub(super) kind: StaticParameterKind,
 }
 
 impl Compiler {
@@ -109,122 +111,36 @@ impl Compiler {
         Some(symbols)
     }
 
-    /// Collect static parameters for a list of symbols.
-    pub(super) fn collect_static_parameters_for_symbols(
+    /// Collect static parameter metadata for a single symbol.
+    /// Handles cross-module lookup and falls back to unknown metadata if needed.
+    pub(super) fn collect_static_parameter(
         &self,
         module: &Module,
-        parameter_symbols: &[GlobalSymbolId],
+        symbol_id: GlobalSymbolId,
+        kind: StaticParameterKind,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> Vec<StaticParameter> {
-        let mut parameters = Vec::new();
+    ) -> StaticParameter {
+        let parameter = if symbol_id.module_id == module.id {
+            self.collect_static_parameter_in_module(module.id, symbol_id, kind, tree, symbols, types)
+        } else {
+            let remote_module = self.program.modules.get(symbol_id.module_id);
+            let remote_module = remote_module.read();
+            let remote_tree = remote_module.dir().tree.read();
+            let remote_symbols = remote_module.dir().symbols.read();
 
-        for symbol_id in parameter_symbols {
-            // resolve parameter metadata from the owning module
-            let parameter = if symbol_id.module_id == module.id {
-                self.collect_static_parameter_in_module(module.id, *symbol_id, tree, symbols, types)
-            } else {
-                let remote_module = self.program.modules.get(symbol_id.module_id);
-                let remote_module = remote_module.read();
-                let remote_tree = remote_module.dir().tree.read();
-                let remote_symbols = remote_module.dir().symbols.read();
-
-                self.collect_static_parameter_in_module(
-                    remote_module.id,
-                    *symbol_id,
-                    &remote_tree,
-                    &remote_symbols,
-                    types,
-                )
-            };
-
-            // fall back to unknown metadata when the declaration is missing
-            let parameter =
-                parameter.unwrap_or_else(|| self.fallback_static_parameter(*symbol_id, types));
-
-            parameters.push(parameter);
-        }
-
-        parameters
-    }
-
-    /// Build static parameter kinds for a type symbol.
-    pub(super) fn collect_static_parameter_kinds_for_symbol(
-        &self,
-        symbol: GlobalSymbolId,
-        parameters: &[StaticParameter],
-        types: &TypeTable,
-    ) -> HashMap<GlobalSymbolId, StaticParameterKind> {
-        // collect static references from the instance type
-        let mut referenced_symbols = HashSet::new();
-        let mut visited = HashSet::new();
-
-        if let Some(instance_ty_id) = types.get_instance_type_id(symbol) {
-            self.collect_type_reference_symbols(
-                instance_ty_id,
+            self.collect_static_parameter_in_module(
+                remote_module.id,
+                symbol_id,
+                kind,
+                &remote_tree,
+                &remote_symbols,
                 types,
-                &mut referenced_symbols,
-                &mut visited,
-            );
-        }
+            )
+        };
 
-        // classify parameter kinds by usage
-        let mut kinds = HashMap::new();
-        for parameter in parameters {
-            if referenced_symbols.contains(&parameter.symbol) {
-                kinds.insert(parameter.symbol, StaticParameterKind::Type);
-            } else {
-                kinds.insert(parameter.symbol, StaticParameterKind::Value);
-            }
-        }
-
-        kinds
-    }
-
-    /// Build static parameter kinds for a function signature.
-    pub(super) fn collect_static_parameter_kinds_for_function(
-        &self,
-        parameters: &[StaticParameter],
-        dynamic_parameters: &[LocalTypeId],
-        return_type: Option<LocalTypeId>,
-        types: &TypeTable,
-    ) -> HashMap<GlobalSymbolId, StaticParameterKind> {
-        // collect static references from the dynamic signature
-        let mut referenced_symbols = HashSet::new();
-        let mut visited = HashSet::new();
-
-        // parameters
-        for parameter in dynamic_parameters {
-            self.collect_type_reference_symbols(
-                *parameter,
-                types,
-                &mut referenced_symbols,
-                &mut visited,
-            );
-        }
-
-        // return type
-        if let Some(return_type) = return_type {
-            self.collect_type_reference_symbols(
-                return_type,
-                types,
-                &mut referenced_symbols,
-                &mut visited,
-            );
-        }
-
-        // classify parameter kinds
-        let mut kinds = HashMap::new();
-        for parameter in parameters {
-            if referenced_symbols.contains(&parameter.symbol) {
-                kinds.insert(parameter.symbol, StaticParameterKind::Type);
-            } else {
-                kinds.insert(parameter.symbol, StaticParameterKind::Value);
-            }
-        }
-
-        kinds
+        parameter.unwrap_or_else(|| self.fallback_static_parameter(symbol_id, kind, types))
     }
 
     /// Collect placeholder types for static parameters on a signature.
@@ -263,6 +179,7 @@ impl Compiler {
     pub(super) fn fallback_static_parameter(
         &self,
         symbol: GlobalSymbolId,
+        kind: StaticParameterKind,
         types: &mut TypeTable,
     ) -> StaticParameter {
         let unknown_ty_id = types.insert_type(Type::TypeLiteral {
@@ -274,14 +191,16 @@ impl Compiler {
             name: None,
             declared_type_id: unknown_ty_id,
             default_expression: None,
+            kind,
         }
     }
 
     /// Collect static parameter metadata from a module.
-    pub(super) fn collect_static_parameter_in_module(
+    fn collect_static_parameter_in_module(
         &self,
         module_id: ModuleId,
         symbol_id: GlobalSymbolId,
+        kind: StaticParameterKind,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -334,6 +253,7 @@ impl Compiler {
             name,
             declared_type_id,
             default_expression,
+            kind,
         })
     }
 

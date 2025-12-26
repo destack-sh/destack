@@ -1,17 +1,17 @@
 mod argument;
 mod assign;
 mod call;
-mod constraints;
+mod constraint;
 mod context;
 mod declaration;
 mod expected;
 mod expression;
-mod instances;
+mod instance;
 mod member;
 mod operator;
 mod parameter;
 mod process;
-mod resolution;
+mod resolve;
 mod solve;
 mod table;
 #[cfg(test)]

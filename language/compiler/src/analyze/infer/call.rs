@@ -1,15 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use super::argument::MissingStaticArgument;
 use super::parameter::StaticParameterKind;
-use super::resolution::MemberResolution;
+use super::resolve::MemberResolution;
 use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
 };
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalInstanceId,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable,
-    Type, TypeLiteral, TypeTable,
+    Argument, Expression, GlobalSymbolId, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -163,7 +161,7 @@ impl Compiler {
                 return_type,
                 ..
             } => {
-                let resolved = self.resolve_function_type_for_call(
+                let resolved = self.resolve_function_signature(
                     module,
                     expression_id.into_any(),
                     callee_symbol,
@@ -216,8 +214,8 @@ impl Compiler {
                     .zip(resolved_dynamic_parameters.iter())
                 {
                     infer.push_constraint(Constraint::Subtype {
-                        sub: *argument_ty_id,
-                        sup: *param_ty_id,
+                        sub_type: *argument_ty_id,
+                        super_type: *param_ty_id,
                         variance: None,
                     });
                 }
@@ -239,14 +237,8 @@ impl Compiler {
                             .unwrap_or_else(|| expression_id.into_global_any(module.id));
                         return Err(AnalyzeError::UnassignableType {
                             node: argument_node,
-                            expected_ty: GlobalTypeId {
-                                module_id: module.id,
-                                local_id: *param_ty_id,
-                            },
-                            actual_ty: GlobalTypeId {
-                                module_id: module.id,
-                                local_id: *argument_ty_id,
-                            },
+                            expected_ty: param_ty_id.into_global(module.id),
+                            actual_ty: argument_ty_id.into_global(module.id),
                         });
                     }
                 }
@@ -350,7 +342,7 @@ impl Compiler {
     }
 
     /// Resolve a function type for a call, substituting static parameters when provided.
-    pub(super) fn resolve_function_type_for_call(
+    pub(super) fn resolve_function_signature(
         &self,
         module: &Module,
         node_id: LocalNodeIdAny,
@@ -436,28 +428,32 @@ impl Compiler {
             })
             .collect::<Vec<_>>();
 
-        let static_parameters = self.collect_static_parameters_for_symbols(
-            module,
-            &static_parameter_symbols,
-            tree,
-            symbols,
-            types,
-        );
+        // collect referenced symbols from dynamic signature
+        let mut referenced_symbols = HashSet::new();
+        let mut visited = HashSet::new();
+        for ty_id in dynamic_parameters.iter().copied().chain(return_type) {
+            self.collect_type_reference_symbols(ty_id, types, &mut referenced_symbols, &mut visited);
+        }
 
-        let static_parameter_kinds = self.collect_static_parameter_kinds_for_function(
-            &static_parameters,
-            dynamic_parameters,
-            return_type,
-            types,
-        );
+        // collect static parameters
+        let static_parameters: Vec<_> = static_parameter_symbols
+            .iter()
+            .map(|symbol_id| {
+                let kind = if referenced_symbols.contains(symbol_id) {
+                    StaticParameterKind::Type
+                } else {
+                    StaticParameterKind::Value
+                };
+                self.collect_static_parameter(module, *symbol_id, kind, tree, symbols, types)
+            })
+            .collect();
 
-        // map arguments to parameters
+        // assign static arguments to static parameters
         let argument_ids = static_argument_ids.unwrap_or(&[]);
         let argument_values = argument_ids
             .iter()
             .map(|argument_id| StaticArgument::Unevaluated { node: *argument_id })
             .collect::<Vec<_>>();
-
         let assigned_arguments = self.assign_static_argument_values(
             module.id,
             node_id,
@@ -469,13 +465,7 @@ impl Compiler {
         // resolve each parameter and build substitutions
         let mut substitutions = HashMap::new();
         let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
-
         for (index, static_parameter) in static_parameters.iter().enumerate() {
-            // decide which argument and kind apply to the parameter
-            let parameter_kind = static_parameter_kinds
-                .get(&static_parameter.symbol)
-                .copied()
-                .unwrap_or(StaticParameterKind::Type);
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
 
             let error_node = if let Some(argument) = &assigned_argument {
@@ -484,36 +474,36 @@ impl Compiler {
                     StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
                 }
             } else if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-                GlobalNodeIdAny::new(
-                    default_expression.module_id,
-                    default_expression.local_id.into_any(),
-                )
+                default_expression.local_id.into_global_any(module.id)
             } else {
                 node_id.into_global(module.id)
             };
 
             // resolve the static argument value
-            let resolved_argument = self.resolve_static_argument_for_parameter(
+            let resolved_argument = match self.resolve_static_argument(
                 module,
                 static_parameter,
-                parameter_kind,
                 assigned_argument,
                 tree,
                 symbols,
                 types,
-                MissingStaticArgument::Function {
+            )? {
+                Some(argument) => argument,
+                None => self.missing_static_argument_for_function(
+                    module,
                     node_id,
                     owner_symbol,
+                    static_parameter,
                     infer,
-                },
-            )?;
+                    types,
+                )?,
+            };
 
             // record substitutions and constraints
             if let Some(substitution_ty_id) = self.validate_static_argument(
                 module,
                 error_node,
                 static_parameter,
-                parameter_kind,
                 &resolved_argument,
                 types,
                 Some(infer),
@@ -529,21 +519,11 @@ impl Compiler {
         let resolved_dynamic_parameters = dynamic_parameters
             .iter()
             .map(|parameter| {
-                self.substitute_static_parameters_in_type(
-                    *parameter,
-                    &substitutions,
-                    types,
-                    &mut cache,
-                )
+                self.substitute_static_parameters(*parameter, &substitutions, types, &mut cache)
             })
             .collect::<Vec<_>>();
         let resolved_return_type = return_type.map(|return_type| {
-            self.substitute_static_parameters_in_type(
-                return_type,
-                &substitutions,
-                types,
-                &mut cache,
-            )
+            self.substitute_static_parameters(return_type, &substitutions, types, &mut cache)
         });
 
         Ok(Some(ResolvedFunctionSignature {
@@ -616,7 +596,7 @@ impl Compiler {
         // apply inherited substitutions
         let member_ty_id = if !inherited.substitutions.is_empty() {
             let mut cache = HashMap::new();
-            self.substitute_static_parameters_in_type(
+            self.substitute_static_parameters(
                 member_ty_id,
                 &inherited.substitutions,
                 types,
@@ -636,7 +616,7 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let signature = self.resolve_function_type_for_call(
+        let signature = self.resolve_function_signature(
             module,
             expression_id.into_any(),
             member_symbol,
@@ -662,7 +642,7 @@ impl Compiler {
     /// Register an instance and record resolution for a member function invocation.
     ///
     /// Returns the instance ID if one was registered.
-    pub(super) fn finalize_member_invocation(
+    pub(super) fn record_member_call_resolution(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,

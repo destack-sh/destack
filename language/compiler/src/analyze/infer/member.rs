@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::resolution::MemberResolution;
+use super::resolve::MemberResolution;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext, InferTable};
 use destack_base::StringId;
 use destack_dir::{
@@ -62,7 +62,7 @@ impl Compiler {
         let resolved_member_ty_id = if let Some(member_ty_id) = member_ty_id {
             let member_ty_id = if !inherited.substitutions.is_empty() {
                 let mut cache = HashMap::new();
-                self.substitute_static_parameters_in_type(
+                self.substitute_static_parameters(
                     member_ty_id,
                     &inherited.substitutions,
                     types,
@@ -81,7 +81,7 @@ impl Compiler {
                         dynamic_parameters,
                         return_type,
                     } => {
-                        let resolved = self.resolve_function_type_for_call(
+                        let resolved = self.resolve_function_signature(
                             module,
                             expression_id.into_any(),
                             member_symbol,
@@ -104,7 +104,7 @@ impl Compiler {
                                     .dynamic_parameters
                                     .iter()
                                     .map(|parameter| {
-                                        self.substitute_static_parameters_in_type(
+                                        self.substitute_static_parameters(
                                             *parameter,
                                             &inherited.substitutions,
                                             types,
@@ -113,7 +113,7 @@ impl Compiler {
                                     })
                                     .collect::<Vec<_>>();
                                 let return_type = resolved.return_type.map(|return_type| {
-                                    self.substitute_static_parameters_in_type(
+                                    self.substitute_static_parameters(
                                         return_type,
                                         &inherited.substitutions,
                                         types,

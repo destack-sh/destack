@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::parameter::{StaticParameter, StaticParameterKind};
 use crate::{
@@ -12,23 +12,6 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
-/// Describe how to handle missing static arguments.
-pub(super) enum MissingStaticArgument<'a> {
-    /// Use type reference defaults and fallbacks.
-    TypeReference {
-        /// The node that triggered the lookup.
-        node_id: LocalNodeIdAny,
-    },
-    /// Infer missing arguments for a function call.
-    Function {
-        /// The node that triggered the call.
-        node_id: LocalNodeIdAny,
-        /// The owning symbol when available.
-        owner_symbol: Option<GlobalSymbolId>,
-        /// Use the inference table to allocate variables.
-        infer: &'a mut InferTable,
-    },
-}
 
 /// Inherited static arguments and substitutions for a type reference.
 #[derive(Debug, Clone)]
@@ -157,6 +140,7 @@ impl Compiler {
             });
         };
 
+        // build type parameter substitutions
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
             module,
             *symbol,
@@ -240,20 +224,19 @@ impl Compiler {
     }
 
     /// Resolve a static argument for a parameter.
-    pub(super) fn resolve_static_argument_for_parameter(
+    /// Returns `None` when no argument is provided and no default exists.
+    pub(super) fn resolve_static_argument(
         &self,
         module: &Module,
         static_parameter: &StaticParameter,
-        parameter_kind: StaticParameterKind,
         assigned_argument: Option<StaticArgument>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        missing_argument: MissingStaticArgument<'_>,
-    ) -> AnalyzeResult<StaticArgument> {
+    ) -> AnalyzeResult<Option<StaticArgument>> {
         // resolve explicit argument when provided
         if let Some(argument) = assigned_argument {
-            let resolved_argument = match (parameter_kind, argument) {
+            let resolved_argument = match (static_parameter.kind, argument) {
                 (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
                     let resolved =
                         self.evaluate_static_argument_as_type(module, node, tree, symbols, types)?;
@@ -277,61 +260,23 @@ impl Compiler {
                 (_, argument) => argument,
             };
 
-            return Ok(resolved_argument);
+            return Ok(Some(resolved_argument));
         }
 
         // apply default expression when present
         if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-            return self.evaluate_static_default_argument(
-                parameter_kind,
-                static_parameter.name,
-                default_expression,
-                types,
-            );
+            return self
+                .evaluate_static_default_argument(
+                    static_parameter.kind,
+                    static_parameter.name,
+                    default_expression,
+                    types,
+                )
+                .map(Some);
         }
 
-        // synthesize a fallback when no argument is available
-        match missing_argument {
-            MissingStaticArgument::TypeReference { node_id } => match parameter_kind {
-                StaticParameterKind::Type => {
-                    let unknown_ty_id = types.insert_type(Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    });
-                    Ok(StaticArgument::Evaluated {
-                        name: static_parameter.name,
-                        value: StaticExpression::Type { ty: unknown_ty_id },
-                    })
-                }
-                StaticParameterKind::Value => {
-                    let fallback_expression = node_id
-                        .try_into_typed::<Expression>()
-                        .map(|expression_id| StaticExpression::Unevaluated {
-                            node: expression_id,
-                        })
-                        .unwrap_or(StaticExpression::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        });
-
-                    Ok(StaticArgument::Evaluated {
-                        name: static_parameter.name,
-                        value: fallback_expression,
-                    })
-                }
-            },
-            MissingStaticArgument::Function {
-                node_id,
-                owner_symbol,
-                infer,
-            } => self.missing_static_argument_for_function(
-                module,
-                node_id,
-                owner_symbol,
-                static_parameter,
-                parameter_kind,
-                infer,
-                types,
-            ),
-        }
+        // no argument and no default - caller handles fallback
+        Ok(None)
     }
 
     /// Validate a static argument against its declared type.
@@ -340,20 +285,19 @@ impl Compiler {
         module: &Module,
         error_node: GlobalNodeIdAny,
         static_parameter: &StaticParameter,
-        parameter_kind: StaticParameterKind,
-        resolved_argument: &StaticArgument,
+        resolved_static_argument: &StaticArgument,
         types: &mut TypeTable,
         infer: Option<&mut InferTable>,
     ) -> Option<LocalTypeId> {
         // validate type arguments against the declared bound
-        if parameter_kind == StaticParameterKind::Type {
+        if static_parameter.kind == StaticParameterKind::Type {
             let substitution_ty_id =
-                self.convert_static_argument_to_type_id(resolved_argument, types);
+                self.convert_static_argument_to_type_id(resolved_static_argument, types);
 
             if let Some(infer) = infer {
                 infer.push_constraint(Constraint::Subtype {
-                    sub: substitution_ty_id,
-                    sup: static_parameter.declared_type_id,
+                    sub_type: substitution_ty_id,
+                    super_type: static_parameter.declared_type_id,
                     variance: None,
                 });
             }
@@ -378,7 +322,7 @@ impl Compiler {
         }
 
         // validate value arguments against the declared type
-        if let StaticArgument::Evaluated { value, .. } = resolved_argument {
+        if let StaticArgument::Evaluated { value, .. } = resolved_static_argument {
             let ty = match value {
                 StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(value.clone()),
@@ -421,7 +365,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // skip non instantiable symbols
-        if !self.is_instantiable_type_symbol(symbol) {
+        if !self.is_instantiable_symbol(symbol) {
             return Ok(None);
         }
 
@@ -451,16 +395,25 @@ impl Compiler {
             return Ok(None);
         }
 
-        // gather static parameter metadata and kinds
-        let static_parameters = self.collect_static_parameters_for_symbols(
-            module,
-            &parameter_symbols,
-            tree,
-            symbols,
-            types,
-        );
-        let static_parameter_kinds =
-            self.collect_static_parameter_kinds_for_symbol(symbol, &static_parameters, types);
+        // collect referenced symbols from the instance type
+        let mut referenced_symbols = HashSet::new();
+        let mut visited = HashSet::new();
+        if let Some(ty_id) = types.get_instance_type_id(symbol) {
+            self.collect_type_reference_symbols(ty_id, types, &mut referenced_symbols, &mut visited);
+        }
+
+        // gather static parameter metadata with kinds
+        let static_parameters: Vec<_> = parameter_symbols
+            .iter()
+            .map(|symbol_id| {
+                let kind = if referenced_symbols.contains(symbol_id) {
+                    StaticParameterKind::Type
+                } else {
+                    StaticParameterKind::Value
+                };
+                self.collect_static_parameter(module, *symbol_id, kind, tree, symbols, types)
+            })
+            .collect();
 
         // map arguments to parameter slots
         let argument_values = static_arguments.unwrap_or(&[]);
@@ -475,11 +428,6 @@ impl Compiler {
         // resolve arguments with defaults and fallbacks
         let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
         for (index, static_parameter) in static_parameters.iter().enumerate() {
-            // pick the parameter kind and assigned argument
-            let parameter_kind = static_parameter_kinds
-                .get(&static_parameter.symbol)
-                .copied()
-                .unwrap_or(StaticParameterKind::Type);
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
             let error_node = if let Some(argument) = &assigned_argument {
                 match argument {
@@ -496,23 +444,37 @@ impl Compiler {
             };
 
             // resolve the argument value or synthesize a fallback
-            let resolved_argument = self.resolve_static_argument_for_parameter(
-                module,
-                static_parameter,
-                parameter_kind,
-                assigned_argument,
-                tree,
-                symbols,
-                types,
-                MissingStaticArgument::TypeReference { node_id },
-            )?;
+            let resolved_argument = self
+                .resolve_static_argument(module, static_parameter, assigned_argument, tree, symbols, types)?
+                .unwrap_or_else(|| {
+                    // fallback for type references: unknown type
+                    let fallback_value = match static_parameter.kind {
+                        StaticParameterKind::Type => {
+                            let unknown_ty_id = types.insert_type(Type::TypeLiteral {
+                                value: TypeLiteral::Unknown,
+                            });
+                            StaticExpression::Type { ty: unknown_ty_id }
+                        }
+                        StaticParameterKind::Value => node_id
+                            .try_into_typed::<Expression>()
+                            .map(|expression_id| StaticExpression::Unevaluated {
+                                node: expression_id,
+                            })
+                            .unwrap_or(StaticExpression::TypeLiteral {
+                                value: TypeLiteral::Unknown,
+                            }),
+                    };
+                    StaticArgument::Evaluated {
+                        name: static_parameter.name,
+                        value: fallback_value,
+                    }
+                });
 
             // validate type and value arguments against declared bounds
             self.validate_static_argument(
                 module,
                 error_node,
                 static_parameter,
-                parameter_kind,
                 &resolved_argument,
                 types,
                 None,
@@ -544,26 +506,31 @@ impl Compiler {
             return HashMap::new();
         }
 
-        // classify static parameters by usage
-        let static_parameters = self.collect_static_parameters_for_symbols(
-            module,
-            &parameter_symbols,
-            tree,
-            symbols,
-            types,
-        );
-        let static_parameter_kinds =
-            self.collect_static_parameter_kinds_for_symbol(symbol, &static_parameters, types);
+        // collect referenced symbols from the instance type
+        let mut referenced_symbols = HashSet::new();
+        let mut visited = HashSet::new();
+        if let Some(ty_id) = types.get_instance_type_id(symbol) {
+            self.collect_type_reference_symbols(ty_id, types, &mut referenced_symbols, &mut visited);
+        }
+
+        // collect static parameters with kinds
+        let static_parameters: Vec<_> = parameter_symbols
+            .iter()
+            .map(|symbol_id| {
+                let kind = if referenced_symbols.contains(symbol_id) {
+                    StaticParameterKind::Type
+                } else {
+                    StaticParameterKind::Value
+                };
+                self.collect_static_parameter(module, *symbol_id, kind, tree, symbols, types)
+            })
+            .collect();
 
         // build substitutions for type parameters only
         let mut substitutions = HashMap::new();
         for (static_parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter())
         {
-            let parameter_kind = static_parameter_kinds
-                .get(&static_parameter.symbol)
-                .copied()
-                .unwrap_or(StaticParameterKind::Type);
-            if parameter_kind == StaticParameterKind::Type {
+            if static_parameter.kind == StaticParameterKind::Type {
                 let ty_id = self.convert_static_argument_to_type_id(argument, types);
                 substitutions.insert(static_parameter.symbol, ty_id);
             }
@@ -710,11 +677,10 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_parameter: &StaticParameter,
-        parameter_kind: StaticParameterKind,
         infer: &mut InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<StaticArgument> {
-        match parameter_kind {
+        match static_parameter.kind {
             StaticParameterKind::Type => {
                 let inferred_ty_id = if let Some(owner_symbol) = owner_symbol {
                     let scope = InferScope {
@@ -812,7 +778,7 @@ impl Compiler {
     }
 
     /// Substitute static parameter references in a type.
-    pub(super) fn substitute_static_parameters_in_type(
+    pub(super) fn substitute_static_parameters(
         &self,
         ty_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
@@ -870,14 +836,9 @@ impl Compiler {
                 }
             }
             Type::Value { value } => {
-                let original_value = value;
-                let mapped_value = self.substitute_static_parameters_in_type(
-                    original_value,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_value == original_value {
+                let mapped_value =
+                    self.substitute_static_parameters(value, substitutions, types, cache);
+                if mapped_value == value {
                     ty_id
                 } else {
                     types.insert_type(Type::Value {
@@ -886,14 +847,9 @@ impl Compiler {
                 }
             }
             Type::Unary { operator, right } => {
-                let original_right = right;
-                let mapped_right = self.substitute_static_parameters_in_type(
-                    original_right,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_right == original_right {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type(Type::Unary {
@@ -907,21 +863,11 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let original_left = left;
-                let original_right = right;
-                let mapped_left = self.substitute_static_parameters_in_type(
-                    original_left,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                let mapped_right = self.substitute_static_parameters_in_type(
-                    original_right,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_left == original_left && mapped_right == original_right {
+                let mapped_left =
+                    self.substitute_static_parameters(left, substitutions, types, cache);
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_left == left && mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type(Type::Binary {
@@ -932,14 +878,9 @@ impl Compiler {
                 }
             }
             Type::Mutable { mutability, right } => {
-                let original_right = right;
-                let mapped_right = self.substitute_static_parameters_in_type(
-                    original_right,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_right == original_right {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type(Type::Mutable {
@@ -953,14 +894,9 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let original_right = right;
-                let mapped_right = self.substitute_static_parameters_in_type(
-                    original_right,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_right == original_right {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type(Type::ValueOf {
@@ -975,14 +911,9 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let original_right = right;
-                let mapped_right = self.substitute_static_parameters_in_type(
-                    original_right,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_right == original_right {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
                     ty_id
                 } else {
                     types.insert_type(Type::ReferenceOf {
@@ -993,14 +924,9 @@ impl Compiler {
                 }
             }
             Type::ArraySized { element, count } => {
-                let original_element = element;
-                let mapped_element = self.substitute_static_parameters_in_type(
-                    original_element,
-                    substitutions,
-                    types,
-                    cache,
-                );
-                if mapped_element == original_element {
+                let mapped_element =
+                    self.substitute_static_parameters(element, substitutions, types, cache);
+                if mapped_element == element {
                     ty_id
                 } else {
                     types.insert_type(Type::ArraySized {
@@ -1010,11 +936,10 @@ impl Compiler {
                 }
             }
             Type::Array { element } => {
-                let original_element = element;
-                let mapped_element = original_element.map(|element| {
-                    self.substitute_static_parameters_in_type(element, substitutions, types, cache)
+                let mapped_element = element.map(|element| {
+                    self.substitute_static_parameters(element, substitutions, types, cache)
                 });
-                if mapped_element == original_element {
+                if mapped_element == element {
                     ty_id
                 } else {
                     types.insert_type(Type::Array {
@@ -1027,7 +952,7 @@ impl Compiler {
                 let mapped_elements = elements
                     .iter()
                     .map(|element| {
-                        let mapped = self.substitute_static_parameters_in_type(
+                        let mapped = self.substitute_static_parameters(
                             *element,
                             substitutions,
                             types,
@@ -1052,7 +977,7 @@ impl Compiler {
                 let mapped_fields = fields
                     .iter()
                     .map(|field| {
-                        let mapped = self.substitute_static_parameters_in_type(
+                        let mapped = self.substitute_static_parameters(
                             field.ty,
                             substitutions,
                             types,
@@ -1088,7 +1013,7 @@ impl Compiler {
                 let mapped_parameters = dynamic_parameters
                     .iter()
                     .map(|parameter| {
-                        let mapped = self.substitute_static_parameters_in_type(
+                        let mapped = self.substitute_static_parameters(
                             *parameter,
                             substitutions,
                             types,
@@ -1101,12 +1026,8 @@ impl Compiler {
                     })
                     .collect::<Vec<_>>();
                 let mapped_return = return_type.map(|return_type| {
-                    let mapped = self.substitute_static_parameters_in_type(
-                        return_type,
-                        substitutions,
-                        types,
-                        cache,
-                    );
+                    let mapped =
+                        self.substitute_static_parameters(return_type, substitutions, types, cache);
                     if mapped != return_type {
                         changed = true;
                     }
@@ -1129,7 +1050,7 @@ impl Compiler {
                 let mapped_elements = elements
                     .iter()
                     .map(|element| {
-                        let mapped = self.substitute_static_parameters_in_type(
+                        let mapped = self.substitute_static_parameters(
                             *element,
                             substitutions,
                             types,
@@ -1154,7 +1075,7 @@ impl Compiler {
                 let mapped_elements = elements
                     .iter()
                     .map(|element| {
-                        let mapped = self.substitute_static_parameters_in_type(
+                        let mapped = self.substitute_static_parameters(
                             *element,
                             substitutions,
                             types,
@@ -1218,7 +1139,7 @@ impl Compiler {
             StaticExpression::ScalarLiteral { .. } => expression.clone(),
             StaticExpression::TypeLiteral { .. } => expression.clone(),
             StaticExpression::Type { ty } => StaticExpression::Type {
-                ty: self.substitute_static_parameters_in_type(*ty, substitutions, types, cache),
+                ty: self.substitute_static_parameters(*ty, substitutions, types, cache),
             },
             StaticExpression::Declaration {
                 declaration,

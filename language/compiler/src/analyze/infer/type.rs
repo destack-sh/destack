@@ -1,10 +1,10 @@
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_builtin::LanguageItem;
 use destack_dir::{
-    BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId,
-    GlobalTypeId, IntType, LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral,
-    StaticKey, SymbolType, Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable,
-    TypeUnaryOperator, UnaryOperator, VarianceBound,
+    BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
+    LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticKey, SymbolType,
+    Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -463,14 +463,8 @@ impl Compiler {
                     // neither direction works: illegal cast
                     self.error(AnalyzeError::InvalidCast {
                         node: expression_id.into_global_any(module.id),
-                        from_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: left_ty_id,
-                        },
-                        to_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: right_ty_id,
-                        },
+                        from_ty: left_ty_id.into_global(module.id),
+                        to_ty: right_ty_id.into_global(module.id),
                     });
                 }
                 // cast returns the target (right) type
@@ -491,14 +485,8 @@ impl Compiler {
                 {
                     self.error(AnalyzeError::UnsatisfiedType {
                         node: expression_id.into_global_any(module.id),
-                        expected_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: target_ty_id,
-                        },
-                        actual_ty: GlobalTypeId {
-                            module_id: module.id,
-                            local_id: left_ty_id,
-                        },
+                        expected_ty: target_ty_id.into_global(module.id),
+                        actual_ty: left_ty_id.into_global(module.id),
                     });
                 }
                 // satisfies returns the original (left) type, not the asserted type
