@@ -110,6 +110,24 @@ impl Compiler {
         tree.insert(block_expr_id, Expression::Block { block })
     }
 
+    /// Wrap an else branch, but don't wrap if it's an If expression (creates else-if chains).
+    fn wrap_else_branch(
+        &self,
+        origin_id: LocalNodeId<Expression>,
+        else_expr: Option<LocalNodeId<Expression>>,
+        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
+        tree: &mut NodeTree,
+    ) -> Option<LocalNodeId<Expression>> {
+        else_expr.map(|e| {
+            // don't wrap if it's an If expression (creates flat else-if chain)
+            if matches!(tree.get(e), Expression::If { .. }) {
+                e
+            } else {
+                self.wrap_in_block(origin_id, e, scope, tree)
+            }
+        })
+    }
+
     /// Split multi-declarators in a single block.
     fn split_declarators_in_block(
         &self,
@@ -354,7 +372,7 @@ impl Compiler {
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
 
             let then_block = self.wrap_in_block(match_id, body, scope, tree);
-            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+            let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -377,7 +395,7 @@ impl Compiler {
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
 
-            // optimization: if this is the last case (else_expr is None) and no guard,
+            // optimization: if this is the last case and no guard,
             // skip the condition check - the pattern must match if we reach here
             // (assuming exhaustive match, which is enforced by analysis)
             if else_expr.is_none() && guard.is_none() {
@@ -389,7 +407,7 @@ impl Compiler {
 
             // wrap then/else in blocks for proper structure
             let then_block = self.wrap_in_block(match_id, body, scope, tree);
-            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+            let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -417,7 +435,7 @@ impl Compiler {
 
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
-            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+            let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -444,7 +462,7 @@ impl Compiler {
 
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
-            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+            let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -469,7 +487,7 @@ impl Compiler {
             if let Some(guard_expr) = guard {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
-                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+                let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -497,7 +515,7 @@ impl Compiler {
             if let Some(guard_expr) = guard {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
-                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+                let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -538,7 +556,7 @@ impl Compiler {
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
 
                 let then_block = self.wrap_in_block(match_id, body, scope, tree);
-                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+                let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
@@ -561,7 +579,7 @@ impl Compiler {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
                 let then_block = self.wrap_in_block(match_id, body, scope, tree);
-                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+                let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -586,7 +604,7 @@ impl Compiler {
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
 
             let then_block = self.wrap_in_block(match_id, body, scope, tree);
-            let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+            let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -610,7 +628,7 @@ impl Compiler {
             if let Some(guard_expr) = guard {
                 let else_expr =
                     self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
-                let else_block = else_expr.map(|e| self.wrap_in_block(match_id, e, scope, tree));
+                let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
                 let if_id =
                     tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let if_expr: LocalNodeId<Expression> = tree.insert(
@@ -1555,12 +1573,10 @@ function check(x: number): string {
 function check(x): string {
     if (x == 1) {
         return "one";
+    } else if (x == 2) {
+        return "two";
     } else {
-        if (x == 2) {
-            return "two";
-        } else {
-            return "other";
-        }
+        return "other";
     }
 }
 "#,
@@ -1623,12 +1639,10 @@ function classify(x: number): string {
 function classify(x): string {
     if (n > 0) {
         return "positive";
+    } else if (n < 0) {
+        return "negative";
     } else {
-        if (n < 0) {
-            return "negative";
-        } else {
-            return "zero";
-        }
+        return "zero";
     }
 }
 "#,
@@ -1685,12 +1699,10 @@ function grade(score: number): string {
 function grade(score): string {
     if (score >= 90 && score < 100) {
         return 'A';
+    } else if (score >= 80 && score < 90) {
+        return 'B';
     } else {
-        if (score >= 80 && score < 90) {
-            return 'B';
-        } else {
-            return 'C';
-        }
+        return 'C';
     }
 }
 "#,
