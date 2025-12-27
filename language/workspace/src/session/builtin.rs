@@ -1,12 +1,14 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_builtin::{CORE_SOURCES, LanguageItem, PRELUDE_SOURCE};
+use destack_base::StringId;
+use destack_builtin::{BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, builtin_lib};
 use destack_dir::GlobalSymbolId;
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 use indexmap::IndexMap;
 
-use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry};
+use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, ProfileId};
 
 /// Well-known package ID for builtins.
 pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
@@ -30,7 +32,13 @@ pub struct LanguageBuiltins {
     pub prelude_module_id: ModuleId,
 
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
-    pub lib_module_by_path: DashMap<String, Vec<ModuleId>>,
+    pub lib_module_by_name: DashMap<String, Vec<ModuleId>>,
+
+    /// Ambient lib modules per profile.
+    pub ambient_libs_by_profile: DashMap<ProfileId, Vec<ModuleId>>,
+
+    /// Canonical lib symbols per profile.
+    pub lib_symbols_by_profile: DashMap<ProfileId, IndexMap<StringId, GlobalSymbolId>>,
 
     /// Resolved language items cache (LanguageItem -> GlobalSymbolId).
     /// (Populated lazily when items are first resolved after module compilation.)
@@ -131,7 +139,9 @@ impl LanguageBuiltins {
             core_module_by_path: core_modules,
             core_module_by_item: language_item_modules,
             prelude_module_id,
-            lib_module_by_path: DashMap::new(),
+            lib_module_by_name: DashMap::new(),
+            ambient_libs_by_profile: DashMap::new(),
+            lib_symbols_by_profile: DashMap::new(),
             items: DashMap::new(),
         }
     }
@@ -145,18 +155,107 @@ impl LanguageBuiltins {
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").
+    /// Returns None if the lib name is not registered.
     pub fn load_lib(
         &self,
         name: &str,
-        _files: Arc<FileRegistry>,
-        _modules: Arc<ModuleRegistry>,
-        _packages: Arc<PackageRegistry>,
-    ) -> Vec<ModuleId> {
+        files: Arc<FileRegistry>,
+        modules: Arc<ModuleRegistry>,
+    ) -> Option<Vec<ModuleId>> {
         // check cache first
-        if let Some(cached) = self.lib_module_by_path.get(name) {
-            return cached.clone();
+        if let Some(cached) = self.lib_module_by_name.get(name) {
+            return Some(cached.clone());
         }
 
-        todo!("#Incomplete: load lib from embedded lib/ (into 'builtin://lib/'?)")
+        let lib = builtin_lib(name)?;
+
+        // recursively load dependencies first
+        for &dependency in lib.dependencies {
+            self.load_lib(dependency, files.clone(), modules.clone())?;
+        }
+
+        // register lib sources
+        let mut module_ids = Vec::with_capacity(lib.sources.len());
+        for source in lib.sources {
+            let module_id = self.register_lib_source(source, files.clone(), modules.clone());
+            module_ids.push(module_id);
+        }
+
+        // cache module ids
+        self.lib_module_by_name
+            .insert(name.to_string(), module_ids.clone());
+
+        Some(module_ids)
+    }
+
+    /// Get the ambient lib modules for a profile, if any.
+    pub fn ambient_libs(&self, profile_id: ProfileId) -> Option<Vec<ModuleId>> {
+        self.ambient_libs_by_profile
+            .get(&profile_id)
+            .map(|modules| modules.clone())
+    }
+
+    /// Get the canonical lib symbol for a profile and name.
+    pub fn lib_symbol(&self, profile_id: ProfileId, name: StringId) -> Option<GlobalSymbolId> {
+        self.lib_symbols_by_profile
+            .get(&profile_id)
+            .and_then(|symbols| symbols.get(&name).copied())
+    }
+
+    /// Set the ambient lib modules for a profile.
+    pub fn set_ambient_libs(&self, profile_id: ProfileId, modules: Vec<ModuleId>) {
+        self.ambient_libs_by_profile.insert(profile_id, modules);
+    }
+
+    /// Set the canonical lib symbols for a profile.
+    pub fn set_lib_symbols(
+        &self,
+        profile_id: ProfileId,
+        symbols: IndexMap<StringId, GlobalSymbolId>,
+    ) {
+        self.lib_symbols_by_profile.insert(profile_id, symbols);
+    }
+
+    fn register_lib_source(
+        &self,
+        source: &BuiltinLibSource,
+        files: Arc<FileRegistry>,
+        modules: Arc<ModuleRegistry>,
+    ) -> ModuleId {
+        let uri = Uri::from_string(source.virtual_path());
+
+        if let Some(module_id) = modules.get_id_by_uri(&uri) {
+            return module_id;
+        }
+
+        let file_id = files.next_id();
+        let file = File::from_text(
+            file_id,
+            source.name.to_string(),
+            uri.clone(),
+            None,
+            FileType::Destack,
+            source.content.to_string(),
+        );
+        let file_version = file.version;
+        files.insert(file);
+
+        let module_path = source.module_path();
+        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
+
+        let module = Module::blank(
+            module_id,
+            file_id,
+            file_version,
+            uri,
+            None,
+            BUILTIN_PACKAGE_ID,
+            None,
+            ModuleType::Module,
+            LanguageType::Destack,
+        );
+        modules.insert(module);
+
+        module_id
     }
 }

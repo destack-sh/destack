@@ -82,6 +82,7 @@ impl TestProgram {
         let compiler_options = CompilerOptions {
             workers,
             inject_prelude,
+            load_libs: false,
             ..CompilerOptions::default()
         };
         let compiler = Arc::new(Compiler::new(
@@ -145,7 +146,9 @@ impl TestProgram {
 
     /// Load a lib module set (builder pattern).
     pub fn with_lib(self, name: &str) -> Self {
-        self.session.load_lib(name);
+        self.session
+            .load_lib(name)
+            .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
         self
     }
 

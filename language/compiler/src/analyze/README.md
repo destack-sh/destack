@@ -609,7 +609,7 @@ Differences are explicit and limited:
 # Builtin Types
 
 Intrinsic types like Readonly, Pick, and Record are modeled as builtin operators in Analyze.
-Library types ("canonical symbols") like Promise and Iterator are provided by core modules and mapped with LanguageItem identifiers.
+Library types ("canonical symbols") like Promise and Iterator are resolved from ambient libs and cached per profile.
 This keeps TypeScript compatibility while preserving explicit module ownership.
 
 ---

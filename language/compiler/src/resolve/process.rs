@@ -2,7 +2,7 @@ use crate::{Compiler, ResolveResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{BUILTIN_PACKAGE_ID, ProfileId};
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -66,6 +66,13 @@ impl Compiler {
             }
             ResolveTask::ResolveModulePrepare { module, profile } => {
                 self.require_bind_module_validate(module)?;
+                if self.options.load_libs {
+                    let module_ref = self.program.modules.get(module);
+                    let module_ref = module_ref.read();
+                    if module_ref.package_id != BUILTIN_PACKAGE_ID {
+                        self.require_resolve_libs(profile)?;
+                    }
+                }
                 self.resolve_module_prepare(module, profile)?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {

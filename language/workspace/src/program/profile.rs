@@ -112,6 +112,10 @@ pub struct Profile {
     pub id: ProfileId,
     /// The canonical key for the profile.
     pub key: ProfileKey,
+    // nocheckin: generalise/move ImportMetaEnv into Profile..? shouldn't it be here?
+    // (shouldn't Profile contain the actual env? as opposed to just the EnvSnapshot from ProfileKey?
+    //   I feel like these is a generalised ProfileEnv waiting to happen that we then-resuse (or maybe even entirely replaces) ImportMetaEnv from
+    //   language/workspace/src/program/import.rs)
 }
 
 /// Registry for profiles keyed by ProfileKey.

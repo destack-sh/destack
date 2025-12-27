@@ -54,6 +54,7 @@ newtype Result<T, E> = Ok<T> | Err<E>
 
 Adds Destack-specific functionality, sometimes attaching to types or re-defining types from `lib/`.
 These are extensions that work the same on all targets (ideally).
+The standard library is loaded for all profiles but is not ambient; modules must be imported.
 
 ```
 // std/array.ds
@@ -97,6 +98,8 @@ Different targets get different implementations.
 | `lib/es/` | `Array`, `Map`, `Set`, `Promise`, `Object`, `Symbol`, etc. | JS targets |
 | `lib/dom/` | `Window`, `Document`, DOM APIs | `runtime: browser` |
 | `lib/node/` | `Buffer`, `fs`, `path`, Node.js APIs | `runtime: node` |
+| `lib/deno/` | `Deno`, `Deno.fs`, Deno APIs | `runtime: deno` |
+| `lib/bun/` | `Bun`, `Bun.spawn`, Bun APIs | `runtime: bun` |
 | `lib/worker/` | `WorkerGlobalScope`, Web Worker APIs | `runtime: worker` |
 
 ## Builtin vs Library

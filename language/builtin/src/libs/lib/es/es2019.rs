@@ -1,0 +1,41 @@
+use super::super::super::source::{BuiltinLib, BuiltinLibSource};
+
+macro_rules! lib_source {
+    ($name:ident, $file:literal) => {
+        const $name: BuiltinLibSource = BuiltinLibSource::new(
+            "lib",
+            "es/es2019",
+            $file,
+            include_str!(concat!("../../../../lib/es/es2019/", $file)),
+        );
+    };
+}
+
+lib_source!(LIB_ES_ES2019_ARRAY_D_DS, "array.d.ds");
+lib_source!(LIB_ES_ES2019_INTL_D_DS, "intl.d.ds");
+lib_source!(LIB_ES_ES2019_OBJECT_D_DS, "object.d.ds");
+lib_source!(LIB_ES_ES2019_STRING_D_DS, "string.d.ds");
+lib_source!(LIB_ES_ES2019_SYMBOL_D_DS, "symbol.d.ds");
+
+pub const LIB_ES2019: BuiltinLib = BuiltinLib::ambient(
+    "es2019",
+    &[
+        LIB_ES_ES2019_ARRAY_D_DS,
+        LIB_ES_ES2019_INTL_D_DS,
+        LIB_ES_ES2019_OBJECT_D_DS,
+        LIB_ES_ES2019_STRING_D_DS,
+        LIB_ES_ES2019_SYMBOL_D_DS,
+    ],
+    &["es2018"],
+);
+
+pub const LIB_ES2019_ARRAY: BuiltinLib =
+    BuiltinLib::ambient("es2019.array", &[LIB_ES_ES2019_ARRAY_D_DS], &[]);
+pub const LIB_ES2019_INTL: BuiltinLib =
+    BuiltinLib::ambient("es2019.intl", &[LIB_ES_ES2019_INTL_D_DS], &[]);
+pub const LIB_ES2019_OBJECT: BuiltinLib =
+    BuiltinLib::ambient("es2019.object", &[LIB_ES_ES2019_OBJECT_D_DS], &[]);
+pub const LIB_ES2019_STRING: BuiltinLib =
+    BuiltinLib::ambient("es2019.string", &[LIB_ES_ES2019_STRING_D_DS], &[]);
+pub const LIB_ES2019_SYMBOL: BuiltinLib =
+    BuiltinLib::ambient("es2019.symbol", &[LIB_ES_ES2019_SYMBOL_D_DS], &[]);

@@ -904,8 +904,6 @@ impl Target {
     }
 
     /// Derive library files from runtime and platform.
-    /// nocheckin TODO #Incomplete: load and reference std/libs (per profile?)
-    /// nocheckin #Incomplete: derived_lib seems incomplete / outdated..?
     /// If `lib` is explicitly set, returns it. Otherwise derives from runtime and platform:
     /// - ES version comes from runtime capabilities
     /// - Runtime-specific libs (dom, node, deno, worker, etc.)
@@ -913,6 +911,11 @@ impl Target {
     pub fn derived_lib(&self) -> Vec<String> {
         if let Some(lib) = &self.lib {
             return lib.clone();
+        }
+
+        if self.runtime.is_native() {
+            // native runtime has no ambient libs by default
+            return Vec::new();
         }
 
         let mut libs = Vec::new();
@@ -938,6 +941,7 @@ impl Target {
             Runtime::Browser => {
                 libs.push("dom".to_string());
                 libs.push("dom.iterable".to_string());
+                libs.push("dom.asynciterable".to_string());
             }
             Runtime::Node => {
                 libs.push("node".to_string());
@@ -951,6 +955,8 @@ impl Target {
             }
             Runtime::Worker | Runtime::Workerd => {
                 libs.push("worker".to_string());
+                libs.push("worker.iterable".to_string());
+                libs.push("worker.asynciterable".to_string());
             }
             Runtime::WasmJs => {
                 // WASM in browser may have limited DOM access
@@ -961,9 +967,7 @@ impl Target {
             Runtime::WasmStandalone | Runtime::Embedded => {
                 // minimal environment
             }
-            Runtime::Destack => {
-                libs.push("destack".to_string());
-            }
+            Runtime::Destack => {}
         }
 
         // platform-specific libs (primarily for native targets)

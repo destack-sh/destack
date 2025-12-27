@@ -77,6 +77,36 @@ generate-schema:
     cp workspace/generated/dsconfig.schema.json ../platform/vscode/dsconfig.schema.json
     @echo "generated workspace/generated/dsconfig.schema.json"
 
+# --- builtin libs ---
+
+# fetch typescript libs into builtin/lib
+fetch-builtin-libs:
+    ./builtin/scripts/fetch.sh
+
+# fetch typescript es libs into builtin/lib/es
+fetch-builtin-libs-es:
+    ./builtin/scripts/fetch-es.sh
+
+# fetch typescript dom libs into builtin/lib/dom
+fetch-builtin-libs-dom:
+    ./builtin/scripts/fetch-dom.sh
+
+# fetch typescript worker libs into builtin/lib/worker
+fetch-builtin-libs-worker:
+    ./builtin/scripts/fetch-worker.sh
+
+# fetch node libs into builtin/lib/node
+fetch-builtin-libs-node:
+    ./builtin/scripts/fetch-node.sh
+
+# fetch deno libs into builtin/lib/deno
+fetch-builtin-libs-deno:
+    ./builtin/scripts/fetch-deno.sh
+
+# fetch bun libs into builtin/lib/bun
+fetch-builtin-libs-bun:
+    ./builtin/scripts/fetch-bun.sh
+
 # --- test ---
 
 # run all tests

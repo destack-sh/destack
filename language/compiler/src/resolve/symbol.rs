@@ -236,6 +236,107 @@ impl Compiler {
         ))
     }
 
+    /// Resolve a path from ambient lib modules, if available.
+    fn resolve_ambient_path(
+        &self,
+        _module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        node: GlobalNodeIdAny,
+        profile: ProfileId,
+        path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        tree: &mut NodeTree,
+    ) -> ResolveResult<Option<Expression>> {
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return Ok(None);
+        };
+        let Some(ambient_modules) = builtins.ambient_libs(profile) else {
+            return Ok(None);
+        };
+        let first_segment = path.first_segment().expect("path is empty");
+        let key = StaticKey::Name(first_segment);
+
+        // search ambient lib namespace scopes in order
+        for module_id in ambient_modules {
+            let ambient_module = self.program.modules.get(module_id);
+            let ambient_module = ambient_module.read();
+            let ambient_dir = ambient_module.dir(profile);
+            let symbols = ambient_dir.symbols.read();
+
+            // find symbol in ambient lib namespace scope
+            let namespace_scope = symbols.get_scope_by_id(ambient_dir.namespace_scope);
+            let Some(symbol_id) = namespace_scope.find(key) else {
+                continue;
+            };
+
+            // single-segment path: just return the GlobalReference
+            if path.segments.len() == 1 {
+                return Ok(Some(Expression::GlobalReference {
+                    path: path.clone(),
+                    static_arguments,
+                    target_symbol: symbol_id.into_global(module_id),
+                }));
+            }
+
+            // multi-segment path: resolve in nested namespace scope
+            let symbol = symbols.get_symbol(symbol_id);
+            if symbol.kind == SymbolKind::Namespace {
+                let remaining_path = path.slice(1..);
+                match self.resolve_relative_symbol(
+                    &ambient_module,
+                    node,
+                    symbol_id,
+                    &remaining_path,
+                    &symbols,
+                ) {
+                    Ok((resolved_id, None)) => {
+                        return Ok(Some(Expression::GlobalReference {
+                            path: path.clone(),
+                            static_arguments,
+                            target_symbol: resolved_id.into_global(module_id),
+                        }));
+                    }
+                    Ok((resolved_id, Some(remaining))) => {
+                        let resolved_path =
+                            path.slice(0..path.segments.len() - remaining.segments.len());
+                        let root_expr = Expression::GlobalReference {
+                            path: resolved_path,
+                            static_arguments: None,
+                            target_symbol: resolved_id.into_global(module_id),
+                        };
+                        return Ok(Some(self.build_member_chain(
+                            expression_id,
+                            root_expr,
+                            &remaining,
+                            static_arguments,
+                            tree,
+                        )));
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+
+            // fall back to member chain for non-namespace symbols
+            let root_path = Path {
+                segments: vec![first_segment].into(),
+            };
+            let root_expr = Expression::GlobalReference {
+                path: root_path,
+                static_arguments: None,
+                target_symbol: symbol_id.into_global(module_id),
+            };
+            return Ok(Some(self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            )));
+        }
+
+        Ok(None)
+    }
+
     /// Resolve a relative path starting from a symbol.
     /// Returns the resolved symbol and any remaining path segments that couldn't be resolved
     /// (e.g., when hitting a non-namespace symbol with more segments to go).
@@ -369,6 +470,7 @@ impl Compiler {
 
         // resolve Self to enclosing type
         if first_segment_str.as_str() == "Self" {
+            // nocheckin: should "Self" be "This"?
             let root_path = Path {
                 segments: vec![first_segment].into(),
             };
@@ -402,6 +504,19 @@ impl Compiler {
                 static_arguments,
                 tree,
             );
+        }
+
+        // resolve ambient lib symbols
+        if let Some(expr) = self.resolve_ambient_path(
+            module,
+            expression_id,
+            node,
+            profile,
+            path,
+            static_arguments,
+            tree,
+        )? {
+            return Ok(expr);
         }
 
         // neither local nor prelude found, return the original error
