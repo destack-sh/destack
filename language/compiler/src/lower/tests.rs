@@ -37,16 +37,16 @@ block0:
 
 #[test]
 #[ignore] // nocheckin: fix lower error
-fn test_lower_fib_function() {
+fn test_lower_fibonacci_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
         r#"
-function fib(n: number): number {
+function fibonacci(n: number): number {
     if (n < 2) {
         return n;
     }
-    return fib(n - 1) + fib(n - 2);
+    return fibonacci(n - 1) + fibonacci(n - 2);
 }
 "#,
     );
@@ -56,7 +56,7 @@ function fib(n: number): number {
         module_id,
         "native",
         r#"
-function @fib(v0: f64) -> f64 {
+function @fibonacci(v0: f64) -> f64 {
 block0:
     v1 = fconst 2f64
     v2 = fcmp_lt v0, v1
@@ -68,10 +68,10 @@ block2:
 block3:
     v3 = fconst 1f64
     v4 = fsub v0, v3
-    v5 = call @fib(v4)
+    v5 = call @fibonacci(v4)
     v6 = fconst 2f64
     v7 = fsub v0, v6
-    v8 = call @fib(v7)
+    v8 = call @fibonacci(v7)
     v9 = fadd v5, v8
     return v9
 }
@@ -80,7 +80,7 @@ block3:
     test.assert_mir_function_output(
         module_id,
         "native",
-        "fib",
+        "fibonacci",
         &[Value::float64(10.0)],
         Value::float64(55.0),
     );

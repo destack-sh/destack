@@ -40,6 +40,8 @@ pub struct CompilerOptions {
     /// Whether to make prelude items (Add, Type, deprecated, etc.) available.
     /// When true, prelude items resolve without explicit imports.
     pub inject_prelude: bool,
+    /// Whether to load profile libraries (es*, dom, std) by default.
+    pub load_libs: bool,
 
     /// Whether to generate source maps.
     pub source_map: bool,
@@ -73,6 +75,7 @@ impl Default for CompilerOptions {
             default_int_width: 32,
             default_float_width: 64,
             inject_prelude: true,
+            load_libs: true,
 
             source_map: true,
 

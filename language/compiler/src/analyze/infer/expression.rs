@@ -1214,6 +1214,7 @@ impl Compiler {
     }
 
     /// Find the nearest `this` symbol visible to the expression.
+    /// NOTE #Architecture: should find_this_symbol be resolved during Bind? (instead of Analyze/infer)?
     fn find_this_symbol(
         &self,
         module: &Module,

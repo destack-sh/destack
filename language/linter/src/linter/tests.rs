@@ -106,7 +106,9 @@ impl TestProgram {
 
     /// Load a lib module set (builder pattern).
     pub(crate) fn with_lib(self, name: &str) -> Self {
-        self.session.load_lib(name);
+        self.session
+            .load_lib(name)
+            .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
         self
     }
 

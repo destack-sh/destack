@@ -95,4 +95,8 @@ pub enum ResolveError {
     /// Missing language item (builtin not found).
     #[error(code = "ER012", message = "missing language item '{item}'")]
     MissingLanguageItem { item: LanguageItem },
+
+    /// Missing builtin library.
+    #[error(code = "ER013", message = "missing builtin lib '{name}'")]
+    MissingBuiltinLib { name: String },
 }

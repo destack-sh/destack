@@ -123,13 +123,10 @@ impl Session {
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").
-    pub fn load_lib(&self, name: &str) -> Vec<ModuleId> {
-        self.builtins.load_lib(
-            name,
-            self.files.clone(),
-            self.modules.clone(),
-            self.packages.clone(),
-        )
+    /// Returns None if the lib name is not registered.
+    pub fn load_lib(&self, name: &str) -> Option<Vec<ModuleId>> {
+        self.builtins
+            .load_lib(name, self.files.clone(), self.modules.clone())
     }
 
     /// Add a root to the session.
