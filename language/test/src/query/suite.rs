@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
 use crate::mdtest::{
-    MdTestCase, MdTestFile, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file,
-    run_with_timeout, slug,
+    MdTestCase, MdTestFile, MdTestLibs, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file,
+    parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
 use destack_source::MemoryFileSystem;
@@ -210,9 +210,17 @@ impl Suite for QuerySuite {
             };
         };
 
-        let timeout = context
-            .timeout
-            .unwrap_or(Duration::from_secs(TEST_TIMEOUT_SECONDS));
+        let timeout = context.timeout.unwrap_or_else(|| {
+            let has_libs = parse_mdtest_libs(&query_test.base)
+                .map(|libs| !matches!(libs, MdTestLibs::None))
+                .unwrap_or(false);
+            let seconds = if has_libs {
+                TEST_TIMEOUT_SECONDS.saturating_mul(5)
+            } else {
+                TEST_TIMEOUT_SECONDS
+            };
+            Duration::from_secs(seconds)
+        });
         let test = query_test.clone();
         run_with_timeout(test.base.clone(), timeout, move |_| run_query_test(&test))
     }

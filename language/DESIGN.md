@@ -660,6 +660,19 @@ These patterns rarely appear in production code:
 
 Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambiguity), `.ds` extends `.tsx` with Destack features like tuples.
 
+### "TypeScript++"
+
+Destack treats TypeScript syntax as a first-class citizen and aims for full `.ts`/`.d.ts` coverage.
+Advanced TS type constructs (conditional types, mapped types, template literal types, import types, etc.) are intended to round-trip and remain visible to tooling:
+- This includes tuple element modifiers, call/construct signatures, index signatures, and `this` parameters
+- Type-level constructs should remain available for reflection, documentation, and compile-time evaluation
+- Cross-target builds should reuse the same front-end IR and only diverge when profile-specific resolution or codegen requires it
+
+Comptime bridges TS types and Destack semantics:
+- `comptime` can evaluate expressions that depend on `import.meta` profile data
+- Type relations like `T extends U` can be used as compile-time predicates, enabling `comptime if` style gating
+- The `type` operator provides an explicit way to treat types as values in comptime contexts when disambiguation is needed
+
 ### What We Don't Support
 
 - **Flow**: We support TypeScript only.

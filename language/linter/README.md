@@ -442,7 +442,6 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `no-shadow` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow shadowing by rebinding a value |
 | `no-struct` | Destack | AST | ✓ | ✅ | Unsafe | Disallow struct declarations (prefer classes) |
 | `no-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow ternary operators |
-| `no-unsafe-ffi` | Destack | DIR | ✓ | 🔶 | None | Disallow FFI without explicit `@unsafe` |
 | `no-void` | ESLint | AST | ✗ | 🔶 | Safe | Disallow the `void` operator |
 | `no-warning-comments` | ESLint | AST | ✓ | ✅ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Unsafe | Disallow wildcard imports |

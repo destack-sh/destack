@@ -5,9 +5,9 @@
 // - JS targets: Thin wrappers over JS built-ins
 // - Native targets: Full implementations
 
-export * from "./array"
-export * from "./string"
-export * from "./collections"
-export * from "./time"
-export * from "./io"
-export * from "./async"
+export * from "./array/index.ds"
+export * from "./string/index.ds"
+export * from "./collections/index.ds"
+export * from "./time/index.ds"
+export * from "./io/index.ds"
+export * from "./async/index.ds"
