@@ -237,7 +237,7 @@ const x: int32 = 1
     fn test_parse_var_array_undefined() {
         let mut test = TestParser::new(
             r###"
-^mut x: float64[3] = undefined
+var x: float64[3] = undefined
 "###,
         );
         let mut parser = test.prepare();
@@ -261,11 +261,11 @@ const x: int32 = 1
 
                 // float64[3]
                 let ty_id = ty.expect("expected explicit type");
-                assert_node!(parser.tree, ty_id, Expression::Index { position: _, left, index } => {
+                assert_node!(parser.tree, ty_id, Expression::TypeIndex { left, index } => {
                     assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::Float(float_ty)) => {
                         assert_eq!(float_ty.width, Some(64));
                     });
-                    assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
+                    assert_node!(parser.tree, *index, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
                 });
             });
         });
@@ -411,16 +411,16 @@ const registry: Map<
                     assert_path!(parser, *path, "Map");
                     // <string, Set<{count: number}>>
                     // string
-                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
                     });
                     // Set<{count: number}>
-                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { value } => {
+                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
                             // Set
                             assert_path!(parser, *path, "Set");
                             // <{count: number}>
-                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                                 assert_node!(parser.tree, *value, Expression::ObjectExpression { ty: None, properties, .. } => {
                                     assert_eq!(properties.len(), 1);
                                     assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {

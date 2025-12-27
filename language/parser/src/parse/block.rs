@@ -364,9 +364,10 @@ impl Parser {
         self.eat_keyword(Keyword::Comptime)?;
 
         // body expression
-        let body_id = self.with_options(self.options.not_in_position(), |parser| {
-            parser.eat_expression()
-        })?;
+        let body_id = self
+            .with_options(self.options.not_in_position().in_comptime(), |parser| {
+                parser.eat_expression()
+            })?;
 
         // comptime
         let comptime_id = self.tree.insert(

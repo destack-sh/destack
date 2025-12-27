@@ -1,4 +1,4 @@
-# Ownership (LanguageFeature::Ownership)
+# Ownership
 
 > NOTE #Incomplete: implement/mdtest ownership semantics
 

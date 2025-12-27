@@ -251,11 +251,23 @@ impl Parser {
                 operator: binary_operator,
                 right,
             },
-            InfixOperator::TypeBinary(type_binary_operator) => Expression::TypeBinary {
-                left,
-                operator: type_binary_operator,
-                right,
-            },
+            InfixOperator::TypeBinary(type_binary_operator) => {
+                if self.options.in_type
+                    && type_binary_operator == TypeBinaryOperator::Is
+                    && let Some(subject) = self.type_predicate_subject_from_expression(left)
+                {
+                    return Expression::TypePredicate {
+                        asserts: false,
+                        subject,
+                        target: Some(right),
+                    };
+                }
+                Expression::TypeBinary {
+                    left,
+                    operator: type_binary_operator,
+                    right,
+                }
+            }
             InfixOperator::Assign(assign_operator) => Expression::Assign {
                 left,
                 operator: assign_operator,
@@ -323,9 +335,9 @@ impl Parser {
     }
 
     destack_base::ensure_sufficient_stack! {
-        /// Eat an expression.
-        pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-            let start = self.mark();
+    /// Eat an expression.
+    pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let start = self.mark();
 
         // labelled statement (like `label: while(...)` or `label: { }`)
         if self.options.in_statement_position
@@ -808,6 +820,12 @@ impl Parser {
             // Control flow(ish)
             // ------------------------------------------------------------
             //
+            // this
+            else if keyword == Some(Keyword::This) {
+                self.bump(); // eat this
+                self.tree
+                    .insert(Expression::This, self.get_span_from(start))
+            }
             // new
             else if keyword == Some(Keyword::New) && next_token_type == TokenType::Identifier {
                 self.eat_new()?
@@ -815,6 +833,13 @@ impl Parser {
             // delete
             else if keyword == Some(Keyword::Delete) && next_token_type == TokenType::Identifier {
                 self.eat_delete()?
+            }
+            // type import expression
+            else if self.options.in_type
+                && keyword == Some(Keyword::Import)
+                && next_token_type == TokenType::OpenParenthesis
+            {
+                self.eat_type_import_expression()?
             }
             // import
             else if keyword == Some(Keyword::Import)
@@ -827,6 +852,14 @@ impl Parser {
                 .contains(&next_token_type)
             {
                 self.eat_import()?
+            }
+            // type infer
+            else if self.options.in_type && keyword == Some(Keyword::Infer) {
+                self.eat_type_infer_expression()?
+            }
+            // type predicate
+            else if self.options.in_type && keyword == Some(Keyword::Asserts) {
+                self.eat_type_predicate_asserts()?
             }
             // let
             else if keyword == Some(Keyword::Let)
@@ -945,6 +978,14 @@ impl Parser {
             }
             // anonymous struct literal
             else if token_type == TokenType::OpenBrace && !self.options.in_statement_position {
+                if self.options.in_type {
+                    let speculative_start = self.mark();
+                    let speculative_start_idx = self.tree.next_id();
+                    if let Ok(mapped_id) = self.eat_type_mapped_expression() {
+                        return Ok(mapped_id);
+                    }
+                    self.restore(speculative_start, speculative_start_idx);
+                }
                 let properties = self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_object_literal()
                 })?;
@@ -1010,13 +1051,17 @@ impl Parser {
             }
             // template literal
             else if self.peek_template_literal().is_ok() {
-                let template_literal = self.eat_template_literal()?;
-                self.tree.insert(
-                    Expression::TemplateExpression {
-                        value: template_literal,
-                    },
-                    self.get_span_from(start),
-                )
+                if self.options.in_type {
+                    self.eat_type_template_literal_expression()?
+                } else {
+                    let template_literal = self.eat_template_literal()?;
+                    self.tree.insert(
+                        Expression::TemplateExpression {
+                            value: template_literal,
+                        },
+                        self.get_span_from(start),
+                    )
+                }
             }
             // scalar literal
             else if self.peek_scalar_literal().is_ok() {
@@ -1134,7 +1179,18 @@ impl Parser {
                 self.tree.set_main_span(left_expression_id, operator_span);
             }
             // type unary postfix operations
-            else if let Ok(operator) = self.peek_type_unary_postfix_operator() {
+            else if let Ok(operator) = self.peek_type_unary_postfix_operator()
+                && !(self.options.in_type
+                    && operator == TypeUnaryOperator::Maybe
+                    && matches!(
+                        self.tree.get(left_expression_id),
+                        Expression::TypeBinary {
+                            operator: TypeBinaryOperator::Extends,
+                            ..
+                        }
+                    ))
+            {
+                // avoid consuming conditional type ? as a type maybe
                 let operator_start = self.mark();
                 self.bump(); // eat type unary operator
                 if operator == TypeUnaryOperator::AsConst {
@@ -1298,30 +1354,70 @@ impl Parser {
                 }
                 // ternary if (we already have the condition)
                 else {
+                    let type_conditional = if self.options.in_type {
+                        match self.tree.get(left_expression_id) {
+                            Expression::TypeBinary {
+                                left,
+                                operator: TypeBinaryOperator::Extends,
+                                right,
+                            } => Some((*left, *right)),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    if self.options.in_type && type_conditional.is_none() {
+                        break;
+                    }
+
                     self.bump(); // eat ?
                     self.eat_newlines_maybe()?;
-                    // then expression
-                    let then_expression_id = self.with_options(
-                        self.options.not_in_position().in_ternary_condition(),
-                        |parser| parser.eat_expression(),
-                    )?;
-                    // :
-                    self.eat_newlines_maybe()?;
-                    self.eat_colon()?;
-                    self.eat_newlines_maybe()?;
-                    // else expression
-                    let else_expression_id = self
-                        .with_options(self.options.not_in_position(), |parser| {
-                            parser.eat_expression()
-                        })?;
-                    // ternary if
-                    let expression = Expression::If {
-                        kind: IfKind::Ternary,
-                        condition: left_expression_id,
-                        then_expression: then_expression_id,
-                        else_expression: Some(else_expression_id),
-                    };
-                    left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+                    if let Some((left, right)) = type_conditional {
+                        // type conditional expression
+                        let then_expression_id = self.with_options(
+                            self.options
+                                .not_in_position()
+                                .in_type()
+                                .in_ternary_condition(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        self.eat_newlines_maybe()?;
+                        self.eat_colon()?;
+                        self.eat_newlines_maybe()?;
+                        let else_expression_id = self.with_options(
+                            self.options.not_in_position().in_type(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        let expression = Expression::TypeConditional {
+                            left,
+                            right,
+                            then_type: then_expression_id,
+                            else_type: else_expression_id,
+                        };
+                        left_expression_id =
+                            self.tree.insert(expression, self.get_span_from(start));
+                    } else {
+                        let then_expression_id = self.with_options(
+                            self.options.not_in_position().in_ternary_condition(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        self.eat_newlines_maybe()?;
+                        self.eat_colon()?;
+                        self.eat_newlines_maybe()?;
+                        let else_expression_id = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        let expression = Expression::If {
+                            kind: IfKind::Ternary,
+                            condition: left_expression_id,
+                            then_expression: then_expression_id,
+                            else_expression: Some(else_expression_id),
+                        };
+                        left_expression_id =
+                            self.tree.insert(expression, self.get_span_from(start));
+                    }
                 }
             }
             // must
@@ -1353,6 +1449,7 @@ impl Parser {
                     // build a tuple
                     let first_element_id = self.tree.insert(
                         Argument::Positional {
+                            modifiers: None,
                             value: left_expression_id,
                         },
                         self.get_span_from(start),
@@ -1462,11 +1559,50 @@ impl Parser {
             self.tree.set_main_span(left_expression_id, operator_span)
         }
 
+        // type conditional expression
+        if self.options.in_type
+            && (self.peek_token(TokenType::Maybe).is_ok()
+                || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok())
+        {
+            let (left, right) = match self.tree.get(left_expression_id) {
+                Expression::TypeBinary {
+                    left,
+                    operator: TypeBinaryOperator::Extends,
+                    right,
+                } => (*left, *right),
+                _ => return Ok(left_expression_id),
+            };
+
+            self.eat_newlines_maybe()?;
+            self.bump(); // eat ?
+            self.eat_newlines_maybe()?;
+            let then_expression_id = self.with_options(
+                self.options
+                    .not_in_position()
+                    .in_type()
+                    .in_ternary_condition(),
+                |parser| parser.eat_expression(),
+            )?;
+            self.eat_newlines_maybe()?;
+            self.eat_colon()?;
+            self.eat_newlines_maybe()?;
+            let else_expression_id =
+                self.with_options(self.options.not_in_position().in_type(), |parser| {
+                    parser.eat_expression()
+                })?;
+            let expression = Expression::TypeConditional {
+                left,
+                right,
+                then_type: then_expression_id,
+                else_type: else_expression_id,
+            };
+            left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+        }
+
         Ok(left_expression_id)
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use destack_ast::{
@@ -1474,7 +1610,7 @@ mod tests {
         DeclarationType, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField,
         EnumKind, Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern,
         PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
-        TypeUnaryOperator, UnaryOperator, VarianceBound,
+        TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -1493,6 +1629,15 @@ mod tests {
             parser.tree.get(expression_id),
             "import.descriptor.env"
         );
+    }
+
+    /// Parse a bare this expression.
+    #[test]
+    fn test_parse_this_expression() {
+        let mut test = TestParser::new("this");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::This);
     }
 
     /// Disambiguate using `type` as a variable.
@@ -1861,7 +2006,7 @@ type = type * 2
                 assert_node!(
                     parser.tree,
                     elements[0],
-                    Argument::Positional { value } => {
+                    Argument::Positional { modifiers: _, value } => {
                         assert_node!(
                             parser.tree,
                             *value,
@@ -1873,7 +2018,7 @@ type = type * 2
                 assert_node!(
                     parser.tree,
                     elements[1],
-                    Argument::Positional { value } => {
+                    Argument::Positional { modifiers: _, value } => {
                         assert_node!(
                             parser.tree,
                             *value,
@@ -1912,7 +2057,7 @@ const shapes = (
                 assert_node!(parser.tree, value.unwrap(), Expression::TupleExpression { elements, .. } => {
                     assert_eq!(elements.len(), 5);
                     // TetrisPieceShape.I
-                    assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "TetrisPieceShape.I");
                     });
                 });
@@ -2378,12 +2523,12 @@ geom.Mesh<2, 4> {
                     assert_path!(parser, *path, "A");
                     assert!(static_arguments.is_some());
                     // B<C>
-                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
                             assert_path!(parser, *path, "B");
                             assert!(static_arguments.is_some());
                             // C
-                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { value } => {
+                            assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                                 assert_expression_path!(parser, parser.tree.get(*value), "C");
                             });
                         });
@@ -2961,7 +3106,7 @@ self
         );
     }
 
-    /// Parse type unary prefix keyof, typeof, and infer operations.
+    /// Parse type prefix operators and infer bindings.
     #[test]
     fn test_parse_type_unary_prefix_expression() {
         let mut test = TestParser::new("keyof typeof infer Value");
@@ -2974,10 +3119,10 @@ self
             assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
                 // typeof
                 assert_eq!(*operator, TypeUnaryOperator::Typeof);
-                assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
+                assert_node!(parser.tree, *right, Expression::TypeInfer { name, constraint } => {
                     // infer
-                    assert_eq!(*operator, TypeUnaryOperator::Infer);
-                    assert_expression_path!(parser, parser.tree.get(*right), "Value");
+                    assert_string!(parser, *name, "Value");
+                    assert!(constraint.is_none());
                 });
             });
         });
@@ -3022,16 +3167,11 @@ function isStringy(value: any): asserts value is string {
                     assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Any));
                 });
                 // asserts value is string
-                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeUnary { operator, right } => {
-                    assert_eq!(*operator, TypeUnaryOperator::Asserts);
-                    assert_node!(parser.tree, *right, Expression::TypeBinary { left, operator, right, .. } => {
-                        // value is string
-                        assert_expression_path!(parser, parser.tree.get(*left), "value");
-                        // is
-                        assert_eq!(*operator, TypeBinaryOperator::Is);
-                        // string
-                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::String));
-                    });
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypePredicate { asserts, subject, target } => {
+                    // asserts value is string
+                    assert!(*asserts);
+                    assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
+                    assert_node!(parser.tree, target.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
                 });
             });
         });
@@ -3152,15 +3292,15 @@ const value =
         assert_node!(parser.tree, expr_id, Expression::TupleExpression { elements } => {
             assert_eq!(elements.len(), 3);
             // a
-            assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "a");
             });
             // b
-            assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
+            assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "b");
             });
             // c
-            assert_node!(parser.tree, elements[2], Argument::Positional { value } => {
+            assert_node!(parser.tree, elements[2], Argument::Positional { modifiers: _, value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "c");
             });
         });

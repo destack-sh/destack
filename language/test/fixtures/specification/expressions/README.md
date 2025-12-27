@@ -1,4 +1,4 @@
-# Expressions (LanguageFeature::Expressions)
+# Expressions
 
 > NOTE #Incomplete: implement/mdtest Destack expression extensions
 

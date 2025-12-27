@@ -1,7 +1,7 @@
 use destack_ast::{
     AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern,
-    ScalarLiteral, StringId, Timing, TokenType,
+    PostfixPosition, ScalarLiteral, StringId, Timing, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -364,6 +364,34 @@ impl Parser {
         Ok(parameters)
     }
 
+    /// Split out an explicit `this` parameter (type-only).
+    pub fn split_this_parameter_maybe(
+        &mut self,
+        mut parameters: Vec<LocalNodeId<Parameter>>,
+    ) -> (Option<LocalNodeId<Parameter>>, Vec<LocalNodeId<Parameter>>) {
+        // only the first parameter can be `this`
+        let this_parameter = if let Some(first_id) = parameters.first().copied() {
+            if let Parameter::Named { name, .. } = self.tree.get(first_id) {
+                let this_id = self.strings.intern("this");
+                if *name == this_id {
+                    Some(first_id)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if this_parameter.is_some() {
+            parameters.remove(0);
+        }
+
+        (this_parameter, parameters)
+    }
+
     /// Eat a positional argument (positional, spread, or labeled tuple element).
     /// Used for dynamic arguments, static arguments, and tuple literals.
     ///
@@ -377,38 +405,74 @@ impl Parser {
     #[inline]
     pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark();
+        let mut modifiers = None;
+
+        if self.options.in_type && self.peek_keyword(Keyword::Readonly).is_ok() {
+            self.bump(); // eat readonly
+            modifiers = Some(BindingModifier {
+                mutability: Some(Mutability::Immutable),
+                ..BindingModifier::default()
+            });
+        }
+
         // spread argument
         if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat spread
             let value = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Spread { modifiers, value },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // labeled tuple element (only in type context): label: type
-        // TypeScript 4.0+ syntax: [start: number, end: number]
         else if self.options.in_type
             && self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_ok()
+            && (self.peek_next_token(TokenType::Colon).is_ok()
+                || self.peek_next_token(TokenType::Maybe).is_ok()
+                    && self.peek_next_next_token(TokenType::Colon).is_ok())
         {
             let label = self.eat_identifier()?;
+            if self.peek_token(TokenType::Maybe).is_ok() {
+                self.bump(); // eat ?
+                if modifiers.is_none() {
+                    modifiers = Some(BindingModifier::default());
+                }
+                modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
+            }
             self.bump(); // eat colon
             let value = self.eat_expression()?;
             let argument_id = self.tree.insert(
-                Argument::Labeled { label, value },
+                Argument::Labeled {
+                    modifiers,
+                    label,
+                    value,
+                },
                 self.get_span_from(start),
             );
             Ok(argument_id)
         }
         // positional argument
         else {
-            let value = self.eat_expression()?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Positional { value }, self.get_span_from(start));
+            let mut value = self.eat_expression()?;
+            if self.options.in_type
+                && let Expression::Maybe {
+                    position: PostfixPosition::Direct,
+                    left,
+                } = self.tree.get(value)
+            {
+                if modifiers.is_none() {
+                    modifiers = Some(BindingModifier::default());
+                }
+                modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
+                value = *left;
+            }
+            let argument_id = self.tree.insert(
+                Argument::Positional { modifiers, value },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
     }
@@ -436,9 +500,14 @@ impl Parser {
             let value = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Named { name, value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Named {
+                    modifiers: None,
+                    name,
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // spread argument (...expr)
@@ -447,9 +516,13 @@ impl Parser {
             let value = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Spread {
+                    modifiers: None,
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // expression container ({expr}) - TSX syntax where {} are delimiters, not part of expr
@@ -463,9 +536,13 @@ impl Parser {
                 let value = self
                     .tree
                     .insert(Expression::Stub, self.get_span_from(start));
-                let argument_id = self
-                    .tree
-                    .insert(Argument::Positional { value }, self.get_span_from(start));
+                let argument_id = self.tree.insert(
+                    Argument::Positional {
+                        modifiers: None,
+                        value,
+                    },
+                    self.get_span_from(start),
+                );
                 return Ok(argument_id);
             }
             let value = self.with_options(
@@ -477,9 +554,13 @@ impl Parser {
             )?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Positional { value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Positional {
+                    modifiers: None,
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // positional argument (bare expression like nested <Element />)
@@ -487,9 +568,13 @@ impl Parser {
             let value = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Positional { value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Positional {
+                    modifiers: None,
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
     }
@@ -512,9 +597,13 @@ impl Parser {
             let value = self.with_options(self.options.in_statement_position(), |parser| {
                 parser.eat_expression()
             })?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Spread {
+                    modifiers: None,
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // nested spread argument (like {...b} in tree literals for #Compatibility)
@@ -528,9 +617,13 @@ impl Parser {
                 parser.eat_expression()
             })?;
             self.eat_token(TokenType::CloseBrace)?;
-            let argument_id = self
-                .tree
-                .insert(Argument::Spread { value }, self.get_span_from(start));
+            let argument_id = self.tree.insert(
+                Argument::Spread {
+                    modifiers: None,
+                    value,
+                },
+                self.get_span_from(start),
+            );
             Ok(argument_id)
         }
         // named argument
@@ -574,6 +667,7 @@ impl Parser {
 
             let argument_id = self.tree.insert(
                 Argument::Named {
+                    modifiers: None,
                     name: Name::Identifier(name),
                     value,
                 },
@@ -877,7 +971,7 @@ mod tests {
         let mut test = TestParser::new("x: 1");
         let mut parser = test.prepare();
         let argument_id = parser.eat_tree_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
+        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
             // x
             assert_string!(parser, *name, "x");
             // 1
@@ -894,7 +988,7 @@ mod tests {
         let mut parser = test.prepare();
         let argument_id = parser.eat_positional_argument().unwrap();
 
-        assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
+        assert_node!(parser.tree, argument_id, Argument::Positional { modifiers: _, value } => {
             // 3
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
@@ -906,7 +1000,7 @@ mod tests {
         let mut test = TestParser::new("...args");
         let mut parser = test.prepare();
         let argument_id = parser.eat_positional_argument().unwrap();
-        assert_node!(parser.tree, argument_id, Argument::Spread { value } => {
+        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, value } => {
             // ...args
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "args");

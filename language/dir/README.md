@@ -124,10 +124,6 @@ If we don't know the symbol at compile time, it's dynamic dispatch.
 
 ---
 
-## Pending
-
-None.
-
 ## Missing
 
 - Add `Type` variants mirroring TS constructs (aligned with AST naming):

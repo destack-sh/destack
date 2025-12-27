@@ -629,10 +629,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *index, index_expr);
         }
 
-        Expression::TypeTemplateLiteral {
-            strings: _,
-            spans,
-        } => {
+        Expression::TypeTemplateLiteral { strings: _, spans } => {
             for span_id in spans {
                 let span_expr = tree.get(*span_id);
                 visitor.visit_expression(tree, *span_id, span_expr);
