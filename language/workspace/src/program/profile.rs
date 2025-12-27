@@ -112,10 +112,8 @@ pub struct Profile {
     pub id: ProfileId,
     /// The canonical key for the profile.
     pub key: ProfileKey,
-    // nocheckin: generalise/move ImportMetaEnv into Profile..? shouldn't it be here?
-    // (shouldn't Profile contain the actual env? as opposed to just the EnvSnapshot from ProfileKey?
-    //   I feel like these is a generalised ProfileEnv waiting to happen that we then-resuse (or maybe even entirely replaces) ImportMetaEnv from
-    //   language/workspace/src/program/import.rs)
+    /// Resolved environment values (for import.meta.env).
+    pub env: ProfileEnv,
 }
 
 /// Registry for profiles keyed by ProfileKey.
@@ -157,7 +155,9 @@ impl ProfileRegistry {
             return *entry;
         }
 
-        self.profile_by_id.insert(id, Profile { id, key });
+        // compute resolved env from the snapshot
+        let env = ProfileEnv::from_snapshot(&key.env, key.debug);
+        self.profile_by_id.insert(id, Profile { id, key, env });
         id
     }
 
@@ -264,4 +264,81 @@ fn hash_env_entries(entries: &[(String, String)]) -> u64 {
         value.hash(&mut hasher);
     }
     hasher.finish()
+}
+
+/// Resolved environment values for a profile.
+/// This contains the actual env values that are exposed to import.meta.env.
+#[derive(Debug, Clone)]
+pub struct ProfileEnv {
+    /// The environment entries exposed to user code.
+    pub values: Vec<(String, String)>,
+    /// Node environment mode.
+    pub node_env: Option<String>,
+    /// True in development builds.
+    pub dev: bool,
+    /// True in production builds.
+    pub prod: bool,
+    /// True in test builds.
+    pub test: bool,
+}
+
+impl ProfileEnv {
+    /// Derive the NODE_ENV value and mode flags from a snapshot.
+    pub fn mode_from_snapshot(
+        snapshot: &EnvSnapshot,
+        debug: bool,
+    ) -> (Option<String>, bool, bool, bool) {
+        let has_node_env = snapshot.keys().iter().any(|key| key == "NODE_ENV");
+        let mut node_env = if has_node_env {
+            std::env::var("NODE_ENV").ok()
+        } else {
+            None
+        };
+
+        if node_env.is_none() {
+            node_env = Some(if debug {
+                "development".to_string()
+            } else {
+                "production".to_string()
+            });
+        }
+
+        let (dev, prod, test) = match node_env.as_deref() {
+            Some("production") => (false, true, false),
+            Some("test") => (false, false, true),
+            Some("development") => (true, false, false),
+            Some(_) | None => (debug, !debug, false),
+        };
+
+        (node_env, dev, prod, test)
+    }
+
+    /// Build ProfileEnv from the snapshot and debug flag.
+    pub fn from_snapshot(snapshot: &EnvSnapshot, debug: bool) -> Self {
+        let mut values = snapshot
+            .keys()
+            .iter()
+            .filter_map(|key| std::env::var(key).ok().map(|value| (key.clone(), value)))
+            .collect::<Vec<_>>();
+
+        let has_node_env = snapshot.keys().iter().any(|key| key == "NODE_ENV");
+        let (node_env, dev, prod, test) = Self::mode_from_snapshot(snapshot, debug);
+
+        if has_node_env
+            && let Some(node_env_value) = node_env.clone()
+            && !values.iter().any(|(key, _)| key == "NODE_ENV")
+        {
+            values.push(("NODE_ENV".to_string(), node_env_value));
+        }
+
+        values.sort_by(|left, right| left.0.cmp(&right.0));
+
+        Self {
+            values,
+            node_env,
+            dev,
+            prod,
+            test,
+        }
+    }
 }
