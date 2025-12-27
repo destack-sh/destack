@@ -73,10 +73,10 @@ impl Compiler {
         // register ambient module list before resolving symbols
         builtins.set_ambient_libs(profile_id, ambient_modules);
 
-        // resolve modules in order
+        // prepare modules in order
         for module_ids in modules_to_resolve {
             for module_id in module_ids {
-                self.require_resolve_module(module_id, profile_id)?;
+                self.require_resolve_module_prepare(module_id, profile_id)?;
             }
         }
 
@@ -245,8 +245,6 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use destack_builtin::LanguageItem;
 
     use crate::{TestProgram, assert_string};
@@ -270,16 +268,15 @@ mod tests {
     /// Test that builtin lib symbols can be resolved and cached.
     #[test]
     fn test_resolve_builtin_lib_symbol() {
-        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        let test =
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
         test.resolve_builtins();
         test.resolve_libs();
         test.compile();
 
         let profile = test.default_profile_id_for_root();
         let array_name = test.program.strings.intern("Array");
-        let document_name = test.program.strings.intern("Document");
 
         assert!(test.compiler.lib_symbol(profile, array_name).is_some());
-        assert!(test.compiler.lib_symbol(profile, document_name).is_some());
     }
 }

@@ -65,6 +65,8 @@ pub struct TestProgram {
     pub compiler: Arc<Compiler>,
     /// The dumper options.
     pub dumper_options: DumperOptions,
+    /// Optional override for the default profile in tests.
+    pub default_profile_override: Option<ProfileId>,
 }
 
 impl TestProgram {
@@ -97,6 +99,7 @@ impl TestProgram {
             program,
             compiler,
             dumper_options: DumperOptions::default(),
+            default_profile_override: None,
         }
     }
 
@@ -168,6 +171,16 @@ impl TestProgram {
         self
     }
 
+    /// Override the default profile with an explicit lib set.
+    pub fn with_profile_libs(mut self, libs: &[&str]) -> Self {
+        let default_profile = self.program.profile(self.default_profile_id_for_root());
+        let mut key = default_profile.key.clone();
+        key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
+        let profile_id = self.program.profiles.get_or_create(key);
+        self.default_profile_override = Some(profile_id);
+        self
+    }
+
     /// Add a file to the memory filesystem (without creating a Module).
     pub fn add_file(&self, path: &str, content: &str) {
         match &self.fs {
@@ -208,13 +221,16 @@ impl TestProgram {
 
     /// Get the default profile id for a module.
     pub fn default_profile_id(&self, module_id: ModuleId) -> ProfileId {
-        self.program.default_profile_id_for_module(module_id)
+        self.default_profile_override
+            .unwrap_or_else(|| self.program.default_profile_id_for_module(module_id))
     }
 
     /// Get the default profile id for the root module.
     pub fn default_profile_id_for_root(&self) -> ProfileId {
-        self.program
-            .default_profile_id_for_module(self.program.root_module_id)
+        self.default_profile_override.unwrap_or_else(|| {
+            self.program
+                .default_profile_id_for_module(self.program.root_module_id)
+        })
     }
 
     /// Get the first function symbol declared in a module.

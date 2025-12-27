@@ -470,7 +470,7 @@ impl Compiler {
 
         // resolve Self to enclosing type
         if first_segment_str.as_str() == "Self" {
-            // nocheckin: should "Self" be "This"?
+            // nocheckin: should "Self" be "This"/"this"?
             let root_path = Path {
                 segments: vec![first_segment].into(),
             };

@@ -196,6 +196,7 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
+/// nocheckin: make GlobalNodeId/GlobalSymbolId/.. carry ProfileId as well..?
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.
