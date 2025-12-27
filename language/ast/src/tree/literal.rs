@@ -76,6 +76,7 @@ pub enum TemplateLiteral {
 /// boolean
 /// symbol
 /// unique symbol
+/// intrinsic
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeLiteral {
@@ -113,6 +114,25 @@ pub enum TypeLiteral {
     Symbol,
     /// Unique symbol type.
     UniqueSymbol,
+    /// Intrinsic type (TypeScript compiler-provided).
+    Intrinsic(TypeIntrinsic),
+}
+
+/// A TypeIntrinsic is a compiler-provided intrinsic type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeIntrinsic {
+    /// Uppercase string intrinsic.
+    Uppercase,
+    /// Lowercase string intrinsic.
+    Lowercase,
+    /// Capitalize string intrinsic.
+    Capitalize,
+    /// Uncapitalize string intrinsic.
+    Uncapitalize,
+    /// NoInfer intrinsic.
+    NoInfer,
+    /// Builtin iterator return intrinsic.
+    BuiltinIteratorReturn,
 }
 
 /// An IntType represents arbitrary width integer with signedness.

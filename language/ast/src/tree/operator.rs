@@ -6,7 +6,7 @@ use crate::TokenType;
 /// ```
 /// x() x[] x{} x? x! x++ x--          // postfix
 /// !x -x -%x ~x *x &x ..x ++x --x     // prefix
-/// type readonly typeof keyof infer   // type unary operator
+/// type readonly typeof keyof         // type unary operator
 /// * / % *% *|                        // multiplication
 /// + - +% -% +| -|                    // addition
 /// << >> <<|                          // shift
@@ -15,7 +15,6 @@ use crate::TokenType;
 /// && || ??                           // boolean
 /// in of                              // container
 /// as in is instanceof satisfies      // type binary operator
-/// asserts                            // type unary assertion operator
 /// =                                  // assignment
 /// *= /= %= **= *%= *|=               // assignment multiplication
 /// += -= +%= -%= +|= -|=              // assignment addition
@@ -32,7 +31,7 @@ pub enum OperatorPrecedence {
     /// `!x -x -%x ~x &x *x ..x ++x --x`
     Prefix = 1900,
     /// Type unary operators.
-    /// `type readonly typeof keyof infer as const`
+    /// `type readonly typeof keyof as const`
     TypeUnary = 1800,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *| **% **|`
@@ -58,9 +57,6 @@ pub enum OperatorPrecedence {
     /// Type binary operators.
     /// `as in is instanceof satisfies extends implements`
     TypeBinary = 1000,
-    /// Type unary assertion operator.
-    /// `asserts`
-    TypeUnaryAssertion = 900,
     /// Assignment-related binary operators.
     /// `=`
     Assignment = 800,
@@ -100,12 +96,8 @@ pub enum TypeUnaryOperator {
     Typeof = 1804,
     /// `keyof`
     Keyof = 1803,
-    /// `infer`
-    Infer = 1802,
     /// `as const`
     AsConst = 1801,
-    /// `asserts`
-    Asserts = 900,
 }
 
 impl TypeUnaryOperator {
@@ -131,9 +123,7 @@ impl TypeUnaryOperator {
             | TypeUnaryOperator::Type
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
-            | TypeUnaryOperator::Keyof
-            | TypeUnaryOperator::Infer
-            | TypeUnaryOperator::Asserts => true,
+            | TypeUnaryOperator::Keyof => true,
             TypeUnaryOperator::Maybe | TypeUnaryOperator::Must | TypeUnaryOperator::AsConst => {
                 false
             }
@@ -153,8 +143,6 @@ impl TypeUnaryOperator {
             // NOTE: newtype | type / readonly / as const are disambiguated separately
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
-            "infer" => Some(TypeUnaryOperator::Infer),
-            "asserts" => Some(TypeUnaryOperator::Asserts),
             _ => None,
         }
     }

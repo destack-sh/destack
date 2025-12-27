@@ -352,6 +352,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
+        Expression::This => {}
+
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit
         }
@@ -589,6 +591,80 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
+        Expression::TypeConditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+            let right_expr = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expr);
+            let then_expr = tree.get(*then_type);
+            visitor.visit_expression(tree, *then_type, then_expr);
+            let else_expr = tree.get(*else_type);
+            visitor.visit_expression(tree, *else_type, else_expr);
+        }
+
+        Expression::TypeMapped {
+            parameter,
+            modifiers: _,
+            value,
+        } => {
+            let constraint_expr = tree.get(parameter.constraint);
+            visitor.visit_expression(tree, parameter.constraint, constraint_expr);
+            if let Some(key_remap) = parameter.key_remap {
+                let key_expr = tree.get(key_remap);
+                visitor.visit_expression(tree, key_remap, key_expr);
+            }
+            let value_expr = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expr);
+        }
+
+        Expression::TypeIndex { left, index } => {
+            let left_expr = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expr);
+            let index_expr = tree.get(*index);
+            visitor.visit_expression(tree, *index, index_expr);
+        }
+
+        Expression::TypeTemplateLiteral {
+            strings: _,
+            spans,
+        } => {
+            for span_id in spans {
+                let span_expr = tree.get(*span_id);
+                visitor.visit_expression(tree, *span_id, span_expr);
+            }
+        }
+
+        Expression::TypeImport {
+            target: _,
+            qualifier: _,
+        } => {}
+
+        Expression::TypeInfer {
+            name: _,
+            constraint,
+        } => {
+            if let Some(constraint_id) = constraint {
+                let constraint_expr = tree.get(*constraint_id);
+                visitor.visit_expression(tree, *constraint_id, constraint_expr);
+            }
+        }
+
+        Expression::TypePredicate {
+            asserts: _,
+            subject: _,
+            target,
+        } => {
+            if let Some(target_id) = target {
+                let target_expr = tree.get(*target_id);
+                visitor.visit_expression(tree, *target_id, target_expr);
+            }
+        }
+
         Expression::Assign {
             left,
             operator: _,
@@ -655,6 +731,10 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
 ) {
     if let Some(generics) = signature.generics.as_ref() {
         walk_generics(visitor, tree, generics);
+    }
+    if let Some(this_parameter_id) = signature.this_parameter {
+        let this_parameter = tree.get(this_parameter_id);
+        visitor.visit_parameter(tree, this_parameter_id, this_parameter);
     }
     for parameter_id in signature.dynamic_parameters.iter() {
         let parameter = tree.get(*parameter_id);
@@ -1037,10 +1117,24 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
-        Argument::Named { name: _, value }
-        | Argument::Labeled { label: _, value }
-        | Argument::Positional { value }
-        | Argument::Spread { value } => {
+        Argument::Named {
+            modifiers: _,
+            name: _,
+            value,
+        }
+        | Argument::Labeled {
+            modifiers: _,
+            label: _,
+            value,
+        }
+        | Argument::Positional {
+            modifiers: _,
+            value,
+        }
+        | Argument::Spread {
+            modifiers: _,
+            value,
+        } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
         }

@@ -61,19 +61,27 @@ impl Node for Parameter {
 pub enum Argument {
     /// Named argument (only valid in tree literals for JSX-like attributes).
     Named {
+        modifiers: Option<BindingModifier>,
         name: Name,
         value: LocalNodeId<Expression>,
     },
     /// Labeled tuple element (only valid in tuple types, e.g., `[start: number, end: number]`).
     /// (Labels are purely for documentation/tooling and don't affect type checking directly.)
     Labeled {
+        modifiers: Option<BindingModifier>,
         label: StringId,
         value: LocalNodeId<Expression>,
     },
     /// Positional argument (like `1` or `foo()`).
-    Positional { value: LocalNodeId<Expression> },
+    Positional {
+        modifiers: Option<BindingModifier>,
+        value: LocalNodeId<Expression>,
+    },
     /// Spread argument (like `...args`).
-    Spread { value: LocalNodeId<Expression> },
+    Spread {
+        modifiers: Option<BindingModifier>,
+        value: LocalNodeId<Expression>,
+    },
 }
 
 impl Node for Argument {
