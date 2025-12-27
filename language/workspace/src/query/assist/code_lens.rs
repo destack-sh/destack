@@ -103,21 +103,16 @@ impl CodeLens {
 /// Code lenses appear as inline annotations above functions, classes, etc.
 /// Common uses: reference counts, "Run Test" buttons, implementation counts.
 pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
-    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return Vec::new();
-    };
-    let module_id = module.id;
-    let dir_tree = dir.tree.read();
-    let symbols = dir.symbols.read();
+    let module_id = ctx.module_id;
+    let dir_tree = ctx.tree();
+    let symbols = ctx.symbols();
 
     let mut lenses = Vec::new();
 
@@ -128,13 +123,14 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
             |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
                 let symbol_id = decl.symbol();
                 let ast_node_id = dir_tree.get_source(decl_id.id);
-                let main_span = ast
+                let main_span = ctx
+                    .ast
                     .tree
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
                 let name = symbols
                     .get_symbol(symbol_id)
                     .name()
-                    .map(|id| ast.strings.get(id).to_string());
+                    .map(|id| ctx.ast.strings.get(id).to_string());
                 let symbol_type = symbols.get_symbol(symbol_id).ty;
                 (
                     decl.clone(),
@@ -203,11 +199,10 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 
     for module in session.modules.iter() {
         let module = module.read();
-        let profile = session.default_profile_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
-        let dir_tree = dir.tree.read();
+        let dir_tree = ctx.tree();
 
         for (_, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             if let Some(target) = expr.target_symbol() {
@@ -229,11 +224,10 @@ fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize 
 
     for module in session.modules.iter() {
         let module = module.read();
-        let profile = session.default_profile_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
-        let types = dir.types.read();
+        let types = ctx.types();
 
         for (_, lineage) in types.iter_lineages() {
             if lineage.directly_implements(canonical_id) {
@@ -252,11 +246,10 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 
     for module in session.modules.iter() {
         let module = module.read();
-        let profile = session.default_profile_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
-        let types = dir.types.read();
+        let types = ctx.types();
 
         for (_, lineage) in types.iter_lineages() {
             if lineage.directly_extends(canonical_id) {

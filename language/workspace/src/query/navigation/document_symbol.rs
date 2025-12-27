@@ -89,17 +89,12 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
-
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return Vec::new();
-    };
-    let dir_tree = dir.tree.read();
 
+    let dir_tree = ctx.tree();
     let mut symbols = Vec::new();
 
     // iterate through all declarations
@@ -120,20 +115,21 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
         let descriptor = declaration.descriptor();
         let name = descriptor
             .name
-            .map(|string_id| ast.strings.get(string_id).to_string())
+            .map(|string_id| ctx.ast.strings.get(string_id).to_string())
             .unwrap_or_else(|| "<anonymous>".to_string());
 
         // get spans
         let ast_node_id = dir_tree.get_source(declaration_id.id);
-        let full_span = ast.tree.source_map.get(ast_node_id);
-        let range = Span::new(file, full_span.start, full_span.end);
+        let full_span = ctx.ast.tree.source_map.get(ast_node_id);
+        let range = Span::new(ctx.file_id, full_span.start, full_span.end);
 
         // get main span (name span) if available
-        let selection_range = ast
+        let selection_range = ctx
+            .ast
             .tree
             .source_map
             .get_main(ast_node_id)
-            .map(|span| Span::new(file, span.start, span.end))
+            .map(|span| Span::new(ctx.file_id, span.start, span.end))
             .unwrap_or(range);
 
         symbols.push(DocumentSymbol::new(name, kind, range).with_selection_range(selection_range));

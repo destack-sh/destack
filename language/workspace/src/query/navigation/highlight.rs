@@ -70,29 +70,23 @@ pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<D
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
+    let module = module.read();
+    let Some(ctx) = session.query_context(&module) else {
+        return Vec::new();
+    };
 
     let mut highlights = Vec::new();
 
-    // 4. check if the definition is in this file, add as Write highlight
+    // check if the definition is in this file, add as Write highlight
     if let Some(definition_span) = get_symbol_definition_span(session, canonical_id)
-        && definition_span.file == file
+        && definition_span.file == ctx.file_id
     {
         highlights.push(DocumentHighlight::write(definition_span));
     }
 
-    // 5. find all references in this file
-    let module = module.read();
-    let Some(ast) = &module.ast else {
-        return Vec::new();
-    };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return Vec::new();
-    };
-
     // collect matching expression ids first to avoid borrow issues
     let matching_expression_ids: Vec<_> = {
-        let dir_tree = dir.tree.read();
+        let dir_tree = ctx.tree();
         dir_tree
             .iter_nodes_of_type::<Expression>()
             .filter_map(|(expression_id, expression)| {
@@ -109,9 +103,9 @@ pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<D
 
     // get spans for each matching expression
     for expression_id in matching_expression_ids {
-        if let Some(span) = get_dir_node_span(ast, dir, expression_id.into()) {
+        if let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, expression_id.into()) {
             // only include if in this file (should always be true for single module)
-            if span.file == file {
+            if span.file == ctx.file_id {
                 // classify as Read (basic classification - definition was already added as Write)
                 highlights.push(DocumentHighlight::read(span));
             }

@@ -66,14 +66,10 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
     // get module and dir
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return None;
     };
-    let profile = session.default_profile_for_module(symbol_id.module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return None;
-    };
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // get primary_declaration directly
@@ -81,7 +77,7 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
 
     drop(symbols);
 
-    get_dir_node_span(ast, dir, declaration.local_id)
+    get_dir_node_span(ctx.ast, ctx.dir, declaration.local_id)
 }
 
 /// Find the type definition of the symbol at the given position.
@@ -100,16 +96,12 @@ pub fn goto_type_definition(
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return None;
-    };
-    let profile = session.default_profile_for_module(symbol_id.module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
+    let Some(ctx) = session.query_context(&module) else {
         return None;
     };
 
     // check if the symbol itself is a type symbol (class, struct, enum, etc.)
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // go directly to the definition of the type symbol (if it's a type or type-value)
@@ -123,7 +115,7 @@ pub fn goto_type_definition(
     drop(symbols);
 
     // for non-type symbols (variables, parameters, etc.), look up their value type
-    let types = dir.types.read();
+    let types = ctx.types();
     if let Some(type_id) = types.get_value_type_id(symbol_id) {
         let ty = types.get_type(type_id);
         if let Some(type_symbol) = ty.symbol() {
@@ -138,7 +130,7 @@ pub fn goto_type_definition(
     // NOTE #Incomplete: get_value_type_id doesn't populate types for all variables/parameters yet
     // (we can remove this once type inference populates value types for all symbols)
     if let Some(type_symbol) =
-        get_type_from_declaration_context(session, ast, dir, symbol_at.node_id)
+        get_type_from_declaration_context(session, ctx.ast, ctx.dir, symbol_at.node_id)
     {
         drop(module);
         let span = get_symbol_definition_span(session, type_symbol)?;
@@ -201,11 +193,10 @@ fn get_type_from_declaration_context(
                 // verify target is a type symbol
                 let target_module = session.modules.get(target.module_id);
                 let target_module = target_module.read();
-                let target_profile = session.default_profile_for_module(target.module_id);
-                let Some(target_dir) = target_module.dir_maybe(target_profile) else {
+                let Some(target_ctx) = session.query_context(&target_module) else {
                     return None;
                 };
-                let symbols = target_dir.symbols.read();
+                let symbols = target_ctx.symbols();
                 let symbol = symbols.get_symbol(target.local_id);
 
                 if symbol.space == dir::SymbolSpace::Type

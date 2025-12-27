@@ -87,18 +87,13 @@ impl SignatureHelp {
 
 /// Get signature help at the given position (inside a function call).
 pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<SignatureHelp> {
-    // get module AST/DIR
     let module = get_module_by_file_id(session, file)?;
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return None;
-    };
-    let profile = session.default_profile_for_module(module.id);
-    let dir = module.dir_maybe(profile)?;
-    let dir_tree = dir.tree.read();
+    let ctx = session.query_context(&module)?;
+    let dir_tree = ctx.tree();
 
     // find enclosing AST nodes at the offset
-    let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
+    let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -134,18 +129,12 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 | Expression::ModuleReference { target_symbol, .. } => {
                     let target_module = session.modules.get(target_symbol.module_id);
                     let target = target_module.read();
-                    let name = if let Some(target_ast) = &target.ast {
-                        let target_profile =
-                            session.default_profile_for_module(target_symbol.module_id);
-                        if let Some(target_dir) = target.dir_maybe(target_profile) {
-                            let symbols = target_dir.symbols.read();
-                            let symbol_data = symbols.get_symbol(target_symbol.local_id);
-                            symbol_data
-                                .name()
-                                .map(|id| target_ast.strings.get(id).to_string())
-                        } else {
-                            None
-                        }
+                    let name = if let Some(target_ctx) = session.query_context(&target) {
+                        let symbols = target_ctx.symbols();
+                        let symbol_data = symbols.get_symbol(target_symbol.local_id);
+                        symbol_data
+                            .name()
+                            .map(|id| target_ctx.ast.strings.get(id).to_string())
                     } else {
                         None
                     };
@@ -153,7 +142,7 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 }
                 // method call: obj.method(...)
                 Expression::Member { name, .. } => {
-                    let name = ast.strings.get(*name).to_string();
+                    let name = ctx.ast.strings.get(*name).to_string();
                     (Some(name), None)
                 }
                 _ => (None, None),
@@ -175,8 +164,8 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
 
             // determine active parameter based on cursor position
             let active_parameter = determine_active_parameter(
-                ast,
-                module.file_id,
+                ctx.ast,
+                ctx.file_id,
                 &dir_tree,
                 dynamic_arguments,
                 offset,
@@ -202,14 +191,11 @@ fn get_function_parameters(
     if let Some(symbol_id) = target_symbol {
         let target_module = session.modules.get(symbol_id.module_id);
         let target = target_module.read();
-        let Some(target_ast) = &target.ast else {
+        let Some(target_ctx) = session.query_context(&target) else {
             return fallback_params(argument_count);
         };
-        let target_profile = session.default_profile_for_module(symbol_id.module_id);
-        let Some(target_dir) = target.dir_maybe(target_profile) else {
-            return fallback_params(argument_count);
-        };
-        let symbols = target_dir.symbols.read();
+
+        let symbols = target_ctx.symbols();
         let symbol_data = symbols.get_symbol(symbol_id.local_id);
 
         // check if this symbol has a primary declaration
@@ -217,7 +203,7 @@ fn get_function_parameters(
             && global_node_id.local_id.ty == NodeType::Declaration
             && let Some(declaration_id) = global_node_id.local_id.try_into_typed().ok()
         {
-            let dir_tree = target_dir.tree.read();
+            let dir_tree = target_ctx.tree();
             let declaration = dir_tree.get::<Declaration>(declaration_id);
 
             // if it's a function, get its parameters
@@ -229,10 +215,10 @@ fn get_function_parameters(
                         let param = dir_tree.get::<Parameter>(*param_id);
                         let param_name = match param {
                             Parameter::Named { name, .. } => {
-                                target_ast.strings.get(*name).to_string()
+                                target_ctx.ast.strings.get(*name).to_string()
                             }
                             Parameter::Variadic { name, .. } => {
-                                let name_str = target_ast.strings.get(*name).to_string();
+                                let name_str = target_ctx.ast.strings.get(*name).to_string();
                                 format!("...{name_str}")
                             }
                             Parameter::Pattern { .. } => "<pattern>".to_string(),

@@ -28,20 +28,12 @@ pub fn find_symbol_at_offset(
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    // get module AST/DIR
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return None;
-    };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return None;
-    };
-    let module_id = module.id;
+    let ctx = session.query_context(&module)?;
 
     // find AST nodes at the offset
-    let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
+    let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -52,7 +44,7 @@ pub fn find_symbol_at_offset(
 
     // check if we're in a doc/comment first (these should not return symbols)
     for enclosing_span in &enclosing {
-        let node_type = ast.tree.get_node_type(enclosing_span.idx);
+        let node_type = ctx.ast.tree.get_node_type(enclosing_span.idx);
         if matches!(
             node_type,
             destack_ast::NodeType::Doc | destack_ast::NodeType::Comment
@@ -62,7 +54,7 @@ pub fn find_symbol_at_offset(
     }
 
     // try each AST node from smallest to largest
-    let dir_tree = dir.tree.read();
+    let dir_tree = ctx.tree();
     for enclosing_span in &enclosing {
         // try to get the DIR node for this AST node
         let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
@@ -81,7 +73,7 @@ pub fn find_symbol_at_offset(
                         symbol_id: target_symbol,
                         node_id: dir_node_id,
                         span: Span::new(
-                            file_id,
+                            ctx.file_id,
                             enclosing_span.span.start,
                             enclosing_span.span.end,
                         ),
@@ -96,14 +88,14 @@ pub fn find_symbol_at_offset(
                 let pattern = dir_tree.get::<Pattern>(pattern_id);
                 if let Some(local_symbol) = pattern.symbol() {
                     let symbol_id = GlobalSymbolId {
-                        module_id,
+                        module_id: ctx.module_id,
                         local_id: local_symbol,
                     };
                     return Some(SymbolAtOffset {
                         symbol_id,
                         node_id: dir_node_id,
                         span: Span::new(
-                            file_id,
+                            ctx.file_id,
                             enclosing_span.span.start,
                             enclosing_span.span.end,
                         ),
@@ -118,13 +110,17 @@ pub fn find_symbol_at_offset(
                 let declaration = dir_tree.get::<Declaration>(declaration_id);
                 let local_symbol = declaration.symbol();
                 let symbol_id = GlobalSymbolId {
-                    module_id,
+                    module_id: ctx.module_id,
                     local_id: local_symbol,
                 };
                 return Some(SymbolAtOffset {
                     symbol_id,
                     node_id: dir_node_id,
-                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                    span: Span::new(
+                        ctx.file_id,
+                        enclosing_span.span.start,
+                        enclosing_span.span.end,
+                    ),
                 });
             }
             // check if it's a member (class/struct field or method)
@@ -135,13 +131,17 @@ pub fn find_symbol_at_offset(
                 let member = dir_tree.get::<Member>(member_id);
                 let local_symbol = member.symbol();
                 let symbol_id = GlobalSymbolId {
-                    module_id,
+                    module_id: ctx.module_id,
                     local_id: local_symbol,
                 };
                 return Some(SymbolAtOffset {
                     symbol_id,
                     node_id: dir_node_id,
-                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                    span: Span::new(
+                        ctx.file_id,
+                        enclosing_span.span.start,
+                        enclosing_span.span.end,
+                    ),
                 });
             }
             // check if it's an enum field
@@ -151,13 +151,17 @@ pub fn find_symbol_at_offset(
                 };
                 let field = dir_tree.get::<EnumField>(field_id);
                 let symbol_id = GlobalSymbolId {
-                    module_id,
+                    module_id: ctx.module_id,
                     local_id: field.symbol,
                 };
                 return Some(SymbolAtOffset {
                     symbol_id,
                     node_id: dir_node_id,
-                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                    span: Span::new(
+                        ctx.file_id,
+                        enclosing_span.span.start,
+                        enclosing_span.span.end,
+                    ),
                 });
             }
             // check if it's a parameter
@@ -168,13 +172,17 @@ pub fn find_symbol_at_offset(
                 let param = dir_tree.get::<Parameter>(param_id);
                 let local_symbol = param.symbol();
                 let symbol_id = GlobalSymbolId {
-                    module_id,
+                    module_id: ctx.module_id,
                     local_id: local_symbol,
                 };
                 return Some(SymbolAtOffset {
                     symbol_id,
                     node_id: dir_node_id,
-                    span: Span::new(file_id, enclosing_span.span.start, enclosing_span.span.end),
+                    span: Span::new(
+                        ctx.file_id,
+                        enclosing_span.span.start,
+                        enclosing_span.span.end,
+                    ),
                 });
             }
             _ => {}
@@ -192,11 +200,11 @@ pub fn find_symbol_at_offset(
 pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let profile = session.default_profile_for_module(symbol_id.module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
+    let Some(ctx) = session.query_context(&module) else {
         return symbol_id;
     };
-    let symbols = dir.symbols.read();
+
+    let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     if let Some(canonical) = symbol.canonical_symbol
@@ -217,15 +225,9 @@ pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> Glo
 pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) -> Option<Span> {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
+    let ctx = session.query_context(&module)?;
 
-    let Some(ast) = &module.ast else {
-        return None;
-    };
-    let profile = session.default_profile_for_module(symbol_id.module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return None;
-    };
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // follow canonical_symbol chain if present (for imports)
@@ -245,5 +247,5 @@ pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) 
     drop(symbols);
 
     // get the main span from the declaration node (identifier span)
-    get_dir_node_main_span(ast, dir, declaration.local_id)
+    get_dir_node_main_span(ctx.ast, ctx.dir, declaration.local_id)
 }

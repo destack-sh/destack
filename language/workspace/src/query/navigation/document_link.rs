@@ -76,14 +76,10 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
     // find all import and re-export statements
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return Vec::new();
-    };
-    let dir_tree = dir.tree.read();
+    let dir_tree = ctx.tree();
     let mut links = Vec::new();
     for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
         match expr {
@@ -106,7 +102,7 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
                 // get the span of this import expression
                 let ast_node_id = dir_tree.get_source(expr_id.id);
-                let span = ast.tree.source_map.get_main_or_enclosing(ast_node_id);
+                let span = ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id);
 
                 // make the link
                 let import_path = session.strings.get(*target).to_string();

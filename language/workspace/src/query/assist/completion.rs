@@ -180,18 +180,12 @@ fn complete_members(
 
     // if we have a receiver symbol, try to get its members
     if let Some(symbol_id) = receiver_symbol {
-        // nocheckin: figure out session helper to get AST/DIR/MIR stuff in query (like this..?)
-        // get module AST/DIR
         let module = session.modules.get(symbol_id.module_id);
         let module = module.read();
-        let Some(ast) = &module.ast else {
+        let Some(ctx) = session.query_context(&module) else {
             return common_member_completions();
         };
-        let profile = session.default_profile_for_module(symbol_id.module_id);
-        let Some(dir) = module.dir_maybe(profile) else {
-            return common_member_completions();
-        };
-        let symbols = dir.symbols.read();
+        let symbols = ctx.symbols();
         let _symbol = symbols.get_symbol(symbol_id.local_id);
 
         // get the scope owned by this symbol (for types like struct/class)
@@ -202,7 +196,7 @@ fn complete_members(
             for (key, member_id) in &scope.named_symbols {
                 if let destack_dir::StaticKey::Name(name_id) = key {
                     let member_symbol = symbols.get_symbol(*member_id);
-                    let name = ast.strings.get(*name_id).to_string();
+                    let name = ctx.ast.strings.get(*name_id).to_string();
                     let kind = CompletionKind::from(member_symbol.ty);
 
                     let mut completion = Completion::new(name, kind).with_sort_order(10);
@@ -281,14 +275,10 @@ fn complete_types(
         return primitive_type_completions(prefix);
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return primitive_type_completions(prefix);
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return primitive_type_completions(prefix);
-    };
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
 
     let mut results = Vec::new();
 
@@ -303,7 +293,7 @@ fn complete_types(
             continue;
         };
 
-        let name = ast.strings.get(string_id).to_string();
+        let name = ctx.ast.strings.get(string_id).to_string();
 
         // filter by prefix if typing
         if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
@@ -353,14 +343,10 @@ fn complete_values(
         return keyword_completions_filtered(prefix);
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return keyword_completions_filtered(prefix);
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return keyword_completions_filtered(prefix);
-    };
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
 
     let mut results = Vec::new();
 
@@ -382,7 +368,7 @@ fn complete_values(
                         continue;
                     }
 
-                    let name = ast.strings.get(*name_id).to_string();
+                    let name = ctx.ast.strings.get(*name_id).to_string();
 
                     // filter by prefix
                     if !prefix.is_empty()
@@ -405,7 +391,7 @@ fn complete_values(
                 continue;
             };
 
-            let name = ast.strings.get(string_id).to_string();
+            let name = ctx.ast.strings.get(string_id).to_string();
 
             if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
                 continue;
@@ -441,14 +427,10 @@ fn complete_imports(
     // get module AST/DIR
     let module = session.modules.get(module_id);
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
-    let profile = session.default_profile_for_module(module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return Vec::new();
-    };
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
 
     let mut results = Vec::new();
 
@@ -462,7 +444,7 @@ fn complete_imports(
             continue;
         };
 
-        let name = ast.strings.get(string_id).to_string();
+        let name = ctx.ast.strings.get(string_id).to_string();
         let kind = CompletionKind::from(symbol.ty);
         results.push(Completion::new(name, kind).with_sort_order(10));
     }
@@ -480,14 +462,10 @@ fn complete_all(session: &Session, file: FileId, token: Option<&TokenAtCursor>) 
         return keyword_completions_filtered(prefix);
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return keyword_completions_filtered(prefix);
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return keyword_completions_filtered(prefix);
-    };
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
 
     let mut results = Vec::new();
 
@@ -496,7 +474,7 @@ fn complete_all(session: &Session, file: FileId, token: Option<&TokenAtCursor>) 
             continue;
         };
 
-        let name = ast.strings.get(string_id).to_string();
+        let name = ctx.ast.strings.get(string_id).to_string();
 
         if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
             continue;

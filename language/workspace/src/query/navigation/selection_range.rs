@@ -53,14 +53,14 @@ pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> V
     };
 
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
     let mut results = Vec::with_capacity(positions.len());
 
     for &offset in positions {
         // find all enclosing AST nodes at this position
-        let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
+        let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
 
         if enclosing.is_empty() {
             // no enclosing spans, return a minimal selection at the position

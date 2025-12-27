@@ -67,31 +67,28 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     }
 
     // fallback: simple formatting for locals and other symbols
-    // get module AST/DIR
     let module = session.modules.get(symbol_at.symbol_id.module_id);
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return None;
-    };
-    let dir = module.dir_maybe(profile)?;
-    let symbols = dir.symbols.read();
+    let ctx = session.query_context(&module)?;
+
+    let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
-    let name = symbol.name().map(|id| ast.strings.get(id).to_string());
+    let name = symbol.name().map(|id| ctx.ast.strings.get(id).to_string());
 
     // use node type to provide better context for members/fields/parameters
-    let module_id = module.id;
+    let module_id = ctx.module_id;
     let signature = match symbol_at.node_id.ty {
         NodeType::Member => {
-            let dir_tree = dir.tree.read();
-            let types = dir.types.read();
+            let dir_tree = ctx.tree();
+            let types = ctx.types();
             if let Ok(member_id) = symbol_at.node_id.try_into() {
                 let member = dir_tree.get::<Member>(member_id);
 
                 // get member name from key field
                 let member_name = member.key().and_then(|key| match key {
-                    DynamicKey::Name(string_id) => Some(ast.strings.get(*string_id).to_string()),
+                    DynamicKey::Name(string_id) => Some(ctx.ast.strings.get(*string_id).to_string()),
                     DynamicKey::NamedExpression { name, .. } => {
-                        Some(ast.strings.get(*name).to_string())
+                        Some(ctx.ast.strings.get(*name).to_string())
                     }
                     DynamicKey::Expression(_) => None,
                 });
@@ -111,18 +108,18 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
             }
         }
         NodeType::EnumField => {
-            let dir_tree = dir.tree.read();
+            let dir_tree = ctx.tree();
             if let Ok(field_id) = symbol_at.node_id.try_into() {
                 let field = dir_tree.get::<EnumField>(field_id);
-                let field_name = ast.strings.get(field.name).to_string();
+                let field_name = ctx.ast.strings.get(field.name).to_string();
                 format!("enum field {field_name}")
             } else {
                 format_simple_signature(symbol.ty, name.as_deref())
             }
         }
         NodeType::Parameter => {
-            let dir_tree = dir.tree.read();
-            let types = dir.types.read();
+            let dir_tree = ctx.tree();
+            let types = ctx.types();
             if let Ok(param_id) = symbol_at.node_id.try_into() {
                 let _param = dir_tree.get::<Parameter>(param_id);
                 let param_name = name.as_deref().unwrap_or("<anonymous>");

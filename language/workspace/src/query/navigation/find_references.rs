@@ -5,6 +5,7 @@ use crate::Session;
 use crate::query::common::{
     find_symbol_at_offset, get_canonical_symbol, get_dir_node_span, get_symbol_definition_span,
 };
+use destack_dir::GlobalSymbolId;
 
 /// Result of a find references query.
 #[derive(Debug, Clone, Default)]
@@ -51,21 +52,31 @@ pub fn find_references(
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
     // 3. search all modules for references to that symbol
+    let references = find_references_to_symbol(session, canonical_id, include_declaration);
+
+    Some(ReferencesResult {
+        references,
+        include_declaration,
+    })
+}
+
+/// Find all references to a symbol across all modules.
+fn find_references_to_symbol(
+    session: &Session,
+    canonical_id: GlobalSymbolId,
+    include_declaration: bool,
+) -> Vec<Span> {
     let mut references = Vec::new();
 
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(ast) = &module.ast else {
-            continue;
-        };
-        let profile = session.default_profile_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
 
         // collect matching expression ids
         let matching_expr_ids: Vec<_> = {
-            let dir_tree = dir.tree.read();
+            let dir_tree = ctx.tree();
             dir_tree
                 .iter_nodes_of_type::<Expression>()
                 .filter_map(|(expr_id, expr)| {
@@ -82,13 +93,13 @@ pub fn find_references(
 
         // get spans for each matching expression
         for expr_id in matching_expr_ids {
-            if let Some(span) = get_dir_node_span(ast, dir, expr_id.into()) {
+            if let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, expr_id.into()) {
                 references.push(span);
             }
         }
     }
 
-    // 4. optionally include the declaration itself
+    // optionally include the declaration itself
     if include_declaration
         && let Some(decl_span) = get_symbol_definition_span(session, canonical_id)
     {
@@ -96,8 +107,5 @@ pub fn find_references(
         references.insert(0, decl_span);
     }
 
-    Some(ReferencesResult {
-        references,
-        include_declaration,
-    })
+    references
 }
