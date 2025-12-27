@@ -5,21 +5,21 @@ The Destack compiler takes JavaScript, TypeScript and Destack sources (`.(ds|ts|
 ## Pipeline
 
 Like most compilers, the Destack compiler has three main regions:
- 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → typed, elaborated "canonical" DIR)
- 2. Middle-end (target-independent "canonical" DIR → target-specific "canonical" MIR)
+ 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → typed, elaborated "canonical" DIR per profile)
+ 2. Middle-end (profile-dependent "canonical" DIR → target-specific "canonical" MIR)
  3. Back-end ("canonical" DIR/MIR → emitted artifacts depending on target).
-(For JS/TS targets, the middle-end may be skipped partially or entirely, depending on comptime requirements.)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                FRONT-END                                    │
 │                                                                             │
-│   source ───► Import ───► Bind ───► Resolve ───► Analyze ───► Elaborate     │
-│      │           │         │           │            │             │         │
-│    Text        AST        DIR       Symbols       Types     Canonical DIR   │
+│   source ───► Import ───► Bind ──┬──► Resolve ───► Analyze ───► Elaborate   │
+│      │           │         │     ·        │            │             │      │
+│    Text        AST     base DIR  ·     Symbols       Types    Canonical DIR │
+│                       (shared)   · ─────────────── per profile ───────────  │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
+                                   │ (one canonical DIR per profile)
+                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                MIDDLE-END                                   │
 │                                                                             │
@@ -29,10 +29,10 @@ Like most compilers, the Destack compiler has three main regions:
 │                                                                             │
 │              (may be skipped for some targets like JS/TS)                   │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
+                                   │
+                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                                  BACK-END                                   │
+│                                 BACK-END                                    │
 │                                                                             │
 │              Generate ────────► Link ────────► Emit                         │
 │                  │                │               │                         │
@@ -49,14 +49,16 @@ Phases are identified by a single letter for tracing and diagnostics.
 ### Front-End
 
 The front-end transforms source text into typed, elaborated ("canonical") DIR.
+Import and Bind are **profile-independent**, producing shared base DIR.
+Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for each profile.
 
-| Phase | Letter | Input | Output | Description |
-|-------|--------|-------|--------|-------------|
-| Import | `I` | Text | AST | Parse source into abstract syntax tree |
-| Bind | `B` | AST | DIR | Create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
-| Resolve | `R` | DIR | DIR | Resolve symbol references (lexical binding) |
-| Analyze | `A` | DIR | DIR | Infer types, resolve overloads, validate semantics |
-| Elaborate | `E` | DIR | DIR | Post-analysis transforms: patterns→decision trees, tree literals→calls, etc. |
+| Phase | Letter | Input | Output | Profile | Description |
+|-------|--------|-------|--------|---------|-------------|
+| Import | `I` | Text | AST | — | Parse source into abstract syntax tree |
+| Bind | `B` | AST | base DIR | — | Create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
+| Resolve | `R` | base DIR | DIR | per-profile | Resolve symbol references (lexical binding, library resolution) |
+| Analyze | `A` | DIR | DIR | per-profile | Infer types, resolve overloads, validate semantics |
+| Elaborate | `E` | DIR | canonical DIR | per-profile | Post-analysis transforms: patterns→decision trees, tree literals→calls, etc. |
 
 ### Middle-End
 
@@ -123,3 +125,19 @@ The compiler uses versions (file/module/artifact) to track changes and dependenc
 
 The compiler loads language builtins from `language/builtin/` as needed based on target configuration.
 See [builtin/README.md](../builtin/README.md) for the full structure.
+
+## Profiles and Targets
+
+A **profile** represents a semantic configuration, essentially, a "comptime world" that determines which symbols exist and how types resolve. 
+A **target** represents a build output, with specific settings for code generation, optimization, and output paths.
+
+**Profile identity** is determined by:
+- `output`: OutputFormat (js, ts, wasm, native)
+- `runtime`: Runtime (browser, node, deno, bun, wasm-wasi, destack, etc.)
+- `platform`: Platform (web, windows, macos, linux, ios, android, etc.)
+- `lib`: Normalized library set (e.g., `["esnext", "dom"]`)
+- `debug`: Debug flag (affects `import.meta.debug`)
+- `env`: Comptime environment snapshot (for `import.meta.env`)
+- `flags`: Semantic restriction flags (`no_any`, `no_managed`, `no_exceptions`, etc.)
+
+Generalizing profiles from targets allows sharing work: if two targets use the same profile, they share the canonical DIR and only diverge at code generation (i.e., they have the same canonical profile-dependent DIR but different target-specific MIRs).

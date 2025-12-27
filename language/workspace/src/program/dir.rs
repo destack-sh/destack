@@ -83,7 +83,7 @@ impl ModuleDir {
         }
     }
 
-    /// Clone a profile-specific DIR from a base DIR.
+    /// Clone a profile-dependent DIR from a base DIR.
     pub fn from_base(profile_id: ProfileId, base: &ModuleDir) -> Self {
         if base.profile_id.is_some() {
             panic!("expected base DIR for module {id:?}", id = base.id);

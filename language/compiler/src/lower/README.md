@@ -31,7 +31,7 @@ Specifically, Destack lowering is focused on:
 
 The mid-end/back-end flow from DIR to MIR (see [compiler/README.md](../README.md)):
 ```
-DIR (elaborated, canonical, target-independent)
+DIR (elaborated, canonical, profile-dependent)
  │
  ├─→ Generate/JS: direct JS/TS output (preserves type-erased polymorphism)
  │
