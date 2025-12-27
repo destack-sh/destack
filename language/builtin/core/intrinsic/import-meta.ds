@@ -6,6 +6,7 @@ export type Platform = "web"
     | "ios"
     | "android"
     | "wasi"
+    | "bare-metal"
     | "universal";
 
 /// The runtime environment that will execute the code.
@@ -15,11 +16,12 @@ export type Runtime = "browser"
     | "bun"
     | "worker"
     | "workerd"
-    | "embedded"
     | "wasm-js"
     | "wasm-wasi"
-    | "wasm-standalone"
-    | "destack";
+    | "native"
+    | "native-hosted"
+    | "native-freestanding"
+    | "native-embedded";
 
 /// Environment variables available at compile time.
 export interface ImportMetaEnv {

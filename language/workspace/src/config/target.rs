@@ -448,25 +448,31 @@ pub enum Runtime {
     /// WASM with WASI (wasmtime, wasmer, etc.)
     WasmWasi,
 
-    // Native runtime (for output=native)
-    /// Native runtime (e.g., x86_64-unknown-linux-gnu).
-    Native, // nocheckin: how should we handle "native" runtimes? is there more than one?
+    // Native runtimes (for output=native)
+    /// Native hosted runtime (OS services available).
+    NativeHosted,
+    /// Native freestanding runtime (no OS services assumed).
+    NativeFreestanding,
+    /// Native embedded runtime (freestanding with tight constraints).
+    NativeEmbedded,
 }
 
 impl std::str::FromStr for Runtime {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
+        match s.to_lowercase().as_str() {
             "browser" => Ok(Self::Browser),
             "node" => Ok(Self::Node),
             "deno" => Ok(Self::Deno),
             "bun" => Ok(Self::Bun),
             "worker" => Ok(Self::Worker),
             "workerd" => Ok(Self::Workerd),
-            "wasm_js" | "wasmjs" => Ok(Self::WasmJs),
-            "wasm_wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
-            "native" => Ok(Self::Native),
+            "wasm_js" | "wasm-js" | "wasmjs" => Ok(Self::WasmJs),
+            "wasm_wasi" | "wasm-wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
+            "native" | "native_hosted" | "native-hosted" => Ok(Self::NativeHosted),
+            "native_freestanding" | "native-freestanding" => Ok(Self::NativeFreestanding),
+            "native_embedded" | "native-embedded" => Ok(Self::NativeEmbedded),
             _ => Err(()),
         }
     }
@@ -491,9 +497,12 @@ impl Runtime {
         matches!(self, Self::WasmJs | Self::WasmWasi)
     }
 
-    /// Whether this runtime is the Destack native runtime.
+    /// Whether this runtime is a native runtime.
     pub fn is_native(&self) -> bool {
-        matches!(self, Self::Native)
+        matches!(
+            self,
+            Self::NativeHosted | Self::NativeFreestanding | Self::NativeEmbedded
+        )
     }
 
     /// Whether this runtime runs in a browser-like environment (has DOM potential).
@@ -505,7 +514,13 @@ impl Runtime {
     pub fn is_server(&self) -> bool {
         matches!(
             self,
-            Self::Node | Self::Deno | Self::Bun | Self::WasmWasi | Self::Native
+            Self::Node
+                | Self::Deno
+                | Self::Bun
+                | Self::WasmWasi
+                | Self::NativeHosted
+                | Self::NativeFreestanding
+                | Self::NativeEmbedded
         )
     }
 }
@@ -535,6 +550,8 @@ pub enum Platform {
     // Other
     /// WASI (WebAssembly System Interface)
     Wasi,
+    /// Bare metal (no operating system).
+    BareMetal,
     /// Unknown or portable (no platform-specific APIs)
     Universal,
 }
@@ -551,6 +568,7 @@ impl std::str::FromStr for Platform {
             "ios" => Ok(Self::IOS),
             "android" => Ok(Self::Android),
             "wasi" => Ok(Self::Wasi),
+            "bare_metal" | "bare-metal" | "baremetal" | "none" => Ok(Self::BareMetal),
             "universal" | "portable" | "any" => Ok(Self::Universal),
             _ => Err(()),
         }
@@ -576,6 +594,11 @@ impl Platform {
     /// Whether this is a mobile platform.
     pub fn is_mobile(&self) -> bool {
         matches!(self, Self::IOS | Self::Android)
+    }
+
+    /// Whether this is a bare metal platform.
+    pub fn is_bare_metal(&self) -> bool {
+        matches!(self, Self::BareMetal)
     }
 }
 
@@ -612,11 +635,11 @@ pub struct Target {
     pub profile: Option<String>,
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
-    /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
+    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (web, windows, macos, linux, ios, android, etc.).
+    /// Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).
     pub platform: Platform,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
@@ -731,8 +754,32 @@ impl Target {
         Self {
             name: name.into(),
             output: OutputFormat::Native,
-            runtime: Runtime::Native,
+            runtime: Runtime::NativeHosted,
             platform: Platform::Universal,
+            optimize: true,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new target with the given name and native freestanding output.
+    pub fn native_freestanding(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            output: OutputFormat::Native,
+            runtime: Runtime::NativeFreestanding,
+            platform: Platform::BareMetal,
+            optimize: true,
+            ..Default::default()
+        }
+    }
+
+    /// Create a new target with the given name and native embedded output.
+    pub fn native_embedded(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            output: OutputFormat::Native,
+            runtime: Runtime::NativeEmbedded,
+            platform: Platform::BareMetal,
             optimize: true,
             ..Default::default()
         }
@@ -936,7 +983,9 @@ impl Target {
             // WASM environments
             Runtime::WasmJs => "es2020",
             Runtime::WasmWasi => "es2020",
-            Runtime::Native => "es2020", // #Suspicious
+            Runtime::NativeHosted | Runtime::NativeFreestanding | Runtime::NativeEmbedded => {
+                "es2020"
+            }
         };
         libs.push(es_lib.to_string());
 
@@ -968,7 +1017,7 @@ impl Target {
             Runtime::WasmWasi => {
                 libs.push("wasi".to_string());
             }
-            Runtime::Native => {}
+            Runtime::NativeHosted | Runtime::NativeFreestanding | Runtime::NativeEmbedded => {}
         }
 
         // platform-specific libs (primarily for native targets)
