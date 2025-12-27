@@ -151,9 +151,6 @@ pub enum Expression {
     /// Values.
     /// --------------------------------
 
-    // nocheckin TODO #Incomplete: support (per-profile?) ImportMeta in DIR
-    //  (as Expression variant? also get it from.. Module?)
-
     /// Unresolved path.
     UnresolvedPath {
         path: Path,
@@ -178,6 +175,8 @@ pub enum Expression {
         target_symbol: GlobalSymbolId,
     },
 
+    // nocheckin TODO #Incomplete: support (per-profile?) ImportMeta in DIR
+    //  (as Expression variant? also get it from.. Module?)
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
     /// Type literal value.

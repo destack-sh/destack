@@ -57,21 +57,16 @@ impl InlayHint {
 
 /// Get inlay hints for a range in a file.
 pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHint> {
-    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return Vec::new();
-    };
-    let module_id = module.id;
-    let dir_tree = dir.tree.read();
-    let types = dir.types.read();
+
+    let dir_tree = ctx.tree();
+    let types = ctx.types();
 
     let mut hints = Vec::new();
 
@@ -94,7 +89,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
         // get the span of this call expression
         let ast_node_id = dir_tree.get_source(expression_id.id);
-        let call_span = ast.tree.source_map.get(ast_node_id);
+        let call_span = ctx.ast.tree.source_map.get(ast_node_id);
 
         // skip if outside the requested range
         if call_span.end < range.start || call_span.start > range.end {
@@ -117,7 +112,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             // get the span of the argument
             let arg_ast_id = dir_tree.get_source(argument_id.id);
-            let arg_span = ast.tree.source_map.get(arg_ast_id);
+            let arg_span = ctx.ast.tree.source_map.get(arg_ast_id);
 
             // add a parameter hint at the start of the argument
             let param_name = param_names
@@ -129,7 +124,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
         }
     }
 
-    // 3. iterate through all declarators for type hints
+    // iterate through all declarators for type hints
     for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<Declarator>() {
         // skip if already has explicit type annotation
         if declarator.ty.is_some() {
@@ -141,7 +136,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
         if let Pattern::Binding { symbol, .. } = pattern {
             // get the span of the binding name
             let ast_node_id = dir_tree.get_source(declarator.pattern.id);
-            let pattern_span = ast.tree.source_map.get(ast_node_id);
+            let pattern_span = ctx.ast.tree.source_map.get(ast_node_id);
 
             // skip if outside the requested range
             if pattern_span.end < range.start || pattern_span.start > range.end {
@@ -150,7 +145,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
             // try to get the value type for this symbol
             let global_symbol_id = GlobalSymbolId {
-                module_id,
+                module_id: ctx.module_id,
                 local_id: *symbol,
             };
 
@@ -183,17 +178,13 @@ fn get_parameter_names(
         return Vec::new();
     };
 
-    // get target module AST/DIR
     let target_module = session.modules.get(symbol_id.module_id);
     let target = target_module.read();
-    let Some(ast) = &target.ast else {
+    let Some(ctx) = session.query_context(&target) else {
         return Vec::new();
     };
-    let profile = session.default_profile_for_module(symbol_id.module_id);
-    let Some(dir) = target.dir_maybe(profile) else {
-        return Vec::new();
-    };
-    let symbols = dir.symbols.read();
+
+    let symbols = ctx.symbols();
     let symbol_data = symbols.get_symbol(symbol_id.local_id);
 
     // check if this symbol has a primary declaration
@@ -210,7 +201,7 @@ fn get_parameter_names(
         return Vec::new();
     };
 
-    let dir_tree = dir.tree.read();
+    let dir_tree = ctx.tree();
     let declaration = dir_tree.get::<Declaration>(declaration_id);
 
     // if it's a function, get its parameters
@@ -224,9 +215,9 @@ fn get_parameter_names(
         .map(|param_id| {
             let param = dir_tree.get::<Parameter>(*param_id);
             match param {
-                Parameter::Named { name, .. } => ast.strings.get(*name).to_string(),
+                Parameter::Named { name, .. } => ctx.ast.strings.get(*name).to_string(),
                 Parameter::Variadic { name, .. } => {
-                    let name_str = ast.strings.get(*name).to_string();
+                    let name_str = ctx.ast.strings.get(*name).to_string();
                     format!("...{name_str}")
                 }
                 Parameter::Pattern { .. } => "<pattern>".to_string(),

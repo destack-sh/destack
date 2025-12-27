@@ -23,18 +23,14 @@ pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<Exporte
     // get module AST/DIR
     let module = session.modules.get(module_id);
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return Vec::new();
-    };
-    let profile = session.default_profile_for_module(module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
     let module_path = module
         .path
         .as_ref()
         .map(|p| p.to_string_lossy().to_string());
-    let symbols = dir.symbols.read();
+    let symbols = ctx.symbols();
 
     let mut exports = Vec::new();
 
@@ -47,7 +43,7 @@ pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<Exporte
             continue;
         };
 
-        let name = ast.strings.get(string_id).to_string();
+        let name = ctx.ast.strings.get(string_id).to_string();
         let local_id = destack_dir::LocalSymbolId::new_typed(idx as u32, symbol.ty);
 
         exports.push(ExportedSymbol {
@@ -81,11 +77,7 @@ pub fn search_importable_symbols(
             continue;
         }
 
-        let Some(ast) = &module.ast else {
-            continue;
-        };
-        let profile = session.default_profile_for_module(module_id);
-        let Some(dir) = module.dir_maybe(profile) else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
 
@@ -93,7 +85,7 @@ pub fn search_importable_symbols(
             .path
             .as_ref()
             .map(|p| p.to_string_lossy().to_string());
-        let symbols = dir.symbols.read();
+        let symbols = ctx.symbols();
 
         for (idx, symbol) in symbols.symbols().enumerate() {
             if symbol.export.is_none() {
@@ -104,7 +96,7 @@ pub fn search_importable_symbols(
                 continue;
             };
 
-            let name = ast.strings.get(string_id).to_string();
+            let name = ctx.ast.strings.get(string_id).to_string();
 
             if !query.is_empty() && !name.to_lowercase().starts_with(&query_lower) {
                 continue;

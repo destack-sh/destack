@@ -54,7 +54,6 @@ pub struct ContextResult {
 
 /// Detect the completion context at a given offset.
 pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32) -> ContextResult {
-    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file_id) else {
         return ContextResult {
             context: CompletionContext::Unknown,
@@ -62,14 +61,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         };
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return ContextResult {
-            context: CompletionContext::Unknown,
-            token: None,
-        };
-    };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
+    let Some(ctx) = session.query_context(&module) else {
         return ContextResult {
             context: CompletionContext::Unknown,
             token: None,
@@ -98,7 +90,8 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     if after_dot {
         // find enclosing AST nodes at the position before the dot
         let before_dot = offset.saturating_sub(1);
-        let enclosing = ast
+        let enclosing = ctx
+            .ast
             .tree
             .source_map
             .get_enclosing_spans(before_dot, before_dot);
@@ -107,7 +100,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         let mut enclosing = enclosing;
         enclosing.sort_by_key(|e| e.length);
 
-        let dir_tree = dir.tree.read();
+        let dir_tree = ctx.tree();
 
         // look for a member expression or an expression to the left
         for enc in &enclosing {
@@ -163,7 +156,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     }
 
     // default to value position
-    let scope_id = find_scope_at_offset(ast, dir, offset);
+    let scope_id = find_scope_at_offset(&ctx, offset);
 
     ContextResult {
         context: CompletionContext::ValuePosition { scope_id },
@@ -288,12 +281,11 @@ fn detect_import_context(source: &str, offset: u32) -> Option<CompletionContext>
 
 /// Find the scope at a given offset.
 fn find_scope_at_offset(
-    ast: &crate::ModuleAst,
-    dir: &crate::ModuleDir,
+    ctx: &crate::query::common::QueryContext<'_>,
     offset: u32,
 ) -> Option<dir::LocalScopeId> {
     // find enclosing AST nodes
-    let enclosing = ast.tree.source_map.get_enclosing_spans(offset, offset);
+    let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -302,7 +294,7 @@ fn find_scope_at_offset(
     let mut enclosing = enclosing;
     enclosing.sort_by_key(|e| e.length);
 
-    let dir_tree = dir.tree.read();
+    let dir_tree = ctx.tree();
 
     // find the innermost node - we need to get the scope for the node
     for enclosing in &enclosing {

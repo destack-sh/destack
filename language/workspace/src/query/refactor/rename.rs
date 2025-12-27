@@ -66,19 +66,14 @@ pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<Pr
     // get the symbol to check if it has a name
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return None;
-    };
-    let profile = session.default_profile_for_module(canonical_id.module_id);
-    let Some(dir) = module.dir_maybe(profile) else {
-        return None;
-    };
-    let symbols = dir.symbols.read();
+    let ctx = session.query_context(&module)?;
+
+    let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
     // get the symbol name
     let name_string_id = symbol.name()?;
-    let name = ast.strings.get(name_string_id).to_string();
+    let name = ctx.ast.strings.get(name_string_id).to_string();
 
     // 3. return the range and current name
     Some(PrepareRenameResult {
@@ -121,17 +116,13 @@ pub fn rename(
     // 5. find all references across all modules
     for module in session.modules.iter() {
         let module = module.read();
-        let Some(ast) = &module.ast else {
-            continue;
-        };
-        let profile = session.default_profile_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
 
         // collect matching expression ids first to avoid borrow issues
         let matching_expression_ids: Vec<_> = {
-            let dir_tree = dir.tree.read();
+            let dir_tree = ctx.tree();
             dir_tree
                 .iter_nodes_of_type::<Expression>()
                 .filter_map(|(expression_id, expression)| {
@@ -148,7 +139,7 @@ pub fn rename(
 
         // get spans for each matching expression
         for expression_id in matching_expression_ids {
-            if let Some(span) = get_dir_node_span(ast, dir, expression_id.into()) {
+            if let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, expression_id.into()) {
                 edits_by_file.entry(span.file).or_default().push(span);
             }
         }

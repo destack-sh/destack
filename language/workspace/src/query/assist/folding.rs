@@ -65,22 +65,16 @@ impl FoldingRange {
 /// - Class/struct/interface/enum bodies
 /// - Namespace blocks
 pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
-    // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
     };
     let module = module.read();
-    let Some(ast) = &module.ast else {
-        return Vec::new();
-    };
-    let profile = session.default_profile_for_module(module.id);
-    let Some(dir) = module.dir_maybe(profile) else {
+    let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
 
-    // get the file for position conversion
-    let source_file = session.files.get(file);
-    let dir_tree = dir.tree.read();
+    let source_file = session.files.get(ctx.file_id);
+    let dir_tree = ctx.tree();
 
     let mut ranges = Vec::new();
 
@@ -103,7 +97,7 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
 
         // get the span of this declaration
         let ast_node_id = dir_tree.get_source(decl_id.id);
-        let span = ast.tree.source_map.get(ast_node_id);
+        let span = ctx.ast.tree.source_map.get(ast_node_id);
 
         // convert to line numbers
         let Some((start_line, _)) = source_file.get_position(span.start) else {

@@ -35,15 +35,11 @@ pub fn workspace_symbols(
     // search all modules
     'outer: for module in session.modules.iter() {
         let module = module.read();
-        let Some(ast) = &module.ast else {
+        let Some(ctx) = session.query_context(&module) else {
             continue;
         };
-        let profile = session.default_profile_for_module(module.id);
-        let Some(dir) = module.dir_maybe(profile) else {
-            continue;
-        };
-        let dir_tree = dir.tree.read();
-        let file = module.file_id;
+
+        let dir_tree = ctx.tree();
 
         // iterate through all declarations
         for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
@@ -53,7 +49,7 @@ pub fn workspace_symbols(
                 continue;
             };
 
-            let name = ast.strings.get(string_id).to_string();
+            let name = ctx.ast.strings.get(string_id).to_string();
 
             // check if name matches query (case-insensitive substring match)
             if !query.is_empty() && !name.to_lowercase().contains(&query_lower) {
@@ -73,12 +69,12 @@ pub fn workspace_symbols(
             };
 
             // find container by walking up parent tree
-            let container = find_container_name(&dir_tree, &ast.strings, declaration_id.id);
+            let container = find_container_name(&dir_tree, &ctx.ast.strings, declaration_id.id);
 
             // get span (safely, skipping if out of bounds)
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                ast.tree.source_map.get(ast_node_id)
+                ctx.ast.tree.source_map.get(ast_node_id)
             }));
 
             let Ok(full_span) = full_span else {
@@ -88,7 +84,7 @@ pub fn workspace_symbols(
             symbols.push(WorkspaceSymbol {
                 name,
                 kind,
-                file,
+                file: ctx.file_id,
                 range: full_span,
                 container,
             });
