@@ -40,7 +40,7 @@ pub struct CompilerOptions {
     /// Whether to make prelude items (Add, Type, deprecated, etc.) available.
     /// When true, prelude items resolve without explicit imports.
     pub inject_prelude: bool,
-    /// Whether to load profile libraries (es*, dom, std) by default.
+    /// Whether to load profile libraries (es*, dom, std, etc.) by default.
     pub load_libs: bool,
 
     /// Whether to generate source maps.

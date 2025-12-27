@@ -245,6 +245,8 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use destack_builtin::LanguageItem;
 
     use crate::{TestProgram, assert_string};
@@ -263,5 +265,21 @@ mod tests {
         let language_item_symbols = language_item_module.dir(profile).symbols.read();
         let language_item_symbol = language_item_symbols.get_symbol(language_item_id.into_local());
         assert_string!(test.program, language_item_symbol.name().unwrap(), "Add");
+    }
+
+    /// Test that builtin lib symbols can be resolved and cached.
+    #[test]
+    fn test_resolve_builtin_lib_symbol() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        test.resolve_builtins();
+        test.resolve_libs();
+        test.compile();
+
+        let profile = test.default_profile_id_for_root();
+        let array_name = test.program.strings.intern("Array");
+        let document_name = test.program.strings.intern("Document");
+
+        assert!(test.compiler.lib_symbol(profile, array_name).is_some());
+        assert!(test.compiler.lib_symbol(profile, document_name).is_some());
     }
 }

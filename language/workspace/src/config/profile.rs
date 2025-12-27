@@ -11,6 +11,8 @@ pub struct ProfileConfig {
     pub output: Option<OutputFormat>,
     /// Runtime environment for this profile.
     pub runtime: Option<Runtime>,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
     /// Target platform for this profile.
     pub platform: Option<Platform>,
     /// Library files for this profile.
@@ -27,6 +29,7 @@ impl ProfileConfig {
         Self {
             output: json.output.map(OutputFormat::from),
             runtime: json.runtime.as_deref().and_then(Runtime::parse),
+            runtime_version: json.runtime_version.clone(),
             platform: json.platform.as_deref().and_then(Platform::parse),
             lib: json.lib.clone(),
             debug: json.debug,
@@ -44,6 +47,8 @@ pub struct ProfileConfigJson {
     pub output: Option<OutputFormatJson>,
     /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
     pub runtime: Option<String>,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
     /// Target platform (web, windows, macos, linux, ios, android, etc.).
     pub platform: Option<String>,
     /// Library files for this profile.

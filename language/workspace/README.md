@@ -53,6 +53,7 @@ struct Target {
     mode: OutputMode,          // Directory or File
     platform: Platform,        // Browser, Node, Neutral
     runtime: Runtime,          // Browser, Node, Bun, Deno, ...
+    runtimeVersion: string | null,
     optimize: boolean,
     optimizeLevel: OptimizeLevel,
     debug: boolean,

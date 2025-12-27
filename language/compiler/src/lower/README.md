@@ -1372,7 +1372,7 @@ struct InterfaceVTable<I> {
 
 Structural interfaces enable TypeScript's duck typing but have overhead:
 - 2× pointer size for interface references (fat pointer)
-- One vtable per (Type, Interface) pair (can add up with many combinations)
+- One vtable per (Type, Interface) pair
 - Cache locality may suffer from double indirection
 
 ---

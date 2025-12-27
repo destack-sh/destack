@@ -408,7 +408,7 @@ impl Program {
             "js" => Some(Target::js(name)),
             "ts" => Some(Target::ts(name)),
             "node" => Some(Target::node(name)),
-            "wasm" => Some(Target::wasm(name)),
+            "wasm" => Some(Target::wasm_js(name)),
             "wasm-wasi" | "wasi" => Some(Target::wasm_wasi(name)),
             "native" => Some(Target::native(name)),
             _ => None,
@@ -424,6 +424,9 @@ impl Program {
         let runtime = profile_config
             .and_then(|profile| profile.runtime)
             .unwrap_or(target.runtime);
+        let runtime_version = profile_config
+            .and_then(|profile| profile.runtime_version.clone())
+            .or_else(|| target.runtime_version.clone());
         let platform = profile_config
             .and_then(|profile| profile.platform)
             .unwrap_or(target.platform);
@@ -445,6 +448,7 @@ impl Program {
             .unwrap_or_else(|| {
                 let derived_target = Target {
                     runtime,
+                    runtime_version,
                     platform,
                     ..Target::default()
                 };

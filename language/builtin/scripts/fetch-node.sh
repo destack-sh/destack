@@ -10,15 +10,17 @@ SRC_DIR="$BUILTIN_DIR/lib/node"
 NODE_TYPES_VERSION=${NODE_TYPES_VERSION:-"20.11.30"}
 NODE_TYPES_BASE_URL=${NODE_TYPES_BASE_URL:-${NODE_TYPES_URL:-"https://unpkg.com/@types/node@$NODE_TYPES_VERSION"}}
 NODE_BASE_URL=$NODE_TYPES_BASE_URL
+NODE_LIB_VERSION=${NODE_LIB_VERSION:-"20"}
 
 export NODE_BASE_URL
 export NODE_TYPES_VERSION
 
-mkdir -p "$SRC_DIR"
+NODE_LIB_DIR="$SRC_DIR/v$NODE_LIB_VERSION"
+mkdir -p "$NODE_LIB_DIR"
 
-echo "  - node @types/node $NODE_TYPES_VERSION"
+echo "  - node.v$NODE_LIB_VERSION @types/node $NODE_TYPES_VERSION"
 
-NODE_DEST="$SRC_DIR/index.d.ds" python3 - <<'PY'
+NODE_DEST="$NODE_LIB_DIR/index.d.ds" python3 - <<'PY'
 import os
 import re
 import urllib.request

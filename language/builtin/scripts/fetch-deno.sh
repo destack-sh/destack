@@ -10,15 +10,17 @@ SRC_DIR="$BUILTIN_DIR/lib/deno"
 DENO_VERSION=${DENO_VERSION:-"1.45.0"}
 DENO_TYPES_BASE_URL=${DENO_TYPES_BASE_URL:-${DENO_TYPES_URL:-"https://raw.githubusercontent.com/denoland/deno/v$DENO_VERSION/cli/tsc/dts"}}
 DENO_BASE_URL=$DENO_TYPES_BASE_URL
+DENO_LIB_VERSION=${DENO_LIB_VERSION:-"1.45"}
 
 export DENO_BASE_URL
 export DENO_VERSION
 
-mkdir -p "$SRC_DIR"
+DENO_LIB_DIR="$SRC_DIR/v$DENO_LIB_VERSION"
+mkdir -p "$DENO_LIB_DIR"
 
-echo "  - deno $DENO_VERSION"
+echo "  - deno.v$DENO_LIB_VERSION $DENO_VERSION"
 
-DENO_DEST="$SRC_DIR/index.d.ds" python3 - <<'PY'
+DENO_DEST="$DENO_LIB_DIR/index.d.ds" python3 - <<'PY'
 import os
 import re
 import urllib.request
@@ -46,7 +48,7 @@ def fetch(path: str) -> None:
     data = re.sub(r'^///\\s*<reference\\s+path="[^"]+"\\s*/>\\s*$', "", data, flags=re.M)
     output.append(data.strip())
 
-fetch("lib.deno.d.ts")
+fetch("lib.deno.ns.d.ts")
 
 dest_path.write_text("\n\n".join(section for section in output if section) + "\n")
 PY
