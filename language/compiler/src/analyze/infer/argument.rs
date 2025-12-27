@@ -375,8 +375,8 @@ impl Compiler {
         }
 
         // collect parameter symbols for the declaration
-        let parameter_symbols = self
-            .collect_static_parameter_symbols_for_symbol(module, symbol, profile, tree, symbols);
+        let parameter_symbols =
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols);
         let parameter_symbols = match parameter_symbols {
             Some(parameter_symbols) => parameter_symbols,
             None => {
@@ -518,8 +518,8 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
         // collect static parameter symbols for the declaration
-        let parameter_symbols = self
-            .collect_static_parameter_symbols_for_symbol(module, symbol, profile, tree, symbols);
+        let parameter_symbols =
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols);
         let Some(parameter_symbols) = parameter_symbols else {
             return HashMap::new();
         };

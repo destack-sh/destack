@@ -54,8 +54,8 @@ impl Compiler {
                 self.unbind_expression(
                     module,
                     *expression_id,
-                    &tree,
-                    &symbols,
+                    tree,
+                    symbols,
                     &mut ast_tree,
                     &mut ast_strings,
                 )

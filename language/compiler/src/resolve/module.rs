@@ -2,26 +2,45 @@ use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use destack_dir::{Declaration, DependencyItem, Expression, LocalSymbolId};
 
 use destack_source::ModuleId;
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{ImportMeta, ModuleDir, ProfileId};
 
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
     pub(super) fn resolve_module_prepare(
         &self,
         module_id: ModuleId,
-        profile: ProfileId,
+        profile_id: ProfileId,
     ) -> ResolveResult<()> {
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
         if module
             .dirs
             .iter()
-            .any(|dir| dir.profile_id == Some(profile))
+            .any(|dir| dir.profile_id == Some(profile_id))
         {
             return Ok(());
         }
         let base = module.dir_base();
-        let dir = ModuleDir::from_base(profile, base);
+
+        // profile
+        let profile = self.program.profile(profile_id);
+
+        // import meta
+        let import_meta = ImportMeta {
+            url: module.uri.clone(),
+            file: module.path.clone(),
+            dir: module
+                .path
+                .as_ref()
+                .and_then(|path| path.parent().map(|parent| parent.to_path_buf())),
+            platform: profile.key.platform,
+            runtime: profile.key.runtime,
+            debug: profile.key.debug,
+            env: profile.key.env.clone(),
+        };
+
+        let mut dir = ModuleDir::from_base(base, profile_id);
+        dir.import_meta = Some(import_meta);
         module.dirs.push(dir);
         Ok(())
     }

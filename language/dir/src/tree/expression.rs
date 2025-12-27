@@ -175,8 +175,11 @@ pub enum Expression {
         target_symbol: GlobalSymbolId,
     },
 
-    // nocheckin TODO #Incomplete: support (per-profile?) ImportMeta in DIR
-    //  (as Expression variant? also get it from.. Module?)
+    /// Import meta intrinsic value.
+    ImportMeta,
+    /// This intrinsic value.
+    This,
+
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
     /// Type literal value.
@@ -392,6 +395,8 @@ impl Expression {
             Expression::LocalReference { .. } => "local reference",
             Expression::ModuleReference { .. } => "module reference",
             Expression::GlobalReference { .. } => "global reference",
+            Expression::ImportMeta => "import meta",
+            Expression::This => "this",
 
             Expression::Type { .. } => "type",
             Expression::ScalarLiteral { .. } => "scalar literal",

@@ -949,6 +949,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("target_symbol", target_symbol)
                     .end();
             }
+            Expression::ImportMeta => {
+                self.node("Expression::ImportMeta", id.id).end();
+            }
+            Expression::This => {
+                self.node("Expression::This", id.id).end();
+            }
 
             Expression::Type { value: _ } => {
                 self.node("Expression::Type", id.id).end();

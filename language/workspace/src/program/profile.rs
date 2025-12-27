@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
 
-use crate::{DsConfigCompilerOptions, OutputFormat, Platform, Runtime};
+use crate::{DsConfigCompilerOptions, Platform, Runtime};
 
 /// Unique identifier for profiles.
 #[repr(transparent)]
@@ -32,7 +32,7 @@ impl ProfileId {
 
 /// Comptime environment snapshot used for profile identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ComptimeEnvSnapshot {
+pub enum EnvSnapshot {
     /// Represents a full environment snapshot with keys and hashed values.
     All { keys: Vec<String>, hash: u64 },
     /// Represents a whitelisted environment snapshot with keys and hashed values.
@@ -89,8 +89,6 @@ pub struct ProfileFlags {
 /// Canonical profile key for semantic identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProfileKey {
-    /// Output format for the profile.
-    pub output: OutputFormat,
     /// Runtime environment for the profile.
     pub runtime: Runtime,
     /// Target platform for the profile.
@@ -100,7 +98,7 @@ pub struct ProfileKey {
     /// Debug flag exposed to `import.meta`.
     pub debug: bool,
     /// Comptime environment snapshot for `import.meta.env`.
-    pub env: ComptimeEnvSnapshot,
+    pub env: EnvSnapshot,
     /// Flags that affect semantic behavior.
     pub flags: ProfileFlags,
 }
@@ -163,7 +161,7 @@ impl ProfileRegistry {
     }
 }
 
-impl ComptimeEnvSnapshot {
+impl EnvSnapshot {
     /// Snapshot all environment keys and values.
     pub fn from_env_all() -> Self {
         let mut entries: Vec<(String, String)> = std::env::vars().collect();
@@ -217,17 +215,15 @@ impl From<&DsConfigCompilerOptions> for ProfileFlags {
 impl ProfileKey {
     /// Create a profile key with normalized library entries.
     pub fn new(
-        output: OutputFormat,
         runtime: Runtime,
         platform: Platform,
         lib: Vec<String>,
         debug: bool,
-        env: ComptimeEnvSnapshot,
+        env: EnvSnapshot,
         flags: ProfileFlags,
     ) -> Self {
         let lib = normalize_keys(lib);
         Self {
-            output,
             runtime,
             platform,
             lib,

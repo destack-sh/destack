@@ -37,7 +37,7 @@ pub(super) struct StaticParameter {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect static parameter symbols for a declaration symbol.
-    pub(super) fn collect_static_parameter_symbols_for_symbol(
+    pub(super) fn collect_static_parameter_symbols(
         &self,
         module: &Module,
         symbol: GlobalSymbolId,
@@ -47,16 +47,13 @@ impl Compiler {
     ) -> Option<Vec<GlobalSymbolId>> {
         // select the module that owns the symbol
         if symbol.module_id == module.id {
-            self.collect_static_parameter_symbols_for_symbol_in_module(
-                module.id, symbol, tree, symbols,
-            )
+            self.collect_static_parameter_symbols_in_module(module.id, symbol, tree, symbols)
         } else {
             let remote_module = self.program.modules.get(symbol.module_id);
             let remote_module = remote_module.read();
             let remote_tree = remote_module.dir(profile).tree.read();
             let remote_symbols = remote_module.dir(profile).symbols.read();
-
-            self.collect_static_parameter_symbols_for_symbol_in_module(
+            self.collect_static_parameter_symbols_in_module(
                 remote_module.id,
                 symbol,
                 &remote_tree,
@@ -66,18 +63,16 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols for a declaration in a module.
-    /// nocheckin: merge collect_static_parameter_symbols_for_symbol_in_module into collect_static_parameter_symbols_for_symbol?
-    pub(super) fn collect_static_parameter_symbols_for_symbol_in_module(
+    fn collect_static_parameter_symbols_in_module(
         &self,
         module_id: ModuleId,
         symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<Vec<GlobalSymbolId>> {
-        // read the declaration for the symbol
+        // extract the declaration for the symbol
         let symbol_entry = symbols.get_symbol(symbol.local_id);
         let primary_declaration = symbol_entry.primary_declaration?;
-
         let declaration_id = match primary_declaration.try_into_local_typed::<Declaration>() {
             Ok(declaration_id) => declaration_id,
             Err(_) => return None,
@@ -114,8 +109,7 @@ impl Compiler {
         Some(symbols)
     }
 
-    /// Collect static parameter metadata for a single symbol.
-    /// Handles cross-module lookup and falls back to unknown metadata if needed.
+    /// Collect static parameter metadata for a symbol (in this or another module).
     pub(super) fn collect_static_parameter(
         &self,
         module: &Module,

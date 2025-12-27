@@ -376,6 +376,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
         }
+        Expression::ImportMeta | Expression::This => {
+            // nothing to do
+        }
 
         Expression::Type { value: _ } => {
             // nothing to do

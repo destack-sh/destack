@@ -348,6 +348,39 @@ impl Compiler {
                 ctx,
             )?,
 
+            // import meta: statically known type
+            Expression::ImportMeta => {
+                if module.module_type.is_script() {
+                    self.error(AnalyzeError::InvalidImportMeta {
+                        node: expression_id.into_global_any(module.id),
+                    });
+                }
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // this: reference to the current instance item
+            Expression::This => {
+                let this_symbol = self.find_this_symbol(module, expression_id, tree, symbols);
+                if let Some(this_symbol) = this_symbol
+                    && let Some(ty_id) = types.get_value_type_id(this_symbol)
+                {
+                    ty_id
+                } else if module.module_type.is_module() {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Undefined,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
+            }
+
             // scalar literal: derive type from value
             Expression::ScalarLiteral { value } => {
                 // apply contextual typing when a matching expected type is available
@@ -1178,6 +1211,29 @@ impl Compiler {
         types.set_inferred_type(block_id.into_global_any(module.id), ty_id);
 
         Ok(ty_id)
+    }
+
+    /// Find the nearest `this` symbol visible to the expression.
+    fn find_this_symbol(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        let this_name = self.program.strings.intern("this");
+        let mut scope = symbols.get_scope(expression_id, tree);
+        loop {
+            if let Some(symbol_id) = scope.1.find_up_to(StaticKey::Name(this_name), scope.2) {
+                return Some(symbol_id.into_global(module.id));
+            }
+            let (parent_scope_id, parent_mark) = scope.1.parent?;
+            scope = (
+                parent_scope_id,
+                symbols.get_scope_by_id(parent_scope_id),
+                parent_mark,
+            );
+        }
     }
 
     /// Infer a declaration.

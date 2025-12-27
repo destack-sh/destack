@@ -137,6 +137,10 @@ pub enum AnalyzeError {
         ty: GlobalTypeId,
     },
 
+    /// Invalid import.meta usage.
+    #[error(code = "EA035", message = "import.meta is only available in modules")]
+    InvalidImportMeta { node: GlobalNodeIdAny },
+
     /// Missing member on type.
     #[error(
         code = "EA018",

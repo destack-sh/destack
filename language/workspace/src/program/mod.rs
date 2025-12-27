@@ -1,6 +1,7 @@
 mod artifact;
 mod ast;
 mod dir;
+mod import;
 mod mir;
 mod module;
 mod package;
@@ -12,6 +13,7 @@ mod target;
 pub use artifact::*;
 pub use ast::*;
 pub use dir::*;
+pub use import::*;
 pub use mir::*;
 pub use module::*;
 pub use package::*;

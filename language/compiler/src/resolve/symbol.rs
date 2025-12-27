@@ -294,6 +294,40 @@ impl Compiler {
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
         let first_segment_str = self.program.strings.get(first_segment);
 
+        // resolve import.meta intrinsic
+        if first_segment_str.as_str() == "import" && path.segments.len() >= 2 {
+            let second_segment = path.segments[1];
+            let second_segment_str = self.program.strings.get(second_segment);
+            if second_segment_str.as_str() == "meta" {
+                let root_expr = Expression::ImportMeta;
+                if path.segments.len() == 2 {
+                    return Ok(root_expr);
+                }
+                return Ok(self.build_member_chain(
+                    expression_id,
+                    root_expr,
+                    &path.slice(2..),
+                    static_arguments,
+                    tree,
+                ));
+            }
+        }
+
+        // resolve this intrinsic
+        if first_segment_str.as_str() == "this" {
+            let root_expr = Expression::This;
+            if path.segments.len() == 1 {
+                return Ok(root_expr);
+            }
+            return Ok(self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
+        }
+
         // try to resolve root symbol locally
         let local_result = self.resolve_absolute_symbol(
             module,
