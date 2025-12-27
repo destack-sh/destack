@@ -4,7 +4,8 @@ use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, MatchCase,
     MatchKind, MatchSelector, NodeTree, OperatorPrecedence, Pattern, PostfixPosition, Property,
-    ScalarLiteral, TypeUnaryOperator, WhileKind, YieldCardinality,
+    ScalarLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhileKind,
+    YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -134,7 +135,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
 
         let argument = f.context().tree.get(self.argument_id);
         match argument {
-            Argument::Named { name, value } => {
+            Argument::Named { name, value, .. } => {
                 let value_expr = f.context().tree.get(*value);
                 if let Expression::ScalarLiteral(ScalarLiteral::Boolean(true)) = value_expr {
                     // boolean shorthand
@@ -154,13 +155,13 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     }
                 }
             }
-            Argument::Labeled { label, value } => {
+            Argument::Labeled { label, value, .. } => {
                 // label
                 write!(f, [label])?;
                 // value
                 write!(f, [token(":"), space(), value])?;
             }
-            Argument::Positional { value } => {
+            Argument::Positional { value, .. } => {
                 // In tree expressions, expression children need braces too
                 let value_expr = f.context().tree.get(*value);
                 let needs_braces = !matches!(
@@ -188,7 +189,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     write!(f, [value])?;
                 }
             }
-            Argument::Spread { value } => {
+            Argument::Spread { value, .. } => {
                 // Spread in JSX needs braces: {...props}
                 write!(f, [token("{"), token("..."), value, token("}")])?;
             }
@@ -322,6 +323,61 @@ fn format_member_expression<'ast>(
     Ok(())
 }
 
+/// Format a type index expression without considering chaining.
+#[inline]
+fn format_type_index_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: LocalNodeId<Expression>,
+    index: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let needs_parentheses = matches!(
+        f.context().tree.get(left),
+        Expression::TypeBinary { .. }
+            | Expression::TypeConditional { .. }
+            | Expression::TypeMapped { .. }
+    );
+    if needs_parentheses {
+        write!(f, [token("("), left, token(")")])?;
+    } else {
+        write!(f, [left])?;
+    }
+    write!(f, [token("["), index, token("]")])?;
+    Ok(())
+}
+
+/// Format a type template literal expression.
+fn format_type_template_literal<'ast>(
+    strings: &[StringId],
+    spans: &[LocalNodeId<Expression>],
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    debug_assert_eq!(strings.len(), spans.len().saturating_add(1));
+
+    write!(f, [token("`")])?;
+
+    let mut string_segments = strings.iter();
+    if let Some(first_segment) = string_segments.next() {
+        write!(f, [*first_segment])?;
+    }
+
+    for (span, segment) in spans.iter().zip(string_segments) {
+        write!(
+            f,
+            [
+                group(&format_args![
+                    token("${"),
+                    indent(&format_args![soft_line_break(), *span]),
+                    soft_line_break(),
+                    token("}")
+                ]),
+                *segment,
+            ]
+        )?;
+    }
+
+    write!(f, [token("`")])
+}
+
 /// Format an index expression without considering chaining.
 #[inline]
 fn format_index_expression<'ast>(
@@ -396,7 +452,7 @@ fn get_argument_value(
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(argument_id) {
-        Argument::Positional { value } => Some(*value),
+        Argument::Positional { value, .. } => Some(*value),
         _ => None,
     }
 }
@@ -1678,7 +1734,10 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::While { .. }
         | Expression::Import { .. }
         | Expression::Export { .. } => true,
-        Expression::Binary { .. } | Expression::TypeBinary { .. } => true,
+        Expression::Binary { .. }
+        | Expression::TypeBinary { .. }
+        | Expression::TypeConditional { .. }
+        | Expression::TypeMapped { .. } => true,
         _ => false,
     }
 }
@@ -1833,7 +1892,7 @@ pub(crate) fn format_tree_literal<'ast>(
                     .iter()
                     .filter(|elem_id| {
                         let arg = tree.get(**elem_id);
-                        if let Argument::Positional { value } = arg {
+                        if let Argument::Positional { value, .. } = arg {
                             matches!(tree.get(*value), Expression::TreeExpression { .. })
                         } else {
                             false
@@ -1844,14 +1903,15 @@ pub(crate) fn format_tree_literal<'ast>(
                 // check if any child has complex content (block expressions)
                 let has_complex_child = elements.iter().any(|elem_id| {
                     let arg = tree.get(*elem_id);
-                    if let Argument::Positional { value } = arg {
+                    if let Argument::Positional { value, .. } = arg {
                         // check for call with callback that has block body
                         if let Expression::Call {
                             dynamic_arguments, ..
                         } = tree.get(*value)
                         {
                             dynamic_arguments.iter().any(|arg_id| {
-                                if let Argument::Positional { value: arg_val } = tree.get(*arg_id)
+                                if let Argument::Positional { value: arg_val, .. } =
+                                    tree.get(*arg_id)
                                     && let Expression::Declaration(decl_id) = tree.get(*arg_val)
                                     && let Declaration::Function {
                                         body: Some(body_id),
@@ -2408,6 +2468,11 @@ pub(crate) fn format_expression<'ast>(
             }
         }
 
+        // this
+        Expression::This => {
+            write!(f, [Keyword::This])?;
+        }
+
         // scalar literal
         Expression::ScalarLiteral(node) => {
             format_scalar_literal(node, tree.get_span(node_id), f)?;
@@ -2424,8 +2489,148 @@ pub(crate) fn format_expression<'ast>(
             format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
+        // type template literal
+        Expression::TypeTemplateLiteral { strings, spans } => {
+            format_type_template_literal(strings, spans, f)?;
+        }
+
         // type literal
         Expression::TypeLiteral(node) => node.format(f)?,
+
+        // type import
+        Expression::TypeImport { target, qualifier } => {
+            write!(
+                f,
+                [
+                    Keyword::Import,
+                    token("("),
+                    token("\""),
+                    target,
+                    token("\""),
+                    token(")")
+                ]
+            )?;
+            if let Some(qualifier) = qualifier {
+                write!(f, [token("."), qualifier])?;
+            }
+        }
+
+        // type infer
+        Expression::TypeInfer { name, constraint } => {
+            write!(f, [Keyword::Infer, space(), *name])?;
+            if let Some(constraint) = constraint {
+                write!(f, [space(), Keyword::Extends, space(), *constraint])?;
+            }
+        }
+
+        // type predicate
+        Expression::TypePredicate {
+            asserts,
+            subject,
+            target,
+        } => {
+            if *asserts {
+                write!(f, [Keyword::Asserts, space()])?;
+            }
+            match subject {
+                TypePredicateSubject::Identifier(name) => {
+                    write!(f, [*name])?;
+                }
+                TypePredicateSubject::This => {
+                    write!(f, [Keyword::This])?;
+                }
+            }
+            if let Some(target) = target {
+                write!(f, [space(), Keyword::Is, space(), *target])?;
+            }
+        }
+
+        // type conditional
+        Expression::TypeConditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            write!(
+                f,
+                [group(&format_args![
+                    left,
+                    indent(&format_args![
+                        soft_line_break_or_space(),
+                        Keyword::Extends,
+                        space(),
+                        right,
+                        soft_line_break_or_space(),
+                        token("?"),
+                        space(),
+                        then_type,
+                        soft_line_break_or_space(),
+                        token(":"),
+                        space(),
+                        else_type
+                    ])
+                ])]
+            )?;
+        }
+
+        // type mapped
+        Expression::TypeMapped {
+            parameter,
+            modifiers,
+            value,
+        } => {
+            let format_inner = format_with(|f| {
+                match modifiers.readonly {
+                    TypeModifier::Add => {
+                        write!(f, [token("readonly"), space()])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-readonly"), space()])?;
+                    }
+                    TypeModifier::None => {}
+                }
+                write!(
+                    f,
+                    [
+                        token("["),
+                        parameter.name,
+                        space(),
+                        Keyword::In,
+                        space(),
+                        parameter.constraint
+                    ]
+                )?;
+                if let Some(key_remap) = parameter.key_remap {
+                    write!(f, [space(), Keyword::As, space(), key_remap])?;
+                }
+                write!(f, [token("]")])?;
+                match modifiers.optional {
+                    TypeModifier::Add => {
+                        write!(f, [token("?")])?;
+                    }
+                    TypeModifier::Remove => {
+                        write!(f, [token("-?")])?;
+                    }
+                    TypeModifier::None => {}
+                }
+                write!(f, [token(":"), space(), *value])
+            });
+            write!(
+                f,
+                [group(&format_args![
+                    token("{"),
+                    indent(&format_args![soft_line_break_or_space(), format_inner]),
+                    soft_line_break_or_space(),
+                    token("}")
+                ])]
+            )?;
+        }
+
+        // type index
+        Expression::TypeIndex { left, index } => {
+            format_type_index_expression(f, *left, *index)?;
+        }
 
         // range literal
         Expression::RangeExpression {
@@ -2564,9 +2769,7 @@ pub(crate) fn format_expression<'ast>(
             | TypeUnaryOperator::Type
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
-            | TypeUnaryOperator::Keyof
-            | TypeUnaryOperator::Infer
-            | TypeUnaryOperator::Asserts => {
+            | TypeUnaryOperator::Keyof => {
                 write!(f, [operator, space(), right])?;
             }
             TypeUnaryOperator::AsConst => {
@@ -3281,6 +3484,122 @@ mod tests {
             r#"user?.profile?.name ?? "Anonymous""#,
             |p| p.eat_expression(),
             DestackFormatOptions::default()
+        );
+    }
+
+    /// Formats type conditionals with infer bindings.
+    #[test]
+    fn test_format_type_conditional_with_infer() {
+        assert_format!(
+            "type Result = T extends infer U ? U : never",
+            "type Result = T extends infer U ? U : never;",
+            |p| p.eat_expression()
+        );
+    }
+
+    /// Formats type conditionals with constrained infer bindings.
+    #[test]
+    fn test_format_type_conditional_with_constrained_infer() {
+        assert_format!(
+            "type Result = T extends infer U extends string ? U : never",
+            "type Result = T extends infer U extends string ? U : never;",
+            |p| p.eat_expression()
+        );
+    }
+
+    /// Formats nested conditional types with explicit parentheses.
+    #[test]
+    fn test_format_type_conditional_nested() {
+        assert_format!(
+            "type Result = T extends U ? (U extends V ? X : Y) : Z",
+            "type Result = T extends U ? (U extends V ? X : Y) : Z;",
+            |p| p.eat_expression()
+        );
+    }
+
+    /// Formats mapped types with modifiers and key remaps.
+    #[test]
+    fn test_format_type_mapped_with_remap() {
+        let source = r#"type Remap = { readonly [K in keyof T as `${K}`]-?: T[K] }"#;
+        let expected = r#"type Remap = { readonly [K in keyof T as `${K}`]-?: T[K] };"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats mapped types with removal modifiers.
+    #[test]
+    fn test_format_type_mapped_with_removals() {
+        let source = r#"type Mutable = { -readonly [K in keyof T]-?: T[K] }"#;
+        let expected = r#"type Mutable = { -readonly [K in keyof T]-?: T[K] };"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats mapped types without modifiers.
+    #[test]
+    fn test_format_type_mapped_without_modifiers() {
+        let source = r#"type Plain = { [K in keyof T]: T[K] }"#;
+        let expected = r#"type Plain = { [K in keyof T]: T[K] };"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats mapped types with optional modifiers.
+    #[test]
+    fn test_format_type_mapped_with_optional() {
+        let source = r#"type Optional = { [K in keyof T]?: T[K] }"#;
+        let expected = r#"type Optional = { [K in keyof T]?: T[K] };"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats chained type index expressions.
+    #[test]
+    fn test_format_type_index() {
+        let source = r#"type Value = T[K][P]"#;
+        let expected = r#"type Value = T[K][P];"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats type template literals with single spans.
+    #[test]
+    fn test_format_type_template_literal() {
+        let source = r#"type Key = `on${K}`"#;
+        let expected = r#"type Key = `on${K}`;"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats type template literals with multiple spans.
+    #[test]
+    fn test_format_type_template_literal_multiple_spans() {
+        let source = r#"type Key = `on${K}:${V}`"#;
+        let expected = r#"type Key = `on${K}:${V}`;"#;
+        assert_format!(source, expected, |p| p.eat_expression());
+    }
+
+    /// Formats type imports with qualifiers.
+    #[test]
+    fn test_format_type_import() {
+        assert_format!(
+            r#"type Imported = import("mod").Type"#,
+            r#"type Imported = import("mod").Type;"#,
+            |p| p.eat_expression()
+        );
+    }
+
+    /// Formats type imports without qualifiers.
+    #[test]
+    fn test_format_type_import_without_qualifier() {
+        assert_format!(
+            r#"type Imported = import("mod")"#,
+            r#"type Imported = import("mod");"#,
+            |p| p.eat_expression()
+        );
+    }
+
+    /// Formats standalone infer expressions.
+    #[test]
+    fn test_format_type_infer_expression() {
+        assert_format!(
+            "type Result = infer U",
+            "type Result = infer U;",
+            |p| p.eat_expression()
         );
     }
 

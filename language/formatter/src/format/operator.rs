@@ -36,9 +36,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
             TypeUnaryOperator::Readonly => token("readonly"),
             TypeUnaryOperator::Typeof => token("typeof"),
             TypeUnaryOperator::Keyof => token("keyof"),
-            TypeUnaryOperator::Infer => token("infer"),
             TypeUnaryOperator::AsConst => token("as const"),
-            TypeUnaryOperator::Asserts => token("asserts"),
         };
         write!(f, [token])
     }

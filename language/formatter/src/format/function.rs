@@ -93,6 +93,54 @@ mod tests {
         ));
     }
 
+    /// Formats return type predicates with explicit targets.
+    #[test]
+    fn test_format_function_with_type_predicate() {
+        let source = r"function assertFoo(value: Foo): asserts value is Foo";
+        assert_format!(source, source, |p| p.eat_function(
+            p.mark(),
+            DeclarationDescriptor::default(),
+            false,
+            false
+        ));
+    }
+
+    /// Formats return type predicates without targets.
+    #[test]
+    fn test_format_function_with_type_predicate_asserts_value() {
+        let source = r"function assertFoo(value: Foo): asserts value";
+        assert_format!(source, source, |p| p.eat_function(
+            p.mark(),
+            DeclarationDescriptor::default(),
+            false,
+            false
+        ));
+    }
+
+    /// Formats return type predicates with a this subject.
+    #[test]
+    fn test_format_function_with_type_predicate_this() {
+        let source = r"function assertFoo(this: Foo): asserts this is Foo";
+        assert_format!(source, source, |p| p.eat_function(
+            p.mark(),
+            DeclarationDescriptor::default(),
+            false,
+            false
+        ));
+    }
+
+    /// Formats return type predicates with a this subject and no target.
+    #[test]
+    fn test_format_function_with_type_predicate_this_no_target() {
+        let source = r"function assertFoo(this: Foo): asserts this";
+        assert_format!(source, source, |p| p.eat_function(
+            p.mark(),
+            DeclarationDescriptor::default(),
+            false,
+            false
+        ));
+    }
+
     #[test]
     fn test_format_function_with_self_return_type() {
         let source = r"function init(capacity: int32): Self {
