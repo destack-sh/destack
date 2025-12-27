@@ -664,17 +664,25 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [list_like("<", ">", ",", static_parameters)])?;
                 }
 
+                let mut dynamic_parameters =
+                    Vec::with_capacity(signature.dynamic_parameters.len() + 1);
+                if let Some(this_parameter) = signature.this_parameter {
+                    dynamic_parameters.push(this_parameter);
+                }
+                dynamic_parameters.extend(signature.dynamic_parameters.iter().copied());
+
                 // omit arrow function parentheses for simple single param lambdas
                 let can_omit_parens = signature.kind == FunctionKind::Lambda
+                    && signature.this_parameter.is_none()
                     && !has_static_parameters
                     && signature.cardinality != FunctionCardinality::Generator
-                    && signature.dynamic_parameters.len() == 1
+                    && dynamic_parameters.len() == 1
                     && matches!(
                         f.context().options.arrow_parentheses,
                         ArrowParentheses::Avoid
                     )
                     && {
-                        let param = f.context().tree.get(signature.dynamic_parameters[0]);
+                        let param = f.context().tree.get(dynamic_parameters[0]);
                         matches!(
                             param,
                             Parameter::Named {
@@ -688,7 +696,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
 
                 // dynamic parameters
                 if can_omit_parens {
-                    write!(f, [&signature.dynamic_parameters[0]])?;
+                    write!(f, [&dynamic_parameters[0]])?;
                 } else {
                     write!(
                         f,
@@ -697,7 +705,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                             soft_block_indent(&format_with(|f| {
                                 // dynamic parameters
                                 f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                                    .entries(&signature.dynamic_parameters)
+                                    .entries(&dynamic_parameters)
                                     .finish()?;
 
                                 // trailing comma

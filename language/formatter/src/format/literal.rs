@@ -161,6 +161,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Composite(composite_type) => write!(f, [composite_type]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
             TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
+            TypeLiteral::Intrinsic(_) => write!(f, [token("intrinsic")]),
         }?;
 
         Ok(())

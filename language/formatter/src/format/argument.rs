@@ -265,23 +265,45 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
-            Argument::Named { name, value } => {
+            Argument::Named {
+                modifiers,
+                name,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // name
                 write!(f, [name])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
                 write!(f, [token(":"), space(), value])?;
             }
-            Argument::Labeled { label, value } => {
+            Argument::Labeled {
+                modifiers,
+                label,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // label
                 write!(f, [label])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
                 write!(f, [token(":"), space(), value])?;
             }
-            Argument::Positional { value } => {
+            Argument::Positional { modifiers, value } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // value
                 write!(f, [value])?;
+                // modifiers
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Spread { value } => {
+            Argument::Spread { modifiers, value } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // keyword
                 write!(f, [token("...")])?;
                 write!(f, [value])?;
