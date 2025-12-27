@@ -606,6 +606,8 @@ pub struct DsConfigTargetOptions {
     pub output: OutputFormat,
     /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
     pub runtime: Runtime,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
     /// Target platform (web, windows, macos, linux, ios, android, etc.).
     pub platform: Platform,
     /// Target triple for native codegen.
@@ -677,6 +679,7 @@ impl Default for DsConfigTargetOptions {
             exclude: Vec::new(),
             output: OutputFormat::default(),
             runtime: Runtime::default(),
+            runtime_version: None,
             platform: Platform::default(),
             target_triple: None,
             cpu: None,
@@ -737,6 +740,7 @@ impl DsConfigTargetOptions {
             exclude: self.exclude.clone(),
             output: self.output,
             runtime: self.runtime,
+            runtime_version: self.runtime_version.clone(),
             platform: self.platform,
             target_triple: self.target_triple.clone(),
             cpu: self.cpu.clone(),
@@ -793,6 +797,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .as_deref()
                 .and_then(Runtime::parse)
                 .unwrap_or_default(),
+            runtime_version: json.runtime_version.clone(),
             platform: json
                 .platform
                 .as_deref()
@@ -1385,6 +1390,8 @@ pub struct DsConfigTargetJson {
     pub output: Option<OutputFormatJson>,
     /// Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).
     pub runtime: Option<String>,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
     /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).
     pub platform: Option<String>,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").

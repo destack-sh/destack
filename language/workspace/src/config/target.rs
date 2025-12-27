@@ -424,11 +424,7 @@ impl BoundsCheckPolicy {
     }
 }
 
-/// Runtime environment that executes the compiled code.
-///
-/// This determines what APIs are available and what semantic behaviors apply.
-/// For JS output, this is the JS engine/environment. For WASM, this is the WASM host.
-/// For native, this is the Destack runtime.
+/// Runtime environment that actually executes the compiled code (at runtime).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Runtime {
     // JS runtimes (for output=js/ts)
@@ -445,20 +441,16 @@ pub enum Runtime {
     Worker,
     /// Cloudflare Workers (workerd)
     Workerd,
-    /// Embedded JS engine (QuickJS, Hermes, JavaScriptCore)
-    Embedded,
 
     // WASM runtimes (for output=wasm)
     /// WASM running in a JS host (browser or Node)
     WasmJs,
     /// WASM with WASI (wasmtime, wasmer, etc.)
     WasmWasi,
-    /// Standalone WASM runtime without WASI
-    WasmStandalone,
 
     // Native runtime (for output=native)
-    /// Destack native runtime
-    Destack,
+    /// Native runtime (e.g., x86_64-unknown-linux-gnu).
+    Native, // nocheckin: how should we handle "native" runtimes? is there more than one?
 }
 
 impl std::str::FromStr for Runtime {
@@ -472,11 +464,9 @@ impl std::str::FromStr for Runtime {
             "bun" => Ok(Self::Bun),
             "worker" => Ok(Self::Worker),
             "workerd" => Ok(Self::Workerd),
-            "embedded" => Ok(Self::Embedded),
             "wasm_js" | "wasmjs" => Ok(Self::WasmJs),
             "wasm_wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
-            "wasm_standalone" | "wasmstandalone" => Ok(Self::WasmStandalone),
-            "destack" | "native" => Ok(Self::Destack),
+            "native" => Ok(Self::Native),
             _ => Err(()),
         }
     }
@@ -492,24 +482,18 @@ impl Runtime {
     pub fn is_js(&self) -> bool {
         matches!(
             self,
-            Self::Browser
-                | Self::Node
-                | Self::Deno
-                | Self::Bun
-                | Self::Worker
-                | Self::Workerd
-                | Self::Embedded
+            Self::Browser | Self::Node | Self::Deno | Self::Bun | Self::Worker | Self::Workerd
         )
     }
 
     /// Whether this runtime is a WASM host.
     pub fn is_wasm(&self) -> bool {
-        matches!(self, Self::WasmJs | Self::WasmWasi | Self::WasmStandalone)
+        matches!(self, Self::WasmJs | Self::WasmWasi)
     }
 
     /// Whether this runtime is the Destack native runtime.
     pub fn is_native(&self) -> bool {
-        matches!(self, Self::Destack)
+        matches!(self, Self::Native)
     }
 
     /// Whether this runtime runs in a browser-like environment (has DOM potential).
@@ -521,7 +505,7 @@ impl Runtime {
     pub fn is_server(&self) -> bool {
         matches!(
             self,
-            Self::Node | Self::Deno | Self::Bun | Self::WasmWasi | Self::Destack
+            Self::Node | Self::Deno | Self::Bun | Self::WasmWasi | Self::Native
         )
     }
 }
@@ -630,6 +614,8 @@ pub struct Target {
     pub output: OutputFormat,
     /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
     pub runtime: Runtime,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
     /// Target platform (web, windows, macos, linux, ios, android, etc.).
     pub platform: Platform,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
@@ -717,7 +703,7 @@ impl Target {
     }
 
     /// Create a new target with the given name and WASM output for JS host.
-    pub fn wasm(name: impl Into<String>) -> Self {
+    pub fn wasm_js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             output: OutputFormat::Wasm,
@@ -745,7 +731,7 @@ impl Target {
         Self {
             name: name.into(),
             output: OutputFormat::Native,
-            runtime: Runtime::Destack,
+            runtime: Runtime::Native,
             platform: Platform::Universal,
             optimize: true,
             ..Default::default()
@@ -822,6 +808,12 @@ impl Target {
     /// Set the runtime.
     pub fn with_runtime(mut self, runtime: Runtime) -> Self {
         self.runtime = runtime;
+        self
+    }
+
+    /// Set the runtime version.
+    pub fn with_runtime_version(mut self, runtime_version: impl Into<String>) -> Self {
+        self.runtime_version = Some(runtime_version.into());
         self
     }
 
@@ -919,6 +911,21 @@ impl Target {
         }
 
         let mut libs = Vec::new();
+        let runtime_version = self
+            .runtime_version
+            .as_deref()
+            .map(str::trim)
+            .filter(|version| !version.is_empty())
+            .filter(|version| !version.eq_ignore_ascii_case("latest"));
+
+        let versioned_lib = |name: &str, version: Option<&str>| {
+            if let Some(version) = version {
+                let version = version.strip_prefix('v').unwrap_or(version);
+                format!("{name}.v{version}")
+            } else {
+                name.to_string()
+            }
+        };
 
         // ES version based on runtime
         let es_lib = match self.runtime {
@@ -926,13 +933,10 @@ impl Target {
             Runtime::Browser | Runtime::Node | Runtime::Deno | Runtime::Bun => "esnext",
             // workers typically support modern ES
             Runtime::Worker | Runtime::Workerd => "es2022",
-            // embedded engines may be more limited
-            Runtime::Embedded => "es2020",
             // WASM environments
             Runtime::WasmJs => "es2020",
-            Runtime::WasmWasi | Runtime::WasmStandalone => "es2020",
-            // native runtime supports full ES semantics
-            Runtime::Destack => "esnext",
+            Runtime::WasmWasi => "es2020",
+            Runtime::Native => "es2020", // #Suspicious
         };
         libs.push(es_lib.to_string());
 
@@ -944,13 +948,13 @@ impl Target {
                 libs.push("dom.asynciterable".to_string());
             }
             Runtime::Node => {
-                libs.push("node".to_string());
+                libs.push(versioned_lib("node", runtime_version));
             }
             Runtime::Deno => {
-                libs.push("deno".to_string());
+                libs.push(versioned_lib("deno", runtime_version));
             }
             Runtime::Bun => {
-                libs.push("bun".to_string());
+                libs.push(versioned_lib("bun", runtime_version));
                 libs.push("node".to_string());
             }
             Runtime::Worker | Runtime::Workerd => {
@@ -964,10 +968,7 @@ impl Target {
             Runtime::WasmWasi => {
                 libs.push("wasi".to_string());
             }
-            Runtime::WasmStandalone | Runtime::Embedded => {
-                // minimal environment
-            }
-            Runtime::Destack => {}
+            Runtime::Native => {}
         }
 
         // platform-specific libs (primarily for native targets)

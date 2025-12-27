@@ -59,7 +59,7 @@ impl CodegenCraneliftBackend {
 
     /// Create a backend for WebAssembly output.
     pub fn wasm() -> CodegenCraneliftResult<Self> {
-        Self::new(&Target::wasm("wasm"))
+        Self::new(&Target::wasm_js("wasm"))
     }
 
     /// Create a backend for native output (host triple).

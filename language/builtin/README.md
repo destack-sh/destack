@@ -102,6 +102,10 @@ Different targets get different implementations.
 | `lib/bun/` | `Bun`, `Bun.spawn`, Bun APIs | `runtime: bun` |
 | `lib/worker/` | `WorkerGlobalScope`, Web Worker APIs | `runtime: worker` |
 
+Runtime-specific libs can also be versioned (e.g., `node.v20`, `deno.v1.45`, `bun.v1.1`).
+Targets with `runtimeVersion` select the matching versioned lib.
+`runtimeVersion: "latest"` (or omitted) uses the default alias shipped on disk.
+
 ## Builtin vs Library
 
 There is some overlap between "builtin" and "library" since the whole stack is intended to be well integrated.

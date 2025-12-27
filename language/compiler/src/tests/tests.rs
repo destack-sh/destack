@@ -69,7 +69,7 @@ pub struct TestProgram {
 
 impl TestProgram {
     /// Create a new TestProgram with the given options.
-    fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool) -> Self {
+    fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool, load_libs: bool) -> Self {
         init_tracing();
         let root_directory = match &fs {
             TestFileSystem::Memory { .. } => current_dir().unwrap(),
@@ -82,7 +82,7 @@ impl TestProgram {
         let compiler_options = CompilerOptions {
             workers,
             inject_prelude,
-            load_libs: false,
+            load_libs,
             ..CompilerOptions::default()
         };
         let compiler = Arc::new(Compiler::new(
@@ -108,6 +108,7 @@ impl TestProgram {
             },
             default_workers(),
             false,
+            false,
         )
     }
 
@@ -119,6 +120,7 @@ impl TestProgram {
             },
             default_workers(),
             true,
+            false,
         )
     }
 
@@ -130,6 +132,7 @@ impl TestProgram {
             },
             1,
             false,
+            false,
         )
     }
 
@@ -140,6 +143,19 @@ impl TestProgram {
                 fs: Arc::new(MemoryFileSystem::new()),
             },
             1,
+            true,
+            false,
+        )
+    }
+
+    /// In-memory, sequential, with prelude injection and libs.
+    pub fn memory_sequential_with_prelude_and_libs() -> Self {
+        Self::new(
+            TestFileSystem::Memory {
+                fs: Arc::new(MemoryFileSystem::new()),
+            },
+            1,
+            true,
             true,
         )
     }
@@ -338,6 +354,12 @@ impl TestProgram {
         self.enqueue(ResolveTask::ResolveBuiltins { profile });
     }
 
+    /// Enqueue ResolveLibs task.
+    pub fn resolve_libs(&self) {
+        let profile = self.default_profile_id_for_root();
+        self.enqueue(ResolveTask::ResolveLibs { profile });
+    }
+
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
@@ -381,6 +403,11 @@ impl TestProgram {
     /// Run all queued tasks to completion (with 5s timeout).
     pub fn compile(&self) {
         let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
+        self.compile_with_timeout(timeout);
+    }
+
+    /// Run all queued tasks to completion with a custom timeout.
+    pub fn compile_with_timeout(&self, timeout: Duration) {
         let compiler = self.compiler.clone();
 
         let (tx, rx) = mpsc::channel();
@@ -392,7 +419,7 @@ impl TestProgram {
         match rx.recv_timeout(timeout) {
             Ok(()) => {}
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                panic!("compile timed out after {TEST_TIMEOUT_SECONDS}s");
+                panic!("compile timed out after {timeout:?}");
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 panic!("compile thread panicked");

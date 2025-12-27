@@ -1182,6 +1182,13 @@
             "null"
           ]
         },
+        "runtimeVersion": {
+          "description": "Runtime version for selecting versioned libs.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "platform": {
           "description": "Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).",
           "type": [
@@ -1623,6 +1630,13 @@
         },
         "runtime": {
           "description": "Runtime environment (browser, node, wasm-wasi, destack, etc.).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtimeVersion": {
+          "description": "Runtime version for selecting versioned libs.",
           "type": [
             "string",
             "null"

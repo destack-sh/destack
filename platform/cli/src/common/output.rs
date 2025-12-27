@@ -46,8 +46,6 @@ pub enum RuntimeArg {
     WasmJs,
     /// WASM with WASI.
     WasmWasi,
-    /// Destack native runtime.
-    Destack,
 }
 
 impl From<RuntimeArg> for Runtime {
@@ -61,7 +59,6 @@ impl From<RuntimeArg> for Runtime {
             RuntimeArg::Workerd => Runtime::Workerd,
             RuntimeArg::WasmJs => Runtime::WasmJs,
             RuntimeArg::WasmWasi => Runtime::WasmWasi,
-            RuntimeArg::Destack => Runtime::Destack,
         }
     }
 }
