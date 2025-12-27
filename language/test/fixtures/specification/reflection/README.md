@@ -1,4 +1,4 @@
-# Reflection (LanguageFeature::Reflection)
+# Reflection
 
 > NOTE #Incomplete: implement/mdtest runtime reflection
 

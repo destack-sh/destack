@@ -2,9 +2,9 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationDescriptor, FunctionAbstraction, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType,
-    Parameter, TokenType,
+    Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword,
+    LocalNodeId, NodeType, Parameter, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -73,6 +73,14 @@ impl Parser {
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
+        // abstraction
+        if self.peek_keyword(Keyword::Abstract).is_ok()
+            && descriptor.abstraction == DeclarationAbstraction::Concrete
+        {
+            self.bump(); // eat abstract keyword
+            descriptor.abstraction = DeclarationAbstraction::Abstract;
+        }
+
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
             self.bump(); // eat async keyword
@@ -268,6 +276,10 @@ impl Parser {
             }
         };
 
+        // split out explicit this parameter
+        let (this_parameter, dynamic_parameters) =
+            self.split_this_parameter_maybe(dynamic_parameters);
+
         // function
         let generics = Generics::new(static_parameters, where_clauses).into_option();
         let asynchrony = if is_async {
@@ -280,13 +292,18 @@ impl Parser {
         } else {
             FunctionCardinality::Scalar
         };
+        let abstraction = match descriptor.abstraction {
+            DeclarationAbstraction::Abstract => FunctionAbstraction::Abstract,
+            DeclarationAbstraction::Concrete => FunctionAbstraction::Concrete,
+        };
         let signature = FunctionSignature {
-            abstraction: FunctionAbstraction::Concrete,
+            abstraction,
             asynchrony,
             cardinality,
             kind,
             mode,
             generics,
+            this_parameter,
             dynamic_parameters,
             return_type,
         };
@@ -348,6 +365,31 @@ mod tests {
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
+            });
+        });
+    }
+
+    /// Parse a function type with an explicit this parameter.
+    #[test]
+    fn test_parse_function_type_with_this_parameter() {
+        let mut test = TestParser::new("type T = (this: Foo, value: Bar) => Baz");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = (this: Foo, value: Bar) => Baz
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert!(signature.this_parameter.is_some());
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        // value: Bar
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                            assert_string!(parser, *name, "value");
+                            assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "Bar");
+                        });
+                    });
+                });
             });
         });
     }

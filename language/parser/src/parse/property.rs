@@ -211,6 +211,10 @@ impl Parser {
                 None
             };
 
+            // split out explicit this parameter
+            let (this_parameter, dynamic_parameters) =
+                self.split_this_parameter_maybe(dynamic_parameters);
+
             // method property
             let property = Property::Method {
                 modifiers,
@@ -230,6 +234,7 @@ impl Parser {
                     mode,
                     kind: FunctionKind::Function,
                     generics,
+                    this_parameter,
                     dynamic_parameters,
                     return_type,
                 },
@@ -562,6 +567,10 @@ impl Parser {
                 None
             };
 
+            // split out explicit this parameter
+            let (this_parameter, dynamic_parameters) =
+                self.split_this_parameter_maybe(dynamic_parameters);
+
             // method member
             let member = Member::Method {
                 modifiers,
@@ -581,6 +590,7 @@ impl Parser {
                     mode,
                     kind: FunctionKind::Function,
                     generics,
+                    this_parameter,
                     dynamic_parameters,
                     return_type,
                 },

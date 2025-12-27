@@ -63,11 +63,7 @@ class MyVisitor implements NodeVisitor {
 
 ---
 
-## Pending
-
-None.
-
-## Missing
+## Added
 
 - Add expression nodes for TS type forms (mirroring value counterparts where possible):
 - `Expression::TypeConditional { left, right, then_type, else_type }` for `T extends U ? X : Y` (aligned with `left/right` naming)

@@ -14,8 +14,8 @@ mod operator;
 mod path;
 mod pattern;
 mod property;
-mod r#type;
 mod tree;
+mod r#type;
 mod visit;
 mod walk;
 
@@ -36,7 +36,7 @@ pub use operator::*;
 pub use path::*;
 pub use pattern::*;
 pub use property::*;
-pub use r#type::*;
 pub use tree::*;
+pub use r#type::*;
 pub use visit::*;
 pub use walk::*;

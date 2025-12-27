@@ -335,13 +335,16 @@ function merge<T: int, U>(): T where (
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-The compiler already optimizes aggressively, evaluating pure expressions at compile time when possible.
-The `comptime` keyword lets you *enforce* that the expression must be evaluated at compile time, otherwise it is a compile error.
+Unlike Zig or Rust macros, Destack's comptime is intended for filling in well-defined "slots" in the compiled output, not for _fully_ arbitrary code generation with different syntax.
+The compiler already tries to evaluate pure expressions at compile time when possible.
+The `comptime` keyword lets programs *enforce* that the expression must be evaluated at compile time, otherwise it is a compile error.
 
 ```
-const LOOKUP_TABLE = comptime {
-    let table = [];
-    for (let i = 0; i < 256; i++) { table.push(computeCRC(i)); }
+const LOOKUP_TABLE: uint8[] = comptime {
+    let table: uint8[] = [];
+    for (let i = 0; i < 256; i++) { 
+        table.push(computeCRC(i)); 
+    }
     table
 };
 ```
@@ -667,6 +670,7 @@ Advanced TS type constructs (conditional types, mapped types, template literal t
 - This includes tuple element modifiers, call/construct signatures, index signatures, and `this` parameters
 - Type-level constructs should remain available for reflection, documentation, and compile-time evaluation
 - Cross-target builds should reuse the same front-end IR and only diverge when profile-specific resolution or codegen requires it
+- The `this` parameter is type-only and does not count toward call arity, but still carries normal parameter modifiers (mutability, ownership, etc.)
 
 Comptime bridges TS types and Destack semantics:
 - `comptime` can evaluate expressions that depend on `import.meta` profile data

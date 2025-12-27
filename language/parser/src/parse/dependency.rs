@@ -497,7 +497,7 @@ mod tests {
             // with { bar: true }
             let arguments = arguments.as_ref().expect("expected arguments");
             assert_eq!(arguments.len(), 1);
-            assert_node!(parser.tree, arguments[0], Argument::Named { name, value } => {
+            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name, value } => {
                 assert_string!(parser, name.string(), "bar");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             });

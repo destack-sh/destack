@@ -1,4 +1,4 @@
-# Dispatch (LanguageFeature::Dispatch)
+# Dispatch
 
 Type-based dispatch: extensions and overloading.
 

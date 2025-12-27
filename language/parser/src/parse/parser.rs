@@ -18,6 +18,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing inside a static argument (`<...>`).
     /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
     pub in_static: bool = false,
+    /// Whether we're parsing inside a comptime expression.
+    /// Enables limited type-only parsing when unambiguous.
+    pub in_comptime: bool = false,
     /// Whether we're parsing inside a type.
     /// Type context eagerly evaluates some constructs to their type-ish variants.
     pub in_type: bool = false,
@@ -72,6 +75,15 @@ impl ParserOptions {
     pub(crate) fn in_static(self) -> Self {
         Self {
             in_static: true,
+            ..self
+        }
+    }
+
+    /// Set `in_comptime=true`.
+    #[inline]
+    pub(crate) fn in_comptime(self) -> Self {
+        Self {
+            in_comptime: true,
             ..self
         }
     }
@@ -244,6 +256,7 @@ impl ParserOptions {
     pub(crate) fn nested(self) -> Self {
         Self {
             in_generator: self.in_generator,
+            in_comptime: self.in_comptime,
             ..Self::default()
         }
     }

@@ -1,4 +1,4 @@
-# Types (LanguageFeature::Types)
+# Types
 
 > NOTE #Incomplete: implement/mdtest Destack type extensions
 

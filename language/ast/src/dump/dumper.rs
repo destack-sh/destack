@@ -692,7 +692,6 @@ impl Dump for TypeLiteral {
     }
 }
 
-
 // ----------------------------------------------------------------------------
 // Nodes
 // ----------------------------------------------------------------------------
@@ -1038,8 +1037,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 strings: _,
                 spans: _,
             } => {
-                self.node("Expression::TypeTemplateLiteral", _id.id)
-                    .end();
+                self.node("Expression::TypeTemplateLiteral", _id.id).end();
             }
             Expression::TypeImport {
                 target,

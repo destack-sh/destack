@@ -40,20 +40,32 @@ impl Parser {
         }
 
         // expression
-        let index = self.with_options(self.options.nested(), |parser| parser.eat_expression())?;
+        let index_options = if self.options.in_type {
+            self.options.nested().in_type()
+        } else {
+            self.options.nested()
+        };
+        let index = self.with_options(index_options, |parser| parser.eat_expression())?;
 
         // close bracket
         self.eat_token(TokenType::CloseBracket)?;
 
         // index
-        let index_id = self.tree.insert(
+        let index_expression = if self.options.in_type {
+            Expression::TypeIndex {
+                left: receiver_id,
+                index,
+            }
+        } else {
             Expression::Index {
                 position,
                 left: receiver_id,
                 index: Some(index),
-            },
-            self.get_span_from(start),
-        );
+            }
+        };
+        let index_id = self
+            .tree
+            .insert(index_expression, self.get_span_from(start));
         Ok(index_id)
     }
 
@@ -217,12 +229,12 @@ mod tests {
             assert_eq!(dynamic_arguments.len(), 2);
 
             // 1
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
 
             // 2
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
@@ -242,15 +254,15 @@ mod tests {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
             // <T>
             assert_eq!(static_arguments.len(), 1);
-            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "T");
             });
             // (1, 2)
             assert_eq!(dynamic_arguments.len(), 2);
-            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
-            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value } => {
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
             });
         });
