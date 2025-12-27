@@ -4,7 +4,8 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DependencyItem, DependencyKind, Keyword, LocalNodeId, Mutability, Node,
     NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypePredicateSubject, TypeUnaryOperator,
+    UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -346,6 +347,9 @@ pub enum Expression {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
+    /// This reference (value or type context).
+    This,
+
     /// Literal scalar value.
     ///
     /// Examples:
@@ -541,6 +545,95 @@ pub enum Expression {
         left: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
         right: LocalNodeId<Expression>,
+    },
+
+    /// Type conditional expression.
+    ///
+    /// Examples:
+    /// ```
+    /// T extends U ? X : Y
+    /// ```
+    TypeConditional {
+        left: LocalNodeId<Expression>,
+        right: LocalNodeId<Expression>,
+        then_type: LocalNodeId<Expression>,
+        else_type: LocalNodeId<Expression>,
+    },
+
+    /// Type mapped expression.
+    ///
+    /// Examples:
+    /// ```
+    /// { [K in keyof T]: T[K] }
+    /// { readonly [K in keyof T]-?: T[K] }
+    /// { [K in keyof T as `${K}`]: T[K] }
+    /// ```
+    TypeMapped {
+        parameter: TypeMappedParameter,
+        modifiers: TypeMappedModifiers,
+        value: LocalNodeId<Expression>,
+    },
+
+    /// Type index expression.
+    ///
+    /// Examples:
+    /// ```
+    /// T[K]
+    /// T[K][P]
+    /// ```
+    TypeIndex {
+        left: LocalNodeId<Expression>,
+        index: LocalNodeId<Expression>,
+    },
+
+    /// Type template literal expression.
+    ///
+    /// Examples:
+    /// ```
+    /// `${K}`
+    /// `foo-${Bar}`
+    /// ```
+    TypeTemplateLiteral {
+        strings: Vec<StringId>,
+        spans: Vec<LocalNodeId<Expression>>,
+    },
+
+    /// Type import expression.
+    ///
+    /// Examples:
+    /// ```
+    /// import("mod").Type
+    /// ```
+    TypeImport {
+        target: StringId,
+        qualifier: Option<Path>,
+    },
+
+    /// Type infer binding.
+    ///
+    /// Examples:
+    /// ```
+    /// infer T
+    /// infer T extends U
+    /// ```
+    TypeInfer {
+        name: StringId,
+        constraint: Option<LocalNodeId<Expression>>,
+    },
+
+    /// Type predicate expression.
+    ///
+    /// Examples:
+    /// ```
+    /// x is T
+    /// asserts x is T
+    /// asserts this is T
+    /// asserts x
+    /// ```
+    TypePredicate {
+        asserts: bool,
+        subject: TypePredicateSubject,
+        target: Option<LocalNodeId<Expression>>,
     },
 
     /// Unary operation (prefix or postfix).

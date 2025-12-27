@@ -453,6 +453,7 @@ impl_dump_display! {
     PostfixPosition,
     ReferenceType,
     Runtime,
+    TypeIntrinsic,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
@@ -534,6 +535,7 @@ impl Dump for FunctionSignature {
             .field("cardinality", &self.cardinality)
             .field_optional("mode", &self.mode)
             .field("kind", &self.kind)
+            .field("has_this_parameter", &self.this_parameter.is_some())
             .end();
     }
 }
@@ -680,9 +682,16 @@ impl Dump for TypeLiteral {
             TypeLiteral::UniqueSymbol => {
                 dumper.object("TypeLiteral::UniqueSymbol").end();
             }
+            TypeLiteral::Intrinsic(intrinsic) => {
+                dumper
+                    .object("TypeLiteral::Intrinsic")
+                    .field("intrinsic", intrinsic)
+                    .end();
+            }
         }
     }
 }
+
 
 // ----------------------------------------------------------------------------
 // Nodes
@@ -851,6 +860,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::Path", _id.id).value(path).end();
             }
+            Expression::This => {
+                self.node("Expression::This", _id.id).end();
+            }
             Expression::ScalarLiteral(value) => {
                 self.node("Expression::ScalarLiteral", _id.id)
                     .value(value)
@@ -1002,6 +1014,56 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::TypeBinary", _id.id)
                     .field("operator", operator)
+                    .end();
+            }
+            Expression::TypeConditional {
+                left: _,
+                right: _,
+                then_type: _,
+                else_type: _,
+            } => {
+                self.node("Expression::TypeConditional", _id.id).end();
+            }
+            Expression::TypeMapped {
+                parameter: _,
+                modifiers: _,
+                value: _,
+            } => {
+                self.node("Expression::TypeMapped", _id.id).end();
+            }
+            Expression::TypeIndex { left: _, index: _ } => {
+                self.node("Expression::TypeIndex", _id.id).end();
+            }
+            Expression::TypeTemplateLiteral {
+                strings: _,
+                spans: _,
+            } => {
+                self.node("Expression::TypeTemplateLiteral", _id.id)
+                    .end();
+            }
+            Expression::TypeImport {
+                target,
+                qualifier: _,
+            } => {
+                self.node("Expression::TypeImport", _id.id)
+                    .field("target", target)
+                    .end();
+            }
+            Expression::TypeInfer {
+                name,
+                constraint: _,
+            } => {
+                self.node("Expression::TypeInfer", _id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Expression::TypePredicate {
+                asserts,
+                subject: _,
+                target: _,
+            } => {
+                self.node("Expression::TypePredicate", _id.id)
+                    .field("asserts", asserts)
                     .end();
             }
             Expression::Assign {
@@ -1319,21 +1381,41 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, _tree: &NodeTree, _id: LocalNodeId<Argument>, arg: &Argument) {
         match arg {
-            Argument::Named { name, value: _ } => {
+            Argument::Named {
+                modifiers,
+                name,
+                value: _,
+            } => {
                 self.node("Argument::Named", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("name", name)
                     .end();
             }
-            Argument::Labeled { label, value: _ } => {
+            Argument::Labeled {
+                modifiers,
+                label,
+                value: _,
+            } => {
                 self.node("Argument::Labeled", _id.id)
+                    .field_optional("modifiers", modifiers)
                     .field("label", label)
                     .end();
             }
-            Argument::Positional { value: _ } => {
-                self.node("Argument::Positional", _id.id).end();
+            Argument::Positional {
+                modifiers,
+                value: _,
+            } => {
+                self.node("Argument::Positional", _id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
-            Argument::Spread { value: _ } => {
-                self.node("Argument::Spread", _id.id).end();
+            Argument::Spread {
+                modifiers,
+                value: _,
+            } => {
+                self.node("Argument::Spread", _id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
             }
         }
         self.with_depth(|dumper| {

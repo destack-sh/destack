@@ -139,7 +139,10 @@ None.
 - `Type::InferBinding { name, constraint }` (distinct from `InferVar`)
 - `Type::Predicate { asserts, subject, target }`
 - `Type::This`
-- Keep `Type::Unary`/`Type::Binary` for operator-like constructs (`readonly`, `typeof`, `keyof`, `as`, `is`, `extends`, `implements`, etc.)
+- Keep `Type::Unary`/`Type::Binary` for operator-like constructs:
+  - `Type::Unary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, `!`, `?`, `!`
+  - `Type::Binary`: `as`, `is`, `instanceof`, `satisfies`, `extends`, `implements`
+  - `infer` and `asserts` move to `Type::InferBinding`/`Type::Predicate`
 - Supporting structs/enums:
 - `TypeMappedParameter { name, constraint, key_remap }`
 - `TypeMappedModifiers { readonly, optional }` with `TypeModifier` states

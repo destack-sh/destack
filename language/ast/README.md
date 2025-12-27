@@ -78,7 +78,10 @@ None.
 - `Expression::TypeInfer { name, constraint }` for `infer T` bindings
 - `Expression::TypePredicate { asserts, subject, target }` for `x is T` and `asserts x is T`
 - `Expression::This` for `this` in both value and type contexts (avoid a separate `TypeThis`)
-- Keep `TypeUnary`/`TypeBinary` for operator-like constructs (`readonly`, `typeof`, `keyof`, `as`, `is`, `extends`, `implements`, etc.)
+- Keep `TypeUnary`/`TypeBinary` for operator-like constructs:
+  - `TypeUnary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, `!`, `?`, `!`
+  - `TypeBinary`: `as`, `is`, `instanceof`, `satisfies`, `extends`, `implements`
+  - `infer` and `asserts` move to `TypeInfer`/`TypePredicate`
 - Add supporting structs/enums:
 - `TypeMappedModifiers { readonly: TypeModifier, optional: TypeModifier }`
 - `TypeModifier::Add | TypeModifier::Remove | TypeModifier::None` for `readonly/-readonly` and `?/-?`
