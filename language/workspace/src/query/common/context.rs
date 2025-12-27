@@ -15,7 +15,7 @@ pub struct QueryContext<'a> {
     /// The module DIR (semantic IR).
     pub dir: &'a ModuleDir,
     /// The profile used for this context.
-    pub profile: ProfileId,
+    pub profile_id: ProfileId,
     /// The module id.
     pub module_id: ModuleId,
     /// The source file id.
@@ -75,7 +75,7 @@ impl Session {
         Some(QueryContext {
             ast,
             dir,
-            profile,
+            profile_id: profile,
             module_id: module.id,
             file_id: module.file_id,
         })

@@ -19,17 +19,20 @@ The system is deterministic and stable under refactors and large code bases.
 
 ## Pipeline Context
 
-Analyze sits between Resolve and Elaborate.
-Resolve binds symbol references in DIR.
+Analyze sits between Resolve and Elaborate in the per-profile pipeline.
+Resolve binds symbol references in DIR (profile-dependent: library resolution depends on runtime/platform).
 Analyze computes Types and Resolutions based on those symbols.
 Elaborate canonicalizes DIR using Analyze results.
+
+**Profile context:** Analyze operates per-profile. Each profile (a combination of runtime, platform, libraries, and compiler flags) produces its own TypeTable with profile-dependent type resolutions. For example, a browser profile will resolve DOM types differently than a node profile. See [compiler/README.md](../README.md#profiles-and-targets) for details on profiles.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
 │   Bind ───► Resolve ───► Analyze ───► Elaborate ───► Generate or Lower  │
-│               │            │              │                             │
-│            symbols       types        canonical                         │
+│     │          │            │              │                            │
+│  base DIR   symbols       types      canonical DIR                      │
+│  (shared)   ─────────── per profile ───────────────                     │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

@@ -14,17 +14,22 @@ AST (syntax)  →  DIR (semantics)  →  MIR (machine)
   parser            compiler
 ```
 
-The Bind phase creates DIR from AST, then Resolve, Analyze, and Elaborate progressively enrich, validate, and transform it.
-By the time DIR is "canonical" (fully elaborated), it has:
-- All syntactic sugar desugared (`+=` → `+` and assign, `++` → `+= 1`, etc.)
-- All symbols resolved to their declarations
+DIR exists in two main forms:
+
+**Base DIR** (profile-independent):
+The Bind phase creates base DIR from AST:
+- All syntactic sugar is desugared (`+=` → `+` and assign, `++` → `+= 1`, etc.)
+- Symbols and scopes are declared
+- But symbol references are not yet resolved, and types are not yet inferred
+
+**Canonical DIR** (per-profile):
+Resolve, Analyze, and Elaborate transform base DIR into canonical DIR for each profile. By the time DIR is "canonical" (fully elaborated), it has:
+- All symbols resolved to their declarations (profile-dependent: library resolution depends on runtime/platform)
 - All types inferred and checked
 - All overloads resolved
 - All patterns expanded to decision trees
 
-Canonical DIR is the input to both JS/TS codegen (directly) and native codegen (via MIR lowering).
-For JS targets, we map and print.
-For native targets, we lower to MIR.
+A *profile* represents a semantic configuration—the combination of runtime, platform, libraries, and compiler flags that determines which symbols exist and how types resolve. Different profiles may resolve the same source code to different symbols (e.g., browser vs node libraries) or apply different type checking rules. See [compiler/README.md](../compiler/README.md#profiles-and-targets) for details.
 
 ### Symbols and Scopes
 
