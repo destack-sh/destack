@@ -2,7 +2,7 @@ use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use destack_dir::{Declaration, DependencyItem, Expression, LocalSymbolId};
 
 use destack_source::ModuleId;
-use destack_workspace::{ImportMeta, ImportMetaEnv, ModuleDir, ProfileId};
+use destack_workspace::{ImportMeta, ModuleDir, ProfileId};
 
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
@@ -43,7 +43,7 @@ impl Compiler {
             runtime: profile.key.runtime,
             debug: profile.key.debug,
             test: profile.key.test,
-            env: ImportMetaEnv::from_snapshot(&profile.key.env, profile.key.debug),
+            env: profile.env.clone(),
         };
 
         let mut dir = ModuleDir::from_base(base, profile_id);

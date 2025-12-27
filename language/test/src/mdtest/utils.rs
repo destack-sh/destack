@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::{io, thread};
 
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{ImportMetaEnv, Platform, ProfileId, Program, Runtime, Session, Target};
+use destack_workspace::{Platform, ProfileEnv, ProfileId, Program, Runtime, Session, Target};
 
 use crate::harness::{TestResult, discover_test_files};
 
@@ -151,7 +151,7 @@ pub fn select_profile_for_mdtest(
     }
 
     if recompute_test {
-        let (_, _, _, test_flag) = ImportMetaEnv::mode_from_snapshot(&key.env, key.debug);
+        let (_, _, _, test_flag) = ProfileEnv::mode_from_snapshot(&key.env, key.debug);
         key.test = test_flag;
     }
 
