@@ -66,9 +66,7 @@ fn get_declaration_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Op
     // get module and dir
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return None;
-    };
+    let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
@@ -96,9 +94,7 @@ pub fn goto_type_definition(
     // get the module to access type table
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return None;
-    };
+    let ctx = session.query_context(&module)?;
 
     // check if the symbol itself is a type symbol (class, struct, enum, etc.)
     let symbols = ctx.symbols();
@@ -193,9 +189,7 @@ fn get_type_from_declaration_context(
                 // verify target is a type symbol
                 let target_module = session.modules.get(target.module_id);
                 let target_module = target_module.read();
-                let Some(target_ctx) = session.query_context(&target_module) else {
-                    return None;
-                };
+                let target_ctx = session.query_context(&target_module)?;
                 let symbols = target_ctx.symbols();
                 let symbol = symbols.get_symbol(target.local_id);
 

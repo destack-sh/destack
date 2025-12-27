@@ -173,12 +173,13 @@ impl Compiler {
 
             resolved_member_ty_id
         } else {
-            // member not found, report error and continue with unknown type
-            self.error(AnalyzeError::MissingMember {
-                node: expression_id.into_global_any(module.id),
-                receiver_ty: left_ty_id.into_global(module.id),
-                member_key,
-            });
+            if !self.is_import_meta_chain(tree, left_id) {
+                self.error(AnalyzeError::MissingMember {
+                    node: expression_id.into_global_any(module.id),
+                    receiver_ty: left_ty_id.into_global(module.id),
+                    member_key,
+                });
+            }
 
             // record unresolved member resolution
             self.record_member_resolution(
@@ -197,6 +198,23 @@ impl Compiler {
         };
 
         Ok(resolved_member_ty_id)
+    }
+
+    /// Return true when the expression is rooted at import.meta.
+    fn is_import_meta_chain(
+        &self,
+        tree: &NodeTree,
+        mut expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        loop {
+            match tree.get(expression_id) {
+                Expression::ImportMeta => return true,
+                Expression::Member { left, .. } => {
+                    expression_id = *left;
+                }
+                _ => return false,
+            }
+        }
     }
 
     /// Resolve the member symbol for a type and member key.

@@ -64,16 +64,16 @@ pub fn prepare_type_hierarchy(
     // check if it's a type
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return None;
-    };
+    let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
     let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
 
     // get the name
-    let name = symbol.name().map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = symbol
+        .name()
+        .map(|id| ctx.ast.strings.get(id).to_string())?;
 
     drop(symbols);
     drop(module);
@@ -183,13 +183,13 @@ pub fn type_hierarchy_item_from_symbol(
 ) -> Option<TypeHierarchyItem> {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return None;
-    };
+    let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
-    let name = symbol.name().map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = symbol
+        .name()
+        .map(|id| ctx.ast.strings.get(id).to_string())?;
 
     drop(symbols);
     drop(module);

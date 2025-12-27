@@ -4,7 +4,7 @@ use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 
-use crate::ProfileId;
+use crate::{ImportMeta, ProfileId};
 
 /// DIR-level module data.
 /// The base DIR uses `profile_id: None`.
@@ -25,6 +25,9 @@ pub struct ModuleDir {
     pub types: RwLock<dir::TypeTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+
+    /// Metadata exposed via import.meta.
+    pub import_meta: Option<ImportMeta>,
 
     /// The symbol of the Module namespace.
     pub namespace_symbol: dir::LocalSymbolId,
@@ -74,6 +77,7 @@ impl ModuleDir {
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
+            import_meta: None,
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
             default_symbol: default_symbol_id,
@@ -84,7 +88,7 @@ impl ModuleDir {
     }
 
     /// Clone a profile-dependent DIR from a base DIR.
-    pub fn from_base(profile_id: ProfileId, base: &ModuleDir) -> Self {
+    pub fn from_base(base: &ModuleDir, profile_id: ProfileId) -> Self {
         if base.profile_id.is_some() {
             panic!("expected base DIR for module {id:?}", id = base.id);
         }
@@ -96,6 +100,7 @@ impl ModuleDir {
             symbols: RwLock::new(base.symbols.read().clone()),
             types: RwLock::new(base.types.read().clone()),
             roots: base.roots.clone(),
+            import_meta: None,
             namespace_symbol: base.namespace_symbol,
             namespace_scope: base.namespace_scope,
             default_symbol: base.default_symbol,

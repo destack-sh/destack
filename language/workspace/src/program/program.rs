@@ -10,10 +10,10 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, ComptimeEnvSnapshot, DsConfigCompilerOptions, DsConfigOptions,
-    FormatterOptions, LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry,
-    ModuleType, Package, PackageKind, PackageRegistry, ProfileConfig, ProfileFlags, ProfileId,
-    ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
+    ArtifactRegistry, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot, FormatterOptions,
+    LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleType, Package,
+    PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileFlags, ProfileId, ProfileKey,
+    ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -361,6 +361,13 @@ impl Program {
         self.profiles.get_or_create(key)
     }
 
+    /// Get the profile data for a profile id.
+    pub fn profile(&self, profile_id: ProfileId) -> Profile {
+        self.profiles
+            .get(profile_id)
+            .unwrap_or_else(|| panic!("missing profile data for {profile_id:?}"))
+    }
+
     /// Get the profile id for a target in the module's package.
     pub fn profile_id_for_target(
         &self,
@@ -414,9 +421,6 @@ impl Program {
         compiler_options: &DsConfigCompilerOptions,
         profile_config: Option<&ProfileConfig>,
     ) -> ProfileKey {
-        let output = profile_config
-            .and_then(|profile| profile.output)
-            .unwrap_or(target.output);
         let runtime = profile_config
             .and_then(|profile| profile.runtime)
             .unwrap_or(target.runtime);
@@ -450,11 +454,11 @@ impl Program {
         let env = profile_config
             .and_then(|profile| profile.comptime_env.as_ref())
             .or(compiler_options.comptime_env.as_ref())
-            .map(|keys| ComptimeEnvSnapshot::from_env_whitelist(keys))
-            .unwrap_or_else(ComptimeEnvSnapshot::from_env_all);
+            .map(|keys| EnvSnapshot::from_env_whitelist(keys))
+            .unwrap_or_else(EnvSnapshot::from_env_all);
 
         let flags = ProfileFlags::from(compiler_options);
 
-        ProfileKey::new(output, runtime, platform, lib, debug, env, flags)
+        ProfileKey::new(runtime, platform, lib, debug, env, flags)
     }
 }

@@ -71,9 +71,7 @@ pub fn prepare_call_hierarchy(
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return None;
-    };
+    let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(canonical_id.local_id);
 
@@ -83,7 +81,9 @@ pub fn prepare_call_hierarchy(
     }
 
     // get the name
-    let name = symbol.name().map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = symbol
+        .name()
+        .map(|id| ctx.ast.strings.get(id).to_string())?;
 
     drop(symbols);
     drop(module);
@@ -331,9 +331,7 @@ pub fn call_hierarchy_item_from_symbol(
 ) -> Option<CallHierarchyItem> {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return None;
-    };
+    let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
@@ -341,7 +339,9 @@ pub fn call_hierarchy_item_from_symbol(
         return None;
     }
 
-    let name = symbol.name().map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = symbol
+        .name()
+        .map(|id| ctx.ast.strings.get(id).to_string())?;
 
     drop(symbols);
     drop(module);

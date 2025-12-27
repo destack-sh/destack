@@ -2,6 +2,7 @@ use destack_ast::{self as ast};
 use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
+use smallvec::smallvec;
 
 use crate::Compiler;
 
@@ -226,6 +227,28 @@ impl Compiler {
                         }).collect()
                     });
                     ast::Expression::Path { path, static_arguments }
+                }
+
+                dir::Expression::ImportMeta => {
+                    let import_id = ast_strings.intern("import");
+                    let meta_id = ast_strings.intern("meta");
+                    let path = ast::Path {
+                        segments: smallvec![import_id, meta_id],
+                    };
+                    ast::Expression::Path {
+                        path,
+                        static_arguments: None,
+                    }
+                }
+                dir::Expression::This => {
+                    let this_id = ast_strings.intern("this");
+                    let path = ast::Path {
+                        segments: smallvec![this_id],
+                    };
+                    ast::Expression::Path {
+                        path,
+                        static_arguments: None,
+                    }
                 }
 
                 dir::Expression::ScalarLiteral { value } => {
