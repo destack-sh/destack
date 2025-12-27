@@ -550,7 +550,7 @@ let y = getInput();
 const validated = parse(uint.max(150), y);  // throws if y > 150
 setAge(validated);                           // ok: validated has refined type
 
-// Or without throwing:
+// or without throwing:
 const result = safeParse(uint.max(150), y);
 if (result.ok) {
     setAge(result.value);
@@ -627,7 +627,7 @@ Use static parameters when the value affects the return type; use `comptime` par
 ### Comptime Functions
 
 Functions are not explicitly marked as comptime or not comptime.
-Any function can be called at comptime if its body is comptime-valid:
+Any function can be called at comptime if its body is valid for comptime evaluation:
 
 ```
 function factorial(n: int): int {
@@ -652,11 +652,11 @@ A function that performs I/O cannot be called in a comptime context, but can sti
 | Static parameter argument | Compile time (required) |
 | `if (comptime cond)` condition | Compile time (enables branch elimination) |
 
-### Comptime-Valid Operations
+### Valid Comptime Operations
 
-Comptime evaluation must be deterministic and side-effect-free:
+Comptime evaluation must be deterministic and side effect free:
 
-| Category | Operations | Comptime-Valid |
+| Category | Operations | Valid |
 |----------|------------|----------------|
 | Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` | Yes |
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` | Yes |
@@ -716,6 +716,275 @@ This works because:
 1. `DEBUG` is a comptime constant
 2. The condition `comptime DEBUG` forces compile-time evaluation
 3. The compiler sees a constant `false` and eliminates the branch during code generation
+
+### Comptime vs Static
+
+TypeScript's `static` keyword and Destack's `comptime` keyword are orthogonal concepts:
+
+| Keyword | Meaning | Example |
+|---------|---------|---------|
+| `static` (TS) | Belongs to class, not instance | `static count = 0` |
+| `comptime` (DS) | Evaluated at compile time | `comptime factorial(10)` |
+
+These compose naturally:
+
+```
+class Config {
+    static DEFAULT = 256;                          // TS static, runtime initialization
+    static LOOKUP = comptime generateLookupTable(); // TS static + comptime evaluation
+}
+```
+
+A `static` block runs at class initialization time (runtime). 
+A `comptime` expression runs during compilation (no runtime exists yet). 
+
+### Comptime Type Conditions
+
+When an `if (comptime ...)` condition is a type relation (`T extends U`):
+1. The condition is evaluated at compile time
+2. The type parameter is **narrowed** inside the true branch
+
+```
+function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
+    if (comptime Context extends EvictableContext<T>) {
+        // Context is narrowed to Context & EvictableContext<T>
+        ctx.onEvict(key);  // valid: onEvict exists on EvictableContext
+    }
+}
+```
+
+The semantics of comptime type conditions matches TypeScript's conditional type semantics: `T extends U ? X : Y`.
+
+| Condition | True Branch | False Branch |
+|-----------|-------------|--------------|
+| `comptime T extends U` | T narrowed to `T & U` | T unchanged |
+| `comptime !(T extends U)` | T unchanged | T unchanged |
+| `comptime T extends U \|\| ...` | T unchanged (complex) | T unchanged |
+| `comptime T extends U && V extends W` | T → `T & U`, V → `V & W` | depends |
+
+Narrowing only applies for simple `T extends U` conditions.
+Complex boolean expressions do not narrow to avoid ambiguity.
+Both branches of a comptime conditional must type check before comptime evaluation:
+
+```
+function example<T>(x: T) {
+    if (comptime T extends Hashable) {
+        x.hash();     // checked with T & Hashable
+    } else {
+        x.toString(); // checked with T
+    }
+}
+```
+
+#### Type<T> in Comptime Conditions
+
+Reflection can be used at comptime, and thus `Type` can also be used for conditionals:
+
+```
+function serialize<T>(value: T): string {
+    if (comptime Type<T>.kind == "struct") {
+        // T is known to be a struct
+        return comptime generateStructSerializer<T>();
+    } else if (comptime Type<T>.kind == "array") {
+        return comptime generateArraySerializer<T>();
+    } else {
+        return JSON.stringify(value);
+    }
+}
+```
+
+### Comptime Slots
+
+Destack's comptime is designed around the concept of **typed slots**:
+
+1. **Types are fixed during Analyze**: all bindings, symbols, and types are determined.
+2. **Comptime expressions are slots**: positions where a value will be computed.
+3. **Execute phase fills the slots**: computes values, eliminates dead branches.
+4. **No binding changes**: the symbol table never changes after Analyze.
+
+#### Code Specialization
+
+Comptime cannot not generate arbitrary code (no `eval`!).
+But, we can specialize code statically to cover essentially all relevant use cases via comptime specialization, which is more maintainable and understandable anyway.
+In practice, this isn't its own "feature", but just a nice consequence of other orthogonal features:
+
+1. **Monomorphization**: generic functions become specialized per type argument.
+2. **Loop unrolling**: iteration over comptime known collections (like `Type<T>.fields`) is unrolled.
+3. **Branch elimination**: comptime conditionals select which code survives.
+4. **Inlining**: comptime expressions become constants.
+
+#### Case Study: JSON Parser
+
+This example demonstrates code specialization by creating a type safe JSON parser.
+
+```ds
+@inline
+function parse<T>(json: string): T {
+    const obj = JSON.parse(json);
+    let result: Partial<T> = {};
+
+    @unroll
+    for (const field of comptime Type<T>.fields) {
+        if (comptime field.type extends string) {
+            result[field.name] = String(obj[field.name]);
+        } else if (comptime field.type extends number) {
+            result[field.name] = Number(obj[field.name]);
+        } else if (comptime field.type extends boolean) {
+            result[field.name] = Boolean(obj[field.name]);
+        } else {
+            result[field.name] = parse<typeof field.type>(obj[field.name]);
+        }
+    }
+
+    return result as T;
+}
+
+struct User { 
+    name: string, 
+    age: int, 
+    active: boolean 
+}
+
+// when instantiated, the loop is unrolled and branches are eliminated:
+const user = parse<User>('{"name": "Alice", "age": 30, "active": true}');
+```
+
+After comptime evaluation with `User`, the function becomes:
+
+```ds
+function parse_User(json: string): User {
+    const obj = JSON.parse(json);
+    let result: Partial<User> = {};
+
+    result.name = String(obj.name);
+    result.age = Number(obj.age);
+    result.active = Boolean(obj.active);
+
+    return result as User;
+}
+```
+
+#### Case Study: Cache Table
+
+This example demonstrates comptime type conditions for conditional behavior.
+See [Ghostty's cache_table.zig](https://github.com/ghostty-org/ghostty/blob/main/src/datastruct/cache_table.zig) for the original Zig implementation.
+
+```
+// ─────────────────────────────────────────────────────────────────────────
+// Interfaces (TS-native approach to type capabilities)
+// ─────────────────────────────────────────────────────────────────────────
+
+interface CacheContext<K> {
+    hash(key: K): uint64;
+    eql(a: K, b: K): boolean;
+}
+
+interface EvictableContext<K, V> extends CacheContext<K> {
+    evicted(key: K, value: V): void;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The cache table with static (comptime) parameters
+// ─────────────────────────────────────────────────────────────────────────
+
+struct CacheTable<
+    K,
+    V,
+    Context: CacheContext<K>,
+    bucketCount: uint,      // static parameter (must be comptime-known)
+    bucketSize: uint8,      // static parameter (must be comptime-known)
+> {
+    // ─────────────────────────────────────────────────────────────────────
+    // Comptime assertions (same as Zig)
+    // ─────────────────────────────────────────────────────────────────────
+
+    comptime {
+        assert(
+            isPowerOfTwo(bucketCount),
+            `bucketCount must be power of 2, got ${bucketCount}`
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Fixed-size arrays from static parameters (same as Zig)
+    // ─────────────────────────────────────────────────────────────────────
+
+    struct KV { 
+        key: K, 
+        value: V 
+    }
+
+    buckets: KV[bucketSize][bucketCount],
+    lengths: uint8[bucketCount] = comptime [0] * bucketCount,
+    context: Context,
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Methods with conditional compilation
+    // ─────────────────────────────────────────────────────────────────────
+
+    put(key: K, value: V): KV | null {
+        const kv = KV { key, value };
+        const idx: uint = this.context.hash(key) % bucketCount;
+
+        if (this.lengths[idx] < bucketSize) {
+            this.buckets[idx][this.lengths[idx]] = kv;
+            this.lengths[idx] += 1;
+            return null;
+        }
+
+        const evicted = rotateIn(&this.buckets[idx], kv);
+
+        // ─────────────────────────────────────────────────────────────────
+        // Comptime type condition (equivalent to Zig's @hasDecl)
+        // ─────────────────────────────────────────────────────────────────
+        if (comptime Context extends EvictableContext<K, V>) {
+            // Context is narrowed: this.context.evicted() is valid
+            this.context.evicted(evicted.key, evicted.value);
+        }
+
+        evicted
+    }
+
+    get(key: K): V | null {
+        const idx: uint = this.context.hash(key) % bucketCount;
+        const len = this.lengths[idx];
+
+        for (let i = len; i > 0; i--) {
+            if (this.context.eql(key, this.buckets[idx][i - 1].key)) {
+                const value = this.buckets[idx][i - 1].value;
+                rotateOnce(this.buckets[idx].slice(i - 1, len - 1));
+                return value;
+            }
+        }
+
+        null
+    }
+
+    clear(): void {
+        if (comptime Context extends EvictableContext<K, V>) {
+            for (const [bucket, length] of zip(this.buckets, this.lengths)) {
+                for (const kv of bucket.slice(0, length)) {
+                    this.context.evicted(kv.key, kv.value);
+                }
+            }
+        }
+
+        this.lengths.fill(0);
+    }
+}
+```
+
+**Pattern Comparison**
+
+| Zig Pattern | Destack Equivalent | Notes |
+|-------------|-------------------|-------|
+| `fn CacheTable(...) type { return struct {...} }` | `struct CacheTable<..., N: uint>` | Static parameters replace function returning type |
+| `comptime K: type` | `K` (type parameter) | Standard generics |
+| `comptime bucket_count: usize` | `bucketCount: uint` (static param) | Value parameter, known at comptime |
+| `comptime { assert(...) }` | `comptime { assert(...) }` | Direct mapping |
+| `[bucket_count][bucket_size]KV` | `KV[bucketSize][bucketCOunt]` | Fixed-size arrays with static parameters |
+| `@splat(0)` | `comptime [0] * bucketCount` | Zero-initialized array |
+| `if (comptime @hasDecl(Context, "evicted"))` | `if (comptime Context extends EvictableContext)` | Type capability check with narrowing |
 
 ## Reflection
 

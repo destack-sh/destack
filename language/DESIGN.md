@@ -335,23 +335,19 @@ function merge<T: int, U>(): T where (
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-Unlike Zig or Rust macros, Destack's comptime is intended for filling in well-defined "slots" in the compiled output, not for _fully_ arbitrary code generation with different syntax.
-The compiler already tries to evaluate pure expressions at compile time when possible.
-The `comptime` keyword lets programs *enforce* that the expression must be evaluated at compile time, otherwise it is a compile error.
+Unlike Zig or Rust macros, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
+The compiler already evaluates pure expressions at compile time when beneficial.
+The `comptime` keyword *enforces* that an expression must be evaluated at compile time, otherwise it is a compile error.
 
 ```
 const LOOKUP_TABLE: uint8[] = comptime {
     let table: uint8[] = [];
-    for (let i = 0; i < 256; i++) { 
-        table.push(computeCRC(i)); 
+    for (let i = 0; i < 256; i++) {
+        table.push(computeCRC(i));
     }
     table
 };
-```
 
-Functions are not marked as comptime or not. The call site determines when a function runs:
-
-```
 function factorial(n: int): int {
     if (n <= 1) { 1 } else { n * factorial(n - 1) }
 }
@@ -360,14 +356,21 @@ const FACT_10 = comptime factorial(10);    // compile time
 const dynamic = factorial(getUserInput()); // runtime
 ```
 
-Parameters can be marked `comptime` to require compile-time-known arguments:
+Functions are not marked as comptime or runtime.
+The call site determines when a function runs.
+Parameters can be marked `comptime` to require compile-time-known arguments, and static parameters (generics with value types) are inherently known at comptime.
+
+Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
 ```
-function createBuffer(comptime size: int): uint8[] { ... }
+function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
+    if (comptime Context extends EvictableContext<T>) {
+        ctx.onEvict(key);  // context is narrowed; branch eliminated if not satisfied
+    }
+}
 ```
 
-Static parameters (generics with value types) are inherently comptime.
-See [SPECIFICATION.md](SPECIFICATION.md#comptime) for detailed semantics.
+Note that TypeScript's `static` keyword (class member storage) and Destack's `comptime` keyword (compile-time evaluation) are orthogonal concepts and compose quite nicely.
 
 ## Reflection
 
