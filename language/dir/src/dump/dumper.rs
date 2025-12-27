@@ -460,6 +460,48 @@ impl Dump for BindingModifier {
     }
 }
 
+/// Dump a TypeModifier as a structured representation.
+impl Dump for TypeModifier {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TypeModifier::Add => dumper.object("TypeModifier::Add").end(),
+            TypeModifier::Remove => dumper.object("TypeModifier::Remove").end(),
+            TypeModifier::None => dumper.object("TypeModifier::None").end(),
+        };
+    }
+}
+
+/// Dump a TypeMappedModifiers as a structured representation.
+impl Dump for TypeMappedModifiers {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .object("TypeMappedModifiers")
+            .field("readonly", &self.readonly)
+            .field("optional", &self.optional)
+            .end();
+    }
+}
+
+/// Dump a TypePredicateSubject as a structured representation.
+impl Dump for TypePredicateSubject {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TypePredicateSubject::Unresolved(name) => {
+                dumper
+                    .object("TypePredicateSubject::Unresolved")
+                    .value(name)
+                    .end();
+            }
+            TypePredicateSubject::Symbol(symbol) => {
+                dumper.object("TypePredicateSubject::Symbol").value(symbol).end();
+            }
+            TypePredicateSubject::This => {
+                dumper.object("TypePredicateSubject::This").end();
+            }
+        }
+    }
+}
+
 /// Dump a DeclarationDescriptor as a structured object.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -518,6 +560,7 @@ impl Dump for FunctionSignature {
             .field("cardinality", &self.cardinality)
             .field_optional("mode", &self.mode)
             .field("kind", &self.kind)
+            .field_optional("this_parameter", &self.this_parameter.map(|id| id.id))
             .end();
     }
 }
@@ -605,6 +648,32 @@ impl Dump for PrimitiveType {
     }
 }
 
+/// Dump a TypeIntrinsic as a structured representation.
+impl Dump for TypeIntrinsic {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            TypeIntrinsic::Uppercase => {
+                dumper.object("TypeIntrinsic::Uppercase").end();
+            }
+            TypeIntrinsic::Lowercase => {
+                dumper.object("TypeIntrinsic::Lowercase").end();
+            }
+            TypeIntrinsic::Capitalize => {
+                dumper.object("TypeIntrinsic::Capitalize").end();
+            }
+            TypeIntrinsic::Uncapitalize => {
+                dumper.object("TypeIntrinsic::Uncapitalize").end();
+            }
+            TypeIntrinsic::NoInfer => {
+                dumper.object("TypeIntrinsic::NoInfer").end();
+            }
+            TypeIntrinsic::BuiltinIteratorReturn => {
+                dumper.object("TypeIntrinsic::BuiltinIteratorReturn").end();
+            }
+        };
+    }
+}
+
 /// Dump a TypeLiteral as a structured representation.
 impl Dump for TypeLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -640,6 +709,12 @@ impl Dump for TypeLiteral {
                 dumper
                     .object("TypeLiteral::Composite")
                     .value(composite)
+                    .end();
+            }
+            TypeLiteral::Intrinsic(intrinsic) => {
+                dumper
+                    .object("TypeLiteral::Intrinsic")
+                    .value(intrinsic)
                     .end();
             }
             TypeLiteral::ScalarLiteral(scalar_literal) => {
@@ -860,6 +935,57 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::TypeBinary", id.id)
                     .field("operator", operator)
+                    .end();
+            }
+            Expression::TypeConditional {
+                left: _,
+                right: _,
+                then_type: _,
+                else_type: _,
+            } => {
+                self.node("Expression::TypeConditional", id.id).end();
+            }
+            Expression::TypeMapped {
+                parameter: _,
+                modifiers,
+                value: _,
+            } => {
+                self.node("Expression::TypeMapped", id.id)
+                    .field("modifiers", modifiers)
+                    .end();
+            }
+            Expression::TypeIndex { left: _, index: _ } => {
+                self.node("Expression::TypeIndex", id.id).end();
+            }
+            Expression::TypeTemplateLiteral {
+                strings: _,
+                spans: _,
+            } => {
+                self.node("Expression::TypeTemplateLiteral", id.id)
+                    .end();
+            }
+            Expression::TypeImport { target, qualifier } => {
+                self.node("Expression::TypeImport", id.id)
+                    .field("target", target)
+                    .field_optional("qualifier", qualifier)
+                    .end();
+            }
+            Expression::TypeInfer {
+                name,
+                constraint: _,
+            } => {
+                self.node("Expression::TypeInfer", id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Expression::TypePredicate {
+                asserts,
+                subject,
+                target: _,
+            } => {
+                self.node("Expression::TypePredicate", id.id)
+                    .field("asserts", asserts)
+                    .field("subject", subject)
                     .end();
             }
             Expression::Assign { left: _, right: _ } => {

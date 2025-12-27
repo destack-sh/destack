@@ -124,6 +124,10 @@ fn walk_function_signature<V: NodeVisitor + ?Sized>(
     if let Some(generics) = signature.generics.as_ref() {
         walk_generics(visitor, tree, generics);
     }
+    if let Some(this_parameter) = signature.this_parameter {
+        let parameter = tree.get(this_parameter);
+        visitor.visit_parameter(tree, this_parameter, parameter);
+    }
     for parameter_id in signature.dynamic_parameters.iter() {
         let parameter = tree.get(*parameter_id);
         visitor.visit_parameter(tree, *parameter_id, parameter);
@@ -274,6 +278,72 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *left, left_expression);
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);
+        }
+        Expression::TypeConditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            let left_expression = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expression);
+            let right_expression = tree.get(*right);
+            visitor.visit_expression(tree, *right, right_expression);
+            let then_expression = tree.get(*then_type);
+            visitor.visit_expression(tree, *then_type, then_expression);
+            let else_expression = tree.get(*else_type);
+            visitor.visit_expression(tree, *else_type, else_expression);
+        }
+        Expression::TypeMapped {
+            parameter,
+            modifiers: _,
+            value,
+        } => {
+            let constraint_expression = tree.get(parameter.constraint);
+            visitor.visit_expression(tree, parameter.constraint, constraint_expression);
+            if let Some(key_remap) = parameter.key_remap {
+                let key_expression = tree.get(key_remap);
+                visitor.visit_expression(tree, key_remap, key_expression);
+            }
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+        }
+        Expression::TypeIndex { left, index } => {
+            let left_expression = tree.get(*left);
+            visitor.visit_expression(tree, *left, left_expression);
+            let index_expression = tree.get(*index);
+            visitor.visit_expression(tree, *index, index_expression);
+        }
+        Expression::TypeTemplateLiteral { strings: _, spans } => {
+            for span_id in spans {
+                let span_expression = tree.get(*span_id);
+                visitor.visit_expression(tree, *span_id, span_expression);
+            }
+        }
+        Expression::TypeImport {
+            target: _,
+            qualifier: _,
+        } => {
+            // nothing to do
+        }
+        Expression::TypeInfer {
+            name: _,
+            constraint,
+        } => {
+            if let Some(constraint) = constraint {
+                let constraint_expression = tree.get(*constraint);
+                visitor.visit_expression(tree, *constraint, constraint_expression);
+            }
+        }
+        Expression::TypePredicate {
+            asserts: _,
+            subject: _,
+            target,
+        } => {
+            if let Some(target) = target {
+                let target_expression = tree.get(*target);
+                visitor.visit_expression(tree, *target, target_expression);
+            }
         }
         Expression::Member {
             left,

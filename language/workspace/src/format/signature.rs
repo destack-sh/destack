@@ -114,6 +114,7 @@ fn format_function(
 
     // dynamic parameters
     let parameters_text = format_parameters(
+        signature.this_parameter,
         &signature.dynamic_parameters,
         module_id,
         dir_tree,
@@ -168,6 +169,7 @@ fn format_generics(
 
 /// Format function parameters with their types.
 fn format_parameters(
+    this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
@@ -175,12 +177,17 @@ fn format_parameters(
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
-    let formatted: Vec<_> = parameters
-        .iter()
-        .map(|parameter_id| {
-            format_parameter(*parameter_id, module_id, dir_tree, types, modules, strings)
-        })
-        .collect();
+    let mut formatted: Vec<String> = Vec::new();
+
+    if let Some(this_parameter) = this_parameter {
+        let this_text =
+            format_parameter(this_parameter, module_id, dir_tree, types, modules, strings);
+        formatted.push(format!("this: {this_text}"));
+    }
+
+    formatted.extend(parameters.iter().map(|parameter_id| {
+        format_parameter(*parameter_id, module_id, dir_tree, types, modules, strings)
+    }));
 
     formatted.join(", ")
 }

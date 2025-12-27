@@ -1,8 +1,8 @@
 use destack_source::ModuleId;
 
 use crate::{
-    Asynchrony, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability,
-    ScalarLiteral, StaticArgument, StaticKey, VarianceBound,
+    Asynchrony, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId, Mutability, Path,
+    ScalarLiteral, StaticArgument, StaticKey, StringId, VarianceBound,
 };
 
 use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
@@ -28,8 +28,82 @@ pub enum TypeLiteral {
     Primitive(PrimitiveType),
     /// Composite type.
     Composite(DeclarationType),
+    /// Intrinsic type (TypeScript compiler-provided).
+    Intrinsic(TypeIntrinsic),
     /// Scalar literal.
     ScalarLiteral(ScalarLiteral),
+}
+
+/// A TypeIntrinsic is a compiler-provided intrinsic type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeIntrinsic {
+    /// Uppercase string intrinsic.
+    Uppercase,
+    /// Lowercase string intrinsic.
+    Lowercase,
+    /// Capitalize string intrinsic.
+    Capitalize,
+    /// Uncapitalize string intrinsic.
+    Uncapitalize,
+    /// NoInfer intrinsic.
+    NoInfer,
+    /// Builtin iterator return intrinsic.
+    BuiltinIteratorReturn,
+}
+
+/// A type modifier for mapped types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeModifier {
+    /// Add a modifier (like `readonly` or `?`).
+    Add,
+    /// Remove a modifier (like `-readonly` or `-?`).
+    Remove,
+    /// No modifier specified.
+    None,
+}
+
+/// Mapped type modifiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeMappedModifiers {
+    /// The readonly modifier.
+    pub readonly: TypeModifier,
+    /// The optional modifier.
+    pub optional: TypeModifier,
+}
+
+/// A mapped type parameter.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeMappedParameter {
+    /// The parameter name (like `K`).
+    pub name: StringId,
+    /// The constraint type (like `keyof T`).
+    pub constraint: LocalTypeId,
+    /// The optional key remap (like `as Foo<K>`).
+    pub key_remap: Option<LocalTypeId>,
+}
+
+/// A type predicate subject.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypePredicateSubject {
+    /// Unresolved identifier subject (like `x` in `x is T`).
+    Unresolved(StringId),
+    /// Symbol subject (like `x` in `x is T`).
+    Symbol(GlobalSymbolId),
+    /// `this` subject.
+    This,
+}
+
+/// An index signature in an object type.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeIndexSignature {
+    /// The parameter name (like `K`).
+    pub name: StringId,
+    /// The key type (like `string`).
+    pub key_type: LocalTypeId,
+    /// The value type (like `T`).
+    pub value_type: LocalTypeId,
+    /// Whether the index signature is readonly.
+    pub is_readonly: bool,
 }
 
 /// A Type in the type system.
@@ -44,6 +118,9 @@ pub enum Type {
     /// Type-as-value: runtime representation of a type (for reflection and instanceof).
     Value { value: LocalTypeId },
 
+    /// This type in a type predicate or method signature.
+    This,
+
     /// Reference to a declared type (with optional type arguments for generics).
     Reference {
         symbol: GlobalSymbolId,
@@ -51,6 +128,46 @@ pub enum Type {
     },
     /// Unevaluated expression that resolves to a type (needs compile-time evaluation).
     Unevaluated(LocalNodeId<Expression>),
+
+    /// Type conditional expression.
+    Conditional {
+        left: LocalTypeId,
+        right: LocalTypeId,
+        then_type: LocalTypeId,
+        else_type: LocalTypeId,
+    },
+    /// Type mapped expression.
+    Mapped {
+        parameter: TypeMappedParameter,
+        modifiers: TypeMappedModifiers,
+        value: LocalTypeId,
+    },
+    /// Type index expression.
+    Index {
+        left: LocalTypeId,
+        index: LocalTypeId,
+    },
+    /// Type template literal expression.
+    TemplateLiteral {
+        strings: Vec<StringId>,
+        spans: Vec<LocalTypeId>,
+    },
+    /// Type import expression.
+    Import {
+        target: StringId,
+        qualifier: Option<Path>,
+    },
+    /// Type infer binding.
+    InferBinding {
+        name: StringId,
+        constraint: Option<LocalTypeId>,
+    },
+    /// Type predicate expression.
+    Predicate {
+        asserts: bool,
+        subject: TypePredicateSubject,
+        target: Option<LocalTypeId>,
+    },
 
     /// Type unary operator.
     Unary {
@@ -89,14 +206,20 @@ pub enum Type {
     /// Array type with dynamically sized elements (like `T[]`).
     Array { element: Option<LocalTypeId> },
     /// Tuple type `(T1, T2, ...)`.
-    Tuple { elements: Vec<LocalTypeId> },
+    Tuple { elements: Vec<TypeElement> },
     /// Object type `{ a: T1, b: T2, ... }`.
-    Object { fields: Vec<TypeField> },
+    Object {
+        fields: Vec<TypeField>,
+        call_signatures: Vec<LocalTypeId>,
+        construct_signatures: Vec<LocalTypeId>,
+        index_signatures: Vec<TypeIndexSignature>,
+    },
     /// Function type `(T1, T2, ...) -> T`.
     Function {
         asynchrony: Asynchrony,
         cardinality: FunctionCardinality,
         static_parameters: Vec<LocalTypeId>,
+        this_parameter: Option<LocalTypeId>,
         dynamic_parameters: Vec<LocalTypeId>,
         return_type: Option<LocalTypeId>,
     },
@@ -138,6 +261,34 @@ pub struct TypeField {
     pub is_optional: bool,
     /// Whether the field is readonly.
     pub is_readonly: bool,
+}
+
+/// A tuple element in a type tuple.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeElement {
+    /// The optional label for the element.
+    pub label: Option<StringId>,
+    /// The element type.
+    pub ty: LocalTypeId,
+    /// Whether the element is optional.
+    pub is_optional: bool,
+    /// Whether the element is readonly.
+    pub is_readonly: bool,
+    /// Whether the element is a rest element.
+    pub is_rest: bool,
+}
+
+impl TypeElement {
+    /// Create a default tuple element for a type.
+    pub fn new(ty: LocalTypeId) -> Self {
+        Self {
+            label: None,
+            ty,
+            is_optional: false,
+            is_readonly: false,
+            is_rest: false,
+        }
+    }
 }
 
 /// A TypeKind determines nominal vs. structural typing.

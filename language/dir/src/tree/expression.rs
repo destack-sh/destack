@@ -6,8 +6,20 @@ use crate::{
     DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
     LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, Mutability, Node, NodeType,
     Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator,
+    UnaryOperator, VarianceBound,
 };
+
+/// A mapped type parameter for expressions.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeMappedParameterExpression {
+    /// The parameter name (like `K`).
+    pub name: StringId,
+    /// The constraint type (like `keyof T`).
+    pub constraint: LocalNodeId<Expression>,
+    /// The optional key remap (like `as Foo<K>`).
+    pub key_remap: Option<LocalNodeId<Expression>>,
+}
 
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq)]
@@ -82,6 +94,46 @@ pub enum Expression {
         operator: TypeBinaryOperator,
         right: LocalNodeId<Expression>,
     },
+    /// Type conditional expression.
+    TypeConditional {
+        left: LocalNodeId<Expression>,
+        right: LocalNodeId<Expression>,
+        then_type: LocalNodeId<Expression>,
+        else_type: LocalNodeId<Expression>,
+    },
+    /// Type mapped expression.
+    TypeMapped {
+        parameter: TypeMappedParameterExpression,
+        modifiers: TypeMappedModifiers,
+        value: LocalNodeId<Expression>,
+    },
+    /// Type index expression.
+    TypeIndex {
+        left: LocalNodeId<Expression>,
+        index: LocalNodeId<Expression>,
+    },
+    /// Type template literal expression.
+    TypeTemplateLiteral {
+        strings: Vec<StringId>,
+        spans: Vec<LocalNodeId<Expression>>,
+    },
+    /// Type import expression.
+    TypeImport {
+        target: StringId,
+        qualifier: Option<Path>,
+    },
+    /// Type infer binding.
+    TypeInfer {
+        name: StringId,
+        constraint: Option<LocalNodeId<Expression>>,
+    },
+    /// Type predicate expression.
+    TypePredicate {
+        asserts: bool,
+        subject: TypePredicateSubject,
+        target: Option<LocalNodeId<Expression>>,
+    },
+    
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,
@@ -376,6 +428,13 @@ impl Expression {
 
             Expression::TypeUnary { .. } => "type unary",
             Expression::TypeBinary { .. } => "type binary",
+            Expression::TypeConditional { .. } => "type conditional",
+            Expression::TypeMapped { .. } => "type mapped",
+            Expression::TypeIndex { .. } => "type index",
+            Expression::TypeTemplateLiteral { .. } => "type template literal",
+            Expression::TypeImport { .. } => "type import",
+            Expression::TypeInfer { .. } => "type infer",
+            Expression::TypePredicate { .. } => "type predicate",
 
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
