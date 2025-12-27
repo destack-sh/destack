@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
-use destack_source::PrintOptions;
+use destack_source::{MemoryFileSystem, PrintOptions};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -12,7 +14,7 @@ use crate::harness::{
 };
 use crate::mdtest::{
     MdTestCase, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file, run_with_timeout,
-    setup_test_environment, slug,
+    select_profile_for_mdtest, setup_test_environment_with_session, slug,
 };
 
 /// Test suite for type checking specification tests.
@@ -89,33 +91,66 @@ impl Suite for SpecificationSuite {
     }
 
     fn timeout(&self) -> Option<Duration> {
-        Some(Duration::from_secs(TEST_TIMEOUT_SECONDS))
+        // timeout is enforced by run_with_timeout
+        None
     }
+}
+
+#[derive(Debug)]
+struct SharedSpecEnvironment {
+    /// The shared test session.
+    session: Arc<destack_workspace::Session>,
+    /// The shared in-memory file system.
+    fs: Arc<MemoryFileSystem>,
+    /// The next unique test id.
+    next_id: AtomicUsize,
+}
+
+impl SharedSpecEnvironment {
+    /// Create a new shared environment for spec tests.
+    fn new() -> Self {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let cwd = PathBuf::from("/test/spec");
+        let session = Arc::new(destack_workspace::Session::new(cwd.clone()).with_fs(fs.clone()));
+        Self {
+            session,
+            fs,
+            next_id: AtomicUsize::new(0),
+        }
+    }
+
+    /// Allocate a unique root directory for a test case.
+    fn root_for(&self, test: &MdTestCase) -> PathBuf {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let section = slug(&test.section);
+        let name = slug(&test.name);
+        PathBuf::from("/test/spec").join(format!("{section}-{name}-{id}"))
+    }
+}
+
+thread_local! {
+    static SHARED_SPEC_ENV: SharedSpecEnvironment = SharedSpecEnvironment::new();
 }
 
 /// Run a single spec test: compile the code and compare errors against expectations.
 fn run_specification_test(test: &MdTestCase) -> TestResult {
-    let (session, program, _main_path) = setup_test_environment(test);
+    let (session, program, main_path) = SHARED_SPEC_ENV.with(|env| {
+        let root = env.root_for(test);
+        setup_test_environment_with_session(test, env.session.clone(), env.fs.clone(), root)
+    });
 
     // compile with single worker for deterministic results
-    let compiler = Compiler::new(
+    let mut compiler = Compiler::new(
         session.clone(),
         program.clone(),
         CompilerOptions {
+            load_libs: false,
             workers: 1,
             ..Default::default()
         },
     );
 
     // find the main file to compile
-    let main_path = PathBuf::from("/test").join(
-        test.files
-            .iter()
-            .find(|f| f.path == "main.ds")
-            .map(|f| &f.path)
-            .unwrap_or(&test.files[0].path),
-    );
-
     let module_id = match compiler.resolve_path_to_module(&main_path) {
         Ok(id) => id,
         Err(e) => {
@@ -126,7 +161,8 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     };
 
     // run analysis
-    let profile = program.default_profile_id_for_module(module_id);
+    let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
+    compiler.options.load_libs = load_libs;
     compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
         module: module_id,
         profile,

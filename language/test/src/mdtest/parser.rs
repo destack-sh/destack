@@ -31,6 +31,8 @@ pub struct MdTestCase {
     pub name: String,
     /// Section the test belongs to (from H2 heading).
     pub section: String,
+    /// Per-test options parsed from `test` blocks.
+    pub options: HashMap<String, String>,
     /// Source files (ds/ts code blocks).
     pub files: Vec<MdTestFile>,
     /// Bullet list items (used as expected errors in spec tests).
@@ -115,6 +117,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let mut current_section = String::new();
     let mut current_test_name: Option<String> = None;
     let mut current_test_skip = false;
+    let mut current_options: HashMap<String, String> = HashMap::new();
     let mut current_files: Vec<MdTestFile> = Vec::new();
     let mut current_bullets: Vec<String> = Vec::new();
     let mut current_extra_blocks: Vec<RawCodeBlock> = Vec::new();
@@ -138,6 +141,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                     tests.push(MdTestCase {
                         name,
                         section: current_section.clone(),
+                        options: std::mem::take(&mut current_options),
                         files: std::mem::take(&mut current_files),
                         bullet_items: std::mem::take(&mut current_bullets),
                         extra_blocks: std::mem::take(&mut current_extra_blocks),
@@ -167,6 +171,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                         };
                         current_test_name = Some(name);
                         current_test_skip = skip;
+                        current_options.clear();
                         current_files.clear();
                         current_bullets.clear();
                         current_extra_blocks.clear();
@@ -210,7 +215,13 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                 let parsed = parse_language_tag(&code_block_language);
                 let is_expected = parsed.markers.contains(&"expected");
 
-                if is_code_language(parsed.base) && !is_expected {
+                if parsed.base.eq_ignore_ascii_case("test") {
+                    if current_test_name.is_some() {
+                        for (key, value) in parsed.options {
+                            current_options.insert(key, value);
+                        }
+                    }
+                } else if is_code_language(parsed.base) && !is_expected {
                     // regular source code file
                     let path = parsed.filename.unwrap_or("main.ds").to_string();
                     current_files.push(MdTestFile {
@@ -257,6 +268,7 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
         tests.push(MdTestCase {
             name,
             section: current_section,
+            options: current_options,
             files: current_files,
             bullet_items: current_bullets,
             extra_blocks: current_extra_blocks,
@@ -290,6 +302,7 @@ const x: string = 5
         assert_eq!(tests.len(), 1);
         assert_eq!(tests[0].name, "Variable type mismatch");
         assert_eq!(tests[0].section, "Variables");
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].files.len(), 1);
         assert_eq!(tests[0].files[0].path, "main.ds");
         assert_eq!(tests[0].files[0].content.trim(), "const x: string = 5");
@@ -315,6 +328,7 @@ const y: boolean = "hello"
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].bullet_items.len(), 2);
     }
 
@@ -332,6 +346,7 @@ const x: number = 5
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].bullet_items.len(), 0);
     }
 
@@ -365,10 +380,13 @@ let c = 3
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 3);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].name, "Test A");
         assert_eq!(tests[0].section, "Section One");
+        assert!(tests[1].options.is_empty());
         assert_eq!(tests[1].name, "Test B");
         assert_eq!(tests[1].section, "Section One");
+        assert!(tests[2].options.is_empty());
         assert_eq!(tests[2].name, "Test C");
         assert_eq!(tests[2].section, "Section Two");
     }
@@ -393,6 +411,7 @@ const x = 1
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].files.len(), 1);
         assert_eq!(tests[0].files[0].content.trim(), "const x = 1");
         // json block goes into extra_blocks
@@ -421,6 +440,7 @@ const f: Foo = Foo {}
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].name, "Multi-file test");
         assert_eq!(tests[0].files.len(), 2);
         assert_eq!(tests[0].files[0].path, "types.ds");
@@ -484,6 +504,7 @@ const x = 1;
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].files.len(), 1);
         assert_eq!(tests[0].files[0].content.trim(), "const   x   =   1");
         assert_eq!(tests[0].extra_blocks.len(), 1);
@@ -512,8 +533,32 @@ p.$0
 
         let tests = parse_mdtest(md);
         assert_eq!(tests.len(), 1);
+        assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].extra_blocks.len(), 1);
         assert_eq!(tests[0].extra_blocks[0].language, "query_completion $0");
         assert!(tests[0].extra_blocks[0].content.contains("x: field"));
+    }
+
+    #[test]
+    fn test_parse_test_options_block() {
+        let md = r#"
+## Section
+
+### Case
+
+```test libs=es2024,dom
+```
+
+```ds
+const x = 1
+```
+"#;
+
+        let tests = parse_mdtest(md);
+        assert_eq!(tests.len(), 1);
+        assert_eq!(
+            tests[0].options.get("libs"),
+            Some(&"es2024,dom".to_string())
+        );
     }
 }

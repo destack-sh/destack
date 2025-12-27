@@ -1,11 +1,12 @@
 use std::panic::AssertUnwindSafe;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_compiler::{
     AnalyzeError, AnalyzeTask, BindError, Compiler, CompilerOptions, ImportError, ResolveError,
 };
-use destack_source::{DiagnosticSeverity, FileSystem, FileType, MemoryFileSystem, Uri};
+use destack_source::{DiagnosticSeverity, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
 
 /// Outcome of checking a file for conformance testing.
@@ -75,6 +76,54 @@ pub(super) struct ParseOptions {
     pub area: TestArea,
 }
 
+#[derive(Debug)]
+struct SharedConformanceEnvironment {
+    /// The shared test session.
+    session: Arc<Session>,
+    /// The shared in-memory file system.
+    fs: Arc<MemoryFileSystem>,
+    /// The next unique test id.
+    next_id: AtomicUsize,
+}
+
+impl SharedConformanceEnvironment {
+    /// Create a new shared environment for conformance tests.
+    fn new() -> Self {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let cwd = PathBuf::from("/test/conformance");
+        let session = Arc::new(Session::new(cwd.clone()).with_fs(fs.clone()));
+        Self {
+            session,
+            fs,
+            next_id: AtomicUsize::new(0),
+        }
+    }
+
+    /// Allocate a unique root directory for a test case.
+    fn root_for(&self, path: &Path) -> PathBuf {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let stem = path
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or("case");
+        PathBuf::from("/test/conformance").join(format!("{stem}-{id}"))
+    }
+
+    /// Build a synthetic file path for a test case.
+    fn file_for(&self, root: &Path, path: &Path) -> PathBuf {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("case.js");
+        root.join(name)
+    }
+}
+
+thread_local! {
+    static SHARED_CONFORMANCE_ENV: SharedConformanceEnvironment =
+        SharedConformanceEnvironment::new();
+}
+
 /// Parse and bind a file, return the outcome.
 pub(super) fn parse_file(
     path: &Path,
@@ -82,13 +131,21 @@ pub(super) fn parse_file(
     file_type: FileType,
     options: ParseOptions,
 ) -> ParseOutcome {
-    let cwd = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
-    let program = session.add_root(cwd);
+    let (session, program, file_path) = SHARED_CONFORMANCE_ENV.with(|env| {
+        let root = env.root_for(path);
+        let file_path = env.file_for(&root, path);
+        let session = env.session.clone();
+        let program = session.add_root(root);
+
+        env.fs
+            .add_file(&file_path, content.as_bytes())
+            .expect("failed to add test file");
+
+        (session, program, file_path)
+    });
 
     // register module with the correct file type (important for JSX files with .js extension)
-    let uri = Uri::from_path(path);
+    let uri = Uri::from_path(&file_path);
     let module_id = program.register_inline_module(uri, content.to_string(), file_type);
 
     // create compiler and compile the module

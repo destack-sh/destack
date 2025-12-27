@@ -7,7 +7,7 @@ use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
 
 use super::{TestMarkers, parse_markers};
-use crate::mdtest::MdTestCase;
+use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
 
 /// Information about a single file in a test session.
 #[derive(Debug, Clone)]
@@ -133,8 +133,20 @@ impl QueryTestSession {
     /// Runs the compiler to populate DIR with resolved symbols.
     pub fn from_mdtest(test: &MdTestCase) -> Self {
         let memory_fs = Arc::new(MemoryFileSystem::new());
-        let cwd = PathBuf::from("/test");
+        let root = PathBuf::from("/test");
+        let fs: Arc<dyn FileSystem> = memory_fs.clone();
+        let session = Arc::new(Session::new(root.clone()).with_fs(fs));
 
+        Self::from_mdtest_with_session(test, session, memory_fs, root)
+    }
+
+    /// Create a test session from a markdown test case using a shared session.
+    pub fn from_mdtest_with_session(
+        test: &MdTestCase,
+        session: Arc<Session>,
+        memory_fs: Arc<MemoryFileSystem>,
+        root: PathBuf,
+    ) -> Self {
         // first pass: parse markers and collect clean sources
         let mut clean_files: Vec<(String, String, TestMarkers)> = Vec::new();
 
@@ -146,22 +158,20 @@ impl QueryTestSession {
 
         // populate filesystem with clean sources
         for (path, clean_source, _) in &clean_files {
-            let file_path = cwd.join(path);
+            let file_path = root.join(path);
             memory_fs
                 .add_file(&file_path, clean_source.as_bytes())
                 .expect("failed to add test file");
         }
 
-        // create session with in-memory filesystem
-        let fs: Arc<dyn FileSystem> = memory_fs;
-        let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
-        let program = session.add_root(cwd.clone());
+        let program = session.add_root(root.clone());
 
         // create compiler and run analysis
-        let compiler = Compiler::new(
+        let mut compiler = Compiler::new(
             session.clone(),
             program.clone(),
             CompilerOptions {
+                load_libs: false,
                 workers: 1,
                 ..Default::default()
             },
@@ -174,14 +184,15 @@ impl QueryTestSession {
             .find(|f| f.path == "main.ds")
             .map(|f| &f.path)
             .unwrap_or(&test.files[0].path);
-        let main_path = cwd.join(main_name);
+        let main_path = root.join(main_name);
 
         // resolve and compile the main module
         let module_id = compiler
             .resolve_path_to_module(&main_path)
             .expect("failed to resolve module");
 
-        let profile = program.default_profile_id_for_module(module_id);
+        let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
+        compiler.options.load_libs = load_libs;
         compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
             module: module_id,
             profile,
@@ -196,7 +207,7 @@ impl QueryTestSession {
         let mut primary_source = String::new();
 
         for (path, clean_source, markers) in &clean_files {
-            let file_path = cwd.join(path);
+            let file_path = root.join(path);
 
             // get actual file_id from session
             let file_id = session
