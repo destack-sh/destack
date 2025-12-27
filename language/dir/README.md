@@ -149,3 +149,4 @@ If we don't know the symbol at compile time, it's dynamic dispatch.
 - Carry `this` parameters in function signatures within DIR so type predicates and `this` typing can round-trip
 - Represent call/construct signatures in type literals with explicit function signature nodes, not just fields
 - Add `TypeLiteral::Intrinsic` to represent TS `intrinsic` type aliases (current intrinsic aliases: `Uppercase`, `Lowercase`, `Capitalize`, `Uncapitalize`, `NoInfer`, `BuiltinIteratorReturn`)
+- Add `TypeElement` for tuple element metadata (labels, optional/rest, readonly)

@@ -46,12 +46,101 @@ pub fn format_type(
                 format_local_type(*value, types, modules, strings)
             )
         }
+        dir::Type::This => "this".to_string(),
         dir::Type::Reference {
             symbol,
             static_arguments,
         } => format_type_reference(*symbol, static_arguments.as_deref(), modules, strings),
         dir::Type::Unevaluated(_) => "<unevaluated>".to_string(),
         dir::Type::InferVar { id } => format!("<infer {}>", id.0),
+        dir::Type::Conditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            let left = format_local_type(*left, types, modules, strings);
+            let right = format_local_type(*right, types, modules, strings);
+            let then_type = format_local_type(*then_type, types, modules, strings);
+            let else_type = format_local_type(*else_type, types, modules, strings);
+            format!("{left} extends {right} ? {then_type} : {else_type}")
+        }
+        dir::Type::Mapped {
+            parameter,
+            modifiers,
+            value,
+        } => {
+            let name = strings.get(parameter.name).to_string();
+            let constraint = format_local_type(parameter.constraint, types, modules, strings);
+            let key_remap = parameter
+                .key_remap
+                .map(|key_remap| {
+                    format!(
+                        " as {}",
+                        format_local_type(key_remap, types, modules, strings)
+                    )
+                })
+                .unwrap_or_default();
+            let readonly = format_type_mapped_modifier_prefix(modifiers.readonly);
+            let optional = format_type_mapped_modifier_suffix(modifiers.optional);
+            let value = format_local_type(*value, types, modules, strings);
+            format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
+        }
+        dir::Type::Index { left, index } => {
+            let left = format_local_type(*left, types, modules, strings);
+            let index = format_local_type(*index, types, modules, strings);
+            format!("{left}[{index}]")
+        }
+        dir::Type::TemplateLiteral {
+            strings: template_strings,
+            spans,
+        } => {
+            let mut result = String::from("`");
+            for (index, string_id) in template_strings.iter().enumerate() {
+                result.push_str(strings.get(*string_id));
+                if let Some(span_id) = spans.get(index) {
+                    let span = format_local_type(*span_id, types, modules, strings);
+                    result.push_str("${");
+                    result.push_str(&span);
+                    result.push('}');
+                }
+            }
+            result.push('`');
+            result
+        }
+        dir::Type::Import { target, qualifier } => {
+            let target = strings.get(*target);
+            let mut result = format!("import(\"{target}\")");
+            if let Some(qualifier) = qualifier {
+                let path = format_path(qualifier, strings);
+                result.push('.');
+                result.push_str(&path);
+            }
+            result
+        }
+        dir::Type::InferBinding { name, constraint } => {
+            let name = strings.get(*name);
+            let constraint = constraint.map(|constraint| {
+                format!(" extends {}", format_local_type(constraint, types, modules, strings))
+            });
+            format!("infer {name}{}", constraint.unwrap_or_default())
+        }
+        dir::Type::Predicate {
+            asserts,
+            subject,
+            target,
+        } => {
+            let subject = format_type_predicate_subject(*subject, modules, strings);
+            let target = target.map(|target| {
+                format_local_type(target, types, modules, strings)
+            });
+            match (asserts, target) {
+                (true, Some(target)) => format!("asserts {subject} is {target}"),
+                (true, None) => format!("asserts {subject}"),
+                (false, Some(target)) => format!("{subject} is {target}"),
+                (false, None) => subject,
+            }
+        }
         dir::Type::Unary { operator, right } => {
             format_type_unary(*operator, *right, types, modules, strings)
         }
@@ -120,31 +209,55 @@ pub fn format_type(
         dir::Type::Tuple { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_local_type(*e, types, modules, strings))
+                .map(|element| format_type_tuple_element(element, types, modules, strings))
                 .collect();
-            format!("({})", elements.join(", "))
+            format!("[{}]", elements.join(", "))
         }
-        dir::Type::Object { fields } => {
-            if fields.is_empty() {
+        dir::Type::Object {
+            fields,
+            call_signatures,
+            construct_signatures,
+            index_signatures,
+        } => {
+            let mut items: Vec<String> = Vec::new();
+
+            for field in fields {
+                let key = format_static_key(&field.key, strings);
+                let ty = format_local_type(field.ty, types, modules, strings);
+                let opt = if field.is_optional { "?" } else { "" };
+                let readonly = if field.is_readonly { "readonly " } else { "" };
+                items.push(format!("{readonly}{key}{opt}: {ty}"));
+            }
+
+            for signature in call_signatures {
+                let signature = format_local_type(*signature, types, modules, strings);
+                items.push(signature);
+            }
+
+            for signature in construct_signatures {
+                let signature = format_local_type(*signature, types, modules, strings);
+                items.push(format!("new {signature}"));
+            }
+
+            for signature in index_signatures {
+                let name = strings.get(signature.name).to_string();
+                let key_type = format_local_type(signature.key_type, types, modules, strings);
+                let value_type = format_local_type(signature.value_type, types, modules, strings);
+                let readonly = if signature.is_readonly { "readonly " } else { "" };
+                items.push(format!("{readonly}[{name}: {key_type}]: {value_type}"));
+            }
+
+            if items.is_empty() {
                 "{}".to_string()
             } else {
-                let field_strs: Vec<_> = fields
-                    .iter()
-                    .map(|f| {
-                        let key = format_static_key(&f.key, strings);
-                        let ty = format_local_type(f.ty, types, modules, strings);
-                        let opt = if f.is_optional { "?" } else { "" };
-                        let readonly = if f.is_readonly { "readonly " } else { "" };
-                        format!("{readonly}{key}{opt}: {ty}")
-                    })
-                    .collect();
-                format!("{{ {} }}", field_strs.join(", "))
+                format!("{{ {} }}", items.join(", "))
             }
         }
         dir::Type::Function {
             asynchrony,
             cardinality: _,
             static_parameters,
+            this_parameter,
             dynamic_parameters,
             return_type,
         } => {
@@ -162,10 +275,16 @@ pub fn format_type(
                     .collect();
                 format!("<{}>", params.join(", "))
             };
-            let dynamic_params: Vec<_> = dynamic_parameters
-                .iter()
-                .map(|p| format_local_type(*p, types, modules, strings))
-                .collect();
+            let mut dynamic_params: Vec<String> = Vec::new();
+            if let Some(this_parameter) = this_parameter {
+                let this_type = format_local_type(*this_parameter, types, modules, strings);
+                dynamic_params.push(format!("this: {this_type}"));
+            }
+            dynamic_params.extend(
+                dynamic_parameters
+                    .iter()
+                    .map(|p| format_local_type(*p, types, modules, strings)),
+            );
             let ret = if let Some(ret_ty) = return_type {
                 format!(": {}", format_local_type(*ret_ty, types, modules, strings))
             } else {
@@ -206,6 +325,7 @@ pub fn format_type_literal(lit: &dir::TypeLiteral, strings: &StringPool) -> Stri
         dir::TypeLiteral::Null => "null".to_string(),
         dir::TypeLiteral::Primitive(p) => format_primitive_type(p),
         dir::TypeLiteral::Composite(c) => format_composite_type(c),
+        dir::TypeLiteral::Intrinsic(intrinsic) => format_type_intrinsic(intrinsic),
         dir::TypeLiteral::ScalarLiteral(s) => format_scalar_literal(s, strings),
     }
 }
@@ -398,9 +518,93 @@ fn format_type_unary(
         dir::TypeUnaryOperator::Readonly => format!("readonly {right_str}"),
         dir::TypeUnaryOperator::Typeof => format!("typeof {right_str}"),
         dir::TypeUnaryOperator::Keyof => format!("keyof {right_str}"),
-        dir::TypeUnaryOperator::Infer => format!("infer {right_str}"),
         dir::TypeUnaryOperator::AsConst => format!("{right_str} as const"),
-        dir::TypeUnaryOperator::Asserts => format!("asserts {right_str}"),
+    }
+}
+
+fn format_type_intrinsic(intrinsic: &dir::TypeIntrinsic) -> String {
+    match intrinsic {
+        dir::TypeIntrinsic::Uppercase => "Uppercase".to_string(),
+        dir::TypeIntrinsic::Lowercase => "Lowercase".to_string(),
+        dir::TypeIntrinsic::Capitalize => "Capitalize".to_string(),
+        dir::TypeIntrinsic::Uncapitalize => "Uncapitalize".to_string(),
+        dir::TypeIntrinsic::NoInfer => "NoInfer".to_string(),
+        dir::TypeIntrinsic::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
+    }
+}
+
+fn format_type_mapped_modifier_prefix(modifier: dir::TypeModifier) -> &'static str {
+    match modifier {
+        dir::TypeModifier::Add => "readonly ",
+        dir::TypeModifier::Remove => "-readonly ",
+        dir::TypeModifier::None => "",
+    }
+}
+
+fn format_type_mapped_modifier_suffix(modifier: dir::TypeModifier) -> &'static str {
+    match modifier {
+        dir::TypeModifier::Add => "?",
+        dir::TypeModifier::Remove => "-?",
+        dir::TypeModifier::None => "",
+    }
+}
+
+fn format_type_tuple_element(
+    element: &dir::TypeElement,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
+    let mut result = String::new();
+    if element.is_readonly {
+        result.push_str("readonly ");
+    }
+    if element.is_rest {
+        result.push_str("...");
+    }
+    if let Some(label) = element.label {
+        let name = strings.get(label);
+        let ty = format_local_type(element.ty, types, modules, strings);
+        result.push_str(&format!("{name}: {ty}"));
+    } else {
+        result.push_str(&format_local_type(element.ty, types, modules, strings));
+    }
+    if element.is_optional {
+        result.push('?');
+    }
+    result
+}
+
+fn format_path(path: &dir::Path, strings: &StringPool) -> String {
+    let segments: Vec<_> = path
+        .segments
+        .iter()
+        .map(|segment| strings.get(*segment).to_string())
+        .collect();
+    segments.join(".")
+}
+
+fn format_type_predicate_subject(
+    subject: dir::TypePredicateSubject,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
+    match subject {
+        dir::TypePredicateSubject::This => "this".to_string(),
+        dir::TypePredicateSubject::Unresolved(name) => strings.get(name).to_string(),
+        dir::TypePredicateSubject::Symbol(symbol_id) => {
+            let module = modules.get(symbol_id.module_id);
+            let module = module.read();
+            let Some(dir) = module.dir_base_maybe() else {
+                return "<unknown>".to_string();
+            };
+            let symbols = dir.symbols.read();
+            let symbol = symbols.get_symbol(symbol_id.into_local());
+            symbol
+                .name()
+                .map(|name| strings.get(name).to_string())
+                .unwrap_or_else(|| "<anonymous>".to_string())
+        }
     }
 }
 
