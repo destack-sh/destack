@@ -97,6 +97,8 @@ pub struct ProfileKey {
     pub lib: Vec<String>,
     /// Debug flag exposed to `import.meta`.
     pub debug: bool,
+    /// Test flag exposed to `import.meta`.
+    pub test: bool,
     /// Comptime environment snapshot for `import.meta.env`.
     pub env: EnvSnapshot,
     /// Flags that affect semantic behavior.
@@ -182,6 +184,13 @@ impl EnvSnapshot {
         let hash = hash_env_entries(&entries);
         Self::Whitelist { keys, hash }
     }
+
+    /// Return the environment keys included in this snapshot.
+    pub fn keys(&self) -> &[String] {
+        match self {
+            Self::All { keys, .. } | Self::Whitelist { keys, .. } => keys,
+        }
+    }
 }
 
 impl From<&DsConfigCompilerOptions> for ProfileFlags {
@@ -219,6 +228,7 @@ impl ProfileKey {
         platform: Platform,
         lib: Vec<String>,
         debug: bool,
+        test: bool,
         env: EnvSnapshot,
         flags: ProfileFlags,
     ) -> Self {
@@ -228,6 +238,7 @@ impl ProfileKey {
             platform,
             lib,
             debug,
+            test,
             env,
             flags,
         }

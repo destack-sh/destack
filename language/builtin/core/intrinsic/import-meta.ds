@@ -6,10 +6,7 @@ export type Platform = "web"
     | "ios"
     | "android"
     | "wasi"
-    | "universal";;
-
-/// The output format the code is being compiled to.
-export type OutputFormat = "js" | "ts" | "wasm" | "native";;
+    | "universal";
 
 /// The runtime environment that will execute the code.
 export type Runtime = "browser"
@@ -22,7 +19,7 @@ export type Runtime = "browser"
     | "wasm-js"
     | "wasm-wasi"
     | "wasm-standalone"
-    | "destack";;
+    | "destack";
 
 /// Environment variables available at compile time.
 export interface ImportMetaEnv {
@@ -42,20 +39,24 @@ export interface ImportMetaEnv {
 export interface ImportMeta {
     /// The URL of the current module (file:// for local, https:// for remote).
     readonly url: string,
-    /// The file path of the current module (only for local files).
-    readonly file: string,
-    /// The directory containing the current module.
-    readonly dir: string,
+    /// The file system path of the current module (only for local files).
+    readonly path: string | undefined,
+    /// Alias of `path`.
+    readonly file: string | undefined,
+    /// Alias of `file`.
+    readonly filename: string | undefined,
+    /// The directory containing the current module (only for local files).
+    readonly dir: string | undefined,
+    /// Alias of `dir`.
+    readonly dirname: string | undefined,
     /// The target platform (OS) being compiled for.
     readonly platform: Platform,
-    /// The output format being compiled to.
-    readonly output: OutputFormat,
     /// The runtime environment that will execute the code.
     readonly runtime: Runtime,
     /// True if this is a debug/development build (from target.debug).
     readonly debug: boolean,
-    /// The compiler version.
-    readonly version: string,
+    /// True if this is a test build.
+    readonly test: boolean,
     /// Environment variables (from build configuration).
     readonly env: ImportMetaEnv,
 }

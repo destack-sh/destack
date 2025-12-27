@@ -1783,7 +1783,7 @@ Code using `Result` behaves identically on all targets.
 Code using `throw` for control flow will work differently; use `Result` instead.
 
 ### Using
-TODO #Incomplete: support `using` expressions
+nocheckin TODO #Incomplete: support `using` expressions
 
 `using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
 Resources must implement `Disposable` (sync) or `AsyncDisposable` (async):
