@@ -160,6 +160,8 @@ function identity<T>(value: T): T {
 identity: function [declaration]
 T: type_parameter [declaration]
 value: parameter [declaration]
+T: variable
+T: variable
 value: variable
 ```
 
@@ -193,7 +195,9 @@ map: function [declaration]
 K: type_parameter [declaration]
 V: type_parameter [declaration]
 key: parameter [declaration]
+K: variable
 value: parameter [declaration]
+V: variable
 void: type
 ```
 
