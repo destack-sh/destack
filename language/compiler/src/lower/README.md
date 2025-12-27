@@ -1283,6 +1283,31 @@ block0(v0: rawptr<@Drawable>):
 }
 ```
 
+**Interface field access:**
+
+Structural interfaces can include fields as well as methods. 
+Field access uses the same fat pointer representation, but the vtable also carries a field offset table for the interface's required fields (in declaration order). 
+The compiler emits offsets per (Type, Interface) pair.
+
+```ds
+interface Named { name: string }
+function show(n: Named) { n.name }
+```
+
+Lowers to:
+```mir
+type @Named = struct { rawptr<void>, rawptr<void> }
+
+function @show(v0: rawptr<@Named>) -> rawptr<void> {
+block0(v0: rawptr<@Named>):
+    v1 = field.get v0, 0       ; load objectPtr
+    v2 = field.get v0, 1       ; load vtablePtr
+    v3 = field.get v2, 1       ; load field offset for name (slot 1)
+    v4 = field.get v1, v3      ; load field at offset
+    return v4
+}
+```
+
 **Creating interface references:**
 
 ```
