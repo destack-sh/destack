@@ -133,8 +133,8 @@ A **target** represents a build output, with specific settings for code generati
 
 **Profile identity** is determined by:
 - `output`: OutputFormat (js, ts, wasm, native)
-- `runtime`: Runtime (browser, node, deno, bun, wasm-wasi, destack, etc.)
-- `platform`: Platform (web, windows, macos, linux, ios, android, etc.)
+- `runtime`: Runtime (browser, node, deno, bun, wasm-js, wasm-wasi, native-hosted, native-freestanding, native-embedded)
+- `platform`: Platform (web, windows, macos, linux, ios, android, wasi, bare-metal, universal)
 - `lib`: Normalized library set (e.g., `["esnext", "dom"]`)
 - `debug`: Debug flag (affects `import.meta.debug`)
 - `env`: Comptime environment snapshot (for `import.meta.env`)

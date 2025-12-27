@@ -45,11 +45,11 @@ impl ProfileConfig {
 pub struct ProfileConfigJson {
     /// Output format (js, ts, wasm, native).
     pub output: Option<OutputFormatJson>,
-    /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
+    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
     pub runtime: Option<String>,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (web, windows, macos, linux, ios, android, etc.).
+    /// Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).
     pub platform: Option<String>,
     /// Library files for this profile.
     pub lib: Option<Vec<String>>,

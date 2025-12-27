@@ -51,8 +51,8 @@ struct Target {
     name: string,
     output: OutputFormat,      // Js, Ts, Wasm, Native
     mode: OutputMode,          // Directory or File
-    platform: Platform,        // Browser, Node, Neutral
-    runtime: Runtime,          // Browser, Node, Bun, Deno, ...
+    platform: Platform,        // Web, Windows, MacOS, Linux, IOS, Android, Wasi, BareMetal, Universal
+    runtime: Runtime,          // Browser, Node, Bun, Deno, WasmJs, WasmWasi, NativeHosted, NativeFreestanding, NativeEmbedded
     runtimeVersion: string | null,
     optimize: boolean,
     optimizeLevel: OptimizeLevel,

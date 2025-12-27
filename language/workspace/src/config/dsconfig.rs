@@ -604,11 +604,11 @@ pub struct DsConfigTargetOptions {
     // output format
     /// Output format (js, ts, wasm, native).
     pub output: OutputFormat,
-    /// Runtime environment (browser, node, wasm-wasi, destack, etc.).
+    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (web, windows, macos, linux, ios, android, etc.).
+    /// Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).
     pub platform: Platform,
     /// Target triple for native codegen.
     /// This selects the ABI and CPU architecture for native targets.
@@ -1392,7 +1392,7 @@ pub struct DsConfigTargetJson {
     pub runtime: Option<String>,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).
+    /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, BareMetal, Universal).
     pub platform: Option<String>,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
