@@ -1,5 +1,7 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
@@ -8,6 +10,7 @@ use crate::mdtest::{
     run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
+use destack_source::MemoryFileSystem;
 
 /// Type of query test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -215,8 +218,45 @@ impl Suite for QuerySuite {
     }
 
     fn timeout(&self) -> Option<Duration> {
-        Some(Duration::from_secs(TEST_TIMEOUT_SECONDS))
+        // timeout is enforced by run_with_timeout
+        None
     }
+}
+
+#[derive(Debug)]
+struct SharedQueryEnvironment {
+    /// The shared test session.
+    session: Arc<destack_workspace::Session>,
+    /// The shared in-memory file system.
+    fs: Arc<MemoryFileSystem>,
+    /// The next unique test id.
+    next_id: AtomicUsize,
+}
+
+impl SharedQueryEnvironment {
+    /// Create a new shared environment for query tests.
+    fn new() -> Self {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let cwd = PathBuf::from("/test/query");
+        let session = Arc::new(destack_workspace::Session::new(cwd.clone()).with_fs(fs.clone()));
+        Self {
+            session,
+            fs,
+            next_id: AtomicUsize::new(0),
+        }
+    }
+
+    /// Allocate a unique root directory for a test case.
+    fn root_for(&self, test: &MdTestCase) -> PathBuf {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let section = slug(&test.section);
+        let name = slug(&test.name);
+        PathBuf::from("/test/query").join(format!("{section}-{name}-{id}"))
+    }
+}
+
+thread_local! {
+    static SHARED_QUERY_ENV: SharedQueryEnvironment = SharedQueryEnvironment::new();
 }
 
 /// Dispatch to the appropriate test runner based on test type.
@@ -228,7 +268,15 @@ fn run_query_test(test: &QueryTestCase) -> TestResult {
     }
 
     // create test session from markdown files
-    let session = QueryTestSession::from_mdtest(&test.base);
+    let session = SHARED_QUERY_ENV.with(|env| {
+        let root = env.root_for(&test.base);
+        QueryTestSession::from_mdtest_with_session(
+            &test.base,
+            env.session.clone(),
+            env.fs.clone(),
+            root,
+        )
+    });
 
     // determine query kind from expectations or markers
     let query_kind = test

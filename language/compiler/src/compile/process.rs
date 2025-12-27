@@ -1,5 +1,7 @@
 use std::cell::Cell;
+use std::sync::OnceLock;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::{
     AnalyzeError, BindError, Compiler, ElaborateError, EmitError, ExecuteError, GenerateError,
@@ -117,9 +119,23 @@ impl Compiler {
     fn step_task(&self, task_id: TaskId) {
         let handle = self.queue.get_task(task_id);
         self.queue.begin_work();
+
+        // process task
+        let started_at = Instant::now();
         self.queue.set_status(task_id, TaskStatus::Running);
         let outcome = self.process_task(&handle);
+
+        // handle outcome
+        let elapsed = started_at.elapsed();
+        if let Some(threshold) = slow_task_threshold()
+            && elapsed >= threshold
+        {
+            let args = handle.task.trace_args(&self.program);
+            let event = format!("{}.{}.slow", handle.phase().name(), handle.task.name());
+            tracing::info!(%event, %args, ?task_id, ?elapsed, "compile.task.slow");
+        }
         self.handle_outcome(task_id, outcome);
+
         self.queue.end_work();
     }
 
@@ -448,4 +464,22 @@ impl Compiler {
             .into(),
         }
     }
+}
+
+/// Read the slow task logging threshold from the environment.
+fn slow_task_threshold() -> Option<Duration> {
+    static THRESHOLD: OnceLock<Option<Duration>> = OnceLock::new();
+    *THRESHOLD.get_or_init(|| {
+        let value = std::env::var("DESTACK_SLOW_TASK_MS").ok()?;
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let ms: u64 = trimmed.parse().ok()?;
+        if ms == 0 {
+            None
+        } else {
+            Some(Duration::from_millis(ms))
+        }
+    })
 }
