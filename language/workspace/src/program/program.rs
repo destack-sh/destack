@@ -11,9 +11,9 @@ use indexmap::IndexMap;
 
 use crate::{
     ArtifactRegistry, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot, FormatterOptions,
-    LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleType, Package,
-    PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileFlags, ProfileId, ProfileKey,
-    ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
+    ImportMetaEnv, LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleType,
+    Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileFlags, ProfileId,
+    ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -458,7 +458,8 @@ impl Program {
             .unwrap_or_else(EnvSnapshot::from_env_all);
 
         let flags = ProfileFlags::from(compiler_options);
+        let (_, _, _, test) = ImportMetaEnv::mode_from_snapshot(&env, debug);
 
-        ProfileKey::new(runtime, platform, lib, debug, env, flags)
+        ProfileKey::new(runtime, platform, lib, debug, test, env, flags)
     }
 }
