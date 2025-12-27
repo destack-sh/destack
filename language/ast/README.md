@@ -60,3 +60,31 @@ class MyVisitor implements NodeVisitor {
     }
 }
 ```
+
+---
+
+## Pending
+
+None.
+
+## Missing
+
+- Add expression nodes for TS type forms (mirroring value counterparts where possible):
+- `Expression::TypeConditional { left, right, then_type, else_type }` for `T extends U ? X : Y` (aligned with `left/right` naming)
+- `Expression::TypeMapped { parameter, modifiers, value }` where `parameter` carries `name`, `constraint`, and optional `key_remap`
+- `Expression::TypeIndex { left, index }` for `T[K]` (aligned with `Expression::Index`, but type-only)
+- `Expression::TypeTemplateLiteral { strings, spans }` with `spans: Vec<LocalNodeId<Expression>>` for type interpolations
+- `Expression::TypeImport { target, qualifier }` for `import("mod").Type`
+- `Expression::TypeInfer { name, constraint }` for `infer T` bindings
+- `Expression::TypePredicate { asserts, subject, target }` for `x is T` and `asserts x is T`
+- `Expression::This` for `this` in both value and type contexts (avoid a separate `TypeThis`)
+- Keep `TypeUnary`/`TypeBinary` for operator-like constructs (`readonly`, `typeof`, `keyof`, `as`, `is`, `extends`, `implements`, etc.)
+- Add supporting structs/enums:
+- `TypeMappedModifiers { readonly: TypeModifier, optional: TypeModifier }`
+- `TypeModifier::Add | TypeModifier::Remove | TypeModifier::None` for `readonly/-readonly` and `?/-?`
+- `TypePredicateSubject::Identifier(StringId) | This`
+- Add tuple element modifiers for type tuples: extend `Argument` (or introduce `TupleElement`) to carry `readonly`, `?`, and `...` on `[readonly x?: T, ...U[]]` (likely via `BindingModifier`)
+- Add `this` parameter support in signatures: extend `FunctionSignature` with an optional `this_parameter`
+- Support call/construct signatures in type literals: allow `Property::Method` with `FunctionMode::Call/New` and `key: None` in type contexts
+- Add `intrinsic` as a type literal for TS builtin utility types (current intrinsic aliases: `Uppercase`, `Lowercase`, `Capitalize`, `Uncapitalize`, `NoInfer`, `BuiltinIteratorReturn`)
+- Update walkers/dumpers/visitors to traverse the new expression nodes and preserve spans/annotations

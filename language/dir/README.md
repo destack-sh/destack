@@ -121,3 +121,32 @@ For example, `a + b` where `a: int32` and `b: int32` resolves to `Builtin`.
 But `a.foo()` where `a: Cat | Dog` might resolve to `Dynamic` if `Cat::foo` and `Dog::foo` are different symbols.
 Polymorphic types might still resolve to `Static` even with vtable lookup: Resolution answers "what is the *symbol*?", not "how do we call it?".
 If we don't know the symbol at compile time, it's dynamic dispatch.
+
+---
+
+## Pending
+
+None.
+
+## Missing
+
+- Add `Type` variants mirroring TS constructs (aligned with AST naming):
+- `Type::Conditional { left, right, then_type, else_type }`
+- `Type::Mapped { parameter, modifiers, value }`
+- `Type::Index { left, index }`
+- `Type::TemplateLiteral { strings, spans }`
+- `Type::Import { target, qualifier }`
+- `Type::InferBinding { name, constraint }` (distinct from `InferVar`)
+- `Type::Predicate { asserts, subject, target }`
+- `Type::This`
+- Keep `Type::Unary`/`Type::Binary` for operator-like constructs (`readonly`, `typeof`, `keyof`, `as`, `is`, `extends`, `implements`, etc.)
+- Supporting structs/enums:
+- `TypeMappedParameter { name, constraint, key_remap }`
+- `TypeMappedModifiers { readonly, optional }` with `TypeModifier` states
+- `TypePredicateSubject::Symbol(GlobalSymbolId) | This`
+- Extend DIR expression nodes to carry the new AST type forms in base DIR so Resolve/Analyze can later lower them into `Type` entries
+- Extend `TypeField` or add a mapped-field representation to keep optional/readonly semantics and key remapping intact
+- Add tuple element metadata in the type table (readonly/optional/rest) for TS tuple types
+- Carry `this` parameters in function signatures within DIR so type predicates and `this` typing can round-trip
+- Represent call/construct signatures in type literals with explicit function signature nodes, not just fields
+- Add `TypeLiteral::Intrinsic` to represent TS `intrinsic` type aliases (current intrinsic aliases: `Uppercase`, `Lowercase`, `Capitalize`, `Uncapitalize`, `NoInfer`, `BuiltinIteratorReturn`)

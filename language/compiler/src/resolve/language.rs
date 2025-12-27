@@ -74,9 +74,16 @@ impl Compiler {
         builtins.set_ambient_libs(profile_id, ambient_modules);
 
         // prepare modules in order
+        for module_ids in &modules_to_resolve {
+            for &module_id in module_ids {
+                self.require_resolve_module_prepare(module_id, profile_id)?;
+            }
+        }
+
+        // resolve lib module symbols for ambient lookups
         for module_ids in modules_to_resolve {
             for module_id in module_ids {
-                self.require_resolve_module_prepare(module_id, profile_id)?;
+                self.require_resolve_module_direct(module_id, profile_id)?;
             }
         }
 
