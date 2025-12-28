@@ -54,6 +54,7 @@ impl Compiler {
             AnalyzeTask::AnalyzeModuleValidate { module, profile } => {
                 self.require_analyze_module_infer(module, profile)?;
                 self.analyze_module_validate(module, profile)?;
+                self.stats.record_analyze();
             }
         }
         Ok(())

@@ -71,21 +71,42 @@ impl DiagnosticFormat for PackageId {
 
 impl DiagnosticFormat for TargetId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        format!(
-            "{}:{}",
-            self.package_id.diagnostic_fmt(program),
-            self.name.diagnostic_fmt(program)
-        )
+        // just show target name for brevity (package context is usually clear)
+        self.name.diagnostic_fmt(program)
     }
 }
 
 impl DiagnosticFormat for ProfileId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
-        program
-            .profiles
-            .get(*self)
-            .map(|p| p.id.to_string())
-            .unwrap_or_else(|| format!("#{}", self.0))
+        let Some(profile) = program.profiles.get(*self) else {
+            return format!("#{}", self.0);
+        };
+
+        // build a short summary: "runtime[+lib...][(flags)]"
+        let key = &profile.key;
+        let runtime = format!("{:?}", key.runtime).to_lowercase();
+
+        // include first lib if different from runtime-implied default
+        let lib_summary = if key.lib.is_empty() {
+            String::new()
+        } else if key.lib.len() == 1 {
+            format!("+{}", key.lib[0])
+        } else {
+            format!("+{}+...", key.lib[0])
+        };
+
+        // include mode flags
+        let flags = if key.debug && key.test {
+            "(debug,test)"
+        } else if key.debug {
+            "(debug)"
+        } else if key.test {
+            "(test)"
+        } else {
+            ""
+        };
+
+        format!("{runtime}{lib_summary}{flags}")
     }
 }
 

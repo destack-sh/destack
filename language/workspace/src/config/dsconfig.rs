@@ -655,7 +655,7 @@ pub struct DsConfigTargetOptions {
     pub relocation_model: RelocationModel,
     /// Link mode for native targets.
     pub link_mode: LinkMode,
-    /// Emit declaration files (.d.ts) alongside JS output.
+    /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
     /// Emit source maps.
     pub source_map: bool,
@@ -1457,7 +1457,7 @@ pub struct DsConfigTargetJson {
     pub relocation_model: Option<RelocationModelJson>,
     /// Link mode.
     pub link_mode: Option<LinkModeJson>,
-    /// Emit declaration files (.d.ts) alongside JS output.
+    /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     #[serde(default)]
     pub declaration: bool,
     /// Emit source maps.

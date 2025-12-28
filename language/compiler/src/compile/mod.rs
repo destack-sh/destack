@@ -6,6 +6,7 @@ mod event;
 mod format;
 mod process;
 mod queue;
+mod stats;
 mod task;
 mod warning;
 
@@ -16,5 +17,6 @@ pub use error::*;
 pub use event::*;
 pub use format::*;
 pub use queue::*;
+pub use stats::*;
 pub use task::*;
 pub use warning::*;

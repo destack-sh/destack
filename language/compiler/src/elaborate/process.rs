@@ -53,6 +53,7 @@ impl Compiler {
             }
             ElaborateTask::ElaborateModuleReify { module, profile } => {
                 self.elaborate_module_reify_phase(module, profile)?;
+                self.stats.record_elaborate();
             }
         }
         Ok(())

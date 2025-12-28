@@ -165,6 +165,16 @@ impl ProfileRegistry {
     pub fn get(&self, id: ProfileId) -> Option<Profile> {
         self.profile_by_id.get(&id).map(|entry| entry.clone())
     }
+
+    /// Get the number of registered profiles.
+    pub fn len(&self) -> usize {
+        self.profile_by_id.len()
+    }
+
+    /// Check if the registry is empty.
+    pub fn is_empty(&self) -> bool {
+        self.profile_by_id.is_empty()
+    }
 }
 
 impl EnvSnapshot {

@@ -35,6 +35,7 @@ impl Compiler {
             }
             BindTask::BindModuleDesugar { module } => {
                 self.bind_module_desugar_phase(module)?;
+                self.stats.record_bind();
             }
             BindTask::BindModuleValidate { module } => {
                 self.bind_module_validate(module)?;

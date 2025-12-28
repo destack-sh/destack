@@ -78,6 +78,7 @@ impl Compiler {
             ResolveTask::ResolveModuleCanonical { module, profile } => {
                 self.require_resolve_module_direct(module, profile)?;
                 self.resolve_module_canonical(module, profile)?;
+                self.stats.record_resolve();
             }
         }
         Ok(())

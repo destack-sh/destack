@@ -35,9 +35,14 @@ impl Compiler {
         }
 
         // get module info
-        let (file_id, path, uri) = {
+        let (file_id, path, uri, package_id) = {
             let module = module.read();
-            (module.file_id, module.path.clone(), module.uri.clone())
+            (
+                module.file_id,
+                module.path.clone(),
+                module.uri.clone(),
+                module.package_id,
+            )
         };
 
         // load file if not already loaded
@@ -77,6 +82,12 @@ impl Compiler {
         let mut parser = Parser::lex_file(file.clone(), language_type);
         let expressions = parser.parse();
         self.program.diagnostics.merge_from(&parser.diagnostics);
+
+        // record stats
+        self.stats.record_parse();
+        self.stats
+            .record_lines(package_id, file.line_count() as usize);
+        self.stats.record_module_for_package(package_id);
 
         // update module with AST
         let mut module = module.write();
