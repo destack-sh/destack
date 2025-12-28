@@ -4,7 +4,7 @@ use destack_workspace::ProfileId;
 
 use crate::{Compiler, ElaborateResult};
 
-// nocheckin TODO #Incomplete: elaborate reify (ranges, trees, types-as-values/comptime, ...)
+// FUGU #Incomplete: elaborate reify (ranges, trees, types-as-values/comptime, ...)
 
 impl Compiler {
     /// Reify a module to make abstractions concrete:

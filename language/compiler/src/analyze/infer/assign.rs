@@ -53,7 +53,7 @@ impl Compiler {
         types: &TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        // nocheckin #Incomplete: normalize type-level constructs (for assignability, ..) #TypeNormalization
+        // FUGU #Incomplete: normalize type-level constructs (for assignability, ..) #TypeNormalization
         // handle special target types first
         match target {
             Type::InferVar { .. } => return Assignability::Assignable,

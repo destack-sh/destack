@@ -11,7 +11,7 @@ pub enum StaticKey {
     /// Unique symbol expression (like `const x = Symbol("x");`).
     UniqueSymbol(LocalNodeIdAny),
     /// Global symbol key (like `Symbol.iterator`).
-    /// nocheckin: support intrinsic/well-known Symbols
+    /// FUGU: support intrinsic/well-known Symbols
     /// (and maybe also use intrinsic symbols for intrinsic operator intefaces..? Symbol.add, ..)
     GlobalSymbol(StringId),
 }

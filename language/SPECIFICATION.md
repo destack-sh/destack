@@ -559,7 +559,7 @@ if (result.ok) {
 
 ## Comptime
 
-<!-- nocheckin: define "trivial comptime" vs "MIR comptime" -->
+<!-- FUGU: define "trivial comptime" vs "MIR comptime" -->
  <!-- (executable to StaticExpression for instancing / static arguments, ..?) -->
 
 Destack supports compile-time evaluation via the `comptime` keyword, inspired by Zig.
@@ -1998,7 +1998,7 @@ Code using `Result` behaves identically on all targets.
 Code using `throw` for control flow will work differently; use `Result` instead.
 
 ### Using
-<!-- nocheckin TODO #Incomplete: support `using` expressions -->
+<!-- FUGU #Incomplete: support `using` expressions -->
 <!-- (how does using relate with the TS using, our native stuff, and Symbol.dispose, and Try/Result/..?) -->
 
 `using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
