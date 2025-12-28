@@ -1,6 +1,7 @@
 //! Output formatting for diagnostics.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use destack_parser::source_colorizer;
 use destack_source::{
@@ -23,6 +24,8 @@ pub enum DiagnosticFormat {
     Github,
 }
 
+pub type LineWriter = Arc<dyn Fn(&str) + Send + Sync>;
+
 /// Options for output formatting.
 #[derive(Debug, Clone, Default)]
 pub struct FormatOptions {
@@ -34,6 +37,8 @@ pub struct FormatOptions {
     pub max_warnings: Option<usize>,
     /// Whether to show statistics.
     pub statistics: bool,
+    /// Suppress diagnostic output entirely.
+    pub suppress_diagnostics: bool,
 }
 
 /// Diagnostic output for JSON serialization.
@@ -73,6 +78,16 @@ pub fn format_diagnostics(
     options: &FormatOptions,
     module_count: usize,
 ) -> FormatResult {
+    format_diagnostics_with_writer(files, diagnostics, options, module_count, None)
+}
+
+pub fn format_diagnostics_with_writer(
+    files: &FileRegistry,
+    diagnostics: &DiagnosticCollection,
+    options: &FormatOptions,
+    module_count: usize,
+    line_writer: Option<&LineWriter>,
+) -> FormatResult {
     // filter diagnostics based on quiet mode
     let filtered: Vec<Diagnostic> = if options.quiet {
         diagnostics
@@ -90,22 +105,30 @@ pub fn format_diagnostics(
     let warning_count = *counts.get(&DiagnosticSeverity::Warning).unwrap_or(&0);
     let note_count = *counts.get(&DiagnosticSeverity::Note).unwrap_or(&0);
 
-    match options.format {
-        DiagnosticFormat::Text => {
-            print_text(files, &filtered, module_count, options.statistics);
-        }
-        DiagnosticFormat::Json => {
-            print_json(
-                files,
-                &filtered,
-                error_count,
-                warning_count,
-                note_count,
-                options,
-            );
-        }
-        DiagnosticFormat::Github => {
-            print_github(files, &filtered);
+    if !options.suppress_diagnostics {
+        match options.format {
+            DiagnosticFormat::Text => {
+                print_text(
+                    files,
+                    &filtered,
+                    module_count,
+                    options.statistics,
+                    line_writer,
+                );
+            }
+            DiagnosticFormat::Json => {
+                print_json(
+                    files,
+                    &filtered,
+                    error_count,
+                    warning_count,
+                    note_count,
+                    options,
+                );
+            }
+            DiagnosticFormat::Github => {
+                print_github(files, &filtered);
+            }
         }
     }
 
@@ -149,12 +172,18 @@ fn print_text(
     diagnostics: &[Diagnostic],
     module_count: usize,
     show_statistics: bool,
+    line_writer: Option<&LineWriter>,
 ) {
     let print_options = PrintOptions::new()
         .with_line_width(100)
         .with_module_count(module_count)
         .with_colorizer(source_colorizer())
         .with_skip_summary(true);
+    let print_options = if let Some(writer) = line_writer.cloned() {
+        print_options.with_line_writer(writer)
+    } else {
+        print_options
+    };
 
     // create a temporary collection for the print function
     let mut collection = DiagnosticCollection::new();
@@ -165,7 +194,7 @@ fn print_text(
     print_diagnostics_impl(files, &collection, print_options);
 
     if show_statistics && !diagnostics.is_empty() {
-        print_statistics(diagnostics);
+        print_statistics(diagnostics, line_writer);
     }
 }
 
@@ -279,14 +308,14 @@ struct DiagnosticStatistic {
 }
 
 /// Print statistics grouped by rule.
-fn print_statistics(diagnostics: &[Diagnostic]) {
+fn print_statistics(diagnostics: &[Diagnostic], line_writer: Option<&LineWriter>) {
     let stats = compute_statistics(diagnostics);
     if stats.is_empty() {
         return;
     }
 
-    eprintln!();
-    eprintln!("{}", console::bold("Statistics by rule:"));
+    write_line(line_writer, "");
+    write_line(line_writer, &console::bold("Statistics by rule:"));
 
     for stat in stats {
         let severity_color = match stat.severity.as_str() {
@@ -295,7 +324,10 @@ fn print_statistics(diagnostics: &[Diagnostic]) {
             _ => "34",         // blue
         };
         let colored_code = console::color(&stat.code, severity_color);
-        eprintln!("  {}: {} occurrence(s)", colored_code, stat.count);
+        write_line(
+            line_writer,
+            &format!("  {}: {} occurrence(s)", colored_code, stat.count),
+        );
     }
 }
 
@@ -331,4 +363,12 @@ fn count_by_severity(diagnostics: &[Diagnostic]) -> BTreeMap<DiagnosticSeverity,
         *counts.entry(d.severity).or_insert(0) += 1;
     }
     counts
+}
+
+fn write_line(line_writer: Option<&LineWriter>, line: &str) {
+    if let Some(writer) = line_writer {
+        writer(line);
+    } else {
+        eprintln!("{line}");
+    }
 }

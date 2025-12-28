@@ -37,6 +37,10 @@ pub struct LintArgs {
     #[arg(long, short = 'q')]
     pub quiet: bool,
 
+    /// Suppress diagnostics output, still print the summary line in text mode.
+    #[arg(long = "no-diagnostics")]
+    pub no_diagnostics: bool,
+
     /// Exit with error if warning count exceeds this threshold.
     #[arg(long = "max-warnings", value_name = "N")]
     pub max_warnings: Option<usize>,
@@ -70,6 +74,7 @@ pub fn run(args: &LintArgs) -> i32 {
         no_lint: false, // lint always includes linting
         format: args.format,
         quiet: args.quiet,
+        no_diagnostics: args.no_diagnostics,
         max_warnings: args.max_warnings,
         statistics: args.statistics,
         progress: args.progress,

@@ -5,7 +5,8 @@ use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
 use destack_source::{DiagnosticOptions, DiffOptions, FileId, ModuleId, print_diff};
 use destack_workspace::Program;
 
-use crate::common::format::{FormatOptions, format_diagnostics};
+use crate::common::LineWriter;
+use crate::common::format::{FormatOptions, format_diagnostics_with_writer};
 use crate::console;
 
 /// Options for fix behavior.
@@ -33,6 +34,7 @@ pub fn run_with_fixes(
     diagnostic_options: &DiagnosticOptions,
     fix_options: &FixOptions,
     format_options: &FormatOptions,
+    line_writer: Option<&LineWriter>,
 ) -> FixResult {
     let linter_options = program.linter.clone();
     let runner = LintRunner::from_options(&linter_options).with_fixes(true);
@@ -81,7 +83,13 @@ pub fn run_with_fixes(
     if !unfixable.is_empty() {
         let collection = to_diagnostic_collection(&unfixable);
         let mapped = collection.map(diagnostic_options);
-        let _ = format_diagnostics(&program.files, &mapped, format_options, modules.len());
+        let _ = format_diagnostics_with_writer(
+            &program.files,
+            &mapped,
+            format_options,
+            modules.len(),
+            line_writer,
+        );
     }
 
     // report issues that should have had fixes but didn't
@@ -93,7 +101,13 @@ pub fn run_with_fixes(
     if !fixable_without_fix.is_empty() {
         let collection = to_diagnostic_collection(&fixable_without_fix);
         let mapped = collection.map(diagnostic_options);
-        let _ = format_diagnostics(&program.files, &mapped, format_options, modules.len());
+        let _ = format_diagnostics_with_writer(
+            &program.files,
+            &mapped,
+            format_options,
+            modules.len(),
+            line_writer,
+        );
     }
 
     let unfixable_count = unfixable.len() + fixable_without_fix.len();

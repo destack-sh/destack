@@ -386,21 +386,3 @@ impl StatsSnapshot {
         }
     }
 }
-
-impl std::fmt::Display for StatsSnapshot {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let modules = self.modules_processed();
-        let elapsed_secs = self.elapsed.as_secs_f64();
-        let module_word = if modules == 1 { "module" } else { "modules" };
-
-        if self.tasks_failed > 0 {
-            write!(
-                f,
-                "Checked {modules} {module_word} ({} failed) in {elapsed_secs:.2}s",
-                self.tasks_failed
-            )
-        } else {
-            write!(f, "Checked {modules} {module_word} in {elapsed_secs:.2}s")
-        }
-    }
-}
