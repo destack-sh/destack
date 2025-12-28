@@ -29,8 +29,8 @@ pub struct SingleInputArgs {
     pub eval: Option<String>,
 
     /// Source format (ds|ts|tsx|js|jsx, default: ds).
-    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
-    pub format: Option<String>,
+    #[arg(id = "source_type", long = "type", value_name = "TYPE")]
+    pub source_type: Option<String>,
 }
 
 impl SingleInputArgs {
@@ -39,7 +39,7 @@ impl SingleInputArgs {
         if let Some(ref path) = self.file {
             Ok(InputSource::File(path.clone()))
         } else if let Some(ref code) = self.eval {
-            let extension = self.format.as_deref().unwrap_or("ds");
+            let extension = self.source_type.as_deref().unwrap_or("ds");
             Ok(InputSource::Inline {
                 code: code.clone(),
                 name: format!("<eval>.{extension}"),
@@ -51,7 +51,7 @@ impl SingleInputArgs {
 
     /// Get the file type from format argument.
     pub fn file_type(&self) -> FileType {
-        let format_name = self.format.as_deref().unwrap_or("ds");
+        let format_name = self.source_type.as_deref().unwrap_or("ds");
         FileType::from_extension_or_unknown(format_name)
     }
 }
@@ -67,9 +67,9 @@ pub struct InputArgs {
     #[arg(short = 'e', long = "eval")]
     pub eval: Vec<String>,
 
-    /// Named module as name=code (can be specified multiple times).
-    /// Example: --module 'foo=export const x = 1' creates foo.ds
-    /// Include extension to override: --module 'bar.ts=const x: number = 1'
+    /// Named module as name:code (can be specified multiple times).
+    /// Example: --module 'foo:export const x = 1' creates foo.ds
+    /// Include extension to override: --module 'bar.ts:const x: number = 1'
     #[arg(short = 'm', long = "module")]
     pub module: Vec<String>,
 
@@ -78,15 +78,20 @@ pub struct InputArgs {
     pub stdin: bool,
 
     /// Source format for --eval/--stdin (ds|ts|tsx|js|jsx, default: ds).
-    #[arg(long = "type", alias = "format", value_name = "FORMAT")]
-    pub format: Option<String>,
+    #[arg(id = "source_type", long = "type", value_name = "TYPE")]
+    pub source_type: Option<String>,
 }
 
 impl InputArgs {
+    /// Check if any input was provided.
+    pub fn has_input(&self) -> bool {
+        !self.files.is_empty() || !self.eval.is_empty() || !self.module.is_empty() || self.stdin
+    }
+
     /// Convert arguments to input sources.
     pub fn to_sources(&self) -> Result<Vec<InputSource>, String> {
         let mut sources = Vec::new();
-        let default_extension = self.format.as_deref().unwrap_or("ds");
+        let default_extension = self.source_type.as_deref().unwrap_or("ds");
 
         // files first
         for path in &self.files {
@@ -123,7 +128,7 @@ impl InputArgs {
 
     /// Get the file type from format argument.
     pub fn file_type(&self) -> FileType {
-        let format_name = self.format.as_deref().unwrap_or("ds");
+        let format_name = self.source_type.as_deref().unwrap_or("ds");
         FileType::from_extension_or_unknown(format_name)
     }
 }
@@ -196,21 +201,21 @@ fn load_string(program: &Program, code: &str, name: &str) -> Result<Arc<File>, S
     Ok(program.files.get(file_id))
 }
 
-/// Parse a --module argument in `name=code` format.
+/// Parse a --module argument in `name:code` format.
 ///
 /// - Auto-appends default extension if none provided
 /// - Returns error if format is invalid
 ///
 /// Examples:
-/// - `foo=export const x = 1` → ("foo.ds", "export const x = 1")
-/// - `bar.ts=const x: number = 1` → ("bar.ts", "const x: number = 1")
+/// - `foo:export const x = 1` → ("foo.ds", "export const x = 1")
+/// - `bar.ts:const x: number = 1` → ("bar.ts", "const x: number = 1")
 fn parse_module_arg(arg: &str, default_extension: &str) -> Result<(String, String), String> {
-    let eq_pos = arg
-        .find('=')
-        .ok_or_else(|| format!("invalid --module format: expected 'name=code', got '{arg}'"))?;
+    let colon_pos = arg
+        .find(':')
+        .ok_or_else(|| format!("invalid --module format: expected 'name:code', got '{arg}'"))?;
 
-    let name_part = &arg[..eq_pos];
-    let code = arg[eq_pos + 1..].to_string();
+    let name_part = &arg[..colon_pos];
+    let code = arg[colon_pos + 1..].to_string();
 
     if name_part.is_empty() {
         return Err("invalid --module format: name cannot be empty".to_string());

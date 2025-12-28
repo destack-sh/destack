@@ -1,10 +1,112 @@
 use clap::{Args, ValueEnum};
+use destack_compiler::StatsSnapshot;
 use destack_source::{DiagnosticOptions, ModuleId};
 
 use crate::common::fix::{FixOptions, run_with_fixes};
 use crate::common::format::{DiagnosticFormat, FormatOptions, format_diagnostics};
-use crate::common::{CompilerContext, CompilerMode, DiagnosticArgs, InputArgs, ProgramArgs};
+use crate::common::{
+    CompilerContext, CompilerMode, DiagnosticArgs, InputArgs, ProgramArgs, ProgressMode,
+    ProgressReporter, is_tty,
+};
 use crate::console;
+
+/// Summary info for stats output.
+#[derive(Debug)]
+pub struct StatsSummary<'a> {
+    /// Action verb to display (e.g., "Checked", "Built", "Linted").
+    pub verb: &'a str,
+    /// Number of modules processed.
+    pub modules: usize,
+    /// Number of profiles used.
+    pub profiles: usize,
+    /// Number of targets built.
+    pub targets: usize,
+    /// Number of errors found.
+    pub errors: usize,
+    /// Number of warnings found.
+    pub warnings: usize,
+}
+
+/// Print a stats summary line after diagnostics.
+///
+/// Outputs a line like "Checked 5 modules (1,234 lines) in 0.42s" or
+/// "Built 3 modules, 2 targets (1 error) in 1.23s".
+pub fn print_stats_summary(summary: &StatsSummary<'_>, stats: &StatsSnapshot) {
+    let elapsed = stats.elapsed.as_secs_f64();
+
+    // counts: "N modules[, M profiles][, K targets]"
+    let mut parts = Vec::new();
+    parts.push(pluralize(summary.modules, "module"));
+    if summary.profiles > 1 {
+        parts.push(pluralize(summary.profiles, "profile"));
+    }
+    if summary.targets > 0 {
+        parts.push(pluralize(summary.targets, "target"));
+    }
+    let counts = parts.join(", ");
+
+    // line count
+    let lines = if stats.lines_processed > 0 {
+        format!(" ({} lines)", format_number(stats.lines_processed))
+    } else {
+        String::new()
+    };
+
+    // colorize verb based on status
+    let (verb, status) = if summary.errors > 0 {
+        let error_text = console::red(&pluralize(summary.errors, "error"));
+        (console::red(summary.verb), format!(" with {error_text}"))
+    } else if summary.warnings > 0 {
+        let warning_text = console::yellow(&pluralize(summary.warnings, "warning"));
+        (
+            console::green(summary.verb),
+            format!(" with {warning_text}"),
+        )
+    } else {
+        (console::green(summary.verb), String::new())
+    };
+
+    eprintln!("{verb} {counts}{lines}{status} in {elapsed:.2}s");
+
+    // show per-package breakdown if multiple packages
+    if stats.packages.len() > 1 {
+        // sort by lines descending
+        let mut packages = stats.packages.clone();
+        packages.sort_by(|a, b| b.lines.cmp(&a.lines));
+
+        for pkg in &packages {
+            let name = pkg.name.as_deref().unwrap_or("<anonymous>");
+            let pkg_lines = format_number(pkg.lines);
+            eprintln!(
+                "       {} in {} ({} lines)",
+                pluralize(pkg.modules, "module"),
+                console::dim(name),
+                pkg_lines
+            );
+        }
+    }
+}
+
+/// Format a number with thousands separators.
+fn format_number(n: usize) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
+}
+
+fn pluralize(n: usize, word: &str) -> String {
+    if n == 1 {
+        format!("{n} {word}")
+    } else {
+        format!("{n} {word}s")
+    }
+}
 
 /// Output format for diagnostics.
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -26,6 +128,20 @@ impl From<Format> for DiagnosticFormat {
             Format::Github => DiagnosticFormat::Github,
         }
     }
+}
+
+/// Progress display mode.
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum Progress {
+    /// Auto-detect: show progress on TTY, hide otherwise.
+    #[default]
+    Auto,
+    /// Always show progress spinner.
+    On,
+    /// Never show progress.
+    Off,
+    /// Show detailed progress with task counts.
+    Detailed,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -73,6 +189,10 @@ pub struct CheckArgs {
     /// Show statistics grouped by rule.
     #[arg(long)]
     pub statistics: bool,
+
+    /// Show progress indicator (auto, on, off, detailed).
+    #[arg(long, value_enum, default_value = "auto")]
+    pub progress: Progress,
 }
 
 /// Check source files for type errors and lint issues.
@@ -86,6 +206,29 @@ pub fn run(args: &CheckArgs) -> i32 {
         console::warn("--fix and --diff have no effect with --no-lint");
     }
 
+    // determine progress mode
+    let progress_mode = match args.progress {
+        Progress::Auto => {
+            // Show progress on TTY unless quiet mode, JSON output, or stdin input
+            if is_tty()
+                && !args.quiet
+                && !args.input.stdin
+                && !matches!(args.format, Format::Json | Format::Github)
+            {
+                ProgressMode::Spinner
+            } else {
+                ProgressMode::None
+            }
+        }
+        Progress::On => ProgressMode::Spinner,
+        Progress::Off => ProgressMode::None,
+        Progress::Detailed => ProgressMode::Detailed,
+    };
+
+    // create progress reporter
+    let progress_reporter = ProgressReporter::new(progress_mode);
+    let event_handler = progress_reporter.as_ref().map(|p| p.handler());
+
     // when --fix or --diff, run linting manually via run_with_fixes (to get actual fixes)
     // otherwise, run linting through the compiler
     let mode = if args.no_lint || args.fix || args.diff {
@@ -93,8 +236,8 @@ pub fn run(args: &CheckArgs) -> i32 {
     } else {
         CompilerMode::Lint
     };
-    let context = CompilerContext::new(&args.program, &args.diagnostics, mode);
-    let sources = match context.load_sources(&args.input) {
+    let context = CompilerContext::new(&args.program, &args.diagnostics, mode, event_handler);
+    let sources = match context.load_sources_for(&args.input, "check") {
         Ok(s) => s,
         Err(code) => return code,
     };
@@ -176,6 +319,20 @@ pub fn run(args: &CheckArgs) -> i32 {
         &format_options,
         module_count,
     );
+
+    // print stats summary (text format only)
+    if matches!(args.format, Format::Text) {
+        let profile_count = compile_result.program.profiles.len();
+        let summary = StatsSummary {
+            verb: "Checked",
+            modules: module_count,
+            profiles: profile_count,
+            targets: 0, // check doesn't build targets
+            errors: result.error_count,
+            warnings: result.warning_count,
+        };
+        print_stats_summary(&summary, &compile_result.stats);
+    }
 
     if result.max_warnings_exceeded {
         console::warn(&format!(

@@ -2,12 +2,36 @@ use std::fmt;
 use std::io::Read;
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, GenerateTask, LintTask};
+use destack_compiler::{
+    AnalyzeTask, Compiler, CompilerEventHandler, CompilerOptions, GenerateTask, LintTask,
+    StatsSnapshot,
+};
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
 use destack_workspace::{Program, Session, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
+
+/// Print helpful message when no input is provided.
+pub fn print_no_input_help(command: &str) {
+    console::error("error: no input files provided");
+    eprintln!();
+    eprintln!("{}:", console::bold("Usage"));
+    eprintln!("  destack {command} <FILES>...       Process files or directories");
+    eprintln!("  destack {command} -e '<CODE>'      Process inline code");
+    eprintln!("  destack {command} --stdin          Process code from stdin");
+    eprintln!();
+    eprintln!("{}:", console::bold("Examples"));
+    eprintln!("  destack {command} src/             Process all files in src/");
+    eprintln!("  destack {command} *.ts             Process all TypeScript files");
+    eprintln!("  destack {command} -e 'const x = 1' Process inline expression");
+    eprintln!("  echo 'const x = 1' | destack {command} --stdin");
+    eprintln!();
+    eprintln!(
+        "For more information, try '{}'",
+        console::dim(&format!("destack {command} --help"))
+    );
+}
 
 /// How deeply to compile modules.
 #[derive(Debug, Clone, Default)]
@@ -53,12 +77,12 @@ impl fmt::Debug for CompilerContext {
 impl CompilerContext {
     /// Create a new compilation context for type checking.
     pub fn for_check(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
-        Self::new(program_args, diagnostic_args, CompilerMode::Check)
+        Self::new(program_args, diagnostic_args, CompilerMode::Check, None)
     }
 
     /// Create a new compilation context for linting.
     pub fn for_lint(program_args: &ProgramArgs, diagnostic_args: &DiagnosticArgs) -> Self {
-        Self::new(program_args, diagnostic_args, CompilerMode::Lint)
+        Self::new(program_args, diagnostic_args, CompilerMode::Lint, None)
     }
 
     /// Create a new compilation context for building a target.
@@ -71,7 +95,18 @@ impl CompilerContext {
             program_args,
             diagnostic_args,
             CompilerMode::Build { target },
+            None,
         )
+    }
+
+    /// Create a new compilation context with progress reporting.
+    pub fn with_progress(
+        program_args: &ProgramArgs,
+        diagnostic_args: &DiagnosticArgs,
+        mode: CompilerMode,
+        event_handler: CompilerEventHandler,
+    ) -> Self {
+        Self::new(program_args, diagnostic_args, mode, Some(event_handler))
     }
 
     /// Create a new compilation context with the given mode.
@@ -79,6 +114,7 @@ impl CompilerContext {
         program_args: &ProgramArgs,
         diagnostic_args: &DiagnosticArgs,
         mode: CompilerMode,
+        event_handler: Option<CompilerEventHandler>,
     ) -> Self {
         let diagnostic_options: DiagnosticOptions = diagnostic_args.clone().into();
         let session = program_args.setup();
@@ -97,6 +133,10 @@ impl CompilerContext {
             CompilerOptions {
                 diagnostic: diagnostic_options.clone(),
                 workers: program_args.workers,
+                load_libs: !program_args.no_libs,
+                inject_prelude: !program_args.no_prelude,
+                follow_imports: !program_args.no_follow_imports,
+                event_handler,
                 ..Default::default()
             },
         );
@@ -111,11 +151,20 @@ impl CompilerContext {
 
     /// Load sources from input args, returning an error message on failure.
     pub fn load_sources(&self, input: &InputArgs) -> Result<Vec<InputSource>, i32> {
+        self.load_sources_for(input, "check")
+    }
+
+    /// Load sources from input args with a specific command name for error messages.
+    pub fn load_sources_for(
+        &self,
+        input: &InputArgs,
+        command: &str,
+    ) -> Result<Vec<InputSource>, i32> {
         match input.to_sources() {
             Ok(sources) => Ok(sources),
             Err(e) => {
-                if input.files.is_empty() && input.eval.is_empty() && !input.stdin {
-                    console::error("error: no input provided");
+                if !input.has_input() {
+                    print_no_input_help(command);
                 } else {
                     console::error(&format!("error: {e}"));
                 }
@@ -207,10 +256,15 @@ impl CompilerContext {
     /// Run the compiler.
     pub fn compile(self) -> CompileResult {
         self.compiler.compile();
+        let stats = self
+            .compiler
+            .stats
+            .snapshot_with_program(self.program.modules.len(), Some(&self.program));
         drop(self.compiler);
         CompileResult {
             program: self.program,
             diagnostic_options: self.diagnostic_options,
+            stats,
         }
     }
 
@@ -221,11 +275,21 @@ impl CompilerContext {
     }
 
     /// Create a compile result (for diagnostics).
+    /// Get stats snapshot (before consuming the compiler).
+    pub fn stats(&self) -> StatsSnapshot {
+        self.compiler
+            .stats
+            .snapshot_with_program(self.program.modules.len(), Some(&self.program))
+    }
+
+    /// Convert to a CompileResult, consuming self.
     pub fn into_result(self) -> CompileResult {
+        let stats = self.stats();
         drop(self.compiler);
         CompileResult {
             program: self.program,
             diagnostic_options: self.diagnostic_options,
+            stats,
         }
     }
 }
@@ -236,6 +300,8 @@ pub struct CompileResult {
     pub program: Arc<Program>,
     /// The diagnostic options.
     pub diagnostic_options: DiagnosticOptions,
+    /// Compilation statistics.
+    pub stats: StatsSnapshot,
 }
 
 impl fmt::Debug for CompileResult {
@@ -243,6 +309,7 @@ impl fmt::Debug for CompileResult {
         f.debug_struct("CompileResult")
             .field("program", &self.program)
             .field("diagnostic_options", &self.diagnostic_options)
+            .field("stats", &self.stats)
             .finish()
     }
 }

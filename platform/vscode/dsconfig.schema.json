@@ -1285,7 +1285,7 @@
           ]
         },
         "declaration": {
-          "description": "Emit declaration files (.d.ts) alongside JS output.",
+          "description": "Emit declaration files (e.g., `.d.ts` alongside `.js` output).",
           "type": "boolean",
           "default": false
         },

@@ -126,6 +126,26 @@ pub fn bold(text: &str) -> String {
     style(text, &["1"])
 }
 
+/// Render text in green (for success).
+pub fn green(text: &str) -> String {
+    color_for_stream(text, "32", Stream::Stderr)
+}
+
+/// Render text in red (for errors).
+pub fn red(text: &str) -> String {
+    color_for_stream(text, "1;91", Stream::Stderr)
+}
+
+/// Render text in yellow (for warnings).
+pub fn yellow(text: &str) -> String {
+    color_for_stream(text, "1;93", Stream::Stderr)
+}
+
+/// Render text in cyan.
+pub fn cyan(text: &str) -> String {
+    color_for_stream(text, "36", Stream::Stderr)
+}
+
 /// Render text with underline style.
 pub fn underline(text: &str) -> String {
     style(text, &["4"])
