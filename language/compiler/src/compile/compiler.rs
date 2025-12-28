@@ -142,7 +142,7 @@ pub struct Compiler {
     /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
     import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
     /// Compilation statistics.
-    pub stats: super::stats::CompilerStats,
+    pub stats: Arc<super::stats::CompilerStats>,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -169,7 +169,7 @@ impl Compiler {
             pending_diagnostics: DiagnosticCollector::new(),
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
-            stats: super::stats::CompilerStats::new(),
+            stats: Arc::new(super::stats::CompilerStats::new()),
         }
     }
 

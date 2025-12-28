@@ -154,7 +154,7 @@ pub fn underline(text: &str) -> String {
 
 /// Format a duration in a human-friendly way.
 ///
-/// - Less than 1s: shows milliseconds with precision (e.g., "0.123s", "0.001s")
+/// - Less than 1s: shows seconds with precision, clamped to 0.001s (e.g., "0.123s", "0.001s")
 /// - 1s to 59s: shows seconds with one decimal (e.g., "5.2s")
 /// - 60s to 59m59s: shows minutes and seconds (e.g., "1m 32s", "5m 0s")
 /// - 1h+: shows hours and minutes (e.g., "1h 5m", "2h 30m")
@@ -165,7 +165,11 @@ pub fn format_duration(duration: Duration) -> String {
     if total_secs == 0 {
         // sub-second: show as decimal seconds
         let secs_f = duration.as_secs_f64();
-        if secs_f < 0.01 {
+        if secs_f == 0.0 {
+            "0s".to_string()
+        } else if secs_f < 0.001 {
+            "0.001s".to_string()
+        } else if secs_f < 0.01 {
             // very small: 3 decimal places
             format!("{secs_f:.3}s")
         } else if secs_f < 0.1 {

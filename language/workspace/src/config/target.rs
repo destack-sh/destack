@@ -995,7 +995,7 @@ impl Target {
             | Runtime::NativeHosted
             | Runtime::NativeFreestanding
             | Runtime::NativeEmbedded => {
-                // NOTE #Incomplete: map to Destack runtime libs
+                // #Incomplete: map to Destack runtime libs
             }
         }
 

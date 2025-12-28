@@ -63,7 +63,7 @@ pub fn run(args: &InitArgs) -> i32 {
     // create dsconfig.json
     let dsconfig_path = dir.join("dsconfig.json");
     if dsconfig_path.exists() && !args.force {
-        console::warn(&"dsconfig.json already exists (use --force to overwrite)".to_string());
+        console::warn("dsconfig.json already exists (use --force to overwrite)");
     } else {
         let dsconfig = create_dsconfig(&name, args.template);
         if let Err(e) = fs::write(&dsconfig_path, dsconfig) {

@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use destack_base::pluralize;
 
@@ -15,6 +16,8 @@ pub struct PrintOptions {
     pub colorizer: Option<SourceColorizer> = None,
     /// Skip printing the summary line.
     pub skip_summary: bool = false,
+    /// Optional line writer for diagnostic output.
+    pub line_writer: Option<Arc<dyn Fn(&str) + Send + Sync>> = None,
 }
 
 impl fmt::Debug for PrintOptions {
@@ -24,6 +27,7 @@ impl fmt::Debug for PrintOptions {
             .field("module_count", &self.module_count)
             .field("colorizer", &self.colorizer.as_ref().map(|_| "..."))
             .field("skip_summary", &self.skip_summary)
+            .field("line_writer", &self.line_writer.as_ref().map(|_| "..."))
             .finish()
     }
 }
@@ -57,9 +61,15 @@ impl PrintOptions {
         self.skip_summary = skip;
         self
     }
+
+    /// Set the line writer for diagnostic output.
+    pub fn with_line_writer(mut self, line_writer: Arc<dyn Fn(&str) + Send + Sync>) -> Self {
+        self.line_writer = Some(line_writer);
+        self
+    }
 }
 
-/// Print diagnostics to stdout.
+/// Print diagnostics to the configured line writer, defaulting to stderr.
 ///
 /// Prints all diagnostics with source annotations and a summary line.
 pub fn print_diagnostics(
@@ -68,7 +78,7 @@ pub fn print_diagnostics(
     options: PrintOptions,
 ) {
     let mut annotate_options = AnnotateOptions::default().with_line_width(options.line_width);
-    if let Some(colorizer) = options.colorizer {
+    if let Some(colorizer) = options.colorizer.clone() {
         annotate_options = annotate_options.with_colorizer(colorizer);
     }
 
@@ -107,8 +117,8 @@ pub fn print_diagnostics(
         };
 
         let body = annotate_file(&file, &diagnostic.primary_span, annotate_options);
-        eprintln!("{header}");
-        eprintln!("{body}");
+        write_line(&options, &header);
+        write_block(&options, &body);
     }
 
     // summary (skip if caller will print their own)
@@ -134,15 +144,35 @@ pub fn print_diagnostics(
         let name = highest_severity.family_name().to_ascii_lowercase();
 
         if let Some(module_count) = options.module_count {
-            eprintln!(
-                "{}: {} from {} {}",
-                color.apply_bold(&name),
-                summary,
-                module_count,
-                pluralize(module_count, "module")
+            write_line(
+                &options,
+                &format!(
+                    "{}: {} from {} {}",
+                    color.apply_bold(&name),
+                    summary,
+                    module_count,
+                    pluralize(module_count, "module")
+                ),
             );
         } else {
-            eprintln!("{}: {}", color.apply_bold(&name), summary);
+            write_line(
+                &options,
+                &format!("{}: {}", color.apply_bold(&name), summary),
+            );
         }
+    }
+}
+
+fn write_line(options: &PrintOptions, line: &str) {
+    if let Some(writer) = &options.line_writer {
+        writer(line);
+    } else {
+        eprintln!("{line}");
+    }
+}
+
+fn write_block(options: &PrintOptions, block: &str) {
+    for line in block.split('\n') {
+        write_line(options, line);
     }
 }
