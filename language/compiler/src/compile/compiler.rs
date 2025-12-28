@@ -9,8 +9,8 @@ use destack_workspace::{LanguageBuiltins, Program, Session};
 use parking_lot::Mutex;
 
 use crate::{
-    CompileDiagnostic, DiagnosticAnchor, Task, TaskDependency, TaskDependencyError, TaskError,
-    TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
+    CompileDiagnostic, CompilerEvent, CompilerEventHandler, DiagnosticAnchor, Task, TaskDependency,
+    TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -21,7 +21,7 @@ pub fn default_workers() -> u16 {
 }
 
 /// The options for compiling a Workspace.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CompilerOptions {
     /// The diagnostic options.
     pub diagnostic: DiagnosticOptions,
@@ -61,6 +61,10 @@ pub struct CompilerOptions {
     pub emit_create_dirs: bool,
     /// Dry run: report what would be written without actually writing.
     pub emit_dry_run: bool,
+
+    /// Optional event handler for progress reporting.
+    /// Called for task start/complete/fail events during compilation.
+    pub event_handler: Option<CompilerEventHandler>,
 }
 
 impl Default for CompilerOptions {
@@ -86,7 +90,35 @@ impl Default for CompilerOptions {
             emit_overwrite: true,
             emit_create_dirs: true,
             emit_dry_run: false,
+
+            event_handler: None,
         }
+    }
+}
+
+impl std::fmt::Debug for CompilerOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CompilerOptions")
+            .field("diagnostic", &self.diagnostic)
+            .field("workers", &self.workers)
+            .field("follow_imports", &self.follow_imports)
+            .field("import_resolve", &self.import_resolve)
+            .field("default_int_width", &self.default_int_width)
+            .field("default_float_width", &self.default_float_width)
+            .field("inject_prelude", &self.inject_prelude)
+            .field("load_libs", &self.load_libs)
+            .field("source_map", &self.source_map)
+            .field("elaborate_with_ternary", &self.elaborate_with_ternary)
+            .field(
+                "elaborate_split_declarators",
+                &self.elaborate_split_declarators,
+            )
+            .field("elaborate_explicit_return", &self.elaborate_explicit_return)
+            .field("emit_overwrite", &self.emit_overwrite)
+            .field("emit_create_dirs", &self.emit_create_dirs)
+            .field("emit_dry_run", &self.emit_dry_run)
+            .field("event_handler", &self.event_handler.is_some())
+            .finish()
     }
 }
 
@@ -109,6 +141,8 @@ pub struct Compiler {
     pub(super) queue: TaskQueue,
     /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
     import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
+    /// Compilation statistics.
+    pub stats: super::stats::CompilerStats,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -135,6 +169,15 @@ impl Compiler {
             pending_diagnostics: DiagnosticCollector::new(),
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
+            stats: super::stats::CompilerStats::new(),
+        }
+    }
+
+    /// Emit a compiler event to the event handler (if configured).
+    #[inline]
+    pub fn emit_event(&self, event: CompilerEvent) {
+        if let Some(handler) = &self.options.event_handler {
+            handler(event);
         }
     }
 

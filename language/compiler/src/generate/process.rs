@@ -23,7 +23,8 @@ impl Compiler {
     pub fn process_generate(&self, task: GenerateTask) -> GenerateResult<()> {
         match task {
             GenerateTask::GenerateModule { module, target } => {
-                self.generate_module(module, &target)?
+                self.generate_module(module, &target)?;
+                self.stats.record_generate();
             }
         }
         Ok(())

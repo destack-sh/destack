@@ -27,7 +27,8 @@ impl Compiler {
         match task {
             LintTask::LintModule { module, profile } => {
                 self.require_analyze_module(module, profile)?;
-                self.lint_module(module, profile)?
+                self.lint_module(module, profile)?;
+                self.stats.record_lint();
             }
             LintTask::LintPackage { package } => self.lint_package(package)?,
         };

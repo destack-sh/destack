@@ -4,9 +4,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::{
-    AnalyzeError, BindError, Compiler, ElaborateError, EmitError, ExecuteError, GenerateError,
-    InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug,
-    TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase, TaskStatus, VerifyError,
+    AnalyzeError, BindError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError,
+    GenerateError, InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
+    Task, TaskDebug, TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase,
+    TaskStatus, VerifyError,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -26,6 +27,7 @@ impl Compiler {
         let args = task.trace_args(&self.program);
         let (task_id, is_new) = self.queue.enqueue(task);
         if is_new {
+            self.stats.record_enqueue();
             tracing::trace!(%event, %args, ?task_id, "compile.enqueue");
         }
         (task_id, is_new)
@@ -45,6 +47,14 @@ impl Compiler {
 
     /// Runs the compiler loop until there is nothing left to do.
     pub fn compile(&self) {
+        // start stats tracking
+        self.stats.start();
+
+        // emit compilation started event
+        self.emit_event(CompilerEvent::CompilationStarted {
+            worker_count: self.options.workers,
+        });
+
         // spawn worker threads
         thread::scope(|scope| {
             for i in 0..self.options.workers {
@@ -57,6 +67,11 @@ impl Compiler {
 
         // flush remaining diagnostics
         self.flush_diagnostics();
+
+        // emit compilation finished event with stats snapshot
+        self.emit_event(CompilerEvent::CompilationFinished {
+            stats: self.stats.snapshot_with_modules(self.program.modules.len()),
+        });
     }
 
     /// Worker loop that processes tasks from the ready queue.
@@ -120,6 +135,17 @@ impl Compiler {
         let handle = self.queue.get_task(task_id);
         self.queue.begin_work();
 
+        // get task description for events
+        let description = handle.task.trace_args(&self.program);
+
+        // emit task started event
+        self.emit_event(CompilerEvent::TaskStarted {
+            task_id,
+            task: handle.task.clone(),
+            phase: handle.phase(),
+            description: description.clone(),
+        });
+
         // process task
         let started_at = Instant::now();
         self.queue.set_status(task_id, TaskStatus::Running);
@@ -130,11 +156,20 @@ impl Compiler {
         if let Some(threshold) = slow_task_threshold()
             && elapsed >= threshold
         {
-            let args = handle.task.trace_args(&self.program);
             let event = format!("{}.{}.slow", handle.phase().name(), handle.task.name());
-            tracing::info!(%event, %args, ?task_id, ?elapsed, "compile.task.slow");
+            tracing::info!(%event, %description, ?task_id, ?elapsed, "compile.task.slow");
+            self.stats.record_slow_task();
+
+            // emit slow task event
+            self.emit_event(CompilerEvent::TaskSlow {
+                task_id,
+                task: handle.task.clone(),
+                phase: handle.phase(),
+                elapsed,
+                description: description.clone(),
+            });
         }
-        self.handle_outcome(task_id, outcome);
+        self.handle_outcome(task_id, &handle, outcome, elapsed, description);
 
         self.queue.end_work();
     }
@@ -172,22 +207,38 @@ impl Compiler {
     }
 
     /// Handle the outcome of a processed task.
-    fn handle_outcome(&self, task_id: TaskId, outcome: TaskOutcome) {
-        let handle = self.queue.get_task(task_id);
-        let args = handle.task.trace_args(&self.program);
+    fn handle_outcome(
+        &self,
+        task_id: TaskId,
+        handle: &TaskHandle,
+        outcome: TaskOutcome,
+        elapsed: Duration,
+        description: String,
+    ) {
         let mut requeued = false;
         match &outcome {
             // complete and wake waiters
             TaskOutcome::Complete => {
                 let event = format!("{}.{}.complete", handle.phase().name(), handle.task.name());
-                tracing::debug!(%event, %args, ?task_id);
+                tracing::debug!(%event, %description, ?task_id);
                 self.queue.set_status(task_id, TaskStatus::Complete);
                 self.wake_waiters(task_id);
+                self.stats.record_complete();
+
+                // emit task completed event
+                self.emit_event(CompilerEvent::TaskCompleted {
+                    task_id,
+                    task: handle.task.clone(),
+                    phase: handle.phase(),
+                    elapsed,
+                    description,
+                });
             }
             // error and fail waiters
             TaskOutcome::Error { error } => {
                 let event = format!("{}.{}.error", handle.phase().name(), handle.task.name());
-                tracing::debug!(%event, %args, ?task_id);
+                tracing::debug!(%event, %description, ?task_id);
+                self.stats.record_fail();
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Failed {
@@ -196,27 +247,44 @@ impl Compiler {
                 );
                 self.error(error.clone());
                 self.fail_waiters(task_id);
+
+                // emit task failed event
+                self.emit_event(CompilerEvent::TaskFailed {
+                    task_id,
+                    task: handle.task.clone(),
+                    phase: handle.phase(),
+                    error: error.clone(),
+                });
             }
             // yield if possible
             TaskOutcome::Yield { dependency } => {
                 // check for yield errors
-                if let Some(internal_error) = self.check_yield(task_id, &handle, dependency) {
+                if let Some(internal_error) = self.check_yield(task_id, handle, dependency) {
                     let event = format!("{}.{}.circuit", handle.phase().name(), handle.task.name());
-                    tracing::error!(%event, %args, ?task_id);
+                    tracing::error!(%event, %description, ?task_id);
                     self.queue.set_status(
                         task_id,
                         TaskStatus::Failed {
                             error: internal_error.clone().into(),
                         },
                     );
-                    self.error(internal_error);
+                    self.error(internal_error.clone());
                     self.fail_waiters(task_id);
+
+                    // emit task failed event for circuit breaker
+                    self.emit_event(CompilerEvent::TaskFailed {
+                        task_id,
+                        task: handle.task.clone(),
+                        phase: handle.phase(),
+                        error: internal_error.into(),
+                    });
                     return;
                 }
 
                 // yield
                 let event = format!("{}.{}.yield", handle.phase().name(), handle.task.name());
-                tracing::debug!(%event, %args, ?task_id);
+                tracing::debug!(%event, %description, ?task_id);
+                self.stats.record_yield();
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Yielded {
@@ -224,6 +292,13 @@ impl Compiler {
                     },
                 );
                 requeued = self.yield_dependency(task_id, dependency);
+
+                // emit task yielded event
+                self.emit_event(CompilerEvent::TaskYielded {
+                    task_id,
+                    task: handle.task.clone(),
+                    phase: handle.phase(),
+                });
             }
         }
         // remember outcome (skip if already requeued, since that clears last_outcome)
