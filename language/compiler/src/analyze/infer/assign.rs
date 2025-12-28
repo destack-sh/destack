@@ -255,6 +255,35 @@ impl Compiler {
                 options,
             ),
 
+            // union to union: each source element must fit a target element
+            (
+                Type::Union {
+                    elements: target_elems,
+                },
+                Type::Union {
+                    elements: source_elems,
+                },
+            ) => {
+                for source_elem in source_elems {
+                    let source_ty = types.get_type(*source_elem);
+                    let mut is_assignable = false;
+                    for target_elem in target_elems {
+                        let target_ty = types.get_type(*target_elem);
+                        if self
+                            .is_type_assignable(target_ty, source_ty, types, options)
+                            .is_assignable()
+                        {
+                            is_assignable = true;
+                            break;
+                        }
+                    }
+                    if !is_assignable {
+                        return Assignability::NotAssignable;
+                    }
+                }
+                Assignability::Assignable
+            }
+
             // union target: source must be assignable to at least one element
             (
                 Type::Union {

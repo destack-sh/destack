@@ -42,7 +42,7 @@ What's in `core/`:
 
 ```
 // core/operator/arithmetic.ds
-newtype interface Add<T, R = Self> {
+newtype interface Add<T, R = this> {
     add(other: T): R
 }
 

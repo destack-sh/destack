@@ -1,11 +1,14 @@
+use std::collections::HashMap;
+
 use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
-    LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticKey, SymbolType,
-    Type, TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter,
-    TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StaticProperty, SymbolType, Type, TypeBinaryOperator, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    UnaryOperator, VarianceBound,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -476,22 +479,24 @@ impl Compiler {
                 types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
-                // NOTE #Suspicious: unsure about auto unwrapping Type::Value in satisfies?
-                // unwrap Type::Value if the right side is a class/struct used as a type
-                // (class references have value type = Type::Value { value: instance_ty })
+                // unwrap Type::Value when comparing against type expressions
                 let target_ty_id = match types.get_type(right_ty_id) {
                     Type::Value { value } => *value,
                     _ => right_ty_id,
                 };
+                let actual_ty_id = match types.get_type(left_ty_id) {
+                    Type::Value { value } => *value,
+                    _ => left_ty_id,
+                };
 
                 // check if left type satisfies (is assignable to) right type
-                if self.check_is_type_assignable(target_ty_id, left_ty_id, types, options)
+                if self.check_is_type_assignable(target_ty_id, actual_ty_id, types, options)
                     == Assignability::NotAssignable
                 {
                     self.error(AnalyzeError::UnsatisfiedType {
                         node: expression_id.into_global_any(module.id),
                         expected_ty: target_ty_id.into_global(module.id),
-                        actual_ty: left_ty_id.into_global(module.id),
+                        actual_ty: actual_ty_id.into_global(module.id),
                     });
                 }
                 // satisfies returns the original (left) type, not the asserted type
@@ -1595,6 +1600,643 @@ impl Compiler {
         match types.get_type(fn_ty_id) {
             Type::Function { return_type, .. } => *return_type,
             _ => None,
+        }
+    }
+
+    /// Substitute `this` types with a concrete receiver type.
+    pub(super) fn substitute_this_type(
+        &self,
+        ty_id: LocalTypeId,
+        this_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> LocalTypeId {
+        if let Some(mapped) = cache.get(&ty_id).copied() {
+            return mapped;
+        }
+
+        let ty = types.get_type(ty_id).clone();
+        let mapped = match ty {
+            Type::This => this_ty_id,
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                if let Some(static_arguments) = static_arguments {
+                    let mut changed = false;
+                    let mapped_arguments = static_arguments
+                        .iter()
+                        .map(|argument| {
+                            let mapped = self.substitute_this_static_argument(
+                                argument, this_ty_id, types, cache,
+                            );
+                            if mapped != *argument {
+                                changed = true;
+                            }
+                            mapped
+                        })
+                        .collect::<Vec<_>>();
+
+                    if changed {
+                        if !mapped_arguments.is_empty() {
+                            self.register_instance_for_symbol(
+                                symbol,
+                                mapped_arguments.clone(),
+                                types,
+                            );
+                        }
+
+                        types.insert_type(Type::Reference {
+                            symbol,
+                            static_arguments: Some(mapped_arguments),
+                        })
+                    } else {
+                        ty_id
+                    }
+                } else {
+                    ty_id
+                }
+            }
+            Type::TypeLiteral { .. }
+            | Type::InferVar { .. }
+            | Type::Unevaluated(_)
+            | Type::Import { .. }
+            | Type::Error => ty_id,
+            Type::Value { value } => {
+                let mapped_value = self.substitute_this_type(value, this_ty_id, types, cache);
+                if mapped_value == value {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Value {
+                        value: mapped_value,
+                    })
+                }
+            }
+            Type::Unary { operator, right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Unary {
+                        operator,
+                        right: mapped_right,
+                    })
+                }
+            }
+            Type::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let mapped_left = self.substitute_this_type(left, this_ty_id, types, cache);
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Binary {
+                        left: mapped_left,
+                        operator,
+                        right: mapped_right,
+                    })
+                }
+            }
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let mapped_left = self.substitute_this_type(left, this_ty_id, types, cache);
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                let mapped_then = self.substitute_this_type(then_type, this_ty_id, types, cache);
+                let mapped_else = self.substitute_this_type(else_type, this_ty_id, types, cache);
+                if mapped_left == left
+                    && mapped_right == right
+                    && mapped_then == then_type
+                    && mapped_else == else_type
+                {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Conditional {
+                        left: mapped_left,
+                        right: mapped_right,
+                        then_type: mapped_then,
+                        else_type: mapped_else,
+                    })
+                }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mapped_constraint =
+                    self.substitute_this_type(parameter.constraint, this_ty_id, types, cache);
+                let mapped_key_remap = parameter.key_remap.map(|key_remap| {
+                    self.substitute_this_type(key_remap, this_ty_id, types, cache)
+                });
+                let mapped_value = self.substitute_this_type(value, this_ty_id, types, cache);
+                if mapped_constraint == parameter.constraint
+                    && mapped_key_remap == parameter.key_remap
+                    && mapped_value == value
+                {
+                    ty_id
+                } else {
+                    let parameter = TypeMappedParameter {
+                        name: parameter.name,
+                        constraint: mapped_constraint,
+                        key_remap: mapped_key_remap,
+                    };
+                    types.insert_type(Type::Mapped {
+                        parameter,
+                        modifiers,
+                        value: mapped_value,
+                    })
+                }
+            }
+            Type::Index { left, index } => {
+                let mapped_left = self.substitute_this_type(left, this_ty_id, types, cache);
+                let mapped_index = self.substitute_this_type(index, this_ty_id, types, cache);
+                if mapped_left == left && mapped_index == index {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Index {
+                        left: mapped_left,
+                        index: mapped_index,
+                    })
+                }
+            }
+            Type::TemplateLiteral { strings, spans } => {
+                let mut changed = false;
+                let mapped_spans = spans
+                    .iter()
+                    .map(|span| {
+                        let mapped = self.substitute_this_type(*span, this_ty_id, types, cache);
+                        if mapped != *span {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type(Type::TemplateLiteral {
+                        strings,
+                        spans: mapped_spans,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+            Type::Infer { name, constraint } => {
+                let mapped_constraint = constraint.map(|constraint| {
+                    self.substitute_this_type(constraint, this_ty_id, types, cache)
+                });
+                if mapped_constraint == constraint {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Infer {
+                        name,
+                        constraint: mapped_constraint,
+                    })
+                }
+            }
+            Type::Predicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let mapped_target = target
+                    .map(|target| self.substitute_this_type(target, this_ty_id, types, cache));
+                if mapped_target == target {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Predicate {
+                        asserts,
+                        subject,
+                        target: mapped_target,
+                    })
+                }
+            }
+            Type::Mutable { mutability, right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Mutable {
+                        mutability,
+                        right: mapped_right,
+                    })
+                }
+            }
+            Type::ValueOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::ValueOf {
+                        mutability,
+                        variance,
+                        right: mapped_right,
+                    })
+                }
+            }
+            Type::ReferenceOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::ReferenceOf {
+                        mutability,
+                        variance,
+                        right: mapped_right,
+                    })
+                }
+            }
+            Type::ArraySized { element, count } => {
+                let mapped_element = self.substitute_this_type(element, this_ty_id, types, cache);
+                if mapped_element == element {
+                    ty_id
+                } else {
+                    types.insert_type(Type::ArraySized {
+                        element: mapped_element,
+                        count,
+                    })
+                }
+            }
+            Type::Array { element } => {
+                let mapped_element = element
+                    .map(|element| self.substitute_this_type(element, this_ty_id, types, cache));
+                if mapped_element == element {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Array {
+                        element: mapped_element,
+                    })
+                }
+            }
+            Type::Tuple { elements } => {
+                let mut changed = false;
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        let mapped =
+                            self.substitute_this_type(element.ty, this_ty_id, types, cache);
+                        if mapped != element.ty {
+                            changed = true;
+                        }
+                        let mut element = element.clone();
+                        element.ty = mapped;
+                        element
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type(Type::Tuple {
+                        elements: mapped_elements,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                let mut changed = false;
+                let mapped_fields = fields
+                    .iter()
+                    .map(|field| {
+                        let mapped = self.substitute_this_type(field.ty, this_ty_id, types, cache);
+                        if mapped != field.ty {
+                            changed = true;
+                        }
+                        TypeField {
+                            key: field.key,
+                            ty: mapped,
+                            is_optional: field.is_optional,
+                            is_readonly: field.is_readonly,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_call_signatures = call_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped =
+                            self.substitute_this_type(*signature, this_ty_id, types, cache);
+                        if mapped != *signature {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_construct_signatures = construct_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped =
+                            self.substitute_this_type(*signature, this_ty_id, types, cache);
+                        if mapped != *signature {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_index_signatures = index_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped_key =
+                            self.substitute_this_type(signature.key_type, this_ty_id, types, cache);
+                        let mapped_value = self.substitute_this_type(
+                            signature.value_type,
+                            this_ty_id,
+                            types,
+                            cache,
+                        );
+                        if mapped_key != signature.key_type || mapped_value != signature.value_type
+                        {
+                            changed = true;
+                        }
+                        let mut signature = signature.clone();
+                        signature.key_type = mapped_key;
+                        signature.value_type = mapped_value;
+                        signature
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type(Type::Object {
+                        fields: mapped_fields,
+                        call_signatures: mapped_call_signatures,
+                        construct_signatures: mapped_construct_signatures,
+                        index_signatures: mapped_index_signatures,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+            Type::Function {
+                asynchrony,
+                cardinality,
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+            } => {
+                let mut changed = false;
+                let mapped_static_parameters = static_parameters
+                    .iter()
+                    .map(|parameter| {
+                        let mapped =
+                            self.substitute_this_type(*parameter, this_ty_id, types, cache);
+                        if mapped != *parameter {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_this = this_parameter.map(|this_parameter| {
+                    let mapped =
+                        self.substitute_this_type(this_parameter, this_ty_id, types, cache);
+                    if mapped != this_parameter {
+                        changed = true;
+                    }
+                    mapped
+                });
+                let mapped_parameters = dynamic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        let mapped =
+                            self.substitute_this_type(*parameter, this_ty_id, types, cache);
+                        if mapped != *parameter {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_return = return_type.map(|return_type| {
+                    let mapped = self.substitute_this_type(return_type, this_ty_id, types, cache);
+                    if mapped != return_type {
+                        changed = true;
+                    }
+                    mapped
+                });
+                if changed {
+                    types.insert_type(Type::Function {
+                        asynchrony,
+                        cardinality,
+                        static_parameters: mapped_static_parameters,
+                        this_parameter: mapped_this,
+                        dynamic_parameters: mapped_parameters,
+                        return_type: mapped_return,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+            Type::Union { elements } => {
+                let mut changed = false;
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        let mapped = self.substitute_this_type(*element, this_ty_id, types, cache);
+                        if mapped != *element {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type(Type::Union {
+                        elements: mapped_elements,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+            Type::Intersection { elements } => {
+                let mut changed = false;
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        let mapped = self.substitute_this_type(*element, this_ty_id, types, cache);
+                        if mapped != *element {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type(Type::Intersection {
+                        elements: mapped_elements,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+        };
+
+        cache.insert(ty_id, mapped);
+        mapped
+    }
+
+    /// Substitute `this` types in a static argument.
+    pub(super) fn substitute_this_static_argument(
+        &self,
+        argument: &StaticArgument,
+        this_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> StaticArgument {
+        match argument {
+            StaticArgument::Unevaluated { .. } => argument.clone(),
+            StaticArgument::Evaluated { name, value } => {
+                let mapped_value =
+                    self.substitute_this_static_expression(value, this_ty_id, types, cache);
+                StaticArgument::Evaluated {
+                    name: *name,
+                    value: mapped_value,
+                }
+            }
+        }
+    }
+
+    /// Substitute `this` types in a static expression.
+    pub(super) fn substitute_this_static_expression(
+        &self,
+        expression: &StaticExpression,
+        this_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> StaticExpression {
+        match expression {
+            StaticExpression::Unevaluated { .. } => expression.clone(),
+            StaticExpression::ScalarLiteral { .. } => expression.clone(),
+            StaticExpression::TypeLiteral { .. } => expression.clone(),
+            StaticExpression::Type { ty } => StaticExpression::Type {
+                ty: self.substitute_this_type(*ty, this_ty_id, types, cache),
+            },
+            StaticExpression::Declaration {
+                declaration,
+                static_arguments,
+            } => {
+                let mapped_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.substitute_this_static_argument(argument, this_ty_id, types, cache)
+                        })
+                        .collect::<Vec<_>>()
+                });
+                StaticExpression::Declaration {
+                    declaration: *declaration,
+                    static_arguments: mapped_arguments,
+                }
+            }
+            StaticExpression::RangeExpression {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                let mapped_start =
+                    self.substitute_this_static_expression(start, this_ty_id, types, cache);
+                let mapped_end =
+                    self.substitute_this_static_expression(end, this_ty_id, types, cache);
+                StaticExpression::RangeExpression {
+                    start: Box::new(mapped_start),
+                    end: Box::new(mapped_end),
+                    is_inclusive: *is_inclusive,
+                }
+            }
+            StaticExpression::ArrayExpression { elements } => {
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.substitute_this_static_expression(element, this_ty_id, types, cache)
+                    })
+                    .collect::<Vec<_>>();
+                StaticExpression::ArrayExpression {
+                    elements: mapped_elements,
+                }
+            }
+            StaticExpression::TupleExpression { elements } => {
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.substitute_this_static_expression(element, this_ty_id, types, cache)
+                    })
+                    .collect::<Vec<_>>();
+                StaticExpression::TupleExpression {
+                    elements: mapped_elements,
+                }
+            }
+            StaticExpression::ObjectExpression { properties } => {
+                let mapped_properties = properties
+                    .iter()
+                    .map(|property| {
+                        self.substitute_this_static_property(property, this_ty_id, types, cache)
+                    })
+                    .collect::<Vec<_>>();
+                StaticExpression::ObjectExpression {
+                    properties: mapped_properties,
+                }
+            }
+        }
+    }
+
+    /// Substitute `this` types in a static property.
+    pub(super) fn substitute_this_static_property(
+        &self,
+        property: &StaticProperty,
+        this_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> StaticProperty {
+        match property {
+            StaticProperty::Unevaluated { .. } => property.clone(),
+            StaticProperty::Field {
+                modifiers,
+                key,
+                value,
+                default,
+                symbol,
+            } => {
+                let mapped_value =
+                    self.substitute_this_static_expression(value, this_ty_id, types, cache);
+                let mapped_default = default.as_ref().map(|default| {
+                    self.substitute_this_static_expression(default, this_ty_id, types, cache)
+                });
+                StaticProperty::Field {
+                    modifiers: *modifiers,
+                    key: *key,
+                    value: mapped_value,
+                    default: mapped_default,
+                    symbol: *symbol,
+                }
+            }
+            StaticProperty::Method {
+                modifiers,
+                key,
+                signature,
+                body,
+                symbol,
+            } => {
+                let mapped_body =
+                    self.substitute_this_static_expression(body, this_ty_id, types, cache);
+                StaticProperty::Method {
+                    modifiers: *modifiers,
+                    key: *key,
+                    signature: signature.clone(),
+                    body: mapped_body,
+                    symbol: *symbol,
+                }
+            }
         }
     }
 

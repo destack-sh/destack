@@ -70,13 +70,6 @@ pub enum ResolveError {
         symbol: GlobalSymbolId,
     },
 
-    /// Self type used outside of a type context.
-    #[error(
-        code = "ER009",
-        message = "`Self` type can only be used inside a class, struct, or enum"
-    )]
-    MissingSelf { node: GlobalNodeIdAny },
-
     /// Missing target for a control flow expression.
     #[error(code = "ER010", message = "missing target")]
     MissingTarget {

@@ -285,6 +285,7 @@ impl Compiler {
             Expression::TypeLiteral { value } => Type::TypeLiteral {
                 value: value.clone(),
             },
+            Expression::This => Type::This,
 
             Expression::Declaration { declaration } => {
                 let declaration = tree.get(declaration).clone();

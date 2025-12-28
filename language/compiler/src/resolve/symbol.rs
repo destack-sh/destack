@@ -468,28 +468,6 @@ impl Compiler {
             ));
         }
 
-        // resolve Self to enclosing type
-        if first_segment_str.as_str() == "Self" {
-            // FUGU: remove Self now that we have `this` type
-            let root_path = Path {
-                segments: vec![first_segment].into(),
-            };
-            let root_expr = self
-                .resolve_self_expression(module, scope, &root_path, None, symbols)
-                .ok_or(ResolveError::MissingSelf { node })?;
-            if path.segments.len() == 1 {
-                return Ok(root_expr);
-            }
-            // multi-segment Self.X becomes member chain (e.g., for associated types)
-            return Ok(self.build_member_chain(
-                expression_id,
-                root_expr,
-                &path.slice(1..),
-                static_arguments,
-                tree,
-            ));
-        }
-
         // try prelude if enabled (skip for builtin modules to avoid circular dependencies)
         if module.package_id != BUILTIN_PACKAGE_ID
             && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?

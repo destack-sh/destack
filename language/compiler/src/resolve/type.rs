@@ -1,53 +1,8 @@
 use crate::Compiler;
-use destack_dir::{
-    FloatType, IntType, LocalScopeId, LocalScopeMark, LocalSymbolId, PrimitiveType, Scope,
-    SymbolKind, SymbolTable, SymbolType, TypeLiteral,
-};
+use destack_dir::{FloatType, IntType, PrimitiveType, TypeLiteral};
 
 /// Builtin type name resolution.
 impl Compiler {
-    /// Resolve the `Self` type by walking up the scope chain to find the enclosing type.
-    /// Returns the symbol id of the enclosing class/struct/enum, or None if not inside a type.
-    pub(super) fn resolve_self_type(
-        &self,
-        scope: (LocalScopeId, &Scope, LocalScopeMark),
-        symbols: &SymbolTable,
-    ) -> Option<LocalSymbolId> {
-        let mut current_scope = scope;
-        loop {
-            // check if this scope has an owner that is a type (class/struct/enum/etc.)
-            if let Some(owner_id) = current_scope.1.owner_id {
-                let owner_symbol = symbols.get_symbol(owner_id);
-                // only types that can have Self: struct, class, enum, newtype, interface, extension
-                // (not functions/methods which also have SymbolKind::Item but SymbolType::Void)
-                if owner_symbol.kind == SymbolKind::Item
-                    && matches!(
-                        owner_symbol.ty,
-                        SymbolType::Struct
-                            | SymbolType::Class
-                            | SymbolType::Enum
-                            | SymbolType::Newtype
-                            | SymbolType::Interface
-                            | SymbolType::Extension
-                    )
-                {
-                    return Some(owner_id);
-                }
-            }
-            // go to parent scope
-            if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
-                current_scope = (
-                    parent_scope_id,
-                    symbols.get_scope_by_id(parent_scope_id),
-                    parent_mark,
-                );
-            } else {
-                break;
-            }
-        }
-        None
-    }
-
     /// Whether the token string encodes a type literal with an explicit width.
     fn is_type_with_width(&self, prefix: &'static str, target: &str) -> Option<u16> {
         if let Some(target) = target.strip_prefix(prefix) {
@@ -82,8 +37,6 @@ impl Compiler {
             "bigint" => Some(TypeLiteral::Primitive(PrimitiveType::Bigint)),
             // number
             "number" => Some(TypeLiteral::Primitive(PrimitiveType::Number)),
-            // Self - handled specially in resolve_expression, not as a builtin type
-            "Self" => None,
             // int (followed by number or nothing)
             "int" => Some(TypeLiteral::Primitive(PrimitiveType::Int(
                 IntType::Arbitrary {

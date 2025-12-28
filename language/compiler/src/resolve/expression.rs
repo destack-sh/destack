@@ -1,4 +1,4 @@
-use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, Path, SymbolTable};
+use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, SymbolTable};
 
 use crate::{Compiler, ResolveResult};
 
@@ -6,29 +6,6 @@ use destack_workspace::{Module, ModuleDir, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Try to resolve `Self` type to an expression referencing the enclosing type.
-    pub(super) fn resolve_self_expression(
-        &self,
-        module: &Module,
-        scope: (
-            destack_dir::LocalScopeId,
-            &destack_dir::Scope,
-            destack_dir::LocalScopeMark,
-        ),
-        path: &Path,
-        static_arguments: Option<Vec<LocalNodeId<destack_dir::Argument>>>,
-        symbols: &SymbolTable,
-    ) -> Option<Expression> {
-        let owner_symbol_id = self.resolve_self_type(scope, symbols)?;
-
-        // Self always refers to a type in the same module (by definition)
-        Some(Expression::ModuleReference {
-            path: path.clone(),
-            static_arguments,
-            target_symbol: owner_symbol_id.into_global(module.id),
-        })
-    }
-
     /// Resolve an Expression.
     pub(super) fn resolve_expression(
         &self,

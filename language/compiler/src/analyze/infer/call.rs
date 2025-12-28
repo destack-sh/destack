@@ -187,8 +187,24 @@ impl Compiler {
                     infer,
                 )?;
 
-                let resolved_dynamic_parameters = resolved.dynamic_parameters;
-                let resolved_return_type = resolved.return_type;
+                let (resolved_dynamic_parameters, resolved_return_type) = if let Some(receiver_ty) =
+                    call_receiver_ty_id
+                {
+                    let mut cache = HashMap::new();
+                    let mapped_parameters = resolved
+                        .dynamic_parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.substitute_this_type(*parameter, receiver_ty, types, &mut cache)
+                        })
+                        .collect::<Vec<_>>();
+                    let mapped_return = resolved.return_type.map(|return_type| {
+                        self.substitute_this_type(return_type, receiver_ty, types, &mut cache)
+                    });
+                    (mapped_parameters, mapped_return)
+                } else {
+                    (resolved.dynamic_parameters, resolved.return_type)
+                };
                 let resolved_static_arguments = resolved.static_arguments;
 
                 // analyze arguments with contextual parameter types

@@ -696,6 +696,21 @@ mod tests {
         });
     }
 
+    /// Parse `this` in a type alias.
+    #[test]
+    fn test_parse_this_type_alias() {
+        let mut test = TestParser::new("type Builder = this");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // type Builder = this
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Builder");
+                assert_node!(parser.tree, *value, Expression::This);
+            });
+        });
+    }
+
     #[test]
     fn test_parse_type_alias_with_static_parameters() {
         let mut test = TestParser::new("type T<A, B> = intp");

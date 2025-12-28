@@ -330,7 +330,10 @@ function merge<T: int, U>(): T where (
 ) { }
 ```
 
-<sub>See [test/fixtures/mdtest/types/](test/fixtures/mdtest/types/) for specification tests.</sub>
+### The `this` Type
+
+Destack supports TypeScript's polymorphic `this` type for instance members, and extends it to static type positions.
+`this` is type-only and resolves to the surrounding receiver or containing type.
 
 ## Comptime
 
@@ -530,7 +533,7 @@ interface Drawable {
 const x: Drawable = { draw() {} };  // OK: structural match
 
 // Nominal interface (requires explicit `implements`)
-newtype interface Add<T, R = Self> {
+newtype interface Add<T, R = this> {
     add(other: T): R;
 }
 ```
