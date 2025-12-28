@@ -2,6 +2,10 @@
 
 This document describes how Destack's high-level semantic representation (elaborated, canonical DIR) is lowered to machine-level IR (MIR) for native targets (currently via Cranelift).
 
+nocheckin: define how MIR will handle (or reject?) dynamic property access (including computed keys)
+ (for stuff like in [comptime specification](../../../SPECIFICATION.md#Comptime),
+  do we need new IndexGet/IndexSet MIR instructions..? how to handle types like `{ [key: string]: value }`?)
+
 ---
 
 # Overview

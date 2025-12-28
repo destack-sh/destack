@@ -559,6 +559,9 @@ if (result.ok) {
 
 ## Comptime
 
+<!-- nocheckin: define "trivial comptime" vs "MIR comptime" -->
+ <!-- (executable to StaticExpression for instancing and such) -->
+
 Destack supports compile-time evaluation via the `comptime` keyword, inspired by Zig.
 The compiler already evaluates pure expressions at compile time when possible as an optimization.
 The `comptime` keyword enforces compile-time evaluation: if the expression cannot be evaluated at compile time, it is a compile error.

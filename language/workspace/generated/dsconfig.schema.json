@@ -168,7 +168,14 @@
           }
         },
         "strict": {
-          "description": "Enable all TypeScript-derived strict type-checking options. Default: true for .ds files.",
+          "description": "Enable all strict type checking options. Default: true for .ds files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "alwaysStrict": {
+          "description": "Parse in strict mode.",
           "type": [
             "boolean",
             "null"
@@ -196,7 +203,7 @@
           ]
         },
         "strictFunctionTypes": {
-          "description": "Enable strict checking of function types (contravariant parameters).",
+          "description": "Enable strict checking of function types.",
           "type": [
             "boolean",
             "null"
@@ -209,8 +216,15 @@
             "null"
           ]
         },
+        "strictBuiltinIteratorReturn": {
+          "description": "Enable strict checking for built in iterator return types.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "strictPropertyInitialization": {
-          "description": "Require class properties to be initialized in constructor.",
+          "description": "Enable strict checking of property initialization in classes.",
           "type": [
             "boolean",
             "null"
@@ -238,21 +252,28 @@
           ]
         },
         "noImplicitReturns": {
-          "description": "Report error when not all code paths return a value.",
+          "description": "Report errors when not all code paths return a value.",
           "type": [
             "boolean",
             "null"
           ]
         },
         "allowUnreachableCode": {
-          "description": "Allow unreachable code (disables dead code warnings).",
+          "description": "Allow unreachable code.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allowUnusedLabels": {
+          "description": "Allow unused labels.",
           "type": [
             "boolean",
             "null"
           ]
         },
         "noImplicitOverride": {
-          "description": "Require `override` keyword when overriding class members.",
+          "description": "Require `override` on class members that override base members.",
           "type": [
             "boolean",
             "null"
@@ -266,14 +287,21 @@
           ]
         },
         "exactOptionalPropertyTypes": {
-          "description": "Interpret optional property types as written (no implicit `undefined`).",
+          "description": "Interpret optional property types as written without implicit `undefined`.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "noIndexedAccessUnchecked": {
-          "description": "Add `undefined` to index signature results (safer array access).",
+        "noUncheckedIndexedAccess": {
+          "description": "Add `undefined` to indexed access results.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noPropertyAccessFromIndexSignature": {
+          "description": "Disallow property access from index signatures without explicit index access.",
           "type": [
             "boolean",
             "null"
@@ -1190,7 +1218,7 @@
           ]
         },
         "platform": {
-          "description": "Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, Universal).",
+          "description": "Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, BareMetal, Universal).",
           "type": [
             "string",
             "null"
@@ -1629,7 +1657,7 @@
           ]
         },
         "runtime": {
-          "description": "Runtime environment (browser, node, wasm-wasi, destack, etc.).",
+          "description": "Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).",
           "type": [
             "string",
             "null"
@@ -1643,7 +1671,7 @@
           ]
         },
         "platform": {
-          "description": "Target platform (web, windows, macos, linux, ios, android, etc.).",
+          "description": "Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).",
           "type": [
             "string",
             "null"

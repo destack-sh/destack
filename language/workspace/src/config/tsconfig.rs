@@ -909,19 +909,22 @@ pub struct TsCompilerOptions {
     pub strict: bool,
     /// Parse in strict mode.
     pub always_strict: bool,
-    /// Error on implicit any.
+    /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: bool,
-    /// Error on implicit this.
+    /// Error on `this` expressions with implied `any` type.
     pub no_implicit_this: bool,
-    /// Strict null checks.
+    /// Enable strict null checks.
+    /// `null` and `undefined` are distinct types.
     pub strict_null_checks: bool,
-    /// Strict function types.
+    /// Enable strict checking of function types.
     pub strict_function_types: bool,
-    /// Strict bind/call/apply.
+    /// Enable strict checking of `bind`, `call`, and `apply`.
     pub strict_bind_call_apply: bool,
-    /// Strict property initialization.
+    /// Enable strict checking of built in iterator return types.
+    pub strict_builtin_iterator_return: bool,
+    /// Enable strict checking of property initialization in classes.
     pub strict_property_initialization: bool,
-    /// Use unknown in catch variables.
+    /// Use `unknown` instead of `any` for catch clause variables.
     pub use_unknown_in_catch_variables: bool,
 
     // checking flags
@@ -929,21 +932,21 @@ pub struct TsCompilerOptions {
     pub allow_unreachable_code: bool,
     /// Allow unused labels.
     pub allow_unused_labels: bool,
-    /// Exact optional property types.
+    /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: bool,
-    /// No fallthrough in switch.
+    /// Report errors for fallthrough cases in switch statements.
     pub no_fallthrough_cases_in_switch: bool,
-    /// Require override keyword.
+    /// Require `override` on class members that override base members.
     pub no_implicit_override: bool,
-    /// Require explicit returns.
+    /// Report errors when not all code paths return a value.
     pub no_implicit_returns: bool,
-    /// No unchecked indexed access.
-    pub no_indexed_access_unchecked: bool,
-    /// No unused locals.
+    /// Add `undefined` to indexed access results.
+    pub no_unchecked_indexed_access: bool,
+    /// Report errors on unused local variables.
     pub no_unused_locals: bool,
-    /// No unused parameters.
+    /// Report errors on unused parameters.
     pub no_unused_parameters: bool,
-    /// No property access from index signature.
+    /// Disallow property access from index signatures without explicit index access.
     pub no_property_access_from_index_signature: bool,
 
     // library
@@ -1026,6 +1029,7 @@ impl Default for TsCompilerOptions {
             strict_null_checks: false,
             strict_function_types: false,
             strict_bind_call_apply: false,
+            strict_builtin_iterator_return: false,
             strict_property_initialization: false,
             use_unknown_in_catch_variables: false,
 
@@ -1035,7 +1039,7 @@ impl Default for TsCompilerOptions {
             no_fallthrough_cases_in_switch: false,
             no_implicit_override: false,
             no_implicit_returns: false,
-            no_indexed_access_unchecked: false,
+            no_unchecked_indexed_access: false,
             no_unused_locals: false,
             no_unused_parameters: false,
             no_property_access_from_index_signature: false,
@@ -1132,6 +1136,7 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
             strict_null_checks: json.strict_null_checks.unwrap_or(strict),
             strict_function_types: json.strict_function_types.unwrap_or(strict),
             strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
+            strict_builtin_iterator_return: json.strict_builtin_iterator_return.unwrap_or(strict),
             strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
             use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
 
@@ -1141,7 +1146,7 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
             no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(false),
             no_implicit_override: json.no_implicit_override.unwrap_or(false),
             no_implicit_returns: json.no_implicit_returns.unwrap_or(false),
-            no_indexed_access_unchecked: json.no_indexed_access_unchecked.unwrap_or(false),
+            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(false),
             no_unused_locals: json.no_unused_locals.unwrap_or(false),
             no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
             no_property_access_from_index_signature: json
@@ -1362,9 +1367,9 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#noImplicitThis>
     pub no_implicit_this: Option<bool>,
 
-    /// Enforce that indexed accesses are properly checked.
+    /// Add `undefined` to indexed access results.
     /// <https://www.typescriptlang.org/tsconfig/#noUncheckedIndexedAccess>
-    pub no_indexed_access_unchecked: Option<bool>,
+    pub no_unchecked_indexed_access: Option<bool>,
 
     /// Report errors on unused locals.
     /// <https://www.typescriptlang.org/tsconfig/#noUnusedLocals>
@@ -1374,11 +1379,11 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#noUnusedParameters>
     pub no_unused_parameters: Option<bool>,
 
-    /// Disallow property access from index signatures without explicit checks.
+    /// Disallow property access from index signatures without explicit index access.
     /// <https://www.typescriptlang.org/tsconfig/#noPropertyAccessFromIndexSignature>
     pub no_property_access_from_index_signature: Option<bool>,
 
-    /// Enable all strict type-checking options.
+    /// Enable all strict type checking options.
     /// <https://www.typescriptlang.org/tsconfig/#strict>
     pub strict: Option<bool>,
 
@@ -1386,7 +1391,7 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#strictBindCallApply>
     pub strict_bind_call_apply: Option<bool>,
 
-    /// Enable strict checking for built-in iterators.
+    /// Enable strict checking for built in iterator return types.
     /// <https://www.typescriptlang.org/tsconfig/#strictBuiltinIteratorReturn>
     pub strict_builtin_iterator_return: Option<bool>,
 
@@ -1395,6 +1400,7 @@ pub struct TsCompilerOptionsJson {
     pub strict_function_types: Option<bool>,
 
     /// Enable strict null checks.
+    /// `null` and `undefined` are distinct types.
     /// <https://www.typescriptlang.org/tsconfig/#strictNullChecks>
     pub strict_null_checks: Option<bool>,
 

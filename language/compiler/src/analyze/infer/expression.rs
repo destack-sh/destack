@@ -2,12 +2,21 @@ use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
 };
 use destack_dir::{
-    Argument, Block, Declaration, DynamicKey, Expression, FunctionKind, GlobalSymbolId,
-    LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource, NodeTree, Pattern,
-    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeElement, TypeField,
-    TypeLiteral, TypeTable,
+    Argument, BindingKind, Block, Declaration, DynamicKey, Expression, FunctionKind,
+    GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability,
+    NodeTree, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
+    TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
+
+/// Object literal field metadata for excess property checks.
+#[derive(Debug, Clone)]
+pub(super) struct ObjectLiteralField {
+    /// The field of the object literal.
+    field: TypeField,
+    /// The corresponding property of the object literal.
+    property_id: LocalNodeId<Property>,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -520,7 +529,7 @@ impl Compiler {
                 // apply contextual object type when available
                 let expected_object_ty_id =
                     self.expected_object_type_id(ctx.expected_type, types);
-                let mut fields = Vec::new();
+                let mut literal_fields = Vec::new();
                 for property_id in properties {
                     if let Some(field) = self.infer_property(
                         module,
@@ -533,17 +542,20 @@ impl Compiler {
                         ctx,
                     )?
                     {
-                        fields.push(field);
+                        literal_fields.push(field);
                     }
                 }
                 self.check_excess_object_literal_properties(
                     module,
-                    expression_id,
                     ctx.expected_type,
-                    &fields,
+                    &literal_fields,
                     types,
                 );
 
+                let fields = literal_fields
+                    .iter()
+                    .map(|field| field.field.clone())
+                    .collect();
                 let ty = Type::Object {
                     fields,
                     call_signatures: Vec::new(),
@@ -1281,7 +1293,7 @@ impl Compiler {
         types: &mut TypeTable,
         infer: &mut InferTable,
         ctx: &mut InferContext,
-    ) -> AnalyzeResult<Option<TypeField>> {
+    ) -> AnalyzeResult<Option<ObjectLiteralField>> {
         let property = tree.get(property_id);
         match property {
             Property::Field {
@@ -1341,33 +1353,36 @@ impl Compiler {
                 // is optional
                 let is_optional = modifiers
                     .as_ref()
-                    .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
+                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
 
                 // is readonly
-                let is_readonly = modifiers.as_ref().is_some_and(|m| {
-                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
-                });
+                let is_readonly = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
 
                 // static key
                 if let Some(key) = static_key {
-                    Ok(Some(TypeField {
-                        key,
-                        ty: value_ty_id,
-                        is_optional,
-                        is_readonly,
+                    Ok(Some(ObjectLiteralField {
+                        field: TypeField {
+                            key,
+                            ty: value_ty_id,
+                            is_optional,
+                            is_readonly,
+                        },
+                        property_id,
                     }))
                 } else {
                     Ok(None)
                 }
             }
             Property::Method {
+                modifiers,
                 key,
                 signature,
                 body,
                 symbol,
                 ..
             } => {
-                // NOTE #Incomplete: infer method type
                 let expected_method_ty_id = key
                     .and_then(|key| match key {
                         DynamicKey::Name(name) => Some(StaticKey::Name(name)),
@@ -1429,10 +1444,33 @@ impl Compiler {
                         }
                     }
                 }
-                Ok(None)
+                let static_key = key.and_then(|key| match key {
+                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
+                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+                });
+                let is_optional = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
+                let is_readonly = modifiers.as_ref().is_some_and(|m| {
+                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
+                });
+                if let Some(key) = static_key {
+                    Ok(Some(ObjectLiteralField {
+                        field: TypeField {
+                            key,
+                            ty: method_ty_id,
+                            is_optional,
+                            is_readonly,
+                        },
+                        property_id,
+                    }))
+                } else {
+                    Ok(None)
+                }
             }
             Property::Spread { value, .. } => {
-                // NOTE #Incomplete: expand spread type into object type
+                // #Incomplete: expand spread type into object type #TypeNormalization
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 Ok(None)
             }
@@ -1945,9 +1983,8 @@ impl Compiler {
     fn check_excess_object_literal_properties(
         &self,
         module: &Module,
-        expression_id: LocalNodeId<Expression>,
         expected_ty_id: Option<LocalTypeId>,
-        fields: &[TypeField],
+        fields: &[ObjectLiteralField],
         types: &TypeTable,
     ) {
         // collect candidates for excess property checks
@@ -1971,14 +2008,18 @@ impl Compiler {
         let Some(candidate) = candidates.first().copied() else {
             return;
         };
-        let Some(member_key) = self.first_excess_property_key(fields, candidate, types) else {
+        let excess_fields = self.object_literal_excess_properties(fields, candidate, types);
+        if excess_fields.is_empty() {
             return;
-        };
-        self.error(AnalyzeError::ExcessProperty {
-            node: expression_id.into_global_any(module.id),
-            expected_ty: candidate.into_global(module.id),
-            member_key,
-        });
+        }
+
+        for (property_id, member_key) in excess_fields {
+            self.error(AnalyzeError::ExcessProperty {
+                node: property_id.into_global_any(module.id),
+                expected_ty: candidate.into_global(module.id),
+                member_key,
+            });
+        }
     }
 
     /// Collect object-like candidates for excess property checks.
@@ -2007,7 +2048,7 @@ impl Compiler {
     /// Check if an object literal matches a target object type.
     fn object_literal_matches_target(
         &self,
-        fields: &[TypeField],
+        fields: &[ObjectLiteralField],
         target_ty_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
@@ -2026,7 +2067,7 @@ impl Compiler {
         for field in fields {
             let matches = target_fields
                 .iter()
-                .any(|target_field| target_field.key.matches(&field.key));
+                .any(|target_field| target_field.key.matches(&field.field.key));
             if !matches {
                 return false;
             }
@@ -2036,33 +2077,34 @@ impl Compiler {
     }
 
     /// Find the first excess property key for a target object type.
-    fn first_excess_property_key(
+    fn object_literal_excess_properties(
         &self,
-        fields: &[TypeField],
+        fields: &[ObjectLiteralField],
         target_ty_id: LocalTypeId,
         types: &TypeTable,
-    ) -> Option<StaticKey> {
+    ) -> Vec<(LocalNodeId<Property>, StaticKey)> {
         let Type::Object {
             fields: target_fields,
             index_signatures,
             ..
         } = types.get_type(target_ty_id)
         else {
-            return None;
+            return Vec::new();
         };
         if !index_signatures.is_empty() {
-            return None;
+            return Vec::new();
         }
 
+        let mut excess_fields = Vec::new();
         for field in fields {
             let matches = target_fields
                 .iter()
-                .any(|target_field| target_field.key.matches(&field.key));
+                .any(|target_field| target_field.key.matches(&field.field.key));
             if !matches {
-                return Some(field.key);
+                excess_fields.push((field.property_id, field.field.key));
             }
         }
 
-        None
+        excess_fields
     }
 }

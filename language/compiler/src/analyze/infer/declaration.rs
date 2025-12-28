@@ -3,8 +3,8 @@ use crate::{
     InferScope, InferTable,
 };
 use destack_dir::{
-    Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey, EnumField,
-    Expression, Extension, ExtensionKind, FunctionMode, FunctionSignature, Generics,
+    BindingKind, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
+    EnumField, Expression, Extension, ExtensionKind, FunctionMode, FunctionSignature, Generics,
     GlobalSymbolId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
     Member, NodeTree, Parameter, StaticKey, SymbolTable, Type, TypeField, TypeIndexSignature,
     TypeKind, TypeLiteral, TypeTable, WhereClause,
@@ -590,7 +590,7 @@ impl Compiler {
                 // check if the field is optional
                 let is_optional = modifiers
                     .as_ref()
-                    .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
+                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
 
                 // check if the field is readonly
                 let is_readonly = modifiers.as_ref().is_some_and(|m| {
