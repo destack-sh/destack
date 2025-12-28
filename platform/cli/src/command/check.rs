@@ -29,10 +29,9 @@ pub struct StatsSummary<'a> {
 
 /// Print a stats summary line after diagnostics.
 ///
-/// Outputs a line like "Checked 5 modules (1,234 lines) in 0.42s" or
-/// "Built 3 modules, 2 targets (1 error) in 1.23s".
+/// Outputs a line like "✓ Checked 5 modules (1,234 lines) in 0.42s".
 pub fn print_stats_summary(summary: &StatsSummary<'_>, stats: &StatsSnapshot) {
-    let elapsed = stats.elapsed.as_secs_f64();
+    let elapsed_secs = stats.elapsed.as_secs_f64();
 
     // counts: "N modules[, M profiles][, K targets]"
     let mut parts = Vec::new();
@@ -45,45 +44,124 @@ pub fn print_stats_summary(summary: &StatsSummary<'_>, stats: &StatsSnapshot) {
     }
     let counts = parts.join(", ");
 
-    // line count
-    let lines = if stats.lines_processed > 0 {
-        format!(" ({} lines)", format_number(stats.lines_processed))
+    // prefix icon and colorize verb based on status
+    let (icon, verb, status) = if summary.errors > 0 {
+        let error_text = console::red(&console::bold(&pluralize(summary.errors, "error")));
+        (
+            console::red("✗"),
+            console::red(&console::bold(summary.verb)),
+            format!(" with {error_text}"),
+        )
+    } else if summary.warnings > 0 {
+        let warning_text = console::yellow(&console::bold(&pluralize(summary.warnings, "warning")));
+        (
+            console::green("✓"),
+            console::green(&console::bold(summary.verb)),
+            format!(" with {warning_text}"),
+        )
+    } else {
+        (
+            console::green("✓"),
+            console::green(&console::bold(summary.verb)),
+            String::new(),
+        )
+    };
+
+    // line count with throughput for larger codebases (at end)
+    let lines_suffix = if stats.lines_processed > 0 {
+        if stats.lines_processed > 10_000 && elapsed_secs > 0.1 {
+            let throughput = stats.lines_processed as f64 / elapsed_secs;
+            format!(
+                " {} {}",
+                console::dim("·"),
+                console::dim(&format!("{} lines, {}/s", format_number(stats.lines_processed), format_number(throughput as usize)))
+            )
+        } else {
+            format!(
+                " {} {}",
+                console::dim("·"),
+                console::dim(&format!("{} lines", format_number(stats.lines_processed)))
+            )
+        }
     } else {
         String::new()
     };
 
-    // colorize verb based on status
-    let (verb, status) = if summary.errors > 0 {
-        let error_text = console::red(&pluralize(summary.errors, "error"));
-        (console::red(summary.verb), format!(" with {error_text}"))
-    } else if summary.warnings > 0 {
-        let warning_text = console::yellow(&pluralize(summary.warnings, "warning"));
-        (
-            console::green(summary.verb),
-            format!(" with {warning_text}"),
-        )
-    } else {
-        (console::green(summary.verb), String::new())
-    };
+    let elapsed_str = console::format_duration(stats.elapsed);
+    let header = format!("{verb} {counts}{status} in {elapsed_str}");
+    eprintln!("{icon} {}{lines_suffix}", console::bold(&header));
 
-    eprintln!("{verb} {counts}{lines}{status} in {elapsed:.2}s");
+    // show per-package breakdown if multiple packages (excluding internal ones)
+    // aggregate by package name to avoid duplicates
+    let mut package_map: std::collections::HashMap<String, (usize, usize, std::time::Duration)> =
+        std::collections::HashMap::new();
+    for pkg in &stats.packages {
+        let name = pkg.name.as_deref().unwrap_or("");
+        // skip internal packages
+        if name.starts_with('<') || pkg.lines == 0 {
+            continue;
+        }
+        let entry = package_map
+            .entry(name.to_string())
+            .or_insert((0, 0, std::time::Duration::ZERO));
+        entry.0 += pkg.modules;
+        entry.1 += pkg.lines;
+        entry.2 += pkg.duration;
+    }
 
-    // show per-package breakdown if multiple packages
-    if stats.packages.len() > 1 {
-        // sort by lines descending
-        let mut packages = stats.packages.clone();
-        packages.sort_by(|a, b| b.lines.cmp(&a.lines));
+    if !package_map.is_empty() {
+        // sort: builtin packages last, then by lines descending
+        let mut packages: Vec<_> = package_map.into_iter().collect();
+        packages.sort_by(|(a_name, _), (b_name, _)| {
+            let a_is_builtin = a_name.contains("builtin");
+            let b_is_builtin = b_name.contains("builtin");
 
-        for pkg in &packages {
-            let name = pkg.name.as_deref().unwrap_or("<anonymous>");
-            let pkg_lines = format_number(pkg.lines);
+            match (a_is_builtin, b_is_builtin) {
+                (false, true) => std::cmp::Ordering::Less,
+                (true, false) => std::cmp::Ordering::Greater,
+                _ => a_name.cmp(b_name),
+            }
+        });
+
+        for (name, (modules, lines, duration)) in packages {
+            let modules_str = pluralize(modules, "module");
+            let lines_str = format!("{} lines", format_number(lines));
+            let duration_str = if duration.as_nanos() > 0 {
+                format!(" {} {}", console::dim("·"), console::cyan(&console::format_duration(duration)))
+            } else {
+                String::new()
+            };
             eprintln!(
-                "       {} in {} ({} lines)",
-                pluralize(pkg.modules, "module"),
-                console::dim(name),
-                pkg_lines
+                "    {}  {}  {}  {}{}",
+                console::cyan(&name),
+                modules_str,
+                console::dim("·"),
+                console::dim(&lines_str),
+                duration_str
             );
         }
+    }
+
+    // show per-phase timing (labels dimmed, times in cyan)
+    // skip phases with 0 duration
+    let visible_phases: Vec<_> = stats
+        .phases
+        .iter()
+        .filter(|p| p.duration.as_nanos() > 0)
+        .collect();
+
+    if !visible_phases.is_empty() {
+        let phase_parts: Vec<String> = visible_phases
+            .iter()
+            .map(|p| {
+                let name = console::dim(p.phase.name());
+                let duration = console::cyan(&console::format_duration(p.duration));
+                format!("{name} {duration}")
+            })
+            .collect();
+
+        let sep = console::dim(" · ");
+        eprintln!("    {}", phase_parts.join(&sep));
     }
 }
 

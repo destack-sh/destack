@@ -1,9 +1,11 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
 use destack_source::PackageId;
 use parking_lot::Mutex;
+
+use crate::TaskPhase;
 
 /// Per-package statistics.
 #[derive(Debug, Default)]
@@ -12,6 +14,17 @@ pub struct PackageStats {
     pub modules: AtomicUsize,
     /// Lines of code in this package.
     pub lines: AtomicUsize,
+    /// Total time spent processing this package (nanoseconds).
+    pub duration_ns: AtomicU64,
+}
+
+/// Per-phase timing statistics.
+#[derive(Debug, Default)]
+pub struct PhaseStats {
+    /// Total time spent in this phase (nanoseconds).
+    pub duration_ns: AtomicU64,
+    /// Number of tasks completed in this phase.
+    pub task_count: AtomicUsize,
 }
 
 /// Statistics collected during compilation.
@@ -51,6 +64,8 @@ pub struct CompilerStats {
     pub lines_processed: AtomicUsize,
     /// Per-package statistics.
     package_stats: DashMap<PackageId, PackageStats>,
+    /// Per-phase timing statistics.
+    phase_stats: DashMap<TaskPhase, PhaseStats>,
 
     // Slow task tracking
     /// Number of slow tasks detected.
@@ -81,6 +96,7 @@ impl CompilerStats {
             modules_linted: AtomicUsize::new(0),
             lines_processed: AtomicUsize::new(0),
             package_stats: DashMap::new(),
+            phase_stats: DashMap::new(),
             slow_tasks: AtomicUsize::new(0),
         }
     }
@@ -151,6 +167,16 @@ impl CompilerStats {
             .fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record time spent processing a package.
+    #[inline]
+    pub fn record_package_time(&self, package_id: PackageId, duration: Duration) {
+        self.package_stats
+            .entry(package_id)
+            .or_default()
+            .duration_ns
+            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+    }
+
     /// Record a module being bound.
     #[inline]
     pub fn record_bind(&self) {
@@ -193,6 +219,16 @@ impl CompilerStats {
         self.slow_tasks.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record time spent in a phase.
+    #[inline]
+    pub fn record_phase_time(&self, phase: TaskPhase, duration: Duration) {
+        let entry = self.phase_stats.entry(phase).or_default();
+        entry
+            .duration_ns
+            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+        entry.task_count.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// Get a snapshot of current statistics.
     pub fn snapshot(&self) -> StatsSnapshot {
         self.snapshot_with_modules(0)
@@ -220,14 +256,32 @@ impl CompilerStats {
                     let pkg = pkg.read();
                     pkg.name.clone()
                 });
+                let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
                 PackageStatsSnapshot {
                     package_id,
                     name,
                     modules: entry.value().modules.load(Ordering::Relaxed),
                     lines: entry.value().lines.load(Ordering::Relaxed),
+                    duration: Duration::from_nanos(duration_ns),
                 }
             })
             .collect();
+
+        // collect per-phase stats, sorted by phase code
+        let mut phases: Vec<PhaseStatsSnapshot> = self
+            .phase_stats
+            .iter()
+            .map(|entry| {
+                let phase = *entry.key();
+                let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
+                PhaseStatsSnapshot {
+                    phase,
+                    duration: Duration::from_nanos(duration_ns),
+                    task_count: entry.value().task_count.load(Ordering::Relaxed),
+                }
+            })
+            .collect();
+        phases.sort_by_key(|p| p.phase.code());
 
         StatsSnapshot {
             elapsed: self.elapsed(),
@@ -245,6 +299,7 @@ impl CompilerStats {
             module_count,
             lines_processed: self.lines_processed.load(Ordering::Relaxed),
             packages,
+            phases,
             slow_tasks: self.slow_tasks.load(Ordering::Relaxed),
         }
     }
@@ -261,6 +316,19 @@ pub struct PackageStatsSnapshot {
     pub modules: usize,
     /// Lines of code in this package.
     pub lines: usize,
+    /// Total time spent processing this package.
+    pub duration: Duration,
+}
+
+/// Snapshot of per-phase timing statistics.
+#[derive(Debug, Clone)]
+pub struct PhaseStatsSnapshot {
+    /// The phase.
+    pub phase: TaskPhase,
+    /// Total time spent in this phase.
+    pub duration: Duration,
+    /// Number of tasks completed in this phase.
+    pub task_count: usize,
 }
 
 /// A point-in-time snapshot of compiler statistics.
@@ -296,6 +364,8 @@ pub struct StatsSnapshot {
     pub lines_processed: usize,
     /// Per-package statistics.
     pub packages: Vec<PackageStatsSnapshot>,
+    /// Per-phase timing statistics.
+    pub phases: Vec<PhaseStatsSnapshot>,
     /// Slow tasks detected.
     pub slow_tasks: usize,
 }

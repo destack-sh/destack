@@ -5,6 +5,7 @@ use std::io::{self, IsTerminal, Write};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::time::Duration;
 
 /// Output stream variants for color handling and fallbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -149,6 +150,68 @@ pub fn cyan(text: &str) -> String {
 /// Render text with underline style.
 pub fn underline(text: &str) -> String {
     style(text, &["4"])
+}
+
+/// Format a duration in a human-friendly way.
+///
+/// - Less than 1s: shows milliseconds with precision (e.g., "0.123s", "0.001s")
+/// - 1s to 59s: shows seconds with one decimal (e.g., "5.2s")
+/// - 60s to 59m59s: shows minutes and seconds (e.g., "1m 32s", "5m 0s")
+/// - 1h+: shows hours and minutes (e.g., "1h 5m", "2h 30m")
+pub fn format_duration(duration: Duration) -> String {
+    let total_secs = duration.as_secs();
+    let millis = duration.subsec_millis();
+
+    if total_secs == 0 {
+        // sub-second: show as decimal seconds
+        let secs_f = duration.as_secs_f64();
+        if secs_f < 0.01 {
+            // very small: 3 decimal places
+            format!("{secs_f:.3}s")
+        } else if secs_f < 0.1 {
+            // small: 2 decimal places
+            format!("{secs_f:.2}s")
+        } else {
+            // larger sub-second: 1 decimal
+            format!("{secs_f:.1}s")
+        }
+    } else if total_secs < 60 {
+        // under a minute: seconds with one decimal
+        let secs_f = duration.as_secs_f64();
+        if millis == 0 {
+            format!("{total_secs}s")
+        } else {
+            format!("{secs_f:.1}s")
+        }
+    } else if total_secs < 3600 {
+        // under an hour: minutes and seconds
+        let mins = total_secs / 60;
+        let secs = total_secs % 60;
+        format!("{mins}m {secs}s")
+    } else {
+        // hours and minutes
+        let hours = total_secs / 3600;
+        let mins = (total_secs % 3600) / 60;
+        format!("{hours}h {mins}m")
+    }
+}
+
+/// Format a duration with color based on how long it is.
+///
+/// - Green: under 1s (fast)
+/// - Yellow: 1s to 10s (moderate)
+/// - Red: over 10s (slow)
+pub fn format_duration_colored(duration: Duration) -> String {
+    let text = format_duration(duration);
+    let secs = duration.as_secs_f64();
+
+    if secs < 1.0 {
+        green(&text)
+    } else if secs < 10.0 {
+        yellow(&text)
+    } else {
+        red(&text)
+    }
 }
 
 /// Print a line to stdout.
@@ -372,5 +435,38 @@ mod tests {
         assert!(color_enabled(Stream::Stdout));
 
         reset_color_mode();
+    }
+
+    #[test]
+    fn test_format_duration_subsecond() {
+        assert_eq!(format_duration(Duration::from_millis(1)), "0.001s");
+        assert_eq!(format_duration(Duration::from_millis(5)), "0.005s");
+        assert_eq!(format_duration(Duration::from_millis(12)), "0.01s");
+        assert_eq!(format_duration(Duration::from_millis(123)), "0.1s");
+        assert_eq!(format_duration(Duration::from_millis(500)), "0.5s");
+        assert_eq!(format_duration(Duration::from_millis(999)), "1.0s");
+    }
+
+    #[test]
+    fn test_format_duration_seconds() {
+        assert_eq!(format_duration(Duration::from_secs(1)), "1s");
+        assert_eq!(format_duration(Duration::from_millis(1500)), "1.5s");
+        assert_eq!(format_duration(Duration::from_secs(30)), "30s");
+        assert_eq!(format_duration(Duration::from_secs(59)), "59s");
+    }
+
+    #[test]
+    fn test_format_duration_minutes() {
+        assert_eq!(format_duration(Duration::from_secs(60)), "1m 0s");
+        assert_eq!(format_duration(Duration::from_secs(92)), "1m 32s");
+        assert_eq!(format_duration(Duration::from_secs(300)), "5m 0s");
+        assert_eq!(format_duration(Duration::from_secs(3599)), "59m 59s");
+    }
+
+    #[test]
+    fn test_format_duration_hours() {
+        assert_eq!(format_duration(Duration::from_secs(3600)), "1h 0m");
+        assert_eq!(format_duration(Duration::from_secs(3900)), "1h 5m");
+        assert_eq!(format_duration(Duration::from_secs(9000)), "2h 30m");
     }
 }

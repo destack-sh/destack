@@ -13,6 +13,8 @@ pub struct PrintOptions {
     pub module_count: Option<usize> = None,
     /// Optional syntax colorizer for source code.
     pub colorizer: Option<SourceColorizer> = None,
+    /// Skip printing the summary line.
+    pub skip_summary: bool = false,
 }
 
 impl fmt::Debug for PrintOptions {
@@ -21,6 +23,7 @@ impl fmt::Debug for PrintOptions {
             .field("line_width", &self.line_width)
             .field("module_count", &self.module_count)
             .field("colorizer", &self.colorizer.as_ref().map(|_| "..."))
+            .field("skip_summary", &self.skip_summary)
             .finish()
     }
 }
@@ -46,6 +49,12 @@ impl PrintOptions {
     /// Set the source colorizer for syntax highlighting.
     pub fn with_colorizer(mut self, colorizer: SourceColorizer) -> Self {
         self.colorizer = Some(colorizer);
+        self
+    }
+
+    /// Skip printing the summary line (caller will print their own).
+    pub fn with_skip_summary(mut self, skip: bool) -> Self {
+        self.skip_summary = skip;
         self
     }
 }
@@ -102,7 +111,10 @@ pub fn print_diagnostics(
         eprintln!("{body}");
     }
 
-    // summary
+    // summary (skip if caller will print their own)
+    if options.skip_summary {
+        return;
+    }
     let counts = diagnostics.count_diagnostics_by_severity();
     if !counts.is_empty() {
         // derive families and pluralize with naive 's'

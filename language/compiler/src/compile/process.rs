@@ -224,6 +224,16 @@ impl Compiler {
                 self.queue.set_status(task_id, TaskStatus::Complete);
                 self.wake_waiters(task_id);
                 self.stats.record_complete();
+                self.stats.record_phase_time(handle.phase(), elapsed);
+
+                // record per-package time from task anchor
+                let anchor = handle.task.anchor();
+                if let Some(module_id) = anchor.module_id() {
+                    let package_id = self.program.modules.get(module_id).read().package_id;
+                    self.stats.record_package_time(package_id, elapsed);
+                } else if let Some(package_id) = anchor.package_id() {
+                    self.stats.record_package_time(package_id, elapsed);
+                }
 
                 // emit task completed event
                 self.emit_event(CompilerEvent::TaskCompleted {

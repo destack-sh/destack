@@ -98,6 +98,7 @@ pub fn define_warning(input: TokenStream) -> TokenStream {
 ///
 /// For each phase, this generates:
 /// - `sub_code()` returns the numeric sub-code
+/// - `anchor()` returns the diagnostic anchor (from module/package fields)
 /// - `PHASE_LETTER` constant with the phase letter
 /// - `TaskDebug` impl with `name()` (auto-derived from variant) and `trace_args()`
 /// - `From<XTask> for Task` impl
