@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferOrigin,
     InferScope, InferTable,
@@ -655,9 +657,41 @@ impl Compiler {
                     ctx,
                 )?;
 
+                let mut return_type = self.function_return_type(method_ty_id, types);
+                if let Some(this_ty_id) = this_ty_id {
+                    let mut cache = HashMap::new();
+                    if let Some(this_parameter_id) = signature.this_parameter {
+                        let param_symbol =
+                            tree.get(this_parameter_id).symbol().into_global(module.id);
+                        if let Some(param_ty_id) = types.get_value_type_id(param_symbol) {
+                            let mapped_ty_id = self.substitute_this_type(
+                                param_ty_id,
+                                this_ty_id,
+                                types,
+                                &mut cache,
+                            );
+                            types.set_value_type(param_symbol, mapped_ty_id);
+                        }
+                    }
+                    for parameter_id in signature.dynamic_parameters.iter() {
+                        let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+                        if let Some(param_ty_id) = types.get_value_type_id(param_symbol) {
+                            let mapped_ty_id = self.substitute_this_type(
+                                param_ty_id,
+                                this_ty_id,
+                                types,
+                                &mut cache,
+                            );
+                            types.set_value_type(param_symbol, mapped_ty_id);
+                        }
+                    }
+                    return_type = return_type.map(|return_type| {
+                        self.substitute_this_type(return_type, this_ty_id, types, &mut cache)
+                    });
+                }
+
                 // body
                 if let Some(body) = body {
-                    let return_type = self.function_return_type(method_ty_id, types);
                     let ctx = ctx
                         .reset()
                         .in_function_with_signature(member_id.into_any(), signature);

@@ -9,7 +9,7 @@
 /// ```
 /// match x.branch() {
 ///     Ok { value } => value
-///     Err { error } => return Self.fromError(error)
+///     Err { error } => return fromError(error)
 /// }
 /// ```
 ///
@@ -60,6 +60,6 @@ export newtype interface Try<T, E> {
     /// Returns Ok(value) to continue, Err(error) to break.
     branch(): { kind: "ok", value: T } | { kind: "err", error: E }
 
-    /// Construct Self from an error (for early return with `?`).
-    static fromError(error: E): Self
+    /// Construct the implementing type from an error (for early return with `?`).
+    static fromError(error: E): this
 }

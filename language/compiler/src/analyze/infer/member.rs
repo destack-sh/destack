@@ -247,6 +247,11 @@ impl Compiler {
             }
         };
 
+        let resolved_member_ty_id = {
+            let mut cache = HashMap::new();
+            self.substitute_this_type(resolved_member_ty_id, left_ty_id, types, &mut cache)
+        };
+
         Ok(resolved_member_ty_id)
     }
 

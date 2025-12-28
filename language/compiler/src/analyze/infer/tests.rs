@@ -631,6 +631,122 @@ let a = obj.inner.value;
     test.check_clean();
 }
 
+/// Substitute `this` types for member calls.
+#[test]
+fn test_analyze_this_type_member_call() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Builder { value: int32 }
+
+extension for Builder {
+    combine(other: this): this { return other; }
+}
+
+let builder = Builder { value: 0 };
+let other = Builder { value: 1 };
+let result = builder.combine(other);
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    // load typed module data
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
+
+    let builder_symbol = test.resolve_to_symbol("test.ds", "Builder").unwrap();
+    let result_symbol = test.resolve_to_symbol("test.ds", "result").unwrap();
+    let result_ty_id = types
+        .get_value_type_id(result_symbol)
+        .expect("expected result type");
+
+    assert_type!(types, result_ty_id, Type::Value { value } => {
+        assert_type!(types, *value, Type::Reference { symbol, .. } => {
+            assert_eq!(*symbol, builder_symbol);
+        });
+    });
+}
+
+/// Substitute `this` types inside static type arguments.
+#[test]
+fn test_analyze_this_type_static_argument() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Box<T> { value: T }
+
+struct Builder { value: int32 }
+
+extension for Builder {
+    box(): Box<this> { return { value: this }; }
+}
+
+let builder = Builder { value: 0 };
+let boxed = builder.box();
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    // load typed module data
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
+
+    let box_symbol = test.resolve_to_symbol("test.ds", "Box").unwrap();
+    let builder_symbol = test.resolve_to_symbol("test.ds", "Builder").unwrap();
+    let boxed_symbol = test.resolve_to_symbol("test.ds", "boxed").unwrap();
+    let boxed_ty_id = types
+        .get_value_type_id(boxed_symbol)
+        .expect("expected boxed type");
+
+    let boxed_ty = types.get_type(boxed_ty_id).clone();
+    let (boxed_symbol, boxed_arguments) = match boxed_ty {
+        Type::Value { value } => match types.get_type(value).clone() {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => (symbol, static_arguments),
+            other => panic!("expected boxed reference type, got {other:?}"),
+        },
+        Type::Reference {
+            symbol,
+            static_arguments,
+        } => (symbol, static_arguments),
+        other => panic!("expected boxed value type, got {other:?}"),
+    };
+
+    assert_eq!(boxed_symbol, box_symbol);
+    let boxed_arguments = boxed_arguments.expect("expected static arguments");
+    assert_eq!(boxed_arguments.len(), 1);
+    let StaticArgument::Evaluated { value, .. } = &boxed_arguments[0] else {
+        panic!("expected evaluated static argument");
+    };
+    let StaticExpression::Type { ty } = value else {
+        panic!("expected static type argument");
+    };
+    let inner_ty = types.get_type(*ty).clone();
+    let builder_reference = match inner_ty {
+        Type::Reference { symbol, .. } => symbol,
+        Type::Value { value } => match types.get_type(value).clone() {
+            Type::Reference { symbol, .. } => symbol,
+            other => panic!("expected builder reference type, got {other:?}"),
+        },
+        other => panic!("expected builder value type, got {other:?}"),
+    };
+    assert_eq!(builder_reference, builder_symbol);
+}
+
 /// Infer an inherent extension.
 #[test]
 fn test_analyze_inherent_extension() {

@@ -129,7 +129,7 @@ Destack adds precise numeric types while keeping the originals as aliases.
 
 #### Special Types
 
-All special types work like in TypeScript:
+All special types work like in TypeScript, with Destack extending the receiver-aware `this` type.
 
 - `void` - empty type (no value)
 - `null` - explicit zero/unset value
@@ -137,6 +137,15 @@ All special types work like in TypeScript:
 - `never` - bottom type (unreachable)
 - `any` - erased top type (discouraged)
 - `unknown` - explicit erased any (discouraged)
+- `this` - receiver type (see below)
+
+#### The `this` Type
+
+Destack supports TypeScript's polymorphic `this` type for instance members, and extends it to static type positions.
+`this` is only valid in type positions and resolves based on the surrounding declaration:
+
+- In instance members, `this` resolves to the concrete receiver type.
+- In static type positions (like static members or static arguments), `this` resolves to the containing type itself.
 
 #### Booleans
 
@@ -1010,7 +1019,7 @@ interface Drawable {
 }
 
 interface Container<T> extends Iterable<T> {
-    static Empty: Self
+    static Empty: this
     size(): uint64
     get(index: uint64): T?
 }
@@ -1029,7 +1038,7 @@ interface Drawable {
 const x: Drawable = { draw() {} }  // OK: structural match
 
 // Nominal interface (requires explicit "nominal" `implements`)
-newtype interface Add<T, R = Self> {
+newtype interface Add<T, R = this> {
     add(other: T): R
 }
 
@@ -2032,7 +2041,7 @@ For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for ve
 Operator interfaces are declared as **nominal interfaces** using `newtype interface`:
 
 ```
-newtype interface Add<T, R = Self> {
+newtype interface Add<T, R = this> {
     add(other: T): R
 }
 ```
@@ -2073,8 +2082,8 @@ Standard arithmetic operators, all overloadable:
 | `/` | Divide | `Divide<T, U = T>` | `/=` |
 | `%` | Remainder | `Remainder<T, U = T>` | `%=` |
 | `**` | Power | `Power<T, U = T>` | — |
-| `-a` | Negate (unary) | `Negate<U = Self>` | — |
-| `+a` | Plus (unary) | `Plus<U = Self>` | — |
+| `-a` | Negate (unary) | `Negate<U = this>` | — |
+| `+a` | Plus (unary) | `Plus<U = this>` | — |
 
 Destack adds explicit overflow control for integer types:
 
@@ -2134,7 +2143,7 @@ Elementwise operators for bitwise operations on integers, overloadable for other
 | `&` | Elementwise and | `And<T, U = T>` | `&=` |
 | `\|` | Elementwise or | `Or<T, U = T>` | `\|=` |
 | `^` | Elementwise xor | `Xor<T, U = T>` | `^=` |
-| `~` | Elementwise not | `Not<U = Self>` | — |
+| `~` | Elementwise not | `Not<U = this>` | — |
 | `<<` | Shift left | `ShiftLeft<T, U = T>` | `<<=` |
 | `>>` | Shift right | `ShiftRight<T, U = T>` | `>>=` |
 | `>>>` | Unsigned shift right | `ShiftRightUnsigned<T, U = T>` | `>>>=` |
