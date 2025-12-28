@@ -36,7 +36,7 @@ block0:
 }
 
 #[test]
-#[ignore] // nocheckin: fix lower error
+#[ignore] // FUGU: fix lower error
 fn test_lower_fibonacci_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(

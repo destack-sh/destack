@@ -27,7 +27,7 @@ Documentation comments for functions/types/etc. should be proper sentences with 
 Comments MAY start with keywords:
 - `NOTE`: call out something important
 - `TODO`: something to address eventually
-- `nocheckin`: temporary, should not be committed
+- `FUGU`: temporary, f-ed up, should be addressed before going ("being consumed") upstream
 
 Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seems wrong?"):
 - `#Performance`: could be faster or more efficient

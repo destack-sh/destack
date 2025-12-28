@@ -107,7 +107,7 @@ let value = bag.missing
 
 ## dot access from index signature is allowed by default
 
-```ds
+```ts
 interface Bag {
     [key: string]: number
 }

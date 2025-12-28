@@ -486,7 +486,7 @@ impl Default for DsConfigCompilerOptions {
             no_fallthrough_cases_in_switch: true,
             exact_optional_property_types: true,
             no_unchecked_indexed_access: true,
-            no_property_access_from_index_signature: false,
+            no_property_access_from_index_signature: true,
 
             // Destack-specific checking (all off by default, opt-in)
             no_any: false,
@@ -1365,7 +1365,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(true),
             no_property_access_from_index_signature: json
                 .no_property_access_from_index_signature
-                .unwrap_or(false),
+                .unwrap_or(true),
 
             // Destack-specific checking
             no_any: json.no_any.unwrap_or(false),

@@ -52,11 +52,15 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
 
-        if let Some(options) = self
-            .program
-            .with_tsconfig_options(&module, |ts| ts.compiler.clone())
-        {
-            return AnalyzeOptions::from(&options);
+        if module.language_type.is_typescript() {
+            if let Some(options) = self
+                .program
+                .with_tsconfig_options(&module, |ts| ts.compiler.clone())
+            {
+                return AnalyzeOptions::from(&options);
+            }
+
+            return AnalyzeOptions::from(&TsCompilerOptions::default());
         }
 
         if let Some(options) = self
@@ -66,10 +70,6 @@ impl Compiler {
             return AnalyzeOptions::from(&options);
         }
 
-        if module.language_type.is_destack() {
-            AnalyzeOptions::from(&DsConfigCompilerOptions::default())
-        } else {
-            AnalyzeOptions::from(&TsCompilerOptions::default())
-        }
+        AnalyzeOptions::from(&DsConfigCompilerOptions::default())
     }
 }

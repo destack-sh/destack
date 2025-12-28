@@ -470,7 +470,7 @@ impl Compiler {
 
         // resolve Self to enclosing type
         if first_segment_str.as_str() == "Self" {
-            // nocheckin: remove Self now that we have `this` type
+            // FUGU: remove Self now that we have `this` type
             let root_path = Path {
                 segments: vec![first_segment].into(),
             };
