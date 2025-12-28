@@ -40,9 +40,7 @@ impl ModuleLowerer<'_> {
             dir::TypeUnaryOperator::Must => unary(TypeUnaryOperator::Must),
             dir::TypeUnaryOperator::Typeof => unary(TypeUnaryOperator::Typeof),
             dir::TypeUnaryOperator::Keyof => unary(TypeUnaryOperator::Keyof),
-            dir::TypeUnaryOperator::Infer => unary(TypeUnaryOperator::Infer),
             dir::TypeUnaryOperator::AsConst => unary(TypeUnaryOperator::AsConst),
-            dir::TypeUnaryOperator::Asserts => unary(TypeUnaryOperator::Asserts),
         };
 
         Ok(expression_id)

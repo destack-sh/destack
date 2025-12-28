@@ -410,7 +410,7 @@ impl Parser {
         let start = self.mark();
         self.eat_keyword(Keyword::Asserts)?;
         self.eat_newlines_maybe()?;
-        
+
         // asserts this | asserts param
         let subject = if self.peek_keyword(Keyword::This).is_ok() {
             self.bump(); // eat this
@@ -419,7 +419,7 @@ impl Parser {
             let name = self.eat_identifier()?;
             TypePredicateSubject::Identifier(name)
         };
-        
+
         // optional target: asserts x is T
         let target = if self.peek_keyword(Keyword::Is).is_ok() {
             self.bump(); // eat is
@@ -516,7 +516,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::Colon)?;
         self.eat_newlines_maybe()?;
-        
+
         // value type
         let value = self.with_options(self.options.not_in_position().in_type(), |parser| {
             parser.eat_expression()

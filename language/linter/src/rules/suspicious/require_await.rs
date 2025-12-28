@@ -133,8 +133,8 @@ fn contains_await(
                 || dynamic_arguments.iter().any(|arg_id| {
                     let arg = ctx.tree.get(*arg_id);
                     match arg {
-                        ast::Argument::Positional { value }
-                        | ast::Argument::Spread { value }
+                        ast::Argument::Positional { value, .. }
+                        | ast::Argument::Spread { value, .. }
                         | ast::Argument::Named { value, .. }
                         | ast::Argument::Labeled { value, .. } => contains_await(ctx, *value),
                     }

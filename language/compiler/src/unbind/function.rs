@@ -75,6 +75,9 @@ impl Compiler {
         let generics = signature.generics.as_ref().map(|generics| {
             self.unbind_generics(module, generics, tree, symbols, ast_tree, ast_strings)
         });
+        let this_parameter = signature.this_parameter.map(|parameter| {
+            self.unbind_parameter(module, parameter, tree, symbols, ast_tree, ast_strings)
+        });
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
@@ -92,6 +95,7 @@ impl Compiler {
             mode,
             kind,
             generics,
+            this_parameter,
             dynamic_parameters,
             return_type,
         }

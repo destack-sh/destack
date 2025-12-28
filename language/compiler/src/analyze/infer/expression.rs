@@ -4,8 +4,8 @@ use crate::{
 use destack_dir::{
     Argument, Block, Declaration, DynamicKey, Expression, FunctionKind, GlobalSymbolId,
     LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource, NodeTree, Pattern,
-    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
-    TypeTable,
+    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeElement, TypeField,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -209,6 +209,18 @@ impl Compiler {
                 );
                 types.insert_type_from(ty, expression_id)
             }
+            Expression::TypeConditional { .. }
+            | Expression::TypeMapped { .. }
+            | Expression::TypeIndex { .. }
+            | Expression::TypeTemplateLiteral { .. }
+            | Expression::TypeImport { .. }
+            | Expression::TypeInfer { .. }
+            | Expression::TypePredicate { .. } => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
 
             // unary operations: compound type
             Expression::Unary { operator, right } => self.infer_unary_expression(
@@ -404,7 +416,6 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-
             // type as a value: type
             Expression::Type { value } => {
                 let ty = Type::Value { value: *value };
@@ -434,12 +445,21 @@ impl Compiler {
                 }
 
                 // collect element types
-                let element_tys: Vec<LocalTypeId> = elements
+                let element_tys: Vec<TypeElement> = elements
                     .iter()
                     .map(|element_id| {
                         let element = tree.get(*element_id);
                         let element_id = element.value();
-                        self.infer_expression(module, element_id, tree, symbols, types, infer, ctx)
+                        let ty = self.infer_expression(
+                            module,
+                            element_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                        Ok(TypeElement::new(ty))
                     })
                     .collect::<Result<Vec<_>, AnalyzeError>>()?;
 
@@ -516,8 +536,20 @@ impl Compiler {
                         fields.push(field);
                     }
                 }
+                self.check_excess_object_literal_properties(
+                    module,
+                    expression_id,
+                    ctx.expected_type,
+                    &fields,
+                    types,
+                );
 
-                let ty = Type::Object { fields };
+                let ty = Type::Object {
+                    fields,
+                    call_signatures: Vec::new(),
+                    construct_signatures: Vec::new(),
+                    index_signatures: Vec::new(),
+                };
                 types.insert_type_from(ty, expression_id)
             }
 
@@ -1262,6 +1294,7 @@ impl Compiler {
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|k| match k {
                     DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
                     // dynamic keys can't be used for static type inference
                     DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                 });
@@ -1338,6 +1371,7 @@ impl Compiler {
                 let expected_method_ty_id = key
                     .and_then(|key| match key {
                         DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                        DynamicKey::Number(name) => Some(StaticKey::Number(name)),
                         DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                     })
                     .and_then(|key| {
@@ -1525,7 +1559,7 @@ impl Compiler {
                     fields,
                     binding_ty_id,
                     |rest_types| Type::Tuple {
-                        elements: rest_types,
+                        elements: rest_types.into_iter().map(TypeElement::new).collect(),
                     },
                     tree,
                     symbols,
@@ -1541,7 +1575,7 @@ impl Compiler {
                     fields,
                     Some(ty_id),
                     |rest_types| Type::Tuple {
-                        elements: rest_types,
+                        elements: rest_types.into_iter().map(TypeElement::new).collect(),
                     },
                     tree,
                     symbols,
@@ -1626,9 +1660,11 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        let binding_ty_fields = binding_ty_id
+        let binding_ty_fields: Vec<LocalTypeId> = binding_ty_id
             .and_then(|ty_id| match types.get_type(ty_id) {
-                Type::Tuple { elements } => Some(elements.clone()),
+                Type::Tuple { elements } => {
+                    Some(elements.iter().map(|element| element.ty).collect())
+                }
                 _ => None,
             })
             .unwrap_or_default();
@@ -1857,6 +1893,7 @@ impl Compiler {
             asynchrony,
             cardinality,
             static_parameters,
+            this_parameter,
             dynamic_parameters,
             return_type,
         } = types.get_type(base_ty_id).clone()
@@ -1886,6 +1923,7 @@ impl Compiler {
             asynchrony,
             cardinality,
             static_parameters: Vec::new(),
+            this_parameter,
             dynamic_parameters: resolved.dynamic_parameters,
             return_type: resolved.return_type,
         };
@@ -1901,5 +1939,130 @@ impl Compiler {
         }
 
         Ok(instantiated_ty_id)
+    }
+
+    /// Check excess properties on an object literal against a contextual type.
+    fn check_excess_object_literal_properties(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        expected_ty_id: Option<LocalTypeId>,
+        fields: &[TypeField],
+        types: &TypeTable,
+    ) {
+        // collect candidates for excess property checks
+        let Some(expected_ty_id) = self.expected_value_type_id(expected_ty_id, types) else {
+            return;
+        };
+        let mut candidates: Vec<LocalTypeId> = Vec::new();
+        self.collect_object_literal_candidates(expected_ty_id, types, &mut candidates);
+        if candidates.is_empty() {
+            return;
+        }
+
+        // check if any candidate matches the fields
+        for candidate in candidates.iter().copied() {
+            if self.object_literal_matches_target(fields, candidate, types) {
+                return;
+            }
+        }
+
+        // if no candidate matches, report the first excess property
+        let Some(candidate) = candidates.first().copied() else {
+            return;
+        };
+        let Some(member_key) = self.first_excess_property_key(fields, candidate, types) else {
+            return;
+        };
+        self.error(AnalyzeError::ExcessProperty {
+            node: expression_id.into_global_any(module.id),
+            expected_ty: candidate.into_global(module.id),
+            member_key,
+        });
+    }
+
+    /// Collect object-like candidates for excess property checks.
+    fn collect_object_literal_candidates(
+        &self,
+        expected_ty_id: LocalTypeId,
+        types: &TypeTable,
+        candidates: &mut Vec<LocalTypeId>,
+    ) {
+        match types.get_type(expected_ty_id) {
+            Type::Object { .. } => candidates.push(expected_ty_id),
+            Type::Reference { symbol, .. } => {
+                if let Some(instance_ty_id) = types.get_instance_type_id(*symbol) {
+                    candidates.push(instance_ty_id);
+                }
+            }
+            Type::Union { elements } => {
+                for element in elements {
+                    self.collect_object_literal_candidates(*element, types, candidates);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Check if an object literal matches a target object type.
+    fn object_literal_matches_target(
+        &self,
+        fields: &[TypeField],
+        target_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        let Type::Object {
+            fields: target_fields,
+            index_signatures,
+            ..
+        } = types.get_type(target_ty_id)
+        else {
+            return false;
+        };
+        if !index_signatures.is_empty() {
+            return true;
+        }
+
+        for field in fields {
+            let matches = target_fields
+                .iter()
+                .any(|target_field| target_field.key.matches(&field.key));
+            if !matches {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Find the first excess property key for a target object type.
+    fn first_excess_property_key(
+        &self,
+        fields: &[TypeField],
+        target_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<StaticKey> {
+        let Type::Object {
+            fields: target_fields,
+            index_signatures,
+            ..
+        } = types.get_type(target_ty_id)
+        else {
+            return None;
+        };
+        if !index_signatures.is_empty() {
+            return None;
+        }
+
+        for field in fields {
+            let matches = target_fields
+                .iter()
+                .any(|target_field| target_field.key.matches(&field.key));
+            if !matches {
+                return Some(field.key);
+            }
+        }
+
+        None
     }
 }

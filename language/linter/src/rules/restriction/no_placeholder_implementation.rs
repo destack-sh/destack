@@ -58,7 +58,7 @@ impl LintRule for NoPlaceholderImplementation {
                 } => {
                     if dynamic_arguments.len() == 1 {
                         let arg = ctx.tree.get(dynamic_arguments[0]);
-                        if let ast::Argument::Positional { value } = arg {
+                        if let ast::Argument::Positional { value, .. } = arg {
                             let value_expr = ctx.tree.get(*value);
                             if let ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(s)) =
                                 value_expr

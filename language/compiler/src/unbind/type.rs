@@ -25,6 +25,28 @@ impl Compiler {
         }
     }
 
+    /// Unbind a DIR type modifier to an AST type modifier.
+    #[inline]
+    pub(super) fn unbind_type_modifier(&self, modifier: dir::TypeModifier) -> ast::TypeModifier {
+        match modifier {
+            dir::TypeModifier::Add => ast::TypeModifier::Add,
+            dir::TypeModifier::Remove => ast::TypeModifier::Remove,
+            dir::TypeModifier::None => ast::TypeModifier::None,
+        }
+    }
+
+    /// Unbind DIR mapped type modifiers to AST mapped type modifiers.
+    #[inline]
+    pub(super) fn unbind_type_mapped_modifiers(
+        &self,
+        modifiers: dir::TypeMappedModifiers,
+    ) -> ast::TypeMappedModifiers {
+        ast::TypeMappedModifiers {
+            readonly: self.unbind_type_modifier(modifiers.readonly),
+            optional: self.unbind_type_modifier(modifiers.optional),
+        }
+    }
+
     /// Unbind a DIR asynchrony to an AST asynchrony.
     #[inline]
     pub(super) fn unbind_asynchrony(&self, asynchrony: dir::Asynchrony) -> ast::Asynchrony {

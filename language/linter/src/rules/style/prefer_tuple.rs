@@ -140,7 +140,7 @@ fn get_argument_literal_type(
     arg: &Argument,
 ) -> Option<LiteralType> {
     let value_id = match arg {
-        Argument::Positional { value } => *value,
+        Argument::Positional { value, .. } => *value,
         _ => return None,
     };
 

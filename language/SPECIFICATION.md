@@ -652,54 +652,9 @@ A function that performs I/O cannot be called in a comptime context, but can sti
 | Static parameter argument | Compile time (required) |
 | `if (comptime cond)` condition | Compile time (enables branch elimination) |
 
-### Valid Comptime Operations
+### Comptime Conditionals
 
-Comptime evaluation must be deterministic and side effect free:
-
-| Category | Operations | Valid |
-|----------|------------|----------------|
-| Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` | Yes |
-| Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` | Yes |
-| Logic | `&&`, `\|\|`, `!` | Yes |
-| Bitwise | `&`, `\|`, `^`, `~`, `<<`, `>>` | Yes |
-| String | concatenation, slicing, `length` | Yes |
-| Data structures | array/object creation, access | Yes |
-| Control flow | `if`, `match`, `for`, `while`, `loop` | Yes |
-| Functions | pure function calls | Yes |
-| Constants | `const` bindings, static parameters | Yes |
-| I/O | file, network, console | No |
-| Random | `Math.random()`, crypto random | No |
-| Time | `Date.now()`, timers | No |
-| Runtime state | mutable globals, closures over `let` | No |
-| Async | `await`, promises | No |
-| Exceptions | `throw` (but `try`/`catch` is allowed) | No |
-
-### Comptime Errors
-
-Non-comptime operations in comptime context produce compile errors:
-
-```
-const X = comptime {
-    console.log("hello");  // error: I/O not allowed in comptime
-    42
-};
-
-function greet(comptime name: string) {
-    print(name);  // ok: print happens at runtime, not comptime
-}
-greet(getUserInput());  // error: getUserInput() is not comptime-known
-```
-
-Comptime evaluation failures (division by zero, out of bounds, etc.) are also compile errors:
-
-```
-const X = comptime 1 / 0;           // error: division by zero in comptime
-const Y = comptime [1, 2, 3][10];   // error: index out of bounds in comptime
-```
-
-### Conditional Compilation
-
-When an `if` condition is a comptime expression, the compiler can eliminate dead branches:
+When a condition is a comptime expression, the compiler can eliminate dead branches at compile time:
 
 ```
 const DEBUG = comptime getEnvFlag("DEBUG");
@@ -730,7 +685,7 @@ These compose naturally:
 
 ```
 class Config {
-    static DEFAULT = 256;                          // TS static, runtime initialization
+    static DEFAULT = 256;                           // TS static, runtime initialization
     static LOOKUP = comptime generateLookupTable(); // TS static + comptime evaluation
 }
 ```
@@ -776,9 +731,9 @@ function example<T>(x: T) {
 }
 ```
 
-#### Type<T> in Comptime Conditions
+#### Type<T> at Comptime
 
-Reflection can be used at comptime, and thus `Type` can also be used for conditionals:
+Reflection can be used at comptime, and thus `Type` can also be used for comptime conditionals:
 
 ```
 function serialize<T>(value: T): string {
@@ -793,7 +748,7 @@ function serialize<T>(value: T): string {
 }
 ```
 
-### Comptime Slots
+### Comptime "Slots"
 
 Destack's comptime is designed around the concept of **typed slots**:
 
@@ -813,7 +768,7 @@ In practice, this isn't its own "feature", but just a nice consequence of other 
 3. **Branch elimination**: comptime conditionals select which code survives.
 4. **Inlining**: comptime expressions become constants.
 
-#### Case Study: JSON Parser
+#### Comptime Example: JSON Parser
 
 This example demonstrates code specialization by creating a type safe JSON parser.
 
@@ -864,7 +819,7 @@ function parse_User(json: string): User {
 }
 ```
 
-#### Case Study: Cache Table
+#### Comptime Example: Cache Table
 
 This example demonstrates comptime type conditions for conditional behavior.
 See [Ghostty's cache_table.zig](https://github.com/ghostty-org/ghostty/blob/main/src/datastruct/cache_table.zig) for the original Zig implementation.
@@ -973,18 +928,6 @@ struct CacheTable<
     }
 }
 ```
-
-**Pattern Comparison**
-
-| Zig Pattern | Destack Equivalent | Notes |
-|-------------|-------------------|-------|
-| `fn CacheTable(...) type { return struct {...} }` | `struct CacheTable<..., N: uint>` | Static parameters replace function returning type |
-| `comptime K: type` | `K` (type parameter) | Standard generics |
-| `comptime bucket_count: usize` | `bucketCount: uint` (static param) | Value parameter, known at comptime |
-| `comptime { assert(...) }` | `comptime { assert(...) }` | Direct mapping |
-| `[bucket_count][bucket_size]KV` | `KV[bucketSize][bucketCOunt]` | Fixed-size arrays with static parameters |
-| `@splat(0)` | `comptime [0] * bucketCount` | Zero-initialized array |
-| `if (comptime @hasDecl(Context, "evicted"))` | `if (comptime Context extends EvictableContext)` | Type capability check with narrowing |
 
 ## Reflection
 

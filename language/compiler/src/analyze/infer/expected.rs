@@ -56,9 +56,9 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         let expected_object_ty_id = expected_object_ty_id?;
         match types.get_type(expected_object_ty_id) {
-            Type::Object { fields } => fields
+            Type::Object { fields, .. } => fields
                 .iter()
-                .find(|field| &field.key == key)
+                .find(|field| field.key.matches(key))
                 .map(|field| field.ty),
             _ => None,
         }
@@ -79,8 +79,8 @@ impl Compiler {
 
         match types.get_type(expected_ty_id) {
             Type::Tuple { elements } => {
-                for (index, element_ty_id) in elements.iter().enumerate().take(element_count) {
-                    expected[index] = Some(*element_ty_id);
+                for (index, element) in elements.iter().enumerate().take(element_count) {
+                    expected[index] = Some(element.ty);
                 }
             }
             Type::Array {

@@ -89,6 +89,9 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                     DynamicKey::Name(string_id) => {
                         Some(ctx.ast.strings.get(*string_id).to_string())
                     }
+                    DynamicKey::Number(string_id) => {
+                        Some(ctx.ast.strings.get(*string_id).to_string())
+                    }
                     DynamicKey::NamedExpression { name, .. } => {
                         Some(ctx.ast.strings.get(*name).to_string())
                     }

@@ -983,6 +983,7 @@ impl Compiler {
                     return None;
                 }
 
+                // index into tuple by integer
                 if let Some(index_ty_id) = index_ty_id
                     && let Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(index)),
@@ -991,13 +992,14 @@ impl Compiler {
                 {
                     let index = *index as usize;
                     if index < elements.len() {
-                        return Some(elements[index]);
+                        return Some(elements[index].ty);
                     }
                 }
 
-                Some(self.union_type_ids_from_list(elements.clone(), types))
+                let elements = elements.iter().map(|element| element.ty).collect();
+                Some(self.union_type_ids_from_list(elements, types))
             }
-            Type::Object { fields } => {
+            Type::Object { fields, .. } => {
                 let index_ty_id = index_ty_id?;
 
                 let Type::TypeLiteral {
@@ -1010,7 +1012,7 @@ impl Compiler {
                 let key = StaticKey::Name(*name_id);
                 fields
                     .iter()
-                    .find(|field| field.key == key)
+                    .find(|field| field.key.matches(&key))
                     .map(|field| field.ty)
             }
             _ => None,
@@ -1052,7 +1054,7 @@ impl Compiler {
                     Some(self.union_type_ids_from_list(value_types, types))
                 }
             }
-            Type::Object { fields } => {
+            Type::Object { fields, .. } => {
                 self.try_extract_branch_value_type_from_object(fields, types)
             }
             Type::Reference {

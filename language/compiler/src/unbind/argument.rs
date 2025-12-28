@@ -133,23 +133,37 @@ impl Compiler {
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
-                ast::Argument::Named { name, value }
+                ast::Argument::Named {
+                    modifiers: None,
+                    name,
+                    value,
+                }
             }
             dir::Argument::Positional { value } => {
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
-                ast::Argument::Positional { value }
+                ast::Argument::Positional {
+                    modifiers: None,
+                    value,
+                }
             }
             dir::Argument::Spread { value } => {
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
-                ast::Argument::Spread { value }
+                ast::Argument::Spread {
+                    modifiers: None,
+                    value,
+                }
             }
             dir::Argument::Labeled { label, value } => {
                 let label = ast_strings.intern_from(&self.program.strings, *label);
                 let value =
                     self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
-                ast::Argument::Labeled { label, value }
+                ast::Argument::Labeled {
+                    modifiers: None,
+                    label,
+                    value,
+                }
             }
         };
         ast_tree.insert(ast_argument, span)

@@ -97,7 +97,7 @@ pub fn format_type(
         } => {
             let mut result = String::from("`");
             for (index, string_id) in template_strings.iter().enumerate() {
-                result.push_str(strings.get(*string_id));
+                result.push_str(&strings.get(*string_id));
                 if let Some(span_id) = spans.get(index) {
                     let span = format_local_type(*span_id, types, modules, strings);
                     result.push_str("${");
@@ -110,7 +110,7 @@ pub fn format_type(
         }
         dir::Type::Import { target, qualifier } => {
             let target = strings.get(*target);
-            let mut result = format!("import(\"{target}\")");
+            let mut result = format!("import(\"{}\")", target.to_string());
             if let Some(qualifier) = qualifier {
                 let path = format_path(qualifier, strings);
                 result.push('.');
@@ -118,12 +118,19 @@ pub fn format_type(
             }
             result
         }
-        dir::Type::InferBinding { name, constraint } => {
+        dir::Type::Infer { name, constraint } => {
             let name = strings.get(*name);
             let constraint = constraint.map(|constraint| {
-                format!(" extends {}", format_local_type(constraint, types, modules, strings))
+                format!(
+                    " extends {}",
+                    format_local_type(constraint, types, modules, strings)
+                )
             });
-            format!("infer {name}{}", constraint.unwrap_or_default())
+            format!(
+                "infer {}{}",
+                name.to_string(),
+                constraint.unwrap_or_default()
+            )
         }
         dir::Type::Predicate {
             asserts,
@@ -131,9 +138,7 @@ pub fn format_type(
             target,
         } => {
             let subject = format_type_predicate_subject(*subject, modules, strings);
-            let target = target.map(|target| {
-                format_local_type(target, types, modules, strings)
-            });
+            let target = target.map(|target| format_local_type(target, types, modules, strings));
             match (asserts, target) {
                 (true, Some(target)) => format!("asserts {subject} is {target}"),
                 (true, None) => format!("asserts {subject}"),
@@ -243,7 +248,11 @@ pub fn format_type(
                 let name = strings.get(signature.name).to_string();
                 let key_type = format_local_type(signature.key_type, types, modules, strings);
                 let value_type = format_local_type(signature.value_type, types, modules, strings);
-                let readonly = if signature.is_readonly { "readonly " } else { "" };
+                let readonly = if signature.is_readonly {
+                    "readonly "
+                } else {
+                    ""
+                };
                 items.push(format!("{readonly}[{name}: {key_type}]: {value_type}"));
             }
 
@@ -437,6 +446,7 @@ pub fn format_symbol_name(
 pub fn format_static_key(key: &dir::StaticKey, strings: &StringPool) -> String {
     match key {
         dir::StaticKey::Name(name_id) => strings.get(*name_id).to_string(),
+        dir::StaticKey::Number(name_id) => strings.get(*name_id).to_string(),
         dir::StaticKey::UniqueSymbol(_) => "<unique symbol>".to_string(),
         dir::StaticKey::GlobalSymbol(name_id) => {
             let name = &*strings.get(*name_id);
@@ -565,7 +575,7 @@ fn format_type_tuple_element(
     if let Some(label) = element.label {
         let name = strings.get(label);
         let ty = format_local_type(element.ty, types, modules, strings);
-        result.push_str(&format!("{name}: {ty}"));
+        result.push_str(&format!("{}: {ty}", name.to_string()));
     } else {
         result.push_str(&format_local_type(element.ty, types, modules, strings));
     }

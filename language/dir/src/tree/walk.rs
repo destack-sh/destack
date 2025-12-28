@@ -900,6 +900,7 @@ pub fn walk_declarator<V: NodeVisitor + ?Sized>(
 pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: &DynamicKey) {
     match key {
         DynamicKey::Name(_) => {}
+        DynamicKey::Number(_) => {}
         DynamicKey::Expression(expression) => {
             let expression_expr = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_expr);

@@ -132,9 +132,7 @@ impl ModuleLowerer<'_> {
             dir::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
             dir::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
             dir::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
-            dir::TypeUnaryOperator::Infer => TypeUnaryOperator::Infer,
             dir::TypeUnaryOperator::AsConst => TypeUnaryOperator::AsConst,
-            dir::TypeUnaryOperator::Asserts => TypeUnaryOperator::Asserts,
         };
         Ok(operator)
     }
@@ -213,7 +211,19 @@ impl ModuleLowerer<'_> {
             dir::Type::Tuple { elements } => {
                 let elements = elements
                     .iter()
-                    .map(|element| self.lower_type(*element))
+                    .map(|element| {
+                        if element.label.is_some()
+                            || element.is_optional
+                            || element.is_readonly
+                            || element.is_rest
+                        {
+                            return Err(CodegenJsError::UnsupportedConstruct {
+                                node: source_id.into_global(self.module.id),
+                                message: None,
+                            });
+                        }
+                        self.lower_type(element.ty)
+                    })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 let ty = Type::Tuple { elements };
                 self.tree

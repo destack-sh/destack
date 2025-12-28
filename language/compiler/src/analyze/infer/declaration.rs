@@ -4,11 +4,21 @@ use crate::{
 };
 use destack_dir::{
     Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey, EnumField,
-    Expression, Extension, ExtensionKind, FunctionSignature, Generics, GlobalSymbolId, Heritage,
-    Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, Parameter,
-    StaticKey, SymbolTable, Type, TypeField, TypeKind, TypeLiteral, TypeTable, WhereClause,
+    Expression, Extension, ExtensionKind, FunctionMode, FunctionSignature, Generics,
+    GlobalSymbolId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    Member, NodeTree, Parameter, StaticKey, SymbolTable, Type, TypeField, TypeIndexSignature,
+    TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
+
+/// Inferred type contributions from a member declaration.
+#[derive(Debug, Default)]
+pub(super) struct InferredMember {
+    field: Option<TypeField>,
+    call_signatures: Vec<LocalTypeId>,
+    construct_signatures: Vec<LocalTypeId>,
+    index_signatures: Vec<TypeIndexSignature>,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -123,16 +133,27 @@ impl Compiler {
 
                 // type fields
                 let mut fields = Vec::new();
+                let mut call_signatures = Vec::new();
+                let mut construct_signatures = Vec::new();
+                let mut index_signatures = Vec::new();
                 for member_id in members {
-                    if let Some(field) = self
-                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?
-                    {
+                    let inferred = self
+                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
+                    if let Some(field) = inferred.field {
                         fields.push(field);
                     }
+                    call_signatures.extend(inferred.call_signatures);
+                    construct_signatures.extend(inferred.construct_signatures);
+                    index_signatures.extend(inferred.index_signatures);
                 }
 
                 // struct instance type: object type with fields
-                let instance_ty = Type::Object { fields };
+                let instance_ty = Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
@@ -179,16 +200,28 @@ impl Compiler {
 
                 // type fields
                 let mut fields = Vec::new();
+                let mut call_signatures = Vec::new();
+                let mut construct_signatures = Vec::new();
+                let mut index_signatures = Vec::new();
                 for member_id in members {
-                    if let Some(field) = self.infer_member(
+                    let inferred = self.infer_member(
                         module, *member_id, tree, symbols, types, infer, &mut ctx, None,
-                    )? {
+                    )?;
+                    if let Some(field) = inferred.field {
                         fields.push(field);
                     }
+                    call_signatures.extend(inferred.call_signatures);
+                    construct_signatures.extend(inferred.construct_signatures);
+                    index_signatures.extend(inferred.index_signatures);
                 }
 
                 // class instance type: object type with fields
-                let instance_ty = Type::Object { fields };
+                let instance_ty = Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
@@ -263,6 +296,9 @@ impl Compiler {
                 // enum value type: object with variant fields
                 let value_ty = Type::Object {
                     fields: value_fields,
+                    call_signatures: Vec::new(),
+                    construct_signatures: Vec::new(),
+                    index_signatures: Vec::new(),
                 };
                 let value_ty_id = types.insert_type_from(value_ty, declaration_id);
                 types.set_value_type(enum_symbol, value_ty_id);
@@ -306,16 +342,28 @@ impl Compiler {
 
                 // collect type fields from members
                 let mut fields = Vec::new();
+                let mut call_signatures = Vec::new();
+                let mut construct_signatures = Vec::new();
+                let mut index_signatures = Vec::new();
                 for member_id in members {
-                    if let Some(field) = self.infer_member(
+                    let inferred = self.infer_member(
                         module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
-                    )? {
+                    )?;
+                    if let Some(field) = inferred.field {
                         fields.push(field);
                     }
+                    call_signatures.extend(inferred.call_signatures);
+                    construct_signatures.extend(inferred.construct_signatures);
+                    index_signatures.extend(inferred.index_signatures);
                 }
 
                 // extension instance type: object type with its methods
-                let instance_ty = Type::Object { fields };
+                let instance_ty = Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 let extension_symbol = descriptor.symbol.into_global(module.id);
                 types.set_instance_type(extension_symbol, instance_ty_id);
@@ -360,16 +408,27 @@ impl Compiler {
 
                 // collect type fields from members
                 let mut fields = Vec::new();
+                let mut call_signatures = Vec::new();
+                let mut construct_signatures = Vec::new();
+                let mut index_signatures = Vec::new();
                 for member_id in members {
-                    if let Some(field) = self
-                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?
-                    {
+                    let inferred = self
+                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
+                    if let Some(field) = inferred.field {
                         fields.push(field);
                     }
+                    call_signatures.extend(inferred.call_signatures);
+                    construct_signatures.extend(inferred.construct_signatures);
+                    index_signatures.extend(inferred.index_signatures);
                 }
 
                 // interface instance type: object type with fields
-                let instance_ty = Type::Object { fields };
+                let instance_ty = Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                };
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
 
@@ -463,7 +522,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
         this_ty_id: Option<LocalTypeId>,
-    ) -> AnalyzeResult<Option<TypeField>> {
+    ) -> AnalyzeResult<InferredMember> {
         let member = tree.get(member_id);
         match member {
             Member::Field {
@@ -473,10 +532,42 @@ impl Compiler {
                 default,
                 symbol: _,
             } => {
+                // index signature
+                if let Some(DynamicKey::NamedExpression { name, key }) = key {
+                    let key_type =
+                        self.try_evaluate_expression_to_type(module, *key, tree, symbols, types)?;
+                    let value_type = if let Some(value) = value {
+                        self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?
+                    } else {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        types.insert_type(ty)
+                    };
+                    let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
+                        modifiers.mutability == Some(destack_dir::Mutability::Immutable)
+                    });
+
+                    if let Some(default) = default {
+                        self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                    }
+
+                    return Ok(InferredMember {
+                        index_signatures: vec![TypeIndexSignature {
+                            name: *name,
+                            key_type,
+                            value_type,
+                            is_readonly,
+                        }],
+                        ..Default::default()
+                    });
+                }
+
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|k| match k {
                     DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-                    // dynamic keys can't be used for static type inference
+                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
+                    // dynamic keys can't be used for static type inference (?)
                     DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                 });
 
@@ -508,14 +599,17 @@ impl Compiler {
 
                 // only return a field if we have a static key
                 if let Some(key) = static_key {
-                    Ok(Some(TypeField {
-                        key,
-                        ty: value_ty_id,
-                        is_optional,
-                        is_readonly,
-                    }))
+                    Ok(InferredMember {
+                        field: Some(TypeField {
+                            key,
+                            ty: value_ty_id,
+                            is_optional,
+                            is_readonly,
+                        }),
+                        ..Default::default()
+                    })
                 } else {
-                    Ok(None)
+                    Ok(InferredMember::default())
                 }
             }
             Member::Method {
@@ -537,6 +631,7 @@ impl Compiler {
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|k| match k {
                     DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
                     DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                 });
 
@@ -592,26 +687,51 @@ impl Compiler {
                     }
                 }
 
+                // call or construct signatures
+                if static_key.is_none()
+                    && body.is_none()
+                    && matches!(
+                        signature.mode,
+                        Some(FunctionMode::Call)
+                            | Some(FunctionMode::New)
+                            | Some(FunctionMode::Constructor)
+                    )
+                {
+                    let mut inferred = InferredMember::default();
+                    match signature.mode {
+                        Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
+                            inferred.construct_signatures.push(method_ty_id);
+                        }
+                        _ => {
+                            inferred.call_signatures.push(method_ty_id);
+                        }
+                    }
+                    return Ok(inferred);
+                }
+
                 // return a field if we have a static key
                 if let Some(key) = static_key {
-                    Ok(Some(TypeField {
-                        key,
-                        ty: method_ty_id,
-                        is_optional: false,
-                        is_readonly: true,
-                    }))
+                    Ok(InferredMember {
+                        field: Some(TypeField {
+                            key,
+                            ty: method_ty_id,
+                            is_optional: false,
+                            is_readonly: true,
+                        }),
+                        ..Default::default()
+                    })
                 } else {
-                    Ok(None)
+                    Ok(InferredMember::default())
                 }
             }
             Member::Embed { value, .. } => {
                 // NOTE #Incomplete: expand embedded type into member fields?
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
-                Ok(None)
+                Ok(InferredMember::default())
             }
             Member::StaticBlock { body, .. } => {
                 self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?;
-                Ok(None)
+                Ok(InferredMember::default())
             }
         }
     }
@@ -772,6 +892,37 @@ impl Compiler {
             function_id: Some(node_id.into_global(module.id)),
         };
 
+        // this parameter
+        let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
+            let declared_ty_id =
+                types.get_declared_type_id(this_parameter_id.into_global_any(module.id));
+            let param_symbol = tree.get(this_parameter_id).symbol().into_global(module.id);
+            let param_ty_id = declared_ty_id.unwrap_or_else(|| {
+                self.infer_var_type_for_symbol(
+                    infer,
+                    types,
+                    param_symbol,
+                    InferOrigin::Parameter(this_parameter_id.into_global_any(module.id)),
+                    scope,
+                )
+            });
+            self.infer_parameter(
+                module,
+                this_parameter_id,
+                Some(param_ty_id),
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+            types.set_value_type(param_symbol, param_ty_id);
+            Some(param_ty_id)
+        } else {
+            None
+        };
+
+        // dynamic parameters
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let declared_ty_id =
@@ -806,7 +957,7 @@ impl Compiler {
             dynamic_param_types.push(param_ty_id);
         }
 
-        // get return type
+        // return type
         let return_type = if let Some(return_type_expr_id) = signature.return_type {
             Some(self.try_evaluate_expression_to_type(
                 module,
@@ -835,6 +986,7 @@ impl Compiler {
             cardinality: signature.cardinality,
             dynamic_parameters: dynamic_param_types,
             static_parameters,
+            this_parameter,
             return_type,
         };
         let ty_id = types.insert_type_from_any(ty, node_id);

@@ -103,6 +103,129 @@ impl Compiler {
                     ast::Expression::TypeBinary { left, operator, right }
                 }
 
+                dir::Expression::TypeConditional {
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                } => {
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let then_type = self.unbind_expression(module, *then_type, tree, symbols, ast_tree, ast_strings);
+                    let else_type = self.unbind_expression(module, *else_type, tree, symbols, ast_tree, ast_strings);
+                    ast::Expression::TypeConditional {
+                        left,
+                        right,
+                        then_type,
+                        else_type,
+                    }
+                }
+
+                dir::Expression::TypeMapped {
+                    parameter,
+                    modifiers,
+                    value,
+                } => {
+                    let name = ast_strings.intern_from(&self.program.strings, parameter.name);
+                    let constraint = self.unbind_expression(
+                        module,
+                        parameter.constraint,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                    );
+                    let key_remap = parameter.key_remap.map(|key_remap| {
+                        self.unbind_expression(
+                            module,
+                            key_remap,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
+                    });
+                    let parameter = ast::TypeMappedParameter {
+                        name,
+                        constraint,
+                        key_remap,
+                    };
+                    let modifiers = self.unbind_type_mapped_modifiers(*modifiers);
+                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                    ast::Expression::TypeMapped {
+                        parameter,
+                        modifiers,
+                        value,
+                    }
+                }
+
+                dir::Expression::TypeIndex { left, index } => {
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let index = self.unbind_expression(module, *index, tree, symbols, ast_tree, ast_strings);
+                    ast::Expression::TypeIndex { left, index }
+                }
+
+                dir::Expression::TypeTemplateLiteral { strings, spans } => {
+                    let strings = strings
+                        .iter()
+                        .map(|string| ast_strings.intern_from(&self.program.strings, *string))
+                        .collect();
+                    let spans = spans
+                        .iter()
+                        .map(|span| {
+                            self.unbind_expression(module, *span, tree, symbols, ast_tree, ast_strings)
+                        })
+                        .collect();
+                    ast::Expression::TypeTemplateLiteral { strings, spans }
+                }
+
+                dir::Expression::TypeImport { target, qualifier } => {
+                    let target = ast_strings.intern_from(&self.program.strings, *target);
+                    let qualifier = qualifier.as_ref().map(|qualifier| {
+                        self.unbind_path(qualifier, ast_strings)
+                    });
+                    ast::Expression::TypeImport { target, qualifier }
+                }
+
+                dir::Expression::TypeInfer { name, constraint } => {
+                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let constraint = constraint.map(|constraint| {
+                        self.unbind_expression(
+                            module,
+                            constraint,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
+                    });
+                    ast::Expression::TypeInfer { name, constraint }
+                }
+
+                dir::Expression::TypePredicate {
+                    asserts,
+                    subject,
+                    target,
+                } => {
+                    let subject =
+                        self.unbind_type_predicate_subject(*subject, module, symbols, ast_strings);
+                    let target = target.map(|target| {
+                        self.unbind_expression(
+                            module,
+                            target,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                        )
+                    });
+                    ast::Expression::TypePredicate {
+                        asserts: *asserts,
+                        subject,
+                        target,
+                    }
+                }
+
                 dir::Expression::Unary { operator, right } => {
                     let operator = self.unbind_unary_operator(*operator);
                     let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
@@ -330,7 +453,13 @@ impl Compiler {
                     // emit as call: ty(value)
                     let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings);
                     let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
-                    let value_arg = ast_tree.insert(ast::Argument::Positional { value }, span);
+                    let value_arg = ast_tree.insert(
+                        ast::Argument::Positional {
+                            modifiers: None,
+                            value,
+                        },
+                        span,
+                    );
                     ast::Expression::Call {
                         position: ast::PostfixPosition::Direct,
                         left: ty,
@@ -507,6 +636,42 @@ impl Compiler {
             };
 
             ast_tree.insert(ast_expression, span)
+        }
+    }
+
+    /// Unbind a DIR type predicate subject to an AST type predicate subject.
+    fn unbind_type_predicate_subject(
+        &self,
+        subject: dir::TypePredicateSubject,
+        module: &Module,
+        symbols: &dir::SymbolTable,
+        ast_strings: &mut StringPool,
+    ) -> ast::TypePredicateSubject {
+        match subject {
+            dir::TypePredicateSubject::This => ast::TypePredicateSubject::This,
+            dir::TypePredicateSubject::Unresolved(name) => {
+                let name = ast_strings.intern_from(&self.program.strings, name);
+                ast::TypePredicateSubject::Identifier(name)
+            }
+            dir::TypePredicateSubject::Symbol(symbol_id) => {
+                let name_id = if symbol_id.module_id == module.id {
+                    symbols.get_symbol(symbol_id.into_local()).name()
+                } else {
+                    self.program
+                        .modules
+                        .get(symbol_id.module_id)
+                        .read()
+                        .dir_base_maybe()
+                        .and_then(|dir| {
+                            let symbols = dir.symbols.read();
+                            symbols.get_symbol(symbol_id.into_local()).name()
+                        })
+                };
+                let name_id = name_id
+                    .map(|name| ast_strings.intern_from(&self.program.strings, name))
+                    .unwrap_or_else(|| ast_strings.intern("_"));
+                ast::TypePredicateSubject::Identifier(name_id)
+            }
         }
     }
 

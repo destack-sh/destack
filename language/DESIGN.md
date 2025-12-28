@@ -335,9 +335,9 @@ function merge<T: int, U>(): T where (
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-Unlike Zig or Rust macros, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
-The compiler already evaluates pure expressions at compile time when beneficial.
+Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
 The `comptime` keyword *enforces* that an expression must be evaluated at compile time, otherwise it is a compile error.
+(The compiler already evaluates pure expressions at compile time when beneficial.)
 
 ```
 const LOOKUP_TABLE: uint8[] = comptime {

@@ -109,8 +109,8 @@ impl NodeVisitor for CallbackVisitor {
         let value_id = match argument {
             Argument::Named { value, .. } => *value,
             Argument::Labeled { value, .. } => *value,
-            Argument::Positional { value } => *value,
-            Argument::Spread { value } => *value,
+            Argument::Positional { value, .. } => *value,
+            Argument::Spread { value, .. } => *value,
         };
 
         // check if this argument is a function (callback)

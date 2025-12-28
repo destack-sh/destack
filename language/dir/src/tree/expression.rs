@@ -133,7 +133,7 @@ pub enum Expression {
         subject: TypePredicateSubject,
         target: Option<LocalNodeId<Expression>>,
     },
-    
+
     /// Unary operation (except reference/dereference, e.g., `-x`).
     Unary {
         operator: UnaryOperator,

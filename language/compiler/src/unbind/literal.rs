@@ -58,6 +58,9 @@ impl Compiler {
             dir::TypeLiteral::Composite(composite_type) => {
                 ast::TypeLiteral::Composite(self.unbind_declaration_type(composite_type))
             }
+            dir::TypeLiteral::Intrinsic(intrinsic) => {
+                ast::TypeLiteral::Intrinsic(self.unbind_type_intrinsic(intrinsic))
+            }
             dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
                 dir::ScalarLiteral::Boolean(_) => ast::TypeLiteral::Boolean,
                 dir::ScalarLiteral::Integer(_) => ast::TypeLiteral::Int(ast::IntType::Arbitrary {
@@ -72,6 +75,18 @@ impl Compiler {
                 dir::ScalarLiteral::String(_) => ast::TypeLiteral::String,
                 dir::ScalarLiteral::RegexString { .. } => ast::TypeLiteral::String,
             },
+        }
+    }
+
+    /// Unbind a DIR type intrinsic to an AST type intrinsic.
+    fn unbind_type_intrinsic(&self, intrinsic: &dir::TypeIntrinsic) -> ast::TypeIntrinsic {
+        match intrinsic {
+            dir::TypeIntrinsic::Uppercase => ast::TypeIntrinsic::Uppercase,
+            dir::TypeIntrinsic::Lowercase => ast::TypeIntrinsic::Lowercase,
+            dir::TypeIntrinsic::Capitalize => ast::TypeIntrinsic::Capitalize,
+            dir::TypeIntrinsic::Uncapitalize => ast::TypeIntrinsic::Uncapitalize,
+            dir::TypeIntrinsic::NoInfer => ast::TypeIntrinsic::NoInfer,
+            dir::TypeIntrinsic::BuiltinIteratorReturn => ast::TypeIntrinsic::BuiltinIteratorReturn,
         }
     }
 

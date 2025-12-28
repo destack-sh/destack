@@ -21,6 +21,10 @@ impl ModuleLowerer<'_> {
                 let name = self.lower_string_to_name(name);
                 Key::Name(name)
             }
+            dir::DynamicKey::Number(name) => {
+                let name = self.lower_string_to_name(name);
+                Key::Name(name)
+            }
             dir::DynamicKey::Expression(expression_id) => {
                 let expression_id = self
                     .lower_expression(expression_id)

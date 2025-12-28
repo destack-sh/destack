@@ -337,6 +337,7 @@ impl TestProgram {
             let member = tree.get(*member_id);
             let member_name_id = member.key().and_then(|key| match key {
                 DynamicKey::Name(name) => Some(name),
+                DynamicKey::Number(name) => Some(name),
                 DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
             });
 

@@ -55,7 +55,7 @@ fn check_callback_argument(
 
     // get value from the argument (Positional, Named, etc.)
     let value_id = match argument {
-        Argument::Positional { value } => *value,
+        Argument::Positional { value, .. } => *value,
         Argument::Named { value, .. } => *value,
         Argument::Labeled { value, .. } => *value,
         Argument::Spread { .. } => return,

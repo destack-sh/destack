@@ -3596,11 +3596,8 @@ mod tests {
     /// Formats standalone infer expressions.
     #[test]
     fn test_format_type_infer_expression() {
-        assert_format!(
-            "type Result = infer U",
-            "type Result = infer U;",
-            |p| p.eat_expression()
-        );
+        assert_format!("type Result = infer U", "type Result = infer U;", |p| p
+            .eat_expression());
     }
 
     #[test]

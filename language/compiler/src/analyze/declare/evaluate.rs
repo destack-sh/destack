@@ -1,9 +1,9 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionSignature,
-    LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument, StaticExpression,
-    StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
-    UnaryOperator,
+    Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
+    FunctionSignature, LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument,
+    StaticExpression, StaticKey, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -120,6 +120,7 @@ impl Compiler {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
             static_parameters: Vec::new(),
+            this_parameter: None,
             dynamic_parameters,
             return_type,
         })
@@ -481,7 +482,7 @@ impl Compiler {
                     };
                     let value_ty_id = self
                         .try_evaluate_expression_to_type(module, value_id, tree, symbols, types)?;
-                    element_types.push(value_ty_id);
+                    element_types.push(TypeElement::new(value_ty_id));
                 }
 
                 Type::Tuple {
@@ -499,6 +500,9 @@ impl Compiler {
                 // evaluate object fields
                 // #Cleanup: extract property -> type field evaluation?
                 let mut fields = Vec::with_capacity(properties.len());
+                let mut call_signatures = Vec::new();
+                let mut construct_signatures = Vec::new();
+                let mut index_signatures = Vec::new();
                 for property_id in properties {
                     let property = tree.get(property_id).clone();
                     let field = match property {
@@ -508,8 +512,36 @@ impl Compiler {
                             value,
                             ..
                         } => {
+                            // index signature
+                            if let Some(DynamicKey::NamedExpression { name, key }) = key {
+                                let key_type = self.try_evaluate_expression_to_type(
+                                    module, key, tree, symbols, types,
+                                )?;
+                                let value_type = if let Some(value_id) = value {
+                                    self.try_evaluate_expression_to_type(
+                                        module, value_id, tree, symbols, types,
+                                    )?
+                                } else {
+                                    let ty = Type::TypeLiteral {
+                                        value: TypeLiteral::Unknown,
+                                    };
+                                    types.insert_type_from(ty, property_id)
+                                };
+                                let is_readonly = modifiers.is_some_and(|modifiers| {
+                                    modifiers.mutability == Some(Mutability::Immutable)
+                                });
+                                index_signatures.push(TypeIndexSignature {
+                                    name,
+                                    key_type,
+                                    value_type,
+                                    is_readonly,
+                                });
+                                continue;
+                            }
+
                             let key = match key {
                                 Some(DynamicKey::Name(name)) => StaticKey::Name(name),
+                                Some(DynamicKey::Number(name)) => StaticKey::Number(name),
                                 _ => {
                                     return Err(AnalyzeError::UnsupportedConstruct {
                                         node: property_id.into_global_any(module.id),
@@ -547,8 +579,33 @@ impl Compiler {
                             signature,
                             ..
                         } => {
+                            // call or construct signature
+                            if key.is_none()
+                                && matches!(
+                                    signature.mode,
+                                    Some(FunctionMode::Call)
+                                        | Some(FunctionMode::New)
+                                        | Some(FunctionMode::Constructor)
+                                )
+                            {
+                                let ty = self.evaluate_function_signature_to_type(
+                                    module, &signature, tree, symbols, types,
+                                )?;
+                                let ty_id = types.insert_type_from(ty, property_id);
+                                match signature.mode {
+                                    Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
+                                        construct_signatures.push(ty_id);
+                                    }
+                                    _ => {
+                                        call_signatures.push(ty_id);
+                                    }
+                                }
+                                continue;
+                            }
+
                             let key = match key {
                                 Some(DynamicKey::Name(name)) => StaticKey::Name(name),
+                                Some(DynamicKey::Number(name)) => StaticKey::Number(name),
                                 _ => {
                                     return Err(AnalyzeError::UnsupportedConstruct {
                                         node: property_id.into_global_any(module.id),
@@ -586,7 +643,12 @@ impl Compiler {
                     fields.push(field);
                 }
 
-                Type::Object { fields }
+                Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                }
             }
 
             // array or slice

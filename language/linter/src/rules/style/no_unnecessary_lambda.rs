@@ -115,7 +115,10 @@ impl LintRule for NoUnnecessaryLambda {
             let mut is_unnecessary = true;
             for (i, argument_id) in dynamic_arguments.iter().enumerate() {
                 let argument = ctx.tree.get(*argument_id);
-                let Argument::Positional { value: value_id } = argument else {
+                let Argument::Positional {
+                    value: value_id, ..
+                } = argument
+                else {
                     is_unnecessary = false;
                     break;
                 };

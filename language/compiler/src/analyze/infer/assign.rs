@@ -1,6 +1,6 @@
 use destack_dir::{
-    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, Type, TypeLiteral,
-    TypeTable,
+    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeTable,
 };
 
 use crate::Compiler;
@@ -22,6 +22,20 @@ impl Assignability {
     }
 }
 
+/// Canonical kind for index signature key matching.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IndexKeyKind {
+    /// String index signature.
+    String,
+    /// Number index signature.
+    Number,
+    /// Symbol index signature.
+    Symbol,
+    /// Any other key type.
+    Other,
+}
+
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check if `source` type is assignable to `target` type.
     /// Returns true if a value of type `source` can be assigned to a location of type `target`.
@@ -44,6 +58,7 @@ impl Compiler {
 
     /// Inner assignability check on Type values.
     fn is_type_assignable(&self, target: &Type, source: &Type, types: &TypeTable) -> Assignability {
+        // nocheckin #Incomplete: normalize type-level constructs (for assignability, ..)
         // handle special target types first
         match target {
             Type::InferVar { .. } => return Assignability::Assignable,
@@ -117,7 +132,7 @@ impl Compiler {
                 }
                 for (target_elem, source_elem) in target_elems.iter().zip(source_elems.iter()) {
                     if !self
-                        .check_is_type_assignable(*target_elem, *source_elem, types)
+                        .check_is_type_assignable(target_elem.ty, source_elem.ty, types)
                         .is_assignable()
                     {
                         return Assignability::NotAssignable;
@@ -137,7 +152,7 @@ impl Compiler {
             ) => {
                 for source_elem in source_elems {
                     if !self
-                        .check_is_type_assignable(*target_elem, *source_elem, types)
+                        .check_is_type_assignable(*target_elem, source_elem.ty, types)
                         .is_assignable()
                     {
                         return Assignability::NotAssignable;
@@ -150,28 +165,48 @@ impl Compiler {
             (
                 Type::Object {
                     fields: target_fields,
+                    call_signatures: target_call_signatures,
+                    construct_signatures: target_construct_signatures,
+                    index_signatures: target_index_signatures,
                 },
                 Type::Object {
                     fields: source_fields,
+                    call_signatures: source_call_signatures,
+                    construct_signatures: source_construct_signatures,
+                    index_signatures: source_index_signatures,
                 },
-            ) => self.is_object_type_assignable(target_fields, source_fields, types),
+            ) => self.is_object_type_assignable(
+                target_fields,
+                target_call_signatures,
+                target_construct_signatures,
+                target_index_signatures,
+                source_fields,
+                source_call_signatures,
+                source_construct_signatures,
+                source_index_signatures,
+                types,
+            ),
 
             // functions: contravariant params, covariant return
             (
                 Type::Function {
                     dynamic_parameters: target_params,
+                    this_parameter: target_this,
                     return_type: target_return,
                     ..
                 },
                 Type::Function {
                     dynamic_parameters: source_params,
+                    this_parameter: source_this,
                     return_type: source_return,
                     ..
                 },
             ) => self.is_function_type_assignable(
                 target_params,
+                target_this,
                 target_return,
                 source_params,
+                source_this,
                 source_return,
                 types,
             ),
@@ -280,13 +315,29 @@ impl Compiler {
                     && let (
                         Type::Object {
                             fields: target_fields,
+                            call_signatures: target_call_signatures,
+                            construct_signatures: target_construct_signatures,
+                            index_signatures: target_index_signatures,
                         },
                         Type::Object {
                             fields: source_fields,
+                            call_signatures: source_call_signatures,
+                            construct_signatures: source_construct_signatures,
+                            index_signatures: source_index_signatures,
                         },
                     ) = (target_instance_ty, source_instance_ty)
                 {
-                    return self.is_object_type_assignable(target_fields, source_fields, types);
+                    return self.is_object_type_assignable(
+                        target_fields,
+                        target_call_signatures,
+                        target_construct_signatures,
+                        target_index_signatures,
+                        source_fields,
+                        source_call_signatures,
+                        source_construct_signatures,
+                        source_index_signatures,
+                        types,
+                    );
                 }
 
                 Assignability::NotAssignable
@@ -465,16 +516,67 @@ impl Compiler {
     /// Check object type assignability (structural subtyping).
     fn is_object_type_assignable(
         &self,
-        target_fields: &[destack_dir::TypeField],
-        source_fields: &[destack_dir::TypeField],
+        target_fields: &[TypeField],
+        target_call_signatures: &[LocalTypeId],
+        target_construct_signatures: &[LocalTypeId],
+        target_index_signatures: &[TypeIndexSignature],
+        source_fields: &[TypeField],
+        source_call_signatures: &[LocalTypeId],
+        source_construct_signatures: &[LocalTypeId],
+        source_index_signatures: &[TypeIndexSignature],
+        types: &TypeTable,
+    ) -> Assignability {
+        if self.is_object_fields_assignable(target_fields, source_fields, types)
+            == Assignability::NotAssignable
+        {
+            return Assignability::NotAssignable;
+        }
+
+        if !self.is_signature_set_assignable(target_call_signatures, source_call_signatures, types)
+        {
+            return Assignability::NotAssignable;
+        }
+
+        if !self.is_signature_set_assignable(
+            target_construct_signatures,
+            source_construct_signatures,
+            types,
+        ) {
+            return Assignability::NotAssignable;
+        }
+
+        if !self.is_index_signatures_assignable(
+            target_index_signatures,
+            source_index_signatures,
+            source_fields,
+            types,
+        ) {
+            return Assignability::NotAssignable;
+        }
+
+        Assignability::Assignable
+    }
+
+    /// Check object field assignability (structural subtyping).
+    fn is_object_fields_assignable(
+        &self,
+        target_fields: &[TypeField],
+        source_fields: &[TypeField],
         types: &TypeTable,
     ) -> Assignability {
         // for each target field, find matching source field
         for target_field in target_fields {
-            let source_field = source_fields.iter().find(|f| f.key == target_field.key);
+            let source_field = source_fields
+                .iter()
+                .find(|field| field.key.matches(&target_field.key));
 
             match source_field {
                 Some(source_field) => {
+                    // NOTE #Incomplete: exact optional property types should be configurable
+                    if !target_field.is_optional && source_field.is_optional {
+                        return Assignability::NotAssignable;
+                    }
+
                     // field exists: check type assignability
                     if !self
                         .check_is_type_assignable(target_field.ty, source_field.ty, types)
@@ -495,17 +597,207 @@ impl Compiler {
         Assignability::Assignable
     }
 
+    /// Check assignability of signature sets (target signatures must be matched).
+    fn is_signature_set_assignable(
+        &self,
+        target_signatures: &[LocalTypeId],
+        source_signatures: &[LocalTypeId],
+        types: &TypeTable,
+    ) -> bool {
+        if target_signatures.is_empty() {
+            return true;
+        }
+        for target_signature in target_signatures {
+            let mut matched = false;
+            for source_signature in source_signatures {
+                if self
+                    .check_is_type_assignable(*target_signature, *source_signature, types)
+                    .is_assignable()
+                {
+                    matched = true;
+                    break;
+                }
+            }
+            if !matched {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Check assignability of index signatures.
+    fn is_index_signatures_assignable(
+        &self,
+        target_signatures: &[TypeIndexSignature],
+        source_signatures: &[TypeIndexSignature],
+        source_fields: &[TypeField],
+        types: &TypeTable,
+    ) -> bool {
+        if target_signatures.is_empty() {
+            return true;
+        }
+        for target_signature in target_signatures {
+            let mut matched = false;
+            let mut has_matching_key_kind = false;
+            for source_signature in source_signatures {
+                if !self.index_key_kinds_compatible(target_signature, source_signature, types) {
+                    continue;
+                }
+                has_matching_key_kind = true;
+                if self.is_index_signature_assignable(target_signature, source_signature, types) {
+                    matched = true;
+                    break;
+                }
+            }
+            if matched {
+                continue;
+            }
+            if has_matching_key_kind {
+                return false;
+            }
+            if !self.are_fields_assignable_to_index_signature(
+                target_signature,
+                source_fields,
+                types,
+            ) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Check assignability for a single index signature.
+    fn is_index_signature_assignable(
+        &self,
+        target_signature: &TypeIndexSignature,
+        source_signature: &TypeIndexSignature,
+        types: &TypeTable,
+    ) -> bool {
+        if !self.index_key_kinds_compatible(target_signature, source_signature, types) {
+            return false;
+        }
+
+        if !self
+            .check_is_type_assignable(
+                target_signature.value_type,
+                source_signature.value_type,
+                types,
+            )
+            .is_assignable()
+        {
+            return false;
+        }
+
+        true
+    }
+
+    /// Check if any source field violates a target index signature.
+    fn are_fields_assignable_to_index_signature(
+        &self,
+        target_signature: &TypeIndexSignature,
+        source_fields: &[TypeField],
+        types: &TypeTable,
+    ) -> bool {
+        let key_kind = self.index_key_kind(target_signature.key_type, types);
+        for field in source_fields {
+            if !self.field_key_matches_index_kind(&field.key, key_kind) {
+                continue;
+            }
+            if !self.is_field_type_assignable_to_index_signature(
+                target_signature.value_type,
+                field,
+                types,
+            ) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Check if two index signatures are compatible by key kind.
+    fn index_key_kinds_compatible(
+        &self,
+        target_signature: &TypeIndexSignature,
+        source_signature: &TypeIndexSignature,
+        types: &TypeTable,
+    ) -> bool {
+        let target_key_kind = self.index_key_kind(target_signature.key_type, types);
+        let source_key_kind = self.index_key_kind(source_signature.key_type, types);
+        match (target_key_kind, source_key_kind) {
+            (IndexKeyKind::String, IndexKeyKind::String) => true,
+            (IndexKeyKind::Number, IndexKeyKind::Number) => true,
+            // string and number indexers are compatible in ts
+            (IndexKeyKind::String, IndexKeyKind::Number) => true,
+            (IndexKeyKind::Number, IndexKeyKind::String) => true,
+            (IndexKeyKind::Symbol, IndexKeyKind::Symbol) => true,
+            _ => false,
+        }
+    }
+
+    /// Normalize index signature key types for matching rules.
+    fn index_key_kind(&self, key_type: LocalTypeId, types: &TypeTable) -> IndexKeyKind {
+        match types.get_type(key_type) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            } => IndexKeyKind::String,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            } => IndexKeyKind::Number,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Symbol),
+            } => IndexKeyKind::Symbol,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+            } => IndexKeyKind::Symbol,
+            _ => IndexKeyKind::Other,
+        }
+    }
+
+    /// Check if a field key is covered by an index signature key kind.
+    fn field_key_matches_index_kind(&self, key: &StaticKey, kind: IndexKeyKind) -> bool {
+        match kind {
+            IndexKeyKind::String => matches!(key, StaticKey::Name(_) | StaticKey::Number(_)),
+            IndexKeyKind::Number => matches!(key, StaticKey::Number(_)),
+            IndexKeyKind::Symbol => {
+                matches!(key, StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_))
+            }
+            IndexKeyKind::Other => false,
+        }
+    }
+
+    /// Check if a field type is compatible with an index signature value type.
+    fn is_field_type_assignable_to_index_signature(
+        &self,
+        value_type: LocalTypeId,
+        field: &TypeField,
+        types: &TypeTable,
+    ) -> bool {
+        self.check_is_type_assignable(value_type, field.ty, types)
+            .is_assignable()
+    }
+
     /// Check function type assignability (contravariant params, covariant return).
     fn is_function_type_assignable(
         &self,
         target_params: &[LocalTypeId],
+        target_this: &Option<LocalTypeId>,
         target_return: &Option<LocalTypeId>,
         source_params: &[LocalTypeId],
+        source_this: &Option<LocalTypeId>,
         source_return: &Option<LocalTypeId>,
         types: &TypeTable,
     ) -> Assignability {
-        // parameter count must match (for now, no optional params handling)
-        if target_params.len() != source_params.len() {
+        // this parameter: contravariant (source this must be assignable to target this)
+        if let (Some(target_this), Some(source_this)) = (target_this, source_this)
+            && !self
+                .check_is_type_assignable(*source_this, *target_this, types)
+                .is_assignable()
+        {
+            return Assignability::NotAssignable;
+        }
+
+        // source must not require more parameters than target provides
+        if source_params.len() > target_params.len() {
             return Assignability::NotAssignable;
         }
 
@@ -607,8 +899,10 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        FloatType, IntType, PrimitiveType, ScalarLiteral, Type, TypeField, TypeLiteral,
+        Asynchrony, FloatType, FunctionCardinality, IntType, PrimitiveType, ScalarLiteral,
+        StaticKey, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
     };
+    use destack_source::{FileContent, Span};
 
     use crate::{Assignability, TestProgram};
 
@@ -784,7 +1078,7 @@ mod tests {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         });
         let tuple_ty = types.insert_type(Type::Tuple {
-            elements: vec![number_ty, string_ty],
+            elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
         });
 
         assert_eq!(
@@ -813,10 +1107,10 @@ mod tests {
             value: TypeLiteral::Primitive(PrimitiveType::String),
         });
         let tuple_short = types.insert_type(Type::Tuple {
-            elements: vec![number_ty],
+            elements: vec![TypeElement::new(number_ty)],
         });
         let tuple_long = types.insert_type(Type::Tuple {
-            elements: vec![number_ty, string_ty],
+            elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
         });
 
         assert_eq!(
@@ -868,7 +1162,7 @@ mod tests {
             value: TypeLiteral::Primitive(PrimitiveType::Number),
         });
         let tuple_ty = types.insert_type(Type::Tuple {
-            elements: vec![number_ty, number_ty],
+            elements: vec![TypeElement::new(number_ty), TypeElement::new(number_ty)],
         });
         let array_ty = types.insert_type(Type::Array {
             element: Some(number_ty),
@@ -911,6 +1205,9 @@ mod tests {
                 is_optional: false,
                 is_readonly: false,
             }],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
         });
         let obj_large = types.insert_type(Type::Object {
             fields: vec![
@@ -927,6 +1224,9 @@ mod tests {
                     is_readonly: false,
                 },
             ],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
         });
 
         // larger object assignable to smaller (has all required fields)
@@ -940,6 +1240,547 @@ mod tests {
         assert_eq!(
             test.compiler
                 .check_is_type_assignable(obj_large, obj_small, &types),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// Optional fields are not assignable to required fields.
+    #[test]
+    fn test_analyze_assignability_object_optional_field() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let strings = test.program.strings.clone();
+
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let required_field = TypeField {
+            key: StaticKey::Name(strings.intern("a")),
+            ty: number_ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+        let optional_field = TypeField {
+            key: StaticKey::Name(strings.intern("a")),
+            ty: number_ty,
+            is_optional: true,
+            is_readonly: false,
+        };
+
+        let required_obj = types.insert_type(Type::Object {
+            fields: vec![required_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let optional_obj = types.insert_type(Type::Object {
+            fields: vec![optional_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(required_obj, optional_obj, &types),
+            Assignability::NotAssignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(optional_obj, required_obj, &types),
+            Assignability::Assignable
+        );
+    }
+
+    /// Object call signatures must be assignable.
+    #[test]
+    fn test_analyze_assignability_object_call_signatures() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let string_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String),
+        });
+        let signature_ty = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: None,
+            dynamic_parameters: vec![number_ty],
+            return_type: Some(string_ty),
+        });
+
+        let target_obj = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: vec![signature_ty],
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let source_obj = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: vec![signature_ty],
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let missing_call = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, source_obj, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, missing_call, &types),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// Functions with fewer parameters are assignable to targets with more parameters.
+    #[test]
+    fn test_analyze_assignability_function_param_count() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let string_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String),
+        });
+
+        let target_fn = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: None,
+            dynamic_parameters: vec![number_ty, string_ty],
+            return_type: Some(number_ty),
+        });
+        let source_fn_fewer = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: None,
+            dynamic_parameters: vec![number_ty],
+            return_type: Some(number_ty),
+        });
+        let source_fn_more = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: None,
+            dynamic_parameters: vec![number_ty, string_ty, number_ty],
+            return_type: Some(number_ty),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_fn, source_fn_fewer, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_fn, source_fn_more, &types),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// Functions with this parameters are contravariant in this.
+    #[test]
+    fn test_analyze_assignability_function_this_parameter() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let strings = test.program.strings.clone();
+
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+
+        let key_a = StaticKey::Name(strings.intern("a"));
+        let key_b = StaticKey::Name(strings.intern("b"));
+
+        let this_small = types.insert_type(Type::Object {
+            fields: vec![TypeField {
+                key: key_a,
+                ty: number_ty,
+                is_optional: false,
+                is_readonly: false,
+            }],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let this_large = types.insert_type(Type::Object {
+            fields: vec![
+                TypeField {
+                    key: key_a,
+                    ty: number_ty,
+                    is_optional: false,
+                    is_readonly: false,
+                },
+                TypeField {
+                    key: key_b,
+                    ty: number_ty,
+                    is_optional: false,
+                    is_readonly: false,
+                },
+            ],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+
+        let target_fn = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: Some(this_small),
+            dynamic_parameters: Vec::new(),
+            return_type: None,
+        });
+        let source_fn_wider_this = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: Some(this_large),
+            dynamic_parameters: Vec::new(),
+            return_type: None,
+        });
+        let source_fn_narrow_this = types.insert_type(Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: Some(this_small),
+            dynamic_parameters: Vec::new(),
+            return_type: None,
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_fn, source_fn_wider_this, &types),
+            Assignability::NotAssignable
+        );
+        assert_eq!(
+            test.compiler.check_is_type_assignable(
+                source_fn_wider_this,
+                source_fn_narrow_this,
+                &types
+            ),
+            Assignability::Assignable
+        );
+    }
+
+    /// Object index signatures must be assignable.
+    #[test]
+    fn test_analyze_assignability_object_index_signatures() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let strings = test.program.strings.clone();
+
+        let string_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String),
+        });
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let index_signature = TypeIndexSignature {
+            name: strings.intern("k"),
+            key_type: string_ty,
+            value_type: number_ty,
+            is_readonly: false,
+        };
+        let matching_field = TypeField {
+            key: StaticKey::Name(strings.intern("a")),
+            ty: number_ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+        let mismatched_field = TypeField {
+            key: StaticKey::Name(strings.intern("a")),
+            ty: string_ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+
+        let target_obj = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![index_signature.clone()],
+        });
+        let source_obj = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![index_signature.clone()],
+        });
+        let compatible_fields = types.insert_type(Type::Object {
+            fields: vec![matching_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let incompatible_fields = types.insert_type(Type::Object {
+            fields: vec![mismatched_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let missing_index = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, source_obj, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, missing_index, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, compatible_fields, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, incompatible_fields, &types),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// String index signatures satisfy number index signatures.
+    #[test]
+    fn test_analyze_assignability_object_index_signatures_string_source() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let strings = test.program.strings.clone();
+
+        let string_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String),
+        });
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let number_index = TypeIndexSignature {
+            name: strings.intern("k"),
+            key_type: number_ty,
+            value_type: number_ty,
+            is_readonly: false,
+        };
+        let string_index = TypeIndexSignature {
+            name: strings.intern("k"),
+            key_type: string_ty,
+            value_type: number_ty,
+            is_readonly: false,
+        };
+
+        let target_number = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![number_index.clone()],
+        });
+        let source_string = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![string_index.clone()],
+        });
+        let target_string = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![string_index],
+        });
+        let source_number = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![number_index],
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_number, source_string, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_string, source_number, &types),
+            Assignability::Assignable
+        );
+    }
+
+    /// Numeric and string literal keys are compatible for fields.
+    #[test]
+    fn test_analyze_assignability_object_numeric_key_field_match() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let strings = test.program.strings.clone();
+
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let key = strings.intern("1");
+        let target_field = TypeField {
+            key: StaticKey::Name(key),
+            ty: number_ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+        let source_field = TypeField {
+            key: StaticKey::Number(key),
+            ty: number_ty,
+            is_optional: false,
+            is_readonly: false,
+        };
+
+        let target_obj = types.insert_type(Type::Object {
+            fields: vec![target_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let source_obj = types.insert_type(Type::Object {
+            fields: vec![source_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, source_obj, &types),
+            Assignability::Assignable
+        );
+    }
+
+    /// Optional fields ignore undefined when matching index signatures.
+    #[test]
+    fn test_analyze_assignability_object_index_signature_optional_field() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_dump_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let strings = test.program.strings.clone();
+
+        let string_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String),
+        });
+        let number_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        });
+        let undefined_ty = types.insert_type(Type::TypeLiteral {
+            value: TypeLiteral::Undefined,
+        });
+        let target_index = TypeIndexSignature {
+            name: strings.intern("k"),
+            key_type: string_ty,
+            value_type: number_ty,
+            is_readonly: false,
+        };
+        let optional_number_field = TypeField {
+            key: StaticKey::Name(strings.intern("a")),
+            ty: number_ty,
+            is_optional: true,
+            is_readonly: false,
+        };
+        let optional_undefined_field = TypeField {
+            key: StaticKey::Name(strings.intern("a")),
+            ty: undefined_ty,
+            is_optional: true,
+            is_readonly: false,
+        };
+
+        let target_obj = types.insert_type(Type::Object {
+            fields: Vec::new(),
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: vec![target_index],
+        });
+        let source_optional_number = types.insert_type(Type::Object {
+            fields: vec![optional_number_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+        let source_optional_undefined = types.insert_type(Type::Object {
+            fields: vec![optional_undefined_field],
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        });
+
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, source_optional_number, &types),
+            Assignability::Assignable
+        );
+        assert_eq!(
+            test.compiler
+                .check_is_type_assignable(target_obj, source_optional_undefined, &types),
             Assignability::NotAssignable
         );
     }
@@ -991,6 +1832,77 @@ mod tests {
         test.analyze_module(module_id);
         test.compile();
         test.check_diagnostics(&["EA004"]);
+    }
+
+    /// Excess properties on object literals should error.
+    #[test]
+    fn test_type_check_excess_property_object_literal() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "let x: { a: number } = { a: 1, b: 2 };");
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_diagnostics(&["EA036"]);
+    }
+
+    /// Excess property diagnostics should anchor to the object literal span.
+    #[test]
+    fn test_type_check_excess_property_anchor() {
+        let test = TestProgram::memory_sequential();
+        let source = "let x: { a: number } = { a: 1, b: 2 };";
+        let module_id = test.add_module("test.ds", source);
+        test.analyze_module(module_id);
+        test.compile();
+
+        let diagnostics = test.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let diagnostic = diagnostic_vec
+            .iter()
+            .find(|diag| diag.code == "EA036")
+            .unwrap_or_else(|| panic!("expected diagnostic EA036"));
+
+        let file = test.file(module_id);
+        let content = match &file.content {
+            FileContent::Text { content } => content,
+            _ => panic!("expected text file content"),
+        };
+        let literal = "{ a: 1, b: 2 }";
+        let start = content
+            .find(literal)
+            .unwrap_or_else(|| panic!("missing object literal in source"));
+        let end = start + literal.len();
+        let expected_span = Span::new(file.id, start as u32, end as u32);
+
+        assert_eq!(diagnostic.file_id, file.id);
+        assert!(
+            diagnostic.primary_span.span.intersects(expected_span),
+            "diagnostic span should intersect object literal span"
+        );
+    }
+
+    /// Excess property checks should respect union candidates.
+    #[test]
+    fn test_type_check_excess_property_union_candidate() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            "let x: { a: number } | { a: number, b: number } = { a: 1, b: 2 };",
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    /// Index signatures allow extra object literal properties.
+    #[test]
+    fn test_type_check_excess_property_index_signature() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            "let x: { [key: string]: number } = { a: 1, b: 2 };",
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_clean();
     }
 
     /// Boolean literal should not be assignable to string type.

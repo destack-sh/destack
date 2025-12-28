@@ -152,6 +152,17 @@ pub enum AnalyzeError {
         member_key: StaticKey,
     },
 
+    /// Excess property in object literal.
+    #[error(
+        code = "EA036",
+        message = "excess property {member_key} in object literal for type {expected_ty}"
+    )]
+    ExcessProperty {
+        node: GlobalNodeIdAny,
+        expected_ty: GlobalTypeId,
+        member_key: StaticKey,
+    },
+
     /// Type does not satisfy the expected type (satisfies expression).
     #[error(code = "EA019", message = "expected {expected_ty}, found {actual_ty}")]
     UnsatisfiedType {

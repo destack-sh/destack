@@ -493,7 +493,10 @@ impl Dump for TypePredicateSubject {
                     .end();
             }
             TypePredicateSubject::Symbol(symbol) => {
-                dumper.object("TypePredicateSubject::Symbol").value(symbol).end();
+                dumper
+                    .object("TypePredicateSubject::Symbol")
+                    .value(symbol)
+                    .end();
             }
             TypePredicateSubject::This => {
                 dumper.object("TypePredicateSubject::This").end();
@@ -522,6 +525,9 @@ impl Dump for DynamicKey {
         match self {
             DynamicKey::Name(name) => {
                 dumper.object("Key::Name").value(name).end();
+            }
+            DynamicKey::Number(name) => {
+                dumper.object("Key::Number").value(name).end();
             }
             DynamicKey::Expression(_) => {
                 dumper.object("Key::Expression").end();
@@ -961,8 +967,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 strings: _,
                 spans: _,
             } => {
-                self.node("Expression::TypeTemplateLiteral", id.id)
-                    .end();
+                self.node("Expression::TypeTemplateLiteral", id.id).end();
             }
             Expression::TypeImport { target, qualifier } => {
                 self.node("Expression::TypeImport", id.id)
@@ -1999,6 +2004,9 @@ impl Dump for StaticKey {
         match self {
             StaticKey::Name(name) => {
                 dumper.object("StaticKey::Name").value(name).end();
+            }
+            StaticKey::Number(name) => {
+                dumper.object("StaticKey::Number").value(name).end();
             }
             StaticKey::UniqueSymbol(unique_symbol) => {
                 dumper
