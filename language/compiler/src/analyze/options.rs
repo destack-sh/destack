@@ -45,10 +45,7 @@ impl From<&TsCompilerOptions> for AnalyzeOptions {
 
 impl Compiler {
     /// Get the effective TS-compatible semantic options for a module.
-    pub(crate) fn analyze_context_options_for_module(
-        &self,
-        module_id: ModuleId,
-    ) -> AnalyzeOptions {
+    pub(crate) fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
         let module = self.program.modules.get(module_id);
         let module = module.read();
 

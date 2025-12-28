@@ -942,19 +942,13 @@ impl Target {
         self
     }
 
-    /// Derive library files from runtime and platform.
-    /// If `lib` is explicitly set, returns it. Otherwise derives from runtime and platform:
-    /// - ES version comes from runtime capabilities
+    /// Derive library files from target settings.
+    /// If `lib` is explicitly set, returns it. Otherwise derives from:
+    /// - ES version from compiler target (JS/TS outputs only)
     /// - Runtime-specific libs (dom, node, deno, worker, etc.)
-    /// - Platform-specific libs for native targets (darwin, windows, linux)
     pub fn derived_lib(&self) -> Vec<String> {
         if let Some(lib) = &self.lib {
             return lib.clone();
-        }
-
-        if self.runtime.is_native() {
-            // native runtime has no ambient libs by default
-            return Vec::new();
         }
 
         let mut libs = Vec::new();
@@ -973,21 +967,6 @@ impl Target {
                 name.to_string()
             }
         };
-
-        // ES version based on runtime
-        let es_lib = match self.runtime {
-            // modern JS runtimes support esnext
-            Runtime::Browser | Runtime::Node | Runtime::Deno | Runtime::Bun => "esnext",
-            // workers typically support modern ES
-            Runtime::Worker | Runtime::Workerd => "es2022",
-            // WASM environments
-            Runtime::WasmJs => "es2020",
-            Runtime::WasmWasi => "es2020",
-            Runtime::NativeHosted | Runtime::NativeFreestanding | Runtime::NativeEmbedded => {
-                "es2020"
-            }
-        };
-        libs.push(es_lib.to_string());
 
         // runtime-specific libs
         match self.runtime {
@@ -1011,29 +990,31 @@ impl Target {
                 libs.push("worker.iterable".to_string());
                 libs.push("worker.asynciterable".to_string());
             }
-            Runtime::WasmJs => {
-                // WASM in browser may have limited DOM access
+            Runtime::WasmJs
+            | Runtime::WasmWasi
+            | Runtime::NativeHosted
+            | Runtime::NativeFreestanding
+            | Runtime::NativeEmbedded => {
+                // NOTE #Incomplete: map to Destack runtime libs
             }
-            Runtime::WasmWasi => {
-                libs.push("wasi".to_string());
-            }
-            Runtime::NativeHosted | Runtime::NativeFreestanding | Runtime::NativeEmbedded => {}
         }
 
-        // platform-specific libs (primarily for native targets)
-        if self.runtime.is_native() {
-            match self.platform {
-                Platform::MacOS | Platform::IOS => {
-                    libs.push("darwin".to_string());
-                }
-                Platform::Windows => {
-                    libs.push("windows".to_string());
-                }
-                Platform::Linux | Platform::Android => {
-                    libs.push("linux".to_string());
-                }
-                _ => {}
-            }
+        if self.output.is_js() || self.output.is_ts() {
+            let es_lib = match self.es_target {
+                EsTarget::Es3 | EsTarget::Es5 => "es5",
+                EsTarget::Es2015 => "es2015",
+                EsTarget::Es2016 => "es2016",
+                EsTarget::Es2017 => "es2017",
+                EsTarget::Es2018 => "es2018",
+                EsTarget::Es2019 => "es2019",
+                EsTarget::Es2020 => "es2020",
+                EsTarget::Es2021 => "es2021",
+                EsTarget::Es2022 => "es2022",
+                EsTarget::Es2023 => "es2023",
+                EsTarget::Es2024 => "es2024",
+                EsTarget::EsNext => "esnext",
+            };
+            libs.push(es_lib.to_string());
         }
 
         libs

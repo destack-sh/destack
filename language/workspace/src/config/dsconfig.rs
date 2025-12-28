@@ -196,6 +196,12 @@ impl DsConfig {
         if compiler.declaration_dir.is_none() {
             compiler.declaration_dir = parent_compiler.declaration_dir.clone();
         }
+        if self.content.compiler_options.declaration_map.is_none() {
+            compiler.declaration_map = parent_compiler.declaration_map;
+        }
+        if self.content.compiler_options.no_emit.is_none() {
+            compiler.no_emit = parent_compiler.no_emit;
+        }
 
         // inherit interop settings (child overrides if set)
         if compiler.tsconfig.is_none() {
@@ -437,6 +443,10 @@ pub struct DsConfigCompilerOptions {
     pub out_dir: Option<PathBuf>,
     /// Output directory for declaration files. Defaults to out_dir.
     pub declaration_dir: Option<PathBuf>,
+    /// Generate declaration maps for `.d.ts` output.
+    pub declaration_map: bool,
+    /// Do not emit output files.
+    pub no_emit: bool,
 
     // interop
     /// Path to tsconfig.json to inherit settings from.
@@ -515,6 +525,8 @@ impl Default for DsConfigCompilerOptions {
             root_dir: None,
             out_dir: None,
             declaration_dir: None,
+            declaration_map: false,
+            no_emit: false,
 
             // interop
             tsconfig: None,
@@ -847,7 +859,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .and_then(ModuleTarget::parse)
                 .unwrap_or_default(),
             es_target: json
-                .es_target
+                .target
                 .as_deref()
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
@@ -1307,6 +1319,10 @@ pub struct CompilerOptionsJson {
     pub out_dir: Option<String>,
     /// Output directory for declaration files (.d.ts). Defaults to outDir.
     pub declaration_dir: Option<String>,
+    /// Generate declaration maps for `.d.ts` output.
+    pub declaration_map: Option<bool>,
+    /// Do not emit output files.
+    pub no_emit: Option<bool>,
 
     // interop
     /// Path to tsconfig.json to inherit settings from.
@@ -1394,6 +1410,8 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
             out_dir: json.out_dir.as_ref().map(PathBuf::from),
             declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
+            declaration_map: json.declaration_map.unwrap_or(false),
+            no_emit: json.no_emit.unwrap_or(false),
 
             // interop
             tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
@@ -1458,7 +1476,7 @@ pub struct DsConfigTargetJson {
     /// Module format for this target (overrides compilerOptions.module).
     pub module: Option<String>,
     /// ECMAScript target for this target (overrides compilerOptions.target).
-    pub es_target: Option<String>,
+    pub target: Option<String>,
     /// Library files for this target (overrides derived libs).
     pub lib: Option<Vec<String>>,
     /// Explicit profile name for this target.

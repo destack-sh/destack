@@ -875,23 +875,23 @@ pub struct TsCompilerOptions {
     pub module_detection: ModuleDetection,
 
     // jsx
-    /// JSX transformation mode.
+    /// JSX transformation mode (ignored).
     pub jsx: JsxMode,
-    /// JSX factory function (e.g., "React.createElement").
+    /// JSX factory function (e.g., "React.createElement") (ignored).
     pub jsx_factory: Option<String>,
-    /// JSX fragment factory (e.g., "React.Fragment").
+    /// JSX fragment factory (e.g., "React.Fragment") (ignored).
     pub jsx_fragment_factory: Option<String>,
-    /// JSX import source (e.g., "react").
+    /// JSX import source (e.g., "react") (ignored).
     pub jsx_import_source: Option<String>,
 
     // decorators
-    /// Enable legacy experimental decorators.
+    /// Enable legacy experimental decorators (ignored).
     pub experimental_decorators: bool,
-    /// Emit decorator metadata.
+    /// Emit decorator metadata (ignored).
     pub emit_decorator_metadata: bool,
 
     // class fields
-    /// Use define semantics for class fields.
+    /// Use define semantics for class fields (ignored).
     pub use_define_for_class_fields: bool,
 
     // import handling
@@ -952,14 +952,18 @@ pub struct TsCompilerOptions {
     // library
     /// Built-in library types to include.
     pub lib: Vec<String>,
+    /// Whether to perform lib replacement (ignored).
+    pub lib_replacement: bool,
+    /// Do not include the default library declarations.
+    pub no_lib: bool,
     /// Type roots.
     pub type_roots: Vec<String>,
     /// Types to include.
     pub types: Vec<String>,
-    /// Skip lib check.
+    /// Skip type checking of default library declaration files (ignored).
+    pub skip_default_lib_check: bool,
+    /// Skip type checking of declaration files.
     pub skip_lib_check: bool,
-    /// No lib.
-    pub no_lib: bool,
 
     // javascript
     /// Allow JavaScript files.
@@ -1045,10 +1049,12 @@ impl Default for TsCompilerOptions {
             no_property_access_from_index_signature: false,
 
             lib: Vec::new(),
+            lib_replacement: false,
+            no_lib: false,
             type_roots: Vec::new(),
             types: Vec::new(),
+            skip_default_lib_check: false,
             skip_lib_check: false,
-            no_lib: false,
 
             allow_js: false,
             check_js: false,
@@ -1154,10 +1160,12 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
                 .unwrap_or(false),
 
             lib: json.lib.clone().unwrap_or_default(),
+            lib_replacement: json.lib_replacement.unwrap_or(false),
+            no_lib: json.no_lib.unwrap_or(false),
             type_roots: json.type_roots.clone().unwrap_or_default(),
             types: json.types.clone().unwrap_or_default(),
+            skip_default_lib_check: json.skip_default_lib_check.unwrap_or(false),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
-            no_lib: json.no_lib.unwrap_or(false),
 
             allow_js: json.allow_js.unwrap_or(false),
             check_js: json.check_js.unwrap_or(false),
@@ -1412,15 +1420,15 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#useUnknownInCatchVariables>
     pub use_unknown_in_catch_variables: Option<bool>,
 
-    /// Experimental decorators (e.g. `true`)
+    /// Experimental decorators (e.g. `true`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#experimentalDecorators>
     pub experimental_decorators: Option<bool>,
 
-    /// Emit decorator metadata (e.g. `true`)
+    /// Emit decorator metadata (e.g. `true`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#emitDecoratorMetadata>
     pub emit_decorator_metadata: Option<bool>,
 
-    /// Use define semantics for class fields (e.g. `true`)
+    /// Use define semantics for class fields (e.g. `true`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#useDefineForClassFields>
     pub use_define_for_class_fields: Option<bool>,
 
@@ -1428,19 +1436,19 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#rewriteRelativeImportExtensions>
     pub rewrite_relative_import_extensions: Option<bool>,
 
-    /// JSX (e.g. `"react-jsx"`)
+    /// JSX (e.g. `"react-jsx"`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#jsx>
     pub jsx: Option<String>,
 
-    /// JSX factory (e.g. `"React.createElement"`)
+    /// JSX factory (e.g. `"React.createElement"`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#jsxFactory>
     pub jsx_factory: Option<String>,
 
-    /// JSX fragment factory (e.g. `"React.Fragment"`)
+    /// JSX fragment factory (e.g. `"React.Fragment"`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#jsxFragmentFactory>
     pub jsx_fragment_factory: Option<String>,
 
-    /// JSX import source (e.g. `"react"`)
+    /// JSX import source (e.g. `"react"`) (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#jsxImportSource>
     pub jsx_import_source: Option<String>,
 
@@ -1464,25 +1472,17 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#module>
     pub module: Option<String>,
 
-    /// Built-in library types to include (e.g. `["ES2020", "DOM"]`)
+    /// Built-in library types to include (e.g. `["ES2020", "DOM"]`).
     /// <https://www.typescriptlang.org/tsconfig/#lib>
     pub lib: Option<Vec<String>>,
 
-    /// Whether to perform lib replacement (TS 5.7+).
+    /// Whether to perform lib replacement (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#libReplacement>
     pub lib_replacement: Option<bool>,
 
     /// Do not include the default library declarations.
     /// <https://www.typescriptlang.org/tsconfig/#noLib>
     pub no_lib: Option<bool>,
-
-    /// Allow JavaScript files (e.g. `true`)
-    /// <https://www.typescriptlang.org/tsconfig/#allowJs>
-    pub allow_js: Option<bool>,
-
-    /// Enable type-checking of JavaScript files.
-    /// <https://www.typescriptlang.org/tsconfig/#checkJs>
-    pub check_js: Option<bool>,
 
     /// Type roots (e.g. `["src/types"]`)
     /// <https://www.typescriptlang.org/tsconfig/#typeRoots>
@@ -1492,13 +1492,22 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#types>
     pub types: Option<Vec<String>>,
 
-    /// [Deprecated] Skip type checking of default library declaration files.
+    /// [Deprecated] Skip type checking of default library declaration files (ignored).
     /// <https://www.typescriptlang.org/tsconfig/#skipDefaultLibCheck>
     pub skip_default_lib_check: Option<bool>,
 
     /// Skip type checking of declaration files.
     /// <https://www.typescriptlang.org/tsconfig/#skipLibCheck>
     pub skip_lib_check: Option<bool>,
+
+    // javascript
+    /// Allow JavaScript files (e.g. `true`).
+    /// <https://www.typescriptlang.org/tsconfig/#allowJs>
+    pub allow_js: Option<bool>,
+
+    /// Enable type-checking of JavaScript files.
+    /// <https://www.typescriptlang.org/tsconfig/#checkJs>
+    pub check_js: Option<bool>,
 
     // emit
     /// Root directory of source files.

@@ -1,8 +1,8 @@
 use super::resolve::MemberResolution;
 use super::{index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{
-    AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint,
-    InferContext, InferTable, OperatorLanguageItemExt,
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, Constraint, InferContext,
+    InferTable, OperatorLanguageItemExt,
 };
 use destack_builtin::LanguageItem;
 use destack_dir::{
