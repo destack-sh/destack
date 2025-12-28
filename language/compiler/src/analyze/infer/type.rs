@@ -1,4 +1,5 @@
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
+use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible};
+use crate::{AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
@@ -441,6 +442,7 @@ impl Compiler {
     }
 
     /// Infer the result type of a type binary operation.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn infer_type_binary_operation(
         &self,
         module: &Module,
@@ -449,13 +451,16 @@ impl Compiler {
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
         types: &TypeTable,
+        options: &AnalyzeOptions,
     ) -> Type {
         match operator {
             TypeBinaryOperator::Cast => {
                 // type assertion: `x as T`
                 // check if cast is valid (types overlap: at least one direction is assignable)
-                let left_to_right = self.check_is_type_assignable(right_ty_id, left_ty_id, types);
-                let right_to_left = self.check_is_type_assignable(left_ty_id, right_ty_id, types);
+                let left_to_right =
+                    self.check_is_type_assignable(right_ty_id, left_ty_id, types, options);
+                let right_to_left =
+                    self.check_is_type_assignable(left_ty_id, right_ty_id, types, options);
 
                 if left_to_right == Assignability::NotAssignable
                     && right_to_left == Assignability::NotAssignable
@@ -480,7 +485,7 @@ impl Compiler {
                 };
 
                 // check if left type satisfies (is assignable to) right type
-                if self.check_is_type_assignable(target_ty_id, left_ty_id, types)
+                if self.check_is_type_assignable(target_ty_id, left_ty_id, types, options)
                     == Assignability::NotAssignable
                 {
                     self.error(AnalyzeError::UnsatisfiedType {
@@ -601,6 +606,69 @@ impl Compiler {
         }
     }
 
+    /// Infer the index signature value type for a member key.
+    pub(super) fn infer_index_signature_value_type_for_key(
+        &self,
+        module: &Module,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        types: &mut TypeTable,
+        visited: &mut Vec<GlobalSymbolId>,
+    ) -> Option<LocalTypeId> {
+        match receiver_ty {
+            Type::Object {
+                index_signatures, ..
+            } => self.index_signature_value_type_for_key(index_signatures, member_key, types),
+            Type::Value { value } => {
+                let value_ty = types.get_type(*value).clone();
+                self.infer_index_signature_value_type_for_key(
+                    module, &value_ty, member_key, types, visited,
+                )
+            }
+            Type::Reference { symbol, .. } => self.infer_index_signature_value_type_for_symbol(
+                module, *symbol, member_key, types, visited,
+            ),
+            Type::Union { elements } => {
+                let mut value_types = Vec::new();
+                for element_id in elements.clone() {
+                    let element_ty = types.get_type(element_id).clone();
+                    if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                        module,
+                        &element_ty,
+                        member_key,
+                        types,
+                        visited,
+                    ) {
+                        value_types.push(value_ty);
+                    } else {
+                        return None;
+                    }
+                }
+                match value_types.len() {
+                    0 => None,
+                    1 => Some(value_types[0]),
+                    _ => Some(self.union_type_ids_from_list(value_types, types)),
+                }
+            }
+            Type::Intersection { elements } => {
+                for element_id in elements.clone() {
+                    let element_ty = types.get_type(element_id).clone();
+                    if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                        module,
+                        &element_ty,
+                        member_key,
+                        types,
+                        visited,
+                    ) {
+                        return Some(value_ty);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
     /// Infer member type for a nominal type symbol, traversing lineage and extensions.
     fn infer_member_of_symbol(
         &self,
@@ -674,6 +742,102 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Infer the index signature value type for a symbol.
+    fn infer_index_signature_value_type_for_symbol(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        types: &mut TypeTable,
+        visited: &mut Vec<GlobalSymbolId>,
+    ) -> Option<LocalTypeId> {
+        if visited.contains(&symbol) {
+            return None;
+        }
+        visited.push(symbol);
+
+        if let Some(ty_id) = types.get_instance_type_id(symbol) {
+            let ty = types.get_type(ty_id).clone();
+            if let Some(value_ty) = self
+                .infer_index_signature_value_type_for_key(module, &ty, member_key, types, visited)
+            {
+                return Some(value_ty);
+            }
+        }
+
+        if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
+            if let Some(extends) = lineage.extends
+                && let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
+                    module, extends, member_key, types, visited,
+                )
+            {
+                return Some(value_ty);
+            }
+
+            for implements in &lineage.implements {
+                if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
+                    module,
+                    *implements,
+                    member_key,
+                    types,
+                    visited,
+                ) {
+                    return Some(value_ty);
+                }
+            }
+
+            for embedded in &lineage.embedded {
+                if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
+                    module, *embedded, member_key, types, visited,
+                ) {
+                    return Some(value_ty);
+                }
+            }
+        }
+
+        let extension_ids = types.get_extensions_for_target(symbol)?.clone();
+        for extension_id in extension_ids {
+            let extension = types.get_extension(extension_id);
+            if !self.is_extension_visible(module, extension) {
+                continue;
+            }
+            if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
+                let ty = types.get_type(ty_id).clone();
+                if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                    module, &ty, member_key, types, visited,
+                ) {
+                    return Some(value_ty);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Get the idnex signature value type for a member key.
+    fn index_signature_value_type_for_key(
+        &self,
+        index_signatures: &[TypeIndexSignature],
+        member_key: &StaticKey,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let key_kind = index_key_kind_for_member(member_key);
+        let mut value_types = Vec::new();
+
+        for signature in index_signatures {
+            let signature_kind = index_key_kind_for_type(signature.key_type, types);
+            if index_key_kinds_compatible(signature_kind, key_kind) {
+                value_types.push(signature.value_type);
+            }
+        }
+
+        match value_types.len() {
+            0 => None,
+            1 => Some(value_types[0]),
+            _ => Some(self.union_type_ids_from_list(value_types, types)),
+        }
     }
 
     /// Check if an extension is visible from the given module:

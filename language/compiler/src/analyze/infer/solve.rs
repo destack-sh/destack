@@ -1,6 +1,6 @@
 use destack_dir::{InferVarId, LocalTypeId, Type, TypeLiteral, TypeTable};
 
-use crate::{Assignability, Compiler};
+use crate::{AnalyzeOptions, Assignability, Compiler};
 
 use super::{Constraint, InferTable};
 
@@ -51,7 +51,12 @@ impl InferSolution {
 
 impl Compiler {
     /// Solve inference variables and commit the results into the TypeTable.
-    pub fn solve_infer_table(&self, infer: &InferTable, types: &mut TypeTable) -> InferSolution {
+    pub fn solve_infer_table(
+        &self,
+        infer: &InferTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> InferSolution {
         // initialize solution slots
         let mut solution = InferSolution {
             resolved: vec![None; infer.vars.len()],
@@ -73,7 +78,7 @@ impl Compiler {
                 if solution.resolved[index].is_some() {
                     continue;
                 }
-                if let Some(resolved) = self.resolve_bounds(bound, &solution, types) {
+                if let Some(resolved) = self.resolve_bounds(bound, &solution, types, options) {
                     solution.resolved[index] = Some(resolved);
                     did_resolve = true;
                 }
@@ -152,6 +157,7 @@ impl Compiler {
         bound: &Bounds,
         solution: &InferSolution,
         types: &mut TypeTable,
+        options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
         // resolve lower and upper bounds
         let lower = self.resolve_joined_bounds(&bound.lower, solution, types, JoinKind::Union);
@@ -161,7 +167,9 @@ impl Compiler {
         // prefer a consistent bound when possible
         match (lower, upper) {
             (Some(lower), Some(upper)) => {
-                if self.check_is_type_assignable(upper, lower, types) == Assignability::Assignable {
+                if self.check_is_type_assignable(upper, lower, types, options)
+                    == Assignability::Assignable
+                {
                     Some(lower)
                 } else {
                     Some(upper)

@@ -560,7 +560,7 @@ if (result.ok) {
 ## Comptime
 
 <!-- nocheckin: define "trivial comptime" vs "MIR comptime" -->
- <!-- (executable to StaticExpression for instancing and such) -->
+ <!-- (executable to StaticExpression for instancing / static arguments, ..?) -->
 
 Destack supports compile-time evaluation via the `comptime` keyword, inspired by Zig.
 The compiler already evaluates pure expressions at compile time when possible as an optimization.
@@ -1998,7 +1998,8 @@ Code using `Result` behaves identically on all targets.
 Code using `throw` for control flow will work differently; use `Result` instead.
 
 ### Using
-nocheckin TODO #Incomplete: support `using` expressions
+<!-- nocheckin TODO #Incomplete: support `using` expressions -->
+<!-- (how does using relate with the TS using, our native stuff, and Symbol.dispose, and Try/Result/..?) -->
 
 `using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
 Resources must implement `Disposable` (sync) or `AsyncDisposable` (async):
@@ -2146,7 +2147,7 @@ Index operators for subscript access and assignment (like Python's `__getitem__`
 | Operator | Description | Interface |
 |----------|-------------|-----------|
 | `a[i]` | Index access | `Index<I, O>` |
-| `a[i] = v` | Index assignment | `SetIndex<I, V>` |
+| `a[i] = v` | Index assignment | `IndexSet<I, V>` |
 
 ### Type Operators
 

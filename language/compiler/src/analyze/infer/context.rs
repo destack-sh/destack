@@ -1,13 +1,17 @@
 use destack_dir::{
     Asynchrony, FunctionCardinality, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
 };
-use destack_workspace::ProfileId;
+use destack_workspace::{DsConfigCompilerOptions, ProfileId};
+
+use crate::AnalyzeOptions;
 
 /// InferContext holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
 pub struct InferContext {
     /// The active profile id.
     pub profile: ProfileId,
+    /// Semantic options for the current module.
+    pub options: AnalyzeOptions,
     /// Type narrowings currently in scope.
     pub narrowings: Vec<(GlobalSymbolId, LocalTypeId)>,
     /// Expected type from the surrounding context.
@@ -32,9 +36,10 @@ pub struct InferContext {
 
 impl InferContext {
     /// Create a new empty context.
-    pub fn new(profile: ProfileId) -> Self {
+    pub fn new(profile: ProfileId, options: AnalyzeOptions) -> Self {
         Self {
             profile,
+            options,
             narrowings: Vec::new(),
             expected_type: None,
             return_type: None,
@@ -52,6 +57,7 @@ impl InferContext {
     pub fn fork(&self) -> Self {
         Self {
             profile: self.profile,
+            options: self.options,
             narrowings: self.narrowings.clone(),
             expected_type: self.expected_type,
             return_type: self.return_type,
@@ -69,6 +75,7 @@ impl InferContext {
     pub fn reset(&self) -> Self {
         Self {
             profile: self.profile,
+            options: self.options,
             narrowings: self.narrowings.clone(),
             expected_type: self.expected_type,
             return_type: self.return_type,
@@ -221,6 +228,7 @@ impl InferContext {
 
 impl Default for InferContext {
     fn default() -> Self {
-        Self::new(ProfileId::new(0))
+        let options = AnalyzeOptions::from(&DsConfigCompilerOptions::default());
+        Self::new(ProfileId::new(0), options)
     }
 }

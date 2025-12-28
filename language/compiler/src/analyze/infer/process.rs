@@ -35,7 +35,8 @@ impl Compiler {
 
         // analyze all expressions
         let mut infer = InferTable::default();
-        let mut ctx = InferContext::new(profile);
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut ctx = InferContext::new(profile, options);
         for root_id in dir.roots.iter() {
             self.collect(
                 &mut collector,
@@ -56,7 +57,7 @@ impl Compiler {
         }
 
         // solve constraints and commit inferred types
-        self.solve_infer_table(&infer, &mut types);
+        self.solve_infer_table(&infer, &mut types, &ctx.options);
 
         Ok(())
     }

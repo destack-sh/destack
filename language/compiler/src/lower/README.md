@@ -2,10 +2,6 @@
 
 This document describes how Destack's high-level semantic representation (elaborated, canonical DIR) is lowered to machine-level IR (MIR) for native targets (currently via Cranelift).
 
-nocheckin: define how MIR will handle (or reject?) dynamic property access (including computed keys)
- (for stuff like in [comptime specification](../../../SPECIFICATION.md#Comptime),
-  do we need new IndexGet/IndexSet MIR instructions..? how to handle types like `{ [key: string]: value }`?)
-
 ---
 
 # Overview
@@ -196,6 +192,12 @@ obj[computedKey]  // not allowed on structs/classes ("static shapes")
 map[computedKey]  // works: Map implements Index<K, V>
 record[key]       // works: Record<K, V> aliases to Map<K, V>
 ```
+
+Types with index signatures (`{ [key: string]: T }`) support dynamic keys (without requiring
+`Index/IndexSet` overloads):
+
+- If the key is a compile-time literal and the type has a known field, lower to `field.get/set`
+- Otherwise, lower to runtime index intrinsics (`intrinsic.index_get/index_set`)
 
 ## Semantic Differences
 

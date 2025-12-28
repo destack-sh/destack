@@ -36,6 +36,7 @@ impl Compiler {
             ctx.profile,
             left_id.into_any(),
             &left_ty,
+            &ctx.options,
             tree,
             symbols,
             types,
@@ -92,6 +93,7 @@ impl Compiler {
                             &dynamic_parameters,
                             return_type,
                             ctx.profile,
+                            &ctx.options,
                             tree,
                             symbols,
                             types,
@@ -188,28 +190,61 @@ impl Compiler {
 
             resolved_member_ty_id
         } else {
-            if !self.is_import_meta_chain(tree, left_id) {
-                self.error(AnalyzeError::MissingMember {
-                    node: expression_id.into_global_any(module.id),
-                    receiver_ty: left_ty_id.into_global(module.id),
-                    member_key,
-                });
-            }
-
-            // record unresolved member resolution
-            self.record_member_resolution(
-                expression_id.into_global_any(module.id),
-                Some(left_ty_id),
-                &member_resolution,
-                member_instance_id,
-                has_member,
+            let mut index_visited = Vec::new();
+            let index_signature_ty_id = self.infer_index_signature_value_type_for_key(
+                module,
+                &left_ty,
+                &member_key,
                 types,
+                &mut index_visited,
             );
 
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            types.insert_type_from(ty, expression_id)
+            if let Some(index_signature_ty_id) = index_signature_ty_id {
+                let options = ctx.options;
+                if options.no_property_access_from_index_signature
+                    && !self.is_import_meta_chain(tree, left_id)
+                {
+                    self.error(AnalyzeError::PropertyAccessFromIndexSignature {
+                        node: expression_id.into_global_any(module.id),
+                        receiver_ty: left_ty_id.into_global(module.id),
+                        member_key,
+                    });
+                }
+
+                self.record_member_resolution(
+                    expression_id.into_global_any(module.id),
+                    Some(left_ty_id),
+                    &member_resolution,
+                    member_instance_id,
+                    true,
+                    types,
+                );
+
+                index_signature_ty_id
+            } else {
+                if !self.is_import_meta_chain(tree, left_id) {
+                    self.error(AnalyzeError::MissingMember {
+                        node: expression_id.into_global_any(module.id),
+                        receiver_ty: left_ty_id.into_global(module.id),
+                        member_key,
+                    });
+                }
+
+                // record unresolved member resolution
+                self.record_member_resolution(
+                    expression_id.into_global_any(module.id),
+                    Some(left_ty_id),
+                    &member_resolution,
+                    member_instance_id,
+                    has_member,
+                    types,
+                );
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
         };
 
         Ok(resolved_member_ty_id)

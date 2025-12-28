@@ -215,6 +215,7 @@ impl Compiler {
                     left_ty_id,
                     right_ty_id,
                     types,
+                    &ctx.options,
                 );
                 types.insert_type_from(ty, expression_id)
             }
@@ -1294,6 +1295,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<ObjectLiteralField>> {
+        let options = ctx.options;
         let property = tree.get(property_id);
         match property {
             Property::Field {
@@ -1433,8 +1435,12 @@ impl Compiler {
 
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
-                            && self.check_is_type_assignable(return_ty_id, body_ty_id, types)
-                                == Assignability::NotAssignable
+                            && self.check_is_type_assignable(
+                                return_ty_id,
+                                body_ty_id,
+                                types,
+                                &options,
+                            ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
                                 node: body.into_global_any(module.id),
@@ -1951,6 +1957,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             ctx.profile,
+            &ctx.options,
             tree,
             symbols,
             types,

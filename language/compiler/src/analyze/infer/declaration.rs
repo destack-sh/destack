@@ -34,6 +34,7 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let declaration = tree.get(declaration_id);
+        let options = ctx.options;
         match declaration {
             // namespace
             Declaration::Namespace {
@@ -494,8 +495,12 @@ impl Compiler {
 
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
-                            && self.check_is_type_assignable(return_ty_id, body_ty_id, types)
-                                == Assignability::NotAssignable
+                            && self.check_is_type_assignable(
+                                return_ty_id,
+                                body_ty_id,
+                                types,
+                                &options,
+                            ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
                                 node: body.into_global_any(module.id),
@@ -523,6 +528,7 @@ impl Compiler {
         ctx: &mut InferContext,
         this_ty_id: Option<LocalTypeId>,
     ) -> AnalyzeResult<InferredMember> {
+        let options = ctx.options;
         let member = tree.get(member_id);
         match member {
             Member::Field {
@@ -675,8 +681,12 @@ impl Compiler {
 
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
-                            && self.check_is_type_assignable(return_ty_id, body_ty_id, types)
-                                == Assignability::NotAssignable
+                            && self.check_is_type_assignable(
+                                return_ty_id,
+                                body_ty_id,
+                                types,
+                                &options,
+                            ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
                                 node: body.into_global_any(module.id),
@@ -1174,6 +1184,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
+        let options = ctx.options;
         let declarator = tree.get(declarator_id);
         let Declarator { pattern, ty, value } = declarator;
 
@@ -1210,7 +1221,7 @@ impl Compiler {
             });
             if !self.is_infer_var_type(declared, types)
                 && !self.is_infer_var_type(inferred, types)
-                && self.check_is_type_assignable(declared, inferred, types)
+                && self.check_is_type_assignable(declared, inferred, types, &options)
                     == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
