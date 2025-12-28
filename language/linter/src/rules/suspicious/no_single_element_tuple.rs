@@ -7,14 +7,14 @@ declare_lint! {
     /// Warn on single-element tuples that may be accidental.
     ///
     /// A single-element tuple like `(x,)` is unusual and often indicates a
-    /// mistake. If intentional, consider using an array or newtype instead.
+    /// mistake. If intentional, consider using a newtype instead.
     #[lint(
         id = "no-single-element-tuple",
         code = "LU016",
         category = Suspicious,
         level = Ast,
         fixable = No,
-        recommended = Always,
+        recommended = Off,
         stability = Stable
     )]
     pub NoSingleElementTuple,
