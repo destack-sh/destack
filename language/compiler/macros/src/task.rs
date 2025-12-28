@@ -279,6 +279,39 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
         })
         .collect();
 
+    // generate match arms for anchor()
+    let anchor_arms: Vec<TokenStream2> = variants
+        .iter()
+        .map(|v| {
+            let name = &v.name;
+
+            // check for optional node with module fallback
+            let has_module = v.fields.iter().any(|(n, _)| n == "module");
+            let node_is_option = v
+                .fields
+                .iter()
+                .any(|(n, ty)| n == "node" && quote!(#ty).to_string().starts_with("Option"));
+
+            if has_module && node_is_option {
+                // both module and optional node: use node if present, otherwise module
+                quote! {
+                    Self::#name { node, module, .. } => match node {
+                        Some(n) => crate::DiagnosticAnchor::Node(*n),
+                        None => crate::DiagnosticAnchor::Module(*module),
+                    }
+                }
+            } else if v.fields.iter().any(|(n, _)| n == "node") {
+                quote! { Self::#name { node, .. } => crate::DiagnosticAnchor::Node(*node) }
+            } else if v.fields.iter().any(|(n, _)| n == "module") {
+                quote! { Self::#name { module, .. } => crate::DiagnosticAnchor::Module(*module) }
+            } else if v.fields.iter().any(|(n, _)| n == "package") {
+                quote! { Self::#name { package, .. } => crate::DiagnosticAnchor::Package(*package) }
+            } else {
+                quote! { Self::#name { .. } => crate::DiagnosticAnchor::Global }
+            }
+        })
+        .collect();
+
     let task_variant = format_ident!("{}", phase_str);
 
     Ok(quote! {
@@ -293,6 +326,14 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
             pub fn sub_code(&self) -> u8 {
                 match self {
                     #(#sub_code_arms),*
+                }
+            }
+
+            /// Get the diagnostic anchor for this task.
+            #[inline]
+            pub fn anchor(&self) -> crate::DiagnosticAnchor {
+                match self {
+                    #(#anchor_arms),*
                 }
             }
         }

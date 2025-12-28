@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use destack_compiler::{CompilerEvent, CompilerEventHandler, TaskId, TaskPhase};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 /// Progress display mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -23,6 +23,7 @@ pub enum ProgressMode {
 struct ActiveTask {
     phase: TaskPhase,
     module_path: String,
+    bar: ProgressBar,
 }
 
 /// Progress state shared between the handler and the display.
@@ -38,7 +39,7 @@ pub struct ProgressState {
 
 /// Progress reporter that handles compiler events and updates the display.
 pub struct ProgressReporter {
-    bar: ProgressBar,
+    multi: MultiProgress,
     state: Arc<ProgressState>,
     detailed: bool,
 }
@@ -63,33 +64,32 @@ impl ProgressReporter {
     }
 
     fn create(detailed: bool) -> Self {
-        let bar = ProgressBar::new_spinner();
-
-        // cargo-style: green status word, then message
-        let style = ProgressStyle::default_spinner()
-            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-            .template("{spinner:.cyan} {wide_msg}")
-            .unwrap();
-
-        bar.set_style(style);
-        bar.enable_steady_tick(Duration::from_millis(80));
+        let multi = MultiProgress::new();
 
         Self {
-            bar,
+            multi,
             state: Arc::new(ProgressState::default()),
             detailed,
         }
     }
 
+    /// Create a spinner style for tasks.
+    fn spinner_style() -> ProgressStyle {
+        ProgressStyle::default_spinner()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+            .template("{spinner:.cyan} {elapsed:.dim} {wide_msg}")
+            .unwrap()
+    }
+
     /// Get the event handler to pass to the compiler.
     pub fn handler(&self) -> CompilerEventHandler {
         let state = self.state.clone();
-        let bar = self.bar.clone();
+        let multi = self.multi.clone();
         let detailed = self.detailed;
 
         Arc::new(move |event: CompilerEvent| match &event {
             CompilerEvent::CompilationStarted { .. } => {
-                bar.set_message("Starting...");
+                // no-op: we'll create bars as tasks start
             }
             CompilerEvent::TaskStarted {
                 task_id,
@@ -98,6 +98,21 @@ impl ProgressReporter {
                 ..
             } => {
                 let module_path = extract_module_path(description);
+                let display_name = path_to_display(&module_path);
+                let verb = phase_to_verb(*phase);
+
+                // create a new progress bar for this task
+                let bar = multi.add(ProgressBar::new_spinner());
+                bar.set_style(Self::spinner_style());
+                bar.enable_steady_tick(Duration::from_millis(80));
+
+                let completed = state.tasks_completed.load(Ordering::Relaxed);
+                let message = if detailed {
+                    format!("[{completed}] {verb} {display_name}")
+                } else {
+                    format!("{verb} {display_name}")
+                };
+                bar.set_message(message);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
                     active.insert(
@@ -105,33 +120,40 @@ impl ProgressReporter {
                         ActiveTask {
                             phase: *phase,
                             module_path,
+                            bar,
                         },
                     );
                 }
-
-                update_display(&bar, &state, detailed);
             }
             CompilerEvent::TaskCompleted { task_id, .. } => {
                 state.tasks_completed.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
+                    if let Some(task) = active.remove(task_id) {
+                        task.bar.finish_and_clear();
+                    }
                 }
 
-                update_display(&bar, &state, detailed);
+                // update remaining task messages with new completion count
+                update_all_messages(&state, detailed);
             }
             CompilerEvent::TaskFailed { task_id, .. } => {
                 state.tasks_failed.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
+                    if let Some(task) = active.remove(task_id) {
+                        task.bar.finish_and_clear();
+                    }
                 }
 
-                update_display(&bar, &state, detailed);
+                update_all_messages(&state, detailed);
             }
             CompilerEvent::TaskYielded { task_id, .. } => {
+                // task yielded, remove its progress bar temporarily
                 if let Ok(mut active) = state.active_tasks.lock() {
-                    active.remove(task_id);
+                    if let Some(task) = active.remove(task_id) {
+                        task.bar.finish_and_clear();
+                    }
                 }
             }
             CompilerEvent::TaskSlow {
@@ -143,104 +165,98 @@ impl ProgressReporter {
                 if detailed {
                     let path = extract_module_path(description);
                     let name = path_to_display(&path);
-                    bar.println(format!(
-                        "    {} {} is slow ({:.1}s)",
-                        phase_to_verb(*phase),
-                        name,
-                        elapsed.as_secs_f64()
-                    ));
+                    let elapsed_str = format_duration(*elapsed);
+                    multi
+                        .println(format!(
+                            "    \x1b[33m{} {} is slow ({})\x1b[0m",
+                            phase_to_verb(*phase),
+                            name,
+                            elapsed_str
+                        ))
+                        .ok();
                 }
             }
             CompilerEvent::CompilationFinished { .. } => {
-                bar.finish_and_clear();
+                // clear all remaining bars
+                if let Ok(mut active) = state.active_tasks.lock() {
+                    for (_, task) in active.drain() {
+                        task.bar.finish_and_clear();
+                    }
+                }
             }
         })
     }
 
     /// Finish the progress display.
     pub fn finish(&self) {
-        self.bar.finish_and_clear();
+        if let Ok(mut active) = self.state.active_tasks.lock() {
+            for (_, task) in active.drain() {
+                task.bar.finish_and_clear();
+            }
+        }
     }
 
     /// Finish with a custom message.
     pub fn finish_with_message(&self, msg: &str) {
-        self.bar.finish_with_message(msg.to_string());
+        // print the message through the multi-progress
+        self.multi.println(msg).ok();
+        self.finish();
     }
 
     /// Clear the progress display without a message.
     pub fn clear(&self) {
-        self.bar.finish_and_clear();
+        self.finish();
     }
 }
 
-/// Update the progress bar display based on active tasks.
-fn update_display(bar: &ProgressBar, state: &ProgressState, detailed: bool) {
-    let Ok(active) = state.active_tasks.lock() else {
-        return;
-    };
-
-    if active.is_empty() {
-        bar.set_message("Waiting...");
-        return;
-    }
-
-    // group by phase
-    let mut by_phase: HashMap<TaskPhase, Vec<&str>> = HashMap::new();
-    for task in active.values() {
-        by_phase
-            .entry(task.phase)
-            .or_default()
-            .push(&task.module_path);
-    }
-
+/// Update all active task messages with the current completion count.
+fn update_all_messages(state: &ProgressState, detailed: bool) {
     let completed = state.tasks_completed.load(Ordering::Relaxed);
 
-    // format the message
-    let message = if by_phase.len() == 1 {
-        let (phase, paths) = by_phase.iter().next().unwrap();
-        let verb = phase_to_verb(*phase);
-        format_phase_message(verb, paths, completed, detailed)
-    } else {
-        // multiple phases: summarize
-        let total: usize = by_phase.values().map(|v| v.len()).sum();
-        let verbs: Vec<_> = by_phase.keys().map(|p| phase_to_verb(*p)).collect();
-        if detailed {
-            format!("[{}] {} tasks ({} done)", verbs.join("/"), total, completed)
-        } else {
-            format!("{} tasks", total)
-        }
-    };
+    if let Ok(active) = state.active_tasks.lock() {
+        for task in active.values() {
+            let display_name = path_to_display(&task.module_path);
+            let verb = phase_to_verb(task.phase);
 
-    bar.set_message(message);
+            let message = if detailed {
+                format!("[{completed}] {verb} {display_name}")
+            } else {
+                format!("{verb} {display_name}")
+            };
+            task.bar.set_message(message);
+        }
+    }
 }
 
-/// Format message for a single phase with its modules.
-fn format_phase_message(verb: &str, paths: &[&str], completed: usize, detailed: bool) -> String {
-    let count = paths.len();
+/// Format a duration in a human-friendly way.
+fn format_duration(duration: Duration) -> String {
+    let total_secs = duration.as_secs();
+    let millis = duration.subsec_millis();
 
-    if count == 1 {
-        // single module: "Checking src/main.ds"
-        let name = path_to_display(paths[0]);
-        if detailed {
-            format!("[{completed}] {verb} {name}")
+    if total_secs == 0 {
+        let secs_f = duration.as_secs_f64();
+        if secs_f < 0.01 {
+            format!("{secs_f:.3}s")
+        } else if secs_f < 0.1 {
+            format!("{secs_f:.2}s")
         } else {
-            format!("{verb} {name}")
+            format!("{secs_f:.1}s")
         }
-    } else if count <= 3 {
-        // few modules: "Checking main.ds, util.ds"
-        let names: Vec<_> = paths.iter().map(|p| file_name(p)).collect();
-        if detailed {
-            format!("[{completed}] {verb} {}", names.join(", "))
+    } else if total_secs < 60 {
+        let secs_f = duration.as_secs_f64();
+        if millis == 0 {
+            format!("{total_secs}s")
         } else {
-            format!("{verb} {}", names.join(", "))
+            format!("{secs_f:.1}s")
         }
+    } else if total_secs < 3600 {
+        let mins = total_secs / 60;
+        let secs = total_secs % 60;
+        format!("{mins}m {secs}s")
     } else {
-        // many modules: "Checking 5 modules"
-        if detailed {
-            format!("[{completed}] {verb} {count} modules")
-        } else {
-            format!("{verb} {count} modules")
-        }
+        let hours = total_secs / 3600;
+        let mins = (total_secs % 3600) / 60;
+        format!("{hours}h {mins}m")
     }
 }
 
@@ -266,18 +282,24 @@ fn extract_module_path(description: &str) -> String {
 fn path_to_display(path: &str) -> String {
     let parts: Vec<_> = path.split('/').collect();
 
-    if parts.len() <= 3 {
-        // short path: show as-is
+    if parts.len() <= 4 {
+        // short-ish path: show as-is
         path.to_string()
     } else {
-        // long path: show "dir/.../file.ds"
-        let first = parts.first().unwrap_or(&"");
-        let last = parts.last().unwrap_or(&"");
-        format!("{first}/.../{last}")
+        // long path: show last 3 components with leading ...
+        let tail: Vec<_> = parts.iter().rev().take(3).collect();
+        let suffix = tail
+            .into_iter()
+            .rev()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("/");
+        format!(".../{suffix}")
     }
 }
 
 /// Get just the file name from a path.
+#[allow(dead_code)]
 fn file_name(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }

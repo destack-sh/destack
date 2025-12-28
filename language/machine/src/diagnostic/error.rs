@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-/// Diagnostic anchor for MIR-level error locations.
+/// Anchor for MIR-level error locations.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DiagnosticAnchor {
     /// No specific location.

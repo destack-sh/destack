@@ -212,6 +212,25 @@ impl Task {
         }
     }
 
+    /// Get the diagnostic anchor for this task.
+    pub fn anchor(&self) -> DiagnosticAnchor {
+        match self {
+            Self::Import(t) => t.anchor(),
+            Self::Bind(t) => t.anchor(),
+            Self::Resolve(t) => t.anchor(),
+            Self::Analyze(t) => t.anchor(),
+            Self::Elaborate(t) => t.anchor(),
+            Self::Lower(t) => t.anchor(),
+            Self::Verify(t) => t.anchor(),
+            Self::Execute(t) => t.anchor(),
+            Self::Optimize(t) => t.anchor(),
+            Self::Generate(t) => t.anchor(),
+            Self::Link(t) => t.anchor(),
+            Self::Emit(t) => t.anchor(),
+            Self::Lint(t) => t.anchor(),
+        }
+    }
+
     /// Get the region of the task.
     pub fn region(&self) -> TaskRegion {
         self.phase().region()
