@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use std::sync::LazyLock;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -85,13 +85,20 @@ struct SecretPattern {
     regex: Regex,
 }
 
+// allow gitleaks patterns that exceed the default regex size limit
+const SECRET_REGEX_SIZE_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+
 impl TryFrom<&SecretRule> for SecretPattern {
     type Error = regex::Error;
 
     fn try_from(rule: &SecretRule) -> Result<Self, Self::Error> {
+        let regex = RegexBuilder::new(&rule.regex)
+            .size_limit(SECRET_REGEX_SIZE_LIMIT_BYTES)
+            .unicode(false)
+            .build()?;
         Ok(Self {
             description: rule.description.clone(),
-            regex: Regex::new(&rule.regex)?,
+            regex,
         })
     }
 }
@@ -468,6 +475,33 @@ mod tests {
             "test.ts",
             r#"const key = "AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe";"#,
         );
+        test.result(result).assert_lint("no-secrets");
+    }
+
+    #[test]
+    fn test_detects_generic_api_key_pattern() {
+        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let result = test.lint_ast("test.ts", r#"const key = "key=aaaaaaaaaa";"#);
+        test.result(result).assert_lint("no-secrets");
+    }
+
+    #[test]
+    fn test_detects_pypi_upload_token() {
+        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let suffix = "a".repeat(50);
+        let token = format!("pypi-AgEIcHlwaS5vcmc{suffix}");
+        let source = format!("const token = \"{token}\";");
+        let result = test.lint_ast("test.ts", &source);
+        test.result(result).assert_lint("no-secrets");
+    }
+
+    #[test]
+    fn test_detects_vault_batch_token() {
+        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let suffix = "a".repeat(138);
+        let token = format!("hvb.{suffix}");
+        let source = format!("const token = \"{token}\";");
+        let result = test.lint_ast("test.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
 
