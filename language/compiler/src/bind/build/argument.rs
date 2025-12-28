@@ -242,7 +242,7 @@ impl Compiler {
         let argument_id =
             tree.reserve_from_source(NodeType::Argument, ast_argument_id.id, scope, parent_id);
         match ast_argument {
-            ast::Argument::Named { name, value } => {
+            ast::Argument::Named { name, value, .. } => {
                 let name = self
                     .program
                     .strings
@@ -259,7 +259,7 @@ impl Compiler {
                 );
                 tree.insert(argument_id, Argument::Named { name, value })
             }
-            ast::Argument::Positional { value } => {
+            ast::Argument::Positional { value, .. } => {
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -272,7 +272,7 @@ impl Compiler {
                 );
                 tree.insert(argument_id, Argument::Positional { value })
             }
-            ast::Argument::Spread { value } => {
+            ast::Argument::Spread { value, .. } => {
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -285,7 +285,7 @@ impl Compiler {
                 );
                 tree.insert(argument_id, Argument::Spread { value })
             }
-            ast::Argument::Labeled { label, value } => {
+            ast::Argument::Labeled { label, value, .. } => {
                 let label = self.program.strings.intern_from(&ast.strings, *label);
                 let value = self.bind_expression(
                     module,

@@ -35,9 +35,7 @@ impl Compiler {
             ast::TypeUnaryOperator::Readonly => TypeUnaryOperator::Readonly,
             ast::TypeUnaryOperator::Typeof => TypeUnaryOperator::Typeof,
             ast::TypeUnaryOperator::Keyof => TypeUnaryOperator::Keyof,
-            ast::TypeUnaryOperator::Infer => TypeUnaryOperator::Infer,
             ast::TypeUnaryOperator::AsConst => TypeUnaryOperator::AsConst,
-            ast::TypeUnaryOperator::Asserts => TypeUnaryOperator::Asserts,
         }
     }
 

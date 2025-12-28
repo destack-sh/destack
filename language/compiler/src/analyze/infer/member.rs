@@ -79,6 +79,7 @@ impl Compiler {
                         asynchrony,
                         cardinality,
                         static_parameters,
+                        this_parameter,
                         dynamic_parameters,
                         return_type,
                     } => {
@@ -97,6 +98,19 @@ impl Compiler {
                             infer,
                         )?;
 
+                        let resolved_this_parameter = if inherited.substitutions.is_empty() {
+                            this_parameter
+                        } else {
+                            let mut cache = HashMap::new();
+                            this_parameter.map(|parameter| {
+                                self.substitute_static_parameters(
+                                    parameter,
+                                    &inherited.substitutions,
+                                    types,
+                                    &mut cache,
+                                )
+                            })
+                        };
                         let (resolved_dynamic_parameters, resolved_return_type) =
                             if inherited.substitutions.is_empty() {
                                 (resolved.dynamic_parameters, resolved.return_type)
@@ -129,6 +143,7 @@ impl Compiler {
                             asynchrony,
                             cardinality,
                             static_parameters: Vec::new(),
+                            this_parameter: resolved_this_parameter,
                             dynamic_parameters: resolved_dynamic_parameters,
                             return_type: resolved_return_type,
                         };
@@ -345,7 +360,7 @@ impl Compiler {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 let field_key = StaticKey::Name(field.name);
-                if &field_key == member_key {
+                if field_key.matches(member_key) {
                     return Some(field.symbol.into_global(module.id));
                 }
             }
@@ -355,11 +370,12 @@ impl Compiler {
                 let member = tree.get(*member_id);
                 let static_key = member.key().and_then(|key| match key {
                     DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
+                    DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
                     DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
                 });
 
                 if let Some(static_key) = static_key
-                    && &static_key == member_key
+                    && static_key.matches(member_key)
                 {
                     return Some(member.symbol().into_global(module.id));
                 }
@@ -380,11 +396,12 @@ impl Compiler {
             let member = tree.get(*member_id);
             let static_key = member.key().and_then(|key| match key {
                 DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
+                DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
                 DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
             });
 
             if let Some(static_key) = static_key
-                && &static_key == member_key
+                && static_key.matches(member_key)
             {
                 return Some(member.symbol().into_global(module.id));
             }

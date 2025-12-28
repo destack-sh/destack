@@ -2,7 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, Mutability,
-    NodeTree, SymbolTable, Type, TypeKind, TypeTable, VarianceBound,
+    NodeTree, SymbolTable, Type, TypeKind, TypeMappedModifiers, TypeModifier, TypeTable,
+    VarianceBound,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -56,6 +57,28 @@ impl Compiler {
             ast::VarianceBound::Implements => VarianceBound::Implements,
             ast::VarianceBound::Extends => VarianceBound::Extends,
             ast::VarianceBound::Super => VarianceBound::Super,
+        }
+    }
+
+    /// Bind a TypeModifier into a DIR type modifier.
+    #[inline]
+    pub(super) fn bind_type_modifier(&self, modifier: ast::TypeModifier) -> TypeModifier {
+        match modifier {
+            ast::TypeModifier::Add => TypeModifier::Add,
+            ast::TypeModifier::Remove => TypeModifier::Remove,
+            ast::TypeModifier::None => TypeModifier::None,
+        }
+    }
+
+    /// Bind TypeMappedModifiers into DIR mapped modifiers.
+    #[inline]
+    pub(super) fn bind_type_mapped_modifiers(
+        &self,
+        modifiers: &ast::TypeMappedModifiers,
+    ) -> TypeMappedModifiers {
+        TypeMappedModifiers {
+            readonly: self.bind_type_modifier(modifiers.readonly),
+            optional: self.bind_type_modifier(modifiers.optional),
         }
     }
 

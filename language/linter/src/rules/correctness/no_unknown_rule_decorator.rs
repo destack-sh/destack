@@ -81,7 +81,7 @@ impl LintRule for NoUnknownRuleDecorator {
                 continue;
             };
             let first_argument = ctx.tree.get(*first_argument_id);
-            let ast::Argument::Positional { value } = first_argument else {
+            let ast::Argument::Positional { value, .. } = first_argument else {
                 continue;
             };
             let argument_expression = ctx.tree.get(*value);

@@ -357,7 +357,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
     assert_type!(types, rest_ty_id, Type::Tuple { elements } => {
         assert_eq!(elements.len(), 1);
-        assert_type!(types, elements[0], Type::TypeLiteral {
+        assert_type!(types, elements[0].ty, Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
         });
     });
@@ -522,8 +522,8 @@ let x = items;
         assert_eq!(elements.len(), 3);
 
         // each element stays a literal integer
-        for elem_id in elements {
-            assert_type!(types, *elem_id, Type::TypeLiteral {
+        for element in elements {
+            assert_type!(types, element.ty, Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
             });
         }
@@ -640,20 +640,20 @@ fn test_analyze_inherent_extension() {
         "test.ds",
         r#"
 struct Point { 
-x: number, 
-y: number,
+    x: number, 
+    y: number,
 }
 
 extension for Point {
-magnitude(): number { 
-    return 0; 
-}
+    magnitude(): number { 
+        return 0; 
+    }
 }
 
 extension for Point {
-distance(other: Point): number { 
-    return 0; 
-}
+    distance(other: Point): number { 
+        return 0; 
+    }
 }
 "#,
     );
@@ -687,7 +687,7 @@ import { Point } from "./point.ds";
 
 // local extension on foreign type
 extension for Point {
-distance(other: Point): number { return 0; }
+    distance(other: Point): number { return 0; }
 }
 "#,
     );
@@ -1073,7 +1073,7 @@ fn test_analyze_type_reference_default_static_value() {
         "test.ds",
         r#"
 struct Buffer<T, N: number = 4> {
-value: T
+    value: T
 }
 
 declare function makeBuffer(): Buffer<string>;
@@ -1540,7 +1540,7 @@ const point: { x: number, y: string } = { x: 1, y: "hi" };
         .expect("expected object type");
 
     // object literal fields use contextual field types
-    assert_type!(types, value_ty_id, Type::Object { fields } => {
+    assert_type!(types, value_ty_id, Type::Object { fields, .. } => {
         // two fields are present in the contextual object type
         assert_eq!(fields.len(), 2);
 
@@ -1613,12 +1613,12 @@ const numbers: number[] = [1, 2];
         assert_eq!(elements.len(), 2);
 
         // first element is number
-        assert_type!(types, elements[0], Type::TypeLiteral {
+        assert_type!(types, elements[0].ty, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
         // second element is number
-        assert_type!(types, elements[1], Type::TypeLiteral {
+        assert_type!(types, elements[1].ty, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });

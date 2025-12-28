@@ -91,6 +91,18 @@ impl Compiler {
         // refresh scope mark so static parameters are visible to later bindings
         let scope = (scope.0, symbols.get_scope_mark(scope.0));
 
+        let this_parameter = signature.this_parameter.map(|this_parameter| {
+            self.bind_parameter(
+                module,
+                ast,
+                scope,
+                this_parameter,
+                parent_id,
+                tree,
+                symbols,
+                types,
+            )
+        });
         let dynamic_parameters = signature
             .dynamic_parameters
             .iter()
@@ -100,6 +112,7 @@ impl Compiler {
                 )
             })
             .collect();
+        let scope = (scope.0, symbols.get_scope_mark(scope.0));
         let return_type = signature.return_type.map(|return_type| {
             self.bind_expression(
                 module,
@@ -119,6 +132,7 @@ impl Compiler {
             mode,
             kind,
             generics,
+            this_parameter,
             dynamic_parameters,
             return_type,
         }

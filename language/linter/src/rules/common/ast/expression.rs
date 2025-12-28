@@ -295,12 +295,20 @@ pub fn is_equal(
                 let right_arg = ctx.tree.get(*right_arg_id);
                 let args_equal = match (left_arg, right_arg) {
                     (
-                        ast::Argument::Positional { value: left_value },
-                        ast::Argument::Positional { value: right_value },
+                        ast::Argument::Positional {
+                            value: left_value, ..
+                        },
+                        ast::Argument::Positional {
+                            value: right_value, ..
+                        },
                     ) => is_equal(ctx, *left_value, *right_value),
                     (
-                        ast::Argument::Spread { value: left_value },
-                        ast::Argument::Spread { value: right_value },
+                        ast::Argument::Spread {
+                            value: left_value, ..
+                        },
+                        ast::Argument::Spread {
+                            value: right_value, ..
+                        },
                     ) => is_equal(ctx, *left_value, *right_value),
                     _ => false,
                 };
@@ -402,15 +410,15 @@ pub fn has_side_effects(
         ast::Expression::ScalarLiteral(_) | ast::Expression::TypeLiteral(_) => false,
 
         // pure: paths (variable references)
-        ast::Expression::Path { .. } => false,
+        ast::Expression::Path { .. } | ast::Expression::This => false,
 
         // pure: containers (if elements are pure)
         ast::Expression::ArrayExpression { elements }
         | ast::Expression::TupleExpression { elements } => elements.iter().any(|arg_id| {
             let arg = ctx.tree.get(*arg_id);
             match arg {
-                ast::Argument::Positional { value }
-                | ast::Argument::Spread { value }
+                ast::Argument::Positional { value, .. }
+                | ast::Argument::Spread { value, .. }
                 | ast::Argument::Named { value, .. }
                 | ast::Argument::Labeled { value, .. } => has_side_effects(ctx, *value),
             }
@@ -434,6 +442,39 @@ pub fn has_side_effects(
         ast::Expression::TypeUnary { right, .. } => has_side_effects(ctx, *right),
         ast::Expression::TypeBinary { left, right, .. } => {
             has_side_effects(ctx, *left) || has_side_effects(ctx, *right)
+        }
+        ast::Expression::TypeConditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            has_side_effects(ctx, *left)
+                || has_side_effects(ctx, *right)
+                || has_side_effects(ctx, *then_type)
+                || has_side_effects(ctx, *else_type)
+        }
+        ast::Expression::TypeMapped {
+            parameter, value, ..
+        } => {
+            has_side_effects(ctx, parameter.constraint)
+                || parameter
+                    .key_remap
+                    .is_some_and(|key_remap| has_side_effects(ctx, key_remap))
+                || has_side_effects(ctx, *value)
+        }
+        ast::Expression::TypeIndex { left, index } => {
+            has_side_effects(ctx, *left) || has_side_effects(ctx, *index)
+        }
+        ast::Expression::TypeTemplateLiteral { spans, .. } => {
+            spans.iter().any(|span_id| has_side_effects(ctx, *span_id))
+        }
+        ast::Expression::TypeImport { .. } => false,
+        ast::Expression::TypeInfer { constraint, .. } => {
+            constraint.is_some_and(|constraint| has_side_effects(ctx, constraint))
+        }
+        ast::Expression::TypePredicate { target, .. } => {
+            target.is_some_and(|target| has_side_effects(ctx, target))
         }
 
         // pure: reference/value of (if operand is pure)

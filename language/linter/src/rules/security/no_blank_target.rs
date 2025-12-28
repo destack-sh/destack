@@ -118,7 +118,7 @@ fn is_anchor_tag(
 
 /// Check if an argument is `target="_blank"`.
 fn is_blank_target(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
-    let Argument::Named { name, value } = arg else {
+    let Argument::Named { name, value, .. } = arg else {
         return false;
     };
 
@@ -139,7 +139,7 @@ fn is_blank_target(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
 
 /// Check if an argument is `rel` containing "noopener" or "noreferrer".
 fn is_safe_rel(ctx: &LintModuleAstContext<'_>, arg: &Argument) -> bool {
-    let Argument::Named { name, value } = arg else {
+    let Argument::Named { name, value, .. } = arg else {
         return false;
     };
 

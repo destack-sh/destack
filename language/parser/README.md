@@ -56,18 +56,3 @@ Full JSX/TSX compatibility for "tree literals":
 ```
 
 The lexer maintains a state stack to handle nested elements and expression containers (`{...}`).
-
-## Layout
-
-| Path | Purpose |
-|------|---------|
-| `lex/` | Tokenizer: source text → tokens |
-| `parse/` | Parser: tokens → AST |
-| `tests/` | Parser unit tests |
-| `fuzz/` | Fuzzing harness (see `fuzz/README.md`) |
-
----
-
-## Missing
-
-- none

@@ -269,7 +269,7 @@ impl Compiler {
             return;
         }
         match types.get_type(ty_id) {
-            Type::TypeLiteral { .. } | Type::InferVar { .. } | Type::Error => {}
+            Type::TypeLiteral { .. } | Type::InferVar { .. } | Type::Error | Type::This => {}
             Type::Value { value } => {
                 self.collect_type_reference_symbols(*value, types, symbols, visited);
             }
@@ -294,6 +294,46 @@ impl Compiler {
                 self.collect_type_reference_symbols(*left, types, symbols, visited);
                 self.collect_type_reference_symbols(*right, types, symbols, visited);
             }
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                self.collect_type_reference_symbols(*left, types, symbols, visited);
+                self.collect_type_reference_symbols(*right, types, symbols, visited);
+                self.collect_type_reference_symbols(*then_type, types, symbols, visited);
+                self.collect_type_reference_symbols(*else_type, types, symbols, visited);
+            }
+            Type::Mapped {
+                parameter, value, ..
+            } => {
+                self.collect_type_reference_symbols(parameter.constraint, types, symbols, visited);
+                if let Some(key_remap) = parameter.key_remap {
+                    self.collect_type_reference_symbols(key_remap, types, symbols, visited);
+                }
+                self.collect_type_reference_symbols(*value, types, symbols, visited);
+            }
+            Type::Index { left, index } => {
+                self.collect_type_reference_symbols(*left, types, symbols, visited);
+                self.collect_type_reference_symbols(*index, types, symbols, visited);
+            }
+            Type::TemplateLiteral { spans, .. } => {
+                for span in spans {
+                    self.collect_type_reference_symbols(*span, types, symbols, visited);
+                }
+            }
+            Type::Import { .. } => {}
+            Type::Infer { constraint, .. } => {
+                if let Some(constraint) = constraint {
+                    self.collect_type_reference_symbols(*constraint, types, symbols, visited);
+                }
+            }
+            Type::Predicate { target, .. } => {
+                if let Some(target) = target {
+                    self.collect_type_reference_symbols(*target, types, symbols, visited);
+                }
+            }
             Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. } => {
@@ -309,19 +349,48 @@ impl Compiler {
             }
             Type::Tuple { elements } => {
                 for element in elements {
-                    self.collect_type_reference_symbols(*element, types, symbols, visited);
+                    self.collect_type_reference_symbols(element.ty, types, symbols, visited);
                 }
             }
-            Type::Object { fields } => {
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
                 for field in fields {
                     self.collect_type_reference_symbols(field.ty, types, symbols, visited);
                 }
+                for signature in call_signatures {
+                    self.collect_type_reference_symbols(*signature, types, symbols, visited);
+                }
+                for signature in construct_signatures {
+                    self.collect_type_reference_symbols(*signature, types, symbols, visited);
+                }
+                for signature in index_signatures {
+                    self.collect_type_reference_symbols(
+                        signature.key_type,
+                        types,
+                        symbols,
+                        visited,
+                    );
+                    self.collect_type_reference_symbols(
+                        signature.value_type,
+                        types,
+                        symbols,
+                        visited,
+                    );
+                }
             }
             Type::Function {
+                this_parameter,
                 dynamic_parameters,
                 return_type,
                 ..
             } => {
+                if let Some(this_parameter) = this_parameter {
+                    self.collect_type_reference_symbols(*this_parameter, types, symbols, visited);
+                }
                 for parameter in dynamic_parameters {
                     self.collect_type_reference_symbols(*parameter, types, symbols, visited);
                 }

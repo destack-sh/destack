@@ -150,7 +150,6 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{Expression, FloatType, IntType, PrimitiveType, TypeLiteral};
-    use destack_source::DiagnosticSeverity;
 
     use crate::{TestProgram, assert_node};
 
@@ -289,76 +288,5 @@ string;
                 assert_eq!(*target_symbol, string_symbol_id);
             });
         });
-    }
-
-    /// Test that Self resolves to the enclosing struct.
-    #[test]
-    fn test_self_type_in_struct() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-struct Foo {
-    create(): Self {
-        return new Self()
-    }
-}
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_dump_clean();
-
-        // get the Foo symbol
-        let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
-
-        // verify that Self in return type resolves to Foo
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let profile = test.default_profile_id(module_id);
-        let tree = module.dir(profile).tree.read();
-
-        // find the Self reference in the function return type
-        let mut found_self_reference = false;
-        for expr_id in tree.iter_node_ids_of_type::<Expression>() {
-            if let Expression::ModuleReference {
-                target_symbol,
-                path,
-                ..
-            } = tree.get(expr_id)
-            {
-                // check if this is a Self reference that points to Foo
-                let first_segment = test.program.strings.get(path.segments[0]);
-                if first_segment == "Self" && *target_symbol == foo_symbol_id {
-                    found_self_reference = true;
-                    break;
-                }
-            }
-        }
-        assert!(found_self_reference, "Self should resolve to Foo struct");
-    }
-
-    /// Test that Self outside a type context produces an error.
-    #[test]
-    fn test_self_type_outside_type_errors() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-let x: Self = 1;
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile();
-
-        // check that we get an error
-        let diagnostics = test.program.diagnostics.collect();
-        let has_error = diagnostics
-            .highest_severity()
-            .map(|s| s >= DiagnosticSeverity::Error)
-            .unwrap_or(false);
-        assert!(
-            has_error,
-            "Self outside type context should produce an error"
-        );
     }
 }

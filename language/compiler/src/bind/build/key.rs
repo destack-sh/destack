@@ -22,11 +22,11 @@ impl Compiler {
     ) -> DynamicKey {
         match key {
             ast::Key::Name(ast::Name::Number(string_id)) => {
-                // (numeric keys evaluate to canonical string representation)
+                // numeric keys evaluate to canonical string representation
                 let source = ast.strings.get(string_id);
                 let canonical = evaluate_numeric_literal(&source);
                 let name = self.program.strings.intern(&canonical);
-                DynamicKey::Name(name)
+                DynamicKey::Number(name)
             }
             ast::Key::Name(name) => {
                 let name = self

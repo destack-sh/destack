@@ -175,7 +175,7 @@ impl<'a> LintModuleAstContext<'a> {
         // extract the string argument (lint ID or code)
         let arguments = decorator.arguments.as_ref()?;
         let first_argument = self.tree.get(*arguments.first()?);
-        let Argument::Positional { value } = first_argument else {
+        let Argument::Positional { value, .. } = first_argument else {
             return None;
         };
 

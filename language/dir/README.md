@@ -132,13 +132,13 @@ If we don't know the symbol at compile time, it's dynamic dispatch.
 - `Type::Index { left, index }`
 - `Type::TemplateLiteral { strings, spans }`
 - `Type::Import { target, qualifier }`
-- `Type::InferBinding { name, constraint }` (distinct from `InferVar`)
+- `Type::Infer { name, constraint }` (distinct from `InferVar`)
 - `Type::Predicate { asserts, subject, target }`
 - `Type::This`
 - Keep `Type::Unary`/`Type::Binary` for operator-like constructs:
   - `Type::Unary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, `!`, `?`, `!`
   - `Type::Binary`: `as`, `is`, `instanceof`, `satisfies`, `extends`, `implements`
-  - `infer` and `asserts` move to `Type::InferBinding`/`Type::Predicate`
+  - `infer` and `asserts` move to `Type::Infer`/`Type::Predicate`
 - Supporting structs/enums:
 - `TypeMappedParameter { name, constraint, key_remap }`
 - `TypeMappedModifiers { readonly, optional }` with `TypeModifier` states

@@ -3,8 +3,8 @@ use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
     LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticKey, SymbolType,
-    Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    Type, TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter,
+    TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -534,7 +534,10 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         match receiver_ty {
             // object type: look up field directly
-            Type::Object { fields } => fields.iter().find(|f| &f.key == member_key).map(|f| f.ty),
+            Type::Object { fields, .. } => fields
+                .iter()
+                .find(|f| f.key.matches(member_key))
+                .map(|f| f.ty),
 
             // value type: unwrap to the underlying type
             Type::Value { value } => {
@@ -662,8 +665,8 @@ impl Compiler {
             }
             if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
                 let ty = types.get_type(ty_id);
-                if let Type::Object { fields } = ty
-                    && let Some(field) = fields.iter().find(|f| &f.key == member_key)
+                if let Type::Object { fields, .. } = ty
+                    && let Some(field) = fields.iter().find(|f| f.key.matches(member_key))
                 {
                     return Some(field.ty);
                 }
@@ -757,6 +760,185 @@ impl Compiler {
                 expression_id,
             ),
             Type::Error => types.insert_type_from(Type::Error, expression_id),
+            Type::This => types.insert_type_from(Type::This, expression_id),
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let local_left = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*left),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let local_right = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*right),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let local_then = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*then_type),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let local_else = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*else_type),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::Conditional {
+                        left: local_left,
+                        right: local_right,
+                        then_type: local_then,
+                        else_type: local_else,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let local_constraint = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(parameter.constraint),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let local_key_remap = parameter.key_remap.map(|key_remap| {
+                    self.import_type_from_remote(
+                        expression_id,
+                        remote_types.get_type(key_remap),
+                        remote_types,
+                        target_symbol,
+                        types,
+                    )
+                });
+                let local_value = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*value),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let parameter = TypeMappedParameter {
+                    name: parameter.name,
+                    constraint: local_constraint,
+                    key_remap: local_key_remap,
+                };
+                types.insert_type_from(
+                    Type::Mapped {
+                        parameter,
+                        modifiers: *modifiers,
+                        value: local_value,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Index { left, index } => {
+                let local_left = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*left),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let local_index = self.import_type_from_remote(
+                    expression_id,
+                    remote_types.get_type(*index),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::Index {
+                        left: local_left,
+                        index: local_index,
+                    },
+                    expression_id,
+                )
+            }
+            Type::TemplateLiteral { strings, spans } => {
+                let local_spans = spans
+                    .iter()
+                    .map(|span| {
+                        self.import_type_from_remote(
+                            expression_id,
+                            remote_types.get_type(*span),
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                types.insert_type_from(
+                    Type::TemplateLiteral {
+                        strings: strings.clone(),
+                        spans: local_spans,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Import { target, qualifier } => types.insert_type_from(
+                Type::Import {
+                    target: *target,
+                    qualifier: qualifier.clone(),
+                },
+                expression_id,
+            ),
+            Type::Infer { name, constraint } => {
+                let local_constraint = constraint.map(|constraint| {
+                    self.import_type_from_remote(
+                        expression_id,
+                        remote_types.get_type(constraint),
+                        remote_types,
+                        target_symbol,
+                        types,
+                    )
+                });
+                types.insert_type_from(
+                    Type::Infer {
+                        name: *name,
+                        constraint: local_constraint,
+                    },
+                    expression_id,
+                )
+            }
+            Type::Predicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let local_target = target.map(|target| {
+                    self.import_type_from_remote(
+                        expression_id,
+                        remote_types.get_type(target),
+                        remote_types,
+                        target_symbol,
+                        types,
+                    )
+                });
+                types.insert_type_from(
+                    Type::Predicate {
+                        asserts: *asserts,
+                        subject: *subject,
+                        target: local_target,
+                    },
+                    expression_id,
+                )
+            }
 
             // array types
             Type::Array { element: None } => {
@@ -785,15 +967,18 @@ impl Compiler {
             Type::Tuple { elements } => {
                 let local_elements: Vec<_> = elements
                     .iter()
-                    .map(|id| {
-                        let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
+                    .map(|element| {
+                        let ty = remote_types.get_type(element.ty);
+                        let local_ty = self.import_type_from_remote(
                             expression_id,
                             ty,
                             remote_types,
                             target_symbol,
                             types,
-                        )
+                        );
+                        let mut element = element.clone();
+                        element.ty = local_ty;
+                        element
                     })
                     .collect();
                 types.insert_type_from(
@@ -805,7 +990,12 @@ impl Compiler {
             }
 
             // object types
-            Type::Object { fields } => {
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
                 let local_fields: Vec<_> = fields
                     .iter()
                     .map(|field| {
@@ -825,9 +1015,63 @@ impl Compiler {
                         }
                     })
                     .collect();
+                let local_call_signatures: Vec<_> = call_signatures
+                    .iter()
+                    .map(|signature| {
+                        let ty = remote_types.get_type(*signature);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                let local_construct_signatures: Vec<_> = construct_signatures
+                    .iter()
+                    .map(|signature| {
+                        let ty = remote_types.get_type(*signature);
+                        self.import_type_from_remote(
+                            expression_id,
+                            ty,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                let local_index_signatures: Vec<_> = index_signatures
+                    .iter()
+                    .map(|signature| {
+                        let key_type = remote_types.get_type(signature.key_type);
+                        let value_type = remote_types.get_type(signature.value_type);
+                        TypeIndexSignature {
+                            name: signature.name,
+                            key_type: self.import_type_from_remote(
+                                expression_id,
+                                key_type,
+                                remote_types,
+                                target_symbol,
+                                types,
+                            ),
+                            value_type: self.import_type_from_remote(
+                                expression_id,
+                                value_type,
+                                remote_types,
+                                target_symbol,
+                                types,
+                            ),
+                            is_readonly: signature.is_readonly,
+                        }
+                    })
+                    .collect();
                 types.insert_type_from(
                     Type::Object {
                         fields: local_fields,
+                        call_signatures: local_call_signatures,
+                        construct_signatures: local_construct_signatures,
+                        index_signatures: local_index_signatures,
                     },
                     expression_id,
                 )
@@ -838,6 +1082,7 @@ impl Compiler {
                 asynchrony,
                 cardinality,
                 static_parameters,
+                this_parameter,
                 dynamic_parameters,
                 return_type,
             } => {
@@ -854,6 +1099,16 @@ impl Compiler {
                         )
                     })
                     .collect();
+                let local_this = this_parameter.map(|this_parameter| {
+                    let ty = remote_types.get_type(this_parameter);
+                    self.import_type_from_remote(
+                        expression_id,
+                        ty,
+                        remote_types,
+                        target_symbol,
+                        types,
+                    )
+                });
                 let local_dynamic_params: Vec<_> = dynamic_parameters
                     .iter()
                     .map(|id| {
@@ -882,6 +1137,7 @@ impl Compiler {
                         asynchrony: *asynchrony,
                         cardinality: *cardinality,
                         static_parameters: local_static_params,
+                        this_parameter: local_this,
                         dynamic_parameters: local_dynamic_params,
                         return_type: local_return,
                     },

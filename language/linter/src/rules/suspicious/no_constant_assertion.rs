@@ -66,7 +66,7 @@ impl LintRule for NoConstantAssertion {
 
             let first_arg = ctx.tree.get(*first_arg_id);
             let arg_value = match first_arg {
-                ast::Argument::Positional { value } | ast::Argument::Labeled { value, .. } => {
+                ast::Argument::Positional { value, .. } | ast::Argument::Labeled { value, .. } => {
                     *value
                 }
                 _ => continue,

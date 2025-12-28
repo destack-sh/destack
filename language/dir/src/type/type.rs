@@ -158,7 +158,7 @@ pub enum Type {
         qualifier: Option<Path>,
     },
     /// Type infer binding.
-    InferBinding {
+    Infer {
         name: StringId,
         constraint: Option<LocalTypeId>,
     },

@@ -21,6 +21,10 @@ impl Compiler {
                 let name = ast_strings.intern_from(&self.program.strings, *name);
                 ast::Key::Name(ast::Name::Identifier(name))
             }
+            dir::DynamicKey::Number(name) => {
+                let name = ast_strings.intern_from(&self.program.strings, *name);
+                ast::Key::Name(ast::Name::Number(name))
+            }
             dir::DynamicKey::Expression(expression) => {
                 let expression = self.unbind_expression(
                     module,

@@ -41,8 +41,8 @@ impl LintRule for NoSparseArrays {
             for element_id in elements {
                 let argument = ctx.tree.get(*element_id);
                 let value_id = match argument {
-                    ast::Argument::Positional { value } => value,
-                    ast::Argument::Spread { value } => value,
+                    ast::Argument::Positional { value, .. } => value,
+                    ast::Argument::Spread { value, .. } => value,
                     ast::Argument::Named { value, .. } => value,
                     ast::Argument::Labeled { value, .. } => value,
                 };

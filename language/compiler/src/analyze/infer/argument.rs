@@ -8,7 +8,7 @@ use crate::{
 use destack_dir::{
     Argument, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticProperty,
-    StringId, SymbolTable, Type, TypeField, TypeLiteral, TypeTable,
+    StringId, SymbolTable, Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -864,6 +864,7 @@ impl Compiler {
                     ty_id
                 }
             }
+            Type::This => ty_id,
             Type::Value { value } => {
                 let mapped_value =
                     self.substitute_static_parameters(value, substitutions, types, cache);
@@ -903,6 +904,137 @@ impl Compiler {
                         left: mapped_left,
                         operator,
                         right: mapped_right,
+                    })
+                }
+            }
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let mapped_left =
+                    self.substitute_static_parameters(left, substitutions, types, cache);
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                let mapped_then =
+                    self.substitute_static_parameters(then_type, substitutions, types, cache);
+                let mapped_else =
+                    self.substitute_static_parameters(else_type, substitutions, types, cache);
+                if mapped_left == left
+                    && mapped_right == right
+                    && mapped_then == then_type
+                    && mapped_else == else_type
+                {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Conditional {
+                        left: mapped_left,
+                        right: mapped_right,
+                        then_type: mapped_then,
+                        else_type: mapped_else,
+                    })
+                }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mapped_constraint = self.substitute_static_parameters(
+                    parameter.constraint,
+                    substitutions,
+                    types,
+                    cache,
+                );
+                let mapped_key_remap = parameter.key_remap.map(|key_remap| {
+                    self.substitute_static_parameters(key_remap, substitutions, types, cache)
+                });
+                let mapped_value =
+                    self.substitute_static_parameters(value, substitutions, types, cache);
+                if mapped_constraint == parameter.constraint
+                    && mapped_key_remap == parameter.key_remap
+                    && mapped_value == value
+                {
+                    ty_id
+                } else {
+                    let parameter = TypeMappedParameter {
+                        name: parameter.name,
+                        constraint: mapped_constraint,
+                        key_remap: mapped_key_remap,
+                    };
+                    types.insert_type(Type::Mapped {
+                        parameter,
+                        modifiers,
+                        value: mapped_value,
+                    })
+                }
+            }
+            Type::Index { left, index } => {
+                let mapped_left =
+                    self.substitute_static_parameters(left, substitutions, types, cache);
+                let mapped_index =
+                    self.substitute_static_parameters(index, substitutions, types, cache);
+                if mapped_left == left && mapped_index == index {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Index {
+                        left: mapped_left,
+                        index: mapped_index,
+                    })
+                }
+            }
+            Type::TemplateLiteral { strings, spans } => {
+                let mut changed = false;
+                let mapped_spans = spans
+                    .iter()
+                    .map(|span| {
+                        let mapped =
+                            self.substitute_static_parameters(*span, substitutions, types, cache);
+                        if mapped != *span {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type(Type::TemplateLiteral {
+                        strings,
+                        spans: mapped_spans,
+                    })
+                } else {
+                    ty_id
+                }
+            }
+            Type::Import { .. } => ty_id,
+            Type::Infer { name, constraint } => {
+                let mapped_constraint = constraint.map(|constraint| {
+                    self.substitute_static_parameters(constraint, substitutions, types, cache)
+                });
+                if mapped_constraint == constraint {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Infer {
+                        name,
+                        constraint: mapped_constraint,
+                    })
+                }
+            }
+            Type::Predicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let mapped_target = target.map(|target| {
+                    self.substitute_static_parameters(target, substitutions, types, cache)
+                });
+                if mapped_target == target {
+                    ty_id
+                } else {
+                    types.insert_type(Type::Predicate {
+                        asserts,
+                        subject,
+                        target: mapped_target,
                     })
                 }
             }
@@ -982,15 +1114,17 @@ impl Compiler {
                     .iter()
                     .map(|element| {
                         let mapped = self.substitute_static_parameters(
-                            *element,
+                            element.ty,
                             substitutions,
                             types,
                             cache,
                         );
-                        if mapped != *element {
+                        if mapped != element.ty {
                             changed = true;
                         }
-                        mapped
+                        let mut element = element.clone();
+                        element.ty = mapped;
+                        element
                     })
                     .collect::<Vec<_>>();
                 if changed {
@@ -1001,7 +1135,12 @@ impl Compiler {
                     ty_id
                 }
             }
-            Type::Object { fields } => {
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
                 let mut changed = false;
                 let mapped_fields = fields
                     .iter()
@@ -1023,9 +1162,67 @@ impl Compiler {
                         }
                     })
                     .collect::<Vec<_>>();
+                let mapped_call_signatures = call_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped = self.substitute_static_parameters(
+                            *signature,
+                            substitutions,
+                            types,
+                            cache,
+                        );
+                        if mapped != *signature {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_construct_signatures = construct_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped = self.substitute_static_parameters(
+                            *signature,
+                            substitutions,
+                            types,
+                            cache,
+                        );
+                        if mapped != *signature {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_index_signatures = index_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped_key = self.substitute_static_parameters(
+                            signature.key_type,
+                            substitutions,
+                            types,
+                            cache,
+                        );
+                        let mapped_value = self.substitute_static_parameters(
+                            signature.value_type,
+                            substitutions,
+                            types,
+                            cache,
+                        );
+                        if mapped_key != signature.key_type || mapped_value != signature.value_type
+                        {
+                            changed = true;
+                        }
+                        let mut signature = signature.clone();
+                        signature.key_type = mapped_key;
+                        signature.value_type = mapped_value;
+                        signature
+                    })
+                    .collect::<Vec<_>>();
                 if changed {
                     types.insert_type(Type::Object {
                         fields: mapped_fields,
+                        call_signatures: mapped_call_signatures,
+                        construct_signatures: mapped_construct_signatures,
+                        index_signatures: mapped_index_signatures,
                     })
                 } else {
                     ty_id
@@ -1035,10 +1232,23 @@ impl Compiler {
                 asynchrony,
                 cardinality,
                 static_parameters,
+                this_parameter,
                 dynamic_parameters,
                 return_type,
             } => {
                 let mut changed = false;
+                let mapped_this = this_parameter.map(|this_parameter| {
+                    let mapped = self.substitute_static_parameters(
+                        this_parameter,
+                        substitutions,
+                        types,
+                        cache,
+                    );
+                    if mapped != this_parameter {
+                        changed = true;
+                    }
+                    mapped
+                });
                 let mapped_parameters = dynamic_parameters
                     .iter()
                     .map(|parameter| {
@@ -1067,6 +1277,7 @@ impl Compiler {
                         asynchrony,
                         cardinality,
                         static_parameters,
+                        this_parameter: mapped_this,
                         dynamic_parameters: mapped_parameters,
                         return_type: mapped_return,
                     })

@@ -3,7 +3,7 @@ use destack_dir::{
     DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree,
     NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
-    SymbolType, TypeTable, YieldCardinality,
+    SymbolType, TypeMappedParameterExpression, TypePredicateSubject, TypeTable, YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -431,6 +431,210 @@ impl Compiler {
                     left,
                     operator,
                     right,
+                }
+            }
+            ast::Expression::TypeConditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let left = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let right = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let then_type = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *then_type,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let else_type = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *else_type,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::TypeConditional {
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                }
+            }
+            ast::Expression::TypeMapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let name = self
+                    .program
+                    .strings
+                    .intern_from(&ast.strings, parameter.name);
+                let constraint = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    parameter.constraint,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let key_remap = parameter.key_remap.map(|key_remap| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        key_remap,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                let parameter = TypeMappedParameterExpression {
+                    name,
+                    constraint,
+                    key_remap,
+                };
+                let modifiers = self.bind_type_mapped_modifiers(modifiers);
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::TypeMapped {
+                    parameter,
+                    modifiers,
+                    value,
+                }
+            }
+            ast::Expression::TypeIndex { left, index } => {
+                let left = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let index = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *index,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::TypeIndex { left, index }
+            }
+            ast::Expression::TypeTemplateLiteral { strings, spans } => {
+                let strings = strings
+                    .iter()
+                    .map(|string| self.program.strings.intern_from(&ast.strings, *string))
+                    .collect();
+                let spans = spans
+                    .iter()
+                    .map(|span| {
+                        self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *span,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                Expression::TypeTemplateLiteral { strings, spans }
+            }
+            ast::Expression::TypeImport { target, qualifier } => {
+                let target = self.program.strings.intern_from(&ast.strings, *target);
+                let qualifier = qualifier
+                    .as_ref()
+                    .map(|path| self.bind_path(module, ast, path));
+                Expression::TypeImport { target, qualifier }
+            }
+            ast::Expression::TypeInfer { name, constraint } => {
+                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let constraint = constraint.map(|constraint| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        constraint,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                Expression::TypeInfer { name, constraint }
+            }
+            ast::Expression::TypePredicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let subject = match subject {
+                    ast::TypePredicateSubject::Identifier(name) => {
+                        let name = self.program.strings.intern_from(&ast.strings, *name);
+                        TypePredicateSubject::Unresolved(name)
+                    }
+                    ast::TypePredicateSubject::This => TypePredicateSubject::This,
+                };
+                let target = target.map(|target| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        target,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                Expression::TypePredicate {
+                    asserts: *asserts,
+                    subject,
+                    target,
                 }
             }
             ast::Expression::Assign {
@@ -1438,6 +1642,7 @@ impl Compiler {
                 Expression::Throw { value }
             }
 
+            ast::Expression::This => Expression::This,
             ast::Expression::Debugger => Expression::Debugger,
             ast::Expression::Stub => Expression::Stub,
             ast::Expression::Error => Expression::Error,

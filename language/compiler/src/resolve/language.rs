@@ -81,11 +81,12 @@ impl Compiler {
         }
 
         // resolve lib module symbols for ambient lookups
-        for module_ids in modules_to_resolve {
-            for module_id in module_ids {
-                self.require_resolve_module_direct(module_id, profile_id)?;
-            }
-        }
+        // nocheckin fix cycle? for builtin import resolution in resolve_libs
+        // for module_ids in modules_to_resolve {
+        //     for module_id in module_ids {
+        //         self.require_resolve_module_direct(module_id, profile_id)?;
+        //     }
+        // }
 
         // collect canonical lib symbols
         let mut canonical_name_ids = HashSet::new();

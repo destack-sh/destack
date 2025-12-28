@@ -58,12 +58,8 @@ pub enum TypeUnaryOperator {
     Typeof,
     /// `keyof`
     Keyof,
-    /// `infer`
-    Infer,
     /// `as const`
     AsConst,
-    /// `asserts`
-    Asserts,
 }
 
 impl TypeUnaryOperator {
@@ -71,14 +67,7 @@ impl TypeUnaryOperator {
     pub fn is_prefix(&self) -> bool {
         matches!(
             self,
-            Self::Not
-                | Self::Type
-                | Self::Readonly
-                | Self::Typeof
-                | Self::Keyof
-                | Self::Infer
-                | Self::AsConst
-                | Self::Asserts
+            Self::Not | Self::Type | Self::Readonly | Self::Typeof | Self::Keyof | Self::AsConst
         )
     }
 }

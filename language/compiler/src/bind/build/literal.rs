@@ -2,7 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     DeclarationType, FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
-    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
+    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeIntrinsic, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -197,6 +198,21 @@ impl Compiler {
             }
             ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),
             ast::TypeLiteral::UniqueSymbol => TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+            ast::TypeLiteral::Intrinsic(intrinsic) => {
+                TypeLiteral::Intrinsic(self.bind_type_intrinsic(intrinsic))
+            }
+        }
+    }
+
+    /// Bind a type intrinsic to a DIR type intrinsic.
+    pub(super) fn bind_type_intrinsic(&self, intrinsic: &ast::TypeIntrinsic) -> TypeIntrinsic {
+        match intrinsic {
+            ast::TypeIntrinsic::Uppercase => TypeIntrinsic::Uppercase,
+            ast::TypeIntrinsic::Lowercase => TypeIntrinsic::Lowercase,
+            ast::TypeIntrinsic::Capitalize => TypeIntrinsic::Capitalize,
+            ast::TypeIntrinsic::Uncapitalize => TypeIntrinsic::Uncapitalize,
+            ast::TypeIntrinsic::NoInfer => TypeIntrinsic::NoInfer,
+            ast::TypeIntrinsic::BuiltinIteratorReturn => TypeIntrinsic::BuiltinIteratorReturn,
         }
     }
 }
