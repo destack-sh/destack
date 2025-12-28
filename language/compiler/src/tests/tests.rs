@@ -555,6 +555,20 @@ impl TestProgram {
         }
     }
 
+    /// Check that a diagnostic code appears the expected number of times.
+    pub fn check_diagnostic_count(&self, code: &str, expected: usize) {
+        let diagnostics = self.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let count = diagnostic_vec.iter().filter(|d| d.code == code).count();
+        if count != expected {
+            let options = PrintOptions::new()
+                .with_line_width(self.program.formatter.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &diagnostics, options);
+            panic!("expected {expected} diagnostics for '{code}', found {count}");
+        }
+    }
+
     /// Check that no diagnostic with the given code is present.
     pub fn check_no_diagnostic_code(&self, code: &str) {
         let diagnostics = self.program.diagnostics.collect();

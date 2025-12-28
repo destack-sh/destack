@@ -58,7 +58,7 @@ impl Compiler {
 
     /// Inner assignability check on Type values.
     fn is_type_assignable(&self, target: &Type, source: &Type, types: &TypeTable) -> Assignability {
-        // nocheckin #Incomplete: normalize type-level constructs (for assignability, ..)
+        // nocheckin #Incomplete: normalize type-level constructs (for assignability, ..) #TypeNormalization
         // handle special target types first
         match target {
             Type::InferVar { .. } => return Assignability::Assignable,
@@ -1877,6 +1877,17 @@ mod tests {
             diagnostic.primary_span.span.intersects(expected_span),
             "diagnostic span should intersect object literal span"
         );
+    }
+
+    /// Excess property diagnostics should be reported for each extra field.
+    #[test]
+    fn test_type_check_excess_property_multiple() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "let x: { a: number } = { a: 1, b: 2, c: 3 };");
+        test.analyze_module(module_id);
+        test.compile();
+
+        test.check_diagnostic_count("EA036", 2);
     }
 
     /// Excess property checks should respect union candidates.

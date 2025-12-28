@@ -116,6 +116,7 @@ impl DsConfig {
 
         // inherit TypeScript-compatible checking options (stricter wins)
         compiler.strict = compiler.strict || parent_compiler.strict;
+        compiler.always_strict = compiler.always_strict || parent_compiler.always_strict;
         compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
         compiler.strict_null_checks =
             compiler.strict_null_checks || parent_compiler.strict_null_checks;
@@ -124,6 +125,8 @@ impl DsConfig {
             compiler.strict_function_types || parent_compiler.strict_function_types;
         compiler.strict_bind_call_apply =
             compiler.strict_bind_call_apply || parent_compiler.strict_bind_call_apply;
+        compiler.strict_builtin_iterator_return = compiler.strict_builtin_iterator_return
+            || parent_compiler.strict_builtin_iterator_return;
         compiler.strict_property_initialization = compiler.strict_property_initialization
             || parent_compiler.strict_property_initialization;
         compiler.use_unknown_in_catch_variables = compiler.use_unknown_in_catch_variables
@@ -136,14 +139,20 @@ impl DsConfig {
         // allow_unreachable_code: false is stricter (disallows), so AND them
         compiler.allow_unreachable_code =
             compiler.allow_unreachable_code && parent_compiler.allow_unreachable_code;
+        // allow_unused_labels: false is stricter (disallows), so AND them
+        compiler.allow_unused_labels =
+            compiler.allow_unused_labels && parent_compiler.allow_unused_labels;
         compiler.no_implicit_override =
             compiler.no_implicit_override || parent_compiler.no_implicit_override;
         compiler.no_fallthrough_cases_in_switch = compiler.no_fallthrough_cases_in_switch
             || parent_compiler.no_fallthrough_cases_in_switch;
         compiler.exact_optional_property_types =
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
-        compiler.no_indexed_access_unchecked =
-            compiler.no_indexed_access_unchecked || parent_compiler.no_indexed_access_unchecked;
+        compiler.no_unchecked_indexed_access =
+            compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
+        compiler.no_property_access_from_index_signature = compiler
+            .no_property_access_from_index_signature
+            || parent_compiler.no_property_access_from_index_signature;
 
         // inherit Destack-specific checking (stricter wins)
         compiler.no_any = compiler.no_any || parent_compiler.no_any;
@@ -336,38 +345,47 @@ pub struct DsConfigCompilerOptions {
     pub comptime_env: Option<Vec<String>>,
 
     // TypeScript-compatible checking
-    /// Enable all TypeScript-compatible strict type-checking options.
+    /// Enable all strict type checking options.
     pub strict: bool,
-    /// Error on implicit `any`.
+    /// Parse in strict mode.
+    pub always_strict: bool,
+    /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: bool,
-    /// Strict null checks.
+    /// Enable strict null checks.
+    /// `null` and `undefined` are distinct types.
     pub strict_null_checks: bool,
-    /// Error on implicit `this`.
+    /// Error on `this` expressions with implied `any` type.
     pub no_implicit_this: bool,
-    /// Strict function types.
+    /// Enable strict checking of function types.
     pub strict_function_types: bool,
-    /// Strict bind/call/apply.
+    /// Enable strict checking of `bind`, `call`, and `apply`.
     pub strict_bind_call_apply: bool,
-    /// Strict property initialization.
+    /// Enable strict checking of built in iterator return types.
+    pub strict_builtin_iterator_return: bool,
+    /// Enable strict checking of property initialization in classes.
     pub strict_property_initialization: bool,
-    /// Use `unknown` in catch variables.
+    /// Use `unknown` instead of `any` for catch clause variables.
     pub use_unknown_in_catch_variables: bool,
-    /// Report errors on unused locals.
+    /// Report errors on unused local variables.
     pub no_unused_locals: bool,
     /// Report errors on unused parameters.
     pub no_unused_parameters: bool,
-    /// Require explicit returns.
+    /// Report errors when not all code paths return a value.
     pub no_implicit_returns: bool,
     /// Allow unreachable code.
     pub allow_unreachable_code: bool,
-    /// Require `override` keyword.
+    /// Allow unused labels.
+    pub allow_unused_labels: bool,
+    /// Require `override` on class members that override base members.
     pub no_implicit_override: bool,
-    /// No switch fallthrough.
+    /// Report errors for fallthrough cases in switch statements.
     pub no_fallthrough_cases_in_switch: bool,
-    /// Exact optional property types.
+    /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: bool,
-    /// Add `undefined` to index access.
-    pub no_indexed_access_unchecked: bool,
+    /// Add `undefined` to indexed access results.
+    pub no_unchecked_indexed_access: bool,
+    /// Disallow property access from index signatures without explicit index access.
+    pub no_property_access_from_index_signature: bool,
 
     // Destack-specific checking
     /// Forbid use of `any` type.
@@ -451,21 +469,25 @@ impl Default for DsConfigCompilerOptions {
 
             // TypeScript-compatible checking
             strict,
+            always_strict: strict,
             no_implicit_any: strict,
             strict_null_checks: strict,
             no_implicit_this: strict,
             strict_function_types: strict,
             strict_bind_call_apply: strict,
+            strict_builtin_iterator_return: strict,
             strict_property_initialization: strict,
             use_unknown_in_catch_variables: strict,
             no_unused_locals: false,
             no_unused_parameters: false,
             no_implicit_returns: true,
             allow_unreachable_code: false,
+            allow_unused_labels: false,
             no_implicit_override: true,
             no_fallthrough_cases_in_switch: true,
-            exact_optional_property_types: false,
-            no_indexed_access_unchecked: false,
+            exact_optional_property_types: true,
+            no_unchecked_indexed_access: true,
+            no_property_access_from_index_signature: false,
 
             // Destack-specific checking (all off by default, opt-in)
             no_any: false,
@@ -1194,19 +1216,23 @@ pub struct CompilerOptionsJson {
     pub comptime_env: Option<Vec<String>>,
 
     // TypeScript-compatible checking
-    /// Enable all TypeScript-derived strict type-checking options. Default: true for .ds files.
+    /// Enable all strict type checking options. Default: true for .ds files.
     pub strict: Option<bool>,
+    /// Parse in strict mode.
+    pub always_strict: Option<bool>,
     /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: Option<bool>,
     /// Enable strict null checks (`null` and `undefined` are distinct types).
     pub strict_null_checks: Option<bool>,
     /// Error on `this` expressions with implied `any` type.
     pub no_implicit_this: Option<bool>,
-    /// Enable strict checking of function types (contravariant parameters).
+    /// Enable strict checking of function types.
     pub strict_function_types: Option<bool>,
     /// Enable strict checking of `bind`, `call`, and `apply` methods.
     pub strict_bind_call_apply: Option<bool>,
-    /// Require class properties to be initialized in constructor.
+    /// Enable strict checking for built in iterator return types.
+    pub strict_builtin_iterator_return: Option<bool>,
+    /// Enable strict checking of property initialization in classes.
     pub strict_property_initialization: Option<bool>,
     /// Use `unknown` instead of `any` for catch clause variables.
     pub use_unknown_in_catch_variables: Option<bool>,
@@ -1214,18 +1240,22 @@ pub struct CompilerOptionsJson {
     pub no_unused_locals: Option<bool>,
     /// Report errors on unused function parameters.
     pub no_unused_parameters: Option<bool>,
-    /// Report error when not all code paths return a value.
+    /// Report errors when not all code paths return a value.
     pub no_implicit_returns: Option<bool>,
-    /// Allow unreachable code (disables dead code warnings).
+    /// Allow unreachable code.
     pub allow_unreachable_code: Option<bool>,
-    /// Require `override` keyword when overriding class members.
+    /// Allow unused labels.
+    pub allow_unused_labels: Option<bool>,
+    /// Require `override` on class members that override base members.
     pub no_implicit_override: Option<bool>,
     /// Report errors for fallthrough cases in switch statements.
     pub no_fallthrough_cases_in_switch: Option<bool>,
-    /// Interpret optional property types as written (no implicit `undefined`).
+    /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: Option<bool>,
-    /// Add `undefined` to index signature results (safer array access).
-    pub no_indexed_access_unchecked: Option<bool>,
+    /// Add `undefined` to indexed access results.
+    pub no_unchecked_indexed_access: Option<bool>,
+    /// Disallow property access from index signatures without explicit index access.
+    pub no_property_access_from_index_signature: Option<bool>,
 
     // Destack-specific checking
     /// Forbid use of `any` type.
@@ -1316,21 +1346,27 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
 
             // TypeScript-compatible checking
             strict,
+            always_strict: json.always_strict.unwrap_or(strict),
             no_implicit_any: json.no_implicit_any.unwrap_or(strict),
             strict_null_checks: json.strict_null_checks.unwrap_or(strict),
             no_implicit_this: json.no_implicit_this.unwrap_or(strict),
             strict_function_types: json.strict_function_types.unwrap_or(strict),
             strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
+            strict_builtin_iterator_return: json.strict_builtin_iterator_return.unwrap_or(strict),
             strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
             use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
             no_unused_locals: json.no_unused_locals.unwrap_or(false),
             no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
             no_implicit_returns: json.no_implicit_returns.unwrap_or(true),
             allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
+            allow_unused_labels: json.allow_unused_labels.unwrap_or(false),
             no_implicit_override: json.no_implicit_override.unwrap_or(true),
             no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
-            exact_optional_property_types: json.exact_optional_property_types.unwrap_or(false),
-            no_indexed_access_unchecked: json.no_indexed_access_unchecked.unwrap_or(false),
+            exact_optional_property_types: json.exact_optional_property_types.unwrap_or(true),
+            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(true),
+            no_property_access_from_index_signature: json
+                .no_property_access_from_index_signature
+                .unwrap_or(false),
 
             // Destack-specific checking
             no_any: json.no_any.unwrap_or(false),
