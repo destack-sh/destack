@@ -60,3 +60,29 @@ const values: number[] = [1, "two"];
 ```
 
 - contains: type (number, "two") is not assignable to type number[]
+
+## index access
+
+### noUncheckedIndexedAccess adds undefined to array reads
+
+```ds
+const values = [1, 2, 3]
+let value: number = values[0]
+```
+
+- contains: not assignable
+
+### noUncheckedIndexedAccess false allows array reads
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noUncheckedIndexedAccess": false } }
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds
+const values = [1, 2, 3]
+let value: number = values[0]
+```

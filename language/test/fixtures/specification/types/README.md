@@ -1,7 +1,5 @@
 # Types
 
-> NOTE #Incomplete: implement/mdtest Destack type extensions
-
 Type system extensions beyond standard TypeScript.
 
 Destack extends TypeScript's type system with precise primitives, nominal types,
@@ -12,6 +10,7 @@ and readable constraints.
 | Directory | Description |
 |-----------|-------------|
 | `newtypes/` | Nominal (distinct) types |
+| `objects/` | Structural object types and interfaces |
 | `structs/` | Data-oriented object types |
 | `primitives/` | Precise numeric types (`int32`, `float64`, etc.) |
 | `where/` | Readable generic constraints |

@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::parameter::{StaticParameter, StaticParameterKind};
 use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferOrigin,
-    InferScope, InferTable,
+    AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint,
+    InferContext, InferOrigin, InferScope, InferTable,
 };
 use destack_dir::{
     Argument, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
@@ -109,6 +109,7 @@ impl Compiler {
         profile: ProfileId,
         receiver_id: LocalNodeIdAny,
         receiver_ty: &Type,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -130,6 +131,7 @@ impl Compiler {
             receiver_id,
             *symbol,
             static_arguments.as_deref(),
+            options,
             tree,
             symbols,
             types,
@@ -292,6 +294,7 @@ impl Compiler {
         resolved_static_argument: &StaticArgument,
         types: &mut TypeTable,
         infer: Option<&mut InferTable>,
+        options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
         // validate type arguments against the declared bound
         if static_parameter.kind == StaticParameterKind::Type {
@@ -313,6 +316,7 @@ impl Compiler {
                     static_parameter.declared_type_id,
                     substitution_ty_id,
                     types,
+                    options,
                 ) == Assignability::NotAssignable
             {
                 self.error(AnalyzeError::UnassignableType {
@@ -344,6 +348,7 @@ impl Compiler {
                     static_parameter.declared_type_id,
                     value_ty_id,
                     types,
+                    options,
                 ) == Assignability::NotAssignable
             {
                 self.error(AnalyzeError::UnassignableType {
@@ -365,6 +370,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -498,6 +504,7 @@ impl Compiler {
                 &resolved_argument,
                 types,
                 None,
+                options,
             );
 
             resolved_arguments.push(resolved_argument);

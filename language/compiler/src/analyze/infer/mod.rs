@@ -7,6 +7,7 @@ mod declaration;
 mod expected;
 mod expression;
 mod instance;
+mod key;
 mod member;
 mod operator;
 mod parameter;
@@ -20,5 +21,6 @@ mod r#type;
 
 pub use assign::*;
 pub use context::*;
+use key::*;
 pub use solve::*;
 pub use table::*;

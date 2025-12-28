@@ -351,8 +351,7 @@ pub struct DsConfigCompilerOptions {
     pub always_strict: bool,
     /// Error on expressions and declarations with implied `any` type.
     pub no_implicit_any: bool,
-    /// Enable strict null checks.
-    /// `null` and `undefined` are distinct types.
+    /// Enable strict null checks (`null` and `undefined` are distinct types).
     pub strict_null_checks: bool,
     /// Error on `this` expressions with implied `any` type.
     pub no_implicit_this: bool,

@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use super::parameter::StaticParameterKind;
 use super::resolve::MemberResolution;
 use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
+    AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint,
+    InferContext, InferTable,
 };
 use destack_dir::{
     Argument, Expression, GlobalSymbolId, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
@@ -55,6 +56,7 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let callee_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let options = ctx.options;
 
         // track static arguments that come from member expressions
         let call_has_static_arguments =
@@ -93,6 +95,7 @@ impl Compiler {
                         receiver_id.into_any(),
                         *symbol,
                         static_arguments.as_deref(),
+                        &options,
                         tree,
                         symbols,
                         types,
@@ -177,6 +180,7 @@ impl Compiler {
                     &dynamic_parameters,
                     return_type,
                     ctx.profile,
+                    &options,
                     tree,
                     symbols,
                     types,
@@ -236,8 +240,12 @@ impl Compiler {
                 {
                     if !self.is_infer_var_type(*param_ty_id, types)
                         && !self.is_infer_var_type(*argument_ty_id, types)
-                        && self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types)
-                            == Assignability::NotAssignable
+                        && self.check_is_type_assignable(
+                            *param_ty_id,
+                            *argument_ty_id,
+                            types,
+                            &options,
+                        ) == Assignability::NotAssignable
                     {
                         let argument_node = dynamic_arguments
                             .get(index)
@@ -360,6 +368,7 @@ impl Compiler {
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         profile: ProfileId,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -374,6 +383,7 @@ impl Compiler {
             dynamic_parameters,
             return_type,
             profile,
+            options,
             tree,
             symbols,
             types,
@@ -402,6 +412,7 @@ impl Compiler {
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         profile: ProfileId,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -526,6 +537,7 @@ impl Compiler {
                 &resolved_argument,
                 types,
                 Some(infer),
+                options,
             ) {
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
             }
@@ -564,6 +576,7 @@ impl Compiler {
         receiver_ty: &Type,
         member_key: &StaticKey,
         profile: ProfileId,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -575,6 +588,7 @@ impl Compiler {
             profile,
             receiver_expression_id.into_any(),
             receiver_ty,
+            options,
             tree,
             symbols,
             types,
@@ -646,6 +660,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             profile,
+            options,
             tree,
             symbols,
             types,

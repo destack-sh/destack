@@ -29,6 +29,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         let type_count = types.type_count();
+        let options = self.analyze_context_options_for_module(module.id);
         for id in 0..type_count {
             let ty_id = LocalTypeId::new(id);
             let ty = types.get_type(ty_id).clone();
@@ -54,6 +55,7 @@ impl Compiler {
                 source_id,
                 symbol,
                 static_arguments.as_deref(),
+                &options,
                 tree,
                 symbols,
                 types,

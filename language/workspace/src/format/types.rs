@@ -110,7 +110,7 @@ pub fn format_type(
         }
         dir::Type::Import { target, qualifier } => {
             let target = strings.get(*target);
-            let mut result = format!("import(\"{}\")", target.to_string());
+            let mut result = format!("import(\"{}\")", target.as_ref());
             if let Some(qualifier) = qualifier {
                 let path = format_path(qualifier, strings);
                 result.push('.');
@@ -126,11 +126,7 @@ pub fn format_type(
                     format_local_type(constraint, types, modules, strings)
                 )
             });
-            format!(
-                "infer {}{}",
-                name.to_string(),
-                constraint.unwrap_or_default()
-            )
+            format!("infer {}{}", name.as_ref(), constraint.unwrap_or_default())
         }
         dir::Type::Predicate {
             asserts,
@@ -216,7 +212,7 @@ pub fn format_type(
                 .iter()
                 .map(|element| format_type_tuple_element(element, types, modules, strings))
                 .collect();
-            format!("[{}]", elements.join(", "))
+            format!("({})", elements.join(", "))
         }
         dir::Type::Object {
             fields,
@@ -575,7 +571,7 @@ fn format_type_tuple_element(
     if let Some(label) = element.label {
         let name = strings.get(label);
         let ty = format_local_type(element.ty, types, modules, strings);
-        result.push_str(&format!("{}: {ty}", name.to_string()));
+        result.push_str(&format!("{}: {ty}", name.as_ref()));
     } else {
         result.push_str(&format_local_type(element.ty, types, modules, strings));
     }

@@ -1,7 +1,8 @@
 use super::resolve::MemberResolution;
+use super::{index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
-    OperatorLanguageItemExt,
+    AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint,
+    InferContext, InferTable, OperatorLanguageItemExt,
 };
 use destack_builtin::LanguageItem;
 use destack_dir::{
@@ -25,6 +26,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let options = ctx.options;
         let right_ty_id =
             self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
         let right_ty = types.get_type(right_ty_id).clone();
@@ -69,6 +71,7 @@ impl Compiler {
             &right_ty,
             &operator_key,
             ctx.profile,
+            &options,
             tree,
             symbols,
             types,
@@ -146,6 +149,7 @@ impl Compiler {
             self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
         let left_ty = types.get_type(left_ty_id).clone();
         let right_ty = types.get_type(right_ty_id).clone();
+        let options = ctx.options;
 
         // guard strict equality against struct types
         if matches!(
@@ -226,6 +230,7 @@ impl Compiler {
             &left_ty,
             &operator_key,
             ctx.profile,
+            &options,
             tree,
             symbols,
             types,
@@ -273,7 +278,7 @@ impl Compiler {
 
             if !self.is_infer_var_type(parameter_ty_id, types)
                 && !self.is_infer_var_type(right_ty_id, types)
-                && self.check_is_type_assignable(parameter_ty_id, right_ty_id, types)
+                && self.check_is_type_assignable(parameter_ty_id, right_ty_id, types, &options)
                     == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
@@ -312,6 +317,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let options = ctx.options;
         // route index assignment to index set resolution
         if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
             return self.infer_index_assignment_expression(
@@ -352,7 +358,7 @@ impl Compiler {
         // check assignability when types are resolved
         if !self.is_infer_var_type(left_ty_id, types)
             && !self.is_infer_var_type(right_ty_id, types)
-            && self.check_is_type_assignable(left_ty_id, right_ty_id, types)
+            && self.check_is_type_assignable(left_ty_id, right_ty_id, types, &options)
                 == Assignability::NotAssignable
         {
             return Err(AnalyzeError::UnassignableType {
@@ -418,6 +424,7 @@ impl Compiler {
                 left_ty_id,
                 left_ty,
                 ctx.profile,
+                &ctx.options,
                 tree,
                 symbols,
                 types,
@@ -485,6 +492,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let options = ctx.options;
         let receiver_ty_id =
             self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
@@ -495,7 +503,12 @@ impl Compiler {
             None
         };
 
-        let builtin_ty_id = self.infer_builtin_index_access(&receiver_ty, index_ty_id, types);
+        let builtin_ty_id = self.infer_builtin_index_access(
+            &receiver_ty,
+            index_ty_id,
+            types,
+            options.no_unchecked_indexed_access,
+        );
         if let Some(builtin_ty_id) = builtin_ty_id {
             self.record_builtin_resolution(
                 expression_id.into_global_any(module.id),
@@ -524,6 +537,7 @@ impl Compiler {
             &receiver_ty,
             &member_key,
             ctx.profile,
+            &options,
             tree,
             symbols,
             types,
@@ -577,7 +591,7 @@ impl Compiler {
 
             if !self.is_infer_var_type(parameter_ty_id, types)
                 && !self.is_infer_var_type(index_ty_id, types)
-                && self.check_is_type_assignable(parameter_ty_id, index_ty_id, types)
+                && self.check_is_type_assignable(parameter_ty_id, index_ty_id, types, &options)
                     == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
@@ -624,6 +638,7 @@ impl Compiler {
             unreachable!("index assignment expects an index expression");
         };
 
+        let options = ctx.options;
         let receiver_ty_id =
             self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
@@ -635,7 +650,8 @@ impl Compiler {
         };
 
         // handle builtin index assignment
-        let builtin_value_ty_id = self.infer_builtin_index_access(&receiver_ty, index_ty_id, types);
+        let builtin_value_ty_id =
+            self.infer_builtin_index_access(&receiver_ty, index_ty_id, types, false);
         if let Some(builtin_value_ty_id) = builtin_value_ty_id {
             let mut value_ctx = ctx.fork().with_expected_type(Some(builtin_value_ty_id));
             let value_ty_id = self.infer_expression(
@@ -656,7 +672,7 @@ impl Compiler {
 
             if !self.is_infer_var_type(builtin_value_ty_id, types)
                 && !self.is_infer_var_type(value_ty_id, types)
-                && self.check_is_type_assignable(builtin_value_ty_id, value_ty_id, types)
+                && self.check_is_type_assignable(builtin_value_ty_id, value_ty_id, types, &options)
                     == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
@@ -697,6 +713,7 @@ impl Compiler {
             &receiver_ty,
             &member_key,
             ctx.profile,
+            &options,
             tree,
             symbols,
             types,
@@ -772,7 +789,7 @@ impl Compiler {
 
             if !self.is_infer_var_type(value_param_ty_id, types)
                 && !self.is_infer_var_type(value_ty_id, types)
-                && self.check_is_type_assignable(value_param_ty_id, value_ty_id, types)
+                && self.check_is_type_assignable(value_param_ty_id, value_ty_id, types, &options)
                     == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
@@ -826,6 +843,7 @@ impl Compiler {
             left_ty_id,
             &left_ty,
             ctx.profile,
+            &ctx.options,
             tree,
             symbols,
             types,
@@ -867,6 +885,7 @@ impl Compiler {
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
         profile: ProfileId,
+        options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -881,6 +900,7 @@ impl Compiler {
             receiver_ty,
             &member_key,
             profile,
+            options,
             tree,
             symbols,
             types,
@@ -971,13 +991,28 @@ impl Compiler {
         receiver_ty: &Type,
         index_ty_id: Option<LocalTypeId>,
         types: &mut TypeTable,
+        include_undefined: bool,
     ) -> Option<LocalTypeId> {
+        let add_unchecked_undefined = |ty_id: LocalTypeId, types: &mut TypeTable| {
+            if include_undefined {
+                let undefined_ty_id = types.insert_type(Type::TypeLiteral {
+                    value: TypeLiteral::Undefined,
+                });
+                self.union_type_ids(ty_id, undefined_ty_id, types)
+            } else {
+                ty_id
+            }
+        };
+
         match receiver_ty {
-            Type::Array { element } => Some(element.unwrap_or_else(|| {
-                types.insert_type(Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                })
-            })),
+            Type::Array { element } => {
+                let element_ty_id = element.unwrap_or_else(|| {
+                    types.insert_type(Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    })
+                });
+                Some(add_unchecked_undefined(element_ty_id, types))
+            }
             Type::Tuple { elements } => {
                 if elements.is_empty() {
                     return None;
@@ -997,25 +1032,54 @@ impl Compiler {
                 }
 
                 let elements = elements.iter().map(|element| element.ty).collect();
-                Some(self.union_type_ids_from_list(elements, types))
+                let union_ty_id = self.union_type_ids_from_list(elements, types);
+                Some(add_unchecked_undefined(union_ty_id, types))
             }
-            Type::Object { fields, .. } => {
+            Type::Object {
+                fields,
+                index_signatures,
+                ..
+            } => {
                 let index_ty_id = index_ty_id?;
 
-                let Type::TypeLiteral {
+                if let Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(name_id)),
                 } = types.get_type(index_ty_id)
-                else {
-                    return None;
-                };
+                {
+                    let key = StaticKey::Name(*name_id);
+                    if let Some(field) = fields.iter().find(|field| field.key.matches(&key)) {
+                        return Some(field.ty);
+                    }
+                }
 
-                let key = StaticKey::Name(*name_id);
-                fields
-                    .iter()
-                    .find(|field| field.key.matches(&key))
-                    .map(|field| field.ty)
+                let signature_ty_id =
+                    self.infer_index_signature_access(index_signatures, index_ty_id, types)?;
+                Some(add_unchecked_undefined(signature_ty_id, types))
             }
             _ => None,
+        }
+    }
+
+    fn infer_index_signature_access(
+        &self,
+        index_signatures: &[destack_dir::TypeIndexSignature],
+        index_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let key_kind = index_key_kind_for_index(index_ty_id, types)?;
+        let mut value_types = Vec::new();
+
+        for signature in index_signatures {
+            let signature_kind = index_key_kind_for_type(signature.key_type, types);
+            if index_key_kinds_compatible(signature_kind, key_kind) {
+                value_types.push(signature.value_type);
+            }
+        }
+
+        match value_types.len() {
+            0 => None,
+            1 => Some(value_types[0]),
+            _ => Some(self.union_type_ids_from_list(value_types, types)),
         }
     }
 

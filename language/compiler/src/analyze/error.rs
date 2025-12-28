@@ -152,6 +152,17 @@ pub enum AnalyzeError {
         member_key: StaticKey,
     },
 
+    /// Property access is only available via index signature.
+    #[error(
+        code = "EA037",
+        message = "property {member_key} is only available via index signature"
+    )]
+    PropertyAccessFromIndexSignature {
+        node: GlobalNodeIdAny,
+        receiver_ty: GlobalTypeId,
+        member_key: StaticKey,
+    },
+
     /// Excess property in object literal.
     #[error(
         code = "EA036",
