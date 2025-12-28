@@ -475,6 +475,20 @@
             "null"
           ]
         },
+        "declarationMap": {
+          "description": "Generate declaration maps for `.d.ts` output.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "noEmit": {
+          "description": "Do not emit output files.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "tsconfig": {
           "description": "Path to tsconfig.json to inherit settings from.",
           "type": [
@@ -1308,7 +1322,7 @@
             "null"
           ]
         },
-        "esTarget": {
+        "target": {
           "description": "ECMAScript target for this target (overrides compilerOptions.target).",
           "type": [
             "string",
@@ -1645,17 +1659,6 @@
       "description": "Profile configuration JSON (from dsconfig.json).",
       "type": "object",
       "properties": {
-        "output": {
-          "description": "Output format (js, ts, wasm, native).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/OutputFormatJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "runtime": {
           "description": "Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).",
           "type": [

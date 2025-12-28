@@ -1,5 +1,5 @@
 use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible};
-use crate::{AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,

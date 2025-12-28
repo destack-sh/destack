@@ -41,4 +41,15 @@ impl Compiler {
             EmitTask::EmitProgram { target } => self.emit_program(&target),
         }
     }
+
+    /// Check whether emit is disabled for a package.
+    pub(crate) fn is_emit_disabled(&self, package_id: PackageId) -> bool {
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
+        package
+            .dsconfig
+            .as_ref()
+            .map(|dsconfig| dsconfig.options.compiler.no_emit)
+            .unwrap_or(false)
+    }
 }

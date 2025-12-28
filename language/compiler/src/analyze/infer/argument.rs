@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::parameter::{StaticParameter, StaticParameterKind};
 use crate::{
-    AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint,
-    InferContext, InferOrigin, InferScope, InferTable,
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, Constraint, InferContext,
+    InferOrigin, InferScope, InferTable,
 };
 use destack_dir::{
     Argument, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,

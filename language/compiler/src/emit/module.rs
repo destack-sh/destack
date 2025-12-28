@@ -12,9 +12,6 @@ impl Compiler {
         let package_id = module.package_id;
         drop(module);
 
-        // ensure linking is complete
-        self.require_link_module(package_id, target_id)?;
-
         // verify target exists
         let has_target = {
             let package_ref = self.program.packages.get(package_id);
@@ -27,6 +24,17 @@ impl Compiler {
                 target: target_id.clone(),
             });
         }
+
+        // honor noEmit configuration
+        if self.is_emit_disabled(package_id) {
+            return Err(EmitError::NoEmit {
+                package: package_id,
+                target: target_id.clone(),
+            });
+        }
+
+        // ensure linking is complete
+        self.require_link_module(package_id, target_id)?;
 
         // get artifacts for this module + target
         let artifacts = self

@@ -45,4 +45,11 @@ pub enum EmitError {
         path: PathBuf,
         message: Option<String>,
     },
+
+    /// Emit is disabled by configuration.
+    #[error(code = "EW006", message = "emit disabled by configuration (noEmit)")]
+    NoEmit {
+        package: PackageId,
+        target: TargetId,
+    },
 }

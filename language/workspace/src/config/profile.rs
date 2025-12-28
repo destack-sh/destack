@@ -1,14 +1,10 @@
 use serde::Deserialize;
 
-use crate::{OutputFormat, Platform, Runtime};
-
-use super::dsconfig::OutputFormatJson;
+use crate::{Platform, Runtime};
 
 /// Normalized profile configuration.
 #[derive(Debug, Clone, Default)]
 pub struct ProfileConfig {
-    /// Output format for this profile.
-    pub output: Option<OutputFormat>,
     /// Runtime environment for this profile.
     pub runtime: Option<Runtime>,
     /// Runtime version for selecting versioned libs.
@@ -27,7 +23,6 @@ impl ProfileConfig {
     /// Convert from a JSON profile config.
     pub fn from_json(json: &ProfileConfigJson) -> Self {
         Self {
-            output: json.output.map(OutputFormat::from),
             runtime: json.runtime.as_deref().and_then(Runtime::parse),
             runtime_version: json.runtime_version.clone(),
             platform: json.platform.as_deref().and_then(Platform::parse),
@@ -43,8 +38,6 @@ impl ProfileConfig {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileConfigJson {
-    /// Output format (js, ts, wasm, native).
-    pub output: Option<OutputFormatJson>,
     /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
     pub runtime: Option<String>,
     /// Runtime version for selecting versioned libs.

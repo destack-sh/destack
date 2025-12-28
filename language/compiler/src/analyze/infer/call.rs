@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use super::parameter::StaticParameterKind;
 use super::resolve::MemberResolution;
 use crate::{
-    AnalyzeOptions, AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint,
-    InferContext, InferTable,
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, Constraint, InferContext,
+    InferTable,
 };
 use destack_dir::{
     Argument, Expression, GlobalSymbolId, LocalInstanceId, LocalNodeId, LocalNodeIdAny,

@@ -421,6 +421,7 @@ impl Program {
         compiler_options: &DsConfigCompilerOptions,
         profile_config: Option<&ProfileConfig>,
     ) -> ProfileKey {
+        let compiler_options = Self::compiler_options_for_target(target, compiler_options);
         let runtime = profile_config
             .and_then(|profile| profile.runtime)
             .unwrap_or(target.runtime);
@@ -461,9 +462,29 @@ impl Program {
             .map(|keys| EnvSnapshot::from_env_whitelist(keys))
             .unwrap_or_else(EnvSnapshot::from_env_all);
 
-        let flags = ProfileFlags::from(compiler_options);
+        let flags = ProfileFlags::from(&compiler_options);
         let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
 
         ProfileKey::new(runtime, platform, lib, debug, test, env, flags)
+    }
+
+    /// Build compiler options for a target, applying derived restrictions.
+    fn compiler_options_for_target(
+        target: &Target,
+        compiler_options: &DsConfigCompilerOptions,
+    ) -> DsConfigCompilerOptions {
+        let mut options = compiler_options.clone();
+
+        // enforce native-only restrictions
+        if target.output.is_wasm() || target.output.is_native() {
+            options.no_dynamic_evaluation = true;
+            options.no_dynamic_import = true;
+            options.no_proxy = true;
+            options.no_dynamic_shapes = true;
+            options.no_exceptions = true;
+            options.no_global_this = true;
+        }
+
+        options
     }
 }
