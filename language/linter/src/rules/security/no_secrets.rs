@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
-use regex::{Regex, RegexBuilder};
+use regex::bytes::{Regex as BytesRegex, RegexBuilder as BytesRegexBuilder};
 use std::sync::LazyLock;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -82,18 +82,15 @@ struct SecretPattern {
     /// Human-readable description shown in lint diagnostics.
     description: String,
     /// Compiled regex for efficient matching.
-    regex: Regex,
+    regex: BytesRegex,
 }
-
-// allow gitleaks patterns that exceed the default regex size limit
-const SECRET_REGEX_SIZE_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 
 impl TryFrom<&SecretRule> for SecretPattern {
     type Error = regex::Error;
 
     fn try_from(rule: &SecretRule) -> Result<Self, Self::Error> {
-        let regex = RegexBuilder::new(&rule.regex)
-            .size_limit(SECRET_REGEX_SIZE_LIMIT_BYTES)
+        let regex = BytesRegexBuilder::new(&rule.regex)
+            // match gitleaks patterns with ascii classes to keep regex size small
             .unicode(false)
             .build()?;
         Ok(Self {
@@ -106,7 +103,7 @@ impl TryFrom<&SecretRule> for SecretPattern {
 impl SecretPattern {
     /// Check if the given string matches this secret pattern.
     fn matches(&self, s: &str) -> bool {
-        self.regex.is_match(s)
+        self.regex.is_match(s.as_bytes())
     }
 }
 
@@ -189,8 +186,8 @@ enum SecretMatch<'a> {
 /// Returns `Some(SecretMatch)` if the string matches a known pattern or has
 /// suspiciously high entropy, `None` otherwise.
 fn detect_secret(value: &str) -> Option<SecretMatch<'_>> {
-    // skip short, safe, or placeholder strings
-    if value.len() < MIN_SUSPICIOUS_VALUE_LENGTH || is_safe_string(value) || is_placeholder(value) {
+    // skip short or placeholder strings
+    if value.len() < MIN_SUSPICIOUS_VALUE_LENGTH || is_placeholder(value) {
         return None;
     }
 
@@ -199,6 +196,10 @@ fn detect_secret(value: &str) -> Option<SecretMatch<'_>> {
         if pattern.matches(value) {
             return Some(SecretMatch::KnownPattern(&pattern.description));
         }
+    }
+
+    if is_safe_string(value) {
+        return None;
     }
 
     // entropy check for longer strings (catches unknown secret formats)
@@ -501,6 +502,16 @@ mod tests {
         let suffix = "a".repeat(138);
         let token = format!("hvb.{suffix}");
         let source = format!("const token = \"{token}\";");
+        let result = test.lint_ast("test.ts", &source);
+        test.result(result).assert_lint("no-secrets");
+    }
+
+    #[test]
+    fn test_detects_slack_webhook_url() {
+        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let suffix = "a".repeat(43);
+        let url = format!("https://hooks.slack.com/services/{suffix}");
+        let source = format!("const url = \"{url}\";");
         let result = test.lint_ast("test.ts", &source);
         test.result(result).assert_lint("no-secrets");
     }
