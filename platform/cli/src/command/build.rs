@@ -42,7 +42,7 @@ pub fn run(args: &BuildArgs) -> i32 {
 
     let context = CompilerContext::for_build(&args.program, &args.diagnostics, target_name.clone());
 
-    let sources = match context.load_sources(&args.input) {
+    let sources = match context.load_sources_for(&args.input, "build") {
         Ok(s) => s,
         Err(code) => return code,
     };

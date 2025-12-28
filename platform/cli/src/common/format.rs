@@ -153,7 +153,8 @@ fn print_text(
     let print_options = PrintOptions::new()
         .with_line_width(100)
         .with_module_count(module_count)
-        .with_colorizer(source_colorizer());
+        .with_colorizer(source_colorizer())
+        .with_skip_summary(true);
 
     // create a temporary collection for the print function
     let mut collection = DiagnosticCollection::new();

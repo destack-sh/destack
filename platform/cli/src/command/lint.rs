@@ -1,7 +1,7 @@
 use clap::Args;
 
-use super::check::{self, Format};
-use crate::common::{DiagnosticArgs, InputArgs, ProgramArgs};
+use super::check::{self, Format, Progress};
+use crate::common::{DiagnosticArgs, InputArgs, ProgramArgs, print_no_input_help};
 
 #[derive(Args, Debug, Clone)]
 pub struct LintArgs {
@@ -44,11 +44,21 @@ pub struct LintArgs {
     /// Show statistics grouped by rule.
     #[arg(long)]
     pub statistics: bool,
+
+    /// Show progress indicator (auto, on, off, detailed).
+    #[arg(long, value_enum, default_value = "auto")]
+    pub progress: Progress,
 }
 
 /// Lint source files for style and correctness issues.
 /// (This is an alias for `check` which includes linting by default).
 pub fn run(args: &LintArgs) -> i32 {
+    // check for no input early to show correct command name
+    if !args.input.has_input() {
+        print_no_input_help("lint");
+        return 1;
+    }
+
     // convert to CheckArgs and delegate
     let check_args = check::CheckArgs {
         input: args.input.clone(),
@@ -62,6 +72,7 @@ pub fn run(args: &LintArgs) -> i32 {
         quiet: args.quiet,
         max_warnings: args.max_warnings,
         statistics: args.statistics,
+        progress: args.progress,
     };
 
     check::run(&check_args)

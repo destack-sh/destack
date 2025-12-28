@@ -40,6 +40,8 @@ destack_lsp = { workspace = true }
 
 # general
 clap = { version = "4.5.4", features = ["derive"] }
+console = "0.15"
+indicatif = "0.17"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { version = "1.47.1" }
