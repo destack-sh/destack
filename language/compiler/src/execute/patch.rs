@@ -54,7 +54,7 @@ impl Compiler {
         let replacement = match self.static_expression_to_expression(
             tree,
             module_id,
-            expression_id,
+            expression_id.into_any(),
             expression_id.into_any(),
             scope,
             static_value,
