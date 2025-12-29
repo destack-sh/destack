@@ -197,9 +197,12 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 // return type
-                let return_type = self.with_options(self.options.nested().in_type(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let mut return_type_options = self.options.nested().in_type();
+                if self.options.in_static {
+                    return_type_options = return_type_options.in_static();
+                }
+                let return_type =
+                    self.with_options(return_type_options, |parser| parser.eat_expression())?;
                 let return_type_span = self.get_span_from(type_start);
 
                 // where
@@ -210,19 +213,22 @@ impl Parser {
             // regular function with return type or lambda type
             else if kind == FunctionKind::Function || self.options.in_type {
                 // return type
-                let (return_type, return_type_span) =
-                    if self.peek_arrow().is_ok() || self.peek_colon().is_ok() {
-                        let type_start = self.mark();
-                        self.bump(); // eat arrow or colon
-                        self.eat_newlines_maybe()?;
-                        let return_type = self.with_options(
-                            self.options.nested().in_type().in_before_block(),
-                            |parser| parser.eat_expression(),
-                        )?;
-                        (Some(return_type), Some(self.get_span_from(type_start)))
-                    } else {
-                        (None, None)
-                    };
+                let (return_type, return_type_span) = if self.peek_arrow().is_ok()
+                    || self.peek_colon().is_ok()
+                {
+                    let type_start = self.mark();
+                    self.bump(); // eat arrow or colon
+                    self.eat_newlines_maybe()?;
+                    let mut return_type_options = self.options.nested().in_type().in_before_block();
+                    if self.options.in_static {
+                        return_type_options = return_type_options.in_static();
+                    }
+                    let return_type =
+                        self.with_options(return_type_options, |parser| parser.eat_expression())?;
+                    (Some(return_type), Some(self.get_span_from(type_start)))
+                } else {
+                    (None, None)
+                };
 
                 // where
                 let where_clauses = self.eat_where_maybe()?;

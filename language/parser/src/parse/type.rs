@@ -728,6 +728,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_parameter_function_constraint() {
+        let mut test = TestParser::new("type Parameters<T extends (a: any) => any> = T");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // type Parameters<T extends (a: any) => any> = T
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { static_parameters: Some(static_parameters), .. } => {
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { ty: Some(ty), .. } => {
+                    assert_node!(parser.tree, *ty, Expression::Declaration(func_id) => {
+                        assert_node!(parser.tree, *func_id, Declaration::Function { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_expression_with_static_parameters() {
         let mut test = TestParser::new("type T<A, B>");
         let mut parser = test.prepare();
