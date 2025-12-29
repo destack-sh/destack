@@ -80,35 +80,18 @@ impl Compiler {
                 end,
                 is_inclusive,
             } => {
-                let start_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                // build expressions for range bounds
+                let start_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let start_expression = self.static_expression_to_expression(
-                    tree,
-                    module_id,
-                    anchor_id,
-                    start_any,
-                    scope,
-                    start,
+                    tree, module_id, anchor_id, start_any, scope, start,
                 )?;
                 let start_id = tree.insert(start_any, start_expression);
 
-                let end_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                let end_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let end_expression = self.static_expression_to_expression(
-                    tree,
-                    module_id,
-                    anchor_id,
-                    end_any,
-                    scope,
-                    end,
+                    tree, module_id, anchor_id, end_any, scope, end,
                 )?;
                 let end_id = tree.insert(end_any, end_expression);
 
@@ -119,6 +102,7 @@ impl Compiler {
                 })
             }
             dir::StaticExpression::ArrayExpression { elements } => {
+                // build positional arguments for array elements
                 let mut argument_ids = Vec::with_capacity(elements.len());
                 for element in elements {
                     let argument_any = tree.reserve_from(
@@ -134,12 +118,7 @@ impl Compiler {
                         Some(argument_any),
                     );
                     let value_expression = self.static_expression_to_expression(
-                        tree,
-                        module_id,
-                        anchor_id,
-                        value_any,
-                        scope,
-                        element,
+                        tree, module_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
                     let argument = dir::Argument::Positional { value: value_id };
@@ -168,12 +147,7 @@ impl Compiler {
                         Some(argument_any),
                     );
                     let value_expression = self.static_expression_to_expression(
-                        tree,
-                        module_id,
-                        anchor_id,
-                        value_any,
-                        scope,
-                        element,
+                        tree, module_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
                     let argument = dir::Argument::Positional { value: value_id };
@@ -235,22 +209,15 @@ impl Compiler {
                 default,
                 symbol,
             } => {
-                let value_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                // build the field value expression
+                let value_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let value_expression = self.static_expression_to_expression(
-                    tree,
-                    module_id,
-                    anchor_id,
-                    value_any,
-                    scope,
-                    value,
+                    tree, module_id, anchor_id, value_any, scope, value,
                 )?;
                 let value_id = tree.insert(value_any, value_expression);
 
+                // build the default expression when provided
                 let default_id = match default {
                     Some(default) => {
                         let default_any = tree.reserve_from(
@@ -288,19 +255,10 @@ impl Compiler {
                 symbol,
             } => {
                 // build the method body expression
-                let body_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                let body_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let body_expression = self.static_expression_to_expression(
-                    tree,
-                    module_id,
-                    anchor_id,
-                    body_any,
-                    scope,
-                    body,
+                    tree, module_id, anchor_id, body_any, scope, body,
                 )?;
                 let body_id = tree.insert(body_any, body_expression);
 

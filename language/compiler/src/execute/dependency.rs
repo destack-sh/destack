@@ -13,6 +13,7 @@ struct ComptimeDependencyCollector {
 }
 
 impl ComptimeDependencyCollector {
+    /// Create a collector rooted at the given comptime expression.
     fn new(root_id: dir::LocalNodeId<dir::Expression>) -> Self {
         Self {
             root_id: root_id.into_any(),
@@ -21,6 +22,7 @@ impl ComptimeDependencyCollector {
         }
     }
 
+    /// Return the collected dependency node ids.
     fn into_dependencies(self) -> Vec<dir::LocalNodeIdAny> {
         self.dependencies
     }
@@ -37,6 +39,7 @@ impl dir::NodeVisitor for ComptimeDependencyCollector {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        // collect nested comptime expressions and skip the root
         if matches!(expression, dir::Expression::Comptime { .. })
             && id.into_any() != self.root_id
             && !self.dependencies.contains(&id.into_any())
@@ -44,6 +47,7 @@ impl dir::NodeVisitor for ComptimeDependencyCollector {
             self.dependencies.push(id.into_any());
         }
 
+        // keep walking to find deeper dependencies
         dir::walk_expression(self, tree, id, expression);
     }
 }

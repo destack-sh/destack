@@ -63,10 +63,6 @@ impl Compiler {
         let comptime_nodes: Vec<dir::LocalNodeIdAny> = {
             let module = self.program.modules.get(module_id);
             let module = module.read();
-            if module.package_id == BUILTIN_PACKAGE_ID {
-                return Ok(());
-            }
-
             let dir = module.dir(profile_id);
             let tree = dir.tree.read();
             tree.iter_nodes_of_type::<dir::Expression>()
@@ -85,7 +81,11 @@ impl Compiler {
         for expression_id in &comptime_nodes {
             self.collect(
                 &mut collector,
-                self.execute_expression(module_id, profile_id, expression_id.into_global(module_id)),
+                self.execute_expression(
+                    module_id,
+                    profile_id,
+                    expression_id.into_global(module_id),
+                ),
             );
         }
         if let Some(dependency) = collector.try_into_yield_any() {
@@ -99,7 +99,6 @@ impl Compiler {
             let Some(comptime) = module.comptime_maybe(profile_id) else {
                 return Ok(());
             };
-
             comptime
                 .results
                 .iter()
@@ -137,6 +136,7 @@ impl Compiler {
         profile_id: ProfileId,
         expression: dir::GlobalNodeIdAny,
     ) -> ExecuteResult<()> {
+        // ensure the expression belongs to the target module
         if module_id != expression.module_id {
             return Err(ExecuteError::UnsupportedConstruct { node: expression });
         }
@@ -164,11 +164,13 @@ impl Compiler {
             let dependencies = collect_comptime_dependencies(&tree, *body);
             let mut dependency_collector = TaskResultCollector::new();
             for dependency in dependencies {
+                // require each comptime dependency before execution
                 let dependency_id = dependency.into_global(module_id);
-                let error = dependency_collector
-                    .try_collect(
-                        self.require_execute_expression(module_id, profile_id, dependency_id),
-                    );
+                let error = dependency_collector.try_collect(self.require_execute_expression(
+                    module_id,
+                    profile_id,
+                    dependency_id,
+                ));
                 if let Some(error) = error {
                     return Err(ExecuteError::UnsatisfiedDependency {
                         dependency: error.into_dependency(),
@@ -212,7 +214,7 @@ impl Compiler {
             })
         };
 
-        // store the result (for patching)
+        // store the output for later patching
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
         let entry = module.comptime_mut(profile_id);
