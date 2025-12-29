@@ -1,4 +1,3 @@
-mod discover;
 mod error;
 mod process;
 mod target;

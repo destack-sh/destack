@@ -5,6 +5,9 @@ use destack_base::pluralize;
 
 use crate::{AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file};
 
+/// Write a diagnostic line.
+type LineWriter = Arc<dyn Fn(&str) + Send + Sync>;
+
 /// Options for printing diagnostics.
 #[derive(Clone, Default)]
 pub struct PrintOptions {
@@ -17,7 +20,7 @@ pub struct PrintOptions {
     /// Skip printing the summary line.
     pub skip_summary: bool = false,
     /// Optional line writer for diagnostic output.
-    pub line_writer: Option<Arc<dyn Fn(&str) + Send + Sync>> = None,
+    pub line_writer: Option<LineWriter> = None,
 }
 
 impl fmt::Debug for PrintOptions {
@@ -63,7 +66,7 @@ impl PrintOptions {
     }
 
     /// Set the line writer for diagnostic output.
-    pub fn with_line_writer(mut self, line_writer: Arc<dyn Fn(&str) + Send + Sync>) -> Self {
+    pub fn with_line_writer(mut self, line_writer: LineWriter) -> Self {
         self.line_writer = Some(line_writer);
         self
     }

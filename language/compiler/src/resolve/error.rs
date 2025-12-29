@@ -4,8 +4,8 @@ use crate::{
 use destack_builtin::LanguageItem;
 use destack_compiler_macros::DefineError;
 use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
-use destack_source::ModuleId;
-use destack_workspace::Program;
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{Program, TargetId};
 
 /// Errors during the resolve phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -92,4 +92,12 @@ pub enum ResolveError {
     /// Missing builtin library.
     #[error(code = "ER013", message = "missing builtin lib '{name}'")]
     MissingBuiltinLib { name: String },
+
+    /// Invalid target configuration.
+    #[error(code = "ER014", message = "invalid target config: {target}: {message}")]
+    InvalidTargetConfig {
+        package: PackageId,
+        target: TargetId,
+        message: String,
+    },
 }

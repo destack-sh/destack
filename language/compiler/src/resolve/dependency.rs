@@ -36,7 +36,7 @@ impl Compiler {
 
         // check if already resolved globally
         if !is_relative {
-            self.require_resolve_module_prepare_if_other(
+            self.require_resolve_module_prepare_if_needed(
                 module.id,
                 self.program.root_module_id,
                 profile,
@@ -125,7 +125,7 @@ impl Compiler {
                         )?
                     }
                     DependencyMode::Default => {
-                        self.require_resolve_module_prepare_if_other(
+                        self.require_resolve_module_prepare_if_needed(
                             module.id,
                             remote_module_id,
                             profile,
@@ -144,7 +144,7 @@ impl Compiler {
                             // `export * from "..."` -> register as namespace export
                             dir.namespace_exports.write().push(remote_module_id);
                         }
-                        self.require_resolve_module_prepare_if_other(
+                        self.require_resolve_module_prepare_if_needed(
                             module.id,
                             remote_module_id,
                             profile,
@@ -225,7 +225,7 @@ impl Compiler {
         profile: ProfileId,
         key: StaticKey,
     ) -> ResolveResult<(ModuleId, GlobalSymbolId)> {
-        self.require_resolve_module_prepare_if_other(module.id, remote_module_id, profile)?;
+        self.require_resolve_module_prepare_if_needed(module.id, remote_module_id, profile)?;
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
         let remote_dir = remote_module.dir(profile);

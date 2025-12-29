@@ -5,13 +5,13 @@ use std::thread;
 use dashmap::DashMap;
 
 use destack_source::{DiagnosticCollector, DiagnosticOptions, ModuleId, Uri};
-use destack_workspace::{LanguageBuiltins, Program, Session};
+use destack_workspace::{LanguageBuiltins, Program, Session, Target};
 use parking_lot::Mutex;
 
 use crate::{
-    CompileDiagnostic, CompilerEvent, CompilerEventHandler, CompilerStats, DiagnosticAnchor, Task,
-    TaskDependency, TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus,
-    TaskWarning,
+    CompileDiagnostic, CompilerEvent, CompilerEventHandler, CompilerStats, DiagnosticAnchor,
+    GlobalSymbolCache, GlobalSymbolCacheKey, Task, TaskDependency, TaskDependencyError, TaskError,
+    TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -148,20 +148,25 @@ pub struct Compiler {
     pub program: Arc<Program>,
     /// The options for compiling.
     pub options: CompilerOptions,
+
     /// Seen errors for deduplication.
     seen_errors: Mutex<Vec<TaskError>>,
     /// Seen warnings for deduplication.
     seen_warnings: Mutex<Vec<TaskWarning>>,
     /// The pending compiler diagnostics (transient).
     pub pending_diagnostics: DiagnosticCollector,
+
     /// The queue of compiler tasks.
     pub(super) queue: TaskQueue,
-    /// The shared comptime target configuration.
-    pub comptime_target: destack_workspace::Target,
-    /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
-    import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
     /// Compilation statistics.
     pub stats: Arc<CompilerStats>,
+    /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
+    import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
+
+    /// The shared comptime target configuration.
+    pub comptime_target: Target,
+    /// Global symbol tables indexed by target and profile.
+    pub(crate) global_symbol_caches: DashMap<GlobalSymbolCacheKey, GlobalSymbolCache>,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -190,6 +195,7 @@ impl Compiler {
             pending_diagnostics: DiagnosticCollector::new(),
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
+            global_symbol_caches: DashMap::new(),
             stats: Arc::new(CompilerStats::new()),
             comptime_target,
         }

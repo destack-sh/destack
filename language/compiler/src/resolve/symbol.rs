@@ -10,7 +10,7 @@ use crate::{Compiler, ResolveError, ResolveResult};
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Build a Member expression chain from a root expression with remaining path segments.
-    fn build_member_chain(
+    pub(super) fn build_member_chain(
         &self,
         expression_id: LocalNodeId<Expression>,
         root_expr: Expression,
@@ -482,6 +482,18 @@ impl Compiler {
                 static_arguments,
                 tree,
             );
+        }
+
+        if let Some(expr) = self.resolve_global_path(
+            module,
+            expression_id,
+            node,
+            profile,
+            path,
+            static_arguments.clone(),
+            tree,
+        )? {
+            return Ok(expr);
         }
 
         // resolve ambient lib symbols

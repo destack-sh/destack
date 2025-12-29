@@ -50,7 +50,13 @@ Booleans should start with `is_` unless already clear.
 
 Long methods are allowed if the logic isn't meaningfully extractable.
 Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
+
 Break larger code blocks into logical chunks with whitespace and/or preamble comments.
+All logic in functions and outside should be broken into small-ish coherent blocks (2-8 lines or so) with a preceding comment.
+Logic blocks are always separated by blank lines (except the first).
+Usually you want the comment before the if clause / loop / whatever, not inside.
+Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it.
+The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
 
 Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
 ```rust
