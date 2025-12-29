@@ -4,13 +4,13 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Argument, AssignOperator, BinaryOperator, BindingAnchor, DeclarationAbstraction,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfKind,
     InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
     TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
 };
 
-pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
+pub static DECLARATION_KEYWORDS: [Keyword; 22] = [
     Keyword::Declare,
     Keyword::Namespace,
     Keyword::Struct,
@@ -26,6 +26,7 @@ pub static DECLARATION_KEYWORDS: [Keyword; 21] = [
     Keyword::Readonly,
     Keyword::Let,
     Keyword::Var,
+    Keyword::Using,
     Keyword::Override,
     Keyword::Readonly,
     Keyword::Public,
@@ -867,6 +868,10 @@ impl Parser {
             {
                 self.eat_let(start, descriptor)?
             }
+            // using
+            else if keyword == Some(Keyword::Using) {
+                self.eat_using(start, descriptor, Asynchrony::Sync)?
+            }
             // type
             else if (keyword == Some(Keyword::Type)
                 || keyword == Some(Keyword::Readonly)
@@ -931,6 +936,12 @@ impl Parser {
             // continue
             else if keyword == Some(Keyword::Continue) {
                 self.eat_continue()?
+            }
+            // await using
+            else if keyword == Some(Keyword::Await)
+                && self.peek_next_keyword(Keyword::Using).is_ok()
+            {
+                self.eat_using(start, descriptor, Asynchrony::Async)?
             }
             // await
             else if keyword == Some(Keyword::Await)
@@ -1333,16 +1344,15 @@ impl Parser {
                     );
                 self.eat_newlines_maybe()?; // eat newlines
                 // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
-                if !self.options.in_type
+                let is_postfix_maybe = !self.options.in_type
                     && self.peek_token(TokenType::Maybe).is_ok()
-                    && !is_type_conditional
                     && (self.peek_next_any_stop().is_ok()
                         && self.language.is_destack()
                         && self.prev_token_type() != TokenType::Newline
                         || self.peek_next_any_close_parenthesis().is_ok()
                         || self.peek_next_token(TokenType::Dot).is_ok()
-                        || self.peek_next_assign_operator().is_ok())
-                {
+                        || self.peek_next_assign_operator().is_ok());
+                if is_postfix_maybe {
                     self.bump(); // eat ?
                     // (don't consume delimiter/stop)
                     left_expression_id = self.tree.insert(
@@ -1370,26 +1380,21 @@ impl Parser {
                 }
                 // ternary if (we already have the condition)
                 else {
-                    let type_conditional = if self.options.in_type {
-                        match self.tree.get(left_expression_id) {
-                            Expression::TypeBinary {
-                                left,
-                                operator: TypeBinaryOperator::Extends,
-                                right,
-                            } => Some((*left, *right)),
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    };
-
-                    if self.options.in_type && type_conditional.is_none() {
+                    if self.options.in_type && !is_type_conditional {
                         break;
                     }
 
                     self.bump(); // eat ?
                     self.eat_newlines_maybe()?;
-                    if let Some((left, right)) = type_conditional {
+                    if self.options.in_type {
+                        let (left, right) = match self.tree.get(left_expression_id) {
+                            Expression::TypeBinary {
+                                left,
+                                operator: TypeBinaryOperator::Extends,
+                                right,
+                            } => (*left, *right),
+                            _ => break,
+                        };
                         // type conditional expression
                         let then_expression_id = self.with_options(
                             self.options

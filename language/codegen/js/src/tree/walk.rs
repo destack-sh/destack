@@ -167,6 +167,16 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 visitor.visit_declarator(tree, *declarator_id, declarator);
             }
         }
+        Statement::Using {
+            asynchrony: _,
+            descriptor: _,
+            declarators,
+        } => {
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                visitor.visit_declarator(tree, *declarator_id, declarator);
+            }
+        }
         Statement::Assign {
             left,
             operator: _,

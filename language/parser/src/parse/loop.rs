@@ -1,7 +1,7 @@
 //! Parse loops, for, while, etc.
 
 use destack_ast::{
-    Asynchrony, Expression, ForEachKind, Keyword, LocalNodeId, TokenType, WhileKind,
+    Asynchrony, Expression, ForEachBinding, ForEachKind, Keyword, LocalNodeId, TokenType, WhileKind,
 };
 
 use crate::{ParseResult, Parser};
@@ -136,14 +136,8 @@ impl Parser {
                 self.bump();
             }
 
-            // pattern
-            let pattern_id = self.with_options(
-                self.options
-                    .not_in_position()
-                    .in_for_each()
-                    .in_before_block(),
-                |parser| parser.eat_pattern(),
-            )?;
+            // binding
+            let binding = self.eat_for_each_binding()?;
 
             // in
             let kind = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
@@ -171,13 +165,49 @@ impl Parser {
                 Expression::ForEach {
                     asynchrony,
                     kind,
-                    pattern: pattern_id,
+                    binding,
                     iterator: iterator_id,
                     body: body_id,
                 },
                 self.get_span_from(start),
             );
             Ok(for_id)
+        }
+    }
+
+    /// Eat a for each binding (pattern or using).
+    fn eat_for_each_binding(&mut self) -> ParseResult<ForEachBinding> {
+        let using_asynchrony = if self.peek_keyword(Keyword::Await).is_ok()
+            && self.peek_next_keyword(Keyword::Using).is_ok()
+        {
+            self.bump(); // eat await
+            Asynchrony::Async
+        } else {
+            Asynchrony::Sync
+        };
+
+        if self.peek_keyword(Keyword::Using).is_ok() {
+            self.bump(); // eat using
+            let pattern = self.with_options(
+                self.options
+                    .not_in_position()
+                    .in_for_each()
+                    .in_before_block(),
+                |parser| parser.eat_pattern(),
+            )?;
+            Ok(ForEachBinding::Using {
+                asynchrony: using_asynchrony,
+                pattern,
+            })
+        } else {
+            let pattern = self.with_options(
+                self.options
+                    .not_in_position()
+                    .in_for_each()
+                    .in_before_block(),
+                |parser| parser.eat_pattern(),
+            )?;
+            Ok(ForEachBinding::Pattern { pattern })
         }
     }
 
@@ -261,8 +291,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachKind, Mutability,
-        Pattern, ScalarLiteral, UnaryOperator, WhileKind,
+        Asynchrony, BinaryOperator, Block, Declarator, Expression, ForEachBinding, ForEachKind,
+        Mutability, Pattern, ScalarLiteral, UnaryOperator, WhileKind,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -298,7 +328,7 @@ for (const item in items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { pattern, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
@@ -322,7 +352,7 @@ for (const item in items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, pattern, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Sync);
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
@@ -347,7 +377,7 @@ for await (const item of items) {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, pattern, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
             assert_eq!(*asynchrony, Asynchrony::Async);
             assert_eq!(*kind, ForEachKind::Of);
             // item
@@ -373,13 +403,35 @@ for (const item in items) outer: {
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for().unwrap();
-        assert_node!(parser.tree, for_id, Expression::ForEach { pattern, iterator, body: _, .. } => {
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern }, iterator, body: _, .. } => {
             // item
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
                 assert_eq!(*mutability, Mutability::Immutable);
                 assert_string!(parser, *name, "item");
             });
             // in items
+            assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_using_binding() {
+        let mut test = TestParser::new(
+            r###"
+for (using item of items) {
+    x
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Using { asynchrony, pattern }, iterator, body: _, .. } => {
+            assert_eq!(*asynchrony, Asynchrony::Sync);
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+                assert_string!(parser, *name, "item");
+            });
             assert_expression_path!(parser, parser.tree.get(*iterator), "items");
         });
     }

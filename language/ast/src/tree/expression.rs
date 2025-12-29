@@ -102,6 +102,19 @@ pub enum Expression {
         declarators: Vec<LocalNodeId<Declarator>>,
     },
 
+    /// Using binding for resources with deterministic disposal.
+    ///
+    /// Examples:
+    /// ```
+    /// using file = openFile(path)
+    /// await using conn = openConnection()
+    /// ```
+    Using {
+        asynchrony: Asynchrony,
+        descriptor: DeclarationDescriptor,
+        declarators: Vec<LocalNodeId<Declarator>>,
+    },
+
     /// If/then/else expression.
     /// Then and else must be blocks.
     ///
@@ -145,11 +158,6 @@ pub enum Expression {
     /// while (x > 1) {
     ///     y = 2
     /// }
-    ///
-    /// while (y < 10) l: {
-    ///     y = 2
-    ///     break :l
-    /// }
     /// ```
     While {
         kind: WhileKind,
@@ -157,7 +165,7 @@ pub enum Expression {
         body: LocalNodeId<Block>,
     },
 
-    /// A ForEach is a for loop over an iterator with a pattern.
+    /// A ForEach is a for loop over an iterator with a binding.
     ///
     /// Examples:
     /// ```
@@ -165,9 +173,13 @@ pub enum Expression {
     ///     y = 2
     /// }
     ///
-    /// for (const x in 1..10) a: {
+    /// for (using x of items) {
+    ///     y = 2
+    /// }
+    ///
+    /// for (const x in 1..10) {
     ///     if y > 5 {
-    ///         continue :a
+    ///         continue
     ///     }
     ///     y = 2
     /// }
@@ -175,7 +187,7 @@ pub enum Expression {
     ForEach {
         asynchrony: Asynchrony,
         kind: ForEachKind,
-        pattern: LocalNodeId<Pattern>,
+        binding: ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
     },
@@ -823,6 +835,7 @@ impl Expression {
                     || finally_expression.is_some()
             }
             Expression::Match { .. } => true,
+            Expression::Using { .. } => true,
             _ => false,
         }
     }
@@ -842,6 +855,7 @@ impl Expression {
                 | Expression::Declaration { .. }
                 | Expression::Import { .. }
                 | Expression::Let { .. }
+                | Expression::Using { .. }
                 | Expression::While { .. }
                 | Expression::Loop { .. }
                 | Expression::Match { .. }
@@ -930,6 +944,18 @@ pub enum ForEachKind {
     Of,
     /// In expression.
     In,
+}
+
+/// The binding in a for each expression.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForEachBinding {
+    /// Regular pattern binding.
+    Pattern { pattern: LocalNodeId<Pattern> },
+    /// Using binding with optional async disposal.
+    Using {
+        asynchrony: Asynchrony,
+        pattern: LocalNodeId<Pattern>,
+    },
 }
 
 /// The cardinality of a yield expression.

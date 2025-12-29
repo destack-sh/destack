@@ -2,10 +2,10 @@ use crate::{
     AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
 };
 use destack_dir::{
-    Argument, BindingKind, Block, Declaration, DynamicKey, Expression, FunctionKind,
-    GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability,
-    NodeTree, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
-    TypeElement, TypeField, TypeLiteral, TypeTable,
+    Argument, BindingKind, Block, Declaration, DynamicKey, Expression, ForEachBinding,
+    FunctionKind, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource,
+    Mutability, NodeTree, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable,
+    Type, TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -160,6 +160,30 @@ impl Compiler {
             Expression::Let {
                 descriptor: _,
                 mutability: _,
+                declarators,
+            } => {
+                for decl_id in declarators {
+                    self.infer_declarator(
+                        module,
+                        *decl_id,
+                        expression_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            // using
+            Expression::Using {
+                asynchrony: _,
+                descriptor: _,
                 declarators,
             } => {
                 for decl_id in declarators {
@@ -696,7 +720,7 @@ impl Compiler {
             Expression::ForEach {
                 asynchrony: _,
                 kind: _,
-                pattern,
+                binding,
                 iterator,
                 body,
                 scope: _,
@@ -704,16 +728,35 @@ impl Compiler {
             } => {
                 let iterator_ty_id =
                     self.infer_expression(module, *iterator, tree, symbols, types, infer, ctx)?;
-                self.infer_pattern(
-                    module,
-                    *pattern,
-                    Some(iterator_ty_id),
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
+                match binding {
+                    ForEachBinding::Pattern { pattern } => {
+                        self.infer_pattern(
+                            module,
+                            *pattern,
+                            Some(iterator_ty_id),
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
+                    ForEachBinding::Using {
+                        asynchrony: _,
+                        pattern,
+                    } => {
+                        self.infer_pattern(
+                            module,
+                            *pattern,
+                            Some(iterator_ty_id),
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
+                }
                 let mut ctx = ctx.fork().in_loop(expression_id.into_any());
                 self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
 

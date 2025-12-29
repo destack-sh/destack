@@ -1,5 +1,5 @@
 use destack_dir::{
-    BinaryOperator, BindingAnchor, Block, Declaration, DeclarationAbstraction,
+    Asynchrony, BinaryOperator, BindingAnchor, Block, Declaration, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, Declarator, Expression, IfKind, LocalNodeId,
     LocalSymbolId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern,
     PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
@@ -134,29 +134,42 @@ impl Compiler {
         block_id: LocalNodeId<Block>,
         tree: &mut NodeTree,
     ) -> ElaborateResult<()> {
+        #[derive(Clone, Copy)]
+        enum BindingKind {
+            Let { mutability: Mutability },
+            Using { asynchrony: Asynchrony },
+        }
+
         let block = tree.get(block_id).clone();
         let mut new_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
         let mut modified = false;
 
         for expr_id in &block.expressions {
-            // check if this is a statement wrapping a let
-            let (let_expr_id, is_statement) = match tree.get(*expr_id) {
+            // check if this is a statement wrapping a binding
+            let (binding_expr_id, is_statement) = match tree.get(*expr_id) {
                 Expression::Statement { statement } => (*statement, true),
-                Expression::Let { .. } => (*expr_id, false),
+                Expression::Let { .. } | Expression::Using { .. } => (*expr_id, false),
                 _ => {
                     new_expressions.push(*expr_id);
                     continue;
                 }
             };
 
-            let Expression::Let {
-                descriptor,
-                mutability,
-                declarators,
-            } = tree.get(let_expr_id).clone()
-            else {
-                new_expressions.push(*expr_id);
-                continue;
+            let (descriptor, binding_kind, declarators) = match tree.get(binding_expr_id).clone() {
+                Expression::Let {
+                    descriptor,
+                    mutability,
+                    declarators,
+                } => (descriptor, BindingKind::Let { mutability }, declarators),
+                Expression::Using {
+                    asynchrony,
+                    descriptor,
+                    declarators,
+                } => (descriptor, BindingKind::Using { asynchrony }, declarators),
+                _ => {
+                    new_expressions.push(*expr_id);
+                    continue;
+                }
             };
 
             // only split if there are multiple declarators
@@ -166,14 +179,18 @@ impl Compiler {
             }
 
             modified = true;
-            let scope = tree.get_scope(let_expr_id);
+            let scope = tree.get_scope(binding_expr_id);
 
-            // create individual let for each declarator
+            // create individual binding for each declarator
             for declarator_id in declarators {
-                let new_let_id =
-                    tree.reserve_from(NodeType::Expression, let_expr_id.into_any(), scope, None);
+                let new_let_id = tree.reserve_from(
+                    NodeType::Expression,
+                    binding_expr_id.into_any(),
+                    scope,
+                    None,
+                );
 
-                // create a new descriptor for this let (reusing the symbol from the declarator's pattern)
+                // create a new descriptor for this binding using the declarator symbol
                 let declarator = tree.get(declarator_id);
                 let pattern = tree.get(declarator.pattern);
                 let new_symbol = pattern.symbol().unwrap_or(descriptor.symbol);
@@ -182,20 +199,25 @@ impl Compiler {
                     ..descriptor.clone()
                 };
 
-                let new_let: LocalNodeId<Expression> = tree.insert(
-                    new_let_id,
-                    Expression::Let {
+                let new_binding = match binding_kind {
+                    BindingKind::Let { mutability } => Expression::Let {
                         descriptor: new_descriptor,
                         mutability,
                         declarators: vec![declarator_id],
                     },
-                );
+                    BindingKind::Using { asynchrony } => Expression::Using {
+                        asynchrony,
+                        descriptor: new_descriptor,
+                        declarators: vec![declarator_id],
+                    },
+                };
+                let new_let: LocalNodeId<Expression> = tree.insert(new_let_id, new_binding);
 
                 // wrap in statement if original was wrapped
                 let final_expr = if is_statement {
                     let stmt_id = tree.reserve_from(
                         NodeType::Expression,
-                        let_expr_id.into_any(),
+                        binding_expr_id.into_any(),
                         scope,
                         None,
                     );
@@ -240,7 +262,7 @@ impl Compiler {
         _symbols: &SymbolTable,
         _types: &TypeTable,
     ) -> ElaborateResult<()> {
-        // TODO: if-let transform - needs parser/binder support for if-let patterns
+        // TODO #Incomplete: if-let transform - needs parser/binder support for if-let patterns
         // The condition of an if-let would be an Expression::Let with a refutable pattern
         // (e.g., x!, Result.ok(v), etc.)
         Ok(())
@@ -1195,7 +1217,9 @@ impl Compiler {
         // don't unwrap if the inner expression is a statement (has side effects)
         // or if it's a let/declaration
         match inner_expr {
-            Expression::Statement { .. } | Expression::Let { .. } => expr_id,
+            Expression::Statement { .. } | Expression::Let { .. } | Expression::Using { .. } => {
+                expr_id
+            }
             _ => inner_expr_id,
         }
     }
@@ -1293,7 +1317,8 @@ impl Compiler {
             | Expression::For { .. }
             | Expression::Try { .. }
             | Expression::Statement { .. }
-            | Expression::Let { .. } => false,
+            | Expression::Let { .. }
+            | Expression::Using { .. } => false,
 
             // other expressions: be conservative
             _ => false,
@@ -1425,8 +1450,8 @@ impl Compiler {
                 self.make_return_explicit(statement, tree, scope)?;
             }
 
-            Expression::Let { .. } => {
-                // let is a statement, don't wrap in return
+            Expression::Let { .. } | Expression::Using { .. } => {
+                // binding is a statement, don't wrap in return
             }
 
             _ => {

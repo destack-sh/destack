@@ -13,10 +13,10 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                FRONT-END                                    │
 │                                                                             │
-│   source ───► Import ───► Bind ──┬──► Resolve ───► Analyze ───► Elaborate   │
-│      │           │         │     ·        │            │             │      │
-│    Text        AST     base DIR  ·     Symbols       Types    Canonical DIR │
-│                       (shared)   · ─────────────── per profile ───────────  │
+│   Import ───► Bind ──┬──► Resolve ───► Analyze ───► Elaborate               │
+│       │        │     ·        │            │             │                  │
+│     AST   base DIR   ·     Symbols       Types    Canonical DIR              │
+│                 (shared)  · ─────────────── per profile ───────────         │
 └─────────────────────────────────────────────────────────────────────────────┘
                                    │ (one canonical DIR per profile)
                                    ▼

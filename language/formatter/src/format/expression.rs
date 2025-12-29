@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId, MatchCase,
-    MatchKind, MatchSelector, NodeTree, OperatorPrecedence, Pattern, PostfixPosition, Property,
-    ScalarLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhileKind,
+    DependencyMode, Expression, ForEachBinding, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId,
+    MatchCase, MatchKind, MatchSelector, NodeTree, OperatorPrecedence, Pattern, PostfixPosition,
+    Property, ScalarLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhileKind,
     YieldCardinality,
 };
 use destack_base::StringId;
@@ -1345,8 +1345,8 @@ pub(crate) fn format_expression_chain<'ast>(
         };
 
         // path rest (tail segments)
-        // NOTE: path segments are synthetic, they come from a single Path expression,
-        // so we use root_id for annotations (though they won't have intra-path comments)
+        // (path segments are synthetic, they come from a single Path expression,
+        //  so we use root_id for annotations, even though they won't have intra-path comments)
         let tail_len = remaining_segments.len();
         for (index, segment) in remaining_segments.into_iter().enumerate() {
             // last segment keeps static arguments if there are any
@@ -2195,7 +2195,36 @@ pub(crate) fn format_expression<'ast>(
                 Ok(())
             });
 
-            // Format declarators (comma-separated)
+            // format declarators (comma-separated)
+            write!(f, [keyword_header])?;
+            for (i, declarator_id) in declarators.iter().enumerate() {
+                if i > 0 {
+                    write!(f, [token(",")])?;
+                }
+                write!(f, [space()])?;
+                format_declarator(f, tree, *declarator_id)?;
+            }
+        }
+
+        // using
+        Expression::Using {
+            asynchrony,
+            descriptor,
+            declarators,
+        } => {
+            // keyword header (export + await + using)
+            let keyword_header = format_with(|f| {
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+                if *asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Await, space()])?;
+                }
+                write!(f, [Keyword::Using])?;
+                Ok(())
+            });
+
+            // format declarators (comma-separated)
             write!(f, [keyword_header])?;
             for (i, declarator_id) in declarators.iter().enumerate() {
                 if i > 0 {
@@ -2266,7 +2295,7 @@ pub(crate) fn format_expression<'ast>(
         Expression::ForEach {
             asynchrony,
             kind,
-            pattern,
+            binding,
             iterator,
             body,
         } => {
@@ -2278,18 +2307,24 @@ pub(crate) fn format_expression<'ast>(
                 ForEachKind::In => Keyword::In,
                 ForEachKind::Of => Keyword::Of,
             };
+            write!(f, [token("(")])?;
+            match binding {
+                ForEachBinding::Pattern { pattern } => {
+                    write!(f, [pattern])?;
+                }
+                ForEachBinding::Using {
+                    asynchrony,
+                    pattern,
+                } => {
+                    if *asynchrony == Asynchrony::Async {
+                        write!(f, [Keyword::Await, space()])?;
+                    }
+                    write!(f, [Keyword::Using, space(), pattern])?;
+                }
+            }
             write!(
                 f,
-                [
-                    token("("),
-                    pattern,
-                    space(),
-                    keyword,
-                    space(),
-                    iterator,
-                    token(")"),
-                    space()
-                ]
+                [space(), keyword, space(), iterator, token(")"), space()]
             )?;
             write!(f, [body])?;
         }

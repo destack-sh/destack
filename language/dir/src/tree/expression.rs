@@ -82,6 +82,12 @@ pub enum Expression {
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
+    /// Using binding for explicit resource management.
+    Using {
+        asynchrony: Asynchrony,
+        descriptor: DeclarationDescriptor,
+        declarators: Vec<LocalNodeId<Declarator>>,
+    },
 
     /// Type unary operation.
     TypeUnary {
@@ -315,7 +321,7 @@ pub enum Expression {
     ForEach {
         asynchrony: Asynchrony,
         kind: ForEachKind,
-        pattern: LocalNodeId<Pattern>,
+        binding: ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
         scope: LocalScopeId,
@@ -425,6 +431,7 @@ impl Expression {
             Expression::Labelled { .. } => "labelled",
 
             Expression::Let { .. } => "let",
+            Expression::Using { .. } => "using",
 
             Expression::TypeUnary { .. } => "type unary",
             Expression::TypeBinary { .. } => "type binary",
@@ -513,6 +520,7 @@ impl Expression {
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
             Expression::Let { descriptor, .. } => Some(descriptor.symbol),
+            Expression::Using { descriptor, .. } => Some(descriptor.symbol),
             _ => None,
         }
     }
@@ -628,6 +636,18 @@ pub enum ForEachKind {
     In,
     /// Of expression.
     Of,
+}
+
+/// The binding of a for each expression.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForEachBinding {
+    /// A normal pattern binding.
+    Pattern { pattern: LocalNodeId<Pattern> },
+    /// A using binding.
+    Using {
+        asynchrony: Asynchrony,
+        pattern: LocalNodeId<Pattern>,
+    },
 }
 
 /// The kind of a yield expression.

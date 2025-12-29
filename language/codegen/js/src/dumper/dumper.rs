@@ -696,6 +696,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
+            Statement::Using {
+                asynchrony,
+                descriptor,
+                declarators: _,
+            } => {
+                self.node("Statement::Using", id.id)
+                    .field("asynchrony", asynchrony)
+                    .field("descriptor", descriptor)
+                    .end();
+            }
             Statement::Assign {
                 operator,
                 left: _,

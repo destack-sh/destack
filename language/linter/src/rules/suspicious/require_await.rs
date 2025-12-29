@@ -146,6 +146,19 @@ fn contains_await(
             let d = ctx.tree.get(*d_id);
             d.value.is_some_and(|v| contains_await(ctx, v))
         }),
+        ast::Expression::Using {
+            asynchrony,
+            declarators,
+            ..
+        } => {
+            if *asynchrony == ast::Asynchrony::Async {
+                return true;
+            }
+            declarators.iter().any(|d_id| {
+                let d = ctx.tree.get(*d_id);
+                d.value.is_some_and(|v| contains_await(ctx, v))
+            })
+        }
         // stop at nested function declarations (they have their own async scope)
         ast::Expression::Declaration(_) => false,
         _ => false,

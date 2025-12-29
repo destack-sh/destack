@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField,
-    Expression, FunctionSignature, Generics, Heritage, LocalNodeId, MatchCase, MatchSelector,
-    Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
-    TemplateLiteral, WhereClause,
+    Expression, ForEachBinding, FunctionSignature, Generics, Heritage, LocalNodeId, MatchCase,
+    MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
+    Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -236,6 +236,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Let {
             descriptor: _,
             mutability: _,
+            declarators,
+        } => {
+            for declarator_id in declarators {
+                let declarator = tree.get(*declarator_id);
+                visitor.visit_declarator(tree, *declarator_id, declarator);
+            }
+        }
+        Expression::Using {
+            asynchrony: _,
+            descriptor: _,
             declarators,
         } => {
             for declarator_id in declarators {
@@ -602,14 +612,25 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ForEach {
             asynchrony: _,
             kind: _,
-            pattern,
+            binding,
             iterator,
             body,
             scope: _,
             symbol: _,
         } => {
-            let pattern_node = tree.get(*pattern);
-            visitor.visit_pattern(tree, *pattern, pattern_node);
+            match binding {
+                ForEachBinding::Pattern { pattern } => {
+                    let pattern_node = tree.get(*pattern);
+                    visitor.visit_pattern(tree, *pattern, pattern_node);
+                }
+                ForEachBinding::Using {
+                    asynchrony: _,
+                    pattern,
+                } => {
+                    let pattern_node = tree.get(*pattern);
+                    visitor.visit_pattern(tree, *pattern, pattern_node);
+                }
+            }
             let iterator_expression = tree.get(*iterator);
             visitor.visit_expression(tree, *iterator, iterator_expression);
             let body_block = tree.get(*body);

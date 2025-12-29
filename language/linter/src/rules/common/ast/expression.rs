@@ -399,7 +399,7 @@ fn string_ids_equal(
 ///
 /// This is useful for lints that want to detect expressions that can be safely removed
 /// or that need to distinguish between pure and impure expressions.
-/// NOTE #Cleanup: can expression_has_side_effects use NodeVisitor..?
+/// #Cleanup: can expression_has_side_effects use NodeVisitor..?
 pub fn has_side_effects(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
@@ -513,6 +513,7 @@ pub fn has_side_effects(
         ast::Expression::Declaration(_)
         | ast::Expression::Block(_)
         | ast::Expression::Let { .. }
+        | ast::Expression::Using { .. }
         | ast::Expression::Import { .. }
         | ast::Expression::Export { .. }
         | ast::Expression::Labelled { .. } => true,

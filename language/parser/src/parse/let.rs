@@ -1,8 +1,8 @@
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
-    TokenType,
+    Asynchrony, DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId,
+    Mutability, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -107,10 +107,10 @@ impl Parser {
         // kind and mutability
         let (kind, mutability) = self.eat_let_kind()?;
 
-        // Parse declarators (comma-separated list)
+        // parse declarators (comma-separated list)
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.eat_declarator()?;
+            let declarator_id = self.eat_declarator(false)?;
             declarators.push(declarator_id);
 
             // Check for comma to continue parsing more declarators
@@ -135,8 +135,56 @@ impl Parser {
         Ok(let_id)
     }
 
-    /// Eat a single declarator (pattern, optional type, optional value).
-    fn eat_declarator(&mut self) -> ParseResult<LocalNodeId<Declarator>> {
+    /// Eat a using binding (incl. `using` keyword and optional `await`).
+    ///
+    /// Examples:
+    /// ```
+    /// using file = openFile(path)
+    /// await using conn = openConnection()
+    /// using a = openA(), b = openB()
+    /// ```
+    pub fn eat_using(
+        &mut self,
+        start: ParserMark,
+        descriptor: DeclarationDescriptor,
+        asynchrony: Asynchrony,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // optional await
+        if asynchrony == Asynchrony::Async {
+            self.eat_keyword(Keyword::Await)?;
+        }
+
+        // using keyword
+        self.eat_keyword(Keyword::Using)?;
+
+        // parse declarators (comma-separated list)
+        let mut declarators = Vec::new();
+        loop {
+            let declarator_id = self.eat_declarator(true)?;
+            declarators.push(declarator_id);
+
+            // check for comma to continue parsing more declarators
+            if self.peek_token(TokenType::Comma).is_ok() {
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+            } else {
+                break;
+            }
+        }
+
+        let using_id = self.tree.insert(
+            Expression::Using {
+                asynchrony,
+                descriptor,
+                declarators,
+            },
+            self.get_span_from(start),
+        );
+        Ok(using_id)
+    }
+
+    /// Eat a single declarator with an optional value unless `require_value` is set.
+    fn eat_declarator(&mut self, require_value: bool) -> ParseResult<LocalNodeId<Declarator>> {
         let start = self.mark();
 
         // pattern
@@ -164,6 +212,8 @@ impl Parser {
             Some(self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?)
+        } else if require_value {
+            return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
         } else {
             None
         };
@@ -191,8 +241,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, DeclarationDescriptor, Declarator, Expression, IntType, Key, Mutability, Name,
-        Pattern, PatternField, Property, ScalarLiteral, TypeLiteral,
+        Argument, Asynchrony, DeclarationDescriptor, Declarator, Expression, IntType, Key,
+        Mutability, Name, Pattern, PatternField, Property, ScalarLiteral, TypeLiteral,
     };
 
     use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
@@ -230,6 +280,75 @@ const x: int32 = 1
                 let value_id = value.expect("expected value");
                 assert_node!(parser.tree, value_id, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_using_scalar() {
+        let mut test = TestParser::new(
+            r###"
+using x = open()
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let using_id = parser
+            .eat_using(start, DeclarationDescriptor::default(), Asynchrony::Sync)
+            .unwrap();
+
+        assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
+            assert_eq!(*asynchrony, Asynchrony::Sync);
+            assert_eq!(declarators.len(), 1);
+
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "x");
+                });
+                assert!(value.is_some());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_await_using_scalar() {
+        let mut test = TestParser::new(
+            r###"
+await using conn = openConnection()
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let using_id = parser
+            .eat_using(start, DeclarationDescriptor::default(), Asynchrony::Async)
+            .unwrap();
+
+        assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
+            assert_eq!(*asynchrony, Asynchrony::Async);
+            assert_eq!(declarators.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_using_multiple_declarators() {
+        let mut test = TestParser::new(
+            r###"
+using a = openA(), b = openB()
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let using_id = parser
+            .eat_using(start, DeclarationDescriptor::default(), Asynchrony::Sync)
+            .unwrap();
+
+        assert_node!(parser.tree, using_id, Expression::Using { declarators, .. } => {
+            assert_eq!(declarators.len(), 2);
         });
     }
 

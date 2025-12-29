@@ -1,8 +1,8 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    CodegenJsFormatContext, CodegenJsFormatter, DeclarationKind, DependencyKind, FormatNode,
-    Keyword, LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
+    Asynchrony, CodegenJsFormatContext, CodegenJsFormatter, DeclarationKind, DependencyKind,
+    FormatNode, Keyword, LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
 };
 use destack_fir::format::{Format, FormatResult, Formatter};
 use destack_fir::prelude::*;
@@ -111,6 +111,37 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                     Mutability::Mutable => write!(f, [Keyword::Let])?,
                     Mutability::Immutable => write!(f, [Keyword::Const])?,
                 }
+
+                // declarators
+                for (i, declarator) in declarators.iter().enumerate() {
+                    if i == 0 {
+                        write!(f, [space()])?;
+                    } else {
+                        write!(f, [token(","), space()])?;
+                    }
+                    write!(f, [declarator])?;
+                }
+            }
+            Statement::Using {
+                asynchrony,
+                descriptor,
+                declarators,
+            } => {
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                if *asynchrony == Asynchrony::Async {
+                    write!(f, [Keyword::Await, space()])?;
+                }
+                write!(f, [Keyword::Using])?;
 
                 // declarators
                 for (i, declarator) in declarators.iter().enumerate() {

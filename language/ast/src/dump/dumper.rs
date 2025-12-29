@@ -764,6 +764,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .end();
             }
+            Expression::Using {
+                asynchrony,
+                descriptor,
+                declarators: _,
+            } => {
+                self.node("Expression::Using", _id.id)
+                    .field("asynchrony", asynchrony)
+                    .field("descriptor", descriptor)
+                    .end();
+            }
             Expression::If {
                 kind,
                 condition: _,
@@ -786,7 +796,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ForEach {
                 asynchrony,
                 kind,
-                pattern: _,
+                binding: _,
                 iterator: _,
                 body: _,
             } => {

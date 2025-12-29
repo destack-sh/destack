@@ -589,10 +589,10 @@ impl Compiler {
             _ => None,
         };
 
+        // try evaluate expression as a type
         let expression_id = argument.value();
         let ty_id =
             self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
-
         if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
             return Ok(None);
         }

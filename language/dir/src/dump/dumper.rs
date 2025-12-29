@@ -895,6 +895,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("mutability", mutability)
                     .end();
             }
+            Expression::Using {
+                asynchrony,
+                descriptor,
+                declarators: _,
+            } => {
+                self.node("Expression::Using", id.id)
+                    .field("asynchrony", asynchrony)
+                    .field("descriptor", descriptor)
+                    .end();
+            }
             Expression::Unary { operator, right: _ } => {
                 self.node("Expression::Unary", id.id)
                     .field("operator", operator)
@@ -1178,7 +1188,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::ForEach {
                 asynchrony,
                 kind,
-                pattern: _,
+                binding: _,
                 iterator: _,
                 body: _,
                 scope,
