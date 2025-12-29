@@ -95,7 +95,12 @@ impl Parser {
         };
 
         // async
-        let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
+        let is_async = if self.peek_keyword(Keyword::Async).is_ok()
+            && (self.peek_next_token(TokenType::Identifier).is_ok()
+                || self.peek_next_token(TokenType::Multiply).is_ok()
+                || self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+                || self.peek_next_token(TokenType::LessThan).is_ok())
+        {
             self.bump(); // eat async keyword
             true
         } else {
@@ -451,7 +456,12 @@ impl Parser {
         };
 
         // async
-        let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
+        let is_async = if self.peek_keyword(Keyword::Async).is_ok()
+            && (self.peek_next_token(TokenType::Identifier).is_ok()
+                || self.peek_next_token(TokenType::Multiply).is_ok()
+                || self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+                || self.peek_next_token(TokenType::LessThan).is_ok())
+        {
             self.bump(); // eat async keyword
             true
         } else {
