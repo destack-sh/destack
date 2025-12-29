@@ -3,6 +3,7 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
@@ -15,6 +16,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Property> {
         let property = tree.get(property_id);
         let span = self.unbind_span(module, property_id.into());
@@ -26,15 +28,32 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key = key
-                    .as_ref()
-                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let key = key.as_ref().map(|key| {
+                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
+                });
                 let value = value.map(|value| {
-                    self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        value,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 let default = default.map(|default| {
-                    self.unbind_expression(module, default, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        default,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Property::Field {
                     modifiers,
@@ -50,10 +69,11 @@ impl Compiler {
                 body,
                 ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key = key
-                    .as_ref()
-                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let key = key.as_ref().map(|key| {
+                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
+                });
                 let signature = self.unbind_function_signature(
                     module,
                     signature,
@@ -61,9 +81,18 @@ impl Compiler {
                     symbols,
                     ast_tree,
                     ast_strings,
+                    context,
                 );
                 let body = body.map(|body| {
-                    self.unbind_expression(module, body, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        body,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Property::Method {
                     modifiers,
@@ -75,13 +104,23 @@ impl Compiler {
             dir::Property::Spread {
                 modifiers, value, ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Property::Spread { modifiers, value }
             }
         };
-        ast_tree.insert(ast_property, span)
+        let ast_property_id = ast_tree.insert(ast_property, span);
+        context.map(property_id.into_any(), ast_property_id.into_any());
+        ast_property_id
     }
 
     /// Unbind a DIR member to an AST member.
@@ -93,6 +132,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Member> {
         let member = tree.get(member_id);
         let span = self.unbind_span(module, member_id.into());
@@ -104,15 +144,32 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key = key
-                    .as_ref()
-                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let key = key.as_ref().map(|key| {
+                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
+                });
                 let value = value.map(|value| {
-                    self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        value,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 let default = default.map(|default| {
-                    self.unbind_expression(module, default, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        default,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Member::Field {
                     modifiers,
@@ -128,10 +185,11 @@ impl Compiler {
                 body,
                 ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let key = key
-                    .as_ref()
-                    .map(|key| self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let key = key.as_ref().map(|key| {
+                    self.unbind_key(module, key, tree, symbols, ast_tree, ast_strings, context)
+                });
                 let signature = self.unbind_function_signature(
                     module,
                     signature,
@@ -139,9 +197,18 @@ impl Compiler {
                     symbols,
                     ast_tree,
                     ast_strings,
+                    context,
                 );
                 let body = body.map(|body| {
-                    self.unbind_expression(module, body, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        body,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Member::Method {
                     modifiers,
@@ -153,20 +220,38 @@ impl Compiler {
             dir::Member::Embed {
                 modifiers, value, ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Member::Embed { modifiers, value }
             }
             dir::Member::StaticBlock {
                 modifiers, body, ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
-                let body =
-                    self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let body = self.unbind_expression(
+                    module,
+                    *body,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Member::StaticBlock { modifiers, body }
             }
         };
-        ast_tree.insert(ast_member, span)
+        let ast_member_id = ast_tree.insert(ast_member, span);
+        context.map(member_id.into_any(), ast_member_id.into_any());
+        ast_member_id
     }
 }

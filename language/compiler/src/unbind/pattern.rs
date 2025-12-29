@@ -3,6 +3,7 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
@@ -15,6 +16,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Pattern> {
         let pattern = tree.get(pattern_id);
         let span = self.unbind_span(module, pattern_id.into());
@@ -28,19 +30,34 @@ impl Compiler {
                     symbols,
                     ast_tree,
                     ast_strings,
+                    context,
                 );
                 ast::Pattern::Must(inner)
             }
             dir::Pattern::ReferenceOf { mutability, right } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(m));
-                let right =
-                    self.unbind_pattern(module, *right, tree, symbols, ast_tree, ast_strings);
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+                let right = self.unbind_pattern(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Pattern::ReferenceOf { mutability, right }
             }
             dir::Pattern::ValueOf { mutability, right } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(m));
-                let right =
-                    self.unbind_pattern(module, *right, tree, symbols, ast_tree, ast_strings);
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+                let right = self.unbind_pattern(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Pattern::ValueOf { mutability, right }
             }
             dir::Pattern::Binding {
@@ -49,10 +66,11 @@ impl Compiler {
                 pattern,
                 ..
             } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(m));
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
-                let pattern = pattern
-                    .map(|p| self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings));
+                let pattern = pattern.map(|p| {
+                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                });
                 ast::Pattern::Binding {
                     mutability,
                     name,
@@ -60,8 +78,15 @@ impl Compiler {
                 }
             }
             dir::Pattern::Expression { value } => {
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Pattern::Expression { value }
             }
             dir::Pattern::Range {
@@ -69,10 +94,12 @@ impl Compiler {
                 end,
                 is_inclusive,
             } => {
-                let start = start
-                    .map(|s| self.unbind_pattern(module, s, tree, symbols, ast_tree, ast_strings));
-                let end = end
-                    .map(|e| self.unbind_pattern(module, e, tree, symbols, ast_tree, ast_strings));
+                let start = start.map(|s| {
+                    self.unbind_pattern(module, s, tree, symbols, ast_tree, ast_strings, context)
+                });
+                let end = end.map(|e| {
+                    self.unbind_pattern(module, e, tree, symbols, ast_tree, ast_strings, context)
+                });
                 ast::Pattern::Range {
                     start,
                     end,
@@ -90,13 +117,22 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect();
                 ast::Pattern::Tuple { fields }
             }
             dir::Pattern::TaggedTuple { ty, fields } => {
-                let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings);
+                let ty = self.unbind_expression(
+                    module,
+                    *ty,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -107,6 +143,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect();
@@ -123,6 +160,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect();
@@ -139,13 +177,22 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect();
                 ast::Pattern::Object { fields }
             }
             dir::Pattern::TaggedObject { ty, fields } => {
-                let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings);
+                let ty = self.unbind_expression(
+                    module,
+                    *ty,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -156,6 +203,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect();
@@ -164,12 +212,14 @@ impl Compiler {
             dir::Pattern::Union { patterns } => {
                 let patterns = patterns
                     .iter()
-                    .map(|p| self.unbind_pattern(module, *p, tree, symbols, ast_tree, ast_strings))
+                    .map(|p| self.unbind_pattern(module, *p, tree, symbols, ast_tree, ast_strings, context))
                     .collect();
                 ast::Pattern::Union { patterns }
             }
         };
-        ast_tree.insert(ast_pattern, span)
+        let ast_pattern_id = ast_tree.insert(ast_pattern, span);
+        context.map(pattern_id.into_any(), ast_pattern_id.into_any());
+        ast_pattern_id
     }
 
     /// Unbind a DIR pattern field to an AST pattern field.
@@ -181,6 +231,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::PatternField> {
         let pattern_field = tree.get(pattern_field_id);
         let span = self.unbind_span(module, pattern_field_id.into());
@@ -192,13 +243,22 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(m));
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name =
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
-                let pattern = pattern
-                    .map(|p| self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings));
+                let pattern = pattern.map(|p| {
+                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                });
                 let default = default.map(|d| {
-                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        d,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::PatternField::Named {
                     mutability,
@@ -214,12 +274,20 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(m));
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name =
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
                 let alias = ast_strings.intern_from(&self.program.strings, *alias);
                 let default = default.map(|d| {
-                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        d,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::PatternField::Alias {
                     mutability,
@@ -229,14 +297,21 @@ impl Compiler {
                 }
             }
             dir::PatternField::Positional { pattern } => {
-                let pattern =
-                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings);
+                let pattern = self.unbind_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::PatternField::Positional { pattern }
             }
             dir::PatternField::Spread {
                 mutability, name, ..
             } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(m));
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name = name.map(|n| {
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, n))
                 });
@@ -244,6 +319,8 @@ impl Compiler {
             }
             dir::PatternField::Elision => ast::PatternField::Elision,
         };
-        ast_tree.insert(ast_pattern_field, span)
+        let ast_field_id = ast_tree.insert(ast_pattern_field, span);
+        context.map(pattern_field_id.into_any(), ast_field_id.into_any());
+        ast_field_id
     }
 }

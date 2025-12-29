@@ -4,6 +4,7 @@ use destack_dir::{self as dir};
 use destack_source::{FileId, Span};
 use destack_workspace::{Module, ProfileId};
 
+use super::UnbindContext;
 use crate::Compiler;
 
 /// Result of unbinding a module.
@@ -45,6 +46,8 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         roots: &[dir::LocalNodeId<dir::Expression>],
     ) -> UnboundModule {
+        let mut context = UnbindContext::new();
+
         // rebuild the AST tree
         let mut ast_tree = ast::NodeTree::new();
         let mut ast_strings = StringPool::new();
@@ -58,9 +61,20 @@ impl Compiler {
                     symbols,
                     &mut ast_tree,
                     &mut ast_strings,
+                    &mut context,
                 )
             })
             .collect();
+
+        // attach annotations after all nodes have been unbound
+        self.attach_unbind_annotations(
+            module,
+            tree,
+            symbols,
+            &mut ast_tree,
+            &mut ast_strings,
+            &mut context,
+        );
 
         UnboundModule {
             tree: ast_tree,

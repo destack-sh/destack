@@ -3,6 +3,7 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
@@ -11,6 +12,7 @@ impl Compiler {
         &self,
         literal: &dir::ScalarLiteral,
         ast_strings: &mut StringPool,
+        _context: &mut UnbindContext,
     ) -> ast::ScalarLiteral {
         match literal {
             dir::ScalarLiteral::Boolean(boolean) => ast::ScalarLiteral::Boolean(*boolean),
@@ -31,7 +33,11 @@ impl Compiler {
     }
 
     /// Unbind a DIR type literal to an AST type literal.
-    pub(super) fn unbind_type_literal(&self, literal: &dir::TypeLiteral) -> ast::TypeLiteral {
+    pub(super) fn unbind_type_literal(
+        &self,
+        literal: &dir::TypeLiteral,
+        context: &mut UnbindContext,
+    ) -> ast::TypeLiteral {
         match literal {
             dir::TypeLiteral::Any => ast::TypeLiteral::Any,
             dir::TypeLiteral::Never => ast::TypeLiteral::Never,
@@ -49,17 +55,17 @@ impl Compiler {
                 dir::PrimitiveType::Symbol => ast::TypeLiteral::Symbol,
                 dir::PrimitiveType::UniqueSymbol => ast::TypeLiteral::UniqueSymbol,
                 dir::PrimitiveType::Int(int_type) => {
-                    ast::TypeLiteral::Int(self.unbind_int_type(int_type))
+                    ast::TypeLiteral::Int(self.unbind_int_type(int_type, context))
                 }
                 dir::PrimitiveType::Float(float_type) => {
-                    ast::TypeLiteral::Float(self.unbind_float_type(float_type))
+                    ast::TypeLiteral::Float(self.unbind_float_type(float_type, context))
                 }
             },
             dir::TypeLiteral::Composite(composite_type) => {
-                ast::TypeLiteral::Composite(self.unbind_declaration_type(composite_type))
+                ast::TypeLiteral::Composite(self.unbind_declaration_type(composite_type, context))
             }
             dir::TypeLiteral::Intrinsic(intrinsic) => {
-                ast::TypeLiteral::Intrinsic(self.unbind_type_intrinsic(intrinsic))
+                ast::TypeLiteral::Intrinsic(self.unbind_type_intrinsic(intrinsic, context))
             }
             dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
                 dir::ScalarLiteral::Boolean(_) => ast::TypeLiteral::Boolean,
@@ -79,7 +85,11 @@ impl Compiler {
     }
 
     /// Unbind a DIR type intrinsic to an AST type intrinsic.
-    fn unbind_type_intrinsic(&self, intrinsic: &dir::TypeIntrinsic) -> ast::TypeIntrinsic {
+    fn unbind_type_intrinsic(
+        &self,
+        intrinsic: &dir::TypeIntrinsic,
+        _context: &mut UnbindContext,
+    ) -> ast::TypeIntrinsic {
         match intrinsic {
             dir::TypeIntrinsic::Uppercase => ast::TypeIntrinsic::Uppercase,
             dir::TypeIntrinsic::Lowercase => ast::TypeIntrinsic::Lowercase,
@@ -91,7 +101,11 @@ impl Compiler {
     }
 
     /// Unbind a DIR int type to an AST int type.
-    fn unbind_int_type(&self, int_type: &dir::IntType) -> ast::IntType {
+    fn unbind_int_type(
+        &self,
+        int_type: &dir::IntType,
+        _context: &mut UnbindContext,
+    ) -> ast::IntType {
         match int_type {
             dir::IntType::IntP => ast::IntType::Pointer { is_signed: true },
             dir::IntType::UintP => ast::IntType::Pointer { is_signed: false },
@@ -151,7 +165,11 @@ impl Compiler {
     }
 
     /// Unbind a DIR float type to an AST float type.
-    fn unbind_float_type(&self, float_type: &dir::FloatType) -> ast::FloatType {
+    fn unbind_float_type(
+        &self,
+        float_type: &dir::FloatType,
+        _context: &mut UnbindContext,
+    ) -> ast::FloatType {
         match float_type {
             dir::FloatType::Float32 => ast::FloatType { width: Some(32) },
             dir::FloatType::Float64 => ast::FloatType { width: Some(64) },
@@ -165,6 +183,7 @@ impl Compiler {
     fn unbind_declaration_type(
         &self,
         declaration_type: &dir::DeclarationType,
+        _context: &mut UnbindContext,
     ) -> ast::DeclarationType {
         match declaration_type {
             dir::DeclarationType::Type => ast::DeclarationType::Type,
@@ -188,6 +207,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::TemplateLiteral {
         match literal {
             dir::TemplateLiteral::String { string } => {
@@ -209,6 +229,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect();
