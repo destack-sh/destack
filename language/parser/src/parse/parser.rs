@@ -54,6 +54,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a ternary if expression.
     /// Disallows some shorthand syntax like lambdas that looks like a ternary part.
     pub in_ternary_condition: bool = false,
+    /// Whether we're parsing the right side of a type conditional.
+    /// Stops the parse at `?` so the outer conditional can consume it.
+    pub in_type_conditional_right: bool = false,
     /// Whether we're parsing a for each expression.
     /// Disallows container operators.
     pub in_for_each: bool = false,
@@ -197,6 +200,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_type_conditional_right=true`.
+    #[inline]
+    pub(crate) fn in_type_conditional_right(self) -> Self {
+        Self {
+            in_type_conditional_right: true,
+            ..self
+        }
+    }
+
     /// Set `in_for_each=true`.
     #[inline]
     pub(crate) fn in_for_each(self) -> Self {
@@ -248,6 +260,7 @@ impl ParserOptions {
         Self {
             in_parenthesis: false,
             in_statement_position: false,
+            in_type_conditional_right: false,
             ..self
         }
     }

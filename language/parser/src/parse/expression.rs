@@ -1564,12 +1564,18 @@ impl Parser {
             self.eat_newline_maybe()?; // allow newlines after infix operator
 
             // eat right expression
-            let right_expression_id = self.with_options(
-                self.options
-                    .not_in_position()
-                    .in_left_precedence(right_operator.precedence()),
-                |parser| parser.eat_expression(),
-            )?;
+            let mut right_options = self
+                .options
+                .not_in_position()
+                .in_left_precedence(right_operator.precedence());
+            if matches!(
+                right_operator,
+                InfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+            ) {
+                right_options = right_options.in_type_conditional_right();
+            }
+            let right_expression_id =
+                self.with_options(right_options, |parser| parser.eat_expression())?;
 
             // combine into new left expression
             let left_expression =
@@ -1585,9 +1591,7 @@ impl Parser {
             && (self.peek_token(TokenType::Maybe).is_ok()
                 || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok())
         {
-            if self.options.left_precedence
-                == Some(TypeBinaryOperator::Extends.precedence())
-            {
+            if self.options.in_type_conditional_right {
                 return Ok(left_expression_id);
             }
             let (left, right) = match self.tree.get(left_expression_id) {
