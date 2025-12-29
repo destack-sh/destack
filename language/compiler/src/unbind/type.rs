@@ -3,12 +3,17 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
     /// Unbind a DIR mutability to an AST mutability.
     #[inline]
-    pub(super) fn unbind_mutability(&self, mutability: dir::Mutability) -> ast::Mutability {
+    pub(super) fn unbind_mutability(
+        &self,
+        _context: &mut UnbindContext,
+        mutability: dir::Mutability,
+    ) -> ast::Mutability {
         match mutability {
             dir::Mutability::Immutable => ast::Mutability::Immutable,
             dir::Mutability::Mutable => ast::Mutability::Mutable,
@@ -17,7 +22,11 @@ impl Compiler {
 
     /// Unbind a DIR variance bound to an AST variance bound.
     #[inline]
-    pub(super) fn unbind_variance_bound(&self, variance: dir::VarianceBound) -> ast::VarianceBound {
+    pub(super) fn unbind_variance_bound(
+        &self,
+        _context: &mut UnbindContext,
+        variance: dir::VarianceBound,
+    ) -> ast::VarianceBound {
         match variance {
             dir::VarianceBound::Implements => ast::VarianceBound::Implements,
             dir::VarianceBound::Extends => ast::VarianceBound::Extends,
@@ -27,7 +36,11 @@ impl Compiler {
 
     /// Unbind a DIR type modifier to an AST type modifier.
     #[inline]
-    pub(super) fn unbind_type_modifier(&self, modifier: dir::TypeModifier) -> ast::TypeModifier {
+    pub(super) fn unbind_type_modifier(
+        &self,
+        _context: &mut UnbindContext,
+        modifier: dir::TypeModifier,
+    ) -> ast::TypeModifier {
         match modifier {
             dir::TypeModifier::Add => ast::TypeModifier::Add,
             dir::TypeModifier::Remove => ast::TypeModifier::Remove,
@@ -39,17 +52,22 @@ impl Compiler {
     #[inline]
     pub(super) fn unbind_type_mapped_modifiers(
         &self,
+        _context: &mut UnbindContext,
         modifiers: dir::TypeMappedModifiers,
     ) -> ast::TypeMappedModifiers {
         ast::TypeMappedModifiers {
-            readonly: self.unbind_type_modifier(modifiers.readonly),
-            optional: self.unbind_type_modifier(modifiers.optional),
+            readonly: self.unbind_type_modifier(_context, modifiers.readonly),
+            optional: self.unbind_type_modifier(_context, modifiers.optional),
         }
     }
 
     /// Unbind a DIR asynchrony to an AST asynchrony.
     #[inline]
-    pub(super) fn unbind_asynchrony(&self, asynchrony: dir::Asynchrony) -> ast::Asynchrony {
+    pub(super) fn unbind_asynchrony(
+        &self,
+        _context: &mut UnbindContext,
+        asynchrony: dir::Asynchrony,
+    ) -> ast::Asynchrony {
         match asynchrony {
             dir::Asynchrony::Sync => ast::Asynchrony::Sync,
             dir::Asynchrony::Async => ast::Asynchrony::Async,
@@ -58,7 +76,11 @@ impl Compiler {
 
     /// Unbind a DIR type kind to an AST type kind.
     #[inline]
-    pub(super) fn unbind_type_kind(&self, kind: dir::TypeKind) -> ast::TypeKind {
+    pub(super) fn unbind_type_kind(
+        &self,
+        _context: &mut UnbindContext,
+        kind: dir::TypeKind,
+    ) -> ast::TypeKind {
         match kind {
             dir::TypeKind::Structural => ast::TypeKind::Structural,
             dir::TypeKind::Nominal => ast::TypeKind::Nominal,
@@ -74,6 +96,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::Generics {
         let static_parameters = generics
             .static_parameters
@@ -89,6 +112,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     })
                     .collect()
@@ -104,6 +128,7 @@ impl Compiler {
                         symbols,
                         ast_tree,
                         ast_strings,
+                        context,
                     )
                 })
                 .collect()
@@ -123,6 +148,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::Heritage {
         let extends_types = heritage.extends_types.as_ref().map(|extends_types| {
             extends_types
@@ -135,6 +161,7 @@ impl Compiler {
                         symbols,
                         ast_tree,
                         ast_strings,
+                        context,
                     )
                 })
                 .collect()
@@ -150,6 +177,7 @@ impl Compiler {
                         symbols,
                         ast_tree,
                         ast_strings,
+                        context,
                     )
                 })
                 .collect()

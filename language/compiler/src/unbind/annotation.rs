@@ -3,6 +3,7 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 #[allow(dead_code)]
@@ -11,6 +12,7 @@ impl Compiler {
     #[inline]
     pub(super) fn unbind_annotation_position(
         &self,
+        _context: &mut UnbindContext,
         position: dir::AnnotationPosition,
     ) -> ast::AnnotationPosition {
         match position {
@@ -29,12 +31,13 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Annotation> {
         let annotation = tree.get(annotation_id);
         let span = self.unbind_span(module, annotation_id.into());
         let ast_annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
-                let position = self.unbind_annotation_position(*position);
+                let position = self.unbind_annotation_position(context, *position);
                 let string = ast_strings.intern_from(&self.program.strings, *string);
                 let doc = ast::Doc {
                     string,
@@ -47,7 +50,7 @@ impl Compiler {
                 }
             }
             dir::Annotation::Comment { position, string } => {
-                let position = self.unbind_annotation_position(*position);
+                let position = self.unbind_annotation_position(context, *position);
                 let string = ast_strings.intern_from(&self.program.strings, *string);
                 let comment = ast::Comment {
                     string,
@@ -64,7 +67,7 @@ impl Compiler {
                 left,
                 arguments,
             } => {
-                let position = self.unbind_annotation_position(*position);
+                let position = self.unbind_annotation_position(context, *position);
                 // Unbind the left expression to get a path
                 let left_expr = tree.get(*left);
                 let path = match left_expr {
@@ -72,7 +75,7 @@ impl Compiler {
                     | dir::Expression::LocalReference { path, .. }
                     | dir::Expression::ModuleReference { path, .. }
                     | dir::Expression::GlobalReference { path, .. } => {
-                        self.unbind_path(path, ast_strings)
+                        self.unbind_path(path, ast_strings, context)
                     }
                     _ => {
                         // Fallback: a single-segment path with an error placeholder
@@ -84,7 +87,15 @@ impl Compiler {
                 let arguments = arguments.as_ref().map(|args| {
                     args.iter()
                         .map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(
+                                module,
+                                *arg,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
                         })
                         .collect()
                 });
@@ -99,31 +110,40 @@ impl Compiler {
                 }
             }
         };
-        ast_tree.insert(ast_annotation, span)
+        let ast_annotation_id = ast_tree.insert(ast_annotation, span);
+        context.map(annotation_id.into_any(), ast_annotation_id.into_any());
+        ast_annotation_id
     }
 
-    /// Unbind and append all annotations for a DIR node to the given AST node.
-    pub(super) fn unbind_annotations_for_node(
+    /// Attach all annotations for a DIR module to the given AST tree.
+    pub(super) fn attach_unbind_annotations(
         &self,
         module: &Module,
-        node_id: dir::LocalNodeIdAny,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
-        ast_node_id: ast::LocalNodeIdAny,
+        context: &mut UnbindContext,
     ) {
-        let annotations = tree.get_annotations(node_id.id);
-        for annotation_id in annotations {
-            let ast_annotation_id = self.unbind_annotation(
-                module,
-                annotation_id,
-                tree,
-                symbols,
-                ast_tree,
-                ast_strings,
-            );
-            ast_tree.append_annotation(ast_node_id.id, ast_annotation_id);
+        let nodes: Vec<(dir::LocalNodeIdAny, ast::LocalNodeIdAny)> = context
+            .node_map
+            .iter()
+            .map(|(dir_id, ast_id)| (*dir_id, *ast_id))
+            .collect();
+        for (dir_id, ast_id) in nodes {
+            let annotations = tree.get_annotations(dir_id.id);
+            for annotation_id in annotations {
+                let ast_annotation_id = self.unbind_annotation(
+                    module,
+                    annotation_id,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                ast_tree.append_annotation(ast_id.id, ast_annotation_id);
+            }
         }
     }
 }

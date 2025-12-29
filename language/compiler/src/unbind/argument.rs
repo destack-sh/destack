@@ -3,12 +3,14 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
     /// Unbind a DIR binding modifier to an AST binding modifier.
     pub(super) fn unbind_binding_modifier(
         &self,
+        _context: &mut UnbindContext,
         modifiers: &dir::BindingModifier,
     ) -> ast::BindingModifier {
         let kind = modifiers.kind.map(|kind| match kind {
@@ -57,6 +59,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Parameter> {
         let parameter = tree.get(parameter_id);
         let span = self.unbind_span(module, parameter_id.into());
@@ -67,10 +70,19 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
                 let default = default.map(|default| {
-                    self.unbind_expression(module, default, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        default,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Parameter::Named {
                     modifiers,
@@ -85,12 +97,21 @@ impl Compiler {
                 default,
                 ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let pattern =
-                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings);
+                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings, context);
                 let ty = None;
                 let default = default.map(|default| {
-                    self.unbind_expression(module, default, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        default,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::Parameter::Pattern {
                     modifiers,
@@ -102,7 +123,8 @@ impl Compiler {
             dir::Parameter::Variadic {
                 modifiers, name, ..
             } => {
-                let modifiers = modifiers.map(|modifiers| self.unbind_binding_modifier(&modifiers));
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name = ast_strings.intern_from(&self.program.strings, *name);
                 let ty = None;
                 ast::Parameter::Variadic {
@@ -112,7 +134,9 @@ impl Compiler {
                 }
             }
         };
-        ast_tree.insert(ast_parameter, span)
+        let ast_parameter_id = ast_tree.insert(ast_parameter, span);
+        context.map(parameter_id.into_any(), ast_parameter_id.into_any());
+        ast_parameter_id
     }
 
     /// Unbind a DIR argument to an AST argument.
@@ -124,6 +148,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Argument> {
         let argument = tree.get(argument_id);
         let span = self.unbind_span(module, argument_id.into());
@@ -131,8 +156,15 @@ impl Compiler {
             dir::Argument::Named { name, value } => {
                 let name =
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Argument::Named {
                     modifiers: None,
                     name,
@@ -140,16 +172,30 @@ impl Compiler {
                 }
             }
             dir::Argument::Positional { value } => {
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Argument::Positional {
                     modifiers: None,
                     value,
                 }
             }
             dir::Argument::Spread { value } => {
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Argument::Spread {
                     modifiers: None,
                     value,
@@ -157,8 +203,15 @@ impl Compiler {
             }
             dir::Argument::Labeled { label, value } => {
                 let label = ast_strings.intern_from(&self.program.strings, *label);
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Argument::Labeled {
                     modifiers: None,
                     label,
@@ -166,6 +219,8 @@ impl Compiler {
                 }
             }
         };
-        ast_tree.insert(ast_argument, span)
+        let ast_argument_id = ast_tree.insert(ast_argument, span);
+        context.map(argument_id.into_any(), ast_argument_id.into_any());
+        ast_argument_id
     }
 }

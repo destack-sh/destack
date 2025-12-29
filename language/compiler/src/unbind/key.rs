@@ -3,6 +3,7 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
@@ -15,6 +16,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::Key {
         match key {
             dir::DynamicKey::Name(name) => {
@@ -33,13 +35,21 @@ impl Compiler {
                     symbols,
                     ast_tree,
                     ast_strings,
+                    context,
                 );
                 ast::Key::Expression(expression)
             }
             dir::DynamicKey::NamedExpression { name, key } => {
                 let name = ast_strings.intern_from(&self.program.strings, *name);
-                let key =
-                    self.unbind_expression(module, *key, tree, symbols, ast_tree, ast_strings);
+                let key = self.unbind_expression(
+                    module,
+                    *key,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::Key::NamedExpression { name, key }
             }
         }

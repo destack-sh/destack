@@ -1,7 +1,7 @@
 use crate::{Compiler, ExecuteError, ExecuteResult, TaskResultCollector};
 
 use destack_source::ModuleId;
-use destack_workspace::{BUILTIN_PACKAGE_ID, ComptimeOutput, ModuleComptime, ProfileId};
+use destack_workspace::{ComptimeOutput, ModuleComptime, ProfileId};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use {destack_dir as dir, destack_machine as machine};

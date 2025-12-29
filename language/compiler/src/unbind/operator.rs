@@ -1,11 +1,16 @@
 use destack_ast::{self as ast};
 use destack_dir::{self as dir};
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
     /// Unbind a DIR unary operator to an AST unary operator.
-    pub(super) fn unbind_unary_operator(&self, operator: dir::UnaryOperator) -> ast::UnaryOperator {
+    pub(super) fn unbind_unary_operator(
+        &self,
+        _context: &mut UnbindContext,
+        operator: dir::UnaryOperator,
+    ) -> ast::UnaryOperator {
         match operator {
             dir::UnaryOperator::PostIncrement => ast::UnaryOperator::PostIncrement,
             dir::UnaryOperator::PostDecrement => ast::UnaryOperator::PostDecrement,
@@ -24,6 +29,7 @@ impl Compiler {
     /// Unbind a DIR binary operator to an AST binary operator.
     pub(super) fn unbind_binary_operator(
         &self,
+        _context: &mut UnbindContext,
         operator: dir::BinaryOperator,
     ) -> ast::BinaryOperator {
         match operator {
@@ -80,6 +86,7 @@ impl Compiler {
     /// Unbind a DIR assign operator to an AST assign operator.
     pub(super) fn unbind_assign_operator(
         &self,
+        _context: &mut UnbindContext,
         operator: dir::AssignOperator,
     ) -> ast::AssignOperator {
         match operator {
@@ -138,6 +145,7 @@ impl Compiler {
     /// Unbind a DIR type unary operator to an AST type unary operator.
     pub(super) fn unbind_type_unary_operator(
         &self,
+        _context: &mut UnbindContext,
         operator: dir::TypeUnaryOperator,
     ) -> ast::TypeUnaryOperator {
         match operator {
@@ -155,6 +163,7 @@ impl Compiler {
     /// Unbind a DIR type binary operator to an AST type binary operator.
     pub(super) fn unbind_type_binary_operator(
         &self,
+        _context: &mut UnbindContext,
         operator: dir::TypeBinaryOperator,
     ) -> ast::TypeBinaryOperator {
         match operator {

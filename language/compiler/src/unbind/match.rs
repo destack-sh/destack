@@ -3,6 +3,7 @@ use destack_base::StringPool;
 use destack_dir::{self as dir};
 use destack_workspace::Module;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
@@ -15,13 +16,22 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::MatchSelector {
         match selector {
             dir::MatchSelector::Pattern { pattern, guard } => {
                 let ast_pattern =
-                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings);
+                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings, context);
                 let ast_guard = guard.map(|guard| {
-                    self.unbind_expression(module, guard, tree, symbols, ast_tree, ast_strings)
+                    self.unbind_expression(
+                        module,
+                        guard,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
                 ast::MatchSelector::Pattern {
                     pattern: ast_pattern,
@@ -41,6 +51,7 @@ impl Compiler {
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::MatchCase> {
         let case = tree.get(case_id);
         let span = self.unbind_span(module, case_id.into());
@@ -53,9 +64,17 @@ impl Compiler {
                     symbols,
                     ast_tree,
                     ast_strings,
+                    context,
                 );
-                let body =
-                    self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
+                let body = self.unbind_expression(
+                    module,
+                    *body,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::MatchCase::Expression { selector, body }
             }
             dir::MatchCase::Block { selector, body, .. } => {
@@ -66,11 +85,22 @@ impl Compiler {
                     symbols,
                     ast_tree,
                     ast_strings,
+                    context,
                 );
-                let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings);
+                let body = self.unbind_block(
+                    module,
+                    *body,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::MatchCase::Block { selector, body }
             }
         };
-        ast_tree.insert(ast_case, span)
+        let ast_case_id = ast_tree.insert(ast_case, span);
+        context.map(case_id.into_any(), ast_case_id.into_any());
+        ast_case_id
     }
 }

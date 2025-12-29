@@ -4,6 +4,7 @@ use destack_dir::{self as dir};
 use destack_workspace::Module;
 use smallvec::smallvec;
 
+use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
@@ -17,42 +18,43 @@ impl Compiler {
             symbols: &dir::SymbolTable,
             ast_tree: &mut ast::NodeTree,
             ast_strings: &mut StringPool,
+            context: &mut UnbindContext,
         ) -> ast::LocalNodeId<ast::Expression> {
             let expression = tree.get(expression_id);
             let span = self.unbind_span(module, expression_id.into());
 
             let ast_expression = match expression {
                 dir::Expression::Declaration { declaration } => {
-                    let declaration = self.unbind_declaration(module, *declaration, tree, symbols, ast_tree, ast_strings);
+                    let declaration = self.unbind_declaration(module, *declaration, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Declaration(declaration)
                 }
 
                 dir::Expression::Block { block } => {
-                    let block = self.unbind_block(module, *block, tree, symbols, ast_tree, ast_strings);
+                    let block = self.unbind_block(module, *block, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Block(block)
                 }
 
                 dir::Expression::Statement { statement } => {
-                    let statement = self.unbind_expression(module, *statement, tree, symbols, ast_tree, ast_strings);
+                    let statement = self.unbind_expression(module, *statement, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Statement(statement)
                 }
 
                 dir::Expression::Labelled { label, body, .. } => {
                     let label = ast_strings.intern_from(&self.program.strings, *label);
-                    let body = self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
+                    let body = self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Labelled { label, body }
                 }
 
                 dir::Expression::UnresolvedImport { kind, target, items, arguments }
                 | dir::Expression::Import { kind, target, items, arguments, .. } => {
-                    let kind = self.unbind_dependency_kind(*kind);
+                    let kind = self.unbind_dependency_kind(context, *kind);
                     let target = ast_strings.intern_from(&self.program.strings, *target);
                     let items = items.iter().map(|item| {
-                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     let arguments = arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     ast::Expression::Import { kind, target, items, arguments }
@@ -60,32 +62,32 @@ impl Compiler {
 
                 dir::Expression::UnresolvedReExport { target, kind, items }
                 | dir::Expression::ReExport { target, kind, items, .. } => {
-                    let kind = self.unbind_dependency_kind(*kind);
+                    let kind = self.unbind_dependency_kind(context, *kind);
                     let target = ast_strings.intern_from(&self.program.strings, *target);
                     let items = items.iter().map(|item| {
-                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Export { kind, target: Some(target), items }
                 }
 
                 dir::Expression::Export { kind, items } => {
-                    let kind = self.unbind_dependency_kind(*kind);
+                    let kind = self.unbind_dependency_kind(context, *kind);
                     let items = items.iter().map(|item| {
-                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Export { kind, target: None, items }
                 }
 
                 dir::Expression::Let { descriptor, mutability, declarators } => {
-                    let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings);
-                    let ast_mutability = self.unbind_mutability(*mutability);
+                    let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings, context);
+                    let ast_mutability = self.unbind_mutability(context, *mutability);
                     // Derive LetKind from mutability (DIR doesn't preserve original keyword)
                     let kind = match mutability {
                         dir::Mutability::Immutable => ast::LetKind::Const,
                         dir::Mutability::Mutable => ast::LetKind::Let,
                     };
                     let declarators = declarators.iter().map(|decl| {
-                        self.unbind_declarator(module, *decl, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_declarator(module, *decl, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Let { kind, descriptor, mutability: ast_mutability, declarators }
                 }
@@ -94,19 +96,20 @@ impl Compiler {
                     descriptor,
                     declarators,
                 } => {
-                    let asynchrony = self.unbind_asynchrony(*asynchrony);
-                    let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings);
+                    let asynchrony = self.unbind_asynchrony(context, *asynchrony);
+                    let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings, context);
                     let declarators = declarators
                         .iter()
                         .map(|decl| {
-                            self.unbind_declarator(
-                                module,
-                                *decl,
-                                tree,
-                                symbols,
-                                ast_tree,
-                                ast_strings,
-                            )
+                        self.unbind_declarator(
+                            module,
+                            *decl,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
                         })
                         .collect();
                     ast::Expression::Using {
@@ -117,15 +120,15 @@ impl Compiler {
                 }
 
                 dir::Expression::TypeUnary { operator, right } => {
-                    let operator = self.unbind_type_unary_operator(*operator);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let operator = self.unbind_type_unary_operator(context, *operator);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TypeUnary { operator, right }
                 }
 
                 dir::Expression::TypeBinary { left, operator, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let operator = self.unbind_type_binary_operator(*operator);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let operator = self.unbind_type_binary_operator(context, *operator);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TypeBinary { left, operator, right }
                 }
 
@@ -135,10 +138,10 @@ impl Compiler {
                     then_type,
                     else_type,
                 } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
-                    let then_type = self.unbind_expression(module, *then_type, tree, symbols, ast_tree, ast_strings);
-                    let else_type = self.unbind_expression(module, *else_type, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
+                    let then_type = self.unbind_expression(module, *then_type, tree, symbols, ast_tree, ast_strings, context);
+                    let else_type = self.unbind_expression(module, *else_type, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TypeConditional {
                         left,
                         right,
@@ -160,6 +163,7 @@ impl Compiler {
                         symbols,
                         ast_tree,
                         ast_strings,
+                        context,
                     );
                     let key_remap = parameter.key_remap.map(|key_remap| {
                         self.unbind_expression(
@@ -169,6 +173,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     });
                     let parameter = ast::TypeMappedParameter {
@@ -176,8 +181,8 @@ impl Compiler {
                         constraint,
                         key_remap,
                     };
-                    let modifiers = self.unbind_type_mapped_modifiers(*modifiers);
-                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                    let modifiers = self.unbind_type_mapped_modifiers(context, *modifiers);
+                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TypeMapped {
                         parameter,
                         modifiers,
@@ -186,8 +191,8 @@ impl Compiler {
                 }
 
                 dir::Expression::TypeIndex { left, index } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let index = self.unbind_expression(module, *index, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let index = self.unbind_expression(module, *index, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TypeIndex { left, index }
                 }
 
@@ -199,7 +204,7 @@ impl Compiler {
                     let spans = spans
                         .iter()
                         .map(|span| {
-                            self.unbind_expression(module, *span, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_expression(module, *span, tree, symbols, ast_tree, ast_strings, context)
                         })
                         .collect();
                     ast::Expression::TypeTemplateLiteral { strings, spans }
@@ -208,7 +213,7 @@ impl Compiler {
                 dir::Expression::TypeImport { target, qualifier } => {
                     let target = ast_strings.intern_from(&self.program.strings, *target);
                     let qualifier = qualifier.as_ref().map(|qualifier| {
-                        self.unbind_path(qualifier, ast_strings)
+                        self.unbind_path(qualifier, ast_strings, context)
                     });
                     ast::Expression::TypeImport { target, qualifier }
                 }
@@ -223,6 +228,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     });
                     ast::Expression::TypeInfer { name, constraint }
@@ -234,7 +240,7 @@ impl Compiler {
                     target,
                 } => {
                     let subject =
-                        self.unbind_type_predicate_subject(*subject, module, symbols, ast_strings);
+                        self.unbind_type_predicate_subject(*subject, module, symbols, ast_strings, context);
                     let target = target.map(|target| {
                         self.unbind_expression(
                             module,
@@ -243,6 +249,7 @@ impl Compiler {
                             symbols,
                             ast_tree,
                             ast_strings,
+                            context,
                         )
                     });
                     ast::Expression::TypePredicate {
@@ -253,65 +260,65 @@ impl Compiler {
                 }
 
                 dir::Expression::Unary { operator, right } => {
-                    let operator = self.unbind_unary_operator(*operator);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let operator = self.unbind_unary_operator(context, *operator);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Unary { operator, right }
                 }
 
                 dir::Expression::ValueOf { mutability, variance, right } => {
-                    let mutability = mutability.map(|m| self.unbind_mutability(m));
-                    let variance = variance.map(|v| self.unbind_variance_bound(v));
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+                    let variance = variance.map(|v| self.unbind_variance_bound(context, v));
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::ValueOf { mutability, variance, right }
                 }
 
                 dir::Expression::ReferenceOf { mutability, variance, right } => {
-                    let mutability = mutability.map(|m| self.unbind_mutability(m));
-                    let variance = variance.map(|v| self.unbind_variance_bound(v));
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+                    let variance = variance.map(|v| self.unbind_variance_bound(context, v));
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::ReferenceOf { mutability, variance, right }
                 }
 
                 dir::Expression::Binary { left, operator, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let operator = self.unbind_binary_operator(*operator);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let operator = self.unbind_binary_operator(context, *operator);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Binary { left, operator, right }
                 }
 
                 dir::Expression::Assign { left, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Assign { left, operator: ast::AssignOperator::Assign, right }
                 }
 
                 dir::Expression::AssignBinary { left, operator, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let operator = self.unbind_assign_operator(*operator);
-                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let operator = self.unbind_assign_operator(context, *operator);
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Assign { left, operator, right }
                 }
 
                 dir::Expression::Member { left, name, static_arguments } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
                     let name = ast_strings.intern_from(&self.program.strings, *name);
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     ast::Expression::Member { left, name, static_arguments }
                 }
 
                 dir::Expression::Call { left, static_arguments, dynamic_arguments } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     let dynamic_arguments = dynamic_arguments.iter().map(|arg| {
-                        self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Call {
                         position: ast::PostfixPosition::Direct,
@@ -322,8 +329,8 @@ impl Compiler {
                 }
 
                 dir::Expression::Index { left, right } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
-                    let index = right.map(|r| self.unbind_expression(module, r, tree, symbols, ast_tree, ast_strings));
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let index = right.map(|r| self.unbind_expression(module, r, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Index {
                         position: ast::PostfixPosition::Direct,
                         left,
@@ -332,7 +339,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Maybe { left } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Maybe {
                         position: ast::PostfixPosition::Direct,
                         left,
@@ -340,7 +347,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Must { left } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Must {
                         position: ast::PostfixPosition::Direct,
                         left,
@@ -348,20 +355,20 @@ impl Compiler {
                 }
 
                 dir::Expression::New { left, static_arguments, dynamic_arguments } => {
-                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings);
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     let dynamic_arguments = dynamic_arguments.iter().map(|arg| {
-                        self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::New { left, static_arguments, dynamic_arguments }
                 }
 
                 dir::Expression::Delete { value } => {
-                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Delete { value }
                 }
 
@@ -369,10 +376,10 @@ impl Compiler {
                 | dir::Expression::LocalReference { path, static_arguments, .. }
                 | dir::Expression::ModuleReference { path, static_arguments, .. }
                 | dir::Expression::GlobalReference { path, static_arguments, .. } => {
-                    let path = self.unbind_path(path, ast_strings);
+                    let path = self.unbind_path(path, ast_strings, context);
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     ast::Expression::Path { path, static_arguments }
@@ -401,12 +408,12 @@ impl Compiler {
                 }
 
                 dir::Expression::ScalarLiteral { value } => {
-                    let value = self.unbind_scalar_literal(value, ast_strings);
+                    let value = self.unbind_scalar_literal(value, ast_strings, context);
                     ast::Expression::ScalarLiteral(value)
                 }
 
                 dir::Expression::TypeLiteral { value } => {
-                    let value = self.unbind_type_literal(value);
+                    let value = self.unbind_type_literal(value, context);
                     ast::Expression::TypeLiteral(value)
                 }
 
@@ -416,60 +423,60 @@ impl Compiler {
                 }
 
                 dir::Expression::TemplateExpression { value } => {
-                    let value = self.unbind_template_literal(module,value, tree, symbols, ast_tree, ast_strings);
+                    let value = self.unbind_template_literal(module,value, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TemplateExpression { value }
                 }
 
                 dir::Expression::TaggedTemplateExpression { tag, value } => {
-                    let tag = self.unbind_expression(module, *tag, tree, symbols, ast_tree, ast_strings);
-                    let value = self.unbind_template_literal(module,value, tree, symbols, ast_tree, ast_strings);
+                    let tag = self.unbind_expression(module, *tag, tree, symbols, ast_tree, ast_strings, context);
+                    let value = self.unbind_template_literal(module,value, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::TaggedTemplateExpression { tag, value }
                 }
 
                 dir::Expression::RangeExpression { start, end, is_inclusive } => {
-                    let start = self.unbind_expression(module, *start, tree, symbols, ast_tree, ast_strings);
-                    let end = self.unbind_expression(module, *end, tree, symbols, ast_tree, ast_strings);
+                    let start = self.unbind_expression(module, *start, tree, symbols, ast_tree, ast_strings, context);
+                    let end = self.unbind_expression(module, *end, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::RangeExpression { start, end, is_inclusive: *is_inclusive }
                 }
 
                 dir::Expression::ArrayExpression { elements } => {
                     let elements = elements.iter().map(|el| {
-                        self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::ArrayExpression { elements }
                 }
 
                 dir::Expression::TupleExpression { elements } => {
                     let elements = elements.iter().map(|el| {
-                        self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::TupleExpression { elements }
                 }
 
                 dir::Expression::SequenceExpression { expressions } => {
                     let expressions = expressions.iter().map(|expr| {
-                        self.unbind_expression(module, *expr, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, *expr, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::SequenceExpression { expressions }
                 }
 
                 dir::Expression::ObjectExpression { properties } => {
                     let properties = properties.iter().map(|prop| {
-                        self.unbind_property(module, *prop, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_property(module, *prop, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::ObjectExpression { ty: None, properties }
                 }
 
                 dir::Expression::TreeExpression { left, arguments, elements } => {
-                    let left = left.map(|l| self.unbind_expression(module, l, tree, symbols, ast_tree, ast_strings));
+                    let left = left.map(|l| self.unbind_expression(module, l, tree, symbols, ast_tree, ast_strings, context));
                     let arguments = arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     let elements = elements.as_ref().map(|els| {
                         els.iter().map(|el| {
-                            self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings)
+                            self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
                     ast::Expression::TreeExpression { left, arguments, elements }
@@ -477,8 +484,8 @@ impl Compiler {
 
                 dir::Expression::TaggedScalarExpression { ty, value } => {
                     // emit as call: ty(value)
-                    let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings);
-                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                    let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings, context);
+                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     let value_arg = ast_tree.insert(
                         ast::Argument::Positional {
                             modifiers: None,
@@ -496,9 +503,9 @@ impl Compiler {
 
                 dir::Expression::TaggedTupleExpression { ty, elements } => {
                     // emit as call: ty(elements...)
-                    let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings);
+                    let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings, context);
                     let elements = elements.iter().map(|el| {
-                        self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Call {
                         position: ast::PostfixPosition::Direct,
@@ -509,35 +516,35 @@ impl Compiler {
                 }
 
                 dir::Expression::TaggedObjectExpression { ty, properties } => {
-                    let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings);
+                    let ty = self.unbind_expression(module, *ty, tree, symbols, ast_tree, ast_strings, context);
                     let properties = properties.iter().map(|prop| {
-                        self.unbind_property(module, *prop, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_property(module, *prop, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::ObjectExpression { ty: Some(ty), properties }
                 }
 
                 dir::Expression::Parenthesized { expression } => {
-                    let expression = self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings);
+                    let expression = self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Parenthesized { expression }
                 }
 
                 dir::Expression::If { kind, condition, then_expression, else_expression } => {
-                    let kind = self.unbind_if_kind(*kind);
-                    let condition = self.unbind_expression(module, *condition, tree, symbols, ast_tree, ast_strings);
-                    let then_expression = self.unbind_expression(module, *then_expression, tree, symbols, ast_tree, ast_strings);
+                    let kind = self.unbind_if_kind(context, *kind);
+                    let condition = self.unbind_expression(module, *condition, tree, symbols, ast_tree, ast_strings, context);
+                    let then_expression = self.unbind_expression(module, *then_expression, tree, symbols, ast_tree, ast_strings, context);
                     let else_expression = else_expression.map(|e| {
-                        self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings, context)
                     });
                     ast::Expression::If { kind, condition, then_expression, else_expression }
                 }
 
                 dir::Expression::Loop { kind, condition, body, .. } => {
-                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings);
+                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
                     match kind {
                         dir::LoopKind::NoTest => ast::Expression::Loop { body },
                         dir::LoopKind::PreTest => {
                             let condition = condition.map(|c| {
-                                self.unbind_expression(module, c, tree, symbols, ast_tree, ast_strings)
+                                self.unbind_expression(module, c, tree, symbols, ast_tree, ast_strings, context)
                             }).unwrap_or_else(|| {
                                 ast_tree.insert(ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(true)), span)
                             });
@@ -545,7 +552,7 @@ impl Compiler {
                         }
                         dir::LoopKind::PostTest => {
                             let condition = condition.map(|c| {
-                                self.unbind_expression(module, c, tree, symbols, ast_tree, ast_strings)
+                                self.unbind_expression(module, c, tree, symbols, ast_tree, ast_strings, context)
                             }).unwrap_or_else(|| {
                                 ast_tree.insert(ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(true)), span)
                             });
@@ -562,8 +569,8 @@ impl Compiler {
                     body,
                     ..
                 } => {
-                    let asynchrony = self.unbind_asynchrony(*asynchrony);
-                    let kind = self.unbind_for_each_kind(*kind);
+                    let asynchrony = self.unbind_asynchrony(context, *asynchrony);
+                    let kind = self.unbind_for_each_kind(context, *kind);
                     let binding = match binding {
                         dir::ForEachBinding::Pattern { pattern } => {
                             let pattern = self.unbind_pattern(
@@ -573,6 +580,7 @@ impl Compiler {
                                 symbols,
                                 ast_tree,
                                 ast_strings,
+                                context,
                             );
                             ast::ForEachBinding::Pattern { pattern }
                         }
@@ -584,15 +592,16 @@ impl Compiler {
                                 symbols,
                                 ast_tree,
                                 ast_strings,
+                                context,
                             );
                             ast::ForEachBinding::Using {
-                                asynchrony: self.unbind_asynchrony(*asynchrony),
+                                asynchrony: self.unbind_asynchrony(context, *asynchrony),
                                 pattern,
                             }
                         }
                     };
-                    let iterator = self.unbind_expression(module, *iterator, tree, symbols, ast_tree, ast_strings);
-                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings);
+                    let iterator = self.unbind_expression(module, *iterator, tree, symbols, ast_tree, ast_strings, context);
+                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::ForEach {
                         asynchrony,
                         kind,
@@ -604,28 +613,28 @@ impl Compiler {
 
                 dir::Expression::For { initialization, condition, increment, body, .. } => {
                     let initialization = initialization.map(|i| {
-                        self.unbind_expression(module, i, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, i, tree, symbols, ast_tree, ast_strings, context)
                     });
                     let condition = condition.map(|c| {
-                        self.unbind_expression(module, c, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, c, tree, symbols, ast_tree, ast_strings, context)
                     });
                     let increment = increment.map(|i| {
-                        self.unbind_expression(module, i, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, i, tree, symbols, ast_tree, ast_strings, context)
                     });
-                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings);
+                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::For { initialization, condition, increment, body }
                 }
 
                 dir::Expression::Try { try_expression, catch_pattern, catch_expression, finally_expression, .. } => {
-                    let try_expression = self.unbind_expression(module, *try_expression, tree, symbols, ast_tree, ast_strings);
+                    let try_expression = self.unbind_expression(module, *try_expression, tree, symbols, ast_tree, ast_strings, context);
                     let catch_pattern = catch_pattern.map(|p| {
-                        self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
                     });
                     let catch_expression = catch_expression.map(|e| {
-                        self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings, context)
                     });
                     let finally_expression = finally_expression.map(|e| {
-                        self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings, context)
                     });
                     ast::Expression::Try { try_expression, catch_pattern, catch_expression, finally_expression }
                 }
@@ -635,22 +644,22 @@ impl Compiler {
                         dir::MatchSource::Match => ast::MatchKind::Match,
                         _ => ast::MatchKind::Switch,
                     };
-                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     let cases = cases.iter().map(|case| {
-                        self.unbind_match_case(module, *case, tree, symbols, ast_tree, ast_strings)
+                        self.unbind_match_case(module, *case, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Match { kind, value, cases }
                 }
 
                 dir::Expression::UnresolvedBreak { target, value } => {
                     let label = Some(ast_strings.intern_from(&self.program.strings, *target));
-                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings));
+                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
                 }
 
                 dir::Expression::Break { target, value, .. } => {
                     let label = target.map(|t| ast_strings.intern_from(&self.program.strings, t));
-                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings));
+                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
                 }
 
@@ -665,33 +674,33 @@ impl Compiler {
                 }
 
                 dir::Expression::Throw { value } => {
-                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings);
+                    let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Throw { value }
                 }
 
                 dir::Expression::Await { expression } => {
-                    let expression = self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings);
+                    let expression = self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Await { expression }
                 }
 
                 dir::Expression::AwaitMaybe { expression } => {
-                    let expression = self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings);
+                    let expression = self.unbind_expression(module, *expression, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::AwaitMaybe { expression }
                 }
 
                 dir::Expression::Comptime { body } => {
-                    let body = self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings);
+                    let body = self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Comptime { body }
                 }
 
                 dir::Expression::Yield { cardinality, value } => {
-                    let cardinality = self.unbind_yield_cardinality(*cardinality);
-                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings));
+                    let cardinality = self.unbind_yield_cardinality(context, *cardinality);
+                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Yield { cardinality, value }
                 }
 
                 dir::Expression::Return { value } => {
-                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings));
+                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Return { value }
                 }
 
@@ -701,16 +710,7 @@ impl Compiler {
             };
 
             let ast_expression_id = ast_tree.insert(ast_expression, span);
-            // apply annotations from DIR to preserve comments in unbound output
-            self.unbind_annotations_for_node(
-                module,
-                expression_id.into_any(),
-                tree,
-                symbols,
-                ast_tree,
-                ast_strings,
-                ast_expression_id.into_any(),
-            );
+            context.map(expression_id.into_any(), ast_expression_id.into_any());
 
             ast_expression_id
         }
@@ -723,6 +723,7 @@ impl Compiler {
         module: &Module,
         symbols: &dir::SymbolTable,
         ast_strings: &mut StringPool,
+        _context: &mut UnbindContext,
     ) -> ast::TypePredicateSubject {
         match subject {
             dir::TypePredicateSubject::This => ast::TypePredicateSubject::This,
@@ -754,7 +755,7 @@ impl Compiler {
 
     /// Unbind if kind to AST if kind.
     #[inline]
-    fn unbind_if_kind(&self, kind: dir::IfKind) -> ast::IfKind {
+    fn unbind_if_kind(&self, _context: &mut UnbindContext, kind: dir::IfKind) -> ast::IfKind {
         match kind {
             dir::IfKind::If => ast::IfKind::If,
             dir::IfKind::Ternary => ast::IfKind::Ternary,
@@ -765,6 +766,7 @@ impl Compiler {
     #[inline]
     fn unbind_yield_cardinality(
         &self,
+        _context: &mut UnbindContext,
         cardinality: dir::YieldCardinality,
     ) -> ast::YieldCardinality {
         match cardinality {
@@ -775,7 +777,11 @@ impl Compiler {
 
     /// Unbind for each kind to AST for each kind.
     #[inline]
-    fn unbind_for_each_kind(&self, kind: dir::ForEachKind) -> ast::ForEachKind {
+    fn unbind_for_each_kind(
+        &self,
+        _context: &mut UnbindContext,
+        kind: dir::ForEachKind,
+    ) -> ast::ForEachKind {
         match kind {
             dir::ForEachKind::In => ast::ForEachKind::In,
             dir::ForEachKind::Of => ast::ForEachKind::Of,
