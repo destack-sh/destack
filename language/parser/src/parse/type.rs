@@ -831,6 +831,22 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_conditional_multiline_nested() {
+        let mut test = TestParser::new("type T = A extends B ?\n    C extends D ? E : F\n    : G");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends B ? C extends D ? E : F : G
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { then_type, .. } => {
+                    assert_node!(parser.tree, *then_type, Expression::TypeConditional { .. });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_intersection_with_inline_object() {
         let mut test = TestParser::new("type T = Z & { a: string | undefined }");
         let mut parser = test.prepare();
