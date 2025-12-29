@@ -20,12 +20,12 @@ pub enum TaskWarning {
     /// Warning during elaboration.
     Elaborate(ElaborateWarning),
     // --------------------------------------------------
+    /// Warning during execution.
+    Execute(ExecuteWarning),
     /// Warning during lowering.
     Lower(LowerWarning),
     /// Warning during verification.
     Verify(VerifyWarning),
-    /// Warning during execution.
-    Execute(ExecuteWarning),
     /// Warning during optimization.
     Optimize(OptimizeWarning),
     // --------------------------------------------------
@@ -44,9 +44,9 @@ impl TaskWarning {
             Self::Resolve(_) => TaskPhase::Resolve,
             Self::Analyze(_) => TaskPhase::Analyze,
             Self::Elaborate(_) => TaskPhase::Elaborate,
+            Self::Execute(_) => TaskPhase::Execute,
             Self::Lower(_) => TaskPhase::Lower,
             Self::Verify(_) => TaskPhase::Verify,
-            Self::Execute(_) => TaskPhase::Execute,
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
@@ -67,9 +67,9 @@ impl TaskWarning {
             Self::Resolve(warning) => warning.sub_code(),
             Self::Analyze(warning) => warning.sub_code(),
             Self::Elaborate(warning) => warning.sub_code(),
+            Self::Execute(warning) => warning.sub_code(),
             Self::Lower(warning) => warning.sub_code(),
             Self::Verify(warning) => warning.sub_code(),
-            Self::Execute(warning) => warning.sub_code(),
             Self::Optimize(warning) => warning.sub_code(),
             Self::Generate(warning) => warning.sub_code(),
             Self::Link(warning) => warning.sub_code(),
@@ -90,9 +90,9 @@ impl TaskWarning {
             Self::Resolve(warning) => warning.anchor(),
             Self::Analyze(warning) => warning.anchor(),
             Self::Elaborate(warning) => warning.anchor(),
+            Self::Execute(warning) => warning.anchor(),
             Self::Lower(warning) => warning.anchor(),
             Self::Verify(warning) => warning.anchor(),
-            Self::Execute(warning) => warning.anchor(),
             Self::Optimize(warning) => warning.anchor(),
             Self::Generate(warning) => warning.anchor(),
             Self::Link(warning) => warning.anchor(),
@@ -107,9 +107,9 @@ impl TaskWarning {
             Self::Resolve(warning) => warning.message(program),
             Self::Analyze(warning) => warning.message(program),
             Self::Elaborate(warning) => warning.message(program),
+            Self::Execute(warning) => warning.message(program),
             Self::Lower(warning) => warning.message(program),
             Self::Verify(warning) => warning.message(program),
-            Self::Execute(warning) => warning.message(program),
             Self::Optimize(warning) => warning.message(program),
             Self::Generate(warning) => warning.message(program),
             Self::Link(warning) => warning.message(program),

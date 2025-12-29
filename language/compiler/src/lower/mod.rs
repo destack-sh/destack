@@ -1,4 +1,5 @@
 mod block;
+mod constant;
 mod declaration;
 mod error;
 mod expression;

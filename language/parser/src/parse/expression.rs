@@ -1585,13 +1585,18 @@ impl Parser {
             && (self.peek_token(TokenType::Maybe).is_ok()
                 || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok())
         {
+            if self.options.left_precedence
+                == Some(TypeBinaryOperator::Extends.precedence())
+            {
+                return Ok(left_expression_id);
+            }
             let (left, right) = match self.tree.get(left_expression_id) {
                 Expression::TypeBinary {
                     left,
                     operator: TypeBinaryOperator::Extends,
                     right,
                 } => (*left, *right),
-                _ => return Ok(left_expression_id),
+                _ => return Err(ParseError::unexpected(self.peek()?.span)),
             };
 
             self.eat_newlines_maybe()?;

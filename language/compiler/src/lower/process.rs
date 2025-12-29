@@ -40,6 +40,7 @@ impl Compiler {
             })?;
 
         self.require_elaborate_module(module_id, profile)?;
+        self.require_execute_module_patch(module_id, profile)?;
 
         let module = self.program.modules.get(module_id);
 

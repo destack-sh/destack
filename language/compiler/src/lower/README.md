@@ -33,6 +33,8 @@ The mid-end/back-end flow from DIR to MIR (see [compiler/README.md](../README.md
 ```
 DIR (elaborated, canonical, profile-dependent)
  │
+ ├─→ Execute: run comptime blocks via MIR, patch DIR
+ │
  ├─→ Generate/JS: direct JS/TS output (preserves type-erased polymorphism)
  │
  └─→ Lower (THIS DOCUMENT)
@@ -40,7 +42,6 @@ DIR (elaborated, canonical, profile-dependent)
       MIR (monomorphized, typed, target-specific)
        │
        ├─→ Verify: validate control flow, types, safety
-       ├─→ Execute: run comptime blocks, feed results back
        ├─→ Optimize: inline, eliminate dead code, etc.
        │
        └─→ Generate
@@ -55,9 +56,9 @@ The basic tasks of the lowering pass are:
 5. **Lower control flow**: expressions → blocks with terminators
 6. **Allocate locals**: stack slots for variables and temporaries
 
-### Input: Canonical DIR
+### Input: Canonical DIR (Comptime Patched)
 
-Lower receives "canonical" typed DIR after Analyze and Elaborate (see [analyze/](../analyze/) and [elaborate/](../elaborate/)):
+Lower receives "canonical" typed DIR after Analyze, Elaborate, and Execute (see [analyze/](../analyze/) and [elaborate/](../elaborate/)):
 - All desugaring complete (e.g., `+=` → `+` and assign)
 - All patterns expanded to decision trees
 - All types fully inferred ("Types")

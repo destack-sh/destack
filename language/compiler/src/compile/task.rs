@@ -56,12 +56,12 @@ pub enum TaskPhase {
     /// Desugar, impute overloads, reify DIR.
     Elaborate = 5,
     // --------------------------------------------------
-    /// Lower DIR into MIR.
-    Lower = 6,
+    /// Execute comptime code and patch DIR before target lowering.
+    Execute = 6,
+    /// Lower patched DIR into MIR.
+    Lower = 7,
     /// Verify and flow-check MIR.
-    Verify = 7,
-    /// Execute comptime code.
-    Execute = 8,
+    Verify = 8,
     /// Optimize MIR.
     Optimize = 9,
     // --------------------------------------------------
@@ -94,7 +94,7 @@ impl TaskPhase {
             Self::Import | Self::Bind | Self::Resolve | Self::Analyze | Self::Elaborate => {
                 TaskRegion::Front
             }
-            Self::Lower | Self::Verify | Self::Execute | Self::Optimize => TaskRegion::Middle,
+            Self::Execute | Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
             Self::Generate | Self::Link | Self::Emit => TaskRegion::Back,
             Self::Lint => TaskRegion::Lint,
         }
@@ -129,7 +129,7 @@ impl TaskPhase {
             Self::Elaborate => "desugar, resolve overloads, reify",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify and flow-check MIR",
-            Self::Execute => "execute comptime code",
+            Self::Execute => "execute comptime code and patch DIR",
             Self::Optimize => "optimize MIR",
             Self::Generate => "generate DIR or MIR into artifacts",
             Self::Link => "link artifacts into final output",
@@ -172,12 +172,12 @@ pub enum Task {
     /// Desugar, resolve overloads, reify DIR.
     Elaborate(ElaborateTask),
     // --------------------------------------------------
+    /// Execute comptime code.
+    Execute(ExecuteTask),
     /// Lower DIR into MIR.
     Lower(LowerTask),
     /// Verify and flow-check MIR.
     Verify(VerifyTask),
-    /// Execute comptime code.
-    Execute(ExecuteTask),
     /// Optimize MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
@@ -201,9 +201,9 @@ impl Task {
             Self::Resolve(_) => TaskPhase::Resolve,
             Self::Analyze(_) => TaskPhase::Analyze,
             Self::Elaborate(_) => TaskPhase::Elaborate,
+            Self::Execute(_) => TaskPhase::Execute,
             Self::Lower(_) => TaskPhase::Lower,
             Self::Verify(_) => TaskPhase::Verify,
-            Self::Execute(_) => TaskPhase::Execute,
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
@@ -220,9 +220,9 @@ impl Task {
             Self::Resolve(t) => t.anchor(),
             Self::Analyze(t) => t.anchor(),
             Self::Elaborate(t) => t.anchor(),
+            Self::Execute(t) => t.anchor(),
             Self::Lower(t) => t.anchor(),
             Self::Verify(t) => t.anchor(),
-            Self::Execute(t) => t.anchor(),
             Self::Optimize(t) => t.anchor(),
             Self::Generate(t) => t.anchor(),
             Self::Link(t) => t.anchor(),
@@ -244,9 +244,9 @@ impl Task {
             Self::Resolve(task) => task.sub_code(),
             Self::Analyze(task) => task.sub_code(),
             Self::Elaborate(task) => task.sub_code(),
+            Self::Execute(task) => task.sub_code(),
             Self::Lower(task) => task.sub_code(),
             Self::Verify(task) => task.sub_code(),
-            Self::Execute(task) => task.sub_code(),
             Self::Optimize(task) => task.sub_code(),
             Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
@@ -269,9 +269,9 @@ impl TaskDebug for Task {
             Self::Resolve(task) => task.name(),
             Self::Analyze(task) => task.name(),
             Self::Elaborate(task) => task.name(),
+            Self::Execute(task) => task.name(),
             Self::Lower(task) => task.name(),
             Self::Verify(task) => task.name(),
-            Self::Execute(task) => task.name(),
             Self::Optimize(task) => task.name(),
             Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
@@ -287,9 +287,9 @@ impl TaskDebug for Task {
             Self::Resolve(task) => task.trace_args(program),
             Self::Analyze(task) => task.trace_args(program),
             Self::Elaborate(task) => task.trace_args(program),
+            Self::Execute(task) => task.trace_args(program),
             Self::Lower(task) => task.trace_args(program),
             Self::Verify(task) => task.trace_args(program),
-            Self::Execute(task) => task.trace_args(program),
             Self::Optimize(task) => task.trace_args(program),
             Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),
