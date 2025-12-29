@@ -153,7 +153,7 @@ Some of these features are already discouraged in modern TypeScript (strict mode
 
 ### Object.prototype Methods
 
-Object prototype methods that depend on a dynamic prototype chain are emulated using RTTI, comptime, or just not available:
+Object prototype methods that depend on a dynamic prototype chain are emulated using RTTI, comptime, or just not available if there is no obvious semantic equivalent:
 
 | Method | Status | Alternative |
 |--------|--------|-------------|
@@ -166,7 +166,7 @@ Object prototype methods that depend on a dynamic prototype chain are emulated u
 
 When RTTI is available, `Object.keys/values/entries` and `hasOwnProperty` can be
 lowered for structs/classes by reading their reflected property lists.
-For `Record<K, V>` (which lowers to `Map<K, V>` on native targets), these map
+For `Record<K, V>` (which aliases to `Map<K, V>` on native targets), these map
 to the equivalent `Map` methods.
 
 For `toString()`, types implement the `Display` interface:

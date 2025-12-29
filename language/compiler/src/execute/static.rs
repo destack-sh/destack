@@ -80,7 +80,6 @@ impl Compiler {
                 end,
                 is_inclusive,
             } => {
-                // build range endpoints as child expressions
                 let start_any = tree.reserve_from(
                     dir::NodeType::Expression,
                     anchor_id,
@@ -120,7 +119,6 @@ impl Compiler {
                 })
             }
             dir::StaticExpression::ArrayExpression { elements } => {
-                // build positional arguments for array elements
                 let mut argument_ids = Vec::with_capacity(elements.len());
                 for element in elements {
                     let argument_any = tree.reserve_from(

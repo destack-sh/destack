@@ -41,4 +41,9 @@ impl MachineOptions {
             max_instructions: Some(100_000),
         }
     }
+
+    /// Create options for comptime execution.
+    pub fn comptime() -> Self {
+        Self::default()
+    }
 }
