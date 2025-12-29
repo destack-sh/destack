@@ -211,7 +211,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
     
     a: T
     b?: T
-    c: T?
+    c: T
     private d: int32 = 4
 }
 "###,
@@ -284,13 +284,11 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_string!(parser, *name, "b");
                 assert_expression_path!(parser, parser.tree.get(*ty), "T");
             });
-            // c: T?
+            // c: T
             assert_node!(parser.tree, members[4], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "c");
-                assert_node!(parser.tree, *ty, Expression::Maybe { left, position: _ } => {
-                    assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
-                        assert_path!(parser, *path, "T");
-                    });
+                assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "T");
                 });
             });
             // private d: int32 = 4

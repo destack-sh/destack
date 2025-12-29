@@ -1164,6 +1164,22 @@ impl Parser {
 
         // eat all regular postfix operators
         while self.peek().is_ok() {
+            // stop before ternary boundary so postfix parsing does not consume ':'
+            if self.options.in_ternary_condition
+                && (self.peek_token(TokenType::Colon).is_ok()
+                    || self.peek_newline().is_ok()
+                        && self.peek_next_token(TokenType::Colon).is_ok())
+            {
+                break;
+            }
+            // stop before static boundary so postfix parsing does not consume '>'
+            if self.options.in_static
+                && (self.peek_token(TokenType::GreaterThan).is_ok()
+                    || self.peek_newline().is_ok()
+                        && self.peek_next_token(TokenType::GreaterThan).is_ok())
+            {
+                break;
+            }
             // unary postfix operations
             if let Ok(operator) = self.peek_unary_postfix_operator() {
                 let operator_start = self.mark();
@@ -1318,9 +1334,19 @@ impl Parser {
                     && self.peek_next_token(TokenType::Dot).is_ok()
                     && self.peek_next_next_token(TokenType::Maybe).is_ok()
             {
+                let is_type_conditional = self.options.in_type
+                    && matches!(
+                        self.tree.get(left_expression_id),
+                        Expression::TypeBinary {
+                            operator: TypeBinaryOperator::Extends,
+                            ..
+                        }
+                    );
                 self.eat_newlines_maybe()?; // eat newlines
                 // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
-                if self.peek_token(TokenType::Maybe).is_ok()
+                if !self.options.in_type
+                    && self.peek_token(TokenType::Maybe).is_ok()
+                    && !is_type_conditional
                     && (self.peek_next_any_stop().is_ok()
                         && self.language.is_destack()
                         && self.prev_token_type() != TokenType::Newline
@@ -1339,7 +1365,8 @@ impl Parser {
                     );
                 }
                 // dot maybe
-                else if self.peek_token(TokenType::Dot).is_ok()
+                else if !self.options.in_type
+                    && self.peek_token(TokenType::Dot).is_ok()
                     && self.peek_next_token(TokenType::Maybe).is_ok()
                 {
                     self.bump(); // eat .
