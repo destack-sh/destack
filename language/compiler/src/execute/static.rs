@@ -62,13 +62,11 @@ impl Compiler {
         &self,
         tree: &mut dir::NodeTree,
         module_id: ModuleId,
-        anchor_expression_id: dir::LocalNodeId<dir::Expression>,
-        parent: dir::LocalNodeIdAny,
+        anchor_id: dir::LocalNodeIdAny,
+        parent_id: dir::LocalNodeIdAny,
         scope: (dir::LocalScopeId, dir::LocalScopeMark),
         value: &dir::StaticExpression,
     ) -> ExecuteResult<dir::Expression> {
-        let anchor_any = anchor_expression_id.into_any();
-
         match value {
             dir::StaticExpression::ScalarLiteral { value } => Ok(dir::Expression::ScalarLiteral {
                 value: value.clone(),
@@ -85,14 +83,14 @@ impl Compiler {
                 // build range endpoints as child expressions
                 let start_any = tree.reserve_from(
                     dir::NodeType::Expression,
-                    anchor_any,
+                    anchor_id,
                     scope,
-                    Some(parent),
+                    Some(parent_id),
                 );
                 let start_expression = self.static_expression_to_expression(
                     tree,
                     module_id,
-                    anchor_expression_id,
+                    anchor_id,
                     start_any,
                     scope,
                     start,
@@ -101,14 +99,14 @@ impl Compiler {
 
                 let end_any = tree.reserve_from(
                     dir::NodeType::Expression,
-                    anchor_any,
+                    anchor_id,
                     scope,
-                    Some(parent),
+                    Some(parent_id),
                 );
                 let end_expression = self.static_expression_to_expression(
                     tree,
                     module_id,
-                    anchor_expression_id,
+                    anchor_id,
                     end_any,
                     scope,
                     end,
@@ -127,20 +125,20 @@ impl Compiler {
                 for element in elements {
                     let argument_any = tree.reserve_from(
                         dir::NodeType::Argument,
-                        anchor_any,
+                        anchor_id,
                         scope,
-                        Some(parent),
+                        Some(parent_id),
                     );
                     let value_any = tree.reserve_from(
                         dir::NodeType::Expression,
-                        anchor_any,
+                        anchor_id,
                         scope,
                         Some(argument_any),
                     );
                     let value_expression = self.static_expression_to_expression(
                         tree,
                         module_id,
-                        anchor_expression_id,
+                        anchor_id,
                         value_any,
                         scope,
                         element,
@@ -161,20 +159,20 @@ impl Compiler {
                 for element in elements {
                     let argument_any = tree.reserve_from(
                         dir::NodeType::Argument,
-                        anchor_any,
+                        anchor_id,
                         scope,
-                        Some(parent),
+                        Some(parent_id),
                     );
                     let value_any = tree.reserve_from(
                         dir::NodeType::Expression,
-                        anchor_any,
+                        anchor_id,
                         scope,
                         Some(argument_any),
                     );
                     let value_expression = self.static_expression_to_expression(
                         tree,
                         module_id,
-                        anchor_expression_id,
+                        anchor_id,
                         value_any,
                         scope,
                         element,
@@ -195,14 +193,14 @@ impl Compiler {
                 for property in properties {
                     let property_any = tree.reserve_from(
                         dir::NodeType::Property,
-                        anchor_any,
+                        anchor_id,
                         scope,
-                        Some(parent),
+                        Some(parent_id),
                     );
                     let property = self.static_property_to_property(
                         tree,
                         module_id,
-                        anchor_expression_id,
+                        anchor_id,
                         property_any,
                         scope,
                         property,
@@ -216,7 +214,7 @@ impl Compiler {
                 })
             }
             _ => Err(ExecuteError::UnsupportedConstruct {
-                node: anchor_expression_id.into_global_any(module_id),
+                node: anchor_id.into_global(module_id),
             }),
         }
     }
@@ -226,13 +224,11 @@ impl Compiler {
         &self,
         tree: &mut dir::NodeTree,
         module_id: ModuleId,
-        anchor_expression_id: dir::LocalNodeId<dir::Expression>,
-        parent: dir::LocalNodeIdAny,
+        anchor_id: dir::LocalNodeIdAny,
+        parent_id: dir::LocalNodeIdAny,
         scope: (dir::LocalScopeId, dir::LocalScopeMark),
         property: &dir::StaticProperty,
     ) -> ExecuteResult<dir::Property> {
-        let anchor_any = anchor_expression_id.into_any();
-
         match property {
             dir::StaticProperty::Field {
                 modifiers,
@@ -241,17 +237,16 @@ impl Compiler {
                 default,
                 symbol,
             } => {
-                // build the field value expression
                 let value_any = tree.reserve_from(
                     dir::NodeType::Expression,
-                    anchor_any,
+                    anchor_id,
                     scope,
-                    Some(parent),
+                    Some(parent_id),
                 );
                 let value_expression = self.static_expression_to_expression(
                     tree,
                     module_id,
-                    anchor_expression_id,
+                    anchor_id,
                     value_any,
                     scope,
                     value,
@@ -262,14 +257,14 @@ impl Compiler {
                     Some(default) => {
                         let default_any = tree.reserve_from(
                             dir::NodeType::Expression,
-                            anchor_any,
+                            anchor_id,
                             scope,
-                            Some(parent),
+                            Some(parent_id),
                         );
                         let default_expression = self.static_expression_to_expression(
                             tree,
                             module_id,
-                            anchor_expression_id,
+                            anchor_id,
                             default_any,
                             scope,
                             default,
@@ -281,7 +276,7 @@ impl Compiler {
 
                 Ok(dir::Property::Field {
                     modifiers: *modifiers,
-                    key: key.clone(),
+                    key: *key,
                     value: Some(value_id),
                     default: default_id,
                     symbol: *symbol,
@@ -297,14 +292,14 @@ impl Compiler {
                 // build the method body expression
                 let body_any = tree.reserve_from(
                     dir::NodeType::Expression,
-                    anchor_any,
+                    anchor_id,
                     scope,
-                    Some(parent),
+                    Some(parent_id),
                 );
                 let body_expression = self.static_expression_to_expression(
                     tree,
                     module_id,
-                    anchor_expression_id,
+                    anchor_id,
                     body_any,
                     scope,
                     body,
@@ -313,14 +308,14 @@ impl Compiler {
 
                 Ok(dir::Property::Method {
                     modifiers: *modifiers,
-                    key: key.clone(),
+                    key: *key,
                     signature: signature.clone(),
                     body: Some(body_id),
                     symbol: *symbol,
                 })
             }
             dir::StaticProperty::Unevaluated { .. } => Err(ExecuteError::UnsupportedConstruct {
-                node: anchor_expression_id.into_global_any(module_id),
+                node: anchor_id.into_global(module_id),
             }),
         }
     }
