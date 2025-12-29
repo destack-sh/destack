@@ -425,7 +425,7 @@ pub struct DsConfigCompilerOptions {
     pub no_global_this: bool,
     /// Forbid dynamic `import()` and `require()` expressions.
     pub no_dynamic_import: bool,
-    /// Forbid defineProperty, prototype mutation, delete (require static object shapes).
+    /// Forbid defineProperty, prototype mutation, delete, and declaration expressions.
     pub no_dynamic_shapes: bool,
     /// Forbid computed property access `obj[expr]` where expr isn't constant.
     pub no_computed_property_access: bool,
@@ -1301,7 +1301,7 @@ pub struct CompilerOptionsJson {
     pub no_global_this: Option<bool>,
     /// Forbid dynamic `import()` and `require()` expressions.
     pub no_dynamic_import: Option<bool>,
-    /// Forbid defineProperty, prototype mutation, delete (require static object shapes).
+    /// Forbid defineProperty, prototype mutation, delete, and declaration expressions.
     pub no_dynamic_shapes: Option<bool>,
     /// Forbid computed property access `obj[expr]` where expr isn't constant.
     pub no_computed_property_access: Option<bool>,
