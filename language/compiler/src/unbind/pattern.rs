@@ -6,6 +6,7 @@ use destack_workspace::Module;
 use super::UnbindContext;
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR pattern to an AST pattern.
     pub(super) fn unbind_pattern(
@@ -212,7 +213,17 @@ impl Compiler {
             dir::Pattern::Union { patterns } => {
                 let patterns = patterns
                     .iter()
-                    .map(|p| self.unbind_pattern(module, *p, tree, symbols, ast_tree, ast_strings, context))
+                    .map(|p| {
+                        self.unbind_pattern(
+                            module,
+                            *p,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
                     .collect();
                 ast::Pattern::Union { patterns }
             }
@@ -250,15 +261,7 @@ impl Compiler {
                     self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
                 });
                 let default = default.map(|d| {
-                    self.unbind_expression(
-                        module,
-                        d,
-                        tree,
-                        symbols,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
+                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
                 });
                 ast::PatternField::Named {
                     mutability,
@@ -279,15 +282,7 @@ impl Compiler {
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
                 let alias = ast_strings.intern_from(&self.program.strings, *alias);
                 let default = default.map(|d| {
-                    self.unbind_expression(
-                        module,
-                        d,
-                        tree,
-                        symbols,
-                        ast_tree,
-                        ast_strings,
-                        context,
-                    )
+                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
                 });
                 ast::PatternField::Alias {
                     mutability,

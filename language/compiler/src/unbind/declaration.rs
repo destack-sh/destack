@@ -6,6 +6,7 @@ use destack_workspace::Module;
 use super::UnbindContext;
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR declaration kind to an AST declaration kind.
     #[inline]
@@ -107,15 +108,7 @@ impl Compiler {
             context,
         );
         let value = declarator.value.map(|value| {
-            self.unbind_expression(
-                module,
-                value,
-                tree,
-                symbols,
-                ast_tree,
-                ast_strings,
-                context,
-            )
+            self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings, context)
         });
         let ast_declarator = ast::Declarator {
             pattern,
@@ -551,15 +544,7 @@ impl Compiler {
         let name =
             ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, field.name));
         let value = field.value.map(|value| {
-            self.unbind_expression(
-                module,
-                value,
-                tree,
-                symbols,
-                ast_tree,
-                ast_strings,
-                context,
-            )
+            self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings, context)
         });
         let ast_field = ast::EnumField { name, value };
         let ast_field_id = ast_tree.insert(ast_field, span);

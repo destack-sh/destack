@@ -6,6 +6,7 @@ use destack_workspace::Module;
 use super::UnbindContext;
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR MatchSelector to an AST MatchSelector.
     fn unbind_match_selector(
@@ -20,8 +21,15 @@ impl Compiler {
     ) -> ast::MatchSelector {
         match selector {
             dir::MatchSelector::Pattern { pattern, guard } => {
-                let ast_pattern =
-                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings, context);
+                let ast_pattern = self.unbind_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 let ast_guard = guard.map(|guard| {
                     self.unbind_expression(
                         module,
@@ -87,15 +95,8 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let body = self.unbind_block(
-                    module,
-                    *body,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
+                let body =
+                    self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
                 ast::MatchCase::Block { selector, body }
             }
         };

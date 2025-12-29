@@ -7,6 +7,7 @@ use super::UnbindContext;
 use crate::Compiler;
 
 #[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR annotation position to an AST annotation position.
     #[inline]

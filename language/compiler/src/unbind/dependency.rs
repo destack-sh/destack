@@ -6,6 +6,7 @@ use destack_workspace::Module;
 use super::UnbindContext;
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR dependency kind to an AST dependency kind.
     #[inline]
@@ -50,8 +51,15 @@ impl Compiler {
         let ast_item = match item {
             dir::DependencyItem::Value { mode, value } => {
                 let mode = self.unbind_dependency_mode(context, *mode);
-                let value =
-                    self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
+                let value = self.unbind_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::DependencyItem {
                     kind: None,
                     mode,
