@@ -75,7 +75,7 @@ class MyVisitor implements NodeVisitor {
 - `Expression::TypePredicate { asserts, subject, target }` for `x is T` and `asserts x is T`
 - `Expression::This` for `this` in both value and type contexts (avoid a separate `TypeThis`)
 - Keep `TypeUnary`/`TypeBinary` for operator-like constructs:
-  - `TypeUnary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, `!`, `?`, `!`
+- `TypeUnary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, prefix `!`, postfix `!`
   - `TypeBinary`: `as`, `is`, `instanceof`, `satisfies`, `extends`, `implements`
   - `infer` and `asserts` move to `TypeInfer`/`TypePredicate`
 - Add supporting structs/enums:

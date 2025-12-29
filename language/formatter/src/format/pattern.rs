@@ -25,7 +25,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 
         match self {
             Pattern::Wildcard => write!(f, [token("_")])?,
-            Pattern::Maybe(unwrap) => write!(f, [unwrap, token("?")])?,
+            Pattern::Must(unwrap) => write!(f, [unwrap, token("!")])?,
             Pattern::ReferenceOf { right, mutability } => {
                 write!(f, [token("&")])?;
                 if let Some(mutability) = mutability {
@@ -176,8 +176,8 @@ mod tests {
     }
 
     #[test]
-    fn test_format_pattern_unwrap() {
-        assert_format!("T?", "T?", |p| p.eat_pattern());
+    fn test_format_pattern_must() {
+        assert_format!("T!", "T!", |p| p.eat_pattern());
     }
 
     #[test]

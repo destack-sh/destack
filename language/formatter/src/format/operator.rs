@@ -29,7 +29,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             TypeUnaryOperator::Not => token("!"),
-            TypeUnaryOperator::Maybe => token("?"),
             TypeUnaryOperator::Must => token("!"),
             TypeUnaryOperator::Newtype => token("newtype"),
             TypeUnaryOperator::Type => token("type"),

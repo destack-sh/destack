@@ -27,7 +27,7 @@ impl Compiler {
             tree.reserve_from_source(NodeType::Pattern, ast_pattern_id.id, scope, parent_id);
         let pattern = match ast_pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
-            ast::Pattern::Maybe(ast_pattern_id) => Pattern::Maybe(self.bind_pattern(
+            ast::Pattern::Must(ast_pattern_id) => Pattern::Must(self.bind_pattern(
                 module,
                 ast,
                 scope,

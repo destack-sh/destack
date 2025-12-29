@@ -2762,7 +2762,7 @@ pub(crate) fn format_expression<'ast>(
             TypeUnaryOperator::Not => {
                 write!(f, [operator, right])?;
             }
-            TypeUnaryOperator::Maybe | TypeUnaryOperator::Must => {
+            TypeUnaryOperator::Must => {
                 write!(f, [right, operator])?;
             }
             TypeUnaryOperator::Newtype

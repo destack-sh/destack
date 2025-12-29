@@ -28,7 +28,6 @@ impl Compiler {
     ) -> TypeUnaryOperator {
         match type_unary_operator {
             ast::TypeUnaryOperator::Not => TypeUnaryOperator::Not,
-            ast::TypeUnaryOperator::Maybe => TypeUnaryOperator::Maybe,
             ast::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
             ast::TypeUnaryOperator::Newtype => TypeUnaryOperator::Newtype,
             ast::TypeUnaryOperator::Type => TypeUnaryOperator::Type,

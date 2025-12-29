@@ -553,7 +553,7 @@ The null pointer (0x0) is an invalid address for valid objects, so we can use it
 as the "none" discriminant without adding a tag byte:
 
 ```
-T?  where T is reference type  →  same size as T, null = 0x0
+T | null  where T is reference type  →  same size as T, null = 0x0
 ```
 
 This is the same optimization Rust uses for `Option<Box<T>>`, `Option<&T>`, etc.
@@ -561,7 +561,7 @@ The "niche" is the invalid bit pattern (null pointer) that we repurpose as a dis
 
 For value types, there's no invalid bit pattern to exploit, so we need a tag:
 ```
-int?  →  { tag: u8, value: int }  // 2 bytes overhead minimum
+int | null  →  { tag: u8, value: int }  // 2 bytes overhead minimum
 ```
 
 **Niche optimizations:**
@@ -570,13 +570,6 @@ Like Rust, we can exploit invalid bit patterns to save space in type layouts:
 - `boolean | null` → use value 2 for null (bool only uses 0 and 1)
 - `character | null` → use invalid Unicode scalar values
 - Enums with < 256 variants → use unused discriminant values
-
-**Discriminated union optimization:**
-
-When `null` is one variant of a union, we can often use the null pointer:
-```
-Result<T, null>  →  T? (just use null for error case, no tag needed)
-```
 
 ### BigInt
 

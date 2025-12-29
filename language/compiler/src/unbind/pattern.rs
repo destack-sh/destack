@@ -20,7 +20,7 @@ impl Compiler {
         let span = self.unbind_span(module, pattern_id.into());
         let ast_pattern = match pattern {
             dir::Pattern::Wildcard => ast::Pattern::Wildcard,
-            dir::Pattern::Maybe(inner_pattern_id) => {
+            dir::Pattern::Must(inner_pattern_id) => {
                 let inner = self.unbind_pattern(
                     module,
                     *inner_pattern_id,
@@ -29,7 +29,7 @@ impl Compiler {
                     ast_tree,
                     ast_strings,
                 );
-                ast::Pattern::Maybe(inner)
+                ast::Pattern::Must(inner)
             }
             dir::Pattern::ReferenceOf { mutability, right } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(m));

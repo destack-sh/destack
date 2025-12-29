@@ -233,10 +233,10 @@ impl Parser {
         // Postfix / infix patterns
         // ------------------------------------------------------------
 
-        // unwrap
-        if self.peek_token(TokenType::Maybe).is_ok() {
-            self.bump(); // eat ?
-            let pattern = Pattern::Maybe(pattern_id);
+        // must
+        if self.peek_token(TokenType::Not).is_ok() {
+            self.bump(); // eat !
+            let pattern = Pattern::Must(pattern_id);
             let pattern_id = self.tree.insert(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }
@@ -721,12 +721,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_maybe() {
-        let mut test = TestParser::new("1?");
+    fn test_parse_pattern_must() {
+        let mut test = TestParser::new("1!");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Maybe(inner) => {
+        assert_node!(parser.tree, pattern_id, Pattern::Must(inner) => {
             assert_node!(parser.tree, *inner, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });

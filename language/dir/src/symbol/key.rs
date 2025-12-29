@@ -11,8 +11,9 @@ pub enum StaticKey {
     /// Unique symbol expression (like `const x = Symbol("x");`).
     UniqueSymbol(LocalNodeIdAny),
     /// Global symbol key (like `Symbol.iterator`).
-    /// FUGU: support intrinsic/well-known Symbols
-    /// (and maybe also use intrinsic symbols for intrinsic operator intefaces..? Symbol.add, ..)
+    /// FUGU: support (and use?) intrinsic/well-known Symbols (see `symbol.wellknown.d.ds`)
+    /// (and maybe also use intrinsic symbols for intrinsic operator intefaces..? Symbol.add, ..
+    ///  .. should we make the wellknown symbols language items directly..?)
     GlobalSymbol(StringId),
 }
 

@@ -5,8 +5,8 @@ use crate::{Expression, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, 
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
-    /// Maybe pattern (like `T?`).
-    Maybe(LocalNodeId<Pattern>),
+    /// Must pattern (like `x!`).
+    Must(LocalNodeId<Pattern>),
     /// Reference pattern (like `&x`).
     ReferenceOf {
         mutability: Option<Mutability>,
