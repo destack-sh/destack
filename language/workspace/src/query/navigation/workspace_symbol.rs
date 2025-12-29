@@ -58,6 +58,7 @@ pub fn workspace_symbols(
 
             // get the kind based on declaration type
             let kind = match declaration {
+                dir::Declaration::Global { .. } => SymbolKind::Namespace,
                 dir::Declaration::Function { .. } => SymbolKind::Function,
                 dir::Declaration::Struct { .. } => SymbolKind::Struct,
                 dir::Declaration::Class { .. } => SymbolKind::Class,

@@ -137,6 +137,21 @@ impl Heritage {
 /// Declaration introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Declaration {
+    /// A Global is a global augmentation declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// declare global {
+    ///     interface Iterator<T> {
+    ///         next(): IteratorResult<T>;
+    ///     }
+    /// }
+    /// ```
+    Global {
+        descriptor: DeclarationDescriptor,
+        expressions: Vec<LocalNodeId<Expression>>,
+    },
+
     /// A Namespace is a namespace declaration.
     /// Namespaces may be whole directories, single files, or nested within a file.
     ///
@@ -441,6 +456,7 @@ impl Declaration {
     #[inline]
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
+            Declaration::Global { descriptor, .. } => descriptor,
             Declaration::Namespace { descriptor, .. } => descriptor,
             Declaration::Type { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,

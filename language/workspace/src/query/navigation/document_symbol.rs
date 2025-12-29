@@ -101,6 +101,7 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
     for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
         // get the kind based on declaration type
         let kind = match declaration {
+            Declaration::Global { .. } => SymbolKind::Namespace,
             Declaration::Function { .. } => SymbolKind::Function,
             Declaration::Struct { .. } => SymbolKind::Struct,
             Declaration::Class { .. } => SymbolKind::Class,
@@ -113,10 +114,13 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
 
         // get the declaration name using the descriptor method
         let descriptor = declaration.descriptor();
-        let name = descriptor
-            .name
-            .map(|string_id| ctx.ast.strings.get(string_id).to_string())
-            .unwrap_or_else(|| "<anonymous>".to_string());
+        let name = match declaration {
+            Declaration::Global { .. } => "global".to_string(),
+            _ => descriptor
+                .name
+                .map(|string_id| ctx.ast.strings.get(string_id).to_string())
+                .unwrap_or_else(|| "<anonymous>".to_string()),
+        };
 
         // get spans
         let ast_node_id = dir_tree.get_source(declaration_id.id);

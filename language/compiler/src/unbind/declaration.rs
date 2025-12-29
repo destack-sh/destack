@@ -134,6 +134,32 @@ impl Compiler {
         let declaration = tree.get(declaration_id);
         let span = self.unbind_span(module, declaration_id.into());
         let ast_declaration = match declaration {
+            dir::Declaration::Global {
+                descriptor,
+                expressions,
+                ..
+            } => {
+                let descriptor =
+                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
+                let expressions = expressions
+                    .iter()
+                    .map(|expression| {
+                        self.unbind_expression(
+                            module,
+                            *expression,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
+                    })
+                    .collect();
+                ast::Declaration::Global {
+                    descriptor,
+                    expressions,
+                }
+            }
             dir::Declaration::Namespace {
                 descriptor,
                 generics,

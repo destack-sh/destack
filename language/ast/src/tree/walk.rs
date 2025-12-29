@@ -774,6 +774,16 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Declaration, id.id);
 
     match declaration {
+        Declaration::Global {
+            descriptor,
+            expressions,
+        } => {
+            walk_declaration_descriptor(visitor, tree, descriptor);
+            for expression_id in expressions {
+                let expression = tree.get(*expression_id);
+                visitor.visit_expression(tree, *expression_id, expression);
+            }
+        }
         Declaration::Namespace {
             descriptor,
             generics,

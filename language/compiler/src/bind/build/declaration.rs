@@ -105,6 +105,44 @@ impl Compiler {
         (descriptor, scope_id)
     }
 
+    /// Bind AST declaration descriptor for a global augmentation.
+    pub(super) fn bind_global_descriptor(
+        &self,
+        _module: &Module,
+        _ast: &ModuleAst,
+        scope: (LocalScopeId, LocalScopeMark),
+        descriptor: &ast::DeclarationDescriptor,
+        symbols: &mut SymbolTable,
+    ) -> DeclarationDescriptor {
+        let export = descriptor
+            .export
+            .map(|export| self.bind_dependency_mode(export));
+        let binding = match descriptor.kind {
+            ast::DeclarationKind::Declaration => SymbolBinding::Ambient,
+            ast::DeclarationKind::Definition => SymbolBinding::Runtime,
+        };
+        let (symbol_id, _) = symbols.insert_symbol(
+            SymbolKind::Item,
+            SymbolType::Void,
+            SymbolSpace::Value,
+            binding,
+            None,
+            scope,
+            export,
+        );
+        let kind = self.bind_declaration_kind(descriptor.kind);
+        let abstraction = self.bind_declaration_abstraction(descriptor.abstraction);
+        let anchor = self.bind_binding_anchor(descriptor.anchor);
+        DeclarationDescriptor {
+            kind,
+            abstraction,
+            anchor,
+            name: None,
+            export,
+            symbol: symbol_id,
+        }
+    }
+
     /// Bind an AST declaration into a DIR declaration.
     pub(super) fn bind_declaration(
         &self,
@@ -125,6 +163,33 @@ impl Compiler {
             parent_id,
         );
         let declaration = match ast_declaration {
+            ast::Declaration::Global {
+                descriptor,
+                expressions,
+            } => {
+                let descriptor =
+                    self.bind_global_descriptor(module, ast, scope, descriptor, symbols);
+                let expressions = expressions
+                    .iter()
+                    .map(|expression| {
+                        self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *expression,
+                            Some(declaration_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+                Declaration::Global {
+                    descriptor,
+                    scope: scope.0,
+                    expressions,
+                }
+            }
             ast::Declaration::Namespace {
                 descriptor,
                 generics,
