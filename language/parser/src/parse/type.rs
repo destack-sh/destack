@@ -782,6 +782,13 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_optional_type_rejected() {
+        let mut test = TestParser::new("type T = Foo?");
+        let mut parser = test.prepare();
+        assert!(parser.eat_expression().is_err());
+    }
+
+    #[test]
     fn test_parse_readonly_type_expression() {
         let mut test = TestParser::new("readonly T");
         let mut parser = test.prepare();

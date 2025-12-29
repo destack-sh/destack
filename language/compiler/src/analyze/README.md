@@ -2,7 +2,7 @@
 
 Analyze transforms resolved DIR into fully typed and semantically validated DIR.
 Analyze computes Types, Instances, Resolutions, and flow aware narrowing.
-Elaborate consumes Analyze output to produce canonical DIR for Generate and Lower.
+Elaborate consumes Analyze output to produce canonical DIR for Execute and Lower.
 See [compiler/README.md](../README.md) for the full pipeline.
 See [lower/README.md](../lower/README.md) for how canonical DIR is consumed.
 
@@ -17,6 +17,10 @@ Analyze infers types, checks assignability, resolves overloads, and records Inst
 Flow sensitive typing ensures narrowing matches TypeScript semantics.
 The system is deterministic and stable under refactors and large code bases.
 
+Analyze also evaluates **static expressions**. These are a restricted subset of expressions
+that can be folded without executing user code. Static expressions are required for
+static parameters and other type-driven constructs that must be known during Analyze.
+
 ## Pipeline Context
 
 Analyze sits between Resolve and Elaborate in the per-profile pipeline.
@@ -29,10 +33,12 @@ Elaborate canonicalizes DIR using Analyze results.
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
-│   Bind ───► Resolve ───► Analyze ───► Elaborate ───► Generate or Lower  │
-│     │          │            │              │                            │
-│  base DIR   symbols       types      canonical DIR                      │
-│  (shared)   ─────────── per profile ───────────────                     │
+│   Bind ───► Resolve ───► Analyze ───► Elaborate ───► Execute            │
+│     │          │            │              │              │             │
+│  base DIR   symbols       types      canonical DIR    patched DIR       │
+│  (shared)   ─────────── per profile ───────────────    (comptime)       │
+│                                                                         │
+│                         └────────────► Generate or Lower               │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

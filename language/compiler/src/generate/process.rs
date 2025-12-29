@@ -54,6 +54,8 @@ impl Compiler {
                 message: format!("profile not found for target '{}'", target_id.name),
             })?;
 
+        self.require_execute_module_patch(module_id, profile)?;
+
         // dispatch based on output format
         match target.output {
             OutputFormat::Js | OutputFormat::Ts => self.generate_js(module_id, &target, profile),

@@ -30,6 +30,38 @@ impl ProfileId {
     }
 }
 
+/// Version of a profile's compiled state (increments on recomputation).
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ProfileVersion(pub u64);
+
+impl std::fmt::Debug for ProfileVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl std::fmt::Display for ProfileVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+impl ProfileVersion {
+    /// Initial version.
+    pub const INITIAL: Self = Self(0);
+
+    /// Create a new ProfileVersion.
+    pub fn new(version: u64) -> Self {
+        Self(version)
+    }
+
+    /// Increment the version, returning the new value.
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
 /// Comptime environment snapshot used for profile identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EnvSnapshot {
@@ -112,6 +144,8 @@ pub struct Profile {
     pub id: ProfileId,
     /// The canonical key for the profile.
     pub key: ProfileKey,
+    /// The profile version for incremental comptime state.
+    pub version: ProfileVersion,
     /// Resolved environment values (for import.meta.env).
     pub env: ProfileEnv,
 }
@@ -157,7 +191,15 @@ impl ProfileRegistry {
 
         // compute resolved env from the snapshot
         let env = ProfileEnv::from_snapshot(&key.env, key.debug);
-        self.profile_by_id.insert(id, Profile { id, key, env });
+        self.profile_by_id.insert(
+            id,
+            Profile {
+                id,
+                key,
+                version: ProfileVersion::INITIAL,
+                env,
+            },
+        );
         id
     }
 

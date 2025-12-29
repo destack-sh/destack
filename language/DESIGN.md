@@ -113,7 +113,15 @@ loop {
 }
 ```
 
-<sub>See [test/fixtures/mdtest/expressions/](test/fixtures/mdtest/expressions/) for specification tests.</sub>
+### Using
+
+`using` is explicit resource management, mirroring JS/TS semantics.
+Resources are disposed at lexical scope exit in LIFO order, and `await using` calls the async disposer.
+
+```
+using file = openFile(path);
+await using conn = openConnection();
+```
 
 ## Trees
 
@@ -339,8 +347,9 @@ Destack supports TypeScript's polymorphic `this` type for instance members, and 
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
 Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
-The `comptime` keyword *enforces* that an expression must be evaluated at compile time, otherwise it is a compile error.
-(The compiler already evaluates pure expressions at compile time when beneficial.)
+In practice, this `comptime` behavior and specialisation together with decorators enable most macro-style use cases without the unpredictability and compiler complexity of a "full" macro system.
+
+The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
 
 ```
 const LOOKUP_TABLE: uint8[] = comptime {
@@ -350,18 +359,20 @@ const LOOKUP_TABLE: uint8[] = comptime {
     }
     table
 };
+```
+Note here that the `LOOKUP_TABLE` must specify a type upfront.
 
+```
 function factorial(n: int): int {
     if (n <= 1) { 1 } else { n * factorial(n - 1) }
 }
 
 const FACT_10 = comptime factorial(10);    // compile time
-const dynamic = factorial(getUserInput()); // runtime
+const dynamicValue = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
 
-Functions are not marked as comptime or runtime.
-The call site determines when a function runs.
-Parameters can be marked `comptime` to require compile-time-known arguments, and static parameters (generics with value types) are inherently known at comptime.
+Functions are not marked as "comptime" or "runtime" functions, instead, the call site determines when a function runs.
+Static parameters are always "comptime" parameters, while dynamic parameters _may_ be marked `comptime` to require compile-time-known arguments.
 
 Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
@@ -373,13 +384,26 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
 }
 ```
 
-Note that TypeScript's `static` keyword (class member storage) and Destack's `comptime` keyword (compile-time evaluation) are orthogonal concepts and compose quite nicely.
+### Execution Model
+
+Destack distinguishes **static execution** and **comptime execution**:
+
+- **Static execution** is a small, closed-form subset that can be evaluated during Analyze.
+  This includes literals, arithmetic on literals, known constants, and other syntax that can be folded without
+  executing user code. These are required for static parameters and type-level arguments.
+- **Comptime execution** evaluates `comptime` expressions and blocks by running MIR in the
+  Machine interpreter during the Execute phase. Results are written back into the program
+  as constants and dead branches are eliminated.
+
+Static execution must not depend on full comptime execution. 
+This avoids dependency cycles between static expressions and comptime execution.
+Full comptime evaluation happens after monomorphization and lowering, with full type information available.
 
 ## Reflection
 
 In TypeScript, types are - by design - erased at runtime.
 This was critical for early adoption, but it also means you can't easily perform runtime type checks or any meaningful reflection (without additional libraries or build steps).
-Destack makes types first-class runtime values in one integrated system, enabling reflection with one well-defined and well-documented system.
+Destack supports `Type` as a first-class values to enable reflection with one well-defined system.
 
 ### Types as Values
 

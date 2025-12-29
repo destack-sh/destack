@@ -761,6 +761,18 @@ impl Target {
         }
     }
 
+    /// Create a new target for comptime execution.
+    pub fn comptime(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            output: OutputFormat::Native,
+            runtime: Runtime::NativeHosted,
+            platform: Platform::Universal,
+            optimize: true,
+            ..Default::default()
+        }
+    }
+
     /// Create a new target with the given name and native freestanding output.
     pub fn native_freestanding(name: impl Into<String>) -> Self {
         Self {

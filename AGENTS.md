@@ -59,6 +59,10 @@ let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
 
+Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic at various pieces of logic.
+Conceptually, this means not hiding details too much, and assuming (especially internally) that the caller is a consenting adult.
+More specifically, for example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller.
+
 ### Errors
 
 Always prefer explicit, loud errors through conventional channels. 

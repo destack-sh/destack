@@ -22,8 +22,8 @@ use destack_workspace::{Module, ProfileId, Program, Session, TargetId};
 use parking_lot::RwLock;
 
 use crate::{
-    AnalyzeTask, BindTask, Compiler, CompilerOptions, ElaborateTask, ImportTask, LintTask,
-    LowerTask, ResolveTask, Task, default_workers,
+    AnalyzeTask, BindTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask,
+    LintTask, LowerTask, ResolveTask, Task, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -395,6 +395,12 @@ impl TestProgram {
         self.enqueue(ElaborateTask::ElaborateModule { module, profile });
     }
 
+    /// Enqueue Execute task for a module.
+    pub fn execute_module(&self, module: ModuleId) {
+        let profile = self.default_profile_id(module);
+        self.enqueue(ExecuteTask::ExecuteModulePatch { module, profile });
+    }
+
     /// Enqueue Lower task for a module.
     pub fn lower_module(&self, module: ModuleId, target: &str) {
         let module_ref = self.program.modules.get(module);
@@ -708,6 +714,17 @@ impl TestProgram {
         if actual != expected {
             print_diff(expected, actual, &DiffOptions::new());
             panic!("mir code mismatch");
+        }
+    }
+
+    /// Assert that a module's DIR has been patched after Execute.
+    pub fn assert_executed(&self, module_id: ModuleId, expected: &str) {
+        let unbound = self.unbind_to_string(module_id);
+        let unbound = unbound.trim();
+        let expected = expected.trim();
+        if unbound != expected {
+            print_diff(expected, unbound, &DiffOptions::new());
+            panic!("executed code mismatch");
         }
     }
 }

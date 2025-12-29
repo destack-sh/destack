@@ -1025,6 +1025,7 @@ dependencies = [
  "destack_base",
  "destack_builtin",
  "destack_dir",
+ "destack_machine",
  "destack_mir",
  "destack_source",
  "indexmap",

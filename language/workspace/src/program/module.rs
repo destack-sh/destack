@@ -6,7 +6,9 @@ use parking_lot::RwLock;
 
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
-use crate::{ModuleAst, ModuleDir, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId};
+use crate::{
+    ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId,
+};
 
 /// A Module is a single source unit.
 /// Destack treats all modules as "strict mode".
@@ -42,6 +44,8 @@ pub struct Module {
     pub dir_base: Option<ModuleDir>,
     /// The DIR-level module data per profile (semantic, profile-dependent).
     pub dirs: Vec<ModuleDir>,
+    /// Comptime results per profile.
+    pub comptimes: Vec<ModuleComptime>,
     /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
     pub mirs: Vec<ModuleMir>,
 }
@@ -74,6 +78,7 @@ impl Module {
             ast: None,
             dir_base: None,
             dirs: Vec::new(),
+            comptimes: Vec::new(),
             mirs: Vec::new(),
         }
     }
@@ -105,6 +110,7 @@ impl Module {
             ast: Some(ast),
             dir_base: None,
             dirs: Vec::new(),
+            comptimes: Vec::new(),
             mirs: Vec::new(),
         }
     }
@@ -179,6 +185,38 @@ impl Module {
     #[inline]
     pub fn dir_maybe(&self, profile: ProfileId) -> Option<&ModuleDir> {
         self.dirs.iter().find(|dir| dir.profile_id == Some(profile))
+    }
+
+    /// Get the comptime results for a profile.
+    ///
+    /// # Panics
+    /// Panics if called before Execute phase completes for the profile.
+    #[inline]
+    pub fn comptime(&self, profile: ProfileId) -> &ModuleComptime {
+        self.comptimes
+            .iter()
+            .find(|comptime| comptime.profile_id == profile)
+            .unwrap_or_else(|| panic!("no comptime results for profile {profile:?}"))
+    }
+
+    /// Get the comptime results for a profile mutably.
+    ///
+    /// # Panics
+    /// Panics if called before Execute phase completes for the profile.
+    #[inline]
+    pub fn comptime_mut(&mut self, profile: ProfileId) -> &mut ModuleComptime {
+        self.comptimes
+            .iter_mut()
+            .find(|comptime| comptime.profile_id == profile)
+            .unwrap_or_else(|| panic!("no comptime results for profile {profile:?}"))
+    }
+
+    /// Get the comptime results for a profile if they exist.
+    #[inline]
+    pub fn comptime_maybe(&self, profile: ProfileId) -> Option<&ModuleComptime> {
+        self.comptimes
+            .iter()
+            .find(|comptime| comptime.profile_id == profile)
     }
 
     /// Get the MIR for a target.

@@ -13,30 +13,27 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                FRONT-END                                    │
 │                                                                             │
-│   Import ───► Bind ──┬──► Resolve ───► Analyze ───► Elaborate               │
-│       │        │     ·        │            │             │                  │
-│     AST   base DIR   ·     Symbols       Types    Canonical DIR              │
-│                 (shared)  · ─────────────── per profile ───────────         │
+│  Stages:  Import ──► Bind ──► Resolve ──► Analyze ──► Elaborate              │
+│  Output:    AST    base DIR   Symbols      Types   Canonical DIR            │
+│                                                                             │
+│                (base DIR shared, canonical DIR per profile)                │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                   │ (one canonical DIR per profile)
+                         │ (one canonical DIR per profile)
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                MIDDLE-END                                   │
 │                                                                             │
-│         Lower ───────► Verify ───────► Execute ───────► Optimize            │
-│           │              │                │                │                │
-│          MIR            CFG           Comptime       Canonical MIR          │
+│  Stages:  Execute (comptime MIR) ──► Lower ──► Verify ──► Optimize           │
+│  Output:     Patched DIR          MIR      CFG   Canonical MIR              │
 │                                                                             │
-│              (may be skipped for some targets like JS/TS)                   │
 └─────────────────────────────────────────────────────────────────────────────┘
-                                   │
+                       │ (one canonical DIR/MIR per target)
                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                 BACK-END                                    │
 │                                                                             │
-│              Generate ────────► Link ────────► Emit                         │
-│                  │                │               │                         │
-│             "Artifacts"       "Linked"        "Files"                       │
+│  Stages:  Generate ──► Link ──► Emit                                         │
+│  Output:  Artifacts  Linked  Files                                           │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,14 +59,14 @@ Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for
 
 ### Middle-End
 
-The middle-end lowers DIR to MIR and performs verification, comptime execution, and optimization.
+The middle-end performs comptime execution, lowers DIR to MIR, and runs verification and optimization.
 This region may be skipped for targets that don't require low-level IR (e.g., JS/TS transpilation).
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
+| Execute | `X` | DIR | DIR | Execute comptime code via internal MIR lowering and patch DIR |
 | Lower | `M` | DIR | MIR | Lower high-level DIR to machine-level IR (monomorphization, layouts, RTTI as needed) |
 | Verify | `V` | MIR | MIR | Verify and flow-check MIR (safety, borrowing, control flow) |
-| Execute | `X` | MIR | MIR | Execute comptime code and substitute results |
 | Optimize | `O` | MIR | MIR | Optimization passes |
 
 ### Back-End
@@ -104,9 +101,9 @@ The compiler is organized into modules corresponding to each phase.
 | `resolve/` | Resolve symbol references | [src/resolve/](src/resolve/) |
 | `analyze/` | Type inference, checking, and overload resolution | [src/analyze/](src/analyze/) |
 | `elaborate/` | Post-analysis transforms (patterns, trees, etc.) | [src/elaborate/](src/elaborate/) |
+| `execute/` | Execute comptime code and patch DIR | [src/execute/](src/execute/) |
 | `lower/` | Lower DIR to MIR | [src/lower/](src/lower/) |
 | `verify/` | Verify and flow-check MIR | [src/verify/](src/verify/) |
-| `execute/` | Execute comptime code | [src/execute/](src/execute/) |
 | `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
 | `generate/` | Generate artifacts from DIR/MIR | [src/generate/](src/generate/) |
 | `link/` | Link artifacts | [src/link/](src/link/) |

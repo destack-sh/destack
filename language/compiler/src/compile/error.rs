@@ -19,12 +19,12 @@ pub enum TaskError {
     /// Error during elaboration.
     Elaborate(ElaborateError),
     // --------------------------------------------------
+    /// Error during execution.
+    Execute(ExecuteError),
     /// Error during lowering.
     Lower(LowerError),
     /// Error during verification.
     Verify(VerifyError),
-    /// Error during execution.
-    Execute(ExecuteError),
     /// Error during optimization.
     Optimize(OptimizeError),
     // --------------------------------------------------
@@ -120,9 +120,9 @@ impl TaskError {
             Self::Resolve(_) => Some(TaskPhase::Resolve),
             Self::Analyze(_) => Some(TaskPhase::Analyze),
             Self::Elaborate(_) => Some(TaskPhase::Elaborate),
+            Self::Execute(_) => Some(TaskPhase::Execute),
             Self::Lower(_) => Some(TaskPhase::Lower),
             Self::Verify(_) => Some(TaskPhase::Verify),
-            Self::Execute(_) => Some(TaskPhase::Execute),
             Self::Optimize(_) => Some(TaskPhase::Optimize),
             Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
@@ -149,9 +149,9 @@ impl TaskError {
             Self::Resolve(error) => error.sub_code(),
             Self::Analyze(error) => error.sub_code(),
             Self::Elaborate(error) => error.sub_code(),
+            Self::Execute(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
             Self::Verify(error) => error.sub_code(),
-            Self::Execute(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
             Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),

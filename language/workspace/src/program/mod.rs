@@ -1,5 +1,6 @@
 mod artifact;
 mod ast;
+mod comptime;
 mod dir;
 mod import;
 mod mir;
@@ -12,6 +13,7 @@ mod target;
 
 pub use artifact::*;
 pub use ast::*;
+pub use comptime::*;
 pub use dir::*;
 pub use import::*;
 pub use mir::*;

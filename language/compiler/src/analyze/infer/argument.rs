@@ -624,60 +624,6 @@ impl Compiler {
         })
     }
 
-    /// Evaluate an expression into a static value expression.
-    pub(super) fn evaluate_static_expression_value(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-    ) -> Option<StaticExpression> {
-        let expression = tree.get(expression_id);
-        match expression {
-            Expression::ScalarLiteral { value } => Some(StaticExpression::ScalarLiteral {
-                value: value.clone(),
-            }),
-            Expression::TypeLiteral { value } => Some(StaticExpression::TypeLiteral {
-                value: value.clone(),
-            }),
-            Expression::Type { value } => Some(StaticExpression::Type { ty: *value }),
-            Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start_value = self.evaluate_static_expression_value(*start, tree)?;
-                let end_value = self.evaluate_static_expression_value(*end, tree)?;
-                Some(StaticExpression::RangeExpression {
-                    start: Box::new(start_value),
-                    end: Box::new(end_value),
-                    is_inclusive: *is_inclusive,
-                })
-            }
-            Expression::ArrayExpression { elements } => {
-                let mut values = Vec::with_capacity(elements.len());
-
-                for element_id in elements {
-                    let element = tree.get(*element_id);
-                    let value = self.evaluate_static_expression_value(element.value(), tree)?;
-                    values.push(value);
-                }
-
-                Some(StaticExpression::ArrayExpression { elements: values })
-            }
-            Expression::TupleExpression { elements } => {
-                let mut values = Vec::with_capacity(elements.len());
-
-                for element_id in elements {
-                    let element = tree.get(*element_id);
-                    let value = self.evaluate_static_expression_value(element.value(), tree)?;
-                    values.push(value);
-                }
-
-                Some(StaticExpression::TupleExpression { elements: values })
-            }
-            _ => None,
-        }
-    }
-
     /// Convert a static argument into a type id for substitution.
     pub(super) fn convert_static_argument_to_type_id(
         &self,

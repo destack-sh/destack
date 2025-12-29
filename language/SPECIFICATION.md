@@ -568,12 +568,24 @@ if (result.ok) {
 
 ## Comptime
 
-<!-- FUGU: define "trivial comptime" vs "MIR comptime" -->
- <!-- (executable to StaticExpression for instancing / static arguments, ..?) -->
+Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
+Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
+In practice, this `comptime` behavior and specialisation together with decorators enable most macro-style use cases without the unpredictability and compiler complexity of a "full" macro system.
 
-Destack supports compile-time evaluation via the `comptime` keyword, inspired by Zig.
-The compiler already evaluates pure expressions at compile time when possible as an optimization.
-The `comptime` keyword enforces compile-time evaluation: if the expression cannot be evaluated at compile time, it is a compile error.
+### Static Execution vs Comptime Execution
+
+Destack uses two related but separate "evaluate during compile time" mechanisms:
+
+- **Static execution** is evaluated during Analyze to produce `StaticExpression` values.
+  This is a restricted subset of expressions that can be folded without executing user code.
+  Static execution is required for static parameters, array sizes, and other type-driven
+  constructs that must be known for analysis (i.e., type checking).
+- **Comptime execution** evaluates `comptime` expressions and blocks during the Execute phase
+  by running MIR in the Machine interpreter. The result is substituted back into the program
+  as a constant and any comptime-controlled branches are eliminated.
+
+Static execution must not depend on full comptime execution. This avoids dependency cycles
+between type resolution and code evaluation.
 
 ### Comptime Expressions
 
@@ -581,11 +593,11 @@ The `comptime` keyword wraps an expression or block, forcing compile-time evalua
 
 ```
 // expression form
-const VALUE = comptime 1 + 2 + 3;
-const RESULT = comptime factorial(10);
+const VALUE: int = comptime 1 + 2 + 3;
+const RESULT: int = comptime factorial(10);
 
 // block form
-const TABLE = comptime {
+const TABLE: uint8[] = comptime {
     let t = [];
     for (let i = 0; i < 256; i++) {
         t.push(computeCRC(i));
@@ -593,8 +605,29 @@ const TABLE = comptime {
     t
 };
 ```
+Note here that the result type must be specified upfront.
 
 The result is embedded as a constant in the compiled output.
+
+### Static Parameters
+
+Static parameters ("generics" with support for non-type values) are inherently "comptime":
+
+```
+function repeat<N: int>(value: string): string {
+    let result = "";
+    for (let i = 0; i < N; i++) { result += value; }
+    result
+}
+
+const greeting = repeat<3>("hello ");  // N is comptime
+```
+
+Static parameters and `comptime` parameters serve similar purposes.
+Use static parameters when the value affects the return type; use `comptime` parameters otherwise.
+
+Static parameters require **static expressions**. They cannot depend on full comptime execution,
+since static parameters are needed for instantiation and type resolution.
 
 ### Comptime Parameters
 
@@ -610,7 +643,7 @@ function createBuffer(comptime size: int): uint8[] {
 createBuffer(1024);           // ok: literal is comptime-known
 createBuffer(config.size);    // error: config.size not comptime-known
 
-const N = comptime 1024;
+const N = comptime 1024;      // ok: redundant but valid
 createBuffer(N);              // ok: N is comptime-known
 ```
 
@@ -619,27 +652,14 @@ Comptime parameters enable:
 - Compile-time loop unrolling
 - Dead code elimination based on parameter values
 
-### Static Parameters
-
-Static parameters (generics with non-type values) are inherently comptime:
-
-```
-function repeat<N: int>(value: string): string {
-    let result = "";
-    for (let i = 0; i < N; i++) { result += value; }
-    result
-}
-
-const greeting = repeat<3>("hello ");  // N is comptime
-```
-
-Static parameters and `comptime` parameters serve similar purposes.
-Use static parameters when the value affects the return type; use `comptime` parameters otherwise.
+Comptime parameters still require **static expressions** as arguments. The call site may
+evaluate the function body via comptime execution, but the arguments themselves must be
+known during Analyze.
 
 ### Comptime Functions
 
-Functions are not explicitly marked as comptime or not comptime.
-Any function can be called at comptime if its body is valid for comptime evaluation:
+Functions are not explicitly marked as "comptime" or not "comptime".
+Any function can be called at compile time if its body is valid for comptime evaluation:
 
 ```
 function factorial(n: int): int {
@@ -653,16 +673,6 @@ const runtime = factorial(userInput);         // may be evaluated at runtime
 
 The call site determines when the function runs, not the function definition.
 A function that performs I/O cannot be called in a comptime context, but can still be called at runtime.
-
-### Evaluation Contexts
-
-| Context | Evaluation |
-|---------|------------|
-| `const X = expr` | Module initialization (optimizer _may_ fold / evaluate as comptime) |
-| `const X = comptime expr` | Compile time (guaranteed) |
-| `comptime` parameter argument | Compile time (required) |
-| Static parameter argument | Compile time (required) |
-| `if (comptime cond)` condition | Compile time (enables branch elimination) |
 
 ### Comptime Conditionals
 
@@ -679,10 +689,6 @@ function log(msg: string) {
 ```
 
 When `DEBUG` is false, the entire `if` body is removed from the output.
-This works because:
-1. `DEBUG` is a comptime constant
-2. The condition `comptime DEBUG` forces compile-time evaluation
-3. The compiler sees a constant `false` and eliminates the branch during code generation
 
 ### Comptime vs Static
 
@@ -1985,9 +1991,9 @@ try {
 
 This desugars to a `match` on the `Result`. No stack unwinding is involved.
 
-#### Panic (throw)
+#### Panic
 
-`throw` is for **unrecoverable errors**: assertion failures, invariant violations, bugs.
+`throw` is intended for **unrecoverable errors**: assertion failures, invariant violations, bugs.
 Panics indicate programmer error, not conditions the caller should handle.
 
 ```
@@ -2002,37 +2008,82 @@ function unwrap<T>(r: Result<T, Error>): T {
 **Native targets:** `throw` aborts the process immediately. No stack unwinding, no catching.
 **JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
 
-#### Target Differences
-
-| Behavior | Native | JS |
-|----------|--------|-----|
-| `Result` + `?` | Early return, no overhead | Early return, no overhead |
-| `try/catch` on `Result` | Pattern match sugar | Pattern match sugar |
-| `throw` | Abort (no unwinding) | JS throw (catchable) |
-| Catching panics | Not possible | Standard try/catch |
-
-Code using `Result` behaves identically on all targets.
-Code using `throw` for control flow will work differently; use `Result` instead.
-
 ### Using
-<!-- FUGU #Incomplete: support `using` expressions -->
-<!-- (how does using relate with the TS using, our native stuff, and Symbol.dispose, and Try/Result/..?) -->
-
-`using` declares a resource that will be disposed when the current scope exits, following the TC39 Explicit Resource Management proposal.
-Resources must implement `Disposable` (sync) or `AsyncDisposable` (async):
+`using` declares a resource that will be disposed when the current **lexical scope** exits.
+Destack mirrors JS/TS semantics and syntax, following the TC39 Explicit Resource Management proposal.
 
 ```
-using file = openFile(path);        // sync disposal
-await using conn = openConnection(); // async disposal
-// file[Symbol.dispose]() called when scope exits
+using file = openFile(path);
+await using conn = openConnection();
 ```
 
-Multiple resources are disposed in reverse order of declaration (LIFO):
+#### Declarations
+`using` and `await using` appear anywhere a lexical declaration is allowed.
+They always have an initializer and are immutable like `const`.
+`await using` is only allowed where `await` is legal.
+`export using` is valid and behaves like `export const`.
 
 ```
-using a = getResourceA();
-using b = getResourceB();
-// when scope exits: b disposed first, then a
+using a = openA(), b = openB();
+export using cache = openCache();
+```
+
+#### Disposal
+Resources are disposed when the scope exits for any reason (fallthrough, `return`, `break`, `continue`, `throw`, `?`), and never later than scope exit.
+Disposal is **LIFO**, so later declarations are disposed first.
+Disposal continues even if earlier disposals throw.
+`SuppressedError` is used when both a body error and a disposal error exist, matching JS.
+`await using` prefers `[Symbol.asyncDispose]()` if present, otherwise `[Symbol.dispose]()`.
+The result is awaited.
+`null` and `undefined` are no-ops.
+
+```
+using first = getFirst();
+using second = getSecond();
+```
+
+#### Type requirements
+`using` requires `Disposable | null | undefined`.
+`await using` requires `AsyncDisposable | Disposable | null | undefined`.
+Types implementing `Drop` satisfy `Disposable` implicitly.
+On JS targets, `Drop` lowers to a `[Symbol.dispose]()` wrapper.
+
+```
+struct File implements Drop {
+    drop(): void { close(this) }
+}
+
+using file: ^File = File.open(path);
+```
+
+#### Loops
+In `for`/`for..of`/`for..in` initializers, a `using` resource is per-iteration and disposed at the end of each iteration.
+The disposal runs on `continue` and `break`, just like normal scope exit.
+
+```
+for (using line of readLines(path)) {
+    process(line);
+}
+```
+
+#### Modules
+Top-level `using` in modules disposes when module evaluation completes.
+This includes completion after top-level `await`.
+
+```
+using log = openLog();
+await run();
+```
+
+#### Drop and ownership
+In `.ds` files, `^T` values that implement `Drop` are disposed at their last proven use.
+`using` pins disposal to scope exit even if the value would otherwise drop earlier.
+`using` bindings are not movable, so `^x` from a `using` binding is an error.
+Use `^T` without `using` when you want eager drop.
+
+```
+using buffer: ^Buffer = allocate();
+use(&buffer);
 ```
 
 ## Operators
