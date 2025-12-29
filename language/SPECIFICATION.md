@@ -897,7 +897,7 @@ interface CacheContext<K> {
 
 /// Cache context interface that supports eviction.
 interface EvictableContext<K, V> extends CacheContext<K> {
-    /// Evict a key and value.
+    /// On eviction of a key and value.
     evicted(key: K, value: V): void;
 }
 

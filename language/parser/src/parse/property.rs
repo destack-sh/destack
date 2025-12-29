@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, Keyword, LocalNodeId, Member, NodeType, Property, TokenType,
 };
 use destack_source::NodeSpanType;
@@ -436,6 +436,60 @@ impl Parser {
             return Ok(self.tree.insert(member, self.get_span_from(start)));
         }
 
+        // type member: `type Name = ...` or `type Name: Bound`
+        if self.peek_keyword(Keyword::Type).is_ok()
+            && self.peek_next_token(TokenType::Identifier).is_ok()
+        {
+            self.bump(); // eat type keyword
+            // name is just an identifier (path)
+            let (path, path_span) = self.eat_path_with_span()?;
+            let name = self.tree.insert(
+                Expression::Path {
+                    path,
+                    static_arguments: None,
+                },
+                path_span,
+            );
+            // optional type bound: `: Bound`
+            let ty = if self.peek_colon().is_ok() {
+                self.bump(); // eat colon
+                Some(self.with_options(self.options.in_type(), |parser| parser.eat_expression())?)
+            } else {
+                None
+            };
+            // optional value: `= Type`
+            let value = if self.peek_token(TokenType::Assign).is_ok() {
+                self.bump(); // eat assign
+                Some(self.with_options(self.options.in_type(), |parser| parser.eat_expression())?)
+            } else {
+                None
+            };
+            let member = Member::Type {
+                modifiers,
+                name,
+                ty,
+                value,
+            };
+            return Ok(self.tree.insert(member, self.get_span_from(start)));
+        }
+
+        // comptime block: `comptime { ... }` (timing modifier already consumed)
+        if modifiers
+            .as_ref()
+            .is_some_and(|m| m.timing == Some(destack_ast::Timing::Comptime))
+            && self
+                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+                .is_ok()
+        {
+            self.eat_newlines_maybe()?;
+            let body = self.with_options(
+                self.options.not_in_position().in_statement_position(),
+                |parser| parser.eat_expression(),
+            )?;
+            let member = Member::ComptimeBlock { modifiers, body };
+            return Ok(self.tree.insert(member, self.get_span_from(start)));
+        }
+
         // abstraction
         let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
             && self.peek_next_token(TokenType::LessThan).is_err()
@@ -721,7 +775,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Expression, FunctionMode, IntType, Key, Name, Parameter, Property, ScalarLiteral,
+        Expression, FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral,
         TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
@@ -828,6 +882,71 @@ mod tests {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_type_with_value() {
+        let mut test = TestParser::new("type Item = string");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: None, value: Some(value) } => {
+            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+        });
+    }
+
+    #[test]
+    fn test_parse_member_type_with_bound() {
+        let mut test = TestParser::new("type Item: Hashable");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: Some(ty), value: None } => {
+            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+            assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_type_with_bound_and_value() {
+        let mut test = TestParser::new("type Item: Hashable = string");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: Some(ty), value: Some(value) } => {
+            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+            assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+        });
+    }
+
+    #[test]
+    fn test_parse_member_type_with_visibility() {
+        let mut test = TestParser::new("public type Item = string");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: Some(modifiers), name, ty: None, value: Some(_) } => {
+            assert_eq!(modifiers.visibility.unwrap(), Visibility::Public);
+            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_comptime_block() {
+        let mut test = TestParser::new("comptime { assert(true) }");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::ComptimeBlock { modifiers: _, body } => {
+            assert_node!(parser.tree, *body, Expression::Block(_));
+        });
+    }
+
+    #[test]
+    fn test_parse_member_comptime_block_newline() {
+        let mut test = TestParser::new("comptime\n{ assert(true) }");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::ComptimeBlock { modifiers: _, body } => {
+            assert_node!(parser.tree, *body, Expression::Block(_));
         });
     }
 }

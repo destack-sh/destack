@@ -976,6 +976,23 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Member, id.id);
     match member {
+        Member::Type {
+            modifiers: _,
+            name,
+            ty,
+            value,
+        } => {
+            let name_expr = tree.get(*name);
+            visitor.visit_expression(tree, *name, name_expr);
+            if let Some(ty) = ty {
+                let ty_expr = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_expr);
+            }
+            if let Some(value) = value {
+                let value_expr = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expr);
+            }
+        }
         Member::Field {
             modifiers: _,
             key,
@@ -1017,6 +1034,10 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *value, value_expr);
         }
         Member::StaticBlock { modifiers: _, body } => {
+            let body_expr = tree.get(*body);
+            visitor.visit_expression(tree, *body, body_expr);
+        }
+        Member::ComptimeBlock { modifiers: _, body } => {
             let body_expr = tree.get(*body);
             visitor.visit_expression(tree, *body, body_expr);
         }

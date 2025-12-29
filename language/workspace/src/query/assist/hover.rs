@@ -169,10 +169,17 @@ fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> Strin
     }
 }
 
-/// Format signature for a member (field, method, embed, static block).
+/// Format signature for a member (field, method, embed, static block, etc).
 fn format_member_signature(member: &Member, name: Option<&str>, type_str: Option<&str>) -> String {
     let name = name.unwrap_or("<anonymous>");
     match member {
+        Member::Type { .. } => {
+            if let Some(ty) = type_str {
+                format!("type {name} = {ty}")
+            } else {
+                format!("type {name}")
+            }
+        }
         Member::Field { .. } => {
             if let Some(ty) = type_str {
                 format!("field {name}: {ty}")
@@ -183,5 +190,6 @@ fn format_member_signature(member: &Member, name: Option<&str>, type_str: Option
         Member::Method { .. } => format!("method {name}"),
         Member::Embed { .. } => format!("embed {name}"),
         Member::StaticBlock { .. } => "static block".to_string(),
+        Member::ComptimeBlock { .. } => "comptime block".to_string(),
     }
 }

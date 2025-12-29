@@ -223,6 +223,13 @@ impl Node for Property {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Member {
+    /// Associated type alias (like `type Item = T`).
+    Type {
+        modifiers: Option<BindingModifier>,
+        name: LocalNodeId<Expression>,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+    },
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
@@ -243,8 +250,12 @@ pub enum Member {
         value: LocalNodeId<Expression>,
     },
     /// Static initialization block (like `static { ... }`).
-    /// Modifiers are preserved for validation (static blocks shouldn't have modifiers other than `static`).
     StaticBlock {
+        modifiers: Option<BindingModifier>,
+        body: LocalNodeId<Expression>,
+    },
+    /// Comptime block (like `comptime { ... }`).
+    ComptimeBlock {
         modifiers: Option<BindingModifier>,
         body: LocalNodeId<Expression>,
     },

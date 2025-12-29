@@ -364,10 +364,14 @@ impl Parser {
         self.eat_keyword(Keyword::Comptime)?;
 
         // body expression
-        let body_id = self
-            .with_options(self.options.not_in_position().in_comptime(), |parser| {
-                parser.eat_expression()
-            })?;
+        self.eat_newlines_maybe()?;
+        let body_id = self.with_options(
+            self.options
+                .not_in_position()
+                .in_statement_position()
+                .in_comptime(),
+            |parser| parser.eat_expression(),
+        )?;
 
         // comptime
         let comptime_id = self.tree.insert(
@@ -378,13 +382,6 @@ impl Parser {
     }
 
     /// Eat a yield expression.
-    ///
-    /// According to ECMAScript spec, yield has restricted productions:
-    /// - `yield` can appear alone (yields undefined)
-    /// - `yield [no LineTerminator] expr` yields the expression value
-    /// - `yield* [no LineTerminator] expr` delegates to another iterator
-    ///
-    /// The [no LineTerminator here] means ASI applies after yield if there's a newline.
     ///
     /// Examples:
     /// ```
@@ -683,6 +680,16 @@ mod tests {
             assert_node!(parser.tree, *body, Expression::Binary { .. } => {
                 // binary addition
             });
+        });
+    }
+
+    #[test]
+    fn test_comptime_block_expression() {
+        let mut test = TestParser::new("comptime { let x = 1; x + 2 }");
+        let mut parser = test.prepare();
+        let comptime_id = parser.eat_comptime().unwrap();
+        assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
+            assert_node!(parser.tree, *body, Expression::Block(_));
         });
     }
 

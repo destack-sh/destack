@@ -1249,6 +1249,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
         match member {
+            Member::Type {
+                modifiers,
+                name: _,
+                ty: _,
+                value: _,
+            } => {
+                self.node("Member::Type", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
+            }
             Member::Field {
                 modifiers,
                 key,
@@ -1282,6 +1292,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Member::StaticBlock { modifiers, body: _ } => {
                 self.node("Member::StaticBlock", id.id)
+                    .field_optional("modifiers", modifiers)
+                    .end();
+            }
+            Member::ComptimeBlock { modifiers, body: _ } => {
+                self.node("Member::ComptimeBlock", id.id)
                     .field_optional("modifiers", modifiers)
                     .end();
             }

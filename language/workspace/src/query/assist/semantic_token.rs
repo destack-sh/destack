@@ -335,6 +335,10 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         };
 
         let (token_type, modifiers) = match member {
+            dir::Member::Type { modifiers, .. } => {
+                let mods = modifiers_from_binding(modifiers, true);
+                (SemanticTokenType::Type, mods)
+            }
             dir::Member::Field { modifiers, .. } => {
                 let mods = modifiers_from_binding(modifiers, true);
                 (SemanticTokenType::Property, mods)
@@ -358,6 +362,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             }
             dir::Member::Embed { .. } => continue,
             dir::Member::StaticBlock { .. } => continue,
+            dir::Member::ComptimeBlock { .. } => continue,
         };
 
         tokens.push(SemanticToken::new(main_span, token_type).with_modifiers(modifiers));

@@ -257,6 +257,27 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
+            Member::Type {
+                modifiers,
+                name,
+                ty,
+                value,
+            } => {
+                // modifiers
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
+                write!(f, [Keyword::Type, space()])?;
+                // name
+                write!(f, [name])?;
+                // type bound
+                if let Some(ty) = ty {
+                    write!(f, [token(":"), space(), ty])?;
+                }
+                // value
+                if let Some(value) = value {
+                    write!(f, [space(), token("="), space(), value])?;
+                }
+            }
             Member::Field {
                 modifiers,
                 key,
@@ -373,6 +394,14 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             Member::StaticBlock { body, .. } => {
                 // keyword
                 write!(f, [Keyword::Static, space()])?;
+                // body
+                write!(f, [body])?;
+            }
+            Member::ComptimeBlock { modifiers, body } => {
+                // modifiers prefix
+                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                // keyword
+                write!(f, [Keyword::Comptime, space()])?;
                 // body
                 write!(f, [body])?;
             }

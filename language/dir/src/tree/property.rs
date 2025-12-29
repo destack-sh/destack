@@ -151,6 +151,14 @@ impl Node for Property {
 /// A Member is a member of a class-like declaration.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Member {
+    /// Associated type alias (like `type Item = T`).
+    Type {
+        modifiers: Option<BindingModifier>,
+        name: LocalNodeId<Expression>,
+        ty: Option<LocalNodeId<Expression>>,
+        value: Option<LocalNodeId<Expression>>,
+        symbol: LocalSymbolId,
+    },
     /// Named field (like `x: int32`).
     Field {
         modifiers: Option<BindingModifier>,
@@ -174,8 +182,13 @@ pub enum Member {
         symbol: LocalSymbolId,
     },
     /// Static initialization block (like `static { ... }`).
-    /// Modifiers are preserved for validation (static blocks shouldn't have modifiers other than `static`).
     StaticBlock {
+        modifiers: Option<BindingModifier>,
+        body: LocalNodeId<Expression>,
+        symbol: LocalSymbolId,
+    },
+    /// Comptime block (like `comptime { ... }`).
+    ComptimeBlock {
         modifiers: Option<BindingModifier>,
         body: LocalNodeId<Expression>,
         symbol: LocalSymbolId,
@@ -186,20 +199,24 @@ impl Member {
     /// Get the symbol of the member.
     pub fn symbol(&self) -> LocalSymbolId {
         match self {
+            Member::Type { symbol, .. } => *symbol,
             Member::Field { symbol, .. } => *symbol,
             Member::Method { symbol, .. } => *symbol,
             Member::Embed { symbol, .. } => *symbol,
             Member::StaticBlock { symbol, .. } => *symbol,
+            Member::ComptimeBlock { symbol, .. } => *symbol,
         }
     }
 
     /// Get the key of the member (name or dynamic key).
     pub fn key(&self) -> Option<&DynamicKey> {
         match self {
+            Member::Type { .. } => None,
             Member::Field { key, .. } => key.as_ref(),
             Member::Method { key, .. } => key.as_ref(),
             Member::Embed { .. } => None,
             Member::StaticBlock { .. } => None,
+            Member::ComptimeBlock { .. } => None,
         }
     }
 }
