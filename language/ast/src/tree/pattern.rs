@@ -26,6 +26,8 @@ pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
     /// Maybe pattern (like `T?`).
+    /// FUGU: remove Maybe pattern / Maybe on T / TypeUnaryOperator::Maybe
+    ///  (it's confusing with `| null`, `| undefined, expr?;)
     Maybe(LocalNodeId<Pattern>),
     /// Reference of pattern (like `&x`).
     ReferenceOf {

@@ -1,6 +1,7 @@
-use crate::{TestProgram, assert_type};
+use crate::{TestProgram, assert_string, assert_type};
 use destack_dir::{
-    Expression, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, Type, TypeLiteral,
+    Expression, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolKind, Type,
+    TypeLiteral, TypeUnaryOperator,
 };
 
 /// Analyze number literal.
@@ -1725,17 +1726,101 @@ const numbers: number[] = [1, 2];
 
     // tuple elements are numbers from number[] context
     assert_type!(types, value_ty_id, Type::Tuple { elements } => {
-        // two elements are present in the array literal
         assert_eq!(elements.len(), 2);
-
-        // first element is number
+        // 1 is number
         assert_type!(types, elements[0].ty, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
-
-        // second element is number
+        // 2 is number
         assert_type!(types, elements[1].ty, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
+    });
+}
+
+// Binds mapped type parameters for use in value type.
+#[test]
+fn test_analyze_type_mapped_parameter_scope() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("test.ds", "type Map<T> = { [K in keyof T]: T[K] };");
+
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let types = dir.types.read();
+    let symbols = dir.symbols.read();
+
+    let map_symbol = test
+        .resolve_to_symbol("test.ds", "Map")
+        .expect("expected Map symbol");
+    let map_instance_id = types
+        .get_instance_type_id(map_symbol)
+        .expect("expected Map instance type");
+
+    assert_type!(types, map_instance_id, Type::Mapped { parameter, value, .. } => {
+        assert_string!(test.program, parameter.name, "K");
+        assert_type!(types, parameter.constraint, Type::Unary { operator: TypeUnaryOperator::Keyof, right } => {
+            assert_type!(types, *right, Type::Reference { symbol, static_arguments } => {
+                assert!(static_arguments.is_none());
+                let symbol = symbols.get_symbol(symbol.into_local());
+                assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
+            });
+        });
+        assert_type!(types, *value, Type::Index { left, index } => {
+            assert_type!(types, *left, Type::Reference { symbol, .. } => {
+                let symbol = symbols.get_symbol(symbol.into_local());
+                assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
+            });
+            assert_type!(types, *index, Type::Reference { symbol, .. } => {
+                let symbol = symbols.get_symbol(symbol.into_local());
+                assert_eq!(symbol.kind, SymbolKind::Local);
+                assert_string!(test.program, symbol.name().expect("expected symbol name"), "K");
+            });
+        });
+    });
+}
+
+/// Bind infer variables for use in conditional true branch.
+#[test]
+fn test_analyze_type_infer_scope() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("test.ds", "type Foo<T> = T extends infer U ? U : never;");
+
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let types = dir.types.read();
+    let symbols = dir.symbols.read();
+
+    let foo_symbol = test
+        .resolve_to_symbol("test.ds", "Foo")
+        .expect("expected Foo symbol");
+    let foo_instance_id = types
+        .get_instance_type_id(foo_symbol)
+        .expect("expected Foo instance type");
+
+    assert_type!(types, foo_instance_id, Type::Conditional { left, right, then_type, else_type } => {
+        assert_type!(types, *left, Type::Reference { symbol, .. } => {
+            let symbol = symbols.get_symbol(symbol.into_local());
+            assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
+        });
+        assert_type!(types, *right, Type::Infer { name, constraint } => {
+            assert_string!(test.program, *name, "U");
+            assert!(constraint.is_none());
+        });
+        assert_type!(types, *then_type, Type::Reference { symbol, .. } => {
+            let symbol = symbols.get_symbol(symbol.into_local());
+            assert_eq!(symbol.kind, SymbolKind::Local);
+            assert_string!(test.program, symbol.name().expect("expected symbol name"), "U");
+        });
+        assert_type!(types, *else_type, Type::TypeLiteral { value: TypeLiteral::Never });
     });
 }

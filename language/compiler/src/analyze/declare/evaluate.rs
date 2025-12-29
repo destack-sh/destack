@@ -3,7 +3,7 @@ use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
     FunctionSignature, LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument,
     StaticExpression, StaticKey, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -380,6 +380,116 @@ impl Compiler {
                     left: left_id,
                     operator,
                     right: right_id,
+                }
+            }
+            Expression::TypeConditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let left_id =
+                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
+                let right_id =
+                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let then_type_id =
+                    self.try_evaluate_expression_to_type(module, then_type, tree, symbols, types)?;
+                let else_type_id =
+                    self.try_evaluate_expression_to_type(module, else_type, tree, symbols, types)?;
+                Type::Conditional {
+                    left: left_id,
+                    right: right_id,
+                    then_type: then_type_id,
+                    else_type: else_type_id,
+                }
+            }
+            Expression::TypeMapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let constraint = self.try_evaluate_expression_to_type(
+                    module,
+                    parameter.constraint,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let key_remap = parameter.key_remap.map(|key_remap| {
+                    self.try_evaluate_expression_to_type(module, key_remap, tree, symbols, types)
+                });
+                let key_remap = match key_remap {
+                    Some(Ok(key_remap)) => Some(key_remap),
+                    Some(Err(error)) => return Err(error),
+                    None => None,
+                };
+                let value_id =
+                    self.try_evaluate_expression_to_type(module, value, tree, symbols, types)?;
+                let parameter = TypeMappedParameter {
+                    name: parameter.name,
+                    constraint,
+                    key_remap,
+                };
+                Type::Mapped {
+                    parameter,
+                    modifiers,
+                    value: value_id,
+                }
+            }
+            Expression::TypeIndex { left, index } => {
+                let left_id =
+                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
+                let index_id =
+                    self.try_evaluate_expression_to_type(module, index, tree, symbols, types)?;
+                Type::Index {
+                    left: left_id,
+                    index: index_id,
+                }
+            }
+            Expression::TypeTemplateLiteral { strings, spans } => {
+                let spans = spans
+                    .iter()
+                    .map(|span| {
+                        self.try_evaluate_expression_to_type(module, *span, tree, symbols, types)
+                    })
+                    .collect::<AnalyzeResult<Vec<_>>>()?;
+                Type::TemplateLiteral {
+                    strings: strings.clone(),
+                    spans,
+                }
+            }
+            Expression::TypeImport { target, qualifier } => Type::Import {
+                target,
+                qualifier: qualifier.clone(),
+            },
+            Expression::TypeInfer { name, constraint } => {
+                let constraint = constraint.map(|constraint| {
+                    self.try_evaluate_expression_to_type(module, constraint, tree, symbols, types)
+                });
+                let constraint = match constraint {
+                    Some(Ok(constraint)) => Some(constraint),
+                    Some(Err(error)) => return Err(error),
+                    None => None,
+                };
+                Type::Infer { name, constraint }
+            }
+            Expression::TypePredicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let target = target.map(|target| {
+                    self.try_evaluate_expression_to_type(module, target, tree, symbols, types)
+                });
+                let target = match target {
+                    Some(Ok(target)) => Some(target),
+                    Some(Err(error)) => return Err(error),
+                    None => None,
+                };
+                Type::Predicate {
+                    asserts,
+                    subject,
+                    target,
                 }
             }
 
