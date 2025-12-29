@@ -144,7 +144,7 @@ impl Parser {
         ) = {
             // ...[name] is just a name, not a pattern
             if is_variadic
-                && self.options.in_type
+                && (self.options.in_type || self.options.in_variant)
                 && self.peek_token(TokenType::OpenBracket).is_ok()
             {
                 self.bump(); // eat [
@@ -714,7 +714,11 @@ impl Parser {
         }
 
         // regular static arguments (positional/spread only)
-        let static_arguments = self.with_options(self.options.nested().in_static(), |parser| {
+        let mut options = self.options.nested().in_static();
+        if self.options.in_type {
+            options = options.in_type();
+        }
+        let static_arguments = self.with_options(options, |parser| {
             parser.eat_positional_arguments_body(TokenType::GreaterThan)
         })?;
 
@@ -930,6 +934,19 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "args");
+            assert!(ty.is_some());
+        });
+    }
+
+    /// Parse variadic tuple parameter names.
+    #[test]
+    fn test_parse_parameter_variadic_tuple_name() {
+        let mut test = TestParser::new("...[value]: [] | [TNext]");
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: _, name, ty } => {
+            assert_string!(parser, *name, "value");
             assert!(ty.is_some());
         });
     }

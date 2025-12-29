@@ -198,6 +198,9 @@ impl Parser {
 
                 // return type
                 let mut return_type_options = self.options.nested().in_type();
+                if self.options.in_type_conditional_right {
+                    return_type_options = return_type_options.in_type_conditional_right();
+                }
                 if self.options.in_static {
                     return_type_options = return_type_options.in_static();
                 }
@@ -220,6 +223,9 @@ impl Parser {
                     self.bump(); // eat arrow or colon
                     self.eat_newlines_maybe()?;
                     let mut return_type_options = self.options.nested().in_type().in_before_block();
+                    if self.options.in_type_conditional_right {
+                        return_type_options = return_type_options.in_type_conditional_right();
+                    }
                     if self.options.in_static {
                         return_type_options = return_type_options.in_static();
                     }
