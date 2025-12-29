@@ -449,20 +449,23 @@ impl Compiler {
                     symbols,
                     types,
                 );
+                let type_scope_id = symbols.insert_scope(ScopeKind::Type, Some(scope), None);
+                let type_scope = (type_scope_id, symbols.get_scope_mark(type_scope_id));
                 let right = self.bind_expression(
                     module,
                     ast,
-                    scope,
+                    type_scope,
                     *right,
                     Some(expression_id),
                     tree,
                     symbols,
                     types,
                 );
+                let type_scope = (type_scope_id, symbols.get_scope_mark(type_scope_id));
                 let then_type = self.bind_expression(
                     module,
                     ast,
-                    scope,
+                    type_scope,
                     *then_type,
                     Some(expression_id),
                     tree,
@@ -505,11 +508,28 @@ impl Compiler {
                     symbols,
                     types,
                 );
+                let parameter_scope_id = symbols.insert_scope(ScopeKind::Type, Some(scope), None);
+                let parameter_scope = (
+                    parameter_scope_id,
+                    symbols.get_scope_mark(parameter_scope_id),
+                );
+                let _ = self.bind_named_local(
+                    module,
+                    ast,
+                    SymbolSpace::Type,
+                    StaticKey::Name(name),
+                    parameter_scope,
+                    symbols,
+                );
+                let parameter_scope = (
+                    parameter_scope_id,
+                    symbols.get_scope_mark(parameter_scope_id),
+                );
                 let key_remap = parameter.key_remap.map(|key_remap| {
                     self.bind_expression(
                         module,
                         ast,
-                        scope,
+                        parameter_scope,
                         key_remap,
                         Some(expression_id),
                         tree,
@@ -526,7 +546,7 @@ impl Compiler {
                 let value = self.bind_expression(
                     module,
                     ast,
-                    scope,
+                    parameter_scope,
                     *value,
                     Some(expression_id),
                     tree,
@@ -605,6 +625,17 @@ impl Compiler {
                         types,
                     )
                 });
+                let wildcard = self.program.strings.intern("_");
+                if name != wildcard {
+                    let _ = self.bind_named_local(
+                        module,
+                        ast,
+                        SymbolSpace::Type,
+                        StaticKey::Name(name),
+                        scope,
+                        symbols,
+                    );
+                }
                 Expression::TypeInfer { name, constraint }
             }
             ast::Expression::TypePredicate {

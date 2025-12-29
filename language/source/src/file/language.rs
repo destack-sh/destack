@@ -3,22 +3,30 @@ use crate::FileType;
 /// The source language type determines parsing and compatibility behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LanguageType {
-    /// Full Destack language (.ds, .dst) with all features enabled.
+    /// Full Destack language (`.ds`) with all features enabled.
     #[default]
     Destack,
-    /// Destack declaration file (.d.ds).
+    /// Destack declaration file (`.d.ds`).
     DestackDeclaration,
-    /// JavaScript (.js) in compatibility mode.
+    /// JavaScript (`.js`) compatibility mode.
     JavaScript,
-    /// JavaScript with JSX (.jsx) in compatibility mode.
+    /// JavaScript with JSX (`.jsx`) compatibility mode.
     JavaScriptXml,
-    /// TypeScript (.ts) in compatibility mode.
+    /// TypeScript (`.ts`) compatibility mode.
     TypeScript,
-    /// TypeScript with JSX (.tsx) in compatibility mode.
+    /// TypeScript declaration (`.d.ts`) compatibility mode.
+    TypeScriptDeclaration,
+    /// TypeScript with JSX (`.tsx`) compatibility mode.
     TypeScriptXml,
 }
 
 impl LanguageType {
+    /// Whether this is a declaration file.
+    #[inline]
+    pub fn is_declaration(&self) -> bool {
+        matches!(self, Self::DestackDeclaration | Self::TypeScriptDeclaration)
+    }
+
     /// Whether this is a Destack language type (not compatibility mode).
     #[inline]
     pub fn is_destack(&self) -> bool {
@@ -34,7 +42,10 @@ impl LanguageType {
     /// Whether this is TypeScript (TS or TSX).
     #[inline]
     pub fn is_typescript(&self) -> bool {
-        matches!(self, Self::TypeScript | Self::TypeScriptXml)
+        matches!(
+            self,
+            Self::TypeScript | Self::TypeScriptDeclaration | Self::TypeScriptXml
+        )
     }
 
     /// Whether this language type supports JSX/tree literal syntax.
@@ -56,9 +67,10 @@ impl From<FileType> for LanguageType {
             FileType::DestackDeclaration => LanguageType::DestackDeclaration,
             FileType::JavaScript => LanguageType::JavaScript,
             FileType::JavaScriptXml => LanguageType::JavaScriptXml,
-            FileType::TypeScript | FileType::TypeScriptDeclaration => LanguageType::TypeScript,
+            FileType::TypeScript => LanguageType::TypeScript,
+            FileType::TypeScriptDeclaration => LanguageType::TypeScriptDeclaration,
             FileType::TypeScriptXml => LanguageType::TypeScriptXml,
-            // default to Destack for other file types
+            // default to Destack for other file types (?)
             _ => LanguageType::Destack,
         }
     }

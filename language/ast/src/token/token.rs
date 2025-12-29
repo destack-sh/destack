@@ -90,7 +90,7 @@ pub enum TokenType {
     /// --------------------------------------------------
 
     /// Wildcard literal `_`.
-    Wildcard,
+    Wildcard, // FUGU: remove TokenType::Wildcard
     /// `:`
     Colon,
     /// `;`

@@ -86,7 +86,7 @@ impl Compiler {
 
                 // type instance type: type value
                 let instance_ty_id =
-                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                    self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?;
                 match *kind {
                     TypeKind::Structural => {
                         types.set_instance_type(
