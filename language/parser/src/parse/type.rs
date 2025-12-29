@@ -676,8 +676,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
-        FunctionAbstraction, FunctionMode, IntType, Key, Mutability, Parameter, Property,
-        ScalarLiteral, TypeIntrinsic, TypeLiteral, TypeMappedModifiers, TypeModifier,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Mutability, Parameter,
+        Property, ScalarLiteral, TypeIntrinsic, TypeLiteral, TypeMappedModifiers, TypeModifier,
         TypePredicateSubject, TypeUnaryOperator,
     };
 
@@ -832,6 +832,29 @@ mod tests {
                     assert_node!(parser.tree, *else_type, Expression::ObjectExpression { properties, .. } => {
                         assert_eq!(properties.len(), 1);
                     });
+                });
+            });
+        });
+    }
+
+    /// Parse conditional types with function right-hand sides.
+    #[test]
+    fn test_parse_conditional_type_with_function_right() {
+        let mut test = TestParser::new("type T = A extends (x: number) => any ? C : D");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends (x: number) => any ? C : D
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { right, then_type, else_type, .. } => {
+                    assert_node!(parser.tree, *right, Expression::Declaration(function_id) => {
+                        assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                        });
+                    });
+                    assert_expression_path!(parser, parser.tree.get(*then_type), "C");
+                    assert_expression_path!(parser, parser.tree.get(*else_type), "D");
                 });
             });
         });
@@ -1090,6 +1113,31 @@ mod tests {
                     assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "T");
                         assert_expression_path!(parser, parser.tree.get(*index), "K");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse mapped types in static type arguments with readonly removal.
+    #[test]
+    fn test_parse_type_mapped_expression_in_static_arguments() {
+        let mut test = TestParser::new("type T = Promise<{ -readonly [P in keyof T]: T[P] }>");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                    assert_path!(parser, *path, "Promise");
+                    let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, .. } => {
+                            assert_eq!(*modifiers, TypeMappedModifiers {
+                                readonly: TypeModifier::Remove,
+                                optional: TypeModifier::None,
+                            });
+                        });
                     });
                 });
             });
