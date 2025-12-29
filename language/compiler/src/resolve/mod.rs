@@ -1,7 +1,9 @@
 mod declaration;
 mod dependency;
+mod discover;
 mod error;
 mod expression;
+mod globals;
 mod language;
 mod module;
 mod operator;
@@ -10,7 +12,9 @@ mod symbol;
 mod r#type;
 mod warning;
 
+pub(crate) use discover::TargetDiscoveryIssue;
 pub use error::*;
+pub(crate) use globals::{GlobalSymbolCache, GlobalSymbolCacheKey};
 pub use operator::*;
 pub use process::*;
 pub use warning::*;

@@ -10,6 +10,7 @@ use crate::Compiler;
 impl Compiler {
     destack_base::ensure_sufficient_stack! {
         /// Unbind a DIR expression to an AST expression.
+        #[allow(clippy::too_many_arguments)]
         pub fn unbind_expression(
             &self,
             module: &Module,

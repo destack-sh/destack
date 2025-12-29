@@ -1,4 +1,4 @@
-use crate::{Compiler, LinkError, LinkResult, TaskResultCollector};
+use crate::{Compiler, LinkError, LinkResult, TargetDiscoveryIssue, TaskResultCollector};
 
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{TargetDiscovery, TargetId};
@@ -24,16 +24,42 @@ impl Compiler {
                     target: target_id.clone(),
                 })?;
 
-        // find modules to generate based on discovery mode
+        // discover modules based on target discovery rules
         let modules: Vec<ModuleId> = match target.discovery {
-            // resolve entry points to module IDs
-            TargetDiscovery::Entry => {
-                self.discover_entry_modules(package_id, &package_path, &target, target_id)?
-            }
-            // match all modules in package against include/exclude patterns
-            TargetDiscovery::Include => {
-                self.discover_include_modules(package_id, &package_path, &target)?
-            }
+            TargetDiscovery::Entry => self
+                .discover_entry_modules(package_id, &package_path, &target, target_id)
+                .map_err(|issue| match issue {
+                    TargetDiscoveryIssue::MissingPackagePath { package, target } => {
+                        LinkError::InvalidTarget {
+                            package,
+                            target,
+                            message: "entry-based discovery requires package path".to_string(),
+                        }
+                    }
+                    TargetDiscoveryIssue::MissingEntry { package, path, .. } => {
+                        LinkError::Internal {
+                            package,
+                            message: format!("entry point not found: {}", path.display()),
+                        }
+                    }
+                })?,
+            TargetDiscovery::Include => self
+                .discover_include_modules(package_id, &package_path, &target)
+                .map_err(|issue| match issue {
+                    TargetDiscoveryIssue::MissingPackagePath { package, target } => {
+                        LinkError::InvalidTarget {
+                            package,
+                            target,
+                            message: "entry-based discovery requires package path".to_string(),
+                        }
+                    }
+                    TargetDiscoveryIssue::MissingEntry { package, path, .. } => {
+                        LinkError::Internal {
+                            package,
+                            message: format!("entry point not found: {}", path.display()),
+                        }
+                    }
+                })?,
         };
 
         // generate all discovered modules

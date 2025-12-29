@@ -73,6 +73,7 @@ impl Compiler {
                         self.require_resolve_libs(profile)?;
                     }
                 }
+                self.prepare_global_symbol_table(module, profile)?;
                 self.resolve_module_prepare(module, profile)?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {
@@ -113,7 +114,7 @@ impl Compiler {
     }
 
     /// Ensure another module's per profile DIR exists.
-    pub fn require_resolve_module_prepare_if_other(
+    pub fn require_resolve_module_prepare_if_needed(
         &self,
         module: ModuleId,
         other: ModuleId,
