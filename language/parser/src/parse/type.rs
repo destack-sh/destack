@@ -365,7 +365,12 @@ impl Parser {
     pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Infer)?;
-        let name = self.eat_identifier()?;
+        let name = if self.peek_token(TokenType::Wildcard).is_ok() {
+            self.bump();
+            self.strings.intern("_")
+        } else {
+            self.eat_identifier()?
+        };
         // optional constraint: infer T extends U
         let constraint = if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
@@ -522,6 +527,12 @@ impl Parser {
             parser.eat_expression()
         })?;
         self.eat_newlines_maybe()?;
+        if self.peek_token(TokenType::Semicolon).is_ok()
+            || self.peek_token(TokenType::Comma).is_ok()
+        {
+            self.bump();
+            self.eat_newlines_maybe()?;
+        }
         self.eat_token(TokenType::CloseBrace)?;
 
         let parameter = TypeMappedParameter {
@@ -1016,6 +1027,23 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_infer_with_wildcard() {
+        let mut test = TestParser::new("type T = infer _");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = infer _
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeInfer { name, constraint } => {
+                    assert_string!(parser, *name, "_");
+                    assert!(constraint.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_template_literal() {
         let mut test = TestParser::new("type T = `foo-${Bar}`");
         let mut parser = test.prepare();
@@ -1067,6 +1095,20 @@ mod tests {
                         assert_expression_path!(parser, parser.tree.get(*index), "K");
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_with_semicolon() {
+        let mut test = TestParser::new("type T = { [K in T]: T[K]; }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = { [K in T]: T[K]; }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { .. });
             });
         });
     }
