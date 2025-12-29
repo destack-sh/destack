@@ -254,9 +254,6 @@ impl Lexer<'_> {
                 }
             }
 
-            // wildcard (if not followed by identifier)
-            '_' if !is_identifier_continue(self.peek()) => (TokenType::Wildcard, None),
-
             // other identifier
             c if is_identifier_start(c) => self.eat_identifier_or_such(c),
 

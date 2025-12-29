@@ -89,8 +89,6 @@ pub enum TokenType {
     /// Symbols
     /// --------------------------------------------------
 
-    /// Wildcard literal `_`.
-    Wildcard, // FUGU: remove TokenType::Wildcard
     /// `:`
     Colon,
     /// `;`
@@ -337,7 +335,6 @@ impl Display for TokenType {
             TokenType::TemplateString => write!(f, "TemplateString"),
 
             // symbols
-            TokenType::Wildcard => write!(f, "_"),
             TokenType::Colon => write!(f, ":"),
             TokenType::Semicolon => write!(f, ";"),
             TokenType::Comma => write!(f, ","),

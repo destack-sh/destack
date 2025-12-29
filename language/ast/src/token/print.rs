@@ -41,7 +41,6 @@ impl Token {
             // --------------------------------------------------
             // Symbols
             // --------------------------------------------------
-            TokenType::Wildcard => "_".to_string(),
             TokenType::Colon => ":".to_string(),
             TokenType::Semicolon => ";".to_string(),
             TokenType::Comma => ",".to_string(),
