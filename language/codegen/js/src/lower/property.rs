@@ -136,6 +136,12 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<LocalNodeId<Member>> {
         let member = self.dir_tree.get(member_id);
         let member = match member {
+            dir::Member::Type { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: member_id.into_global_any(self.module.id),
+                    message: Some("associated type members are compile-time only".to_string()),
+                });
+            }
             dir::Member::Field {
                 modifiers,
                 key,
@@ -199,7 +205,6 @@ impl ModuleLowerer<'_> {
                 }
             }
             dir::Member::Embed { .. } => {
-                // Embed is a compile-time construct, shouldn't reach codegen
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
                     message: Some("type embedding should be expanded before codegen".to_string()),
@@ -210,6 +215,12 @@ impl ModuleLowerer<'_> {
                     .lower_expression(*body)
                     .expect_node::<Expression>(body.into_global_any(self.module.id), self)?;
                 Member::StaticBlock { body }
+            }
+            dir::Member::ComptimeBlock { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: member_id.into_global_any(self.module.id),
+                    message: Some("comptime blocks are compile-time only".to_string()),
+                });
             }
         };
         let member_id = self

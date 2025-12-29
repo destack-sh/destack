@@ -206,6 +206,64 @@ impl Compiler {
     ) -> LocalNodeId<Member> {
         let ast_member = ast.tree.get(ast_member_id);
         match ast_member {
+            ast::Member::Type {
+                modifiers,
+                name,
+                ty,
+                value,
+            } => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let name = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *name,
+                    Some(member_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let ty = ty.map(|ty| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        ty,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                let value = value.map(|value| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        value,
+                        Some(member_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                // Type members are in Type space
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Type, scope, None, symbols);
+                tree.insert(
+                    member_id,
+                    Member::Type {
+                        modifiers,
+                        name,
+                        ty,
+                        value,
+                        symbol: symbol_id,
+                    },
+                )
+            }
             ast::Member::Field {
                 modifiers,
                 key,
@@ -394,6 +452,32 @@ impl Compiler {
                 tree.insert(
                     member_id,
                     Member::StaticBlock {
+                        modifiers,
+                        body,
+                        symbol: symbol_id,
+                    },
+                )
+            }
+            ast::Member::ComptimeBlock { modifiers, body } => {
+                let member_id =
+                    tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let body = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *body,
+                    Some(member_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                let (symbol_id, _) =
+                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+                tree.insert(
+                    member_id,
+                    Member::ComptimeBlock {
                         modifiers,
                         body,
                         symbol: symbol_id,

@@ -533,6 +533,22 @@ impl Compiler {
         let options = ctx.options;
         let member = tree.get(member_id);
         match member {
+            Member::Type {
+                name,
+                ty,
+                value,
+                symbol: _,
+                modifiers: _,
+            } => {
+                self.infer_expression(module, *name, tree, symbols, types, infer, ctx)?;
+                if let Some(ty) = ty {
+                    self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                }
+                if let Some(value) = value {
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                }
+                Ok(InferredMember::default())
+            }
             Member::Field {
                 modifiers,
                 key,
@@ -769,11 +785,15 @@ impl Compiler {
                 }
             }
             Member::Embed { value, .. } => {
-                // NOTE #Incomplete: expand embedded type into member fields?
+                // #Incomplete: expand embedded type into member fields?
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 Ok(InferredMember::default())
             }
             Member::StaticBlock { body, .. } => {
+                self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?;
+                Ok(InferredMember::default())
+            }
+            Member::ComptimeBlock { body, .. } => {
                 self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?;
                 Ok(InferredMember::default())
             }

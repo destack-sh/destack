@@ -138,6 +138,53 @@ impl Compiler {
         let member = tree.get(member_id);
         let span = self.unbind_span(module, member_id.into());
         let ast_member = match member {
+            dir::Member::Type {
+                modifiers,
+                name,
+                ty,
+                value,
+                ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let name = self.unbind_expression(
+                    module,
+                    *name,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let ty = ty.map(|ty| {
+                    self.unbind_expression(
+                        module,
+                        ty,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                let value = value.map(|value| {
+                    self.unbind_expression(
+                        module,
+                        value,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
+                ast::Member::Type {
+                    modifiers,
+                    name,
+                    ty,
+                    value,
+                }
+            }
             dir::Member::Field {
                 modifiers,
                 key,
@@ -249,6 +296,22 @@ impl Compiler {
                     context,
                 );
                 ast::Member::StaticBlock { modifiers, body }
+            }
+            dir::Member::ComptimeBlock {
+                modifiers, body, ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
+                let body = self.unbind_expression(
+                    module,
+                    *body,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                ast::Member::ComptimeBlock { modifiers, body }
             }
         };
         let ast_member_id = ast_tree.insert(ast_member, span);

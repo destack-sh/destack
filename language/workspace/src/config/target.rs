@@ -429,9 +429,9 @@ impl BoundsCheckPolicy {
 pub enum Runtime {
     // JS runtimes (for output=js/ts)
     /// Web browser (Chrome, Firefox, Safari, etc.)
-    #[default]
     Browser,
     /// Node.js
+    #[default]
     Node,
     /// Deno
     Deno,
@@ -690,12 +690,12 @@ pub struct Target {
 }
 
 impl Target {
-    /// Create a new target with the given name and default JS output for browser.
+    /// Create a new target with the given name and default JS output.
     pub fn js(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             output: OutputFormat::Js,
-            runtime: Runtime::Browser,
+            runtime: Runtime::Node,
             platform: Platform::Web,
             declaration: true, // default to emitting declarations for JS
             ..Default::default()
@@ -707,7 +707,7 @@ impl Target {
         Self {
             name: name.into(),
             output: OutputFormat::Ts,
-            runtime: Runtime::Browser,
+            runtime: Runtime::Node,
             platform: Platform::Web,
             ..Default::default()
         }
