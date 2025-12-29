@@ -960,6 +960,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
         declaration: &Declaration,
     ) {
         match declaration {
+            Declaration::Global {
+                descriptor,
+                statements: _,
+            } => {
+                self.node("Declaration::Global", id.id)
+                    .field("descriptor", descriptor)
+                    .end();
+            }
             Declaration::Namespace {
                 descriptor,
                 statements: _,

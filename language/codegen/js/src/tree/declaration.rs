@@ -39,6 +39,11 @@ pub struct DeclarationDescriptor {
 /// A Declaration is a declaration in some namespace.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Declaration {
+    /// Global augmentation declaration.
+    Global {
+        descriptor: DeclarationDescriptor,
+        statements: Vec<LocalNodeId<Statement>>,
+    },
     /// Namespace declaration.
     Namespace {
         descriptor: DeclarationDescriptor,

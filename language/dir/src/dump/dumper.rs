@@ -1322,6 +1322,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
         declaration: &Declaration,
     ) {
         match declaration {
+            Declaration::Global {
+                descriptor,
+                expressions: _,
+                scope,
+            } => {
+                self.node("Declaration::Global", id.id)
+                    .field("descriptor", descriptor)
+                    .field("scope", scope)
+                    .end();
+            }
             Declaration::Namespace {
                 descriptor,
                 generics,

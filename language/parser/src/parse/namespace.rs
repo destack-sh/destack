@@ -7,6 +7,29 @@ use destack_ast::{
 };
 
 impl Parser {
+    /// Eat a global augmentation declaration (like `declare global { ... }`).
+    pub fn eat_global(
+        &mut self,
+        start: ParserMark,
+        descriptor: DeclarationDescriptor,
+    ) -> ParseResult<LocalNodeId<Declaration>> {
+        self.eat_identifier_str("global")?;
+        self.eat_newlines_maybe()?;
+
+        self.eat_token(TokenType::OpenBrace)?;
+        let expressions = self
+            .eat_block_body(BlockFormat::Explicit)
+            .for_node_type(NodeType::Block)?;
+        self.eat_token(TokenType::CloseBrace)
+            .for_node_type(NodeType::Declaration)?;
+
+        let global = Declaration::Global {
+            descriptor,
+            expressions,
+        };
+        Ok(self.tree.insert(global, self.get_span_from(start)))
+    }
+
     /// Eat a namespace declaration (incl. `namespace` keyword).
     pub fn eat_namespace(
         &mut self,
@@ -67,6 +90,31 @@ mod tests {
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+
+    #[test]
+    fn test_parse_declare_global_block() {
+        let mut test = TestParser::new(
+            r###"
+declare global {
+    interface Foo {
+        bar(): boolean
+    }
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Global { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                assert!(descriptor.name.is_none());
+                assert!(descriptor.export.is_none());
+                assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
 
     #[test]
     fn test_parse_empty_namespace() {

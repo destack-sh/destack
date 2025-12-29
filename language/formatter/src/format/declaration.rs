@@ -74,6 +74,43 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
+            // global augmentation
+            Declaration::Global {
+                descriptor,
+                expressions,
+            } => {
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                write!(f, [token("global")])?;
+
+                // body
+                write!(f, [space()])?;
+                if expressions.is_empty() {
+                    write!(f, [empty_block_with_infix_annotations(node_id)])?;
+                    write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                } else {
+                    write!(f, [token("{"), hard_line_break()])?;
+                    write!(
+                        f,
+                        [group(&block_indent(&format_with(|f| {
+                            format_block_of_statements(f, node_id.into_any(), expressions)
+                        })))]
+                    )?;
+                    write!(
+                        f,
+                        [f.context().block_infix_annotations(node_id), token("}")]
+                    )?;
+                }
+            }
             // module
             Declaration::Namespace {
                 descriptor,

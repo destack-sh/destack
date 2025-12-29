@@ -42,6 +42,21 @@ pub struct DeclarationDescriptor {
 /// Declaration introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Declaration {
+    /// Global augmentation declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// declare global {
+    ///     interface Iterator<T> {
+    ///         next(): IteratorResult<T>;
+    ///     }
+    /// }
+    /// ```
+    Global {
+        descriptor: DeclarationDescriptor,
+        scope: LocalScopeId,
+        expressions: Vec<LocalNodeId<Expression>>,
+    },
     /// Namespace declaration.
     Namespace {
         descriptor: DeclarationDescriptor,
@@ -127,6 +142,7 @@ impl Declaration {
     /// Get the name of this kind of declaration.
     pub fn kind_name(&self) -> &'static str {
         match self {
+            Declaration::Global { .. } => "global",
             Declaration::Namespace { .. } => "namespace",
             Declaration::Type { .. } => "type",
             Declaration::Struct { .. } => "struct",
@@ -141,6 +157,7 @@ impl Declaration {
     /// Get the descriptor of the declaration.
     pub fn descriptor(&self) -> &DeclarationDescriptor {
         match self {
+            Declaration::Global { descriptor, .. } => descriptor,
             Declaration::Namespace { descriptor, .. } => descriptor,
             Declaration::Type { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,
@@ -161,6 +178,7 @@ impl Declaration {
     /// Returns None for Declaration::Type which has no scope.
     pub fn scope(&self) -> Option<LocalScopeId> {
         match self {
+            Declaration::Global { scope, .. } => Some(*scope),
             Declaration::Namespace { scope, .. } => Some(*scope),
             Declaration::Type { .. } => None,
             Declaration::Struct { scope, .. } => Some(*scope),

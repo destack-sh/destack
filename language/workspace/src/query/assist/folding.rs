@@ -88,6 +88,7 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
                 | Declaration::Struct { .. }
                 | Declaration::Interface { .. }
                 | Declaration::Enum { .. }
+                | Declaration::Global { .. }
                 | Declaration::Namespace { .. }
         );
 

@@ -82,6 +82,26 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<LocalNodeId<Declaration>> {
         let declaration = self.dir_tree.get(declaration_id);
         let declaration = match declaration {
+            dir::Declaration::Global {
+                descriptor,
+                scope: _,
+                expressions,
+            } => {
+                let descriptor = self.lower_declaration_descriptor(descriptor);
+                let statements = expressions
+                    .iter()
+                    .map(|expression| {
+                        self.lower_expression(*expression).expect_node::<Statement>(
+                            expression.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                Declaration::Global {
+                    descriptor,
+                    statements,
+                }
+            }
             dir::Declaration::Namespace {
                 descriptor,
                 scope: _,

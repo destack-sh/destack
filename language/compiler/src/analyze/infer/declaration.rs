@@ -38,6 +38,24 @@ impl Compiler {
         let declaration = tree.get(declaration_id);
         let options = ctx.options;
         match declaration {
+            // global
+            Declaration::Global {
+                descriptor: _,
+                scope: _,
+                expressions,
+            } => {
+                for expression_id in expressions {
+                    self.infer_expression(
+                        module,
+                        *expression_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+            }
             // namespace
             Declaration::Namespace {
                 descriptor: _,

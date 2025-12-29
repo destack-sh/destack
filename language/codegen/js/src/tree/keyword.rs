@@ -44,6 +44,7 @@ pub enum Keyword {
     Type,
     Namespace,
     Module,
+    Global,
     New,
     Delete,
 
@@ -181,6 +182,7 @@ impl Keyword {
             Keyword::Type => "type",
             Keyword::Namespace => "namespace",
             Keyword::Module => "module",
+            Keyword::Global => "global",
             Keyword::New => "new",
             Keyword::Delete => "delete",
 
@@ -282,6 +284,7 @@ impl FromStr for Keyword {
             "type" => Ok(Keyword::Type),
             "namespace" => Ok(Keyword::Namespace),
             "module" => Ok(Keyword::Module),
+            "global" => Ok(Keyword::Global),
             "new" => Ok(Keyword::New),
             "delete" => Ok(Keyword::Delete),
 

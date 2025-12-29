@@ -55,6 +55,14 @@ pub fn format_declaration_signature(
             modules,
             strings,
         ),
+        dir::Declaration::Global { .. } => {
+            let declare_prefix = if descriptor.kind == dir::DeclarationKind::Declaration {
+                "declare "
+            } else {
+                ""
+            };
+            format!("{export_prefix}{declare_prefix}global")
+        }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text =
                 format_generics(generics, module_id, &dir_tree, &types, modules, strings);
@@ -273,6 +281,14 @@ pub fn format_symbol_signature(
             modules,
             strings,
         ),
+        dir::Declaration::Global { .. } => {
+            let declare_prefix = if descriptor.kind == dir::DeclarationKind::Declaration {
+                "declare "
+            } else {
+                ""
+            };
+            format!("{export_prefix}{declare_prefix}global")
+        }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text =
                 format_generics(generics, module_id, &dir_tree, &types, modules, strings);

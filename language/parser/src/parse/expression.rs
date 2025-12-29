@@ -10,8 +10,9 @@ use destack_ast::{
     TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
 };
 
-pub static DECLARATION_KEYWORDS: [Keyword; 22] = [
+pub static DECLARATION_KEYWORDS: [Keyword; 23] = [
     Keyword::Declare,
+    Keyword::Abstract,
     Keyword::Namespace,
     Keyword::Struct,
     Keyword::Class,
@@ -403,9 +404,16 @@ impl Parser {
         }
 
         // kind (declare must not be followed by newline, similar to abstract)
+        let is_global_declare = self.peek_next_token(TokenType::Identifier).is_ok()
+            && self
+                .peek_next()
+                .is_ok_and(|token| self.get_token_str(*token) == "global");
         descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
             && self.peek_next_token(TokenType::Newline).is_err()
-            && self.peek_next_any_keyword().is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+            && (self
+                .peek_next_any_keyword()
+                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+                || is_global_declare)
         {
             self.bump(); // eat declare
             DeclarationKind::Declaration
@@ -432,6 +440,20 @@ impl Parser {
         } else {
             BindingAnchor::Instance
         };
+
+        // global declaration
+        if descriptor.kind == DeclarationKind::Declaration
+            && self.peek_identifier_str("global").is_ok()
+            && self
+                .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
+                .is_ok()
+        {
+            let global_id = self.eat_global(start, descriptor)?;
+            return Ok(
+                self.tree
+                    .insert(Expression::Declaration(global_id), self.get_span_from(start)),
+            );
+        }
 
         //
         // ------------------------------------------------------------

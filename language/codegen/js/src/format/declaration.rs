@@ -67,6 +67,36 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         f: &mut CodegenJsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
+            Declaration::Global {
+                descriptor,
+                statements,
+            } => {
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // kind
+                if descriptor.kind == DeclarationKind::Declaration {
+                    write!(f, [Keyword::Declare, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Global])?;
+
+                // body
+                write!(f, [space()])?;
+                write!(
+                    f,
+                    [
+                        token("{"),
+                        hard_line_break(),
+                        block_indent(&format_with(|f| format_block_of_statements(f, statements))),
+                        hard_line_break(),
+                        token("}"),
+                    ]
+                )?;
+            }
             Declaration::Namespace {
                 descriptor,
                 statements,

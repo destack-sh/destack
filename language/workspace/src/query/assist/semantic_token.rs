@@ -126,6 +126,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
 
         // determine token type from declaration kind
         let token_type = match declaration {
+            dir::Declaration::Global { .. } => SemanticTokenType::Namespace,
             dir::Declaration::Function { .. } => SemanticTokenType::Function,
             dir::Declaration::Struct { .. } => SemanticTokenType::Struct,
             dir::Declaration::Class { .. } => SemanticTokenType::Class,
@@ -393,6 +394,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             | dir::Declaration::Interface { generics, .. }
             | dir::Declaration::Enum { generics, .. }
             | dir::Declaration::Namespace { generics, .. } => Some(generics),
+            dir::Declaration::Global { .. } => None,
             dir::Declaration::Type {
                 static_parameters, ..
             } => {

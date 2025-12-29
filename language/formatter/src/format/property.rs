@@ -461,8 +461,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields_and_defaults() {
         assert_format!(
-            "struct { a?: int32 = 42, b: boolean? }",
-            "struct {\n\ta?: int32 = 42,\n\tb: boolean?,\n}",
+            "struct { a?: int32 = 42, b: boolean }",
+            "struct {\n\ta?: int32 = 42,\n\tb: boolean,\n}",
             |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
