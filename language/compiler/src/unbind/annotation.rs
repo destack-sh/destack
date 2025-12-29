@@ -101,4 +101,29 @@ impl Compiler {
         };
         ast_tree.insert(ast_annotation, span)
     }
+
+    /// Unbind and append all annotations for a DIR node to the given AST node.
+    pub(super) fn unbind_annotations_for_node(
+        &self,
+        module: &Module,
+        node_id: dir::LocalNodeIdAny,
+        tree: &dir::NodeTree,
+        symbols: &dir::SymbolTable,
+        ast_tree: &mut ast::NodeTree,
+        ast_strings: &mut StringPool,
+        ast_node_id: ast::LocalNodeIdAny,
+    ) {
+        let annotations = tree.get_annotations(node_id.id);
+        for annotation_id in annotations {
+            let ast_annotation_id = self.unbind_annotation(
+                module,
+                annotation_id,
+                tree,
+                symbols,
+                ast_tree,
+                ast_strings,
+            );
+            ast_tree.append_annotation(ast_node_id.id, ast_annotation_id);
+        }
+    }
 }

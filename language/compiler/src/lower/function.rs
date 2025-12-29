@@ -180,7 +180,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve a function return type for lowering.
-    /// FUGU #Suspicious #Cleanup: why don't all functions have value types post-Analyze?
+    /// FUGU #Suspicious #Cleanup: why don't all functions have value types post-Analyze? #FunctionType
     fn resolve_function_return_type(
         &mut self,
         function_symbol: GlobalSymbolId,

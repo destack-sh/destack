@@ -700,7 +700,19 @@ impl Compiler {
                 dir::Expression::Error => ast::Expression::Error,
             };
 
-            ast_tree.insert(ast_expression, span)
+            let ast_expression_id = ast_tree.insert(ast_expression, span);
+            // apply annotations from DIR to preserve comments in unbound output
+            self.unbind_annotations_for_node(
+                module,
+                expression_id.into_any(),
+                tree,
+                symbols,
+                ast_tree,
+                ast_strings,
+                ast_expression_id.into_any(),
+            );
+
+            ast_expression_id
         }
     }
 

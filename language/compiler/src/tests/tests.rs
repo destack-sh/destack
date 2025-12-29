@@ -181,6 +181,17 @@ impl TestProgram {
         self
     }
 
+    /// Mutate compiler options for this test program.
+    pub fn with_options_mut<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(&mut CompilerOptions),
+    {
+        let compiler = Arc::get_mut(&mut self.compiler)
+            .unwrap_or_else(|| panic!("compiler options are already shared"));
+        f(&mut compiler.options);
+        self
+    }
+
     /// Add a file to the memory filesystem (without creating a Module).
     pub fn add_file(&self, path: &str, content: &str) {
         match &self.fs {

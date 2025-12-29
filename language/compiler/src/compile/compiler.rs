@@ -56,6 +56,12 @@ pub struct CompilerOptions {
     /// e.g., `function f() { 42 }` → `function f() { return 42; }`
     pub elaborate_explicit_return: bool,
 
+    /// Whether to retain comptime expressions as comments after execution.
+    pub retain_comptime_as_comment: bool,
+    /// Maximum length of retained comptime comments (after compaction).
+    /// A value of 0 disables comment retention entirely.
+    pub retain_comptime_comment_max_length: usize,
+
     /// Whether to overwrite existing files.
     pub emit_overwrite: bool,
     /// Whether to create parent directories if they don't exist.
@@ -87,6 +93,8 @@ impl Default for CompilerOptions {
             elaborate_with_ternary: true,
             elaborate_split_declarators: true,
             elaborate_explicit_return: true,
+            retain_comptime_as_comment: false,
+            retain_comptime_comment_max_length: 120,
 
             emit_overwrite: true,
             emit_create_dirs: true,
@@ -115,6 +123,14 @@ impl std::fmt::Debug for CompilerOptions {
                 &self.elaborate_split_declarators,
             )
             .field("elaborate_explicit_return", &self.elaborate_explicit_return)
+            .field(
+                "retain_comptime_as_comment",
+                &self.retain_comptime_as_comment,
+            )
+            .field(
+                "retain_comptime_comment_max_length",
+                &self.retain_comptime_comment_max_length,
+            )
             .field("emit_overwrite", &self.emit_overwrite)
             .field("emit_create_dirs", &self.emit_create_dirs)
             .field("emit_dry_run", &self.emit_dry_run)

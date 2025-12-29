@@ -1,8 +1,9 @@
-use crate::{BlockLowerer, Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
+use crate::{
+    BlockLowerer, Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer, TypeLowerer,
+};
 
-use destack_mir as mir;
 use destack_workspace::TargetId;
-use destack_dir as dir;
+use {destack_dir as dir, destack_mir as mir};
 
 #[allow(dead_code)]
 impl Compiler {
@@ -13,6 +14,7 @@ impl Compiler {
         profile: destack_workspace::ProfileId,
         target_id: &TargetId,
     ) -> ExecuteResult<(mir::NodeTree, destack_base::StringPool)> {
+        // snapshot DIR inputs for lowering
         let module_guard = module.read();
         let dir = module_guard.dir(profile);
         let module_id = module_guard.id;
@@ -21,6 +23,7 @@ impl Compiler {
         let symbols = dir.symbols.read().clone();
         let types = dir.types.read().clone();
 
+        // build the module lowerer
         let mut lowerer = ModuleLowerer::new(
             self,
             &module_guard,
@@ -31,6 +34,7 @@ impl Compiler {
             target_id,
         );
 
+        // lower the full module for comptime execution
         lowerer
             .lower_module()
             .map_err(|error| ExecuteError::FailedLower {
@@ -39,6 +43,7 @@ impl Compiler {
                 message: format!("{error}"),
             })?;
 
+        // return the generated MIR and strings
         Ok(lowerer.finish())
     }
 
@@ -48,42 +53,48 @@ impl Compiler {
         module: &destack_workspace::Module,
         profile: destack_workspace::ProfileId,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> ExecuteResult<(mir::NodeTree, destack_base::StringPool, mir::LocalNodeId<mir::Function>)> {
+    ) -> ExecuteResult<(
+        mir::NodeTree,
+        destack_base::StringPool,
+        mir::LocalNodeId<mir::Function>,
+    )> {
         let dir = module.dir(profile);
         let dir_tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let types = dir.types.read();
+        let mut builder = mir::ModuleBuilder::new();
+        let mut type_lowerer = TypeLowerer::new(&mut builder);
 
         // resolve the return type for the comptime expression
-        let return_type_id = dir_type_id_for_expression(
-            &dir_tree,
-            &symbols,
-            &types,
-            module.id,
-            expression_id,
-        )
-        .ok_or_else(|| lower_failed(module.id, LowerError::MissingType {
-            node: expression_id.into_global_any(module.id),
-        }))?;
-
-        let mut builder = mir::ModuleBuilder::new();
-        let mut type_lowerer = crate::TypeLowerer::new(&mut builder);
-        let return_type =
-            type_lowerer
-                .lower_type(
-                    &types,
-                    return_type_id,
-                    module.id,
-                    expression_id.into_global_any(module.id),
-                    &mut builder,
-                )
-                .map_err(|error| lower_failed(module.id, error))?;
+        let return_type_id =
+            dir_type_id_for_expression(&dir_tree, &symbols, &types, module.id, expression_id)
+                .ok_or_else(|| ExecuteError::FailedLower {
+                    module: module.id,
+                    error: Box::new(LowerError::MissingType {
+                        node: expression_id.into_global_any(module.id),
+                    }),
+                    message: "missing type".to_string(),
+                })?;
+        let return_type = type_lowerer
+            .lower_type(
+                &types,
+                return_type_id,
+                module.id,
+                expression_id.into_global_any(module.id),
+                &mut builder,
+            )
+            .map_err(|error| ExecuteError::FailedLower {
+                module: module.id,
+                error: Box::new(error.clone()),
+                message: format!("{error}"),
+            })?;
 
         // build a synthetic function to evaluate the expression
-        let mut function_builder = builder.function("comptime_expression", &[], return_type);
+        let mut function_builder = builder.function("comptime", &[], return_type);
         let entry_block = function_builder.create_block();
         function_builder.switch_to_block(entry_block);
 
+        // track locals and functions by symbol
         let mut locals_by_symbol = std::collections::HashMap::new();
         let functions_by_symbol = std::collections::HashMap::new();
         let mut block_lowerer = BlockLowerer {
@@ -99,7 +110,11 @@ impl Compiler {
 
         let (value, _) = block_lowerer
             .lower_value_expression(expression_id)
-            .map_err(|error| lower_failed(module.id, error))?;
+            .map_err(|error| ExecuteError::FailedLower {
+                module: module.id,
+                error: Box::new(error.clone()),
+                message: format!("{error}"),
+            })?;
         function_builder.return_(Some(value));
         let function_id = function_builder.finish();
 
@@ -117,14 +132,13 @@ fn dir_type_id_for_expression(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
     let expression = tree.get(expression_id);
-    let type_id = match expression {
-        dir::Expression::LocalReference { target_symbol, .. }
-        | dir::Expression::ModuleReference { target_symbol, .. }
-        | dir::Expression::GlobalReference { target_symbol, .. } => types
+    let type_id = if let Some(target_symbol) = expression.target_symbol() {
+        types
             .get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
-            .or_else(|| types.get_value_type_id(*target_symbol))
-            .or_else(|| local_symbol_type_id(symbols, types, module_id, *target_symbol)),
-        _ => types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id)),
+            .or_else(|| types.get_value_type_id(target_symbol))
+            .or_else(|| local_symbol_type_id(symbols, types, module_id, target_symbol))
+    } else {
+        types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
     }?;
     Some(type_id)
 }
@@ -143,12 +157,4 @@ fn local_symbol_type_id(
     let symbol = symbols.get_symbol(symbol_id.local_id);
     let primary_declaration = symbol.primary_declaration?;
     types.get_declared_or_inferred_type_id(primary_declaration)
-}
-
-fn lower_failed(module_id: destack_source::ModuleId, error: LowerError) -> ExecuteError {
-    ExecuteError::FailedLower {
-        module: module_id,
-        error: Box::new(error.clone()),
-        message: format!("{error}"),
-    }
 }
