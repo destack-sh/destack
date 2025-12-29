@@ -142,8 +142,20 @@ impl Parser {
             Option<StringId>,
             Option<destack_source::Span>,
         ) = {
+            // ...[name] is just a name, not a pattern
+            if is_variadic
+                && self.options.in_type
+                && self.peek_token(TokenType::OpenBracket).is_ok()
+            {
+                self.bump(); // eat [
+                self.eat_newlines_maybe()?;
+                let (name, span) = self.eat_identifier_with_span()?;
+                self.eat_newlines_maybe()?;
+                self.eat_token(TokenType::CloseBracket)?;
+                (None, Some(name), Some(span))
+            }
             // pattern
-            if !is_variadic
+            else if !is_variadic
                 && self
                     .peek_token_in(&[
                         TokenType::OpenParenthesis,
