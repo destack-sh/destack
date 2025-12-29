@@ -50,7 +50,9 @@ impl LintRule for NoUselessUnderscoreBinding {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
 
-            let ast::Expression::Let { declarators, .. } = expression else {
+            let (ast::Expression::Let { declarators, .. }
+            | ast::Expression::Using { declarators, .. }) = expression
+            else {
                 continue;
             };
 

@@ -325,7 +325,8 @@ impl LintRule for NoSecrets {
                 }
 
                 // let bindings: check for suspicious variable names with string values
-                ast::Expression::Let { declarators, .. } => {
+                ast::Expression::Let { declarators, .. }
+                | ast::Expression::Using { declarators, .. } => {
                     for declarator_id in declarators {
                         let declarator = ctx.tree.get(*declarator_id);
                         let pattern = ctx.tree.get(declarator.pattern);

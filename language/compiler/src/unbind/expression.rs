@@ -89,6 +89,32 @@ impl Compiler {
                     }).collect();
                     ast::Expression::Let { kind, descriptor, mutability: ast_mutability, declarators }
                 }
+                dir::Expression::Using {
+                    asynchrony,
+                    descriptor,
+                    declarators,
+                } => {
+                    let asynchrony = self.unbind_asynchrony(*asynchrony);
+                    let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings);
+                    let declarators = declarators
+                        .iter()
+                        .map(|decl| {
+                            self.unbind_declarator(
+                                module,
+                                *decl,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                            )
+                        })
+                        .collect();
+                    ast::Expression::Using {
+                        asynchrony,
+                        descriptor,
+                        declarators,
+                    }
+                }
 
                 dir::Expression::TypeUnary { operator, right } => {
                     let operator = self.unbind_type_unary_operator(*operator);
@@ -528,13 +554,52 @@ impl Compiler {
                     }
                 }
 
-                dir::Expression::ForEach { asynchrony, kind, pattern, iterator, body, .. } => {
+                dir::Expression::ForEach {
+                    asynchrony,
+                    kind,
+                    binding,
+                    iterator,
+                    body,
+                    ..
+                } => {
                     let asynchrony = self.unbind_asynchrony(*asynchrony);
                     let kind = self.unbind_for_each_kind(*kind);
-                    let pattern = self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings);
+                    let binding = match binding {
+                        dir::ForEachBinding::Pattern { pattern } => {
+                            let pattern = self.unbind_pattern(
+                                module,
+                                *pattern,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                            );
+                            ast::ForEachBinding::Pattern { pattern }
+                        }
+                        dir::ForEachBinding::Using { asynchrony, pattern } => {
+                            let pattern = self.unbind_pattern(
+                                module,
+                                *pattern,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                            );
+                            ast::ForEachBinding::Using {
+                                asynchrony: self.unbind_asynchrony(*asynchrony),
+                                pattern,
+                            }
+                        }
+                    };
                     let iterator = self.unbind_expression(module, *iterator, tree, symbols, ast_tree, ast_strings);
                     let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings);
-                    ast::Expression::ForEach { asynchrony, kind, pattern, iterator, body }
+                    ast::Expression::ForEach {
+                        asynchrony,
+                        kind,
+                        binding,
+                        iterator,
+                        body,
+                    }
                 }
 
                 dir::Expression::For { initialization, condition, increment, body, .. } => {

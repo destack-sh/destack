@@ -1,9 +1,10 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachKind, IfKind,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchSource, NodeTree,
-    NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
-    SymbolType, TypeMappedParameterExpression, TypePredicateSubject, TypeTable, YieldCardinality,
+    DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachBinding,
+    ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind,
+    MatchSource, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolTable, SymbolType, TypeMappedParameterExpression, TypePredicateSubject, TypeTable,
+    YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -285,6 +286,60 @@ impl Compiler {
                 let expression = Expression::Let {
                     descriptor,
                     mutability,
+                    declarators,
+                };
+                let expression_id = tree.insert(expression_id, expression);
+                symbols
+                    .get_symbol_mut(symbol_id)
+                    .declare_primary(expression_id);
+                return expression_id;
+            }
+            ast::Expression::Using {
+                asynchrony,
+                descriptor,
+                declarators: ast_declarators,
+            } => {
+                let symbol_kind = if descriptor.export.is_some() {
+                    SymbolKind::Item
+                } else {
+                    SymbolKind::Local
+                };
+                let (descriptor, _) = self.bind_declaration_descriptor(
+                    module,
+                    ast,
+                    scope,
+                    descriptor,
+                    symbol_kind,
+                    SymbolType::Void,
+                    symbols,
+                );
+                let symbol_id = descriptor.symbol;
+                let binding = match descriptor.kind {
+                    DeclarationKind::Declaration => SymbolBinding::Ambient,
+                    DeclarationKind::Definition => SymbolBinding::Runtime,
+                };
+                let asynchrony = self.bind_asynchrony(*asynchrony);
+                let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
+                    .iter()
+                    .map(|ast_decl_id| {
+                        self.bind_declarator(
+                            module,
+                            ast,
+                            scope,
+                            descriptor.export,
+                            binding,
+                            *ast_decl_id,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect();
+
+                let expression = Expression::Using {
+                    asynchrony,
+                    descriptor,
                     declarators,
                 };
                 let expression_id = tree.insert(expression_id, expression);
@@ -1270,7 +1325,7 @@ impl Compiler {
             ast::Expression::ForEach {
                 asynchrony,
                 kind,
-                pattern,
+                binding,
                 iterator,
                 body,
             } => {
@@ -1297,18 +1352,41 @@ impl Compiler {
                     None,
                     symbols,
                 );
-                let pattern = self.bind_pattern(
-                    module,
-                    ast,
-                    (scope_id, symbols.get_scope_mark(scope_id)),
-                    None,
-                    SymbolBinding::Runtime,
-                    *pattern,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                );
+                let binding = match binding {
+                    ast::ForEachBinding::Pattern { pattern } => {
+                        let pattern = self.bind_pattern(
+                            module,
+                            ast,
+                            (scope_id, symbols.get_scope_mark(scope_id)),
+                            None,
+                            SymbolBinding::Runtime,
+                            *pattern,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        );
+                        ForEachBinding::Pattern { pattern }
+                    }
+                    ast::ForEachBinding::Using { asynchrony, pattern } => {
+                        let pattern = self.bind_pattern(
+                            module,
+                            ast,
+                            (scope_id, symbols.get_scope_mark(scope_id)),
+                            None,
+                            SymbolBinding::Runtime,
+                            *pattern,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        );
+                        ForEachBinding::Using {
+                            asynchrony: self.bind_asynchrony(*asynchrony),
+                            pattern,
+                        }
+                    }
+                };
                 let body = self.bind_block(
                     module,
                     ast,
@@ -1322,7 +1400,7 @@ impl Compiler {
                 Expression::ForEach {
                     asynchrony,
                     kind,
-                    pattern,
+                    binding,
                     iterator,
                     body,
                     scope: scope_id,

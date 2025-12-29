@@ -31,7 +31,9 @@ impl LintRule for NoMultiDeclarators {
         let meta = self.meta();
 
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Let { declarators, .. } = ctx.tree.get(expression_id) else {
+            let (ast::Expression::Let { declarators, .. }
+            | ast::Expression::Using { declarators, .. }) = ctx.tree.get(expression_id)
+            else {
                 continue;
             };
 

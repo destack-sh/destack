@@ -195,6 +195,53 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::Using {
+                asynchrony,
+                descriptor,
+                declarators: dir_declarators,
+            } => {
+                let asynchrony = self.lower_asynchrony(*asynchrony);
+                let descriptor = self.lower_declaration_descriptor(descriptor);
+
+                let mut declarators = Vec::with_capacity(dir_declarators.len());
+                for dir_declarator_id in dir_declarators {
+                    let dir_declarator = self.dir_tree.get(*dir_declarator_id);
+                    let pattern = self.lower_pattern(dir_declarator.pattern)?;
+                    let ty: Option<LocalNodeId<Type>> = dir_declarator
+                        .ty
+                        .map(|ty| {
+                            self.lower_expression(ty)
+                                .expect_node::<Type>(ty.into_global_any(self.module.id), self)
+                        })
+                        .transpose()?;
+                    let value: Option<LocalNodeId<Expression>> = dir_declarator
+                        .value
+                        .map(|value| {
+                            self.lower_expression(value).expect_node::<Expression>(
+                                value.into_global_any(self.module.id),
+                                self,
+                            )
+                        })
+                        .transpose()?;
+
+                    let declarator = Declarator { pattern, ty, value };
+                    let declarator_id = self.tree.insert_from_source(
+                        declarator,
+                        self.module.id,
+                        *dir_declarator_id,
+                    );
+                    declarators.push(declarator_id);
+                }
+
+                let statement = Statement::Using {
+                    asynchrony,
+                    descriptor,
+                    declarators,
+                };
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
+                    .into_any()
+            }
 
             dir::Expression::UnresolvedPath {
                 path,

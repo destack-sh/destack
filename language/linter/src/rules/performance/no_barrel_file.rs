@@ -68,6 +68,10 @@ impl LintRule for NoBarrelFile {
                     // let bindings indicate real code
                     has_other_code = true;
                 }
+                Expression::Using { .. } => {
+                    // using bindings indicate real code
+                    has_other_code = true;
+                }
                 _ => {
                     // other top-level expressions are rare but indicate non-barrel (?)
                 }

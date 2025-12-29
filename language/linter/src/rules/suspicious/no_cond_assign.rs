@@ -73,7 +73,7 @@ fn is_assignment(
     let expr = ctx.tree.get(expr_id);
     match expr {
         // let expressions are allowed (like `if const Some(x) = foo()`)
-        ast::Expression::Let { .. } => false,
+        ast::Expression::Let { .. } | ast::Expression::Using { .. } => false,
         ast::Expression::Assign { .. } => true,
         ast::Expression::Parenthesized { expression } => is_assignment(ctx, *expression),
         _ => false,

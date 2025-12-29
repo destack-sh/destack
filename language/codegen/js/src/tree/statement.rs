@@ -1,5 +1,5 @@
 use crate::{
-    Argument, AssignOperator, Block, Declaration, DeclarationDescriptor, Declarator,
+    Argument, AssignOperator, Asynchrony, Block, Declaration, DeclarationDescriptor, Declarator,
     DependencyItem, DependencyKind, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
     StringId,
 };
@@ -39,6 +39,12 @@ pub enum Statement {
     Let {
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
+        declarators: Vec<LocalNodeId<Declarator>>,
+    },
+    /// Using binding.
+    Using {
+        asynchrony: Asynchrony,
+        descriptor: DeclarationDescriptor,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Assignment operation.
@@ -132,6 +138,7 @@ impl Statement {
             | Statement::Export { .. }
             | Statement::ExportValue { .. }
             | Statement::Let { .. }
+            | Statement::Using { .. }
             | Statement::Assign { .. }
             | Statement::Expression { .. }
             | Statement::Await { .. }
