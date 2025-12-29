@@ -6,6 +6,7 @@ use destack_workspace::Module;
 use super::UnbindContext;
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR mutability to an AST mutability.
     #[inline]

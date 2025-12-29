@@ -6,6 +6,7 @@ use destack_workspace::Module;
 use super::UnbindContext;
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Unbind a DIR binding modifier to an AST binding modifier.
     pub(super) fn unbind_binding_modifier(
@@ -99,8 +100,15 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let pattern =
-                    self.unbind_pattern(module, *pattern, tree, symbols, ast_tree, ast_strings, context);
+                let pattern = self.unbind_pattern(
+                    module,
+                    *pattern,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 let ty = None;
                 let default = default.map(|default| {
                     self.unbind_expression(
