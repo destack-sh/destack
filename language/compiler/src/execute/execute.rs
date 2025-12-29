@@ -1,10 +1,10 @@
 use crate::{Compiler, ExecuteError, ExecuteResult, TaskResultCollector};
 
 use destack_source::ModuleId;
-use destack_workspace::{BUILTIN_PACKAGE_ID, ModuleComptime, ProfileId};
+use destack_workspace::{BUILTIN_PACKAGE_ID, ComptimeOutput, ModuleComptime, ProfileId};
 
-use super::ComptimePatch;
-use destack_dir as dir;
+use super::{ComptimePatch, collect_comptime_dependencies};
+use {destack_dir as dir, destack_machine as machine};
 
 impl Compiler {
     /// Prepare comptime state for a module within a profile.
@@ -150,6 +150,7 @@ impl Compiler {
 
         // run comptime evaluation for this expression
         let result = {
+            // get the comptime expression
             let module = self.program.modules.get(module_id);
             let module = module.read();
             let dir = module.dir(profile_id);
@@ -158,18 +159,60 @@ impl Compiler {
             let dir::Expression::Comptime { body } = expression else {
                 return Ok(());
             };
-            let _profile_ref = self.program.profile(profile_id);
-            let _body = *body;
 
-            // NOTE #Architecture: should we return execute error (and fail the task) or just return None?
-            self.error(ExecuteError::FailedExecution {
-                module: module_id,
-                message: "FUGU: implement comptime execution".to_string(),
-            });
-            None
+            // ensure nested comptime expressions are executed first
+            let dependencies = collect_comptime_dependencies(&tree, *body);
+            let mut dependency_collector = TaskResultCollector::new();
+            for dependency in dependencies {
+                let dependency_id = dependency.into_global(module_id);
+                let error = dependency_collector
+                    .try_collect(
+                        self.require_execute_expression(module_id, profile_id, dependency_id),
+                    );
+                if let Some(error) = error {
+                    return Err(ExecuteError::UnsatisfiedDependency {
+                        dependency: error.into_dependency(),
+                    });
+                }
+            }
+            if let Some(dependency) = dependency_collector.try_into_yield_any() {
+                return Err(ExecuteError::Yield { dependency });
+            }
+
+            // lower the comptime expression to MIR
+            let (mir_tree, strings, function_id) =
+                self.lower_comptime_expression(&module, profile_id, *body)?;
+
+            // execute the MIR with the interpreter
+            let mut interpreter = machine::Interpreter::with_options(
+                mir_tree,
+                strings.into_immutable(), // NOTE #Performance: avoid cloning the string pool
+                machine::MachineOptions::comptime(),
+            );
+            let output = interpreter
+                .run_function(function_id, &[])
+                .map_err(|error| ExecuteError::FailedExecution {
+                    module: module_id,
+                    message: format!("{error}"),
+                })?;
+
+            // convert the machine value to a static expression
+            let machine_value = output.value;
+            let dir_value = self
+                .value_to_static_expression(&machine_value)
+                .ok_or_else(|| ExecuteError::FailedExecution {
+                    module: module_id,
+                    message: "unsupported comptime result".to_string(),
+                })?;
+
+            Some(ComptimeOutput {
+                machine: Some(machine_value),
+                dir: Some(dir_value),
+                mir: None,
+            })
         };
 
-        // store the result for later patching
+        // store the result (for patching)
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
         let entry = module.comptime_mut(profile_id);

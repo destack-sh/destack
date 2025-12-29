@@ -140,6 +140,8 @@ pub struct Compiler {
     pub pending_diagnostics: DiagnosticCollector,
     /// The queue of compiler tasks.
     pub(super) queue: TaskQueue,
+    /// The shared comptime target configuration.
+    pub comptime_target: destack_workspace::Target,
     /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
     import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
     /// Compilation statistics.
@@ -161,6 +163,8 @@ impl std::fmt::Debug for Compiler {
 impl Compiler {
     /// Create a new Compiler.
     pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompilerOptions) -> Self {
+        let comptime_target = destack_workspace::Target::comptime("comptime");
+
         Self {
             session,
             program,
@@ -171,6 +175,7 @@ impl Compiler {
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
             stats: Arc::new(CompilerStats::new()),
+            comptime_target,
         }
     }
 
