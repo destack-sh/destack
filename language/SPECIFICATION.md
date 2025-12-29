@@ -609,6 +609,50 @@ Note here that the result type must be specified upfront.
 
 The result is embedded as a constant in the compiled output.
 
+### Comptime Blocks
+
+Comptime blocks can appear as struct/class members or at module top-level.
+They run during compilation rather than at runtime.
+
+#### Member Comptime Blocks
+
+Comptime blocks inside structs or classes run once per instantiation of the type.
+They are useful for compile-time assertions on static parameters:
+
+```
+struct Buffer<size: uint> {
+    comptime {
+        assert(size > 0, "buffer size must be positive");
+        assert(size <= 65536, "buffer size too large");
+    }
+
+    data: uint8[size],
+}
+```
+
+Member comptime blocks have no return value (they evaluate to `void`).
+They execute after the type's static parameters are resolved but before any instances are created.
+
+#### Module-Level Comptime Blocks
+
+Module-level comptime blocks run during module compilation:
+
+```
+comptime {
+    // validation or initialization logic
+    assert(TARGET_ARCH == "x64" || TARGET_ARCH == "arm64");
+}
+
+// or to compute a value
+const LOOKUP_TABLE: uint8[256] = comptime {
+    let table: uint8[] = [];
+    for (let i = 0; i < 256; i++) {
+        table.push(computeCRC(i));
+    }
+    table
+};
+```
+
 ### Static Parameters
 
 Static parameters ("generics" with support for non-type values) are inherently "comptime":
@@ -842,59 +886,55 @@ function parse_User(json: string): User {
 This example demonstrates comptime type conditions for conditional behavior.
 See [Ghostty's cache_table.zig](https://github.com/ghostty-org/ghostty/blob/main/src/datastruct/cache_table.zig) for the original Zig implementation.
 
-```
-// ─────────────────────────────────────────────────────────────────────────
-// Interfaces (TS-native approach to type capabilities)
-// ─────────────────────────────────────────────────────────────────────────
-
+```ds
+/// Cache context interface
 interface CacheContext<K> {
+    /// Hash the key to a uint64.
     hash(key: K): uint64;
-    eql(a: K, b: K): boolean;
+    /// Check if two keys are equal.
+    equal(a: K, b: K): boolean;
 }
 
+/// Cache context interface that supports eviction.
 interface EvictableContext<K, V> extends CacheContext<K> {
+    /// Evict a key and value.
     evicted(key: K, value: V): void;
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// The cache table with static (comptime) parameters
-// ─────────────────────────────────────────────────────────────────────────
+/// Fixed size arrays from static parameters.
+export struct CacheTableKV<K, V> { 
+    key: K, 
+    value: V 
+}
 
-struct CacheTable<
+/// Cache table with static (comptime) parameters.
+export struct CacheTable<
     K,
     V,
     Context: CacheContext<K>,
-    bucketCount: uint,      // static parameter (must be comptime-known)
-    bucketSize: uint8,      // static parameter (must be comptime-known)
+    bucketCount: uint16,
+    bucketSize: uint16,
 > {
-    // ─────────────────────────────────────────────────────────────────────
-    // Comptime assertions (same as Zig)
-    // ─────────────────────────────────────────────────────────────────────
-
+    /// Comptime block for compile-time assertions.
+    /// Runs once per instantiation of this generic struct.
     comptime {
         assert(
-            isPowerOfTwo(bucketCount),
+            (bucketCount & (bucketCount - 1)) == 0,
             `bucketCount must be power of 2, got ${bucketCount}`
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Fixed-size arrays from static parameters (same as Zig)
-    // ─────────────────────────────────────────────────────────────────────
+    /// Associated type alias for the key-value pair type.
+    type KV = CacheTableKV<K, V>;
 
-    struct KV { 
-        key: K, 
-        value: V 
-    }
-
+    /// KV pairs for the buckets.
     buckets: KV[bucketSize][bucketCount],
+    /// Lengths of the buckets.
     lengths: uint8[bucketCount] = comptime [0] * bucketCount,
+    /// Context for the cache.
     context: Context,
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Methods with conditional compilation
-    // ─────────────────────────────────────────────────────────────────────
-
+    /// Put a key and value into the cache.
     put(key: K, value: V): KV | null {
         const kv = KV { key, value };
         const idx: uint = this.context.hash(key) % bucketCount;
@@ -907,23 +947,22 @@ struct CacheTable<
 
         const evicted = rotateIn(&this.buckets[idx], kv);
 
-        // ─────────────────────────────────────────────────────────────────
-        // Comptime type condition (equivalent to Zig's @hasDecl)
-        // ─────────────────────────────────────────────────────────────────
+        // comptime type guard (equivalent to Zig's `@hasDecl`)
         if (comptime Context extends EvictableContext<K, V>) {
-            // Context is narrowed: this.context.evicted() is valid
+            // context is narrowed: this.context.evicted() is valid
             this.context.evicted(evicted.key, evicted.value);
         }
 
         evicted
     }
 
+    /// Get a value from the cache.
     get(key: K): V | null {
         const idx: uint = this.context.hash(key) % bucketCount;
         const len = this.lengths[idx];
 
         for (let i = len; i > 0; i--) {
-            if (this.context.eql(key, this.buckets[idx][i - 1].key)) {
+            if (this.context.equal(key, this.buckets[idx][i - 1].key)) {
                 const value = this.buckets[idx][i - 1].value;
                 rotateOnce(this.buckets[idx].slice(i - 1, len - 1));
                 return value;
@@ -933,7 +972,9 @@ struct CacheTable<
         null
     }
 
+    /// Clear the cache.
     clear(): void {
+        // report eviction of all values if the context is evictable
         if (comptime Context extends EvictableContext<K, V>) {
             for (const [bucket, length] of zip(this.buckets, this.lengths)) {
                 for (const kv of bucket.slice(0, length)) {
@@ -1170,6 +1211,48 @@ struct Player {
 
 At runtime in JS, a struct is just a plain object—its nominal type is erased.
 Ownership (`&T`, `^T`) is orthogonal: you can explicitly reference or copy either structs or classes.
+
+#### Associated Types
+
+Structs and classes can declare associated type aliases using the `type` keyword:
+
+```
+struct Container<T> {
+    type Item = T;
+    type Iter = ContainerIterator<T>;
+
+    items: T[],
+
+    iter(): Iter { ContainerIterator { items: this.items } }
+}
+```
+
+Associated types are inherently static because they belong to the type itself, not to instances.
+Associated types are resolved at compile time based on the type's static parameters.
+
+Associated types can be accessed via the containing type:
+
+```
+const item: Container<int>.Item = 42;  // Item resolves to int
+```
+
+In interfaces, associated types can be declared without a default (abstract) or with a default:
+
+```
+interface Iterable<T> {
+    type Item;                    // abstract: implementors must provide
+    type Iter: Iterator<Item>;    // abstract with constraint
+
+    iter(): Iter;
+}
+
+extension<T> for Container<T> implements Iterable<T> {
+    type Item = T;
+    type Iter = ContainerIterator<T>;
+
+    iter(): Iter { ... }
+}
+```
 
 ### Enum
 

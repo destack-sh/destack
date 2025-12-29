@@ -148,6 +148,7 @@ No prototype changes, no dynamic object shape modification.
 | `Reflect` | Runtime metaprogramming | Comptime reflection, RTTI |
 | `__proto__` | Prototype chain mutation | Fixed type hierarchy |
 | `Object.setPrototypeOf()` | Prototype chain mutation | Fixed type hierarchy |
+| Declaration expressions | Runtime type generation | Named declarations (`noDynamicShapes` on JS) |
 
 Some of these features are already discouraged in modern TypeScript (strict mode forbids `with`; `eval` breaks type safety and security), others have solid alternatives as espoused by our standard library.
 

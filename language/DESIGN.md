@@ -328,6 +328,20 @@ struct Transform { position: Vec3, rotation: Quat }
 struct Player { ...Transform, health: int }  // embeds Transform's fields
 ```
 
+#### Associated Types
+
+Structs, classes, and interfaces can declare associated type aliases:
+
+```
+struct Cache<K, V> {
+    type Entry = CacheEntry<K, V>;  // associated type
+    entries: Entry[],
+}
+```
+
+Associated types are resolved at compile time and can reference static parameters.
+See [Associated Types](SPECIFICATION.md#associated-types) for full details.
+
 ### Constraints
 
 `where` clauses for readable generic constraints:
@@ -383,6 +397,19 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
     }
 }
 ```
+
+Comptime blocks can also appear as struct/class members for compile-time assertions:
+
+```
+struct Buffer<size: uint> {
+    comptime {
+        assert(size > 0 && size <= 65536);
+    }
+    data: uint8[size],
+}
+```
+
+Member comptime blocks run once per type instantiation.
 
 ### Execution Model
 
@@ -711,3 +738,4 @@ Comptime bridges TS types and Destack semantics:
 
 - **Flow**: We support TypeScript only.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
+- **Declaration expressions (native targets)**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with ahead-of-time compilation. Use named declarations instead. On JS targets, enable `noDynamicShapes` for portability.
