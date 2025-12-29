@@ -21,15 +21,19 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
         let ast_property = ast.tree.get(ast_property_id);
-        let property_id =
-            tree.reserve_from_source(NodeType::Property, ast_property_id.id, scope, parent_id);
-        let property = match ast_property {
+        match ast_property {
             ast::Property::Field {
                 modifiers,
                 key,
                 value,
                 default,
             } => {
+                let property_id = tree.reserve_from_source(
+                    NodeType::Property,
+                    ast_property_id.id,
+                    scope,
+                    parent_id,
+                );
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
@@ -70,13 +74,14 @@ impl Compiler {
                 });
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Property::Field {
+                let property = Property::Field {
                     modifiers,
                     key,
                     value,
                     default,
                     symbol: symbol_id,
-                }
+                };
+                tree.insert(property_id, property)
             }
             ast::Property::Method {
                 modifiers,
@@ -84,6 +89,20 @@ impl Compiler {
                 signature,
                 body,
             } => {
+                let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
+                    module,
+                    ast,
+                    ScopeKind::Namespace,
+                    scope,
+                    None,
+                    symbols,
+                );
+                let property_id = tree.reserve_from_source(
+                    NodeType::Property,
+                    ast_property_id.id,
+                    (method_scope_id, LocalScopeMark::end()),
+                    parent_id,
+                );
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let key = key.map(|key| {
@@ -98,10 +117,21 @@ impl Compiler {
                         types,
                     )
                 });
+                let this_name = self.program.strings.intern("this");
+                let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
+                self.bind_named_local(
+                    module,
+                    ast,
+                    SymbolSpace::Value,
+                    StaticKey::Name(this_name),
+                    method_scope,
+                    symbols,
+                );
+                let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 let signature = self.bind_function_signature(
                     module,
                     ast,
-                    scope,
+                    method_scope,
                     signature,
                     Some(property_id),
                     tree,
@@ -112,7 +142,7 @@ impl Compiler {
                     self.bind_expression(
                         module,
                         ast,
-                        scope,
+                        (method_scope_id, symbols.get_scope_mark(method_scope_id)),
                         body,
                         Some(property_id),
                         tree,
@@ -120,19 +150,24 @@ impl Compiler {
                         types,
                     )
                 });
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Property::Method {
+                let property = Property::Method {
                     modifiers,
                     key,
                     signature,
                     body,
                     symbol: symbol_id,
-                }
+                };
+                tree.insert(property_id, property)
             }
             ast::Property::Spread {
                 modifiers, value, ..
             } => {
+                let property_id = tree.reserve_from_source(
+                    NodeType::Property,
+                    ast_property_id.id,
+                    scope,
+                    parent_id,
+                );
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let value = self.bind_expression(
@@ -147,14 +182,14 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                Property::Spread {
+                let property = Property::Spread {
                     modifiers,
                     value,
                     symbol: symbol_id,
-                }
+                };
+                tree.insert(property_id, property)
             }
-        };
-        tree.insert(property_id, property)
+        }
     }
 
     /// Bind a member to a DIR member.
@@ -366,5 +401,27 @@ impl Compiler {
                 )
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestProgram;
+
+    #[test]
+    fn test_bind_property_method_parameter_scopes() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ds",
+            r#"
+declare var Factory: {
+    new(type: string): any;
+    new(type: number): any;
+};
+"#,
+        );
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
     }
 }
