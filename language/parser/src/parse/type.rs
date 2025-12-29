@@ -112,9 +112,8 @@ impl Parser {
             .map(|next| self.get_span_str(next.span))
             .ok();
 
-        // !, _
-        if (next_type == TokenType::Not
-            || next_type == TokenType::Wildcard)
+        // !
+        if next_type == TokenType::Not
             // if next token doesn't start a related expression
             && (next_next_type.is_none()
                 || !self.is_start_of_expression(
@@ -122,11 +121,7 @@ impl Parser {
                     next_next_type.unwrap(),
                 ))
         {
-            return match next_type {
-                TokenType::Not => Ok(TypeLiteral::Never),
-                TokenType::Wildcard => Ok(TypeLiteral::Infer),
-                _ => unreachable!(),
-            };
+            return Ok(TypeLiteral::Never);
         }
 
         // regular single-token type literals (also only inside static/type context)
@@ -365,12 +360,7 @@ impl Parser {
     pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Infer)?;
-        let name = if self.peek_token(TokenType::Wildcard).is_ok() {
-            self.bump();
-            self.strings.intern("_")
-        } else {
-            self.eat_identifier()?
-        };
+        let name = self.eat_identifier()?;
         // optional constraint: infer T extends U
         let constraint = if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends

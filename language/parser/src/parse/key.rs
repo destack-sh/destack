@@ -57,19 +57,6 @@ impl Parser {
         Ok(string_id)
     }
 
-    /// Eat an identifier or a wildcard maybe.
-    #[inline]
-    pub fn eat_identifier_or_wildcard_maybe(&mut self) -> ParseResult<Option<StringId>> {
-        if self.peek_token(TokenType::Wildcard).is_ok() {
-            self.bump();
-            Ok(None)
-        } else if self.peek_identifier().is_ok() {
-            Ok(Some(self.eat_identifier()?))
-        } else {
-            Ok(None)
-        }
-    }
-
     /// Eat a name maybe.
     #[inline]
     pub fn eat_name_maybe(&mut self) -> ParseResult<Option<Name>> {

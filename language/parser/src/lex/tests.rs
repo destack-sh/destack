@@ -67,7 +67,7 @@ fn test_lex_random_symbols() {
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // _
-        Token::new(TokenType::Wildcard, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // :

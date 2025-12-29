@@ -156,14 +156,14 @@ impl Parser {
             }
             // pattern
             else if !is_variadic
-                && self
+                && (self
                     .peek_token_in(&[
                         TokenType::OpenParenthesis,
                         TokenType::OpenBracket,
                         TokenType::OpenBrace,
-                        TokenType::Wildcard,
                     ])
                     .is_ok()
+                    || self.peek_identifier_str("_").is_ok())
             {
                 let pattern = self
                     .with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
@@ -302,7 +302,6 @@ impl Parser {
             || self.peek_token(TokenType::OpenParenthesis).is_ok()
             || self.peek_token(TokenType::OpenBracket).is_ok()
             || self.peek_token(TokenType::OpenBrace).is_ok()
-            || self.peek_token(TokenType::Wildcard).is_ok()
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);

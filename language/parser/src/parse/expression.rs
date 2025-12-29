@@ -54,14 +54,13 @@ pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
     Keyword::Function,
 ];
 
-pub static PATTERN_START_TOKENS: [TokenType; 7] = [
+pub static PATTERN_START_TOKENS: [TokenType; 6] = [
     TokenType::Identifier,
     TokenType::Literal,
     TokenType::ElementwiseAnd,
     TokenType::OpenParenthesis,
     TokenType::OpenBrace,
     TokenType::OpenBracket,
-    TokenType::Wildcard,
 ];
 
 // can't use anything with `<` or `>` in static arguments

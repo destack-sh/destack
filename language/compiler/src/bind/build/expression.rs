@@ -625,17 +625,14 @@ impl Compiler {
                         types,
                     )
                 });
-                let wildcard = self.program.strings.intern("_");
-                if name != wildcard {
-                    let _ = self.bind_named_local(
-                        module,
-                        ast,
-                        SymbolSpace::Type,
-                        StaticKey::Name(name),
-                        scope,
-                        symbols,
-                    );
-                }
+                let _ = self.bind_named_local(
+                    module,
+                    ast,
+                    SymbolSpace::Type,
+                    StaticKey::Name(name),
+                    scope,
+                    symbols,
+                );
                 Expression::TypeInfer { name, constraint }
             }
             ast::Expression::TypePredicate {

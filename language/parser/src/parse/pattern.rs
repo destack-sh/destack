@@ -46,7 +46,7 @@ impl Parser {
         // ------------------------------------------------------------
         let pattern_id = {
             // wildcard
-            if self.peek_token(TokenType::Wildcard).is_ok() {
+            if self.peek_identifier_str("_").is_ok() {
                 self.bump(); // eat wildcard
                 self.tree
                     .insert(Pattern::Wildcard, self.get_span_from(start))
@@ -295,6 +295,14 @@ impl Parser {
                 // elision: empty slot before separator (like `[,a]` or `[,,b]`)
                 if self.peek_token(seperator).is_ok() {
                     PatternField::Elision
+                }
+                // positional wildcard for tuples/arrays
+                else if terminator != TokenType::CloseBrace
+                    && self.peek_identifier_str("_").is_ok()
+                    && self.peek_next_token(TokenType::Colon).is_err()
+                {
+                    let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                    PatternField::Positional { pattern }
                 }
                 // named or named alias or spread
                 else if self.peek_name().is_ok()
