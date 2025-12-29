@@ -10,7 +10,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 use crate::console;
 
-const MAX_VISIBLE_TASKS: usize = 3;
+const MAX_VISIBLE_TASKS: usize = 5;
 const MAX_VISIBLE_TASKS_DETAILED: usize = 6;
 const HEADER_TICK_RATE: Duration = Duration::from_millis(120);
 
@@ -148,7 +148,7 @@ impl ProgressReporter {
     pub fn line_writer(&self) -> Arc<dyn Fn(&str) + Send + Sync> {
         let multi = self.multi.clone();
         Arc::new(move |line: &str| {
-            let _ = multi.println(line.to_string());
+            let _ = multi.println(line);
         })
     }
 

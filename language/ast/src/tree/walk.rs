@@ -1154,7 +1154,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Wildcard => {
             // no child nodes to visit
         }
-        Pattern::Maybe(unwrap) => {
+        Pattern::Must(unwrap) => {
             let unwrap_pattern = tree.get(*unwrap);
             visitor.visit_pattern(tree, *unwrap, unwrap_pattern);
         }

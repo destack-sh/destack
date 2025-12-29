@@ -312,13 +312,8 @@ impl Compiler {
                 }
             }
             // maybe
-            Expression::Maybe { left } => {
-                let type_id =
-                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
-                Type::Unary {
-                    operator: TypeUnaryOperator::Maybe,
-                    right: type_id,
-                }
+            Expression::Maybe { .. } => {
+                return Ok(None); // cannot be evaluated to a type here (not supported in type contexts)
             }
             // must
             Expression::Must { left } => {

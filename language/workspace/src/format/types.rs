@@ -517,7 +517,6 @@ fn format_type_unary(
     let right_str = format_local_type(right, types, modules, strings);
     match operator {
         dir::TypeUnaryOperator::Not => format!("!{right_str}"),
-        dir::TypeUnaryOperator::Maybe => format!("{right_str}?"),
         dir::TypeUnaryOperator::Must => format!("{right_str}!"),
         dir::TypeUnaryOperator::Newtype => format!("newtype {right_str}"),
         dir::TypeUnaryOperator::Type => format!("type {right_str}"),

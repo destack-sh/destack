@@ -109,7 +109,7 @@ fn binds_anything(
         ast::Pattern::Range { .. } => false,
 
         // reference/value patterns bind if inner binds
-        ast::Pattern::Maybe(inner)
+        ast::Pattern::Must(inner)
         | ast::Pattern::ReferenceOf { right: inner, .. }
         | ast::Pattern::ValueOf { right: inner, .. } => binds_anything(ctx, *inner),
     }

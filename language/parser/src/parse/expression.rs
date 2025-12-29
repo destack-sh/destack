@@ -1194,17 +1194,7 @@ impl Parser {
                 self.tree.set_main_span(left_expression_id, operator_span);
             }
             // type unary postfix operations
-            else if let Ok(operator) = self.peek_type_unary_postfix_operator()
-                && !(self.options.in_type
-                    && operator == TypeUnaryOperator::Maybe
-                    && matches!(
-                        self.tree.get(left_expression_id),
-                        Expression::TypeBinary {
-                            operator: TypeBinaryOperator::Extends,
-                            ..
-                        }
-                    ))
-            {
+            else if let Ok(operator) = self.peek_type_unary_postfix_operator() {
                 // avoid consuming conditional type ? as a type maybe
                 let operator_start = self.mark();
                 self.bump(); // eat type unary operator

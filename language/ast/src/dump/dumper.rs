@@ -1468,8 +1468,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", _id.id).end();
             }
-            Pattern::Maybe(_) => {
-                self.node("Pattern::Unwrap", _id.id).end();
+            Pattern::Must(_) => {
+                self.node("Pattern::Must", _id.id).end();
             }
             Pattern::ReferenceOf {
                 mutability,

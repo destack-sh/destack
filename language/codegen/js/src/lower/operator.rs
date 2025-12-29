@@ -36,7 +36,6 @@ impl ModuleLowerer<'_> {
             dir::TypeUnaryOperator::Type => unary(TypeUnaryOperator::Type),
             dir::TypeUnaryOperator::Readonly => unary(TypeUnaryOperator::Readonly),
             dir::TypeUnaryOperator::Not => unary(TypeUnaryOperator::Not),
-            dir::TypeUnaryOperator::Maybe => unary(TypeUnaryOperator::Maybe),
             dir::TypeUnaryOperator::Must => unary(TypeUnaryOperator::Must),
             dir::TypeUnaryOperator::Typeof => unary(TypeUnaryOperator::Typeof),
             dir::TypeUnaryOperator::Keyof => unary(TypeUnaryOperator::Keyof),

@@ -3,8 +3,6 @@
 pub enum TypeUnaryOperator {
     /// Not `!T`.
     Not,
-    /// Maybe 'T?'.
-    Maybe,
     /// Must 'T!'.
     Must,
     /// `newtype`

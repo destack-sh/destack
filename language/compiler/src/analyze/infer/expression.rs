@@ -1500,7 +1500,7 @@ impl Compiler {
             Pattern::Wildcard => {
                 // nothing to do
             }
-            Pattern::Maybe(pattern_id) => {
+            Pattern::Must(pattern_id) => {
                 self.infer_pattern(
                     module,
                     *pattern_id,

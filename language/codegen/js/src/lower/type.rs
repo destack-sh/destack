@@ -119,7 +119,6 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<TypeUnaryOperator> {
         let operator = match operator {
             dir::TypeUnaryOperator::Not => TypeUnaryOperator::Not,
-            dir::TypeUnaryOperator::Maybe => TypeUnaryOperator::Maybe,
             dir::TypeUnaryOperator::Must => TypeUnaryOperator::Must,
             dir::TypeUnaryOperator::Type => TypeUnaryOperator::Type,
             dir::TypeUnaryOperator::Newtype => {

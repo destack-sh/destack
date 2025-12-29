@@ -10,219 +10,6 @@ use crate::common::{
 };
 use crate::console;
 
-/// Summary info for stats output.
-#[derive(Debug)]
-pub struct StatsSummary<'a> {
-    /// Action verb to display (e.g., "Checked", "Built", "Linted").
-    pub verb: &'a str,
-    /// Number of modules processed.
-    pub modules: usize,
-    /// Number of profiles used.
-    pub profiles: usize,
-    /// Number of targets built.
-    pub targets: usize,
-    /// Number of errors found.
-    pub errors: usize,
-    /// Number of warnings found.
-    pub warnings: usize,
-}
-
-/// Print a stats summary line after diagnostics.
-pub fn print_stats_summary(
-    summary: &StatsSummary<'_>,
-    stats: &StatsSnapshot,
-    line_writer: Option<&LineWriter>,
-) {
-    let elapsed_secs = stats.elapsed.as_secs_f64();
-
-    // counts: "N modules[, M profiles][, K targets]"
-    let mut parts = Vec::new();
-    parts.push(pluralize(summary.modules, "module"));
-    if summary.profiles > 1 {
-        parts.push(pluralize(summary.profiles, "profile"));
-    }
-    if summary.targets > 0 {
-        parts.push(pluralize(summary.targets, "target"));
-    }
-    let counts = parts.join(", ");
-
-    // build main message and colorize based on status
-    let elapsed_str = console::format_duration(stats.elapsed);
-    let (icon, main_part) = if summary.errors > 0 {
-        let status = format!(" with {}", pluralize(summary.errors, "error"));
-        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
-        // bold + bright red
-        (
-            console::red("✗"),
-            console::style_for_stream(&main, &["1", "91"], console::Stream::Stderr),
-        )
-    } else if summary.warnings > 0 {
-        let status = format!(" with {}", pluralize(summary.warnings, "warning"));
-        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
-        // bold + bright yellow
-        (
-            console::green("✓"),
-            console::style_for_stream(&main, &["1", "93"], console::Stream::Stderr),
-        )
-    } else {
-        let main = format!("{} {counts} in {elapsed_str}", summary.verb);
-        // bold + green
-        (
-            console::green("✓"),
-            console::style_for_stream(&main, &["1", "32"], console::Stream::Stderr),
-        )
-    };
-
-    // line count with throughput (bold only, after the ·)
-    let lines_suffix = if stats.lines_processed > 0 && elapsed_secs > 0.001 {
-        let throughput = stats.lines_processed as f64 / elapsed_secs;
-        console::bold(&format!(
-            " · {} lines · {} lines/s",
-            format_number(stats.lines_processed),
-            format_compact(throughput as usize)
-        ))
-    } else if stats.lines_processed > 0 {
-        console::bold(&format!(
-            " · {} lines",
-            format_number(stats.lines_processed)
-        ))
-    } else {
-        String::new()
-    };
-
-    write_line(line_writer, &format!("{icon} {main_part}{lines_suffix}"));
-
-    // show per-package breakdown if multiple packages (excluding internal ones)
-    // aggregate by package name to avoid duplicates
-    let mut package_map: std::collections::HashMap<String, (usize, usize, std::time::Duration)> =
-        std::collections::HashMap::new();
-    for pkg in &stats.packages {
-        let name = pkg.name.as_deref().unwrap_or("");
-        // skip internal packages
-        if name.starts_with('<') || pkg.lines == 0 {
-            continue;
-        }
-        let entry =
-            package_map
-                .entry(name.to_string())
-                .or_insert((0, 0, std::time::Duration::ZERO));
-        entry.0 += pkg.modules;
-        entry.1 += pkg.lines;
-        entry.2 += pkg.duration;
-    }
-
-    if !package_map.is_empty() {
-        // sort: builtin packages last, then by lines descending
-        let mut packages: Vec<_> = package_map.into_iter().collect();
-        packages.sort_by(|(a_name, _), (b_name, _)| {
-            let a_is_builtin = a_name.contains("builtin");
-            let b_is_builtin = b_name.contains("builtin");
-
-            match (a_is_builtin, b_is_builtin) {
-                (false, true) => std::cmp::Ordering::Less,
-                (true, false) => std::cmp::Ordering::Greater,
-                _ => a_name.cmp(b_name),
-            }
-        });
-
-        for (name, (modules, lines, duration)) in packages {
-            let duration_str = if duration.as_nanos() > 0 {
-                console::cyan(&console::format_duration(duration))
-            } else {
-                String::new()
-            };
-            let modules_str = pluralize(modules, "module");
-            let lines_str = format!("{} lines", format_number(lines));
-            let throughput_str = if duration.as_nanos() > 0 {
-                let duration_secs = duration.as_secs_f64();
-                if lines > 0 && duration_secs > 0.001 {
-                    let throughput = lines as f64 / duration_secs;
-                    format!(" · {} lines/s", format_compact(throughput as usize))
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-            write_line(
-                line_writer,
-                &format!(
-                    "    {}  {} · {} · {}{}",
-                    console::cyan(&name),
-                    duration_str,
-                    modules_str,
-                    lines_str,
-                    throughput_str
-                ),
-            );
-        }
-    }
-
-    // show per-phase timing (labels dimmed, times in cyan)
-    // skip phases with 0 duration
-    let visible_phases: Vec<_> = stats
-        .phases
-        .iter()
-        .filter(|p| p.duration.as_nanos() > 0)
-        .collect();
-
-    if !visible_phases.is_empty() {
-        let phase_parts: Vec<String> = visible_phases
-            .iter()
-            .map(|p| {
-                let name = console::dim(p.phase.name());
-                let duration = console::cyan(&console::format_duration(p.duration));
-                format!("{name} {duration}")
-            })
-            .collect();
-
-        let sep = console::dim(" · ");
-        write_line(line_writer, &format!("    {}", phase_parts.join(&sep)));
-    }
-}
-
-/// Format a number with thousands separators.
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
-/// Format a number in compact form (e.g., 1.2k, 3.5M).
-fn format_compact(n: usize) -> String {
-    if n >= 1_000_000 {
-        let m = n as f64 / 1_000_000.0;
-        if m >= 10.0 {
-            format!("{m:.0}M")
-        } else {
-            format!("{m:.1}M")
-        }
-    } else if n >= 1_000 {
-        let k = n as f64 / 1_000.0;
-        if k >= 10.0 {
-            format!("{k:.0}k")
-        } else {
-            format!("{k:.1}k")
-        }
-    } else {
-        n.to_string()
-    }
-}
-
-fn pluralize(n: usize, word: &str) -> String {
-    if n == 1 {
-        format!("{n} {word}")
-    } else {
-        format!("{n} {word}s")
-    }
-}
-
 /// Output format for diagnostics.
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum Format {
@@ -499,5 +286,218 @@ fn write_line(line_writer: Option<&LineWriter>, line: &str) {
         writer(line);
     } else {
         eprintln!("{line}");
+    }
+}
+
+/// Summary info for stats output.
+#[derive(Debug)]
+pub struct StatsSummary<'a> {
+    /// Action verb to display (e.g., "Checked", "Built", "Linted").
+    pub verb: &'a str,
+    /// Number of modules processed.
+    pub modules: usize,
+    /// Number of profiles used.
+    pub profiles: usize,
+    /// Number of targets built.
+    pub targets: usize,
+    /// Number of errors found.
+    pub errors: usize,
+    /// Number of warnings found.
+    pub warnings: usize,
+}
+
+/// Print a stats summary line after diagnostics.
+pub fn print_stats_summary(
+    summary: &StatsSummary<'_>,
+    stats: &StatsSnapshot,
+    line_writer: Option<&LineWriter>,
+) {
+    let elapsed_secs = stats.elapsed.as_secs_f64();
+
+    // counts: "N modules[, M profiles][, K targets]"
+    let mut parts = Vec::new();
+    parts.push(pluralize(summary.modules, "module"));
+    if summary.profiles > 1 {
+        parts.push(pluralize(summary.profiles, "profile"));
+    }
+    if summary.targets > 0 {
+        parts.push(pluralize(summary.targets, "target"));
+    }
+    let counts = parts.join(", ");
+
+    // build main message and colorize based on status
+    let elapsed_str = console::format_duration(stats.elapsed);
+    let (icon, main_part) = if summary.errors > 0 {
+        let status = format!(" with {}", pluralize(summary.errors, "error"));
+        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
+        // bold + bright red
+        (
+            console::red("✗"),
+            console::style_for_stream(&main, &["1", "91"], console::Stream::Stderr),
+        )
+    } else if summary.warnings > 0 {
+        let status = format!(" with {}", pluralize(summary.warnings, "warning"));
+        let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
+        // bold + bright yellow
+        (
+            console::green("✓"),
+            console::style_for_stream(&main, &["1", "93"], console::Stream::Stderr),
+        )
+    } else {
+        let main = format!("{} {counts} in {elapsed_str}", summary.verb);
+        // bold + green
+        (
+            console::green("✓"),
+            console::style_for_stream(&main, &["1", "32"], console::Stream::Stderr),
+        )
+    };
+
+    // line count with throughput (bold only, after the ·)
+    let lines_suffix = if stats.lines_processed > 0 && elapsed_secs > 0.001 {
+        let throughput = stats.lines_processed as f64 / elapsed_secs;
+        console::bold(&format!(
+            " · {} lines · {} lines/s",
+            format_number(stats.lines_processed),
+            format_compact(throughput as usize)
+        ))
+    } else if stats.lines_processed > 0 {
+        console::bold(&format!(
+            " · {} lines",
+            format_number(stats.lines_processed)
+        ))
+    } else {
+        String::new()
+    };
+
+    write_line(line_writer, &format!("{icon} {main_part}{lines_suffix}"));
+
+    // show per-package breakdown if multiple packages (excluding internal ones)
+    // aggregate by package name to avoid duplicates
+    let mut package_map: std::collections::HashMap<String, (usize, usize, std::time::Duration)> =
+        std::collections::HashMap::new();
+    for pkg in &stats.packages {
+        let name = pkg.name.as_deref().unwrap_or("");
+        // skip internal packages
+        if name.starts_with('<') || pkg.lines == 0 {
+            continue;
+        }
+        let entry =
+            package_map
+                .entry(name.to_string())
+                .or_insert((0, 0, std::time::Duration::ZERO));
+        entry.0 += pkg.modules;
+        entry.1 += pkg.lines;
+        entry.2 += pkg.duration;
+    }
+
+    if !package_map.is_empty() {
+        // sort: builtin packages last, then by lines descending
+        let mut packages: Vec<_> = package_map.into_iter().collect();
+        packages.sort_by(|(a_name, _), (b_name, _)| {
+            let a_is_builtin = a_name.contains("builtin");
+            let b_is_builtin = b_name.contains("builtin");
+
+            match (a_is_builtin, b_is_builtin) {
+                (false, true) => std::cmp::Ordering::Less,
+                (true, false) => std::cmp::Ordering::Greater,
+                _ => a_name.cmp(b_name),
+            }
+        });
+
+        for (name, (modules, lines, duration)) in packages {
+            let duration_str = if duration.as_nanos() > 0 {
+                console::cyan(&console::format_duration(duration))
+            } else {
+                String::new()
+            };
+            let modules_str = pluralize(modules, "module");
+            let lines_str = format!("{} lines", format_number(lines));
+            let throughput_str = if duration.as_nanos() > 0 {
+                let duration_secs = duration.as_secs_f64();
+                if lines > 0 && duration_secs > 0.001 {
+                    let throughput = lines as f64 / duration_secs;
+                    format!(" · {} lines/s", format_compact(throughput as usize))
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+            write_line(
+                line_writer,
+                &format!(
+                    "    {}  {} · {} · {}{}",
+                    console::cyan(&name),
+                    duration_str,
+                    modules_str,
+                    lines_str,
+                    throughput_str
+                ),
+            );
+        }
+    }
+
+    // show per-phase timing (labels dimmed, times in cyan)
+    // skip phases with 0 duration
+    let visible_phases: Vec<_> = stats
+        .phases
+        .iter()
+        .filter(|p| p.duration.as_nanos() > 0)
+        .collect();
+
+    if !visible_phases.is_empty() {
+        let phase_parts: Vec<String> = visible_phases
+            .iter()
+            .map(|p| {
+                let name = console::dim(p.phase.name());
+                let duration = console::cyan(&console::format_duration(p.duration));
+                format!("{name} {duration}")
+            })
+            .collect();
+
+        let sep = console::dim(" · ");
+        write_line(line_writer, &format!("    {}", phase_parts.join(&sep)));
+    }
+}
+
+/// Format a number with thousands separators.
+fn format_number(n: usize) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
+}
+
+/// Format a number in compact form (e.g., 1.2k, 3.5M).
+fn format_compact(n: usize) -> String {
+    if n >= 1_000_000 {
+        let m = n as f64 / 1_000_000.0;
+        if m >= 10.0 {
+            format!("{m:.0}M")
+        } else {
+            format!("{m:.1}M")
+        }
+    } else if n >= 1_000 {
+        let k = n as f64 / 1_000.0;
+        if k >= 10.0 {
+            format!("{k:.0}k")
+        } else {
+            format!("{k:.1}k")
+        }
+    } else {
+        n.to_string()
+    }
+}
+
+fn pluralize(n: usize, word: &str) -> String {
+    if n == 1 {
+        format!("{n} {word}")
+    } else {
+        format!("{n} {word}s")
     }
 }

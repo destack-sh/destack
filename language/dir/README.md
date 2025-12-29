@@ -136,7 +136,7 @@ If we don't know the symbol at compile time, it's dynamic dispatch.
 - `Type::Predicate { asserts, subject, target }`
 - `Type::This`
 - Keep `Type::Unary`/`Type::Binary` for operator-like constructs:
-  - `Type::Unary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, `!`, `?`, `!`
+  - `Type::Unary`: `readonly`, `typeof`, `keyof`, `type`, `newtype`, `as const`, prefix `!`, postfix `!`
   - `Type::Binary`: `as`, `is`, `instanceof`, `satisfies`, `extends`, `implements`
   - `infer` and `asserts` move to `Type::Infer`/`Type::Predicate`
 - Supporting structs/enums:

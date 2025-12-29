@@ -646,8 +646,8 @@ impl Compiler {
             return Ok(Some(body_with_bindings));
         }
 
-        // maybe patterns: check if value is some, then unwrap
-        // #Incomplete: Maybe pattern needs proper Option/Result type handling
+        // must patterns: check if value is non-nullish, then unwrap
+        // #Incomplete: must pattern needs proper Result-like type handling
 
         // reference/value patterns: unwrap and match inner
         // #Incomplete: ReferenceOf and ValueOf patterns

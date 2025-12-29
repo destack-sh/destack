@@ -1785,8 +1785,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Wildcard => {
                 self.node("Pattern::Wildcard", id.id).end();
             }
-            Pattern::Maybe(_) => {
-                self.node("Pattern::Maybe", id.id).end();
+            Pattern::Must(_) => {
+                self.node("Pattern::Must", id.id).end();
             }
             Pattern::ReferenceOf {
                 right: _,

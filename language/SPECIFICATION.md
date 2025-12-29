@@ -1021,7 +1021,7 @@ interface Drawable {
 interface Container<T> extends Iterable<T> {
     static Empty: this
     size(): uint64
-    get(index: uint64): T?
+    get(index: uint64): T | undefined
 }
 ```
 
@@ -1839,6 +1839,14 @@ Captures a value into a variable:
 ```
 x                    // bind to x
 ^mut x                // bind to mutable x
+```
+
+#### Must
+
+Matches any non-nullish, Try-unwrapped value and binds it:
+
+```
+x!                   // bind only if value is not null or undefined
 ```
 
 #### Literal

@@ -82,8 +82,6 @@ pub enum OperatorPrecedence {
 pub enum TypeUnaryOperator {
     /// `!T`
     Not = 1811,
-    /// `T?`
-    Maybe = 1810,
     /// `T!`
     Must = 1809,
     /// `newtype`
@@ -124,9 +122,7 @@ impl TypeUnaryOperator {
             | TypeUnaryOperator::Readonly
             | TypeUnaryOperator::Typeof
             | TypeUnaryOperator::Keyof => true,
-            TypeUnaryOperator::Maybe | TypeUnaryOperator::Must | TypeUnaryOperator::AsConst => {
-                false
-            }
+            TypeUnaryOperator::Must | TypeUnaryOperator::AsConst => false,
         }
     }
 

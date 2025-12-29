@@ -81,7 +81,7 @@ impl Compiler {
         }
 
         // resolve lib module symbols for ambient lookups
-        // FUGU fix cycle? for builtin import resolution in resolve_libs
+        // FUGU fix (cyclic?) builtin import resolution in resolve_libs
         // for module_ids in modules_to_resolve {
         //     for module_id in module_ids {
         //         self.require_resolve_module_direct(module_id, profile_id)?;
