@@ -6,7 +6,7 @@ use crate::{
     Argument, BinaryOperator, Block, Declaration, Declarator, DynamicKey, Expression, FlowBlock,
     FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, ForEachBinding, GlobalSymbolId, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchSelector, MatchSource, NodeTree,
-    Pattern, PatternField, Property, TemplateLiteral,
+    Pattern, PatternField, Property, TemplateLiteral, UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -69,6 +69,29 @@ impl<'tree> FlowGraphBuilder<'tree> {
         if let Some(body_exit_block) = body_exit_block {
             self.connect_blocks(
                 body_exit_block,
+                exit_block,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+        }
+
+        FlowGraph {
+            entry_block,
+            exit_block,
+            blocks: self.blocks,
+            block_by_node: self.block_by_node,
+        }
+    }
+
+    /// Build a control flow graph for a sequence of root expressions.
+    pub fn build_roots(mut self, roots: &[LocalNodeId<Expression>]) -> FlowGraph {
+        let entry_block = self.create_block();
+        let roots_exit_block = self.build_expression_sequence(roots, entry_block);
+        let exit_block = self.create_block();
+
+        if let Some(roots_exit_block) = roots_exit_block {
+            self.connect_blocks(
+                roots_exit_block,
                 exit_block,
                 FlowEdgeKind::Unconditional,
                 None,
@@ -397,45 +420,48 @@ impl<'tree> FlowGraphBuilder<'tree> {
         else_expression_id: Option<LocalNodeId<Expression>>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
-        let condition_exit_block_id = self.build_expression(condition_id, current_block_id)?;
-
-        // then
+        // allocate branch blocks
         let then_block_id = self.create_block();
-        self.connect_blocks(
-            condition_exit_block_id,
+        let join_block_id = self.create_block();
+        let has_else_expression = else_expression_id.is_some();
+        let else_block_id = has_else_expression.then_some(self.create_block());
+        let false_target_id = else_block_id.unwrap_or(join_block_id);
+
+        // connect guard evaluation to the branch targets
+        self.build_guard_expression(
+            condition_id,
             then_block_id,
-            FlowEdgeKind::True,
-            Some(condition_id),
+            false_target_id,
+            current_block_id,
         );
+
+        // evaluate then branch
         let then_exit_block_id = self.build_expression(then_expression_id, then_block_id);
 
-        // else
+        // evaluate else branch
         let mut else_exit_block_id = None;
-        if let Some(else_expression_id) = else_expression_id {
-            let else_block_id = self.create_block();
-            self.connect_blocks(
-                condition_exit_block_id,
-                else_block_id,
-                FlowEdgeKind::False,
-                Some(condition_id),
-            );
+        if let (Some(else_expression_id), Some(else_block_id)) = (else_expression_id, else_block_id)
+        {
             else_exit_block_id = self.build_expression(else_expression_id, else_block_id);
         }
 
         // fallthrough
-        let then_fallthrough = then_exit_block_id.is_some();
-        let else_fallthrough = if else_expression_id.is_some() {
-            else_exit_block_id.is_some()
+        let then_reachable = self.block_has_predecessors(then_block_id);
+        let else_reachable = else_block_id
+            .map(|else_block_id| self.block_has_predecessors(else_block_id))
+            .unwrap_or(false);
+        let then_fallthrough = then_reachable && then_exit_block_id.is_some();
+        let else_fallthrough = if has_else_expression {
+            else_reachable && else_exit_block_id.is_some()
         } else {
-            true
+            self.block_has_predecessors(join_block_id)
         };
         if !then_fallthrough && !else_fallthrough {
             return None;
         }
 
         // join
-        let join_block_id = self.create_block();
-        if let Some(then_exit_block_id) = then_exit_block_id {
+        if then_reachable && let Some(then_exit_block_id) = then_exit_block_id {
             self.connect_blocks(
                 then_exit_block_id,
                 join_block_id,
@@ -443,23 +469,127 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 None,
             );
         }
-        if let Some(else_exit_block_id) = else_exit_block_id {
+        if else_reachable && let Some(else_exit_block_id) = else_exit_block_id {
             self.connect_blocks(
                 else_exit_block_id,
                 join_block_id,
                 FlowEdgeKind::Unconditional,
                 None,
             );
-        } else if else_expression_id.is_none() {
-            self.connect_blocks(
-                condition_exit_block_id,
-                join_block_id,
-                FlowEdgeKind::False,
-                Some(condition_id),
-            );
         }
 
         Some(join_block_id)
+    }
+
+    /// Build guard evaluation with short circuit semantics.
+    fn build_guard_expression(
+        &mut self,
+        guard_id: LocalNodeId<Expression>,
+        true_block_id: FlowBlockId,
+        false_block_id: FlowBlockId,
+        current_block_id: FlowBlockId,
+    ) -> bool {
+        let guard_id = self.unwrap_parenthesized_expression(guard_id);
+
+        match self.tree.get(guard_id) {
+            Expression::Unary {
+                operator: UnaryOperator::Not,
+                right,
+            } => {
+                self.build_guard_expression(*right, false_block_id, true_block_id, current_block_id)
+            }
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::And,
+                right,
+            } => {
+                // evaluate the left guard first
+                let right_block_id = self.create_block();
+                let left_reachable = self.build_guard_expression(
+                    *left,
+                    right_block_id,
+                    false_block_id,
+                    current_block_id,
+                );
+
+                // evaluate the right guard when the left is true
+                let right_reachable = if left_reachable {
+                    self.build_guard_expression(
+                        *right,
+                        true_block_id,
+                        false_block_id,
+                        right_block_id,
+                    )
+                } else {
+                    false
+                };
+
+                left_reachable || right_reachable
+            }
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::Or,
+                right,
+            } => {
+                // evaluate the left guard first
+                let right_block_id = self.create_block();
+                let left_reachable = self.build_guard_expression(
+                    *left,
+                    true_block_id,
+                    right_block_id,
+                    current_block_id,
+                );
+
+                // evaluate the right guard when the left is false
+                let right_reachable = if left_reachable {
+                    self.build_guard_expression(
+                        *right,
+                        true_block_id,
+                        false_block_id,
+                        right_block_id,
+                    )
+                } else {
+                    false
+                };
+
+                left_reachable || right_reachable
+            }
+            _ => {
+                // fall back to a single guard edge
+                let Some(guard_exit_block_id) = self.build_expression(guard_id, current_block_id)
+                else {
+                    return false;
+                };
+                self.connect_blocks(
+                    guard_exit_block_id,
+                    true_block_id,
+                    FlowEdgeKind::True,
+                    Some(guard_id),
+                );
+                self.connect_blocks(
+                    guard_exit_block_id,
+                    false_block_id,
+                    FlowEdgeKind::False,
+                    Some(guard_id),
+                );
+                true
+            }
+        }
+    }
+
+    /// Strip parenthesized expressions to the underlying expression.
+    fn unwrap_parenthesized_expression(
+        &self,
+        mut expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        loop {
+            let Expression::Parenthesized { expression } = self.tree.get(expression_id) else {
+                break;
+            };
+            expression_id = *expression;
+        }
+
+        expression_id
     }
 
     /// Build a loop expression and return the exit block.
