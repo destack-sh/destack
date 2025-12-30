@@ -1100,13 +1100,21 @@ const t = typeOf(p);          // Type<Point>
 
 ### Runtime Type Identity
 
-Runtime type identity (RTTI) is demand-driven. The compiler only emits RTTI for types that
-are used at runtime (e.g., `typeOf`, `instanceof`, `any`/`unknown`, or runtime reflection).
+Runtime type identity (RTTI) is demand-driven.
+The compiler only emits RTTI for types that are used at runtime.
+Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
 Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
 unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
 property rather than a global WeakMap, preserving "plain object" semantics.
 Native type tags are pointers to `TypeDescriptor` values rather than integer ids.
 Classes reach RTTI via vtable slot 0, while thin pointers without tags recover RTTI via GC metadata.
+
+### Runtime Type Guards
+
+Type descriptors expose `T.is(value)` for runtime type checks.
+The `x is T` operator is syntactic sugar for `T.is(x)` when RTTI is required.
+The `instanceof` operator checks class identity and is only defined for class types.
+For structural or non-class types, use `x is T` instead.
 
 ### Decorator Metadata
 
@@ -2142,8 +2150,22 @@ When `??` is applied to a `Result<T, E>`:
 - If `Ok(value)`, extracts and returns `value`
 - If `Err(_)`, returns the right-hand default value
 
-Both `?` and `??` work via the `Try` interface. For nullable types (`T | null`),
-`??` behaves exactly like TypeScript's nullish coalescing operator.
+When `??` is applied to `T | null | undefined`:
+- If nullish, returns the right-hand default value
+- Otherwise, returns the left-hand value
+
+Evaluation order is fixed and does not depend on union ordering:
+1. Evaluate the left-hand side
+2. If the value is nullish, return the right-hand side
+3. Else if the value implements `Try`, branch and return the success value or the right-hand side on error
+4. Otherwise, return the value as-is
+
+`??` performs at most one `Try` unwrap.
+
+```
+const value: Result<User, IOError> | null = loadUser();
+const user = value ?? defaultUser;  // default on null or Err
+```
 
 #### try/catch on Result
 
@@ -2396,12 +2418,15 @@ Type-level operators (not overloadable):
 |----------|-------------|-----------|
 | `as` | Type cast | — |
 | `is` | Type guard | — |
-| `instanceof` | Instance check | — |
+| `instanceof` | Class identity check | — |
 | `satisfies` | Type satisfaction | — |
 | `typeof` | Get type | — |
 | `keyof` | Get keys | — |
 | `extends` | Subtype check | — |
 | `implements` | Interface check | — |
+
+The `is` operator uses `T.is` when runtime checks are required.
+The `instanceof` operator is only defined for class identity checks.
 
 ### Other Operators
 

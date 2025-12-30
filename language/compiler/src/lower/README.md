@@ -70,7 +70,7 @@ The basic tasks of the lowering pass are:
 1. **Monomorphize generics**: each `T` instantiation becomes specialised MIR
 2. **Compute layouts**: tag placement, property offsets, struct sizes, alignment
 3. **Prepare dispatch**: builtin ops, direct calls, prepare vtables and itabs
-4. **Generate type descriptors**: for reflection and instanceof
+4. **Generate type descriptors**: for reflection, `typeOf`, `T.is`, and `instanceof`
 5. **Lower control flow**: expressions → blocks with terminators
 6. **Allocate locals**: stack slots for variables and temporaries
 
@@ -178,7 +178,7 @@ Object prototype methods that depend on a dynamic prototype chain are emulated u
 | `valueOf()` | Not needed | Implicit coercion discouraged; use explicit conversion |
 | `hasOwnProperty(key)` | Limited | Static keys only; use `in` operator or RTTI |
 | `constructor` | Aliased | `obj.constructor` becomes `typeOf(obj)` |
-| `isPrototypeOf()` | Forbidden | Use `instanceof` with RTTI |
+| `isPrototypeOf()` | Forbidden | Use `instanceof` (class identity) or `T.is` with RTTI |
 | `propertyIsEnumerable()` | Forbidden | Use RTTI reflection |
 
 When RTTI is available, `Object.keys/values/entries` and `hasOwnProperty` can be
@@ -489,7 +489,7 @@ function process(x: Cat | Dog) {
 }
 ```
 
-Elaborate transforms to instanceof chain, Lower then emits:
+Elaborate transforms to a type guard chain (conceptually `instanceof`/`T.is`), Lower then emits:
 ```mir
 type @string = ref<struct { i32, i32, i32 }>
 type @ObjectWithVTable = struct { rawptr<void> }
@@ -785,13 +785,13 @@ The `final` keyword on methods or classes is an API contract ("you may not overr
 For whole-program compilation, the optimizer already knows what's overridden. 
 `final` matters for libraries where downstream users could extend classes.
 
-Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof` or `typeOf`.
+Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
 
 #### RTTI and Type Tags
 
 RTTI (runtime type identity) is unified via `TypeDescriptor` pointers.
 Classes always store a vtable pointer in the object layout for virtual dispatch.
-Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof` and `typeOf`.
+Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
 Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
 Interface and `any` values carry `TypeDescriptor` in fat pointers.
@@ -801,14 +801,14 @@ GC metadata lookup only applies to managed references.
 Non-managed values require explicit tags (union tags or fat pointers) or compile-time type knowledge.
 
 RTTI is only emitted when runtime type checks are possible:
-- Used with `instanceof` or `typeOf` on unknown values
+- Used with `instanceof`, `T.is`, or `typeOf` on unknown values
 - Stored in `any` or `unknown`
 - Used in runtime reflection
 - Used in untagged unions that require runtime discrimination
 
 **JS targets:** RTTI-enabled structs/classes emit a non-enumerable symbol property
 with their `TypeId` during construction. This keeps objects "plain" for JS semantics
-while enabling `instanceof` and `typeOf` without a global WeakMap.
+while enabling `instanceof`, `T.is`, and `typeOf` without a global WeakMap.
 
 #### Struct Layout
 
@@ -880,7 +880,7 @@ Per span metadata includes:
 - Size class and allocation layout info
 - A TypeDescriptor pointer per object for scanning and type queries
 
-Classes still store a vtable pointer in the object for virtual dispatch and fast instanceof.
+Classes still store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
 Structs remain headerless and rely on metadata or fat pointers for RTTI.
 
 Tradeoffs:
@@ -945,7 +945,7 @@ The vtable is an array of function pointers, one per virtual method.
 **VTable structure (conceptual):**
 ```
 struct VTable {
-    typeDescriptor: &TypeDescriptor    // for instanceof and typeOf
+    typeDescriptor: &TypeDescriptor    // for instanceof, T.is, and typeOf
     destructor: () => void       // cleanup function
     methods: ((...args) => any)[] // virtual method pointers
 }
@@ -1253,13 +1253,14 @@ and thin pointers recover it via GC metadata when needed.
 | `User.name` | Constant "User" | `rtti[user_id].name` |
 | `User.properties` | Constant array | Load property descriptors |
 | `value instanceof User` | Eliminated if type known | Compare `value.typeDescriptor == &User_TypeDescriptor` |
+| `User.is(value)` | Eliminated if type known | Compare `value.typeDescriptor == &User_TypeDescriptor` |
 | `typeOf(value)` | Constant if type known | Load `value.typeDescriptor`, return descriptor |
 
 When a value is a thin pointer without an embedded type tag, we get the TypeDescriptor pointer from GC metadata for comparison.
 
 **RTTI generation rules:**
 RTTI is only emitted for types that need it at runtime:
-- Types used with `instanceof` on unknown values
+- Types used with `instanceof` or `T.is` on unknown values
 - Types used with `typeOf()` on unknown values
 - Types stored in `any` or `unknown`
 - Types with runtime reflection (non-comptime `.properties`, `.name`, etc.)
@@ -1435,7 +1436,7 @@ For each (Type, Interface) pair where the type implements the interface:
 **Itab layout:**
 ```
 struct InterfaceItab<I> {
-    typeDescriptor: &TypeDescriptor  // for instanceof on interface refs
+    typeDescriptor: &TypeDescriptor  // for T.is on interface refs
     methods: [FunctionPointer] // one per interface method, in declaration order
 }
 ```
