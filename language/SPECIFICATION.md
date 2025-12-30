@@ -122,6 +122,85 @@ The tree literal syntax is customizable via traits, so your domain types can def
 
 Destack extends TypeScript's type system with precise primitives, explicit reference semantics, types as values, static parameterisation of values, and some other goodies.
 
+### Inference
+
+Destack requires explicit types at public boundaries.
+Public boundaries include exported declarations and public members.
+Inference is local and never relies on whole program analysis.
+
+#### Explicit Typing
+
+Most non-local constructs must be explicitly typed.
+
+- Non lambda functions, methods, and constructors must annotate dynamic parameters.
+
+```
+export function sum(left: int32, right: int32): int32 {
+    left + right
+}
+```
+
+- Non lambda functions, methods, and constructors must annotate return types.
+
+```
+export function version(): string {
+    "v1"
+}
+```
+
+- Public fields and properties must declare types.
+
+```
+export struct User {
+    name: string
+    age: uint32
+}
+```
+
+- Function types in type declarations must annotate parameters and return types.
+
+```
+export interface Parser {
+    parse(input: string): uint32
+}
+```
+
+#### Implicit Typing
+
+Inference is allowed when the surface is local or contextual.
+
+- Static parameters may specify types but are not required.
+
+```
+function identity<T>(value: T): T {
+    value
+}
+
+function compute<Flag: boolean>(data: uint8[]): uint8[] {
+    data
+}
+```
+
+- Lambdas may omit parameter and return types when a contextual type is available.
+
+```
+const handler: (value: string) => uint32 = (value) => value.length;
+```
+
+- Local bindings may infer types from their initializer.
+
+```
+let count = 0;
+const label = "ready";
+```
+
+- Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
+
+```
+const options: Options = { retries: 3, verbose: false };
+const settings = { retries: 3, verbose: false } satisfies Settings;
+```
+
 ### Primitives
 
 TypeScript has `number`, `string`, `boolean`, `bigint`, `symbol`, `null`, `undefined`, and `void`.
@@ -133,10 +212,10 @@ All special types work like in TypeScript, with Destack extending the receiver-a
 
 - `void` - empty type (no value)
 - `null` - explicit zero/unset value
-- `undefined` - uninitialized value (discouraged)
+- `undefined` - uninitialized value
 - `never` - bottom type (unreachable)
-- `any` - erased top type (discouraged)
-- `unknown` - explicit erased any (discouraged)
+- `any` - top type (discouraged, forbidden in strict mode)
+- `unknown` - explicit top type
 - `this` - receiver type (see below)
 
 #### The `this` Type

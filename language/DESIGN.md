@@ -256,6 +256,23 @@ If you need traditional exception semantics, target JS/TS output.
 
 Destack extends TypeScript's type system with precise primitives, nominal types, and readable constraints.
 
+### Inference
+
+Destack requires explicit types at public boundaries.
+This keeps inference local, fast, and predictable.
+There is no whole program inference or Hindley Milner style generalization.
+
+Most non-local constructs should be explicitly typed:
+- Exported functions, methods, and constructors annotate dynamic parameters and return types.
+- Public fields and properties declare types.
+- Function types in type declarations annotate parameters and return types.
+
+Local inference is fully supported wherever convenient and unambiguous:
+- Static parameters may include types but are not required.
+- Lambdas may omit parameter and return types when a contextual type is available.
+- Local bindings may infer types from their initializer.
+- Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
+
 ### Primitives
 
 Precise numeric types beyond TypeScript's `number`:
