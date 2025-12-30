@@ -678,7 +678,7 @@ mod tests {
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
         FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Mutability, Parameter,
         Property, ScalarLiteral, TypeBinaryOperator, TypeIntrinsic, TypeLiteral,
-        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator,
+        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -1240,6 +1240,99 @@ mod tests {
                             assert_string!(parser, *name, "x");
                             assert_node!(parser.tree, *key, Expression::TypeLiteral(TypeLiteral::String));
                             assert_expression_path!(parser, parser.tree.get(*value), "PropertyDescriptor");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_type_return_conditional() {
+        let mut test = TestParser::new(
+            "type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(function_id) => {
+                    assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeConditional { left, right, then_type, else_type } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "P");
+                            assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
+                                assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                                assert_expression_path!(parser, parser.tree.get(*right), "T");
+                            });
+                            assert_node!(parser.tree, *then_type, Expression::TypeIndex { left, index } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                                assert_expression_path!(parser, parser.tree.get(*index), "P");
+                            });
+                            assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Any));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_arguments_with_conditional() {
+        let mut test = TestParser::new(
+            "type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { static_arguments: Some(static_arguments), .. } => {
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "P");
+                            assert_node!(parser.tree, *right, Expression::TypeUnary { operator, right } => {
+                                assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                                assert_expression_path!(parser, parser.tree.get(*right), "T");
+                            });
+                            assert_node!(parser.tree, *then_type, Expression::TypeIndex { left, index } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                                assert_expression_path!(parser, parser.tree.get(*index), "P");
+                            });
+                            assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Any));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_index_with_conditional() {
+        let mut test =
+            TestParser::new("type Lookup<Depth> = Foo[Depth extends -1 ? \"done\" : \"recur\"]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Lookup<Depth> = Foo[Depth extends -1 ? "done" : "recur"]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "Foo");
+                    assert_node!(parser.tree, *index, Expression::TypeConditional { left, right, then_type, else_type } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "Depth");
+                        assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
+                            assert_eq!(*operator, UnaryOperator::Negate);
+                            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                        });
+                        assert_node!(parser.tree, *then_type, Expression::ScalarLiteral(ScalarLiteral::String(then_id)) => {
+                            assert_string!(parser, *then_id, "done");
+                        });
+                        assert_node!(parser.tree, *else_type, Expression::ScalarLiteral(ScalarLiteral::String(else_id)) => {
+                            assert_string!(parser, *else_id, "recur");
                         });
                     });
                 });
