@@ -74,13 +74,19 @@ impl TypeLowerer {
         }
 
         let dir_type = types.get_type(type_id);
-        let mir_type =
-            self.try_lower_type(dir_type, builder)
+        let mir_type = match dir_type {
+            dir::Type::PointerOf { right, .. } => {
+                let pointee = self.lower_type(types, *right, module_id, node, builder)?;
+                builder.type_raw_pointer(pointee)
+            }
+            _ => self
+                .try_lower_type(dir_type, builder)
                 .ok_or(LowerError::UnsupportedType {
                     node,
                     ty: type_id.into_global(module_id),
                     message: "unsupported type".to_string(),
-                })?;
+                })?,
+        };
         self.type_cache.insert(type_id, mir_type);
         Ok(mir_type)
     }
@@ -123,7 +129,7 @@ impl TypeLowerer {
                 dir::IntType::Uint16 => Some(builder.type_int(16, false)),
                 dir::IntType::Uint128 => Some(builder.type_int(128, false)),
                 dir::IntType::Uint256 => Some(builder.type_int(256, false)),
-                dir::IntType::IntP | dir::IntType::UintP => None,
+                dir::IntType::Isize | dir::IntType::Usize => None,
                 dir::IntType::Arbitrary { width, is_signed } => {
                     Some(builder.type_int(width, is_signed))
                 }
@@ -175,8 +181,8 @@ pub(crate) fn scalar_kind_for_dir_type(dir_type: &dir::Type) -> Option<ScalarKin
             dir::IntType::Uint64 => Some(ScalarKind::UnsignedInt { width: 64 }),
             dir::IntType::Uint128 => Some(ScalarKind::UnsignedInt { width: 128 }),
             dir::IntType::Uint256 => Some(ScalarKind::UnsignedInt { width: 256 }),
-            dir::IntType::IntP => None,
-            dir::IntType::UintP => None,
+            dir::IntType::Isize => None,
+            dir::IntType::Usize => None,
             dir::IntType::Arbitrary { width, is_signed } => {
                 if is_signed {
                     Some(ScalarKind::SignedInt { width })

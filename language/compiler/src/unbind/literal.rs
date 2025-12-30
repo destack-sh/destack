@@ -108,8 +108,8 @@ impl Compiler {
         _context: &mut UnbindContext,
     ) -> ast::IntType {
         match int_type {
-            dir::IntType::IntP => ast::IntType::Pointer { is_signed: true },
-            dir::IntType::UintP => ast::IntType::Pointer { is_signed: false },
+            dir::IntType::Isize => ast::IntType::Pointer { is_signed: true },
+            dir::IntType::Usize => ast::IntType::Pointer { is_signed: false },
             dir::IntType::Int8 => ast::IntType::Arbitrary {
                 width: Some(8),
                 is_signed: true,

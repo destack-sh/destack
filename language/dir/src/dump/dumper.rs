@@ -588,14 +588,14 @@ impl Dump for IntType {
             IntType::Int64 => dumper.object("IntType::Int64").end(),
             IntType::Int128 => dumper.object("IntType::Int128").end(),
             IntType::Int256 => dumper.object("IntType::Int256").end(),
-            IntType::IntP => dumper.object("IntType::IntSize").end(),
+            IntType::Isize => dumper.object("IntType::Isize").end(),
             IntType::Uint8 => dumper.object("IntType::Uint8").end(),
             IntType::Uint16 => dumper.object("IntType::Uint16").end(),
             IntType::Uint32 => dumper.object("IntType::Uint32").end(),
             IntType::Uint64 => dumper.object("IntType::Uint64").end(),
             IntType::Uint128 => dumper.object("IntType::Uint128").end(),
             IntType::Uint256 => dumper.object("IntType::Uint256").end(),
-            IntType::UintP => dumper.object("IntType::UintSize").end(),
+            IntType::Usize => dumper.object("IntType::Usize").end(),
             IntType::Arbitrary { width, is_signed } => dumper
                 .object("IntType::Arbitrary")
                 .field("width", width)
@@ -933,6 +933,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::ReferenceOf", id.id)
                     .field_optional("mutability", mutability)
                     .field_optional("variance", variance)
+                    .end();
+            }
+            Expression::PointerOf {
+                mutability,
+                right: _,
+            } => {
+                self.node("Expression::PointerOf", id.id)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             Expression::Binary {

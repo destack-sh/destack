@@ -279,6 +279,11 @@ impl Compiler {
                     let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::ReferenceOf { mutability, variance, right }
                 }
+                dir::Expression::PointerOf { mutability, right } => {
+                    let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+                    let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);
+                    ast::Expression::PointerOf { mutability, right }
+                }
 
                 dir::Expression::Binary { left, operator, right } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);

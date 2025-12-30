@@ -959,6 +959,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("variance", variance)
                     .end();
             }
+            Expression::PointerOf {
+                mutability,
+                right: _,
+            } => {
+                self.node("Expression::PointerOf", _id.id)
+                    .field_optional("mutability", mutability)
+                    .end();
+            }
             Expression::Member {
                 left: _,
                 name,

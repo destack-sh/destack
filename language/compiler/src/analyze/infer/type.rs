@@ -1431,6 +1431,23 @@ impl Compiler {
                     expression_id,
                 )
             }
+            Type::PointerOf { mutability, right } => {
+                let inner_ty = remote_types.get_type(*right);
+                let local_inner = self.import_type_from_remote(
+                    expression_id,
+                    inner_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                types.insert_type_from(
+                    Type::PointerOf {
+                        mutability: *mutability,
+                        right: local_inner,
+                    },
+                    expression_id,
+                )
+            }
             Type::Unary { operator, right } => {
                 let inner_ty = remote_types.get_type(*right);
                 let local_inner = self.import_type_from_remote(
@@ -1856,6 +1873,17 @@ impl Compiler {
                     types.insert_type(Type::ReferenceOf {
                         mutability,
                         variance,
+                        right: mapped_right,
+                    })
+                }
+            }
+            Type::PointerOf { mutability, right } => {
+                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::PointerOf {
+                        mutability,
                         right: mapped_right,
                     })
                 }

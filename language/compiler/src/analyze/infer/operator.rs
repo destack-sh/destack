@@ -36,6 +36,17 @@ impl Compiler {
 
         // use builtin rules when appropriate
         if self.should_use_builtin_unary_operator(operator, &right_ty, types) {
+            if matches!(operator, UnaryOperator::Dereference)
+                && let Type::PointerOf { right, .. } = &right_ty
+            {
+                self.record_builtin_resolution(
+                    expression_id.into_global_any(module.id),
+                    Some(right_ty_id),
+                    types,
+                );
+                return Ok(*right);
+            }
+
             let ty = self.infer_unary_operation(operator, &right_ty);
             self.record_builtin_resolution(
                 expression_id.into_global_any(module.id),
@@ -1217,7 +1228,7 @@ impl Compiler {
                 self.is_numeric_like_type(right_ty, types)
             }
             UnaryOperator::ElementwiseNot => self.is_numeric_like_type(right_ty, types),
-            UnaryOperator::Dereference => false,
+            UnaryOperator::Dereference => matches!(right_ty, Type::PointerOf { .. }),
             UnaryOperator::PostIncrement
             | UnaryOperator::PostDecrement
             | UnaryOperator::PreIncrement

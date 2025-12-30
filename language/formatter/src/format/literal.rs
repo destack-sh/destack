@@ -173,9 +173,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for IntType {
         match self {
             IntType::Pointer { is_signed } => {
                 if *is_signed {
-                    write!(f, [token("intp")])
+                    write!(f, [token("isize")])
                 } else {
-                    write!(f, [token("uintp")])
+                    write!(f, [token("usize")])
                 }
             }
             IntType::Arbitrary { width, is_signed } => {

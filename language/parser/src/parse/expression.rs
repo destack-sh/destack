@@ -689,6 +689,16 @@ impl Parser {
             // ------------------------------------------------------------
             //
 
+            // pointer types
+            else if self.options.in_type && self.peek_token(TokenType::Multiply).is_ok() {
+                self.bump(); // eat *
+                let mutability = self.eat_mutability_maybe()?;
+                let right = self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
+                let expression = Expression::PointerOf { mutability, right };
+                self.tree.insert(expression, self.get_span_from(start))
+            }
             // unary prefix operations
             else if let Ok(operator) = self.peek_unary_prefix_operator() {
                 let operator_start = self.mark();
@@ -1417,14 +1427,12 @@ impl Parser {
                     && self.peek_next_token(TokenType::Dot).is_ok()
                     && self.peek_next_next_token(TokenType::Maybe).is_ok()
             {
-                let is_type_conditional = self.options.in_type
-                    && matches!(
-                        self.tree.get(left_expression_id),
-                        Expression::TypeBinary {
-                            operator: TypeBinaryOperator::Extends,
-                            ..
-                        }
-                    );
+                let type_conditional_operands = if self.options.in_type {
+                    self.split_type_conditional_operands(left_expression_id)
+                } else {
+                    None
+                };
+                let is_type_conditional = type_conditional_operands.is_some();
                 self.eat_newlines_maybe()?; // eat newlines
                 // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
                 let is_postfix_maybe = !self.options.in_type
@@ -1470,9 +1478,7 @@ impl Parser {
                     self.bump(); // eat ?
                     self.eat_newlines_maybe()?;
                     if self.options.in_type {
-                        let Some((left, right)) =
-                            self.split_type_conditional_operands(left_expression_id)
-                        else {
+                        let Some((left, right)) = type_conditional_operands else {
                             break;
                         };
                         // type conditional expression

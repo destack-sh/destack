@@ -141,7 +141,7 @@ impl Parser {
                 width: None,
                 is_signed: true,
             })),
-            "intp" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
+            "isize" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
             int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
                 Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
@@ -153,7 +153,7 @@ impl Parser {
                 width: None,
                 is_signed: false,
             })),
-            "uintp" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: false })),
+            "usize" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: false })),
             uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
                 Ok(TypeLiteral::Int(IntType::Arbitrary {
                     width: Some(width),
@@ -358,18 +358,22 @@ impl Parser {
 
     /// Eat a type infer expression.
     pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        // parse infer name
         let start = self.mark();
         self.eat_keyword(Keyword::Infer)?;
         let name = self.eat_identifier()?;
+
+        // options for parsing constraints
+        let mut constraint_options = self.options.not_in_position().in_type();
+        if self.options.in_type_conditional_right {
+            constraint_options = constraint_options.in_type_conditional_right();
+        }
+
         // optional constraint: infer T extends U
         let constraint = if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
             self.eat_newlines_maybe()?;
-            Some(
-                self.with_options(self.options.not_in_position().in_type(), |parser| {
-                    parser.eat_expression()
-                })?,
-            )
+            Some(self.with_options(constraint_options, |parser| parser.eat_expression())?)
         } else {
             None
         };
@@ -714,7 +718,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_alias_with_static_parameters() {
-        let mut test = TestParser::new("type T<A, B> = intp");
+        let mut test = TestParser::new("type T<A, B> = isize");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // type T<A, B> = int32
@@ -724,6 +728,23 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Pointer { is_signed: true })));
                 assert!(static_parameters.is_some());
                 assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
+            });
+        });
+    }
+
+    /// Parse pointer types in a type alias.
+    #[test]
+    fn test_parse_pointer_type_alias() {
+        let mut test = TestParser::new("type Ptr = *mut int32");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Ptr");
+                assert_node!(parser.tree, *value, Expression::PointerOf { mutability, right } => {
+                    assert_eq!(*mutability, Some(Mutability::Mutable));
+                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+                });
             });
         });
     }

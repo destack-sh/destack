@@ -1035,6 +1035,18 @@ impl Compiler {
                     })
                 }
             }
+            Type::PointerOf { mutability, right } => {
+                let mapped_right =
+                    self.substitute_static_parameters(right, substitutions, types, cache);
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type(Type::PointerOf {
+                        mutability,
+                        right: mapped_right,
+                    })
+                }
+            }
             Type::ArraySized { element, count } => {
                 let mapped_element =
                     self.substitute_static_parameters(element, substitutions, types, cache);

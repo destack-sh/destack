@@ -424,6 +424,20 @@ impl Compiler {
                     right,
                 }
             }
+            ast::Expression::PointerOf { mutability, right } => {
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let right = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *right,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                Expression::PointerOf { mutability, right }
+            }
             ast::Expression::Binary {
                 left,
                 operator,
