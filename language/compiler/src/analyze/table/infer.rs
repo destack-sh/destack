@@ -34,15 +34,30 @@ impl InferVar {
 #[derive(Debug, Clone, Copy)]
 pub enum InferOrigin {
     /// Variable introduced by an expression.
-    Expression(GlobalNodeIdAny),
+    Expression(
+        /// Identify the expression node.
+        GlobalNodeIdAny,
+    ),
     /// Variable introduced by a parameter.
-    Parameter(GlobalNodeIdAny),
+    Parameter(
+        /// Identify the parameter node.
+        GlobalNodeIdAny,
+    ),
     /// Variable introduced by a return position.
-    Return(GlobalNodeIdAny),
+    Return(
+        /// Identify the return node.
+        GlobalNodeIdAny,
+    ),
     /// Variable introduced by a type parameter.
-    TypeParameter(GlobalSymbolId),
+    TypeParameter(
+        /// Identify the type parameter symbol.
+        GlobalSymbolId,
+    ),
     /// Variable introduced by a constraint group.
-    ConstraintGroup(ConstraintGroupId),
+    ConstraintGroup(
+        /// Identify the constraint group.
+        ConstraintGroupId,
+    ),
 }
 
 /// Describe the scope of an inference variable.
@@ -57,7 +72,10 @@ pub struct InferScope {
 /// Group id used to tie constraints for candidate selection.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ConstraintGroupId(pub u32);
+pub struct ConstraintGroupId(
+    /// Identify the constraint group.
+    pub u32,
+);
 
 impl ConstraintGroupId {
     /// Wrap an id as a ConstraintGroupId.
@@ -71,35 +89,50 @@ impl ConstraintGroupId {
 pub enum Constraint {
     /// Require two types to be equal.
     Equal {
+        /// Identify the left type.
         left: LocalTypeId,
+        /// Identify the right type.
         right: LocalTypeId,
     },
     /// Require one type to be a subtype of another.
     Subtype {
+        /// Identify the subtype.
         sub_type: LocalTypeId,
+        /// Identify the supertype.
         super_type: LocalTypeId,
+        /// Store any variance bounds for the constraint.
         variance: Option<VarianceBound>,
     },
     /// Require a variable to join multiple source types.
     Join {
+        /// Identify the inference variable.
         target: InferVarId,
+        /// Store the types to join.
         sources: Vec<LocalTypeId>,
     },
     /// Require instantiation of a generic type.
     Instantiate {
+        /// Identify the inference variable.
         target: InferVarId,
+        /// Identify the generic type.
         generic_type: LocalTypeId,
+        /// Store static arguments for instantiation.
         static_arguments: Vec<LocalTypeId>,
     },
     /// Require a type based on a guard condition.
     Conditional {
+        /// Identify the guard type.
         guard: LocalTypeId,
+        /// Identify the type for the true branch.
         when_true: LocalTypeId,
+        /// Identify the type for the false branch.
         when_false: LocalTypeId,
     },
     /// Require one of a set of candidate constraint groups to hold.
     CandidateGroup {
+        /// Identify the constraint group.
         id: ConstraintGroupId,
+        /// Store constraint options for candidate selection.
         options: Vec<Vec<Constraint>>,
     },
 }

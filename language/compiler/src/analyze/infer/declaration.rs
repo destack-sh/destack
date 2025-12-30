@@ -500,8 +500,9 @@ impl Compiler {
                         .with_expected_type(return_type);
 
                     // infer the function body with implicit return typing
-                    let body_ty_id = self
-                        .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                    let body_ty_id = self.infer_function_body_with_flow(
+                        module, *body, tree, symbols, types, infer, &mut ctx,
+                    )?;
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
