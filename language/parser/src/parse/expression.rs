@@ -277,6 +277,47 @@ impl Parser {
         }
     }
 
+    /// Extract the subject and constraint for a type conditional.
+    /// Pull union and intersection chains into the right side when they wrap `extends`.
+    /// NOTE #Architecture: split_type_conditional_operands is localized reassociation for conditional types
+    ///  (since we parse type expressions and expressions in the same pass, we have to post-patch type precedence)
+    fn split_type_conditional_operands(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<(LocalNodeId<Expression>, LocalNodeId<Expression>)> {
+        let (operator, left_id, _right_id) = match self.tree.get(expression_id) {
+            Expression::TypeBinary {
+                operator: TypeBinaryOperator::Extends,
+                left,
+                right,
+            } => {
+                return Some((*left, *right));
+            }
+            Expression::Binary {
+                operator,
+                left,
+                right,
+            } => (*operator, *left, *right),
+            _ => return None,
+        };
+
+        // only normalize union and intersection chains
+        if !matches!(
+            operator,
+            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+        ) {
+            return None;
+        }
+
+        // peel a left-leaning extends and reattach the union/intersection on the right
+        let (extends_left, extends_right) = self.split_type_conditional_operands(left_id)?;
+        if let Expression::Binary { left, .. } = self.tree.get_mut(expression_id) {
+            *left = extends_right;
+        }
+
+        Some((extends_left, expression_id))
+    }
+
     /// Try to eat an expression (return Expression::Error if error and recovery is possible).
     #[inline]
     pub fn try_eat_expression(
@@ -1010,24 +1051,40 @@ impl Parser {
             }
             // anonymous struct literal
             else if token_type == TokenType::OpenBrace && !self.options.in_statement_position {
+                // prefer mapped types in type positions
                 if self.options.in_type {
                     let speculative_start = self.mark();
                     let speculative_start_idx = self.tree.next_id();
                     if let Ok(mapped_id) = self.eat_type_mapped_expression() {
-                        return Ok(mapped_id);
+                        mapped_id
+                    } else {
+                        self.restore(speculative_start, speculative_start_idx);
+                        let properties =
+                            self.with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_object_literal()
+                            })?;
+                        self.tree.insert(
+                            Expression::ObjectExpression {
+                                ty: None,
+                                properties,
+                            },
+                            self.get_span_from(start),
+                        )
                     }
-                    self.restore(speculative_start, speculative_start_idx);
                 }
-                let properties = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_object_literal()
-                })?;
-                self.tree.insert(
-                    Expression::ObjectExpression {
-                        ty: None,
-                        properties,
-                    },
-                    self.get_span_from(start),
-                )
+                // fall back to object literal
+                else {
+                    let properties = self.with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_object_literal()
+                    })?;
+                    self.tree.insert(
+                        Expression::ObjectExpression {
+                            ty: None,
+                            properties,
+                        },
+                        self.get_span_from(start),
+                    )
+                }
             }
             // block
             else if self.peek_block().is_ok() {
@@ -1409,13 +1466,10 @@ impl Parser {
                     self.bump(); // eat ?
                     self.eat_newlines_maybe()?;
                     if self.options.in_type {
-                        let (left, right) = match self.tree.get(left_expression_id) {
-                            Expression::TypeBinary {
-                                left,
-                                operator: TypeBinaryOperator::Extends,
-                                right,
-                            } => (*left, *right),
-                            _ => break,
+                        let Some((left, right)) =
+                            self.split_type_conditional_operands(left_expression_id)
+                        else {
+                            break;
                         };
                         // type conditional expression
                         let then_expression_id = self.with_options(
@@ -1590,10 +1644,12 @@ impl Parser {
                 .options
                 .not_in_position()
                 .in_left_precedence(right_operator.precedence());
-            if matches!(
-                right_operator,
-                InfixOperator::TypeBinary(TypeBinaryOperator::Extends)
-            ) {
+            if self.options.in_type_conditional_right
+                || matches!(
+                    right_operator,
+                    InfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+                )
+            {
                 right_options = right_options.in_type_conditional_right();
             }
             let right_expression_id =
@@ -1616,13 +1672,10 @@ impl Parser {
             if self.options.in_type_conditional_right {
                 return Ok(left_expression_id);
             }
-            let (left, right) = match self.tree.get(left_expression_id) {
-                Expression::TypeBinary {
-                    left,
-                    operator: TypeBinaryOperator::Extends,
-                    right,
-                } => (*left, *right),
-                _ => return Err(ParseError::unexpected(self.peek()?.span)),
+            let Some((left, right)) =
+                self.split_type_conditional_operands(left_expression_id)
+            else {
+                return Err(ParseError::unexpected(self.peek()?.span));
             };
 
             self.eat_newlines_maybe()?;

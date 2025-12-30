@@ -113,9 +113,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, FunctionMode,
-        IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeKind, TypeLiteral,
-        WhereClause,
+        BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
+        Expression, FunctionMode, IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral,
+        TypeKind, TypeLiteral, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -389,6 +389,72 @@ interface SQL {
                 assert_eq!(signature.dynamic_parameters.len(), 0);
                 // number
                 assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_interface_with_iterator_methods() {
+        let mut test = TestParser::new(
+            r#"
+interface Iterator<T, TReturn = any, TNext = any> {
+    next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>;
+    return?(value?: TReturn): IteratorResult<T, TReturn>;
+    throw?(e?: any): IteratorResult<T, TReturn>;
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { members, .. } => {
+            assert_eq!(members.len(), 3);
+
+            // next(...[value]: [] | [TNext]): IteratorResult<T, TReturn>;
+            assert_node!(parser.tree, members[0], Member::Method { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                assert_string!(parser, *name, "next");
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Variadic { name, ty: Some(ty), .. } => {
+                    assert_string!(parser, *name, "value");
+                    assert_node!(parser.tree, *ty, Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    });
+                });
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");
+            });
+
+            // return?(value?: TReturn): IteratorResult<T, TReturn>;
+            assert_node!(parser.tree, members[1], Member::Method { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                assert_string!(parser, *name, "return");
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), .. } => {
+                    assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                    assert_string!(parser, *name, "value");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "TReturn");
+                });
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");
+            });
+
+            // throw?(e?: any): IteratorResult<T, TReturn>;
+            assert_node!(parser.tree, members[2], Member::Method { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                assert_string!(parser, *name, "throw");
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), .. } => {
+                    assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                    assert_string!(parser, *name, "e");
+                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Any));
+                });
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");
             });
         });
     }
