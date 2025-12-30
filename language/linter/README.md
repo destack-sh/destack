@@ -69,7 +69,7 @@ Checks that are fundamental to correct compilation are handled by the **compiler
 | Unreachable code | Compiler | CFG analysis for codegen |
 | Precision loss | Compiler | Numeric type semantics |
 | Pattern exhaustiveness | Compiler | Required for correctness |
-| Ownership violations | Compiler | Memory safety |
+| Ownership violations | Compiler | Enforced in strict borrow mode (`borrowMode: "strict"`) |
 
 ---
 

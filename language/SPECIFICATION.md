@@ -389,6 +389,13 @@ function bad(): &Point {
 }
 ```
 
+### Borrow Modes
+
+By default, `&T` and `&mut T` are hints with warnings only.
+Strict mode enforces exclusive `&mut` borrows and no-escape rules.
+Strict mode enables stronger optimizations like `noalias` on `&mut`.
+Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
+
 ### Dynamic Parameterisation
 
 Functions and methods work exactly like in JavaScript and TypeScript.
@@ -1019,6 +1026,8 @@ are used at runtime (e.g., `typeOf`, `instanceof`, `any`/`unknown`, or runtime r
 Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
 unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
 property rather than a global WeakMap, preserving "plain object" semantics.
+Native type tags are pointers to `TypeDescriptor` values rather than integer ids.
+Classes reach RTTI via vtable slot 0, while thin pointers without tags recover RTTI via GC metadata.
 
 ### Decorator Metadata
 

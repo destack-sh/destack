@@ -424,6 +424,22 @@ impl BoundsCheckPolicy {
     }
 }
 
+/// Borrow checking mode for ownership references.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BorrowMode {
+    /// Hint mode with warnings only.
+    Hint,
+    /// Strict mode with errors on violations.
+    Strict,
+}
+
+impl BorrowMode {
+    /// Whether this mode is stricter than another mode.
+    pub fn is_stricter_than(self, other: BorrowMode) -> bool {
+        matches!((self, other), (BorrowMode::Strict, BorrowMode::Hint))
+    }
+}
+
 /// Runtime environment that actually executes the compiled code (at runtime).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Runtime {

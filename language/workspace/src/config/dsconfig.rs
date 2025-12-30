@@ -7,7 +7,7 @@ use serde::Deserialize;
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
 use crate::{
-    ArrayTypeStyle, ArrowParentheses, FilenameCase, FormatterOptions, ImportSortOrder,
+    ArrayTypeStyle, ArrowParentheses, BorrowMode, FilenameCase, FormatterOptions, ImportSortOrder,
     LintCategory, LintPreset, LintSeverity, LinterOptions, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma, TypeDefinitionStyle,
 };
@@ -185,6 +185,12 @@ impl DsConfig {
         compiler.no_implicit_dynamic_dispatch =
             compiler.no_implicit_dynamic_dispatch || parent_compiler.no_implicit_dynamic_dispatch;
         compiler.no_exceptions = compiler.no_exceptions || parent_compiler.no_exceptions;
+        if parent_compiler
+            .borrow_mode
+            .is_stricter_than(compiler.borrow_mode)
+        {
+            compiler.borrow_mode = parent_compiler.borrow_mode;
+        }
 
         // inherit emit settings (child overrides if set)
         if compiler.root_dir.is_none() {
@@ -435,6 +441,8 @@ pub struct DsConfigCompilerOptions {
     pub no_implicit_dynamic_dispatch: bool,
     /// Forbid `throw` and `try`/`catch` (use Result types instead).
     pub no_exceptions: bool,
+    /// Borrow checking mode for `&T` and `&mut T`.
+    pub borrow_mode: BorrowMode,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -520,6 +528,7 @@ impl Default for DsConfigCompilerOptions {
             no_proxy: false,
             no_implicit_dynamic_dispatch: false,
             no_exceptions: false,
+            borrow_mode: BorrowMode::Hint,
 
             // emit
             root_dir: None,
@@ -1203,6 +1212,25 @@ impl From<IndentStyleJson> for IndentStyle {
         }
     }
 }
+
+/// Borrow checking mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum BorrowModeJson {
+    Hint,
+    Strict,
+}
+
+impl From<BorrowModeJson> for BorrowMode {
+    fn from(value: BorrowModeJson) -> Self {
+        match value {
+            BorrowModeJson::Hint => BorrowMode::Hint,
+            BorrowModeJson::Strict => BorrowMode::Strict,
+        }
+    }
+}
+
 /// Destack configuration compiler options.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -1311,6 +1339,8 @@ pub struct CompilerOptionsJson {
     pub no_implicit_dynamic_dispatch: Option<bool>,
     /// Forbid `throw` and `try`/`catch` (use Result types instead).
     pub no_exceptions: Option<bool>,
+    /// Borrow checking mode for `&T` and `&mut T`.
+    pub borrow_mode: Option<BorrowModeJson>,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -1405,6 +1435,10 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             no_proxy: json.no_proxy.unwrap_or(false),
             no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
             no_exceptions: json.no_exceptions.unwrap_or(false),
+            borrow_mode: json
+                .borrow_mode
+                .map(BorrowMode::from)
+                .unwrap_or(BorrowMode::Hint),
 
             // emit
             root_dir: json.root_dir.as_ref().map(PathBuf::from),
