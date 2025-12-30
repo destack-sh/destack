@@ -1,6 +1,6 @@
 use destack_base::StringId;
 use destack_dir::StaticKey;
-use destack_workspace::Module;
+use destack_workspace::{BUILTIN_PACKAGE_ID, Module};
 
 use crate::{BindError, Compiler};
 
@@ -36,8 +36,11 @@ impl Compiler {
                 let Some(primary_declaration) = symbol.primary_declaration else {
                     continue;
                 };
+
+                // reserved identifiers are not allowed as binding names
                 if let StaticKey::Name(name) = key
                     && self.is_reserved_identifier(*name)
+                    && module.package_id != BUILTIN_PACKAGE_ID
                 {
                     self.error(BindError::ReservedIdentifier {
                         node: primary_declaration,
