@@ -1207,7 +1207,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::TypeTemplateLiteral { .. }
             | Expression::TypeImport { .. }
             | Expression::TypeInfer { .. }
-            | Expression::TypePredicate { .. } => Some(current_block_id),
+            | Expression::TypePredicate { .. }
+            | Expression::PointerOf { .. } => Some(current_block_id),
             Expression::Unary { right, .. }
             | Expression::ValueOf { right, .. }
             | Expression::ReferenceOf { right, .. }

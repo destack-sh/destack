@@ -352,6 +352,15 @@ impl Compiler {
                     right: type_id,
                 }
             }
+            // pointer
+            Expression::PointerOf { mutability, right } => {
+                let type_id =
+                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                Type::PointerOf {
+                    mutability,
+                    right: type_id,
+                }
+            }
             // unary
             Expression::TypeUnary { operator, right } => {
                 let right_id =

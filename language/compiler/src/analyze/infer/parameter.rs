@@ -336,7 +336,8 @@ impl Compiler {
             }
             Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
-            | Type::ReferenceOf { right, .. } => {
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => {
                 self.collect_type_reference_symbols(*right, types, symbols, visited);
             }
             Type::ArraySized { element, .. } => {

@@ -59,8 +59,8 @@ pub enum IntType {
     Int128,
     /// 256-bit signed integer (range: -2^255 to 2^255-1)
     Int256,
-    /// Pointer-sized integer (range: 0 to 2^pointer_width-1).
-    IntP,
+    /// Pointer sized signed integer.
+    Isize,
     /// 8-bit unsigned integer (range: 0 to 2^8-1)
     Uint8,
     /// 16-bit unsigned integer (range: 0 to 2^16-1)
@@ -73,8 +73,8 @@ pub enum IntType {
     Uint128,
     /// 256-bit unsigned integer (range: 0 to 2^256-1)
     Uint256,
-    /// Pointer-sized unsigned integer (range: 0 to 2^pointer_width-1).
-    UintP,
+    /// Pointer sized unsigned integer.
+    Usize,
     /// Arbitrary width integer with signedness.
     Arbitrary { width: u16, is_signed: bool },
 }
@@ -128,14 +128,14 @@ impl IntType {
             IntType::Int64 => 64,
             IntType::Int128 => 128,
             IntType::Int256 => 256,
-            IntType::IntP => return None,
+            IntType::Isize => return None,
             IntType::Uint8 => 8,
             IntType::Uint16 => 16,
             IntType::Uint32 => 32,
             IntType::Uint64 => 64,
             IntType::Uint128 => 128,
             IntType::Uint256 => 256,
-            IntType::UintP => return None,
+            IntType::Usize => return None,
             IntType::Arbitrary {
                 width,
                 is_signed: _,
@@ -153,14 +153,14 @@ impl IntType {
             IntType::Int64 => true,
             IntType::Int128 => true,
             IntType::Int256 => true,
-            IntType::IntP => true,
+            IntType::Isize => true,
             IntType::Uint8 => false,
             IntType::Uint16 => false,
             IntType::Uint32 => false,
             IntType::Uint64 => false,
             IntType::Uint128 => false,
             IntType::Uint256 => false,
-            IntType::UintP => false,
+            IntType::Usize => false,
             IntType::Arbitrary {
                 width: _,
                 is_signed,
@@ -178,14 +178,14 @@ impl IntType {
             IntType::Int64 => "int64".to_string(),
             IntType::Int128 => "int128".to_string(),
             IntType::Int256 => "int256".to_string(),
-            IntType::IntP => "intp".to_string(),
+            IntType::Isize => "isize".to_string(),
             IntType::Uint8 => "uint8".to_string(),
             IntType::Uint16 => "uint16".to_string(),
             IntType::Uint32 => "uint32".to_string(),
             IntType::Uint64 => "uint64".to_string(),
             IntType::Uint128 => "uint128".to_string(),
             IntType::Uint256 => "uint256".to_string(),
-            IntType::UintP => "uintp".to_string(),
+            IntType::Usize => "usize".to_string(),
             IntType::Arbitrary { width, is_signed } => {
                 let mut as_str = if is_signed {
                     "int".to_string()

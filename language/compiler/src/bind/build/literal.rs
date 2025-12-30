@@ -73,8 +73,8 @@ impl Compiler {
     pub(super) fn bind_int_type(&self, int_type: &ast::IntType) -> IntType {
         match int_type {
             // pointer
-            ast::IntType::Pointer { is_signed: true } => IntType::IntP,
-            ast::IntType::Pointer { is_signed: false } => IntType::UintP,
+            ast::IntType::Pointer { is_signed: true } => IntType::Isize,
+            ast::IntType::Pointer { is_signed: false } => IntType::Usize,
             // fixed builtin
             ast::IntType::Arbitrary {
                 width: Some(8),

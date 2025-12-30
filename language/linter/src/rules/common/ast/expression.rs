@@ -197,6 +197,18 @@ pub fn is_equal(
                 && is_equal(ctx, *left_right, *right_right)
         }
 
+        // pointer of: compare mutability and operand
+        (
+            ast::Expression::PointerOf {
+                mutability: left_mutability,
+                right: left_right,
+            },
+            ast::Expression::PointerOf {
+                mutability: right_mutability,
+                right: right_right,
+            },
+        ) => left_mutability == right_mutability && is_equal(ctx, *left_right, *right_right),
+
         // await expressions: compare inner expression
         (
             ast::Expression::Await {
@@ -478,9 +490,9 @@ pub fn has_side_effects(
         }
 
         // pure: reference/value of (if operand is pure)
-        ast::Expression::ReferenceOf { right, .. } | ast::Expression::ValueOf { right, .. } => {
-            has_side_effects(ctx, *right)
-        }
+        ast::Expression::ReferenceOf { right, .. }
+        | ast::Expression::ValueOf { right, .. }
+        | ast::Expression::PointerOf { right, .. } => has_side_effects(ctx, *right),
 
         // pure: range (if bounds are pure)
         ast::Expression::RangeExpression { start, end, .. } => {

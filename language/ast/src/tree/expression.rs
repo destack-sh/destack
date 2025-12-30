@@ -689,6 +689,18 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
+    /// Pointer type operation (e.g., `*T`).
+    ///
+    /// Examples:
+    /// ```
+    /// *T
+    /// *mut T
+    /// ```
+    PointerOf {
+        mutability: Option<Mutability>,
+        right: LocalNodeId<Expression>,
+    },
+
     /// Member access.
     ///
     /// Examples:

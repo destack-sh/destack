@@ -191,6 +191,11 @@ pub enum Type {
         variance: Option<VarianceBound>,
         right: LocalTypeId,
     },
+    /// Pointer type `*T` to a `T` or `*mut T` for a mutable pointer.
+    PointerOf {
+        mutability: Option<Mutability>,
+        right: LocalTypeId,
+    },
     /// Type binary operator.
     Binary {
         left: LocalTypeId,

@@ -264,6 +264,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             variance: _,
             right,
         }
+        | Expression::PointerOf {
+            mutability: _,
+            right,
+        }
         | Expression::TypeUnary { operator: _, right } => {
             let right_expression = tree.get(*right);
             visitor.visit_expression(tree, *right, right_expression);

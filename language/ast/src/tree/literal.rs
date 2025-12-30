@@ -168,9 +168,9 @@ impl IntType {
         match self {
             IntType::Pointer { is_signed } => {
                 if is_signed {
-                    "intp".to_string()
+                    "isize".to_string()
                 } else {
-                    "uintp".to_string()
+                    "usize".to_string()
                 }
             }
             IntType::Arbitrary { width, is_signed } => {

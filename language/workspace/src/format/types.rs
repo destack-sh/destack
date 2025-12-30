@@ -149,7 +149,7 @@ pub fn format_type(
             let right_str = format_local_type(*right, types, modules, strings);
             match mutability {
                 dir::Mutability::Immutable => right_str,
-                dir::Mutability::Mutable => format!("var {right_str}"),
+                dir::Mutability::Mutable => format!("mut {right_str}"),
             }
         }
         dir::Type::ValueOf {
@@ -161,8 +161,8 @@ pub fn format_type(
             let mut result = String::from("^");
             if let Some(m) = mutability {
                 result.push_str(match m {
-                    dir::Mutability::Mutable => "var ",
-                    dir::Mutability::Immutable => "",
+                    dir::Mutability::Mutable => "mut ",
+                    dir::Mutability::Immutable => "const ",
                 });
             }
             if let Some(v) = variance {
@@ -180,12 +180,24 @@ pub fn format_type(
             let mut result = String::from("&");
             if let Some(m) = mutability {
                 result.push_str(match m {
-                    dir::Mutability::Mutable => "var ",
-                    dir::Mutability::Immutable => "",
+                    dir::Mutability::Mutable => "mut ",
+                    dir::Mutability::Immutable => "const ",
                 });
             }
             if let Some(v) = variance {
                 result.push_str(&format!("{v:?} ").to_lowercase());
+            }
+            result.push_str(&right_str);
+            result
+        }
+        dir::Type::PointerOf { mutability, right } => {
+            let right_str = format_local_type(*right, types, modules, strings);
+            let mut result = String::from("*");
+            if let Some(m) = mutability {
+                result.push_str(match m {
+                    dir::Mutability::Mutable => "mut ",
+                    dir::Mutability::Immutable => "const ",
+                });
             }
             result.push_str(&right_str);
             result

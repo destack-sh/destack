@@ -157,6 +157,11 @@ pub enum Expression {
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,
     },
+    /// Pointer type operation (e.g., `*T`).
+    PointerOf {
+        mutability: Option<Mutability>,
+        right: LocalNodeId<Expression>,
+    },
     /// Binary operation.
     Binary {
         left: LocalNodeId<Expression>,
@@ -446,6 +451,7 @@ impl Expression {
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
             Expression::ReferenceOf { .. } => "reference of",
+            Expression::PointerOf { .. } => "pointer of",
             Expression::Binary { .. } => "binary",
             Expression::Assign { .. } => "assign",
             Expression::AssignBinary { .. } => "assign binary",

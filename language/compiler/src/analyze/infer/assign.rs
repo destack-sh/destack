@@ -303,6 +303,32 @@ impl Compiler {
                 Assignability::NotAssignable
             }
 
+            // pointers: invariant in mutability and pointee type
+            (
+                Type::PointerOf {
+                    mutability: target_mutability,
+                    right: target_right,
+                },
+                Type::PointerOf {
+                    mutability: source_mutability,
+                    right: source_right,
+                },
+            ) => {
+                if target_mutability != source_mutability {
+                    return Assignability::NotAssignable;
+                }
+
+                let target_assignable =
+                    self.check_is_type_assignable(*target_right, *source_right, types, options);
+                let source_assignable =
+                    self.check_is_type_assignable(*source_right, *target_right, types, options);
+                if target_assignable.is_assignable() && source_assignable.is_assignable() {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
+
             // interface target: allow structural assignability from object source
             (
                 Type::Reference {
@@ -666,7 +692,7 @@ impl Compiler {
             IntType::Uint32 => (0, u32::MAX as i128),
             IntType::Uint64 => (0, u64::MAX as i128),
             IntType::Uint128 | IntType::Uint256 => (0, i128::MAX), // (can't represent u128::MAX in i128)
-            IntType::IntP | IntType::UintP => {
+            IntType::Isize | IntType::Usize => {
                 // pointer sized integers: use target platform pointer size
                 // for now, assume 64 bit
                 if int_type.is_signed() {

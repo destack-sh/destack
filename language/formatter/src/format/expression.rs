@@ -1635,6 +1635,10 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
             variance: _,
             right,
         } => is_trivial_expression(tree, tree.get(*right)),
+        Expression::PointerOf {
+            mutability: _,
+            right,
+        } => is_trivial_expression(tree, tree.get(*right)),
         Expression::Member { left, .. } => is_trivial_expression(tree, tree.get(*left)),
         Expression::Path {
             path,
@@ -2840,6 +2844,15 @@ pub(crate) fn format_expression<'ast>(
             }
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
+            }
+            right.format(f)?;
+        }
+
+        // pointer
+        Expression::PointerOf { mutability, right } => {
+            write!(f, [token("*")])?;
+            if let Some(mutability) = mutability {
+                write!(f, [*mutability])?;
             }
             right.format(f)?;
         }

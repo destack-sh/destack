@@ -45,7 +45,7 @@ impl Compiler {
                 }
                 .simplify(),
             ))),
-            "intp" => Some(TypeLiteral::Primitive(PrimitiveType::Int(IntType::IntP))),
+            "isize" => Some(TypeLiteral::Primitive(PrimitiveType::Int(IntType::Isize))),
             int_str if let Some(width) = self.is_type_with_width("int", int_str) => {
                 Some(TypeLiteral::Primitive(PrimitiveType::Int(
                     IntType::Arbitrary {
@@ -63,8 +63,7 @@ impl Compiler {
                 }
                 .simplify(),
             ))),
-            // FUGU: rename intp/uintp to isize/usize?
-            "uintp" => Some(TypeLiteral::Primitive(PrimitiveType::Int(IntType::UintP))),
+            "usize" => Some(TypeLiteral::Primitive(PrimitiveType::Int(IntType::Usize))),
             uint_str if let Some(width) = self.is_type_with_width("uint", uint_str) => {
                 Some(TypeLiteral::Primitive(PrimitiveType::Int(
                     IntType::Arbitrary {

@@ -52,10 +52,8 @@ impl Parser {
                     .insert(Pattern::Wildcard, self.get_span_from(start))
             }
             // reference of
-            else if self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::ElementwiseAnd).is_ok()
-            {
-                self.bump(); // eat & or *
+            else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
+                self.bump(); // eat &
                 let mutability = self.eat_mutability_maybe()?;
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.tree.insert(

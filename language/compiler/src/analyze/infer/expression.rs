@@ -303,7 +303,8 @@ impl Compiler {
             | Expression::TypeTemplateLiteral { .. }
             | Expression::TypeImport { .. }
             | Expression::TypeInfer { .. }
-            | Expression::TypePredicate { .. } => {
+            | Expression::TypePredicate { .. }
+            | Expression::PointerOf { .. } => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
