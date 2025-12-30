@@ -9,7 +9,7 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
-use crate::{AnalyzeResult, Compiler, InferContext};
+use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -135,7 +135,40 @@ impl Compiler {
             }
         }
 
+        // emit unreachable warnings when enabled
+        if !context.options.allow_unreachable_code {
+            self.warn_unreachable_blocks(module, graph, &flow);
+        }
+
         Ok(flow)
+    }
+
+    /// Emit warnings for unreachable blocks when diagnostics are enabled.
+    fn warn_unreachable_blocks(&self, module: &Module, graph: &FlowGraph, flow: &FlowTable) {
+        for block in &graph.blocks {
+            // skip the entry block
+            if block.id == graph.entry_block {
+                continue;
+            }
+
+            // skip empty blocks
+            let Some(node_id) = block.nodes.first() else {
+                continue;
+            };
+            let Some(environment_id) = flow.entry_environment_for_block(block.id) else {
+                continue;
+            };
+            let Some(environment) = flow.environment(environment_id) else {
+                continue;
+            };
+            if environment.is_reachable {
+                continue;
+            }
+
+            self.warning(AnalyzeWarning::UnreachableCode {
+                node: node_id.into_global(module.id),
+            });
+        }
     }
 
     /// Compute a flow environment for a control flow edge.
@@ -561,8 +594,16 @@ impl Compiler {
         };
 
         // resolve the base type to narrow
-        let base_type_id =
-            self.symbol_type_for_guard(module, guard_id, symbol, types, environment, context)?;
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            guard_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
 
         // build the true and false environments
         let mut true_environment = environment.clone();
@@ -672,6 +713,8 @@ impl Compiler {
         module: &Module,
         guard_id: LocalNodeId<Expression>,
         symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
@@ -684,7 +727,26 @@ impl Compiler {
             return Ok(type_id);
         }
 
-        if symbol.module_id != module.id {
+        if symbol.module_id == module.id {
+            let symbol = symbols.get_symbol(symbol.into());
+            if let Some(primary_declaration) = symbol.primary_declaration
+                && let Some(type_id) = types.get_declared_type_id(primary_declaration)
+            {
+                return Ok(type_id);
+            }
+
+            if let Some(primary_declaration) = symbol.primary_declaration {
+                let mut current_id = primary_declaration.local_id;
+                while let Some(parent_id) = tree.get_parent(current_id.id) {
+                    if let Some(type_id) =
+                        types.get_declared_type_id(parent_id.into_global(module.id))
+                    {
+                        return Ok(type_id);
+                    }
+                    current_id = parent_id;
+                }
+            }
+        } else {
             return self.resolve_remote_symbol_value_type(
                 module,
                 context.profile,

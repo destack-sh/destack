@@ -148,39 +148,9 @@ impl Compiler {
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
 
-        // infer the right side with guard based narrowing for short circuit operators
-        let right_ty_id = if matches!(operator, BinaryOperator::And | BinaryOperator::Or) {
-            // derive the guard environments from the left expression
-            let base_environment = self.flow_environment_from_context(ctx);
-            let (true_environment, false_environment) = self.narrow_environment_for_guard(
-                module,
-                left_id,
-                tree,
-                symbols,
-                types,
-                &base_environment,
-                ctx,
-            )?;
-            let right_environment = if *operator == BinaryOperator::And {
-                true_environment
-            } else {
-                false_environment
-            };
-
-            self.infer_expression_in_block(
-                module,
-                right_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-                &right_environment,
-                false,
-            )?
-        } else {
-            self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?
-        };
+        // infer the right side after the left
+        let right_ty_id =
+            self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
         let left_ty = types.get_type(left_ty_id).clone();
         let right_ty = types.get_type(right_ty_id).clone();
         let options = ctx.options;
@@ -352,6 +322,7 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let options = ctx.options;
+
         // route index assignment to index set resolution
         if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
             return self.infer_index_assignment_expression(

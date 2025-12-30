@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, InferContext, TaskDependencyError, TaskResultCollector,
+    AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferContext, TaskDependencyError,
+    TaskResultCollector,
 };
-use destack_dir::InferTable;
+use destack_dir::{FlowGraphBuilder, InferTable};
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
@@ -37,6 +40,19 @@ impl Compiler {
         let mut infer = InferTable::default();
         let options = self.analyze_context_options_for_module(module.id);
         let mut ctx = InferContext::new(profile, options);
+
+        // build a module level flow graph and flow table
+        let graph = FlowGraphBuilder::new(module.id, &tree).build_roots(&dir.roots);
+        let flow = self.compute_flow_table_for_graph(
+            &module, &graph, &tree, &symbols, &mut types, &mut infer, &ctx,
+        )?;
+        ctx.flow = Some(FlowContext {
+            module_id: module.id,
+            graph: Arc::new(graph),
+            table: Arc::new(flow),
+        });
+
+        // infer each root expression
         for root_id in dir.roots.iter() {
             self.collect(
                 &mut collector,
@@ -46,6 +62,7 @@ impl Compiler {
             );
         }
 
+        // register instances
         self.collect(
             &mut collector,
             self.register_instances(&module, profile, &tree, &symbols, &mut types),
@@ -56,7 +73,7 @@ impl Compiler {
             return Err(AnalyzeError::Yield { dependency });
         }
 
-        // solve constraints and commit inferred types
+        // solve constraints (and commit inferred types)
         self.solve_infer_table(&infer, &mut types, &ctx.options);
 
         Ok(())

@@ -24,7 +24,7 @@ pub enum ResolveWarning {
     /// Lib symbol defined by multiple libs.
     #[warning(
         code = "WR004",
-        message = "lib symbol {name} is defined by multiple libs ({first_module}, {second_module})"
+        message = "lib symbol {name} is defined by multiple libs: {first_module}, {second_module}"
     )]
     AmbiguousLibSymbol {
         module: ModuleId,

@@ -48,6 +48,17 @@ if (null == value) {
 }
 ```
 
+### not equal null narrows to non nullish with symbol on right
+
+```ds
+const value: string | null | undefined = null;
+if (null != value) {
+    value satisfies string;
+} else {
+    value satisfies null | undefined;
+}
+```
+
 ### not equal undefined narrows to non nullish
 
 ```ds

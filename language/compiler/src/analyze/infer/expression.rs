@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferContext};
 use destack_dir::{
-    Argument, BindingKind, Block, Constraint, Declaration, DynamicKey, Expression, FlowEnvironment,
+    Argument, BindingKind, Block, Constraint, Declaration, DynamicKey, Expression,
     FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalSymbolId, InferTable, LocalNodeId,
     LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, Pattern,
     PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeElement, TypeField,
@@ -53,39 +53,6 @@ impl Compiler {
         context.flow = previous_flow;
 
         Ok(result)
-    }
-
-    /// Infer an expression using a provided flow environment.
-    pub fn infer_expression_in_block(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        context: &mut InferContext,
-        environment: &FlowEnvironment,
-        use_flow: bool,
-    ) -> AnalyzeResult<LocalTypeId> {
-        // copy environment narrowings into the block context
-        let mut block_context = context.fork();
-        self.apply_flow_environment_to_context(environment, &mut block_context);
-        if !use_flow {
-            // disable flow so the manual environment is preserved
-            block_context.flow = None;
-        }
-
-        // infer the expression using the block context
-        self.infer_expression(
-            module,
-            expression_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            &mut block_context,
-        )
     }
 
     destack_base::ensure_sufficient_stack! {
@@ -753,68 +720,20 @@ impl Compiler {
                 else_expression,
             } => {
                 self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
-
-                // decide whether flow typing is active
-                let use_flow = ctx.flow.is_some();
-
-                // infer the then branch with flow when available
+                // infer the then branch
                 let mut then_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-                let then_ty_id = if use_flow {
-                    self.infer_expression(
-                        module,
-                        *then_expression,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut then_ctx,
-                    )?
-                } else {
-                    let base_environment = self.flow_environment_from_context(ctx);
-                    let (then_environment, else_environment) = self.narrow_environment_for_guard(
-                        module,
-                        *condition,
-                        tree,
-                        symbols,
-                        types,
-                        &base_environment,
-                        ctx,
-                    )?;
-                    let then_ty_id = self.infer_expression_in_block(
-                        module,
-                        *then_expression,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut then_ctx,
-                        &then_environment,
-                        false,
-                    )?;
+                let then_ty_id = self.infer_expression(
+                    module,
+                    *then_expression,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut then_ctx,
+                )?;
 
-                    // else
-                    if let Some(else_expr) = else_expression {
-                        let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-                        let _else_ty_id = self.infer_expression_in_block(
-                            module,
-                            *else_expr,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut else_ctx,
-                            &else_environment,
-                            false,
-                        )?;
-                    }
-
-                    then_ty_id
-                };
-
-                // infer the else branch with flow when available
-                if use_flow
-                    && let Some(else_expr) = else_expression
-                {
+                // infer the else branch
+                if let Some(else_expr) = else_expression {
                     let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                     let _else_ty_id = self.infer_expression(
                         module,
@@ -943,12 +862,6 @@ impl Compiler {
                 } else {
                     ctx.fork()
                 };
-                let use_flow = ctx.flow.is_some();
-                let base_environment = if use_flow {
-                    None
-                } else {
-                    Some(self.flow_environment_from_context(&ctx))
-                };
                 let mut result_ty_id = None;
                 for case_id in cases {
                     let case = tree.get(*case_id);
@@ -991,26 +904,6 @@ impl Compiler {
 
                     // apply contextual typing to the case body
                     let mut case_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-                    if let Some(base_environment) = &base_environment {
-                        let case_environment = if let MatchSelector::Pattern { guard, .. } =
-                            selector
-                            && let Some(guard_expr) = guard
-                        {
-                            let (guard_environment, _) = self.narrow_environment_for_guard(
-                                module,
-                                *guard_expr,
-                                tree,
-                                symbols,
-                                types,
-                                base_environment,
-                                &case_ctx,
-                            )?;
-                            guard_environment
-                        } else {
-                            base_environment.clone()
-                        };
-                        self.apply_flow_environment_to_context(&case_environment, &mut case_ctx);
-                    }
 
                     // default selector has no pattern or guard to infer
                     if let Some(expr) = body_expr {

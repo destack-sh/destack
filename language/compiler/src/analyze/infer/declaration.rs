@@ -42,10 +42,16 @@ impl Compiler {
                 scope: _,
                 expressions,
             } => {
-                // infer each top level expression with flow typing
                 for expression_id in expressions {
-                    let _ty_id =
-                        self.infer_body(module, *expression_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(
+                        module,
+                        *expression_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
             }
             // namespace
@@ -57,10 +63,16 @@ impl Compiler {
             } => {
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
-                // infer each namespace expression with flow typing
                 for expression_id in expressions {
-                    let _ty_id =
-                        self.infer_body(module, *expression_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(
+                        module,
+                        *expression_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
             }
 

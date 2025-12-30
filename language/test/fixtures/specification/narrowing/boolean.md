@@ -50,6 +50,17 @@ if (null !== value && undefined !== value) {
 }
 ```
 
+### and guard narrows with parentheses
+
+```ds
+const value: string | null | undefined = null;
+if ((value !== null) && (value !== undefined)) {
+    value satisfies string;
+} else {
+    value satisfies null | undefined;
+}
+```
+
 ## Or Guards
 
 ### or guard narrows to nullish
@@ -100,6 +111,23 @@ if (null === value || undefined === value) {
 }
 ```
 
+### or guard narrows chained symbols in the else branch
+
+```ds
+const left: string | null = null;
+const middle: string | null = null;
+const right: string | null = null;
+if (left === null || middle === null || right === null) {
+    left satisfies string | null;
+    middle satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    middle satisfies string;
+    right satisfies string;
+}
+```
+
 ## Not Guards
 
 ### not guard inverts narrowing
@@ -141,6 +169,17 @@ if (!(left === null || right === null)) {
 }
 ```
 
+### not guard narrows a non strict nullish guard
+
+```ds
+const value: string | null | undefined = null;
+if (!(value != null)) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+```
+
 ## Multi Symbol Guards
 
 ### and guard narrows multiple symbols
@@ -154,5 +193,22 @@ if (left !== null && right !== null) {
 } else {
     left satisfies string | null | undefined;
     right satisfies string | null | undefined;
+}
+```
+
+### and guard narrows chained symbols
+
+```ds
+const left: string | null = null;
+const middle: string | undefined = undefined;
+const right: string | null = null;
+if (left !== null && middle !== undefined && right !== null) {
+    left satisfies string;
+    middle satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    middle satisfies string | undefined;
+    right satisfies string | null;
 }
 ```
