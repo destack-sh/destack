@@ -1,7 +1,7 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, Compiler, InferContext, InferTable, TaskDependencyError,
-    TaskResultCollector,
+    AnalyzeError, AnalyzeResult, Compiler, InferContext, TaskDependencyError, TaskResultCollector,
 };
+use destack_dir::InferTable;
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 

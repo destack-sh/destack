@@ -1,14 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 use super::parameter::{StaticParameter, StaticParameterKind};
-use crate::{
-    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, Constraint, InferContext,
-    InferOrigin, InferScope, InferTable,
-};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticProperty,
-    StringId, SymbolTable, Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
+    Argument, Constraint, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
+    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
+    StaticExpression, StaticProperty, StringId, SymbolTable, Type, TypeField, TypeLiteral,
+    TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -268,7 +266,7 @@ impl Compiler {
             return Ok(Some(resolved_argument));
         }
 
-        // apply default expression when present
+        // default expression
         if let Some(default_expression) = static_parameter.default_expression.as_ref() {
             return self
                 .evaluate_static_default_argument(
@@ -281,7 +279,7 @@ impl Compiler {
                 .map(Some);
         }
 
-        // no argument and no default - caller handles fallback
+        // no argument and no default (caller handles fallback)
         Ok(None)
     }
 

@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
 use destack_dir::{
-    Asynchrony, FunctionCardinality, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId,
+    Asynchrony, FlowGraph, FlowTable, FunctionCardinality, FunctionSignature, GlobalSymbolId,
+    LocalNodeIdAny, LocalTypeId,
 };
+use destack_source::ModuleId;
 use destack_workspace::{DsConfigCompilerOptions, ProfileId};
 
 use crate::AnalyzeOptions;
@@ -32,6 +36,19 @@ pub struct InferContext {
     pub is_generator: bool,
     /// Whether we're in an abstract class/struct (abstract methods allowed).
     pub in_abstract_class: bool,
+    /// Flow context for the current function body.
+    pub flow: Option<FlowContext>,
+}
+
+/// Describe flow data used for inference.
+#[derive(Debug, Clone)]
+pub struct FlowContext {
+    /// Identify the module owning this flow graph.
+    pub module_id: ModuleId,
+    /// Store the control flow graph for the current body.
+    pub graph: Arc<FlowGraph>,
+    /// Store flow environments for the control flow graph.
+    pub table: Arc<FlowTable>,
 }
 
 impl InferContext {
@@ -50,6 +67,7 @@ impl InferContext {
             is_async: false,
             is_generator: false,
             in_abstract_class: false,
+            flow: None,
         }
     }
 
@@ -68,6 +86,7 @@ impl InferContext {
             is_async: self.is_async,
             is_generator: self.is_generator,
             in_abstract_class: self.in_abstract_class,
+            flow: self.flow.clone(),
         }
     }
 
@@ -86,7 +105,14 @@ impl InferContext {
             is_async: false,
             is_generator: false,
             in_abstract_class: false,
+            flow: self.flow.clone(),
         }
+    }
+
+    /// Attach flow context to this inference context.
+    pub fn with_flow_context(mut self, flow: FlowContext) -> Self {
+        self.flow = Some(flow);
+        self
     }
 
     /// Enter a function context with the given signature.

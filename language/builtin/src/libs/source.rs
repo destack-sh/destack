@@ -64,10 +64,10 @@ pub struct BuiltinLib {
     pub name: &'static str,
     /// Source files for this library.
     pub sources: &'static [BuiltinLibSource],
-    /// Whether symbols are ambient without explicit imports.
-    pub is_ambient: bool,
     /// Library dependencies by name.
     pub dependencies: &'static [&'static str],
+    /// Whether symbols are ambient without explicit imports.
+    pub is_ambient: bool,
 }
 
 impl BuiltinLib {
@@ -80,8 +80,8 @@ impl BuiltinLib {
         Self {
             name,
             sources,
-            is_ambient: true,
             dependencies,
+            is_ambient: true,
         }
     }
 
@@ -94,8 +94,8 @@ impl BuiltinLib {
         Self {
             name,
             sources,
-            is_ambient: false,
             dependencies,
+            is_ambient: false,
         }
     }
 }

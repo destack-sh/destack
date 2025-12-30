@@ -1,16 +1,6 @@
 use indexmap::IndexMap;
 
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalTypeId};
-
-use crate::InferContext;
-
-/// Identify a flow graph block.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FlowBlockId(
-    /// Store the block index.
-    pub u32,
-);
+use crate::{FlowBlockId, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId};
 
 /// Identify a stored flow environment.
 #[repr(transparent)]
@@ -50,18 +40,11 @@ impl FlowEnvironment {
             is_reachable,
         }
     }
+}
 
-    /// Build a flow environment from an inference context.
-    pub fn from_context(context: &InferContext) -> Self {
-        let mut bindings = IndexMap::with_capacity(context.narrowings.len());
-        for (symbol, type_id) in &context.narrowings {
-            bindings.insert(*symbol, *type_id);
-        }
-
-        Self {
-            bindings,
-            is_reachable: !context.is_unreachable,
-        }
+impl Default for FlowTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

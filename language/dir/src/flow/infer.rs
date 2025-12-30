@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalTypeId, VarianceBound};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalTypeId, VarianceBound};
 
 /// Represent a single inference variable with bounds and defaults.
 #[derive(Debug, Clone)]

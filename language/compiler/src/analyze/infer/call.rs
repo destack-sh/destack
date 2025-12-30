@@ -2,13 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use super::parameter::StaticParameterKind;
 use super::resolve::MemberResolution;
-use crate::{
-    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, Constraint, InferContext,
-    InferTable,
-};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Expression, GlobalSymbolId, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Expression, GlobalSymbolId, InferTable, LocalInstanceId, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 

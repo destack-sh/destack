@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use super::resolve::MemberResolution;
-use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext, InferTable};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
-    Argument, Declaration, DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
-    NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Declaration, DynamicKey, Expression, GlobalSymbolId, InferTable, LocalNodeId,
+    LocalTypeId, NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 

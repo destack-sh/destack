@@ -15,12 +15,13 @@ mod parameter;
 mod process;
 mod resolve;
 mod solve;
-#[cfg(test)]
-mod tests;
 mod r#type;
+
+use key::*;
 
 pub use assign::*;
 pub use context::*;
-pub use flow::*;
-use key::*;
 pub use solve::*;
+
+#[cfg(test)]
+mod tests;
