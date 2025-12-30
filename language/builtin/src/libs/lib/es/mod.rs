@@ -10,10 +10,12 @@ mod es2022;
 mod es2023;
 mod es2024;
 mod es5;
+mod es6;
 mod esnext;
 
 pub use decorators::*;
 pub use es5::*;
+pub use es6::*;
 pub use es2015::*;
 pub use es2016::*;
 pub use es2017::*;

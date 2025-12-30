@@ -13,6 +13,8 @@ macro_rules! lib_source {
 
 lib_source!(LIB_ES_ES2020_BIGINT_D_DS, "bigint.d.ds");
 lib_source!(LIB_ES_ES2020_DATE_D_DS, "date.d.ds");
+lib_source!(LIB_ES_ES2020_FULL_D_DS, "full.d.ds");
+lib_source!(LIB_ES_ES2020_INDEX_D_DS, "index.d.ds");
 lib_source!(LIB_ES_ES2020_INTL_D_DS, "intl.d.ds");
 lib_source!(LIB_ES_ES2020_NUMBER_D_DS, "number.d.ds");
 lib_source!(LIB_ES_ES2020_PROMISE_D_DS, "promise.d.ds");
@@ -25,6 +27,7 @@ pub const LIB_ES2020: BuiltinLib = BuiltinLib::ambient(
     &[
         LIB_ES_ES2020_BIGINT_D_DS,
         LIB_ES_ES2020_DATE_D_DS,
+        LIB_ES_ES2020_INDEX_D_DS,
         LIB_ES_ES2020_INTL_D_DS,
         LIB_ES_ES2020_NUMBER_D_DS,
         LIB_ES_ES2020_PROMISE_D_DS,
@@ -39,6 +42,18 @@ pub const LIB_ES2020_BIGINT: BuiltinLib =
     BuiltinLib::ambient("es2020.bigint", &[LIB_ES_ES2020_BIGINT_D_DS], &[]);
 pub const LIB_ES2020_DATE: BuiltinLib =
     BuiltinLib::ambient("es2020.date", &[LIB_ES_ES2020_DATE_D_DS], &[]);
+pub const LIB_ES2020_FULL: BuiltinLib = BuiltinLib::ambient(
+    "es2020.full",
+    &[LIB_ES_ES2020_FULL_D_DS],
+    &[
+        "es2020",
+        "dom",
+        "worker.importscripts",
+        "scripthost",
+        "dom.iterable",
+        "dom.asynciterable",
+    ],
+);
 pub const LIB_ES2020_INTL: BuiltinLib =
     BuiltinLib::ambient("es2020.intl", &[LIB_ES_ES2020_INTL_D_DS], &[]);
 pub const LIB_ES2020_NUMBER: BuiltinLib =

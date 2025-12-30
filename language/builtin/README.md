@@ -102,7 +102,7 @@ Different targets get different implementations.
 | `lib/bun/` | `Bun`, `Bun.spawn`, Bun APIs | `runtime: bun` |
 | `lib/worker/` | `WorkerGlobalScope`, Web Worker APIs | `runtime: worker` |
 
-Runtime-specific libs can also be versioned (e.g., `node.v20`, `deno.v1.45`, `bun.v1.1`).
+Runtime-specific libs can also be versioned (e.g., `node.v22`, `deno.v2.6`, `bun.v1.3`).
 Targets with `runtimeVersion` select the matching versioned lib.
 `runtimeVersion: "latest"` (or omitted) uses the default alias shipped on disk.
 
@@ -111,3 +111,8 @@ Targets with `runtimeVersion` select the matching versioned lib.
 There is some overlap between "builtin" and "library" since the whole stack is intended to be well integrated.
 Conceptually, the `language/builtin/` stuff is for language-level primitives that the compiler ships and needs to know about.
 Everything else is a library that the compiler doesn't need to know or assume anything about (ideally).
+
+## Updating builtin libs
+
+TypeScript lib sources are fetched with `language/builtin/scripts/fetch.sh`.
+The pinned TypeScript version lives in `language/builtin/scripts/versions.sh` and should be updated manually.

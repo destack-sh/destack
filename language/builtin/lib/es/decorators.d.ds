@@ -54,7 +54,7 @@ interface ClassDecoratorContext<
      * Adds a callback to be invoked after the class definition has been finalized.
      *
      * @example
-     * ```ds
+     * ```ts
      * function customElement(name: string): ClassDecoratorFunction {
      *   return (target, context) => {
      *     context.addInitializer(function () {
@@ -115,7 +115,7 @@ interface ClassMethodDecoratorContext<
      * initializers are run (when decorating a non-`static` element).
      *
      * @example
-     * ```ds
+     * ```ts
      * const bound: ClassMethodDecoratorFunction = (value, context) {
      *   if (context.private) throw new TypeError("Not supported on private methods.");
      *   context.addInitializer(function () {
