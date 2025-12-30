@@ -125,6 +125,7 @@ High-confidence issues that are almost always wrong.
 | `no-this-before-super` | ESLint | DIR | ✓ | 🔶 | None | Disallow `this` before calling `super()` in constructors |
 | `no-throw-in-result-function` | Destack | DIR | ✗ | 🔶 | None | Disallow `throw` in functions returning `Result` |
 | `no-unchecked-overflow` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow arithmetic that may overflow without explicit handling |
+| `no-unchecked-pointer-deref` | Destack | DIR | ✗ | 🔶 | None | Disallow dereferencing pointers without a proven non-null guard |
 | `no-unchecked-type-assertion` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow type assertions without validation |
 | `no-unhandled-result` | Destack | DIR | ✓ | 🔶 | Suggestion | Require Result values to be handled |
 | `no-unsafe-finally` | ESLint | AST | ✓ | ✅ | Safe | Disallow control flow statements in finally blocks |
@@ -178,6 +179,8 @@ Code that is likely unintentional but may occasionally be intentional.
 | `no-missing-override` | ErrorProne | DIR | ✗ | 🔶 | Safe | Warn when method overrides parent without `override` keyword |
 | `no-negation-in-equality-check` | Unicorn | AST | ✓ | ✅ | Safe | Disallow negation in the left operand of equality tests |
 | `no-prototype-builtins` | ESLint | DIR | ✗ | 🔶 | Safe | Disallow calling Object.prototype methods directly on objects |
+| `no-pointer-arithmetic` | Destack | DIR | ✗ | 🔶 | Suggestion | Warn on pointer arithmetic without explicit offset helpers |
+| `no-pointer-comparison` | Destack | DIR | ✗ | 🔶 | Suggestion | Warn on pointer comparisons outside explicit address checks |
 | `no-redundant-await` | Destack | DIR | ✓ | 🔶 | Safe | Disallow redundant `await` expressions |
 | `no-redundant-match-guard` | Destack | AST | ✓ | ✅ | Safe | Disallow match guards that are always true or false |
 | `no-redundant-pattern` | Destack | AST | ✓ | ✅ | Safe | Disallow patterns that bind nothing useful |

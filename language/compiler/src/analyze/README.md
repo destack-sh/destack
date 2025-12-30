@@ -540,6 +540,9 @@ High level CFG shape:
 | `"k" in x` | `x: T & { k: unknown }` | `x: Exclude<T, { k: unknown }>` |
 | `x is T` | `x: T` | `x: Exclude<U, T>` |
 
+The `x is T` operator lowers to `T.is(x)` when runtime checks are needed.
+The `instanceof` operator only narrows for class identity checks.
+
 ---
 
 # Flow Data Reuse

@@ -201,7 +201,8 @@ const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
 Both operators work via the `Try` interface, which `Result` implements.
-For nullable types (`T | null`), `??` behaves exactly like TypeScript's nullish coalescing.
+The `??` operator first coalesces nullish values, then branches on `Try` for non-nullish values.
+This keeps `Result<T, E> | null` ergonomic without recursive unwrapping.
 
 ### Panic (throw)
 
@@ -260,7 +261,7 @@ Destack extends TypeScript's type system with precise primitives, nominal types,
 
 Destack requires explicit types at public boundaries.
 This keeps inference local, fast, and predictable.
-There is no whole program inference or Hindley Milner style generalization.
+There is no whole program inference or Hindley-Milner style generalization.
 
 Most non-local constructs should be explicitly typed:
 - Exported functions, methods, and constructors annotate dynamic parameters and return types.
@@ -480,6 +481,9 @@ if (User.is(value)) {
 }
 ```
 
+Runtime type guards use `x is T` or `T.is(value)` for general types.
+The `instanceof` operator is reserved for class identity checks.
+
 ### Decorator Metadata
 
 Decorator information is accessible at runtime:
@@ -542,8 +546,9 @@ parse(User, data);  // User IS the schema
 
 ### Runtime Type Identity
 
-Runtime type identity (RTTI) is demand-driven. The compiler only emits RTTI for types that
-are used at runtime (e.g., `typeOf`, `instanceof`, `any`/`unknown`, or runtime reflection).
+Runtime type identity (RTTI) is demand-driven.
+The compiler only emits RTTI for types that are used at runtime.
+Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
 Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
 unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
 property rather than a global WeakMap, preserving "plain object" semantics.
