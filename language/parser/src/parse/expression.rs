@@ -279,8 +279,8 @@ impl Parser {
 
     /// Extract the subject and constraint for a type conditional.
     /// Pull union and intersection chains into the right side when they wrap `extends`.
-    /// NOTE #Architecture: split_type_conditional_operands is localized reassociation for conditional types
-    ///  (since we parse type expressions and expressions in the same pass, we have to post-patch type precedence)
+    /// NOTE #Architecture: split_type_conditional_operands is localized reassociation for conditional types.
+    /// Since we parse type expressions and expressions in the same pass, we have to post patch type precedence.
     fn split_type_conditional_operands(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -309,7 +309,7 @@ impl Parser {
             return None;
         }
 
-        // peel a left-leaning extends and reattach the union/intersection on the right
+        // peel a left leaning extends and reattach the union or intersection on the right
         let (extends_left, extends_right) = self.split_type_conditional_operands(left_id)?;
         if let Expression::Binary { left, .. } = self.tree.get_mut(expression_id) {
             *left = extends_right;
@@ -694,12 +694,14 @@ impl Parser {
                 let operator_start = self.mark();
                 self.bump(); // eat unary operator (always because right associative)
                 let operator_span = self.get_span_from(operator_start);
-                let right = self.with_options(
-                    self.options
-                        .not_in_position()
-                        .in_left_precedence(operator.precedence()),
-                    |parser| parser.eat_expression(),
-                )?;
+                let mut right_options = self
+                    .options
+                    .not_in_position()
+                    .in_left_precedence(operator.precedence());
+                if self.options.in_type_conditional_right {
+                    right_options = right_options.in_type_conditional_right();
+                }
+                let right = self.with_options(right_options, |parser| parser.eat_expression())?;
                 let expression = Expression::Unary { operator, right };
                 let expression_id = self.tree.insert(expression, self.get_span_from(start));
                 self.tree.set_main_span(expression_id, operator_span);
@@ -710,13 +712,15 @@ impl Parser {
                 let operator_start = self.mark();
                 self.bump(); // eat type unary operator (always because right associative)
                 let operator_span = self.get_span_from(operator_start);
-                let right = self.with_options(
-                    self.options
-                        .not_in_position()
-                        .in_type()
-                        .in_left_precedence(operator.precedence()),
-                    |parser| parser.eat_expression(),
-                )?;
+                let mut right_options = self
+                    .options
+                    .not_in_position()
+                    .in_type()
+                    .in_left_precedence(operator.precedence());
+                if self.options.in_type_conditional_right {
+                    right_options = right_options.in_type_conditional_right();
+                }
+                let right = self.with_options(right_options, |parser| parser.eat_expression())?;
                 let expression = Expression::TypeUnary { operator, right };
                 let expression_id = self.tree.insert(expression, self.get_span_from(start));
                 self.tree.set_main_span(expression_id, operator_span);
@@ -1669,12 +1673,12 @@ impl Parser {
             && (self.peek_token(TokenType::Maybe).is_ok()
                 || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok())
         {
-            if self.options.in_type_conditional_right {
+            // avoid consuming nested conditional tokens in the right side
+            let conditional_operands = self.split_type_conditional_operands(left_expression_id);
+            if self.options.in_type_conditional_right && conditional_operands.is_none() {
                 return Ok(left_expression_id);
             }
-            let Some((left, right)) =
-                self.split_type_conditional_operands(left_expression_id)
-            else {
+            let Some((left, right)) = conditional_operands else {
                 return Err(ParseError::unexpected(self.peek()?.span));
             };
 
