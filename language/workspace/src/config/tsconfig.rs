@@ -929,7 +929,6 @@ pub struct TsCompilerOptions {
     /// Error on `this` expressions with implied `any` type.
     pub no_implicit_this: bool,
     /// Enable strict null checks.
-    /// `null` and `undefined` are distinct types.
     pub strict_null_checks: bool,
     /// Enable strict checking of function types.
     pub strict_function_types: bool,

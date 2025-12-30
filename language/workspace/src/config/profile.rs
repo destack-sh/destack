@@ -13,6 +13,8 @@ pub struct ProfileConfig {
     pub platform: Option<Platform>,
     /// Library files for this profile.
     pub lib: Option<Vec<String>>,
+    /// Additional library types for this profile.
+    pub types: Option<Vec<String>>,
     /// Debug flag exposed to import.meta.
     pub debug: Option<bool>,
     /// Comptime environment whitelist.
@@ -27,6 +29,7 @@ impl ProfileConfig {
             runtime_version: json.runtime_version.clone(),
             platform: json.platform.as_deref().and_then(Platform::parse),
             lib: json.lib.clone(),
+            types: json.types.clone(),
             debug: json.debug,
             comptime_env: json.comptime_env.clone(),
         }
@@ -46,6 +49,8 @@ pub struct ProfileConfigJson {
     pub platform: Option<String>,
     /// Library files for this profile.
     pub lib: Option<Vec<String>>,
+    /// Additional library types for this profile.
+    pub types: Option<Vec<String>>,
     /// Debug build flag (affects import.meta.debug).
     pub debug: Option<bool>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).

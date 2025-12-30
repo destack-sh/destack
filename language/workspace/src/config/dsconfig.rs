@@ -107,6 +107,9 @@ impl DsConfig {
         if compiler.lib.is_empty() {
             compiler.lib = parent_compiler.lib.clone();
         }
+        if compiler.types.is_empty() {
+            compiler.types = parent_compiler.types.clone();
+        }
         if compiler.profile.is_none() {
             compiler.profile = parent_compiler.profile.clone();
         }
@@ -351,6 +354,8 @@ pub struct DsConfigCompilerOptions {
     pub es_target: EsTarget,
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
+    /// Additional library types to include (e.g., "node", "dom.iterable").
+    pub types: Vec<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
@@ -481,6 +486,7 @@ impl Default for DsConfigCompilerOptions {
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: Vec::new(), // derived from runtime/platform if empty
+            types: Vec::new(),
             profile: None,
             comptime_env: None,
 
@@ -684,6 +690,8 @@ pub struct DsConfigTargetOptions {
     pub es_target: EsTarget,
     /// Library files for this target. If `None`, derived automatically from runtime and platform.
     pub lib: Option<Vec<String>>,
+    /// Additional library types for this target.
+    pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
 
@@ -736,6 +744,7 @@ impl Default for DsConfigTargetOptions {
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             lib: None,
+            types: None,
             profile: None,
             debug: true,
             optimize: false,
@@ -797,6 +806,7 @@ impl DsConfigTargetOptions {
             module: self.module,
             es_target: self.es_target,
             lib: self.lib.clone(),
+            types: self.types.clone(),
             profile: self.profile.clone(),
             debug: self.debug,
             optimize: self.optimize,
@@ -873,6 +883,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
             lib: json.lib.clone(),
+            types: json.types.clone(),
             profile: json.profile.clone(),
             debug: json.debug,
             optimize: json.optimize,
@@ -1249,6 +1260,8 @@ pub struct CompilerOptionsJson {
     pub target: Option<String>,
     /// Library files to include (e.g., ["es2024", "dom"]).
     pub lib: Option<Vec<String>>,
+    /// Additional library types to include (e.g., ["node", "dom.iterable"]).
+    pub types: Option<Vec<String>>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
@@ -1386,6 +1399,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
             lib: json.lib.clone().unwrap_or_default(),
+            types: json.types.clone().unwrap_or_default(),
             profile: json.profile.clone(),
             comptime_env: json.comptime_env.clone(),
 
@@ -1513,6 +1527,8 @@ pub struct DsConfigTargetJson {
     pub target: Option<String>,
     /// Library files for this target (overrides derived libs).
     pub lib: Option<Vec<String>>,
+    /// Additional library types for this target.
+    pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
 

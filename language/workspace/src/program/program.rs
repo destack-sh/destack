@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -415,6 +416,32 @@ impl Program {
         }
     }
 
+    /// Collect additive library types for a target.
+    fn collect_types_for_target(
+        target: &Target,
+        compiler_options: &DsConfigCompilerOptions,
+        profile_config: Option<&ProfileConfig>,
+    ) -> Vec<String> {
+        let mut types = Vec::new();
+
+        // add compiler level types first
+        if !compiler_options.types.is_empty() {
+            types.extend(compiler_options.types.clone());
+        }
+
+        // add target level types
+        if let Some(target_types) = &target.types {
+            types.extend(target_types.clone());
+        }
+
+        // add profile level types
+        if let Some(profile_types) = profile_config.and_then(|profile| profile.types.as_ref()) {
+            types.extend(profile_types.clone());
+        }
+
+        types
+    }
+
     /// Build a profile key for a target.
     fn profile_key_for_target(
         target: &Target,
@@ -435,7 +462,8 @@ impl Program {
             .and_then(|profile| profile.debug)
             .unwrap_or(target.debug);
 
-        let lib = profile_config
+        // pick base lib list with override semantics
+        let base_lib = profile_config
             .and_then(|profile| profile.lib.as_ref())
             .cloned()
             .or_else(|| target.lib.clone())
@@ -456,6 +484,20 @@ impl Program {
                 derived_target.derived_lib()
             });
 
+        // append additive library types from config layers
+        let mut libs = base_lib;
+        let mut seen = HashSet::new();
+        for lib_name in &libs {
+            seen.insert(lib_name.clone());
+        }
+
+        let types = Self::collect_types_for_target(target, &compiler_options, profile_config);
+        for type_name in types {
+            if seen.insert(type_name.clone()) {
+                libs.push(type_name);
+            }
+        }
+
         let env = profile_config
             .and_then(|profile| profile.comptime_env.as_ref())
             .or(compiler_options.comptime_env.as_ref())
@@ -465,7 +507,7 @@ impl Program {
         let flags = ProfileFlags::from(&compiler_options);
         let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
 
-        ProfileKey::new(runtime, platform, lib, debug, test, env, flags)
+        ProfileKey::new(runtime, platform, libs, debug, test, env, flags)
     }
 
     /// Build compiler options for a target, applying derived restrictions.
@@ -486,5 +528,44 @@ impl Program {
         }
 
         options
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Platform, Runtime};
+
+    #[test]
+    fn test_profile_key_for_target_appends_types() {
+        // merges types into the normalized lib list
+        let target = Target {
+            runtime: Runtime::Node,
+            platform: Platform::Web,
+            lib: Some(vec!["es2020".to_string()]),
+            types: Some(vec!["dom".to_string()]),
+            ..Target::default()
+        };
+
+        let mut compiler_options = DsConfigCompilerOptions::default();
+        compiler_options.types = vec!["node".to_string(), "dom".to_string()];
+
+        let profile_config = ProfileConfig {
+            types: Some(vec!["deno".to_string()]),
+            ..ProfileConfig::default()
+        };
+
+        let key =
+            Program::profile_key_for_target(&target, &compiler_options, Some(&profile_config));
+
+        assert_eq!(
+            key.lib,
+            vec![
+                "deno".to_string(),
+                "dom".to_string(),
+                "es2020".to_string(),
+                "node".to_string()
+            ]
+        );
     }
 }
