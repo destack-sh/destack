@@ -13,6 +13,8 @@ macro_rules! lib_source {
 
 lib_source!(LIB_ES_ES2024_ARRAYBUFFER_D_DS, "arraybuffer.d.ds");
 lib_source!(LIB_ES_ES2024_COLLECTION_D_DS, "collection.d.ds");
+lib_source!(LIB_ES_ES2024_FULL_D_DS, "full.d.ds");
+lib_source!(LIB_ES_ES2024_INDEX_D_DS, "index.d.ds");
 lib_source!(LIB_ES_ES2024_OBJECT_D_DS, "object.d.ds");
 lib_source!(LIB_ES_ES2024_PROMISE_D_DS, "promise.d.ds");
 lib_source!(LIB_ES_ES2024_REGEXP_D_DS, "regexp.d.ds");
@@ -24,6 +26,7 @@ pub const LIB_ES2024: BuiltinLib = BuiltinLib::ambient(
     &[
         LIB_ES_ES2024_ARRAYBUFFER_D_DS,
         LIB_ES_ES2024_COLLECTION_D_DS,
+        LIB_ES_ES2024_INDEX_D_DS,
         LIB_ES_ES2024_OBJECT_D_DS,
         LIB_ES_ES2024_PROMISE_D_DS,
         LIB_ES_ES2024_REGEXP_D_DS,
@@ -37,6 +40,18 @@ pub const LIB_ES2024_ARRAYBUFFER: BuiltinLib =
     BuiltinLib::ambient("es2024.arraybuffer", &[LIB_ES_ES2024_ARRAYBUFFER_D_DS], &[]);
 pub const LIB_ES2024_COLLECTION: BuiltinLib =
     BuiltinLib::ambient("es2024.collection", &[LIB_ES_ES2024_COLLECTION_D_DS], &[]);
+pub const LIB_ES2024_FULL: BuiltinLib = BuiltinLib::ambient(
+    "es2024.full",
+    &[LIB_ES_ES2024_FULL_D_DS],
+    &[
+        "es2024",
+        "dom",
+        "worker.importscripts",
+        "scripthost",
+        "dom.iterable",
+        "dom.asynciterable",
+    ],
+);
 pub const LIB_ES2024_OBJECT: BuiltinLib =
     BuiltinLib::ambient("es2024.object", &[LIB_ES_ES2024_OBJECT_D_DS], &[]);
 pub const LIB_ES2024_PROMISE: BuiltinLib =

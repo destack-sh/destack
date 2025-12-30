@@ -27,7 +27,7 @@ Specifically, Destack lowering is focused on:
 
 *Where behavior differs between JS/TS runtimes and native, this difference should be obvious and misue and unexpected results should have loud diagnostics. Perfect semantic equivalence in all scenarios is not required or even possible, since that would require emulating _all_ the non-standard dynamic quirks of common JS runtimes (like optimizer behavior, scheduling, etc.).
 
-### Performance Strategy
+### Performance
 
 Destack targets Go-level performance by default and Rust-level performance on-demand.
 The compiler relies on a known-good set of optimizations proven out by Go, Rust, Zig, and modern C++ compilers:

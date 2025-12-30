@@ -23,6 +23,7 @@ Documentation comments for functions/types/etc. should be proper sentences with 
  - Files should NOT have a top-level documentation comments. They always get stale.
  - Go multiline if there is more than one sentence. Only one sentence should begin per line.
  - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
+*All* functions, types, variants/fields, etc. should have documentation (one line is fine).
 
 Comments MAY start with keywords:
 - `NOTE`: call out something important

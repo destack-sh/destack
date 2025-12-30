@@ -6,21 +6,35 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILTIN_DIR="$(dirname "$SCRIPT_DIR")"
 SRC_DIR="$BUILTIN_DIR/lib/node"
+source "$SCRIPT_DIR/fetch-util.sh"
 
-NODE_TYPES_VERSION=${NODE_TYPES_VERSION:-"20.11.30"}
-NODE_TYPES_BASE_URL=${NODE_TYPES_BASE_URL:-${NODE_TYPES_URL:-"https://unpkg.com/@types/node@$NODE_TYPES_VERSION"}}
-NODE_BASE_URL=$NODE_TYPES_BASE_URL
-NODE_LIB_VERSION=${NODE_LIB_VERSION:-"20"}
+NODE_TARGETS_DEFAULT=(
+    "18:18.19.130"
+    "20:20.19.27"
+    "22:22.19.3"
+    "24:24.10.4"
+)
 
-export NODE_BASE_URL
-export NODE_TYPES_VERSION
+NODE_TARGETS=("${NODE_TARGETS_DEFAULT[@]}")
+if [[ -n "${NODE_TARGETS_OVERRIDE:-}" ]]; then
+    IFS=',' read -r -a NODE_TARGETS <<< "$NODE_TARGETS_OVERRIDE"
+fi
 
-NODE_LIB_DIR="$SRC_DIR/v$NODE_LIB_VERSION"
-mkdir -p "$NODE_LIB_DIR"
+for target in "${NODE_TARGETS[@]}"; do
+    IFS=':' read -r node_lib_version node_types_version <<< "$target"
 
-echo "  - node.v$NODE_LIB_VERSION @types/node $NODE_TYPES_VERSION"
+    if [[ -z "$node_lib_version" || -z "$node_types_version" ]]; then
+        fail "invalid node target $target"
+    fi
 
-NODE_DEST="$NODE_LIB_DIR/index.d.ds" python3 - <<'PY'
+    NODE_LIB_DIR="$SRC_DIR/v$node_lib_version"
+    mkdir -p "$NODE_LIB_DIR"
+
+    NODE_BASE_URL=${NODE_TYPES_BASE_URL:-${NODE_TYPES_URL:-"https://unpkg.com/@types/node@$node_types_version"}}
+
+    echo "  - node.v$node_lib_version @types/node $node_types_version"
+
+    if ! NODE_BASE_URL="$NODE_BASE_URL" NODE_DEST="$NODE_LIB_DIR/index.d.ds" python3 - <<'PY'
 import os
 import re
 import urllib.request
@@ -52,4 +66,9 @@ fetch("index.d.ts")
 
 dest_path.write_text("\n\n".join(section for section in output if section) + "\n")
 PY
-echo "done"
+    then
+        fail "missing node types from $NODE_BASE_URL"
+    fi
+
+    echo "done"
+done

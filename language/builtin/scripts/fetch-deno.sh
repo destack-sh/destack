@@ -6,21 +6,32 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILTIN_DIR="$(dirname "$SCRIPT_DIR")"
 SRC_DIR="$BUILTIN_DIR/lib/deno"
+source "$SCRIPT_DIR/fetch-util.sh"
 
-DENO_VERSION=${DENO_VERSION:-"1.45.0"}
-DENO_TYPES_BASE_URL=${DENO_TYPES_BASE_URL:-${DENO_TYPES_URL:-"https://raw.githubusercontent.com/denoland/deno/v$DENO_VERSION/cli/tsc/dts"}}
-DENO_BASE_URL=$DENO_TYPES_BASE_URL
-DENO_LIB_VERSION=${DENO_LIB_VERSION:-"1.45"}
+DENO_TARGETS_DEFAULT=(
+    "2.6:2.6.3"
+)
 
-export DENO_BASE_URL
-export DENO_VERSION
+DENO_TARGETS=("${DENO_TARGETS_DEFAULT[@]}")
+if [[ -n "${DENO_TARGETS_OVERRIDE:-}" ]]; then
+    IFS=',' read -r -a DENO_TARGETS <<< "$DENO_TARGETS_OVERRIDE"
+fi
 
-DENO_LIB_DIR="$SRC_DIR/v$DENO_LIB_VERSION"
-mkdir -p "$DENO_LIB_DIR"
+for target in "${DENO_TARGETS[@]}"; do
+    IFS=':' read -r deno_lib_version deno_version <<< "$target"
 
-echo "  - deno.v$DENO_LIB_VERSION $DENO_VERSION"
+    if [[ -z "$deno_lib_version" || -z "$deno_version" ]]; then
+        fail "invalid deno target $target"
+    fi
 
-DENO_DEST="$DENO_LIB_DIR/index.d.ds" python3 - <<'PY'
+    DENO_BASE_URL=${DENO_TYPES_BASE_URL:-${DENO_TYPES_URL:-"https://raw.githubusercontent.com/denoland/deno/v$deno_version/cli/tsc/dts"}}
+
+    DENO_LIB_DIR="$SRC_DIR/v$deno_lib_version"
+    mkdir -p "$DENO_LIB_DIR"
+
+    echo "  - deno.v$deno_lib_version $deno_version"
+
+    if ! DENO_BASE_URL="$DENO_BASE_URL" DENO_DEST="$DENO_LIB_DIR/index.d.ds" python3 - <<'PY'
 import os
 import re
 import urllib.request
@@ -52,5 +63,9 @@ fetch("lib.deno.ns.d.ts")
 
 dest_path.write_text("\n\n".join(section for section in output if section) + "\n")
 PY
+    then
+        fail "missing deno types from $DENO_BASE_URL"
+    fi
 
-echo "done"
+    echo "done"
+done
