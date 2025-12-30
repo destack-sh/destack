@@ -27,6 +27,24 @@ Specifically, Destack lowering is focused on:
 
 *Where behavior differs between JS/TS runtimes and native, this difference should be obvious and misue and unexpected results should have loud diagnostics. Perfect semantic equivalence in all scenarios is not required or even possible, since that would require emulating _all_ the non-standard dynamic quirks of common JS runtimes (like optimizer behavior, scheduling, etc.).
 
+### Performance Strategy
+
+Destack targets Go-level performance by default and Rust-level performance on-demand.
+The compiler relies on a known-good set of optimizations proven out by Go, Rust, Zig, and modern C++ compilers:
+- Escape analysis and stack promotion of managed allocations
+- Copy elision, return value optimization, and move elimination
+- Bounds check elimination with range analysis
+- Devirtualization and inlining for class calls
+- Monomorphization and specialization control per profile
+- Strict borrow mode for `&mut` to enable `noalias` and vectorization
+- Explicit SIMD types and intrinsics with scalar fallback
+- LTO and PGO for whole-program inlining and layout decisions
+
+SIMD follows a Zig-like model.
+Vector lane counts are static parameters and operators are elementwise.
+Lower maps vector operations to target SIMD instructions when available.
+(If the target lacks support, Lower scalarizes to loops.)
+
 ## Pipeline
 
 The mid-end/back-end flow from DIR to MIR (see [compiler/README.md](../README.md)):
@@ -51,7 +69,7 @@ DIR (elaborated, canonical, profile-dependent)
 The basic tasks of the lowering pass are:
 1. **Monomorphize generics**: each `T` instantiation becomes specialised MIR
 2. **Compute layouts**: tag placement, property offsets, struct sizes, alignment
-3. **Prepare dispatch**: builtin ops, direct calls, prepare vtables
+3. **Prepare dispatch**: builtin ops, direct calls, prepare vtables and itabs
 4. **Generate type descriptors**: for reflection and instanceof
 5. **Lower control flow**: expressions → blocks with terminators
 6. **Allocate locals**: stack slots for variables and temporaries
@@ -72,8 +90,6 @@ MIR is generated per-target with target-specific decisions:
 - Memory layout (LP64, ILP32, etc.)
 - Calling conventions (C, System, etc.)
 - Alignment requirements
-
----
 
 # Interoperability
 
@@ -453,7 +469,7 @@ animal.speak()  // static resolution { target: Animal::speak }, but virtual
 
 Lowers to vtable lookup:
 ```mir
-v1 = field.get v0, 0           ; load vtable pointer from object header
+v1 = field.get v0, 0           ; load vtable pointer from object layout
 v2 = field.get v1, 2           ; load speak method at vtable slot 2
 v3 = call.indirect v2(v0)      ; indirect call through vtable
 ```
@@ -467,30 +483,38 @@ Elaborate has already generated the symbol-dispatch logic; Lower just emits it.
 
 **Union method dispatch:**
 ```ds
-function process(x: Cat | Dog) { x.speak() }
-// Cat::speak and Dog::speak are different target symbols
+function process(x: Cat | Dog) { 
+    // Cat.speak and Dog.speak are different target symbols
+    x.speak() 
+}
 ```
 
 Elaborate transforms to instanceof chain, Lower then emits:
 ```mir
-type @string = ref<struct { i64, i32, i32, i32 }>
+type @string = ref<struct { i32, i32, i32 }>
 type @ObjectWithVTable = struct { rawptr<void> }
 
-function @process_speak(v0: ref<@ObjectWithVTable>) -> @string {
+function @process(v0: ref<@ObjectWithVTable>) -> @string {
 block0(v0: ref<@ObjectWithVTable>):
     v1 = field.get v0, 0       ; load vtablePtr
-    v2 = field.get v1, 0       ; load typeId from vtable[0]
-    switch v2, block3, 0 => block1, 1 => block2
+    v2 = field.get v1, 0       ; load typeDescriptor from vtable slot 0
+    v3 = global.const @Cat_TypeDescriptor
+    v4 = icmp_eq v2, v3
+    branch v4, block1, block2
 block1:
-    v3 = call @Cat.speak(v0)
-    jump block4(v3)
+    v5 = call @Cat.speak(v0)
+    jump block4(v5)
 block2:
-    v4 = call @Dog.speak(v0)
-    jump block4(v4)
+    v6 = global.const @Dog_TypeDescriptor
+    v7 = icmp_eq v2, v6
+    branch v7, block3, block5
 block3:
+    v8 = call @Dog.speak(v0)
+    jump block4(v8)
+block5:
     unreachable              ; exhaustive match
-block4(v5: @string):
-    return v5
+block4(v9: @string):
+    return v9
 }
 ```
 
@@ -619,7 +643,9 @@ Symbol comparison is just integer comparison.
 
 ### Strings
 
-Strings are immutable, UTF-8 byte sequences.
+Strings are immutable byte sequences with target-specific payload encoding.
+Native targets use UTF-8 payloads by default.
+WASM and JS-interop targets use UTF-16 payloads to avoid boundary transcoding.
 
 **Ownership semantics** (like Rust):
 
@@ -633,9 +659,11 @@ Most code uses `string` (GC-managed). Use `^string` for performance-critical cod
 
 #### String Layout
 
+The layout is identical across targets except for the payload element type.
+UTF-8 payloads use `uint8` data and UTF-16 payloads use `uint16` data.
+
 ```
 struct string {
-    header: GCHeader,         // GC metadata (8 bytes)
     lengthUtf16: uint32,      // UTF-16 code unit count (for TS compatibility)
     lengthBytes: uint32,      // byte length of UTF-8 data
     hash: uint32,             // cached hash (computed lazily)
@@ -643,10 +671,13 @@ struct string {
 }
 ```
 
+GC metadata and type descriptors are stored out of line (see [Managed Object Metadata](#managed-object-metadata)).
 For TypeScript semantic compatibility:
 - `.length` returns UTF-16 code unit count (not bytes, not codepoints)
 - `.charAt(i)` indexes by UTF-16 code units
 - ASCII-only strings (common case) use O(1) indexing
+On UTF-16 targets, `lengthBytes` caches the UTF-8 byte length and is computed lazily.
+The payload encoding is fixed per target configuration.
 
 #### String Literals
 
@@ -664,7 +695,7 @@ const s = "hello"   // pointer to static data (never collected)
 
 Lowers to string concatenation:
 ```mir
-type @string = ref<struct { i64, i32, i32, i32 }>
+type @string = ref<struct { i32, i32, i32 }>
 
 function @template_example(v0: @string) -> @string {
 block0(v0: @string):
@@ -693,7 +724,6 @@ Arrays are heap-allocated, dynamically-sized collections (like Rust's `Vec<T>`).
 ```
 ┌─────────────────────────────────────────┐
 │ Heap-allocated, growable                │
-│   header: ...           (GC metadata)   │
 │   length: uint32                        │
 │   capacity: uint32                      │
 │   data: T[capacity]                     │
@@ -737,7 +767,7 @@ Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference
 | Aspect | struct | class |
 |--------|--------|-------|
 | Reference identity | No (`===` is compile error) | Yes (`===` compares pointers) |
-| Type identity | Optional (`typeId` only when needed) | Always (has `typeId`) |
+| Type identity | Via metadata or fat pointer when needed | Always (vtable pointer) |
 | Equality | By value (`==` compares properties) | By reference (unless `Equal` implemented) |
 | Extends | No | Yes |
 | Implements | Yes | Yes |
@@ -757,61 +787,53 @@ For whole-program compilation, the optimizer already knows what's overridden.
 
 Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof` or `typeOf`.
 
-#### RTTI via VTable
+#### RTTI and Type Tags
 
-RTTI (runtime type identity) is unified via vtable pointers:
-- **Classes** always have a vtable pointer (vtable slot 0 = typeId)
-- **Structs needing RTTI** get a vtable pointer (minimal vtable with just typeId + destructor)
-- **Structs without RTTI** have no vtable pointer (pure data, smaller)
+RTTI (runtime type identity) is unified via `TypeDescriptor` pointers.
+Classes always store a vtable pointer in the object layout for virtual dispatch.
+Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof` and `typeOf`.
+Structs remain headerless and never store a vtable pointer.
+Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
+Interface and `any` values carry `TypeDescriptor` in fat pointers.
+Class references are thin pointers, so the vtable pointer must live in the object layout.
 
-Classes require vtables because class methods are virtual by default and inheritance
-requires dynamic dispatch. Structs have no inheritance or virtual methods, so they
-can remain pure data unless runtime type identity is explicitly needed.
+GC metadata lookup only applies to managed references.
+Non-managed values require explicit tags (union tags or fat pointers) or compile-time type knowledge.
 
-The compiler determines during lowering which structs need RTTI based on usage:
-- Used with `instanceof` on unknown/union type
-- Used with `typeOf()` at runtime (not inlineable)
+RTTI is only emitted when runtime type checks are possible:
+- Used with `instanceof` or `typeOf` on unknown values
 - Stored in `any` or `unknown`
-- Part of a union requiring runtime discrimination
+- Used in runtime reflection
+- Used in untagged unions that require runtime discrimination
 
 **JS targets:** RTTI-enabled structs/classes emit a non-enumerable symbol property
-with their `typeId` during construction. This keeps objects "plain" for JS semantics
+with their `TypeId` during construction. This keeps objects "plain" for JS semantics
 while enabling `instanceof` and `typeOf` without a global WeakMap.
 
 #### Struct Layout
 
-Structs have no **reference identity** (no `===`), but may have **type identity** via vtable.
+Structs have no **reference identity** (no `===`).
+Structs are always headerless and use metadata or fat pointers for RTTI.
 
 ```
 struct Point { x: float32, y: float32 }
 
-// layout WITHOUT RTTI (pure data struct)
 struct PointLayout {
-    header: GCHeader,        // 8 bytes
-    x: float32,              // offset 8
-    y: float32,              // offset 12
+    x: float32,              // offset 0
+    y: float32,              // offset 4
 }
-// size: 16 bytes
-
-// layout WITH RTTI (needs instanceof/typeOf)
-struct PointLayoutWithRTTI {
-    header: GCHeader,        // 8 bytes
-    vtablePtr: &VTable,      // offset 8, vtable[0] = POINT_TYPE_ID
-    x: float32,              // offset 16
-    y: float32,              // offset 20
-}
-// size: 24 bytes
+// size: 8 bytes
 ```
 
-Structs are data-oriented: two structs with the same properties are equal by value (`==`).
-Reference comparison (`===`) on structs is a compile error.
+Structs are data-oriented: two structs with the same properties are equal by value (`==`) by default.
+(Reference comparison (`===`) on structs is a compile error.)
 
-**Prefer discriminated unions** for performance-critical code to avoid RTTI:
+**Prefer discriminated unions** for performance-critical code to avoid runtime RTTI lookups:
 
 ```ds
-struct Cat { kind: "cat" = "cat", name: string }
-struct Dog { kind: "dog" = "dog", name: string }
-type Pet = Cat | Dog
+struct Cat { kind: "cat" = "cat", name: string };
+struct Dog { kind: "dog" = "dog", name: string };
+type Pet = Cat | Dog;
 
 function greet(pet: Pet) {
     match (pet.kind) {
@@ -837,29 +859,33 @@ class Animal {
 Native layout:
 ```
 struct AnimalLayout {
-    header: GCHeader,        // 8 bytes
-    vtablePtr: &VTable,      // offset 8, vtable[0] = ANIMAL_TYPE_ID
-    name: ref<string>,       // offset 16
+    vtablePtr: &VTable,      // offset 0, vtable[0] = &Animal_TypeDescriptor
+    name: ref<string>,       // offset 8
 }
 ```
 
 Classes have both reference identity (`===` compares pointers) and type identity (via vtable).
+Classes always store their vtable pointer because class references are thin pointers and dynamic dispatch is required.
+(This is consistent with Java and C++ class objects while keeping struct layouts headerless like Go.)
 
-#### GC Header
+#### Managed Object Metadata
 
-Present on all managed heap objects:
+Managed objects have no per object GC header.
+GC metadata is stored out of line in allocator side tables, similar to Go.
+Type tags are pointers to TypeDescriptor values, not integer ids.
+Null and undefined use niche optimization in the pointer (e.g., 0x0 for null, 0x1 for undefined).
 
-```
-struct GCHeader {
-    markBits: uint8,         // GC mark state
-    flags: uint8,            // pinned, finalizer, etc.
-    padding: uint16,         // alignment
-    sizeClass: uint32,       // allocation size class
-}
-// size: 8 bytes
-```
+Per span metadata includes:
+- Mark bits for GC tracing
+- Size class and allocation layout info
+- A TypeDescriptor pointer per object for scanning and type queries
 
-Null/undefined use niche optimization in the *pointer* (0x0 for null, 0x1 for undefined), not in the header.
+Classes still store a vtable pointer in the object for virtual dispatch and fast instanceof.
+Structs remain headerless and rely on metadata or fat pointers for RTTI.
+
+Tradeoffs:
+- Predictable object layouts and smaller per object overhead
+- Thin pointer RTTI queries require a metadata lookup
 
 **Explicit value semantics:**
 Use `^T` to force value/copy semantics:
@@ -869,7 +895,14 @@ function process(point: ^Point) {    // ^Point = value type, point is copied
 }
 ```
 
-Field layout is computed during lowering based on target alignment requirements.
+#### Field Layout Policy
+
+Field layout is deterministic per target and part of the ABI.
+The default layout minimizes padding by sorting fields by alignment and size.
+Source order is the stable tie-break when alignment and size are equal.
+Class layouts place parent fields first, then apply the same policy to new fields.
+Use `@layout("C")` to match the C ABI for FFI.
+Use `@layout("source")` to preserve declared order.
 
 ### Class Inheritance
 
@@ -887,7 +920,7 @@ class Dog extends Animal {
 ```
 
 Dog's MIR layout:
-- offset 0: ObjectHeader
+- offset 0: vtablePtr
 - offset 8: name (from Animal)
 - offset 16: breed (from Dog)
 
@@ -912,7 +945,7 @@ The vtable is an array of function pointers, one per virtual method.
 **VTable structure (conceptual):**
 ```
 struct VTable {
-    typeId: uint32              // for instanceof
+    typeDescriptor: &TypeDescriptor    // for instanceof and typeOf
     destructor: () => void       // cleanup function
     methods: ((...args) => any)[] // virtual method pointers
 }
@@ -921,12 +954,12 @@ struct VTable {
 **Example vtable layout:**
 ```
 Animal vtable:
-  slot 0: typeId = ANIMAL_TYPE_ID
+  slot 0: typeDescriptor = &Animal_TypeDescriptor
   slot 1: destructor = Animal_drop
   slot 2: speak = Animal.speak
 
 Dog vtable (inherits Animal):
-  slot 0: typeId = DOG_TYPE_ID
+  slot 0: typeDescriptor = &Dog_TypeDescriptor
   slot 1: destructor = Dog_drop
   slot 2: speak = Dog.speak      // overrides Animal::speak
 ```
@@ -945,13 +978,13 @@ v2 = field.get v1, 2           ; load speak method (slot 2)
 v3 = call.indirect v2(v0)      ; call with self as first arg
 ```
 
-**Interface vtables:**
-Interfaces also use vtables, but objects carry a fat pointer:
+**Interface itabs:**
+Interfaces use itabs, and interface values carry a fat pointer:
 ```
-{ objectPtr: &Object, vtablePtr: &InterfaceVTable }
+{ objectPtr: &Object, itabPtr: &InterfaceItab }
 ```
 
-Each (Type, Interface) pair has its own interface vtable mapping interface methods to concrete implementations.
+Each (Type, Interface) pair has its own itab mapping interface methods to concrete implementations.
 
 Super calls compile to direct calls to parent implementation.
 
@@ -963,7 +996,7 @@ class Dog extends Animal {
 
 Lowers to:
 ```mir
-type @string = ref<struct { i64, i32, i32, i32 }>
+type @string = ref<struct { i32, i32, i32 }>
 type @Dog = struct { rawptr<void>, rawptr<void> }
 
 function @Dog.speak(v0: ref<@Dog>) -> @string {
@@ -1071,16 +1104,24 @@ const TYPEID_STRINGS: string[] = [..., "myapp/models:User", ...];
 This unifies discriminated union tags and type identifiers under a single
 string interning mechanism, reducing complexity and code duplication.
 
+TypeId is a stable string identity for reflection and JS interop.
+Native dynamic dispatch does not use TypeId for equality checks.
+Native type tags are pointers to TypeDescriptor values.
+
 ### Union Representation
 
 Lower chooses union representation based on these rules (in order):
 
-1. **Niche optimization** - All members are nullable references **and** runtime
-   discrimination does not require per-object RTTI (or RTTI is available):
+1. **Niche optimization** - All members are nullable references or undefined **and** runtime
+   discrimination does not require metadata lookup (or a type tag is already available):
    ```
    string | null       →  ref<string>  (null = 0x0, no tag)
+   string | undefined  →  ref<string>  (undefined = 0x1, no tag)
    User | null         →  ref<User>    (null = 0x0, no tag)
+   User | undefined    →  ref<User>    (undefined = 0x1, no tag)
+   User | null | undefined → ref<User> (null = 0x0, undefined = 0x1, no tag)
    ```
+   This requires managed references with at least 2-byte alignment.
 
 2. **Inline tagged** - Total size ≤ 2×pointer_size (16 bytes on 64-bit):
    ```
@@ -1092,14 +1133,33 @@ Lower chooses union representation based on these rules (in order):
 3. **Boxed** - Large or heterogeneous unions, or when runtime discrimination
    needs RTTI but the variants are not tagged:
    ```
-   any                 →  { typeId: uint32, data: rawptr<void> }
-   unknown             →  { typeId: uint32, data: rawptr<void> }
+   any                 →  { typeDescriptor: &TypeDescriptor, payload: word }
+   unknown             →  { typeDescriptor: &TypeDescriptor, payload: word }
    LargeA | LargeB     →  { tag: u8, data: ref<variant> }
    ```
 
+The inline size threshold is fixed per target for ABI stability.
 **Owned unions** (`^(A | B)`) prefer inline representation when the variant is known at runtime
 without additional RTTI. If RTTI is required for drop, the union is boxed with an explicit tag.
-The `typeId` in boxed unions indexes into the RTTI table.
+The `typeDescriptor` in boxed unions points at the RTTI descriptor.
+
+### Dynamic Types (any, unknown)
+
+`any` and `unknown` use a shared fat-pointer layout:
+
+```
+struct any {
+    typeDescriptor: &TypeDescriptor
+    payload: word
+}
+```
+
+The `payload` is a pointer-sized word interpreted by `typeDescriptor`.
+`word` is a pointer-sized integer type (u64 on 64-bit, u32 on 32-bit).
+Managed references store the object pointer in `payload`.
+Small primitives store their bitwise representation directly in `payload`.
+Large values are boxed into managed memory and referenced by `payload`.
+In `@noManaged` and `@stackOnly` contexts, converting to `any` is a compile error unless the value is already boxed.
 
 ### Reflection
 
@@ -1159,8 +1219,10 @@ struct TypeDescriptor {
     alignment: uint16           // alignof(T) in bytes
     kind: uint8                 // maps to Type<T> discriminant
     flags: uint8                // nominal, sealed, etc.
-    parentId: uint32            // for class inheritance (0 if none)
+    parentDesc: &TypeDescriptor // for class inheritance (null if none)
     vtablePtr: &VTable          // for virtual dispatch (null if none)
+    gcLayoutOffset: uint32      // offset to GC layout bitmap
+    gcLayoutWordCount: uint16   // number of words in GC bitmap
     propertiesOffset: uint32    // offset to PropertyDescriptor array
     propertyCount: uint16       // number of properties
     decoratorsOffset: uint32    // offset to DecoratorDescriptor array
@@ -1169,15 +1231,18 @@ struct TypeDescriptor {
 
 struct PropertyDescriptor {
     nameOffset: uint32          // offset into string table
-    typeId: uint32              // TypeDescriptor id for property type
+    typeDescriptor: &TypeDescriptor   // TypeDescriptor for property type
     offset: uint32              // byte offset within parent struct
     flags: uint8                // optional, readonly, etc.
 }
 ```
 
 At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `TypeDescriptor`
-data is accessed directly. Since comptime and runtime share the same MIR representation,
-no synthesis or conversion step is needed.
+data is accessed directly.
+(Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
+Runtime type tags are pointers to TypeDescriptor values.
+Classes store the pointer in vtable slot 0, interface and `any` values carry it in fat pointers,
+and thin pointers recover it via GC metadata when needed.
 
 **Lowering Type<T> operations:**
 
@@ -1187,8 +1252,10 @@ no synthesis or conversion step is needed.
 | `User` (in value position) | Constant TypeDescriptor* | Load from RTTI table |
 | `User.name` | Constant "User" | `rtti[user_id].name` |
 | `User.properties` | Constant array | Load property descriptors |
-| `value instanceof User` | Eliminated if type known | Compare `value.type_id == user_id` |
-| `typeOf(value)` | Constant if type known | Load `value.type_id`, lookup in table |
+| `value instanceof User` | Eliminated if type known | Compare `value.typeDescriptor == &User_TypeDescriptor` |
+| `typeOf(value)` | Constant if type known | Load `value.typeDescriptor`, return descriptor |
+
+When a value is a thin pointer without an embedded type tag, we get the TypeDescriptor pointer from GC metadata for comparison.
 
 **RTTI generation rules:**
 RTTI is only emitted for types that need it at runtime:
@@ -1197,7 +1264,7 @@ RTTI is only emitted for types that need it at runtime:
 - Types stored in `any` or `unknown`
 - Types with runtime reflection (non-comptime `.properties`, `.name`, etc.)
 
-These are the same rules as the "RTTI via VTable" section above.
+These are the same rules described above.
 If all type operations are comptime, no RTTI overhead appears in the binary.
 Dead code elimination removes unused RTTI entries.
 
@@ -1208,8 +1275,8 @@ Dead code elimination removes unused RTTI entries.
 Method calls are resolved and dispatched differently based on structural or nominal types (obviously).
 TypeScript's duck typing means any object with matching methods can satisfy an interface, which creates some interesting challenges for native codegen.
 
-**Structural interfaces** use fat pointers (TypeScript compatible duck typing) while **nominal interfaces** (newtype interfaces) use thin pointers (explicit `implements`, simpler dispatch).
-Destack supports both: structural by default for TS compatibility, nominal via `newtype interface` for performance.
+Class dispatch uses vtables stored in the object layout, like C++ and Java.
+Interface dispatch uses itabs carried by fat pointers, like Go.
 Union dispatch generates type checking code when a value could be multiple types.
 
 ## Dynamic Dispatch
@@ -1219,11 +1286,11 @@ Dynamic dispatch is any situation where the specific function to call is not kno
 ### Method Calls on Interfaces
 
 Interfaces in Destack can be **structural** (default) or **nominal** (`newtype interface`).
-Both use vtable-based dispatch, but with different representations.
+Both use itab-based dispatch with fat pointers, but differ in how they are validated.
 
 #### Structural Interfaces
 
-Structural interfaces require **fat pointers** because the vtable layout varies per (Type, Interface) pair:
+Structural interfaces require **fat pointers** because the itab layout varies per (Type, Interface) pair:
 
 ```
 interface Drawable { draw(): void }
@@ -1239,31 +1306,31 @@ When a `Circle` is used as `Drawable`, we create a fat pointer:
 // fat pointer representation
 struct InterfaceRef<I> {
     objectPtr: &void          // pointer to the actual object
-    vtablePtr: &InterfaceVTable<I>  // pointer to interface vtable
+    itabPtr: &InterfaceItab<I>  // pointer to interface itab
 }
 ```
 
-Each (Type, Interface) pair generates its own vtable:
+Each (Type, Interface) pair generates its own itab:
 
 ```
 // Circle as Drawable
-const Circle_Drawable_vtable: InterfaceVTable<Drawable> = {
-    typeId: CIRCLE_TYPE_ID,
+const Circle_Drawable_itab: InterfaceItab<Drawable> = {
+    typeDescriptor: &Circle_TypeDescriptor,
     draw: @Circle.draw
 }
 
 // Rectangle as Drawable
-const Rectangle_Drawable_vtable: InterfaceVTable<Drawable> = {
-    typeId: RECTANGLE_TYPE_ID,
+const Rectangle_Drawable_itab: InterfaceItab<Drawable> = {
+    typeDescriptor: &Rectangle_TypeDescriptor,
     draw: @Rectangle.draw
 }
 ```
 
 **Interface call lowering:**
 
-Each (Type, Interface) pair gets its own vtable with slots assigned in interface method declaration order.
-Slot 0 is always `typeId`, then methods follow. The compiler generates the vtable at compile time,
-and interface references carry a pointer to the appropriate vtable.
+Each (Type, Interface) pair gets its own itab with slots assigned in interface method declaration order.
+Slot 0 is always `typeDescriptor`, then methods follow.
+The compiler generates the itab at compile time, and interface references carry a pointer to the appropriate itab.
 
 ```ds
 function render(d: Drawable) { d.draw() }
@@ -1275,10 +1342,10 @@ type @Drawable = struct { rawptr<void>, rawptr<void> }
 
 function @render(v0: rawptr<@Drawable>) -> void {
 block0(v0: rawptr<@Drawable>):
-    ; v0 is a fat pointer: { objectPtr, vtablePtr }
+    ; v0 is a fat pointer: { objectPtr, itabPtr }
     v1 = field.get v0, 0       ; load objectPtr
-    v2 = field.get v0, 1       ; load vtablePtr
-    v3 = field.get v2, 1       ; load draw method from vtable slot 1
+    v2 = field.get v0, 1       ; load itabPtr
+    v3 = field.get v2, 1       ; load draw method from itab slot 1
     call.indirect v3(v1)       ; call with object as self
     return
 }
@@ -1287,7 +1354,7 @@ block0(v0: rawptr<@Drawable>):
 **Interface field access:**
 
 Structural interfaces can include fields as well as methods. 
-Field access uses the same fat pointer representation, but the vtable also carries a field offset table for the interface's required fields (in declaration order). 
+Field access uses the same fat pointer representation, but the itab also carries a field offset table for the interface's required fields (in declaration order). 
 The compiler emits offsets per (Type, Interface) pair.
 
 ```ds
@@ -1302,7 +1369,7 @@ type @Named = struct { rawptr<void>, rawptr<void> }
 function @show(v0: rawptr<@Named>) -> rawptr<void> {
 block0(v0: rawptr<@Named>):
     v1 = field.get v0, 0       ; load objectPtr
-    v2 = field.get v0, 1       ; load vtablePtr
+    v2 = field.get v0, 1       ; load itabPtr
     v3 = field.get v2, 1       ; load field offset for name (slot 1)
     v4 = field.get v1, v3      ; load field at offset
     return v4
@@ -1318,7 +1385,7 @@ const d: Drawable = c  // creates fat pointer
 
 Lowers to:
 ```mir
-type @Circle = struct { rawptr<void>, f32 }
+type @Circle = struct { f32 }
 type @Drawable = struct { rawptr<void>, rawptr<void> }
 
 function @example() -> rawptr<@Drawable> {
@@ -1327,22 +1394,22 @@ block0:
     v1 = iconst 5.0f32
     v2 = field.set v0, 0, v1         ; set radius
     ; create fat pointer (inline tuple, no heap allocation)
-    v3 = global.const @Circle_Drawable_vtable
+    v3 = global.const @Circle_Drawable_itab
     v4 = stack.alloc @Drawable       ; allocate fat pointer on stack
     v5 = field.set v4, 0, v0         ; objectPtr
-    v6 = field.set v5, 1, v3         ; vtablePtr
+    v6 = field.set v5, 1, v3         ; itabPtr
     return v6
 }
 ```
 
 #### Nominal Interfaces
 
-Nominal interfaces (`newtype interface`) work like class vtables; the vtable pointer
-is stored in the object header, not in a fat pointer.
-This is more efficient but requires explicit `implements` declarations.
+Nominal interfaces (`newtype interface`) use the same fat pointer representation as structural interfaces.
+The difference is typing: nominal interfaces require explicit `implements` declarations.
+This makes itabs fully known at compile time and avoids runtime method-set checks.
 
 **Multiple interface implementation:** When a type implements multiple interfaces, methods are
-appended to the vtable in declaration order. If two interfaces require methods with the same
+appended to the itab in declaration order. If two interfaces require methods with the same
 signature, one implementation satisfies both. If signatures differ, the compiler requires
 explicit disambiguation (compile error with guidance).
 
@@ -1355,34 +1422,20 @@ extension for Circle implements Hashable {
     hash(): uint64 { ... }
 }
 ```
-
-For nominal interfaces, objects carry their vtable, so we use thin pointers:
-
-```mir
-type @Hashable = struct { rawptr<void>, rawptr<void> }
-
-function @hash_it(v0: ref<@Hashable>) -> i64 {
-block0(v0: ref<@Hashable>):
-    ; v0 is a thin pointer; vtable is in object header
-    v1 = field.get v0, 1       ; load vtablePtr from object header
-    v2 = field.get v1, 2       ; load hash method
-    v3 = call.indirect v2(v0)
-    return v3
-}
-```
-
-#### VTable Generation
+#### Itab Generation
 
 For each (Type, Interface) pair where the type implements the interface:
 
-1. Create a static vtable with method pointers in interface declaration order
-2. Store the vtable as a global constant
-3. When creating an interface reference, pair the object with the appropriate vtable
+1. Create a static itab with method pointers in interface declaration order
+2. Store the itab as a global constant
+3. When creating an interface reference, pair the object with the appropriate itab
+4. For `any` or dynamic casts, build and cache the itab at runtime on first use
+5. The cache is global per runtime and keyed by `(concrete TypeDescriptor, interface TypeDescriptor)`
 
-**Vtable layout:**
+**Itab layout:**
 ```
-struct InterfaceVTable<I> {
-    typeId: uint32            // for instanceof on interface refs
+struct InterfaceItab<I> {
+    typeDescriptor: &TypeDescriptor  // for instanceof on interface refs
     methods: [FunctionPointer] // one per interface method, in declaration order
 }
 ```
@@ -1391,14 +1444,14 @@ struct InterfaceVTable<I> {
 
 | Operation | Structural Interface | Nominal Interface | Class Virtual |
 |-----------|---------------------|-------------------|---------------|
-| Reference size | 2 pointers (fat) | 1 pointer (thin) | 1 pointer |
+| Reference size | 2 pointers (fat) | 2 pointers (fat) | 1 pointer |
 | Method call | 2 loads + indirect | 2 loads + indirect | 2 loads + indirect |
-| Creation | Construct fat ptr | Just cast | Just cast |
-| Memory per type | vtable per interface | vtable in object | vtable in object |
+| Creation | Method-set check + itab | Direct itab | Just cast |
+| Memory per type | itab per interface | itab per interface | vtable in object |
 
 Structural interfaces enable TypeScript's duck typing but have overhead:
 - 2× pointer size for interface references (fat pointer)
-- One vtable per (Type, Interface) pair
+- One itab per (Type, Interface) pair
 - Cache locality may suffer from double indirection
 
 ---
@@ -1442,6 +1495,8 @@ The runtime uses this for concurrent marking.
 
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
+Managed allocations do not include per object headers.
+The allocator side tables store mark bits, size class, and the TypeDescriptor pointer used for scanning.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
 
@@ -1584,13 +1639,19 @@ function @mutate(v0: ref<@Point>) -> void { ... }  ; mutability tracked separate
 - In-place modification (`&mut T`) when the caller retains ownership
 
 For native targets, both `T` and `&T` lower to `ref<T>` in MIR. The difference is source-level semantics and compiler hints.
+Borrowing a managed object is allowed because the GC is non moving and stack maps treat borrows as roots.
 
-### Borrow Hints
+### Borrow Modes
 
-Destack's `&T` and `&mut T` are **not** Rust-style borrow checking. 
-They're opt-in hints for added assurance and warnings, and they serve to control the drop
-order of values. 
+By default, `&T` and `&mut T` are hints with compiler warnings only.
+They help document APIs, guide drops, and enable limited optimizations.
 Types can implement `Drop` (see "Explicit Ownership" above) for custom cleanup.
+Set `borrowMode: "strict"` in `dsconfig.json` to enforce exclusive `&mut` borrows.
+Strict mode enables stronger `noalias` optimizations and hard errors on violations.
+Strict mode forbids:
+- Aliasing `&mut` with any other borrow
+- Storing `&mut` inside managed objects
+- Holding `&mut` across `await` or generator suspension
 
 **What ownership hints are for:**
 - API documentation ("this function borrows, doesn't own")
@@ -1941,7 +2002,7 @@ struct FetchData_StateMachine {
 And a step function that implements the state machine for each suspension point:
 ```mir
 type @FetchData_StateMachine = struct { i32, rawptr<void>, rawptr<void>, rawptr<void> }
-type @any = struct { u32, rawptr<void> }
+type @any = struct { rawptr<void>, rawptr<void> }
 type @PollResult = struct { i32, rawptr<void> }
 
 function @fetchData_step(v0: ref<@FetchData_StateMachine>, v1: ref<@any>) -> ref<@PollResult> {

@@ -530,6 +530,8 @@ are used at runtime (e.g., `typeOf`, `instanceof`, `any`/`unknown`, or runtime r
 Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
 unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
 property rather than a global WeakMap, preserving "plain object" semantics.
+Native type tags are pointers to `TypeDescriptor` values rather than integer ids.
+Classes reach RTTI via vtable slot 0, while thin pointers without tags recover RTTI via GC metadata.
 
 ## Dispatch
 
@@ -674,6 +676,13 @@ function bad(): &Point {
 }
 ```
 
+### Borrow Modes
+
+By default, `&T` and `&mut T` are hints with warnings only.
+Strict mode enforces exclusive `&mut` borrows and no-escape rules.
+Strict mode enables stronger optimizations like `noalias` on `&mut`.
+Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
+
 ### Project-Level Control
 
 Configure strictness in `dsconfig.json`:
@@ -684,6 +693,7 @@ Configure strictness in `dsconfig.json`:
     "noImplicitManagedType": true,   // require ^T or &T on types
     "noImplicitManagedValue": true,  // require ^x or &x on values
     "noManaged": true,               // forbid GC entirely
+    "borrowMode": "strict",          // enforce &mut exclusivity rules
     "noRuntime": true                // forbid runtime features
   }
 }
@@ -701,6 +711,21 @@ function processFrame(entities: &Entity[]) {
 ```
 
 <sub>See [test/fixtures/mdtest/ownership/](test/fixtures/mdtest/ownership/) for specification tests.</sub>
+
+## Performance Strategy
+
+Destack targets Go-level performance by default and Rust-level performance in explicit ownership modes.
+The compiler uses proven optimizations and a small set of explicit controls.
+
+Key levers:
+- Escape analysis and stack promotion
+- Copy elision and move elimination
+- Bounds check elimination
+- Devirtualization and inlining
+- Monomorphization and specialization control
+- Strict `&mut` borrows for `noalias`
+- Explicit SIMD with scalar fallback
+- LTO and PGO for whole-program optimization
 
 ## Compatibility
 
