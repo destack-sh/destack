@@ -647,6 +647,8 @@ pub struct Target {
     pub es_target: EsTarget,
     /// Library files for this target. If `None`, derived automatically from runtime and platform.
     pub lib: Option<Vec<String>>,
+    /// Additional library types for this target.
+    pub types: Option<Vec<String>>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
     /// Output format (js, ts, wasm, native).
@@ -871,6 +873,12 @@ impl Target {
     /// Set library files explicitly (overrides automatic derivation).
     pub fn with_lib(mut self, lib: Vec<String>) -> Self {
         self.lib = Some(lib);
+        self
+    }
+
+    /// Set additional library types (additive to derived libs).
+    pub fn with_types(mut self, types: Vec<String>) -> Self {
+        self.types = Some(types);
         self
     }
 

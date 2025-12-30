@@ -150,6 +150,16 @@
             "type": "string"
           }
         },
+        "types": {
+          "description": "Additional library types to include (e.g., [\"node\", \"dom.iterable\"]).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "profile": {
           "description": "Default profile for IDEs and CLI usage.",
           "type": [
@@ -420,7 +430,7 @@
           ]
         },
         "noDynamicShapes": {
-          "description": "Forbid defineProperty, prototype mutation, delete (require static object shapes).",
+          "description": "Forbid defineProperty, prototype mutation, delete, and declaration expressions.",
           "type": [
             "boolean",
             "null"
@@ -452,6 +462,17 @@
           "type": [
             "boolean",
             "null"
+          ]
+        },
+        "borrowMode": {
+          "description": "Borrow checking mode for `&T` and `&mut T`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BorrowModeJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "rootDir": {
@@ -532,6 +553,14 @@
           ]
         }
       }
+    },
+    "BorrowModeJson": {
+      "description": "Borrow checking mode for JSON deserialization.",
+      "type": "string",
+      "enum": [
+        "hint",
+        "strict"
+      ]
     },
     "DsConfigFormatterJson": {
       "description": "Formatter options (top-level, like Biome/Deno).\n\nField names use Prettier-compatible naming for familiarity.",
@@ -1339,6 +1368,16 @@
             "type": "string"
           }
         },
+        "types": {
+          "description": "Additional library types for this target.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "profile": {
           "description": "Explicit profile name for this target.",
           "type": [
@@ -1682,6 +1721,16 @@
         },
         "lib": {
           "description": "Library files for this profile.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "types": {
+          "description": "Additional library types for this profile.",
           "type": [
             "array",
             "null"
