@@ -1028,21 +1028,7 @@ impl Target {
         }
 
         if self.output.is_js() || self.output.is_ts() {
-            let es_lib = match self.es_target {
-                EsTarget::Es3 | EsTarget::Es5 => "es5",
-                EsTarget::Es2015 => "es2015",
-                EsTarget::Es2016 => "es2016",
-                EsTarget::Es2017 => "es2017",
-                EsTarget::Es2018 => "es2018",
-                EsTarget::Es2019 => "es2019",
-                EsTarget::Es2020 => "es2020",
-                EsTarget::Es2021 => "es2021",
-                EsTarget::Es2022 => "es2022",
-                EsTarget::Es2023 => "es2023",
-                EsTarget::Es2024 => "es2024",
-                EsTarget::EsNext => "esnext",
-            };
-            libs.push(es_lib.to_string());
+            libs.push(self.es_target.default_lib_name().to_string());
         }
 
         libs
