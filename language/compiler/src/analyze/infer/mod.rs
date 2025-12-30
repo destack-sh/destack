@@ -6,6 +6,7 @@ mod context;
 mod declaration;
 mod expected;
 mod expression;
+mod flow;
 mod instance;
 mod key;
 mod member;
@@ -14,13 +15,12 @@ mod parameter;
 mod process;
 mod resolve;
 mod solve;
-mod table;
 #[cfg(test)]
 mod tests;
 mod r#type;
 
 pub use assign::*;
 pub use context::*;
+pub use flow::*;
 use key::*;
 pub use solve::*;
-pub use table::*;

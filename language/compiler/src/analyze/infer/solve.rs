@@ -2,7 +2,7 @@ use destack_dir::{InferVarId, LocalTypeId, Type, TypeLiteral, TypeTable};
 
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
-use super::{Constraint, InferTable};
+use crate::{Constraint, InferTable};
 
 /// Track bounds for a single inference variable.
 #[derive(Debug, Clone)]
