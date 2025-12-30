@@ -623,8 +623,6 @@ impl ModuleTarget {
 /// ECMAScript target version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum EsTarget {
-    /// ES3 (legacy).
-    Es3,
     /// ES5.
     Es5,
     /// ES2015 (ES6).
@@ -656,7 +654,6 @@ impl EsTarget {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "es3" => Some(Self::Es3),
             "es5" => Some(Self::Es5),
             "es2015" | "es6" => Some(Self::Es2015),
             "es2016" => Some(Self::Es2016),
@@ -670,6 +667,24 @@ impl EsTarget {
             "es2024" => Some(Self::Es2024),
             "esnext" => Some(Self::EsNext),
             _ => None,
+        }
+    }
+
+    /// Return the default builtin lib name for this target.
+    pub fn default_lib_name(self) -> &'static str {
+        match self {
+            Self::Es5 => "es5",
+            Self::Es2015 => "es2015",
+            Self::Es2016 => "es2016",
+            Self::Es2017 => "es2017",
+            Self::Es2018 => "es2018",
+            Self::Es2019 => "es2019",
+            Self::Es2020 => "es2020",
+            Self::Es2021 => "es2021",
+            Self::Es2022 => "es2022",
+            Self::Es2023 => "es2023",
+            Self::Es2024 => "es2024",
+            Self::EsNext => "esnext",
         }
     }
 }

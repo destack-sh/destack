@@ -14,9 +14,6 @@ source "$SCRIPT_DIR/fetch-util.sh"
 echo "  - es5"
 fetch_ts_lib "lib.es5.d.ts" "$SRC_DIR/es/es5/index.d.ds"
 
-echo "  - es6"
-fetch_ts_lib "lib.es6.d.ts" "$SRC_DIR/es/es6/index.d.ds"
-
 echo "  - es2015"
 fetch_ts_lib "lib.es2015.d.ts" "$SRC_DIR/es/es2015/index.d.ds"
 for file in core collection generator iterable promise proxy reflect symbol symbol.wellknown; do
