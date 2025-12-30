@@ -260,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_read_with_overlay_returns_overlay_content() {
-        // reads return overlay content when present
+        // reads return overlay content
         let fs = test_fs();
         fs.set_overlay(Path::new("/test.ds"), "overlay content".to_string());
         let content = fs.read_to_string(Path::new("/test.ds")).unwrap();

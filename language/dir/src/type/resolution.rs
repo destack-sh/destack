@@ -107,7 +107,7 @@ impl DispatchKey {
 /// Field access in patterns like `{ x }` resolves to the field symbol.
 /// Call and operator dispatch like `a + b` or `foo(x)` resolve to overloads.
 ///
-/// The receiver type identifies the family of implementations when present.
+/// The receiver type identifies the family of implementations.
 /// Dispatch cases carry keys for runtime selection.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Resolution {

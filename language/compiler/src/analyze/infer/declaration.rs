@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
-use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferOrigin,
-    InferScope, InferTable,
-};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    BindingKind, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
-    EnumField, Expression, Extension, ExtensionKind, FunctionMode, FunctionSignature, Generics,
-    GlobalSymbolId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Member, NodeTree, Parameter, StaticKey, SymbolTable, Type, TypeField, TypeIndexSignature,
-    TypeKind, TypeLiteral, TypeTable, WhereClause,
+    BindingKind, Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem,
+    DynamicKey, EnumField, Expression, Extension, ExtensionKind, FunctionMode, FunctionSignature,
+    Generics, GlobalSymbolId, Heritage, InferOrigin, InferScope, InferTable, Lineage, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, Parameter, StaticKey,
+    SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable,
+    WhereClause,
 };
 use destack_workspace::Module;
 
@@ -44,16 +42,10 @@ impl Compiler {
                 scope: _,
                 expressions,
             } => {
+                // infer each top level expression with flow typing
                 for expression_id in expressions {
-                    self.infer_expression(
-                        module,
-                        *expression_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    let _ty_id =
+                        self.infer_body(module, *expression_id, tree, symbols, types, infer, ctx)?;
                 }
             }
             // namespace
@@ -65,16 +57,10 @@ impl Compiler {
             } => {
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer each namespace expression with flow typing
                 for expression_id in expressions {
-                    self.infer_expression(
-                        module,
-                        *expression_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    let _ty_id =
+                        self.infer_body(module, *expression_id, tree, symbols, types, infer, ctx)?;
                 }
             }
 
@@ -500,9 +486,8 @@ impl Compiler {
                         .with_expected_type(return_type);
 
                     // infer the function body with implicit return typing
-                    let body_ty_id = self.infer_function_body_with_flow(
-                        module, *body, tree, symbols, types, infer, &mut ctx,
-                    )?;
+                    let body_ty_id =
+                        self.infer_body(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
@@ -1239,7 +1224,7 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         let field = tree.get(field_id);
         if let Some(value) = field.value {
-            // infer explicit enum value expression when present
+            // infer explicit enum value expression
             self.infer_expression(module, value, tree, symbols, types, infer, ctx)?;
         }
         Ok(())

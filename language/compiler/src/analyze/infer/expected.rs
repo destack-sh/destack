@@ -105,7 +105,7 @@ impl Compiler {
         self.match_scalar_literal_expected(value, expected_ty_id, types)
     }
 
-    /// Strip a Type::Value wrapper from a type id when present.
+    /// Strip a Type::Value wrapper from a type id.
     pub(super) fn expected_value_type_id(
         &self,
         expected_ty_id: Option<LocalTypeId>,

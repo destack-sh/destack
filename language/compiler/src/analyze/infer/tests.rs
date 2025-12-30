@@ -1,8 +1,10 @@
-use crate::{TestProgram, assert_string, assert_type};
+use crate::{AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type};
 use destack_dir::{
-    Expression, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolKind, Type,
-    TypeLiteral, TypeUnaryOperator,
+    BinaryOperator, Declaration, Expression, FlowEdgeKind, FlowGraphBuilder, InferTable,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolKind, Type, TypeLiteral,
+    TypeUnaryOperator,
 };
+use destack_workspace::DsConfigCompilerOptions;
 
 /// Analyze number literal.
 #[test]
@@ -166,6 +168,97 @@ fn test_analyze_binary_number_operation() {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(3))
         }
     );
+}
+
+/// Narrow nullish types in an if guard.
+#[test]
+fn test_narrowing_nullish_if_guard() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+const value: string | null = null;
+if (value != null) {
+    const narrowed: string = value;
+} else {
+    0;
+}
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    // load typed module data
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
+    let types = module.dir(test.default_profile_id(module_id)).types.read();
+
+    // locate the if expression
+    let (_, if_expression) = tree
+        .iter_nodes_of_type::<Expression>()
+        .find(|(_, expression)| matches!(expression, Expression::If { .. }))
+        .expect("expected if expression");
+    let Expression::If {
+        then_expression, ..
+    } = if_expression
+    else {
+        panic!("expected if expression");
+    };
+
+    // locate the narrowed declaration in the then block
+    let then_expression_id = match tree.get(*then_expression) {
+        Expression::Block { block } => {
+            let block = tree.get(*block);
+            *block
+                .expressions
+                .first()
+                .expect("expected then block expression")
+        }
+        Expression::Statement { statement } => *statement,
+        _ => *then_expression,
+    };
+
+    let then_expression_id = match tree.get(then_expression_id) {
+        Expression::Statement { statement } => *statement,
+        _ => then_expression_id,
+    };
+
+    let Expression::Let { declarators, .. } = tree.get(then_expression_id) else {
+        panic!("expected let expression");
+    };
+
+    let declarator_id = declarators.first().expect("expected declarator");
+    let declarator = tree.get(*declarator_id);
+    let value_expression_id = declarator
+        .value
+        .expect("expected value expression in declarator");
+
+    // assert nullish types are stripped in the then branch
+    let left_type_id = types
+        .get_inferred_type_id(value_expression_id.into_global_any(module.id))
+        .expect("expected inferred type");
+    let left_type = types.get_type(left_type_id);
+
+    let is_nullish = match left_type {
+        Type::Union { elements } => elements.iter().any(|element_id| {
+            matches!(
+                types.get_type(*element_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Null | TypeLiteral::Undefined
+                }
+            )
+        }),
+        Type::TypeLiteral {
+            value: TypeLiteral::Null | TypeLiteral::Undefined,
+        } => true,
+        _ => false,
+    };
+
+    assert!(!is_nullish, "expected nullish to be stripped");
 }
 
 /// Analyze binary number comparison.
@@ -1823,4 +1916,269 @@ fn test_analyze_type_infer_scope() {
         });
         assert_type!(types, *else_type, Type::TypeLiteral { value: TypeLiteral::Never });
     });
+}
+
+/// Build a flow graph with true and false branches for if expressions.
+#[test]
+fn test_build_flow_graph_if_expression() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        "const value = true; if (value) { 1 } else { 2 };",
+    );
+
+    // run analyze pipeline
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    // load tree data
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+
+    // locate the if expression
+    let if_expression_id = dir
+        .roots
+        .iter()
+        .find_map(|root_id| match tree.get(*root_id) {
+            Expression::If { .. } => Some(*root_id),
+            Expression::Statement { statement } => match tree.get(*statement) {
+                Expression::If { .. } => Some(*statement),
+                _ => None,
+            },
+            _ => None,
+        })
+        .expect("expected if expression");
+
+    // build the flow graph
+    let graph = FlowGraphBuilder::new(module.id, &tree).build(if_expression_id);
+
+    let mut has_true_edge = false;
+    let mut has_false_edge = false;
+    let mut has_join_block = false;
+    for block in &graph.blocks {
+        if block.predecessors.len() >= 2 {
+            has_join_block = true;
+        }
+        for edge in &block.successors {
+            if edge.kind == FlowEdgeKind::True {
+                has_true_edge = true;
+            }
+            if edge.kind == FlowEdgeKind::False {
+                has_false_edge = true;
+            }
+        }
+    }
+
+    assert!(has_true_edge);
+    assert!(has_false_edge);
+    assert!(has_join_block);
+}
+
+/// Build a flow graph that narrows the right side of short circuit guards.
+#[test]
+fn test_build_flow_graph_short_circuit_guard() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+        const value: string | null = null;
+        const accepts_string = (input: string): boolean => true;
+        if (value !== null && accepts_string(value)) { };
+        "#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    // load tree data
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+    let symbols = dir.symbols.read();
+    let mut types = dir.types.write();
+
+    // locate the if expression
+    let if_expression_id = dir
+        .roots
+        .iter()
+        .find_map(|root_id| match tree.get(*root_id) {
+            Expression::If { .. } => Some(*root_id),
+            Expression::Statement { statement } => match tree.get(*statement) {
+                Expression::If { .. } => Some(*statement),
+                _ => None,
+            },
+            _ => None,
+        })
+        .expect("expected if expression");
+
+    // locate the right side of the condition
+    let Expression::If { condition, .. } = tree.get(if_expression_id) else {
+        panic!("expected if expression");
+    };
+    let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = tree.get(*condition)
+    else {
+        panic!("expected binary condition");
+    };
+    assert_eq!(*operator, BinaryOperator::And);
+
+    let Expression::Binary { left, .. } = tree.get(*left) else {
+        panic!("expected binary left guard");
+    };
+
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = tree.get(*right)
+    else {
+        panic!("expected call expression");
+    };
+    let argument_id = dynamic_arguments
+        .first()
+        .copied()
+        .expect("expected call argument");
+    let argument = tree.get(argument_id);
+    let argument_value_id = argument.value();
+
+    // ensure the right side reference uses a distinct node id
+    assert_ne!(*left, argument_value_id);
+
+    // build flow data for the condition expression
+    // build the flow graph
+    let graph = FlowGraphBuilder::new(module.id, &tree).build(*condition);
+    let mut infer = InferTable::default();
+    let context = InferContext::new(
+        profile,
+        AnalyzeOptions::from(&DsConfigCompilerOptions::default()),
+    );
+    let flow = test
+        .compiler
+        .compute_flow_table_for_graph(
+            &module, &graph, &tree, &symbols, &mut types, &mut infer, &context,
+        )
+        .expect("expected flow table");
+
+    // read the flow environment for the right side argument
+    let block_id = graph
+        .block_by_node
+        .get(&argument_value_id.into_any())
+        .copied()
+        .expect("expected block for argument");
+    let environment_id = flow
+        .entry_environment_for_block(block_id)
+        .expect("expected entry environment");
+    let environment = flow
+        .environment(environment_id)
+        .expect("expected environment");
+
+    // assert that the value symbol is narrowed to a non null type
+    let value_symbol = test
+        .resolve_to_symbol("test.ds", "value")
+        .expect("expected value symbol");
+    let narrowed_type_id = environment
+        .bindings
+        .get(&value_symbol)
+        .copied()
+        .expect("expected narrowing for value");
+    let is_null = match types.get_type(narrowed_type_id) {
+        Type::TypeLiteral {
+            value: TypeLiteral::Null,
+        } => true,
+        Type::Union { elements } => elements.iter().any(|element_id| {
+            matches!(
+                types.get_type(*element_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Null
+                }
+            )
+        }),
+        _ => false,
+    };
+    assert!(!is_null);
+}
+
+/// Build a flow graph with a back edge for for loops.
+#[test]
+fn test_build_flow_graph_for_loop() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+        function run() {
+            for (let i: number = 0; i < 3; i = i + 1) {
+                i = i + 1;
+            }
+        }
+        "#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module(module_id);
+    test.compile_dump_clean();
+
+    // load tree data
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+
+    // locate the first function body
+    let function_body_id = dir
+        .roots
+        .iter()
+        .find_map(|root_id| match tree.get(*root_id) {
+            Expression::Declaration { declaration } => match tree.get(*declaration) {
+                Declaration::Function {
+                    body: Some(body), ..
+                } => Some(*body),
+                _ => None,
+            },
+            Expression::Statement { statement } => match tree.get(*statement) {
+                Expression::Declaration { declaration } => match tree.get(*declaration) {
+                    Declaration::Function {
+                        body: Some(body), ..
+                    } => Some(*body),
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        })
+        .expect("expected function body");
+
+    // build the flow graph
+    let graph = FlowGraphBuilder::new(module.id, &tree).build(function_body_id);
+
+    let mut has_true_edge = false;
+    let mut has_false_edge = false;
+    let mut has_back_edge = false;
+    for block in &graph.blocks {
+        for edge in &block.successors {
+            if edge.kind == FlowEdgeKind::True {
+                has_true_edge = true;
+            }
+            if edge.kind == FlowEdgeKind::False {
+                has_false_edge = true;
+            }
+            if edge.target.0 < block.id.0 {
+                has_back_edge = true;
+            }
+        }
+    }
+
+    assert!(has_true_edge);
+    assert!(has_false_edge);
+    assert!(has_back_edge);
 }

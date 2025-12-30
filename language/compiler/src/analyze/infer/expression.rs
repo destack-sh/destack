@@ -1,11 +1,12 @@
-use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, Compiler, Constraint, InferContext, InferTable,
-};
+use std::sync::Arc;
+
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferContext};
 use destack_dir::{
-    Argument, BindingKind, Block, Declaration, DynamicKey, Expression, ForEachBinding,
-    FunctionKind, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector, MatchSource,
-    Mutability, NodeTree, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable,
-    Type, TypeElement, TypeField, TypeLiteral, TypeTable,
+    Argument, BindingKind, Block, Constraint, Declaration, DynamicKey, Expression, FlowEnvironment,
+    FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalSymbolId, InferTable, LocalNodeId,
+    LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, Pattern,
+    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeElement, TypeField,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -20,6 +21,73 @@ pub(super) struct ObjectLiteralField {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Infer an (expression) body with flow aware typing.
+    pub fn infer_body(
+        &self,
+        module: &Module,
+        body_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        context: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // build a flow graph and flow table for the function body
+        let graph = FlowGraphBuilder::new(module.id, tree).build(body_id);
+        let flow = self
+            .compute_flow_table_for_graph(module, &graph, tree, symbols, types, infer, context)?;
+
+        // seed the inference context with flow information
+        let previous_flow = context.flow.clone();
+        context.flow = Some(FlowContext {
+            module_id: module.id,
+            graph: Arc::new(graph),
+            table: Arc::new(flow),
+        });
+
+        // infer the expression using the flow context
+        let result =
+            self.infer_expression(module, body_id, tree, symbols, types, infer, context)?;
+
+        // restore the previous flow context
+        context.flow = previous_flow;
+
+        Ok(result)
+    }
+
+    /// Infer an expression using a provided flow environment.
+    pub fn infer_expression_in_block(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        context: &mut InferContext,
+        environment: &FlowEnvironment,
+        use_flow: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // copy environment narrowings into the block context
+        let mut block_context = context.fork();
+        self.apply_flow_environment_to_context(environment, &mut block_context);
+        if !use_flow {
+            // disable flow so the manual environment is preserved
+            block_context.flow = None;
+        }
+
+        // infer the expression using the block context
+        self.infer_expression(
+            module,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            infer,
+            &mut block_context,
+        )
+    }
+
     destack_base::ensure_sufficient_stack! {
     /// Infer the type of an expression.
     pub(super) fn infer_expression(
@@ -32,10 +100,29 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // reuse an inferred result
         if let Some(ty_id) =
             types.get_inferred_type_id(expression_id.into_global_any(module.id))
         {
             return Ok(ty_id);
+        }
+
+        // resolve the flow environment for the node when flow typing is active
+        let flow_environment = ctx.flow.as_ref().and_then(|flow_context| {
+            if flow_context.module_id != module.id {
+                return None;
+            }
+
+            let block_id = flow_context
+                .graph
+                .block_by_node
+                .get(&expression_id.into_any())
+                .copied()?;
+            let environment_id = flow_context.table.entry_environment_for_block(block_id)?;
+            flow_context.table.environment(environment_id).cloned()
+        });
+        if let Some(environment) = flow_environment {
+            self.apply_flow_environment_to_context(&environment, ctx);
         }
 
         let expression = tree.get(expression_id);
@@ -401,6 +488,7 @@ impl Compiler {
                         node: expression_id.into_global_any(module.id),
                     });
                 }
+                // #Incomplete: type for import.meta
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -666,20 +754,67 @@ impl Compiler {
             } => {
                 self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
 
-                // then
-                let mut then_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-                let then_ty_id = self.infer_expression(
-                    module,
-                    *then_expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut then_ctx,
-                )?;
+                // decide whether flow typing is active
+                let use_flow = ctx.flow.is_some();
 
-                // else
-                if let Some(else_expr) = else_expression {
+                // infer the then branch with flow when available
+                let mut then_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                let then_ty_id = if use_flow {
+                    self.infer_expression(
+                        module,
+                        *then_expression,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut then_ctx,
+                    )?
+                } else {
+                    let base_environment = self.flow_environment_from_context(ctx);
+                    let (then_environment, else_environment) = self.narrow_environment_for_guard(
+                        module,
+                        *condition,
+                        tree,
+                        symbols,
+                        types,
+                        &base_environment,
+                        ctx,
+                    )?;
+                    let then_ty_id = self.infer_expression_in_block(
+                        module,
+                        *then_expression,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut then_ctx,
+                        &then_environment,
+                        false,
+                    )?;
+
+                    // else
+                    if let Some(else_expr) = else_expression {
+                        let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                        let _else_ty_id = self.infer_expression_in_block(
+                            module,
+                            *else_expr,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            &mut else_ctx,
+                            &else_environment,
+                            false,
+                        )?;
+                    }
+
+                    then_ty_id
+                };
+
+                // infer the else branch with flow when available
+                if use_flow
+                    && let Some(else_expr) = else_expression
+                {
                     let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                     let _else_ty_id = self.infer_expression(
                         module,
@@ -808,6 +943,12 @@ impl Compiler {
                 } else {
                     ctx.fork()
                 };
+                let use_flow = ctx.flow.is_some();
+                let base_environment = if use_flow {
+                    None
+                } else {
+                    Some(self.flow_environment_from_context(&ctx))
+                };
                 let mut result_ty_id = None;
                 for case_id in cases {
                     let case = tree.get(*case_id);
@@ -850,6 +991,26 @@ impl Compiler {
 
                     // apply contextual typing to the case body
                     let mut case_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                    if let Some(base_environment) = &base_environment {
+                        let case_environment = if let MatchSelector::Pattern { guard, .. } =
+                            selector
+                            && let Some(guard_expr) = guard
+                        {
+                            let (guard_environment, _) = self.narrow_environment_for_guard(
+                                module,
+                                *guard_expr,
+                                tree,
+                                symbols,
+                                types,
+                                base_environment,
+                                &case_ctx,
+                            )?;
+                            guard_environment
+                        } else {
+                            base_environment.clone()
+                        };
+                        self.apply_flow_environment_to_context(&case_environment, &mut case_ctx);
+                    }
 
                     // default selector has no pattern or guard to infer
                     if let Some(expr) = body_expr {
@@ -1302,7 +1463,7 @@ impl Compiler {
     }
 
     /// Find the nearest `this` symbol visible to the expression.
-    /// NOTE #Architecture: should find_this_symbol be resolved during Bind? (instead of Analyze/infer)?
+    /// NOTE #Architecture: should 'find_this_symbol' be resolved during Bind? (instead of Analyze/infer)?
     fn find_this_symbol(
         &self,
         module: &Module,

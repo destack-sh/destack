@@ -1,5 +1,8 @@
-use crate::{Compiler, InferOrigin, InferScope, InferTable};
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalTypeId, Type, TypeTable};
+use crate::Compiler;
+use destack_dir::{
+    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalTypeId, Type,
+    TypeTable,
+};
 
 impl Compiler {
     /// Get or create an inference variable type for a symbol.

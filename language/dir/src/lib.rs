@@ -3,12 +3,14 @@
 #![feature(str_as_str)]
 
 mod dump;
+mod flow;
 mod formatter;
 mod symbol;
 mod tree;
 mod r#type;
 
 pub use dump::*;
+pub use flow::*;
 pub use symbol::*;
 pub use tree::*;
 pub use r#type::*;

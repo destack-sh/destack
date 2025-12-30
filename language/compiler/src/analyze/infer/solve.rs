@@ -1,8 +1,8 @@
-use destack_dir::{InferVarId, LocalTypeId, Type, TypeLiteral, TypeTable};
+use destack_dir::{
+    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, Type, TypeLiteral, TypeTable,
+};
 
 use crate::{AnalyzeOptions, Assignability, Compiler};
-
-use crate::{Constraint, InferTable};
 
 /// Track bounds for a single inference variable.
 #[derive(Debug, Clone)]
@@ -17,7 +17,7 @@ struct Bounds {
 
 impl Bounds {
     /// Create bounds from an inference variable.
-    fn from_var(var: &super::InferVar) -> Self {
+    fn from_var(var: &InferVar) -> Self {
         Self {
             lower: var.lower_bounds.clone(),
             upper: var.upper_bounds.clone(),
@@ -258,7 +258,7 @@ impl Compiler {
         })
     }
 
-    /// Extract an inference variable id for a type when present.
+    /// Extract an inference variable id for a type.
     fn infer_var_id_for_type(ty_id: LocalTypeId, types: &TypeTable) -> Option<InferVarId> {
         match types.get_type(ty_id) {
             Type::InferVar { id } => Some(*id),
