@@ -677,8 +677,8 @@ mod tests {
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
         FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Mutability, Parameter,
-        Property, ScalarLiteral, TypeIntrinsic, TypeLiteral, TypeMappedModifiers, TypeModifier,
-        TypePredicateSubject, TypeUnaryOperator,
+        Property, ScalarLiteral, TypeBinaryOperator, TypeIntrinsic, TypeLiteral,
+        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -831,6 +831,68 @@ mod tests {
                     });
                     assert_node!(parser.tree, *else_type, Expression::ObjectExpression { properties, .. } => {
                         assert_eq!(properties.len(), 1);
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_conditional_type_with_union_right() {
+        let mut test = TestParser::new("type T = A extends B | C ? D : E");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends B | C ? D : E
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert_node!(parser.tree, *right, Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    });
+                    assert_expression_path!(parser, parser.tree.get(*then_type), "D");
+                    assert_expression_path!(parser, parser.tree.get(*else_type), "E");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_conditional_type_with_intersection_right() {
+        let mut test = TestParser::new("type T = A extends B & C ? D : E");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends B & C ? D : E
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert_node!(parser.tree, *right, Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                    });
+                    assert_expression_path!(parser, parser.tree.get(*then_type), "D");
+                    assert_expression_path!(parser, parser.tree.get(*else_type), "E");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_extends_with_union_right() {
+        let mut test = TestParser::new("type T = A extends B | C");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends B | C
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Extends);
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert_node!(parser.tree, *right, Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                     });
                 });
             });
@@ -1154,6 +1216,33 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeMapped { .. });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_with_intersection() {
+        let mut test = TestParser::new(
+            "type T = { [P in keyof T]: T[P]; } & { [x: string]: PropertyDescriptor; }",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = { [P in keyof T]: T[P]; } & { [x: string]: PropertyDescriptor; }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                    assert_node!(parser.tree, *left, Expression::TypeMapped { .. });
+                    assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                        assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::NamedExpression { name, key }), value: Some(value), .. } => {
+                            assert_string!(parser, *name, "x");
+                            assert_node!(parser.tree, *key, Expression::TypeLiteral(TypeLiteral::String));
+                            assert_expression_path!(parser, parser.tree.get(*value), "PropertyDescriptor");
+                        });
+                    });
+                });
             });
         });
     }

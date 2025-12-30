@@ -369,8 +369,15 @@ impl Parser {
         }
 
         // regular dynamic parameters
+        let mut parameter_options = self.options.nested();
+        if self.options.in_type {
+            parameter_options = parameter_options.in_type();
+        }
+        if self.options.in_variant {
+            parameter_options = parameter_options.in_variant();
+        }
         let parameters =
-            self.with_options(self.options.nested(), |parser| parser.eat_parameters_body())?;
+            self.with_options(parameter_options, |parser| parser.eat_parameters_body())?;
         self.eat_token(TokenType::CloseParenthesis)?;
         Ok(parameters)
     }
@@ -749,7 +756,7 @@ impl Parser {
             return Ok(vec![]);
         }
 
-        // regular dynamic arguments (positional/spread only)
+        // regular dynamic arguments
         let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
             parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
         })?;
