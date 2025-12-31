@@ -1,11 +1,8 @@
 use std::collections::HashSet;
 
 use destack_base::StringId;
-use destack_builtin::{
-    DOM_CANONICAL_EXPORTS, ES_CANONICAL_EXPORTS, LanguageItem, WORKER_CANONICAL_EXPORTS,
-    builtin_lib,
-};
-use destack_dir::{GlobalSymbolId, StaticKey};
+use destack_builtin::{LanguageItem, builtin_lib};
+use destack_dir::{DependencyItem, Expression, GlobalSymbolId, NodeTree, StaticKey};
 use destack_workspace::ProfileId;
 use indexmap::IndexMap;
 
@@ -80,23 +77,33 @@ impl Compiler {
             }
         }
 
-        // resolve lib module symbols for ambient lookups
-        // FUGU fix (cyclic?) builtin import resolution in resolve_libs
-        // for module_ids in modules_to_resolve {
-        //     for module_id in module_ids {
-        //         self.require_resolve_module_direct(module_id, profile_id)?;
-        //     }
-        // }
+        // resolve lib module symbols for ambient lookups when imports are present
+        let mut seen_modules = HashSet::new();
+        for module_ids in &modules_to_resolve {
+            for &module_id in module_ids {
+                if !seen_modules.insert(module_id) {
+                    continue;
+                }
+                let module = self.program.modules.get(module_id);
+                let module = module.read();
+                let dir = module.dir(profile_id);
+                let tree = dir.tree.read();
+                if self.module_requires_direct_resolve(&tree) {
+                    self.require_resolve_module_direct(module_id, profile_id)?;
+                }
+            }
+        }
 
         // collect canonical lib symbols
         let mut canonical_name_ids = HashSet::new();
-        for name in ES_CANONICAL_EXPORTS // FUGU: iterate over libs canonical exports properly?
-            .iter()
-            .chain(DOM_CANONICAL_EXPORTS)
-            .chain(WORKER_CANONICAL_EXPORTS)
-        {
-            let name_id = self.program.strings.intern(name);
-            canonical_name_ids.insert(name_id);
+        for lib_name in &ordered_libs {
+            let lib = builtin_lib(lib_name).ok_or_else(|| ResolveError::MissingBuiltinLib {
+                name: lib_name.clone(),
+            })?;
+            for &name in lib.canonical_exports {
+                let name_id = self.program.strings.intern(name);
+                canonical_name_ids.insert(name_id);
+            }
         }
 
         // cache canonical lib symbols for fast lookup
@@ -125,6 +132,30 @@ impl Compiler {
         builtins.set_lib_symbols(profile_id, lib_symbols);
 
         Ok(())
+    }
+
+    /// Whether a module needs direct resolution to handle dependencies.
+    fn module_requires_direct_resolve(&self, tree: &NodeTree) -> bool {
+        // check unresolved imports or reexports
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            match tree.get(expression_id) {
+                Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+
+        // check unresolved dependency items
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            match tree.get(item_id) {
+                DependencyItem::UnresolvedRemote { .. }
+                | DependencyItem::UnresolvedLocal { .. } => return true,
+                _ => {}
+            }
+        }
+
+        false
     }
 
     /// Collect the dependencies of a lib and add them to the ordered list.

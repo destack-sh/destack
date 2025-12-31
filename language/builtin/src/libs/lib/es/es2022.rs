@@ -1,4 +1,5 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
+use super::ES_CANONICAL_EXPORTS;
 
 macro_rules! lib_source {
     ($name:ident, $file:literal) => {
@@ -32,12 +33,15 @@ pub const LIB_ES2022: BuiltinLib = BuiltinLib::ambient(
         LIB_ES_ES2022_STRING_D_DS,
     ],
     &["es2021"],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 
 pub const LIB_ES2022_ARRAY: BuiltinLib =
-    BuiltinLib::ambient("es2022.array", &[LIB_ES_ES2022_ARRAY_D_DS], &[]);
+    BuiltinLib::ambient("es2022.array", &[LIB_ES_ES2022_ARRAY_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2022_ERROR: BuiltinLib =
-    BuiltinLib::ambient("es2022.error", &[LIB_ES_ES2022_ERROR_D_DS], &[]);
+    BuiltinLib::ambient("es2022.error", &[LIB_ES_ES2022_ERROR_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2022_FULL: BuiltinLib = BuiltinLib::ambient(
     "es2022.full",
     &[LIB_ES_ES2022_FULL_D_DS],
@@ -49,12 +53,17 @@ pub const LIB_ES2022_FULL: BuiltinLib = BuiltinLib::ambient(
         "dom.iterable",
         "dom.asynciterable",
     ],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2022_INTL: BuiltinLib =
-    BuiltinLib::ambient("es2022.intl", &[LIB_ES_ES2022_INTL_D_DS], &[]);
+    BuiltinLib::ambient("es2022.intl", &[LIB_ES_ES2022_INTL_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2022_OBJECT: BuiltinLib =
-    BuiltinLib::ambient("es2022.object", &[LIB_ES_ES2022_OBJECT_D_DS], &[]);
+    BuiltinLib::ambient("es2022.object", &[LIB_ES_ES2022_OBJECT_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2022_REGEXP: BuiltinLib =
-    BuiltinLib::ambient("es2022.regexp", &[LIB_ES_ES2022_REGEXP_D_DS], &[]);
+    BuiltinLib::ambient("es2022.regexp", &[LIB_ES_ES2022_REGEXP_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2022_STRING: BuiltinLib =
-    BuiltinLib::ambient("es2022.string", &[LIB_ES_ES2022_STRING_D_DS], &[]);
+    BuiltinLib::ambient("es2022.string", &[LIB_ES_ES2022_STRING_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);

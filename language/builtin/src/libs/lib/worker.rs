@@ -25,8 +25,10 @@ const LIB_WORKER_ITERABLE_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!(concat!("../../../lib/worker/iterable.d.ds")),
 );
 
+const WORKER_CANONICAL_EXPORTS: &[&str] = &["Worker", "WorkerGlobalScope"];
 pub const LIB_WORKER: BuiltinLib =
-    BuiltinLib::ambient("worker", &[LIB_WORKER_INDEX_D_DS], &["es5"]);
+    BuiltinLib::ambient("worker", &[LIB_WORKER_INDEX_D_DS], &["es5"])
+        .with_canonical_exports(WORKER_CANONICAL_EXPORTS);
 pub const LIB_WORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient(
     "worker.asynciterable",
     &[LIB_WORKER_ASYNCITERABLE_D_DS],
@@ -42,6 +44,3 @@ pub const LIB_WORKER_ITERABLE: BuiltinLib = BuiltinLib::ambient(
     &[LIB_WORKER_ITERABLE_D_DS],
     &["worker", "es2015.iterable"],
 );
-
-// canonical exports used by compiler, not exhaustive
-pub const WORKER_CANONICAL_EXPORTS: &[&str] = &["Worker", "WorkerGlobalScope"];

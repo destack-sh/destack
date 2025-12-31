@@ -66,6 +66,8 @@ pub struct BuiltinLib {
     pub sources: &'static [BuiltinLibSource],
     /// Library dependencies by name.
     pub dependencies: &'static [&'static str],
+    /// Canonical exports used by the compiler for fast builtin lookups.
+    pub canonical_exports: &'static [&'static str],
     /// Whether symbols are ambient without explicit imports.
     pub is_ambient: bool,
 }
@@ -82,6 +84,7 @@ impl BuiltinLib {
             sources,
             dependencies,
             is_ambient: true,
+            canonical_exports: &[],
         }
     }
 
@@ -96,6 +99,16 @@ impl BuiltinLib {
             sources,
             dependencies,
             is_ambient: false,
+            canonical_exports: &[],
         }
+    }
+
+    /// Attach canonical exports to the builtin library definition.
+    pub(crate) const fn with_canonical_exports(
+        mut self,
+        canonical_exports: &'static [&'static str],
+    ) -> Self {
+        self.canonical_exports = canonical_exports;
+        self
     }
 }

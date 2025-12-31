@@ -1,4 +1,5 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
+use super::ES_CANONICAL_EXPORTS;
 
 macro_rules! lib_source {
     ($name:ident, $file:literal) => {
@@ -24,13 +25,15 @@ pub const LIB_ES2016: BuiltinLib = BuiltinLib::ambient(
         LIB_ES_ES2016_INTL_D_DS,
     ],
     &["es2015"],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 
 pub const LIB_ES2016_ARRAY_INCLUDE: BuiltinLib = BuiltinLib::ambient(
     "es2016.array.include",
     &[LIB_ES_ES2016_ARRAY_INCLUDE_D_DS],
     &[],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2016_FULL: BuiltinLib = BuiltinLib::ambient(
     "es2016.full",
     &[LIB_ES_ES2016_FULL_D_DS],
@@ -41,6 +44,8 @@ pub const LIB_ES2016_FULL: BuiltinLib = BuiltinLib::ambient(
         "scripthost",
         "dom.iterable",
     ],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2016_INTL: BuiltinLib =
-    BuiltinLib::ambient("es2016.intl", &[LIB_ES_ES2016_INTL_D_DS], &[]);
+    BuiltinLib::ambient("es2016.intl", &[LIB_ES_ES2016_INTL_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
