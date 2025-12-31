@@ -367,6 +367,29 @@ impl File {
         Some((line_index, column))
     }
 
+    /// Check if two byte positions are on the same line.
+    #[inline]
+    pub fn is_same_line(&self, pos_a: u32, pos_b: u32) -> bool {
+        let Some(line_start_offsets) = &self.line_start_offsets else {
+            return false;
+        };
+
+        // find line for pos_a using binary search
+        let line_idx = match line_start_offsets.binary_search(&pos_a) {
+            Ok(exact) => exact,
+            Err(insert) => insert.saturating_sub(1),
+        };
+
+        // check if pos_b is within the same line
+        let line_start = line_start_offsets[line_idx];
+        let line_end = line_start_offsets
+            .get(line_idx + 1)
+            .copied()
+            .unwrap_or(self.len + 1);
+
+        pos_b >= line_start && pos_b < line_end
+    }
+
     /// Get the byte position for a given line and column.
     /// Returns the byte index, or None if the position is invalid.
     /// Uses precomputed line offsets for O(1) performance.

@@ -161,7 +161,8 @@ impl NodeSourceMap {
                 tree.query_containing(start, end_inclusive)
                     .into_iter()
                     .map(|(span_start, span_end, node_id, length)| {
-                        let distance = start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
+                        let distance =
+                            start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
                         EnclosingSpan {
                             idx: node_id,
                             distance,
