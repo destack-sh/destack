@@ -1,5 +1,5 @@
 use destack_parser::Lexer;
-use destack_source::{FileId, LanguageType, glob};
+use destack_source::{FileId, FileType, LanguageType, glob};
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use pprof::criterion::{Output, PProfProfiler};
@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn bench_lex(c: &mut Criterion) {
-    // find workspace root by walking up until we find a known repo marker
+    // workspace root
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
@@ -17,42 +17,36 @@ fn bench_lex(c: &mut Criterion) {
         .to_path_buf();
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
 
-    // glob all .ds files under the workspace root
-    let ds_files = glob(&format!("{workspace_root}/**/*.ds"));
+    // collect source files
+    let mut ds_files = glob(&format!("{workspace_root}/**/*.ds"));
+    ds_files.extend(glob(&format!("{workspace_root}/**/*.d.ds")));
+    ds_files.sort();
+    ds_files.dedup();
 
-    // concatenate all contents into a single big string
-    // pre-compute capacity to reduce reallocations
-    let mut total_capacity: usize = 0;
+    // load sources and count lines
+    let mut total_lines: u64 = 0;
+    let mut sources: Vec<String> = Vec::with_capacity(ds_files.len());
     for path in ds_files.iter() {
-        if let Ok(meta) = fs::metadata(path) {
-            total_capacity = total_capacity.saturating_add(meta.len() as usize);
-        }
-    }
-    let mut ds_str: String = String::with_capacity(total_capacity);
-    for path in ds_files.iter() {
+        let file_type = FileType::from_path_or_unknown(path);
         assert!(
-            path.extension().is_some()
-                && (path.extension().unwrap() == "ds" || path.extension().unwrap() == "d.ds"),
-            "path does not end with .ds or .d.ds: {path:?}"
+            matches!(file_type, FileType::Destack | FileType::DestackDeclaration),
+            "path is not a destack source: {path:?}"
         );
         let content = fs::read_to_string(path).unwrap_or_default();
-        if !content.is_empty() {
-            ds_str.push_str(&content);
-            // add a newline separator to avoid accidental token merging across files
-            if !ds_str.ends_with('\n') {
-                ds_str.push('\n');
-            }
-        }
+        total_lines = total_lines.saturating_add(content.lines().count() as u64);
+        sources.push(content);
     }
 
-    // single benchmark over the whole workspace content
+    // benchmark
     let mut group = c.benchmark_group("destack_lexer");
-    let line_count = ds_str.lines().count() as u64;
-    group.throughput(Throughput::Elements(line_count));
-    group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
+    group.throughput(Throughput::Elements(total_lines));
+    group.bench_with_input(BenchmarkId::new("lex", "all"), &sources, |b, inputs| {
         b.iter(|| {
-            let (tokens, side_tokens, _) = Lexer::lex(FileId::new(0), input, LanguageType::Destack);
-            black_box((tokens, side_tokens));
+            for (index, input) in inputs.iter().enumerate() {
+                let (tokens, side_tokens, _) =
+                    Lexer::lex(FileId::new(index as u32), input, LanguageType::Destack);
+                black_box((tokens, side_tokens));
+            }
         });
     });
     group.finish();

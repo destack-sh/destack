@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 fn bench_parse(c: &mut Criterion) {
-    // find workspace root by walking up until we find a known repo marker
+    // workspace root
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
@@ -16,51 +16,43 @@ fn bench_parse(c: &mut Criterion) {
         .to_path_buf();
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
 
-    // glob all .ds files under the workspace root
-    let ds_files = glob(&format!("{workspace_root}/**/*.ds"));
+    // collect source files
+    let mut ds_files = glob(&format!("{workspace_root}/**/*.ds"));
+    ds_files.extend(glob(&format!("{workspace_root}/**/*.d.ds")));
+    ds_files.sort();
+    ds_files.dedup();
 
-    // concatenate all contents into a single big string
-    // pre-compute capacity to reduce reallocations
-    let mut total_capacity: usize = 0;
+    // load sources and count lines
+    let mut total_lines: u64 = 0;
+    let mut files: Vec<Arc<File>> = Vec::with_capacity(ds_files.len());
+
     for path in ds_files.iter() {
-        if let Ok(meta) = fs::metadata(path) {
-            total_capacity = total_capacity.saturating_add(meta.len() as usize);
-        }
-    }
-    let mut ds_str: String = String::with_capacity(total_capacity);
-    for path in ds_files.iter() {
+        let file_type = FileType::from_path_or_unknown(path);
         assert!(
-            path.extension().is_some() && path.extension().unwrap() == "ds",
-            "path does not end with .ds: {path:?}"
+            matches!(file_type, FileType::Destack | FileType::DestackDeclaration),
+            "path is not a destack source: {path:?}"
         );
         let content = fs::read_to_string(path).unwrap_or_default();
-        if !content.is_empty() {
-            ds_str.push_str(&content);
-            // add a newline separator to avoid accidental token merging across files
-            if !ds_str.ends_with('\n') {
-                ds_str.push('\n');
-            }
-        }
-    }
-    let file = File::from_text(
-        FileId::new(0),
-        "<string>".to_string(),
-        Uri::from_string("<string>"),
-        None,
-        FileType::Destack,
-        ds_str,
-    );
-    let file = Arc::new(file);
+        let file_id = FileId::new(files.len() as u32);
+        let file_name = path.to_string_lossy().into_owned();
+        let uri = Uri::from_string(file_name.clone());
 
-    // single benchmark over the whole workspace content
+        total_lines = total_lines.saturating_add(content.lines().count() as u64);
+        files.push(Arc::new(File::from_text(
+            file_id, file_name, uri, None, file_type, content,
+        )));
+    }
+
+    // benchmark
     let mut group = c.benchmark_group("destack_parser");
-    let line_count = file.text().lines().count() as u64;
-    group.throughput(Throughput::Elements(line_count));
-    group.bench_with_input(BenchmarkId::new("parse", "all"), &file, |b, file| {
+    group.throughput(Throughput::Elements(total_lines));
+    group.bench_with_input(BenchmarkId::new("parse", "all"), &files, |b, files| {
         b.iter(|| {
-            let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
-            parser.parse();
-            black_box(parser);
+            for file in files.iter() {
+                let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
+                parser.parse();
+                black_box(parser);
+            }
         });
     });
     group.finish();

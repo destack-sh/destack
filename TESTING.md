@@ -18,6 +18,7 @@ The only way to ensure 100% reliability is to test everything, and test it thoro
 | **Conformance** | [language/test/fixtures/conformance/](language/test/fixtures/conformance/) | Parser conformance against established test suites |
 | **Formatter** | [language/test/fixtures/formatter/](language/test/fixtures/formatter/) | Format roundtrip stability |
 | **Resolver** | [language/test/fixtures/resolver/](language/test/fixtures/resolver/) | Module resolution (node_modules, pnpm, yarn, tsconfig paths) |
+| **Ecosystem** | [language/test/fixtures/ecosystem/](language/test/fixtures/ecosystem/) | Real-world package parsing |
 | **Stress** | [language/test/fixtures/stress/](language/test/fixtures/stress/) | Scale limits: large files, many modules, deep nesting |
 | **Fuzz** | [language/parser/fuzz/](language/parser/fuzz/), [language/formatter/fuzz/](language/formatter/fuzz/) | Random input exploration |
 
@@ -25,18 +26,29 @@ The only way to ensure 100% reliability is to test everything, and test it thoro
 # all tests
 just test
 
-# individual suites
-just test-smoke
-just test-codegen
-just test-specification
-just test-query
-just test-conformance
-just test-formatter
-just test-stress        # requires: just generate-stress
+# individual language suites
+just language/ecosystem-fetch
+just language/test-smoke
+just language/test-codegen
+just language/test-specification
+just language/test-query
+just language/test-conformance
+just language/test-formatter
+just language/test-resolver
+just language/test-ecosystem
+just language/generate-stress
+just language/test-stress
 ```
 
 ```bash
-just bench               # all benchmarks
-just bench-lexer         # lexer only
-just bench-parser        # parser only
+just bench                      # parser benchmarks
+just language/bench-lexer        # lexer only
+just language/bench-parser       # parser only
+```
+
+```bash
+just fuzz                       # all fuzzers
+just language/fuzz-lexer         # lexer only
+just language/fuzz-parser        # parser only
+just language/fuzz-formatter     # formatter only
 ```

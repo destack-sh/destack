@@ -15,9 +15,9 @@ Standard JavaScript/TypeScript behavior that Destack inherits:
 | `basics/` | Primitives, special types, type inference |
 | `literals/` | Literal type inference (strings, numbers, arrays, objects) |
 | `operators/` | Arithmetic, comparison, logical, bitwise operators |
-| `declarations/` | Variables, functions, type aliases |
 | `composites/` | Unions, intersections, tuples |
 | `narrowing/` | Type narrowing, control flow analysis |
+| `functions/` | Functions, generics, inference |
 | `classes/` | Class declarations, constructors, methods |
 | `inheritance/` | Class extends, interface implements |
 | `iterators/` | for...of, for...in, iterables |
@@ -90,18 +90,18 @@ Examples:
 ## Running Tests
 
 ```bash
-# run all mdtests
-cargo test --test mdtest
+# run all specification tests
+cargo test --test specification
 
 # filter by path/name
-cargo test --test mdtest -- basics
-cargo test --test mdtest -- declarations/basic
+cargo test --test specification -- basics
+cargo test --test specification -- functions/basic
 
 # list tests
-cargo test --test mdtest -- --list
+cargo test --test specification -- --list
 
 # verbose output
-cargo test --test mdtest -- --verbose
+cargo test --test specification -- --verbose
 ```
 
 ## Adding Tests
@@ -109,7 +109,7 @@ cargo test --test mdtest -- --verbose
 1. Find or create the appropriate category directory
 2. Find or create an appropriate `.md` file
 3. Add an H3/H4 test case with code and expected errors
-4. Run `cargo test --test mdtest` to verify
+4. Run `cargo test --test specification` to verify
 
 For bug fixes, include the issue number and add to `regression/`:
 ```markdown
