@@ -40,8 +40,6 @@ pub enum RuntimeArg {
     Bun,
     /// Web Worker.
     Worker,
-    /// Cloudflare Workers.
-    Workerd,
     /// WASM in JS host.
     WasmJs,
     /// WASM with WASI.
@@ -56,7 +54,6 @@ impl From<RuntimeArg> for Runtime {
             RuntimeArg::Deno => Runtime::Deno,
             RuntimeArg::Bun => Runtime::Bun,
             RuntimeArg::Worker => Runtime::Worker,
-            RuntimeArg::Workerd => Runtime::Workerd,
             RuntimeArg::WasmJs => Runtime::WasmJs,
             RuntimeArg::WasmWasi => Runtime::WasmWasi,
         }
