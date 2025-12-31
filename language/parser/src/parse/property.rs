@@ -21,7 +21,6 @@ pub static BINDING_MODIFIERS: [Keyword; 7] = [
 
 impl Parser {
     /// Try to eat a property (return Property::Error if error and recovery is possible).
-    #[inline]
     pub fn try_eat_property(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Property>> {
         match self.eat_property() {
             Ok(property_id) => Ok(property_id),
@@ -360,7 +359,6 @@ impl Parser {
     }
 
     /// Try to eat a member (return Member::Error if error and recovery is possible).
-    #[inline]
     pub fn try_eat_member(&mut self, recover: TokenType) -> ParseResult<LocalNodeId<Member>> {
         match self.eat_member() {
             Ok(member_id) => Ok(member_id),

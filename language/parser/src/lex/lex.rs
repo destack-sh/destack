@@ -95,6 +95,7 @@ impl Lexer<'_> {
 
     /// Runs the lexer until the end of the input string.
     /// Returns the end-of-sequence Token.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn run(&mut self) -> TokenSpan {
         // tokenize with spans, classifying into semantic vs side tokens
         loop {
@@ -140,6 +141,7 @@ impl Lexer<'_> {
     }
 
     /// Parses a token from the input string.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn advance(&mut self) -> Token {
         // if we're in tree content mode, try to eat tree text
         if self.in_tree_content()
@@ -904,6 +906,7 @@ impl Lexer<'_> {
         token
     }
 
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn try_eat_html_entity(&mut self) -> Option<(TokenType, Option<LiteralType>)> {
         let rest = self.as_str();
         let semicolon_idx = rest.find(';')?;
@@ -946,6 +949,7 @@ impl Lexer<'_> {
     }
 
     /// Parses a whitespace sequence (excluding first character).
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
         self.eat_while(is_whitespace);
@@ -954,6 +958,7 @@ impl Lexer<'_> {
 
     /// Parses an identifier, unknown prefix or some literal string (excluding first character).
     /// Returns the token type and the literal type if it's a hardcoded literal.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<LiteralType>) {
         debug_assert!(is_identifier_start(first_char));
         let start_pos = self.pos;
@@ -1143,6 +1148,7 @@ impl Lexer<'_> {
 
     /// Parses a number literal (excluding first digit).
     /// Returns the number literal.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_number_literal(&mut self, first_digit: char) -> LiteralType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
@@ -1259,6 +1265,7 @@ impl Lexer<'_> {
 
     /// Parse a single-quoted literal (excluding the initial `'`).
     /// Might be a character if single-quoted length is 1 or a string otherwise.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_single_quoted_string(&mut self) -> SingleQuotedLiteral {
         debug_assert!(self.prev() == '\'');
 
@@ -1330,6 +1337,7 @@ impl Lexer<'_> {
 
     /// Parses a double-quoted string (excluding first `"`).
     /// Returns (is_terminated, has_invalid_escape).
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_double_quoted_string(&mut self) -> (bool, bool) {
         debug_assert!(self.prev() == '"');
         let mut has_invalid_escape = false;
@@ -1358,6 +1366,7 @@ impl Lexer<'_> {
 
     /// Parses a regex string (excluding first `/`, including any flags after `/`).
     /// Works exactly like JS/TS regex literals.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_regex_string(&mut self) -> bool {
         debug_assert!(self.prev() == '/');
         // match until next '/'
@@ -1388,6 +1397,7 @@ impl Lexer<'_> {
 
     /// Parses a template string (excluding first backtick).
     /// Returns (is_complete, has_invalid_escape).
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn eat_template_string(&mut self) -> (bool, bool) {
         let mut has_invalid_escape = false;
         while let Some(c) = self.eat() {
@@ -1476,6 +1486,7 @@ impl Lexer<'_> {
     /// Parses a block comment body with nesting support.
     /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
     /// Returns true if the comment was properly terminated, false if EOF was reached.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     pub(crate) fn eat_block_comment(&mut self) -> bool {
         let mut depth: u32 = 1;
         while !self.is_end() {
@@ -1511,6 +1522,7 @@ impl Lexer<'_> {
     /// Tries to eat tree literal text content (TSX-compatible).
     /// Returns a Literal token with TreeString type if there's text content.
     /// Text content ends at `<`, `{`, or `&` (for HTML entities).
+    #[cfg_attr(feature = "profile-parser", inline(never))]
     fn try_eat_tree_text(&mut self) -> Option<Token> {
         // peek at what's coming - don't eat yet
         let first = self.peek();

@@ -94,10 +94,10 @@ pub const EOF_CHAR: char = '\0';
 impl<'a> Lexer<'a> {
     /// Create a new Lexer from a string.
     pub fn new(file_id: FileId, source: &'a str, language: LanguageType) -> Lexer<'a> {
-        // estimate ~8 bytes per token on average for capacity hint
-        // semantic tokens are roughly 70% of all tokens
-        let estimated_tokens = source.len() / 8;
-        let estimated_semantic = estimated_tokens * 7 / 10;
+        // estimate ~6 bytes per token on average for capacity hint
+        // semantic tokens are roughly 60% of all tokens
+        let estimated_tokens = source.len() / 6;
+        let estimated_semantic = estimated_tokens * 3 / 5;
         let estimated_side = estimated_tokens - estimated_semantic;
         Lexer {
             file_id,

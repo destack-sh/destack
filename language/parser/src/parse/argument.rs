@@ -64,7 +64,6 @@ impl Parser {
     }
 
     /// Eat a binding modifiers postfix (maybe).
-    #[inline]
     pub fn eat_binding_modifiers_postfix_maybe(
         &mut self,
         modifiers: Option<BindingModifier>,
@@ -88,7 +87,6 @@ impl Parser {
     }
 
     /// Eat a binding modifiers postfix.
-    #[inline]
     pub fn eat_binding_modifiers_postfix(
         &mut self,
         modifiers: Option<BindingModifier>,
@@ -122,7 +120,6 @@ impl Parser {
     /// ...T
     /// ...args: int32[]
     /// ```
-    #[inline]
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         let start = self.mark();
 
@@ -291,7 +288,6 @@ impl Parser {
     /// x: int32
     /// x: int32, y: int32
     /// ```
-    #[inline]
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
         self.eat_newlines_maybe()?;

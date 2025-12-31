@@ -23,6 +23,10 @@ memchr = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 
+[features]
+profile-parser = []
+profile-stack = []
+
 [dev-dependencies]
 criterion = { workspace = true }
 pprof = { workspace = true }

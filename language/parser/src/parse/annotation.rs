@@ -100,25 +100,13 @@ impl Parser {
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
     pub(crate) fn attach_annotations(&mut self) {
-        // combine tokens (filtering whitespace so blank lines with trailing spaces still count)
-        let mut tokens = Vec::with_capacity(self.tokens.len());
-        tokens.extend(
-            self.tokens
-                .iter()
-                .filter(|token| token.token.ty != TokenType::Whitespace)
-                .cloned(),
-        );
-        tokens.extend(
-            self.side_tokens
-                .iter()
-                .filter(|token| token.token.ty != TokenType::Whitespace)
-                .cloned(),
-        );
-        tokens.sort_by_key(|token| token.span.start);
+        // collect tokens in source order, excluding whitespace
+        let mut tokens = std::mem::take(&mut self.annotation_tokens);
+        self.collect_annotation_tokens(&mut tokens);
         if tokens.is_empty() {
+            self.annotation_tokens = tokens;
             return;
         }
-        let tokens = tokens;
 
         // attach annotations
         let side_span = self.compute_side_span();
@@ -127,6 +115,57 @@ impl Parser {
 
         // finalize tree structure
         self.tree.sort_annotations();
+        self.annotation_tokens = tokens;
+    }
+
+    /// Collect semantic and side tokens without whitespace in source order.
+    fn collect_annotation_tokens(&self, tokens: &mut Vec<TokenSpan>) {
+        tokens.clear();
+
+        // merge both token streams by span start
+        let mut main_index = 0;
+        let mut side_index = 0;
+        loop {
+            // skip whitespace in main tokens
+            while let Some(token) = self.tokens.get(main_index) {
+                if token.token.ty != TokenType::Whitespace {
+                    break;
+                }
+                main_index += 1;
+            }
+
+            // skip whitespace in side tokens
+            while let Some(token) = self.side_tokens.get(side_index) {
+                if token.token.ty != TokenType::Whitespace {
+                    break;
+                }
+                side_index += 1;
+            }
+
+            // select the next token in source order
+            let main_token = self.tokens.get(main_index).copied();
+            let side_token = self.side_tokens.get(side_index).copied();
+            match (main_token, side_token) {
+                (Some(main_token), Some(side_token)) => {
+                    if main_token.span.start <= side_token.span.start {
+                        tokens.push(main_token);
+                        main_index += 1;
+                    } else {
+                        tokens.push(side_token);
+                        side_index += 1;
+                    }
+                }
+                (Some(main_token), None) => {
+                    tokens.push(main_token);
+                    main_index += 1;
+                }
+                (None, Some(side_token)) => {
+                    tokens.push(side_token);
+                    side_index += 1;
+                }
+                (None, None) => break,
+            }
+        }
     }
 
     /// Attach comment and doc annotations to the tokens.

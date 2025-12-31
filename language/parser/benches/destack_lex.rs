@@ -4,8 +4,8 @@ use destack_source::{FileId, FileType, LanguageType, glob};
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use pprof::criterion::{Output, PProfProfiler};
 
-use std::fs;
 use std::path::PathBuf;
+use std::{env, fs};
 
 /// Source file info for lexer benchmarks.
 struct SourceFile {
@@ -75,7 +75,13 @@ fn bench_lex(criterion: &mut Criterion) {
 
 /// Configure Criterion with pprof.
 fn profiler() -> Criterion {
-    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+    // allow a higher sample rate for deeper flamegraphs
+    let sample_rate = env::var("DESTACK_PPROF_HZ")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(100);
+
+    Criterion::default().with_profiler(PProfProfiler::new(sample_rate, Output::Flamegraph(None)))
 }
 
 criterion_group! {
