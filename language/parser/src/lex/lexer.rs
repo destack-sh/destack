@@ -4,7 +4,7 @@ use std::str::Chars;
 use destack_ast::TokenSpan;
 use destack_source::{FileId, LanguageType, Span};
 
-use super::memchr::find_byte;
+use memchr::memchr;
 
 /// Tree literal lexer state for contextual parsing (TSX-compatible).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -195,8 +195,7 @@ impl<'a> Lexer<'a> {
     pub fn eat_until(&mut self, byte: u8) {
         debug_assert!(byte.is_ascii(), "eat_until requires ASCII needle: {byte}");
         let s = self.as_str();
-        let bytes = s.as_bytes();
-        match find_byte(bytes, byte) {
+        match memchr(byte, s.as_bytes()) {
             Some(idx) => {
                 // idx is at a UTF-8 boundary because we only search ASCII bytes
                 self.chars = s[idx..].chars();

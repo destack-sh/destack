@@ -924,6 +924,7 @@ dependencies = [
  "destack_base",
  "destack_source",
  "destack_unicode",
+ "memchr",
  "pprof",
  "smallvec",
  "tracing",
