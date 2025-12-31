@@ -10,7 +10,7 @@ declare_lint! {
     /// Default maximum is 500 lines.
     #[lint(
         id = "max-lines",
-        code = "LX003",
+        code = "LX006",
         category = Complexity,
         level = Ast,
         fixable = No,

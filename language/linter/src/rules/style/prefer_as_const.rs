@@ -9,7 +9,7 @@ declare_lint! {
     /// Use `x as const` instead of `x as "literal"` for better type inference.
     #[lint(
         id = "prefer-as-const",
-        code = "LY027",
+        code = "LY040",
         category = Style,
         level = Ast,
         fixable = No,

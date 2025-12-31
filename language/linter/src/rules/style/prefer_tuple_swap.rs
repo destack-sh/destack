@@ -20,7 +20,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-tuple-swap",
-        code = "LY063",
+        code = "LY072",
         category = Style,
         level = Ast,
         fixable = No,

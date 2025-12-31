@@ -27,7 +27,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-super-linear-regex",
-        code = "LP004",
+        code = "LP014",
         category = Performance,
         level = Ast,
         fixable = No,

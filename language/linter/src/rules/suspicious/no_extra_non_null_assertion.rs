@@ -10,7 +10,7 @@ declare_lint! {
     /// a typo. A single `!` is sufficient to assert non-null.
     #[lint(
         id = "no-extra-non-null-assertion",
-        code = "LU022",
+        code = "LU019",
         category = Suspicious,
         level = Ast,
         fixable = Always,

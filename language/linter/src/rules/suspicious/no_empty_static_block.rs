@@ -10,7 +10,7 @@ declare_lint! {
     /// incomplete code. If intentional, add a comment explaining why.
     #[lint(
         id = "no-empty-static-block",
-        code = "LU014",
+        code = "LU017",
         category = Suspicious,
         level = Ast,
         fixable = Always,

@@ -10,7 +10,7 @@ declare_lint! {
     /// the variable name.
     #[lint(
         id = "object-shorthand",
-        code = "LY017",
+        code = "LY037",
         category = Style,
         level = Ast,
         fixable = Always,

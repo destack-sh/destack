@@ -11,7 +11,7 @@ declare_lint! {
     /// also cause unexpected behavior.
     #[lint(
         id = "no-control-regex",
-        code = "LC017",
+        code = "LC015",
         category = Correctness,
         level = Ast,
         fixable = No,

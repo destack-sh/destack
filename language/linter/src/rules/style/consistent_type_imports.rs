@@ -10,7 +10,7 @@ declare_lint! {
     /// This makes it clearer that the import is only used for type checking.
     #[lint(
         id = "consistent-type-imports",
-        code = "LY024",
+        code = "LY008",
         category = Style,
         level = Ast,
         fixable = No,

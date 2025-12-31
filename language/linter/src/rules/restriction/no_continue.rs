@@ -10,7 +10,7 @@ declare_lint! {
     /// restructuring the loop logic or using early returns in helper functions.
     #[lint(
         id = "no-continue",
-        code = "LR007",
+        code = "LR009",
         category = Restriction,
         level = Ast,
         fixable = No,

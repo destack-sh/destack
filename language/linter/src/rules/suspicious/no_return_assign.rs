@@ -10,7 +10,7 @@ declare_lint! {
     /// instead of `==`. If intentional, separate the assignment from the return.
     #[lint(
         id = "no-return-assign",
-        code = "LU015",
+        code = "LU038",
         category = Suspicious,
         level = Ast,
         fixable = No,

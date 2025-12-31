@@ -10,7 +10,7 @@ declare_lint! {
     /// Resolve these before committing or track them in an issue tracker.
     #[lint(
         id = "no-warning-comments",
-        code = "LR019",
+        code = "LR033",
         category = Restriction,
         level = Ast,
         fixable = No,

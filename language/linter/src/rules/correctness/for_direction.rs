@@ -10,7 +10,7 @@ declare_lint! {
     /// condition will never terminate or never execute. This is almost always a bug.
     #[lint(
         id = "for-direction",
-        code = "LC004",
+        code = "LC002",
         category = Correctness,
         level = Ast,
         fixable = No,

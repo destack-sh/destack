@@ -21,7 +21,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-tuple-destructure",
-        code = "LY060",
+        code = "LY071",
         category = Style,
         level = Ast,
         fixable = No,

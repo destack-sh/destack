@@ -14,7 +14,7 @@ use proc_macro::TokenStream;
 ///     /// as they can cause the program to pause unexpectedly.
 ///     #[lint(
 ///         id = "no-debugger",
-///         code = "LC001",
+///         code = "LC002",
 ///         category = Correctness,
 ///         level = Dir,
 ///         fixable = true,

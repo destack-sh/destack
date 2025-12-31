@@ -10,7 +10,7 @@ declare_lint! {
     /// for better discoverability and to avoid conflicts.
     #[lint(
         id = "prefer-named-extension",
-        code = "LY039",
+        code = "LY052",
         category = Style,
         level = Ast,
         fixable = No,

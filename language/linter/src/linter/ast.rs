@@ -289,7 +289,7 @@ function foo() {}
         let result = test.lint_ast(
             "test.ds",
             r#"
-@allow("LC002")
+@allow("LU014")
 function foo() {}
 "#,
         );

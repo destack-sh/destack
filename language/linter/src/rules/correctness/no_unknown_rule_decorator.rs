@@ -12,11 +12,11 @@ declare_lint! {
     /// Using an unknown lint ID is likely a typo or outdated code. This rule ensures
     /// that all lint suppressions and configurations refer to existing lint rules.
     ///
-    /// Note: This rule only validates lint rule IDs and codes (e.g., `no-empty`, `LC002`).
+    /// Note: This rule only validates lint rule IDs and codes (e.g., `no-empty`, `LC003`).
     /// Compiler warning codes are not checked as they reside in a separate crate.
     #[lint(
         id = "no-unknown-rule-decorator",
-        code = "LC018",
+        code = "LC049",
         category = Correctness,
         level = Ast,
         fixable = No,
@@ -168,7 +168,7 @@ function foo() {}
         let result = test.lint_ast(
             "test.ds",
             r#"
-@warn("LU001")
+@warn("LU002")
 function foo() {}
 "#,
         );

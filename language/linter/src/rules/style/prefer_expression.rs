@@ -14,7 +14,7 @@ declare_lint! {
     /// Such patterns should use expression-based constructs instead.
     #[lint(
         id = "prefer-expression",
-        code = "LY032",
+        code = "LY044",
         category = Style,
         level = Ast,
         fixable = No,

@@ -10,7 +10,7 @@ declare_lint! {
     /// the character doesn't need escaping.
     #[lint(
         id = "no-useless-escape",
-        code = "LU007",
+        code = "LU054",
         category = Suspicious,
         level = Ast,
         fixable = No,

@@ -10,7 +10,7 @@ declare_lint! {
     /// If intentional, add a comment explaining why the block is empty.
     #[lint(
         id = "no-empty",
-        code = "LC002",
+        code = "LU014",
         category = Suspicious,
         level = Ast,
         fixable = No,

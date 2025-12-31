@@ -10,7 +10,7 @@ declare_lint! {
     /// Prefer explicit types, `unknown`, or generics for better type safety.
     #[lint(
         id = "no-explicit-any",
-        code = "LR004",
+        code = "LR014",
         category = Restriction,
         level = Ast,
         fixable = No,

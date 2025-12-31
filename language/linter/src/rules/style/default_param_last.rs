@@ -13,7 +13,7 @@ declare_lint! {
     /// defaulted parameters to set later ones.
     #[lint(
         id = "default-param-last",
-        code = "LY034",
+        code = "LY010",
         category = Style,
         level = Ast,
         fixable = No,

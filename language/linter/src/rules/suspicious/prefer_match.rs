@@ -10,7 +10,7 @@ declare_lint! {
     /// a `match` expression is often clearer and ensures exhaustiveness.
     #[lint(
         id = "prefer-match",
-        code = "LU020",
+        code = "LU061",
         category = Suspicious,
         level = Ast,
         fixable = No,

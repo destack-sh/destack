@@ -29,7 +29,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "sort-imports",
-        code = "LY062",
+        code = "LY078",
         category = Style,
         level = Ast,
         fixable = No,

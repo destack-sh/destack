@@ -17,7 +17,7 @@ declare_lint! {
     /// - Documentation IPs: `192.0.2.*`, `198.51.100.*`, `203.0.113.*`
     #[lint(
         id = "no-hardcoded-ip",
-        code = "LS004",
+        code = "LS002",
         category = Security,
         level = Ast,
         fixable = No,

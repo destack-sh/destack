@@ -11,7 +11,7 @@ declare_lint! {
     /// preferred for better discoverability and refactoring support.
     #[lint(
         id = "no-anonymous-default-export",
-        code = "LR003",
+        code = "LR002",
         category = Restriction,
         level = Ast,
         fixable = No,

@@ -13,7 +13,7 @@ declare_lint! {
     /// - `x != false` → `x`
     #[lint(
         id = "no-boolean-literal-compare",
-        code = "LY046",
+        code = "LY017",
         category = Style,
         level = Ast,
         fixable = Always,

@@ -11,7 +11,7 @@ declare_lint! {
     /// Only the first matching case will be executed.
     #[lint(
         id = "no-duplicate-case",
-        code = "LC009",
+        code = "LC018",
         category = Correctness,
         level = Ast,
         fixable = No,

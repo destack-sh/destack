@@ -10,7 +10,7 @@ declare_lint! {
     /// instead for better tree-shaking and standard module semantics.
     #[lint(
         id = "no-namespace",
-        code = "LR011",
+        code = "LR019",
         category = Restriction,
         level = Ast,
         fixable = No,

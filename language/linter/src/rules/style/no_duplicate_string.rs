@@ -15,7 +15,7 @@ declare_lint! {
     /// easier, and can improve performance through string interning.
     #[lint(
         id = "no-duplicate-string",
-        code = "LY020",
+        code = "LY019",
         category = Style,
         level = Ast,
         fixable = No,

@@ -10,7 +10,7 @@ declare_lint! {
     /// Implement the functionality or use a proper stub pattern.
     #[lint(
         id = "no-placeholder-implementation",
-        code = "LR020",
+        code = "LR023",
         category = Restriction,
         level = Ast,
         fixable = No,

@@ -11,7 +11,7 @@ declare_lint! {
     /// may not always be applicable.
     #[lint(
         id = "eqeqeq",
-        code = "LY021",
+        code = "LY012",
         category = Style,
         level = Ast,
         fixable = Always,

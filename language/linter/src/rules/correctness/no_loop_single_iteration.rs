@@ -27,7 +27,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-loop-single-iteration",
-        code = "LC020",
+        code = "LC031",
         category = Correctness,
         level = Ast,
         fixable = No,

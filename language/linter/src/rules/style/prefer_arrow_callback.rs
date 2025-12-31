@@ -10,7 +10,7 @@ declare_lint! {
     /// Use arrow functions for callbacks unless `this` binding is needed.
     #[lint(
         id = "prefer-arrow-callback",
-        code = "LY026",
+        code = "LY039",
         category = Style,
         level = Ast,
         fixable = Always,

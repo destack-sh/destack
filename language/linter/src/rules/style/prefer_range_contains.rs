@@ -21,7 +21,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-range-contains",
-        code = "LY057",
+        code = "LY060",
         category = Style,
         level = Ast,
         fixable = No,

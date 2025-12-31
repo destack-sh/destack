@@ -11,7 +11,7 @@ declare_lint! {
     /// tree-shaking less effective and can increase bundle sizes.
     #[lint(
         id = "no-re-export-all",
-        code = "LR015",
+        code = "LR012",
         category = Restriction,
         level = Ast,
         fixable = No,

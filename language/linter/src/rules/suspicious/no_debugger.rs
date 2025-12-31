@@ -10,7 +10,7 @@ declare_lint! {
     /// as they can cause the program to pause unexpectedly.
     #[lint(
         id = "no-debugger",
-        code = "LC001",
+        code = "LU010",
         category = Suspicious,
         level = Ast,
         fixable = Always,

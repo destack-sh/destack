@@ -10,8 +10,8 @@ declare_lint! {
     /// `x == x` is always true (except for NaN), and `x != x` is always false.
     #[lint(
         id = "no-self-compare",
-        code = "LC004",
-        category = Suspicious,
+        code = "LC038",
+        category = Correctness,
         level = Dir,
         fixable = No,
         recommended = Always,

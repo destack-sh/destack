@@ -8,7 +8,7 @@ use super::LintFix;
 pub struct LintDiagnostic {
     /// The lint rule ID (e.g., "no-floating-promise").
     pub rule_id: &'static str,
-    /// The lint code (e.g., "LC001").
+    /// The lint code (e.g., "LC002").
     pub code: &'static str,
     /// The category of the lint.
     pub category: LintCategory,

@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider grouping related fields into nested types or breaking the type apart.
     #[lint(
         id = "max-type-fields",
-        code = "LX019",
+        code = "LX013",
         category = Complexity,
         level = Ast,
         fixable = No,

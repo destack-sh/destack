@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider using `undefined` instead of `null`.
     #[lint(
         id = "no-null",
-        code = "LR018",
+        code = "LR021",
         category = Restriction,
         level = Ast,
         fixable = No,

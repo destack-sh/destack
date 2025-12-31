@@ -10,7 +10,7 @@ declare_lint! {
     /// simplified to `x` or `!x` respectively.
     #[lint(
         id = "no-unneeded-ternary",
-        code = "LY013",
+        code = "LY032",
         category = Style,
         level = Ast,
         fixable = Always,
