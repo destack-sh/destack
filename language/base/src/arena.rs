@@ -15,6 +15,8 @@ pub struct Arena<T> {
     pub(super) chunks: Vec<Vec<T>>,
     /// The capacity of each chunk (number of elements).
     chunk_size: usize,
+    /// Remaining capacity in the current chunk (avoids checking len each allocation).
+    current_chunk_remaining: usize,
 }
 
 impl<T> Debug for Arena<T>
@@ -48,27 +50,32 @@ impl<T> Arena<T> {
         Self {
             chunks: Vec::new(),
             chunk_size,
+            current_chunk_remaining: 0,
         }
     }
 
     /// Allocate a new element in the tree.
     #[inline]
     pub fn allocate(&mut self, element: T) -> u32 {
-        if self.chunks.is_empty() {
-            self.chunks.push(Vec::with_capacity(self.chunk_size));
+        // fast path: current chunk has space
+        if self.current_chunk_remaining > 0 {
+            self.current_chunk_remaining -= 1;
+            let chunk_index = self.chunks.len() - 1;
+            let last_chunk = &mut self.chunks[chunk_index];
+            let item_index = last_chunk.len();
+            last_chunk.push(element);
+            return (chunk_index * self.chunk_size + item_index) as u32;
         }
 
-        // allocate a new chunk if the last chunk is full
-        if self.chunks.last().unwrap().len() >= self.chunk_size {
-            self.chunks.push(Vec::with_capacity(self.chunk_size));
-        }
+        // slow path: need a new chunk
+        self.chunks.push(Vec::with_capacity(self.chunk_size));
+        self.current_chunk_remaining = self.chunk_size - 1;
 
         let chunk_index = self.chunks.len() - 1;
         let last_chunk = &mut self.chunks[chunk_index];
-        let item_index = last_chunk.len();
         last_chunk.push(element);
 
-        (chunk_index * self.chunk_size + item_index) as u32
+        (chunk_index * self.chunk_size) as u32
     }
 
     /// Get an immutable reference to the element with the given local id.
