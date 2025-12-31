@@ -19,6 +19,7 @@ destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
 # general
+memchr = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 
