@@ -163,7 +163,7 @@ impl TaskPhase {
 pub enum Task {
     /// Import and parse source into AST.
     Import(ImportTask),
-    /// Bind and declare AST into DIR.
+    /// Bind and declare AST into DIR. FUGU: merge Bind into Import?
     Bind(BindTask),
     /// Resolve symbol references in DIR.
     Resolve(ResolveTask),
