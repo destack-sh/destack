@@ -21,6 +21,7 @@ mod no_struct;
 mod no_ternary;
 mod no_warning_comments;
 mod no_wildcard_imports;
+mod strict_boolean_expressions;
 
 pub use no_anonymous_default_export::*;
 pub use no_bitwise::*;
@@ -43,6 +44,7 @@ pub use no_struct::*;
 pub use no_ternary::*;
 pub use no_warning_comments::*;
 pub use no_wildcard_imports::*;
+pub use strict_boolean_expressions::*;
 
 /// Get all restriction rules.
 pub fn rules() -> Vec<BoxedLintRule> {
@@ -66,6 +68,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoSequences),
         Box::new(NoStruct),
         Box::new(NoTernary),
+        Box::new(StrictBooleanExpressions),
         Box::new(NoWarningComments),
         Box::new(NoWildcardImports),
     ]
