@@ -1,4 +1,5 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
+use super::ES_CANONICAL_EXPORTS;
 
 macro_rules! lib_source {
     ($name:ident, $file:literal) => {
@@ -30,10 +31,12 @@ pub const LIB_ES2019: BuiltinLib = BuiltinLib::ambient(
         LIB_ES_ES2019_SYMBOL_D_DS,
     ],
     &["es2018"],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 
 pub const LIB_ES2019_ARRAY: BuiltinLib =
-    BuiltinLib::ambient("es2019.array", &[LIB_ES_ES2019_ARRAY_D_DS], &[]);
+    BuiltinLib::ambient("es2019.array", &[LIB_ES_ES2019_ARRAY_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2019_FULL: BuiltinLib = BuiltinLib::ambient(
     "es2019.full",
     &[LIB_ES_ES2019_FULL_D_DS],
@@ -45,12 +48,17 @@ pub const LIB_ES2019_FULL: BuiltinLib = BuiltinLib::ambient(
         "dom.iterable",
         "dom.asynciterable",
     ],
-);
+)
+.with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2019_INTL: BuiltinLib =
-    BuiltinLib::ambient("es2019.intl", &[LIB_ES_ES2019_INTL_D_DS], &[]);
+    BuiltinLib::ambient("es2019.intl", &[LIB_ES_ES2019_INTL_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2019_OBJECT: BuiltinLib =
-    BuiltinLib::ambient("es2019.object", &[LIB_ES_ES2019_OBJECT_D_DS], &[]);
+    BuiltinLib::ambient("es2019.object", &[LIB_ES_ES2019_OBJECT_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2019_STRING: BuiltinLib =
-    BuiltinLib::ambient("es2019.string", &[LIB_ES_ES2019_STRING_D_DS], &[]);
+    BuiltinLib::ambient("es2019.string", &[LIB_ES_ES2019_STRING_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2019_SYMBOL: BuiltinLib =
-    BuiltinLib::ambient("es2019.symbol", &[LIB_ES_ES2019_SYMBOL_D_DS], &[]);
+    BuiltinLib::ambient("es2019.symbol", &[LIB_ES_ES2019_SYMBOL_D_DS], &[])
+        .with_canonical_exports(ES_CANONICAL_EXPORTS);

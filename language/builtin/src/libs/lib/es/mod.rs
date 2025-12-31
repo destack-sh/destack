@@ -29,7 +29,7 @@ pub use es2024::*;
 pub use esnext::*;
 
 // canonical exports used by compiler, not exhaustive
-pub const ES_CANONICAL_EXPORTS: &[&str] = &[
+pub(crate) const ES_CANONICAL_EXPORTS: &[&str] = &[
     "AggregateError",
     "Array",
     "ArrayBuffer",

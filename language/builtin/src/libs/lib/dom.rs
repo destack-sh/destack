@@ -19,7 +19,10 @@ const LIB_DOM_ITERABLE_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!(concat!("../../../lib/dom/iterable.d.ds")),
 );
 
-pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient("dom", &[LIB_DOM_INDEX_D_DS], &["es5"]);
+const DOM_CANONICAL_EXPORTS: &[&str] = &["Document", "Element", "Event", "EventTarget", "Window"];
+
+pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient("dom", &[LIB_DOM_INDEX_D_DS], &["es5"])
+    .with_canonical_exports(DOM_CANONICAL_EXPORTS);
 pub const LIB_DOM_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient(
     "dom.asynciterable",
     &[LIB_DOM_ASYNCITERABLE_D_DS],
@@ -30,7 +33,3 @@ pub const LIB_DOM_ITERABLE: BuiltinLib = BuiltinLib::ambient(
     &[LIB_DOM_ITERABLE_D_DS],
     &["dom", "es2015.iterable"],
 );
-
-// canonical exports used by compiler, not exhaustive
-pub const DOM_CANONICAL_EXPORTS: &[&str] =
-    &["Document", "Element", "Event", "EventTarget", "Window"];
