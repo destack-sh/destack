@@ -309,6 +309,8 @@ pub struct Parser {
     pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
+    /// Scratch storage for annotation tokens to avoid repeated allocations.
+    pub(crate) annotation_tokens: Vec<TokenSpan>,
 }
 
 impl Debug for Parser {
@@ -329,6 +331,7 @@ impl Parser {
         // roughly 1 AST node per 3 tokens on average
         let estimated_nodes = tokens.len() / 3;
         let file_id = file.id;
+        let token_capacity = tokens.len() + side_tokens.len();
         let mut parser = Self {
             file,
             file_id,
@@ -343,6 +346,7 @@ impl Parser {
             diagnostics: DiagnosticCollector::new(),
             eof_token,
             errors: Vec::new(),
+            annotation_tokens: Vec::with_capacity(token_capacity),
         };
 
         // pre-parse side annotations (decorators)
@@ -390,6 +394,19 @@ impl Parser {
     /// Parse everything as an implicit namespace (without creating the namespace).
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // parse main expressions without finalization
+        let expressions = self.parse_without_finish();
+
+        // finalize annotations and indexes
+        self.finish();
+
+        expressions
+    }
+
+    /// Parse everything as an implicit namespace without attaching annotations or indexes.
+    /// Call `finish` to attach annotations and build the position index.
+    pub fn parse_without_finish(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // parse the root block body with recovery
         let mut expressions = self.with_recovery(
             self.mark(),
             |parser| parser.eat_block_body(BlockFormat::Implicit),
@@ -404,7 +421,6 @@ impl Parser {
             expressions.push(stub);
         }
 
-        self.finish();
         expressions
     }
 
@@ -427,7 +443,6 @@ impl Parser {
     }
 
     /// Finish parsing. You don't need to call this manually if using Parser::parse().
-    #[inline]
     pub fn finish(&mut self) {
         if !self.is_finished {
             // build position index BEFORE annotation attachment for O(log n) lookups

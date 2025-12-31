@@ -1,10 +1,12 @@
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{
+    BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
+};
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::criterion::{Output, PProfProfiler};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{env, fs};
 
 /// Benchmark parsing for workspace sources.
 fn bench_parse(criterion: &mut Criterion) {
@@ -67,14 +69,108 @@ fn bench_parse(criterion: &mut Criterion) {
     group.finish();
 }
 
+/// Resolve a single-file path for targeted benchmarks.
+fn resolve_single_file_path(workspace_root: &PathBuf) -> PathBuf {
+    // use env override if provided
+    if let Ok(path) = env::var("DESTACK_PARSE_FILE") {
+        return PathBuf::from(path);
+    }
+
+    // fall back to a representative builtin file
+    workspace_root.join("language/builtin/lib/dom/index.d.ds")
+}
+
+/// Load a single source file for benchmarking.
+fn load_single_file(path: &PathBuf) -> (Arc<File>, u64) {
+    // file type
+    let file_type = FileType::from_path_or_unknown(path);
+    let is_destack_source = matches!(file_type, FileType::Destack | FileType::DestackDeclaration);
+    assert!(is_destack_source, "path is not a destack source: {path:?}");
+
+    // file content
+    let content = fs::read_to_string(path).unwrap_or_default();
+    let line_count = content.lines().count() as u64;
+
+    // register file
+    let file_id = FileId::new(0);
+    let (file_name, uri) = Uri::from_path_with_name(path);
+    let file = File::from_text(file_id, file_name, uri, None, file_type, content);
+
+    (Arc::new(file), line_count)
+}
+
+/// Benchmark parsing for a single source file.
+fn bench_parse_single(criterion: &mut Criterion) {
+    // workspace root
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root_path = manifest_dir
+        .ancestors()
+        .find(|p| p.join("version.txt").exists())
+        .unwrap_or(&manifest_dir)
+        .to_path_buf();
+
+    // load file
+    let source_path = resolve_single_file_path(&workspace_root_path);
+    let (file, total_lines) = load_single_file(&source_path);
+
+    // benchmark
+    let mut group = criterion.benchmark_group("destack_parser_single");
+    group.throughput(Throughput::Elements(total_lines));
+
+    group.bench_with_input(
+        BenchmarkId::new("parse", "single"),
+        &file,
+        |bencher, file| {
+            bencher.iter(|| {
+                // parse full pipeline
+                let language_type = LanguageType::from(file.ty);
+                let mut parser = Parser::lex_file(file.clone(), language_type);
+                parser.parse();
+                black_box(parser);
+            });
+        },
+    );
+
+    // benchmark path with finish isolated from setup
+    group.bench_with_input(
+        BenchmarkId::new("finish", "single"),
+        &file,
+        |bencher, file| {
+            bencher.iter_batched(
+                || {
+                    // parse up to finish
+                    let language_type = LanguageType::from(file.ty);
+                    let mut parser = Parser::lex_file(file.clone(), language_type);
+                    parser.parse_without_finish();
+                    parser
+                },
+                |mut parser| {
+                    // attach annotations and build indexes
+                    parser.finish();
+                    black_box(parser);
+                },
+                BatchSize::SmallInput,
+            );
+        },
+    );
+
+    group.finish();
+}
+
 /// Configure Criterion with pprof.
 fn profiler() -> Criterion {
-    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+    // allow a higher sample rate for deeper flamegraphs
+    let sample_rate = env::var("DESTACK_PPROF_HZ")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(100);
+
+    Criterion::default().with_profiler(PProfProfiler::new(sample_rate, Output::Flamegraph(None)))
 }
 
 criterion_group! {
     name = benches;
     config = profiler();
-    targets = bench_parse
+    targets = bench_parse, bench_parse_single
 }
 criterion_main!(benches);

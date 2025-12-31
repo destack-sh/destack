@@ -174,7 +174,6 @@ impl Parser {
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
     /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
-    #[inline]
     pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         match self.with_options(self.options.in_statement_position(), |parser| {

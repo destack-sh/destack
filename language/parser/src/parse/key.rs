@@ -280,7 +280,6 @@ impl Parser {
     }
 
     /// Eat a name or a dynamic key maybe.
-    #[inline]
     pub fn eat_key_maybe(&mut self) -> ParseResult<Option<Key>> {
         if self.peek_key().is_ok() {
             Ok(Some(self.eat_key()?))
@@ -290,7 +289,6 @@ impl Parser {
     }
 
     /// Eat a name or a dynamic key, returning both the key and its span.
-    #[inline]
     pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
         let start = self.mark();
         if self.peek_name().is_ok() {
@@ -333,7 +331,6 @@ impl Parser {
     }
 
     /// Eat a name or a dynamic key maybe, returning both the key and its span.
-    #[inline]
     pub fn eat_key_maybe_with_span(&mut self) -> ParseResult<Option<(Key, destack_source::Span)>> {
         if self.peek_key().is_ok() {
             Ok(Some(self.eat_key_with_span()?))

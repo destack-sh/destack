@@ -14,7 +14,6 @@ impl Parser {
     /// where Foo.Bar
     /// where !Bar
     /// ```
-    #[inline]
     pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
         if self.peek_keyword(Keyword::Where).is_ok() {
             Ok(Some(self.eat_where()?))

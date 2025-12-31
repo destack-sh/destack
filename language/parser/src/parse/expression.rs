@@ -376,9 +376,21 @@ impl Parser {
         }
     }
 
-    destack_base::ensure_sufficient_stack! {
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        #[cfg(feature = "profile-stack")]
+        {
+            self.eat_expression_inner()
+        }
+
+        #[cfg(not(feature = "profile-stack"))]
+        {
+            destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
+        }
+    }
+
+    /// Eat an expression body without stack growth.
+    fn eat_expression_inner(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
         // labelled statement (like `label: while(...)` or `label: { }`)
@@ -466,7 +478,9 @@ impl Parser {
         descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
             && !self.options.in_variant
             && self.peek_next_token(TokenType::Newline).is_err()
-            && self.peek_next_any_keyword().is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+            && self
+                .peek_next_any_keyword()
+                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
         {
             self.bump(); // eat abstract
             DeclarationAbstraction::Abstract
@@ -490,10 +504,10 @@ impl Parser {
                 .is_ok()
         {
             let global_id = self.eat_global(start, descriptor)?;
-            return Ok(
-                self.tree
-                    .insert(Expression::Declaration(global_id), self.get_span_from(start)),
-            );
+            return Ok(self.tree.insert(
+                Expression::Declaration(global_id),
+                self.get_span_from(start),
+            ));
         }
 
         //
@@ -1073,8 +1087,8 @@ impl Parser {
                         mapped_id
                     } else {
                         self.restore(speculative_start, speculative_start_idx);
-                        let properties =
-                            self.with_options(self.options.not_in_position(), |parser| {
+                        let properties = self
+                            .with_options(self.options.not_in_position(), |parser| {
                                 parser.eat_object_literal()
                             })?;
                         self.tree.insert(
@@ -1088,9 +1102,10 @@ impl Parser {
                 }
                 // fall back to object literal
                 else {
-                    let properties = self.with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_object_literal()
-                    })?;
+                    let properties = self
+                        .with_options(self.options.not_in_position(), |parser| {
+                            parser.eat_object_literal()
+                        })?;
                     self.tree.insert(
                         Expression::ObjectExpression {
                             ty: None,
@@ -1138,7 +1153,8 @@ impl Parser {
                                         TokenType::CloseParenthesis,
                                     )
                                     .ok()?;
-                                let after_parenthesis_close = self.tokens.get(parenthesis_close as usize + 1)?;
+                                let after_parenthesis_close =
+                                    self.tokens.get(parenthesis_close as usize + 1)?;
                                 (after_parenthesis_close.token.ty == TokenType::Colon
                                     || after_parenthesis_close.token.ty == TokenType::Arrow
                                     || after_parenthesis_close.token.ty == TokenType::ArrowWide)
@@ -1492,10 +1508,10 @@ impl Parser {
                         self.eat_newlines_maybe()?;
                         self.eat_colon()?;
                         self.eat_newlines_maybe()?;
-                        let else_expression_id = self.with_options(
-                            self.options.not_in_position().in_type(),
-                            |parser| parser.eat_expression(),
-                        )?;
+                        let else_expression_id = self
+                            .with_options(self.options.not_in_position().in_type(), |parser| {
+                                parser.eat_expression()
+                            })?;
                         let expression = Expression::TypeConditional {
                             left,
                             right,
@@ -1701,8 +1717,8 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_colon()?;
             self.eat_newlines_maybe()?;
-            let else_expression_id =
-                self.with_options(self.options.not_in_position().in_type(), |parser| {
+            let else_expression_id = self
+                .with_options(self.options.not_in_position().in_type(), |parser| {
                     parser.eat_expression()
                 })?;
             let expression = Expression::TypeConditional {
@@ -1715,7 +1731,6 @@ impl Parser {
         }
 
         Ok(left_expression_id)
-        }
     }
 }
 #[cfg(test)]
