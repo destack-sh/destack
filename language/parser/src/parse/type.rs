@@ -345,7 +345,7 @@ impl Parser {
         let Name::Identifier(name_id) = name else {
             return None;
         };
-        match self.strings.get(*name_id).as_ref() {
+        match self.strings.get(*name_id) {
             "Uppercase" => Some(TypeIntrinsic::Uppercase),
             "Lowercase" => Some(TypeIntrinsic::Lowercase),
             "Capitalize" => Some(TypeIntrinsic::Capitalize),

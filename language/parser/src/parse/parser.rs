@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
 use destack_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
-use destack_base::StringPool;
+use destack_base::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
 };
@@ -300,8 +300,8 @@ pub struct Parser {
 
     /// The Node AST tree.
     pub tree: NodeTree,
-    /// The string pool.
-    pub strings: StringPool,
+    /// The string pool (lockless for single-threaded parsing).
+    pub strings: LocalStringPool,
 
     /// The language type for parsing behavior.
     pub language: LanguageType,
@@ -339,7 +339,7 @@ impl Parser {
             options: ParserOptions::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
-            strings: StringPool::new(),
+            strings: LocalStringPool::new(),
             diagnostics: DiagnosticCollector::new(),
             eof_token,
             errors: Vec::new(),

@@ -313,6 +313,12 @@ impl File {
         }
     }
 
+    /// Get the string slice for a given span, or empty string if unavailable.
+    #[inline]
+    pub fn span_str(&self, span: Span) -> &str {
+        self.get_span_str(span).unwrap_or_default()
+    }
+
     /// Get a line as a string slice by 0-based index.
     #[inline]
     pub fn get_line_str(&self, line_index: u32) -> Option<&str> {

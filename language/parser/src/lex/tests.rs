@@ -10,25 +10,25 @@ macro_rules! assert_tokenize_eq_roundtrip {
         // tokenize
         let language = LanguageType::default();
         let (semantic_tokens, side_tokens, _) = Lexer::lex(file_id, $src, language);
-        
+
         // merge and sort by position to get all tokens in order
         let mut all_tokens: Vec<TokenSpan> = semantic_tokens.into_iter().chain(side_tokens).collect();
         all_tokens.sort_by_key(|t| t.span.start);
         let tokens: Vec<Token> = all_tokens.into_iter().map(|token| token.token).collect();
-        
+
         // must match the expected tokens
         let mut expected_tokens = vec![$($expected),*];
-        
+
         // ensure the last token is an EOF token
         if !matches!(expected_tokens.last(), Some(token) if token.ty == TokenType::End) {
             expected_tokens.push(Token::end());
         }
         assert_eq!(tokens, expected_tokens);
-        
+
         // render back to input string
         let rendered_input = render_tokens(&tokens, $src);
         assert_eq!(rendered_input, $src);
-        
+
         // re-tokenize on the rendered input
         let (semantic_again, side_again, _) = Lexer::lex(file_id, &rendered_input, language);
         let mut all_again: Vec<TokenSpan> = semantic_again.into_iter().chain(side_again).collect();

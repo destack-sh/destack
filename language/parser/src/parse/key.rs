@@ -13,7 +13,8 @@ impl Parser {
     #[inline]
     pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
         let token = *self.eat_token(TokenType::Identifier)?;
-        let string_id = self.strings.intern(self.get_token_str(token));
+        let s = self.file.span_str(token.span);
+        let string_id = self.strings.intern(s);
         Ok(string_id)
     }
 
@@ -21,7 +22,8 @@ impl Parser {
     #[inline]
     pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
         let token = *self.eat_token(TokenType::Identifier)?;
-        let string_id = self.strings.intern(self.get_token_str(token));
+        let s = self.file.span_str(token.span);
+        let string_id = self.strings.intern(s);
         Ok((string_id, token.span))
     }
 
@@ -31,8 +33,8 @@ impl Parser {
         &mut self,
     ) -> ParseResult<(StringId, destack_source::Span)> {
         let token = *self.peek_string_literal()?;
-        let content = self.get_string_literal_str(token);
-        let string_id = self.strings.intern(content);
+        let content = self.get_string_literal_str(token).to_owned();
+        let string_id = self.strings.intern(&content);
         self.bump();
         Ok((string_id, token.span))
     }
@@ -51,8 +53,9 @@ impl Parser {
     /// Eat an identifier that matches a given string.
     #[inline]
     pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
-        let span = self.peek_identifier_str(string)?;
-        let string_id = self.strings.intern(self.get_token_str(*span));
+        let span = *self.peek_identifier_str(string)?;
+        let s = self.file.get_span_str(span.span).unwrap_or_default();
+        let string_id = self.strings.intern(s);
         self.bump();
         Ok(string_id)
     }
@@ -207,14 +210,15 @@ impl Parser {
         // regular identifier
         if self.peek_token(TokenType::Identifier).is_ok() {
             let token = *self.eat_token(TokenType::Identifier)?;
-            let string_id = self.strings.intern(self.get_token_str(token));
+            let s = self.file.span_str(token.span);
+            let string_id = self.strings.intern(s);
             Ok((Name::Identifier(string_id), token.span))
         }
         // string identifier
         else if self.peek_string_literal().is_ok() {
             let token = *self.peek_string_literal()?;
-            let token_str = self.get_string_literal_str(token);
-            let string_id = self.strings.intern(token_str);
+            let content = self.get_string_literal_str(token).to_owned();
+            let string_id = self.strings.intern(&content);
             self.bump();
             Ok((Name::String(string_id), token.span))
         }
@@ -245,7 +249,7 @@ impl Parser {
         } else if self.peek_numeric_literal().is_ok() {
             // numeric key (like `{123: value}` or `{2e308: value}`)
             let token = *self.eat()?;
-            let key_str = self.get_token_str(token);
+            let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);
             Ok(Key::Name(Name::Number(string_id)))
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
@@ -295,7 +299,7 @@ impl Parser {
         } else if self.peek_numeric_literal().is_ok() {
             // numeric key (like `{123: value}` or `{2e308: value}`)
             let token = *self.eat()?;
-            let key_str = self.get_token_str(token);
+            let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);
             Ok((Key::Name(Name::Number(string_id)), token.span))
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
