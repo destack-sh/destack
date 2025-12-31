@@ -294,6 +294,9 @@ impl Compiler {
                 value: value.clone(),
             },
             Expression::This => Type::This,
+            Expression::Parenthesized { expression } => {
+                return self.evaluate_expression_to_type(module, expression, tree, symbols, types);
+            }
 
             Expression::Declaration { declaration } => {
                 let declaration = tree.get(declaration).clone();

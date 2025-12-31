@@ -8,14 +8,68 @@ use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
     LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, StaticProperty, SymbolType, Type,
+    StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId, SymbolType, Type,
     TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::{Module, ProfileId};
 
+/// A TypeGuardTarget describes the target for a typeof or runtime type guard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum TypeGuardTarget {
+    /// Guard against a concrete type id.
+    TypeId(LocalTypeId),
+    /// Guard against object like values, including null.
+    ObjectLike,
+    /// Guard against callable values.
+    FunctionLike,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve a typeof guard target for a string literal.
+    pub(super) fn type_guard_target_for_typeof_string(
+        &self,
+        string_id: StringId,
+        types: &mut TypeTable,
+    ) -> Option<TypeGuardTarget> {
+        match self.program.strings.get(string_id).as_ref() {
+            "string" => Some(TypeGuardTarget::TypeId(types.insert_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                },
+            ))),
+            "number" => Some(TypeGuardTarget::TypeId(types.insert_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Number),
+                },
+            ))),
+            "boolean" => Some(TypeGuardTarget::TypeId(types.insert_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                },
+            ))),
+            "bigint" => Some(TypeGuardTarget::TypeId(types.insert_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Bigint),
+                },
+            ))),
+            "symbol" => Some(TypeGuardTarget::TypeId(types.insert_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Symbol),
+                },
+            ))),
+            "undefined" => Some(TypeGuardTarget::TypeId(types.insert_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Undefined,
+                },
+            ))),
+            "object" => Some(TypeGuardTarget::ObjectLike),
+            "function" => Some(TypeGuardTarget::FunctionLike),
+            _ => None,
+        }
+    }
+
     /// Unwrap `type` operator annotations to reach the underlying reference.
     pub(super) fn unwrap_type_symbol(
         &self,
@@ -2865,6 +2919,103 @@ impl Compiler {
             }
             _ if self.is_nullish_type(ty) => (None, true),
             _ => (Some(ty_id), false),
+        }
+    }
+
+    /// Check whether a type has the given property key.
+    pub(super) fn type_has_property(
+        &self,
+        type_id: LocalTypeId,
+        key: &StaticKey,
+        types: &TypeTable,
+    ) -> bool {
+        // walk through shapes that can carry fields
+        match types.get_type(type_id) {
+            Type::Object { fields, .. } => fields.iter().any(|field| field.key.matches(key)),
+            Type::Reference { symbol, .. } => {
+                // follow instance types for declared references
+                types
+                    .get_instance_type_id(*symbol)
+                    .map(|instance_id| self.type_has_property(instance_id, key, types))
+                    .unwrap_or(false)
+            }
+            Type::Intersection { elements } => {
+                // accept any intersection member that matches
+                elements
+                    .iter()
+                    .any(|element_id| self.type_has_property(*element_id, key, types))
+            }
+            _ => false,
+        }
+    }
+
+    /// Check whether a type id is any or unknown.
+    pub(super) fn type_is_any_or_unknown(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+        let ty = types.get_type(type_id);
+        matches!(
+            ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Any | TypeLiteral::Unknown,
+            }
+        )
+    }
+
+    /// Check whether a type is object like for typeof guards.
+    pub(super) fn type_is_object_like(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+        // match shapes that would produce typeof object
+        match types.get_type(type_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Null,
+            } => true,
+            Type::Object { .. }
+            | Type::Array { .. }
+            | Type::ArraySized { .. }
+            | Type::Tuple { .. }
+            | Type::Value { .. } => true,
+            Type::Reference { symbol, .. } => {
+                // prefer instance types when available
+                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                    return self.type_is_object_like(instance_id, types);
+                }
+
+                matches!(
+                    symbol.local_id.ty,
+                    SymbolType::Class
+                        | SymbolType::Struct
+                        | SymbolType::Interface
+                        | SymbolType::Extension
+                        | SymbolType::Enum
+                )
+            }
+            Type::Intersection { elements } => elements
+                .iter()
+                .any(|element_id| self.type_is_object_like(*element_id, types)),
+            _ => false,
+        }
+    }
+
+    /// Check whether a type is function like for typeof guards.
+    pub(super) fn type_is_function_like(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+        // match callable shapes for typeof function
+        match types.get_type(type_id) {
+            Type::Function { .. } => true,
+            Type::Object {
+                call_signatures,
+                construct_signatures,
+                ..
+            } => !call_signatures.is_empty() || !construct_signatures.is_empty(),
+            Type::Reference { symbol, .. } => {
+                // prefer instance types when available
+                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                    return self.type_is_function_like(instance_id, types);
+                }
+
+                symbol.local_id.ty == SymbolType::Function
+            }
+            Type::Intersection { elements } => elements
+                .iter()
+                .any(|element_id| self.type_is_function_like(*element_id, types)),
+            _ => false,
         }
     }
 

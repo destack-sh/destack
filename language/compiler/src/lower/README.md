@@ -1425,6 +1425,7 @@ extension for Circle implements Hashable {
     hash(): uint64 { ... }
 }
 ```
+
 #### Itab Generation
 
 For each (Type, Interface) pair where the type implements the interface:

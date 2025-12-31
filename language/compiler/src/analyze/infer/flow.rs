@@ -2,14 +2,18 @@ use std::collections::VecDeque;
 
 use indexmap::IndexMap;
 
+use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph, FlowTable,
-    GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, SymbolTable, Type, TypeLiteral,
-    TypeTable, UnaryOperator,
+    GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, ScalarLiteral, StaticKey,
+    SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
+    UnaryOperator,
 };
 use destack_workspace::Module;
 
-use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+use super::r#type::TypeGuardTarget;
+
+use crate::{AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -441,8 +445,42 @@ impl Compiler {
                 left,
                 operator,
                 right,
-            } => {
-                if *operator == BinaryOperator::And {
+            } => match operator {
+                BinaryOperator::InstanceOf => {
+                    // narrow using class identity guard
+                    if let Some(environments) = self.narrow_environment_for_type_guard(
+                        module,
+                        guard_id,
+                        *left,
+                        *right,
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    )? {
+                        return Ok(environments);
+                    }
+                    Ok((environment.clone(), environment.clone()))
+                }
+                BinaryOperator::In => {
+                    // narrow using a key in guard
+                    if let Some(environments) = self.narrow_environment_for_in_guard(
+                        module,
+                        guard_id,
+                        *left,
+                        *right,
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    )? {
+                        return Ok(environments);
+                    }
+                    Ok((environment.clone(), environment.clone()))
+                }
+                BinaryOperator::And => {
                     // evaluate the left guard first
                     let (left_true, left_false) = self.narrow_environment_for_guard(
                         module,
@@ -464,10 +502,9 @@ impl Compiler {
                         Some(environment),
                         types,
                     );
-                    return Ok((right_true, false_environment));
+                    Ok((right_true, false_environment))
                 }
-
-                if *operator == BinaryOperator::Or {
+                BinaryOperator::Or => {
                     // evaluate the left guard first
                     let (left_true, left_false) = self.narrow_environment_for_guard(
                         module,
@@ -495,48 +532,81 @@ impl Compiler {
                         Some(environment),
                         types,
                     );
-                    return Ok((true_environment, right_false));
+                    Ok((true_environment, right_false))
                 }
+                BinaryOperator::Equal
+                | BinaryOperator::EqualStrict
+                | BinaryOperator::NotEqual
+                | BinaryOperator::NotEqualStrict => {
+                    // narrow based on typeof equality
+                    let is_negated = matches!(
+                        operator,
+                        BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
+                    );
+                    if let Some(environments) = self.narrow_environment_for_typeof_guard(
+                        module,
+                        guard_id,
+                        *left,
+                        *right,
+                        is_negated,
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    )? {
+                        return Ok(environments);
+                    }
 
-                // fall back when the binary operator does not narrow
-                let is_equal = matches!(
-                    operator,
-                    BinaryOperator::Equal
-                        | BinaryOperator::EqualStrict
-                        | BinaryOperator::NotEqual
-                        | BinaryOperator::NotEqualStrict
-                );
-                if !is_equal {
-                    return Ok((environment.clone(), environment.clone()));
+                    // narrow based on nullish equality
+                    let is_strict = matches!(
+                        operator,
+                        BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
+                    );
+                    if let Some(environments) = self.narrow_environment_for_nullish_guard(
+                        module,
+                        guard_id,
+                        *left,
+                        *right,
+                        is_strict,
+                        is_negated,
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    )? {
+                        return Ok(environments);
+                    }
+
+                    Ok((environment.clone(), environment.clone()))
                 }
-
-                // narrow based on nullish equality
-                let is_strict = matches!(
-                    operator,
-                    BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
-                );
-                let is_negated = matches!(
-                    operator,
-                    BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
-                );
-                if let Some(environments) = self.narrow_environment_for_nullish_guard(
-                    module,
-                    guard_id,
-                    *left,
-                    *right,
-                    is_strict,
-                    is_negated,
-                    tree,
-                    symbols,
-                    types,
-                    environment,
-                    context,
-                )? {
-                    return Ok(environments);
+                _ => Ok((environment.clone(), environment.clone())),
+            },
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => match operator {
+                TypeBinaryOperator::Is => {
+                    // narrow using an `x is T` guard
+                    if let Some(environments) = self.narrow_environment_for_is_guard(
+                        module,
+                        guard_id,
+                        *left,
+                        *right,
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    )? {
+                        return Ok(environments);
+                    }
+                    Ok((environment.clone(), environment.clone()))
                 }
-
-                Ok((environment.clone(), environment.clone()))
-            }
+                _ => Ok((environment.clone(), environment.clone())),
+            },
             _ => Ok((environment.clone(), environment.clone())),
         }
     }
@@ -628,6 +698,608 @@ impl Compiler {
         Ok(Some((true_environment, false_environment)))
     }
 
+    /// Split the environment based on a typeof equality guard.
+    fn narrow_environment_for_typeof_guard(
+        &self,
+        module: &Module,
+        guard_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+        is_negated: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // normalize both sides for matching
+        let left_id = self.unwrap_parenthesized_expression(left_id, tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, tree);
+
+        // identify the typeof expression and the string literal
+        let (typeof_id, literal_id) = match (
+            self.typeof_expression_id(tree, left_id),
+            self.string_literal_id(tree, right_id),
+            self.typeof_expression_id(tree, right_id),
+            self.string_literal_id(tree, left_id),
+        ) {
+            (Some(typeof_id), Some(literal_id), _, _) => (typeof_id, literal_id),
+            (_, _, Some(typeof_id), Some(literal_id)) => (typeof_id, literal_id),
+            _ => return Ok(None),
+        };
+
+        // resolve the guard symbol from the typeof argument
+        let typeof_id = self.unwrap_parenthesized_expression(typeof_id, tree);
+        let Expression::TypeUnary {
+            operator: TypeUnaryOperator::Typeof,
+            right,
+        } = tree.get(typeof_id)
+        else {
+            return Ok(None);
+        };
+        let right_id = self.unwrap_parenthesized_expression(*right, tree);
+        let symbol =
+            self.reference_symbol_for_expression(module, right_id, context.profile, tree, symbols);
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+
+        // resolve the typeof guard target
+        let Some(target) = self.type_guard_target_for_typeof_string(literal_id, types) else {
+            return Ok(None);
+        };
+
+        // resolve the base type for the symbol
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            guard_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+
+        // evaluate unevaluated types before applying typeof narrowing
+        self.evaluate_type(module, base_type_id, tree, symbols, types)?;
+        // clone union elements to avoid holding a borrow across evaluation
+        let mut union_elements = Vec::new();
+        if let Type::Union { elements } = types.get_type(base_type_id) {
+            union_elements.extend(elements.iter().copied());
+        }
+        for element_id in union_elements {
+            self.evaluate_type(module, element_id, tree, symbols, types)?;
+        }
+
+        // compute narrowed types for each branch
+        let (true_type_id, false_type_id) =
+            self.type_guard_target_types(base_type_id, target, types, &context.options);
+
+        // apply the narrowings for each branch
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        // flip environments when the guard is negated
+        if is_negated {
+            return Ok(Some((false_environment, true_environment)));
+        }
+
+        Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Split the environment based on an `x in y` guard.
+    fn narrow_environment_for_in_guard(
+        &self,
+        module: &Module,
+        guard_id: LocalNodeId<Expression>,
+        key_id: LocalNodeId<Expression>,
+        target_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // normalize the guard expressions
+        let key_id = self.unwrap_parenthesized_expression(key_id, tree);
+        let target_id = self.unwrap_parenthesized_expression(target_id, tree);
+
+        // only narrow for string literal keys
+        let Some(key) = self.string_literal_id(tree, key_id) else {
+            return Ok(None);
+        };
+
+        // resolve the target symbol
+        let symbol =
+            self.reference_symbol_for_expression(module, target_id, context.profile, tree, symbols);
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+
+        // build the key we are guarding on
+        let key = StaticKey::Name(key);
+
+        // resolve the base type for the symbol
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            guard_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+
+        // compute narrowed types for each branch
+        let (true_type_id, false_type_id) = self.property_guard_types(base_type_id, &key, types);
+
+        // apply the narrowings for each branch
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Split the environment based on an `x is T` guard.
+    fn narrow_environment_for_is_guard(
+        &self,
+        module: &Module,
+        guard_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // resolve the target symbol
+        let value_id = self.unwrap_parenthesized_expression(value_id, tree);
+        let symbol =
+            self.reference_symbol_for_expression(module, value_id, context.profile, tree, symbols);
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+
+        // resolve the target type
+        let target_type_id = self.guard_target_type_id(
+            module,
+            self.unwrap_parenthesized_expression(target_id, tree),
+            tree,
+            symbols,
+            types,
+        )?;
+        let target_type_id = self.unwrap_type_value_id(target_type_id, types);
+        if !self.guard_target_is_class(target_type_id, types) {
+            return Ok(None);
+        }
+
+        // resolve the base type for the symbol
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            guard_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+
+        // compute narrowed types for each branch
+        let (true_type_id, false_type_id) =
+            self.type_guard_types(base_type_id, target_type_id, types, &context.options);
+
+        // apply the narrowings for each branch
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Split the environment based on a class identity guard.
+    fn narrow_environment_for_type_guard(
+        &self,
+        module: &Module,
+        guard_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // resolve the target symbol
+        let value_id = self.unwrap_parenthesized_expression(value_id, tree);
+        let symbol =
+            self.reference_symbol_for_expression(module, value_id, context.profile, tree, symbols);
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+
+        // resolve the target type
+        let target_type_id = self.guard_target_type_id(
+            module,
+            self.unwrap_parenthesized_expression(target_id, tree),
+            tree,
+            symbols,
+            types,
+        )?;
+        let target_type_id = self.unwrap_type_value_id(target_type_id, types);
+
+        // resolve the base type for the symbol
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            guard_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+
+        // compute narrowed types for each branch
+        let (true_type_id, false_type_id) =
+            self.type_guard_types(base_type_id, target_type_id, types, &context.options);
+
+        // apply the narrowings for each branch
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Determine the target type for a guard expression.
+    fn guard_target_type_id(
+        &self,
+        module: &Module,
+        target_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // prefer explicit type nodes
+        if let Expression::Type { value } = tree.get(target_id) {
+            return Ok(*value);
+        }
+
+        // fall back to evaluating the expression as a type
+        self.try_evaluate_expression_to_type(module, target_id, tree, symbols, types)
+    }
+
+    /// Unwrap a Type::Value wrapper to a usable guard target.
+    fn unwrap_type_value_id(&self, type_id: LocalTypeId, types: &TypeTable) -> LocalTypeId {
+        match types.get_type(type_id) {
+            Type::Value { value } => *value,
+            _ => type_id,
+        }
+    }
+
+    /// Check whether a guard target is a class type.
+    fn guard_target_is_class(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+        match types.get_type(type_id) {
+            Type::Reference { symbol, .. } => symbol.local_id.ty == SymbolType::Class,
+            _ => false,
+        }
+    }
+
+    /// Derive guard types for a symbol based on a target type.
+    fn type_guard_types(
+        &self,
+        base_type_id: LocalTypeId,
+        target_type_id: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
+        // handle union and non union cases separately
+        // filter union members that satisfy the target guard
+        let true_type_id = match types.get_type(base_type_id) {
+            Type::Union { elements } => {
+                let mut matching_elements = Vec::new();
+
+                // collect assignable union members
+                for element_id in elements {
+                    let is_assignable = self
+                        .check_is_type_assignable(target_type_id, *element_id, types, options)
+                        .is_assignable();
+                    if is_assignable {
+                        matching_elements.push(*element_id);
+                    }
+                }
+
+                match matching_elements.len() {
+                    0 => None,
+                    1 => Some(matching_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: matching_elements,
+                    })),
+                }
+            }
+            _ => {
+                // keep the base type when it is already narrow enough
+                let base_is_assignable = self
+                    .check_is_type_assignable(target_type_id, base_type_id, types, options)
+                    .is_assignable();
+                let target_is_assignable = self
+                    .check_is_type_assignable(base_type_id, target_type_id, types, options)
+                    .is_assignable();
+
+                if base_is_assignable {
+                    Some(base_type_id)
+                } else if target_is_assignable {
+                    Some(target_type_id)
+                } else {
+                    Some(types.insert_type(Type::Intersection {
+                        elements: vec![base_type_id, target_type_id],
+                    }))
+                }
+            }
+        };
+
+        // drop assignable types for the false branch
+        let (false_type_id, _) =
+            self.strip_assignable_from_union(base_type_id, target_type_id, types, options);
+
+        (true_type_id, false_type_id)
+    }
+
+    /// Derive guard types for a typed guard target.
+    fn type_guard_target_types(
+        &self,
+        base_type_id: LocalTypeId,
+        target: TypeGuardTarget,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
+        // route guard targets to their narrowing strategy
+        match target {
+            TypeGuardTarget::TypeId(target_type_id) => {
+                self.type_guard_types(base_type_id, target_type_id, types, options)
+            }
+            TypeGuardTarget::ObjectLike => {
+                self.predicate_guard_types(base_type_id, types, |type_id, types| {
+                    self.type_is_object_like(type_id, types)
+                })
+            }
+            TypeGuardTarget::FunctionLike => {
+                self.predicate_guard_types(base_type_id, types, |type_id, types| {
+                    self.type_is_function_like(type_id, types)
+                })
+            }
+        }
+    }
+
+    /// Derive guard types using a predicate for the true branch.
+    fn predicate_guard_types<F>(
+        &self,
+        base_type_id: LocalTypeId,
+        types: &mut TypeTable,
+        predicate: F,
+    ) -> (Option<LocalTypeId>, Option<LocalTypeId>)
+    where
+        F: Fn(LocalTypeId, &TypeTable) -> bool,
+    {
+        // avoid narrowing any or unknown types
+        if self.type_is_any_or_unknown(base_type_id, types) {
+            return (Some(base_type_id), Some(base_type_id));
+        }
+
+        // split union and non union targets
+        match types.get_type(base_type_id) {
+            Type::Union { elements } => {
+                // avoid narrowing unions with any or unknown members
+                if elements
+                    .iter()
+                    .any(|element_id| self.type_is_any_or_unknown(*element_id, types))
+                {
+                    return (Some(base_type_id), Some(base_type_id));
+                }
+
+                let mut matching_elements = Vec::new();
+                let mut remaining_elements = Vec::new();
+
+                // collect union members by predicate
+                for element_id in elements {
+                    if predicate(*element_id, types) {
+                        matching_elements.push(*element_id);
+                    } else {
+                        remaining_elements.push(*element_id);
+                    }
+                }
+
+                let true_type_id = match matching_elements.len() {
+                    0 => None,
+                    1 => Some(matching_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: matching_elements,
+                    })),
+                };
+                let false_type_id = match remaining_elements.len() {
+                    0 => None,
+                    1 => Some(remaining_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: remaining_elements,
+                    })),
+                };
+
+                (true_type_id, false_type_id)
+            }
+            _ => {
+                // narrow based on the predicate result
+                if predicate(base_type_id, types) {
+                    (Some(base_type_id), None)
+                } else {
+                    (None, Some(base_type_id))
+                }
+            }
+        }
+    }
+
+    /// Derive guard types for an `in` property check.
+    fn property_guard_types(
+        &self,
+        base_type_id: LocalTypeId,
+        key: &StaticKey,
+        types: &mut TypeTable,
+    ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
+        // split union and non union targets
+        match types.get_type(base_type_id) {
+            Type::Union { elements } => {
+                let mut matching_elements = Vec::new();
+                let mut remaining_elements = Vec::new();
+
+                // collect union members with and without the key
+                for element_id in elements {
+                    if self.type_has_property(*element_id, key, types) {
+                        matching_elements.push(*element_id);
+                    } else {
+                        remaining_elements.push(*element_id);
+                    }
+                }
+
+                let true_type_id = match matching_elements.len() {
+                    0 => None,
+                    1 => Some(matching_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: matching_elements,
+                    })),
+                };
+                let false_type_id = match remaining_elements.len() {
+                    0 => None,
+                    1 => Some(remaining_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: remaining_elements,
+                    })),
+                };
+
+                (true_type_id, false_type_id)
+            }
+            _ => {
+                // return the base type on the branch that matches
+                if self.type_has_property(base_type_id, key, types) {
+                    (Some(base_type_id), None)
+                } else {
+                    (None, Some(base_type_id))
+                }
+            }
+        }
+    }
+
+    /// Strip assignable elements from a union for guard negation.
+    fn strip_assignable_from_union(
+        &self,
+        type_id: LocalTypeId,
+        target_type_id: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> (Option<LocalTypeId>, bool) {
+        // split unions from non union types
+        let type_value = types.get_type(type_id);
+
+        match type_value {
+            Type::Union { elements } => {
+                let mut filtered_elements = Vec::new();
+                let mut removed = false;
+
+                // drop assignable elements while tracking removals
+                for element_id in elements {
+                    let is_assignable = self
+                        .check_is_type_assignable(target_type_id, *element_id, types, options)
+                        .is_assignable();
+                    if is_assignable {
+                        removed = true;
+                    } else {
+                        filtered_elements.push(*element_id);
+                    }
+                }
+
+                // keep the original type when nothing was removed
+                if !removed {
+                    return (Some(type_id), false);
+                }
+
+                // rebuild the union from remaining elements
+                let filtered_type_id = match filtered_elements.len() {
+                    0 => None,
+                    1 => Some(filtered_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: filtered_elements,
+                    })),
+                };
+
+                (filtered_type_id, true)
+            }
+            _ => {
+                // remove the type when it is assignable to the target
+                let is_assignable = self
+                    .check_is_type_assignable(target_type_id, type_id, types, options)
+                    .is_assignable();
+                if is_assignable {
+                    (None, true)
+                } else {
+                    (Some(type_id), false)
+                }
+            }
+        }
+    }
+
+    /// Extract a typeof expression id when present.
+    fn typeof_expression_id(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<LocalNodeId<Expression>> {
+        match tree.get(expression_id) {
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::Typeof,
+                ..
+            } => Some(expression_id),
+            _ => None,
+        }
+    }
+
+    /// Extract a string literal id when present.
+    fn string_literal_id(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<StringId> {
+        match tree.get(expression_id) {
+            Expression::ScalarLiteral {
+                value: ScalarLiteral::String(string_id),
+            } => Some(*string_id),
+            _ => None,
+        }
+    }
+
     /// Apply nullish guard types to a symbol type.
     fn nullish_guard_types(
         &self,
@@ -635,6 +1307,7 @@ impl Compiler {
         base_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
+        // materialize nullish literal types once
         let null_type_id = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Null,
         });
@@ -642,6 +1315,7 @@ impl Compiler {
             value: TypeLiteral::Undefined,
         });
 
+        // build branch types based on the guard kind
         match guard_kind {
             NullishGuardKind::Nullish => {
                 let nullish_type_id = types.insert_type(Type::Union {
@@ -670,6 +1344,7 @@ impl Compiler {
         types: &mut TypeTable,
         literal: TypeLiteral,
     ) -> (Option<LocalTypeId>, bool) {
+        // split unions from single literals
         let type_value = types.get_type(type_id);
 
         match type_value {
@@ -677,6 +1352,7 @@ impl Compiler {
                 let mut filtered_elements = Vec::new();
                 let mut removed = false;
 
+                // keep only non matching literal members
                 for element_id in elements {
                     let element_type = types.get_type(*element_id);
                     if let Type::TypeLiteral { value } = element_type
@@ -688,10 +1364,12 @@ impl Compiler {
                     }
                 }
 
+                // keep the original type when nothing was removed
                 if !removed {
                     return (Some(type_id), false);
                 }
 
+                // rebuild the union from the remaining elements
                 let filtered_type_id = match filtered_elements.len() {
                     0 => None,
                     1 => Some(filtered_elements[0]),
@@ -719,22 +1397,27 @@ impl Compiler {
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // reuse an environment narrowing when present
         if let Some(type_id) = environment.bindings.get(&symbol) {
             return Ok(*type_id);
         }
 
+        // fall back to any known value type
         if let Some(type_id) = types.get_value_type_id(symbol) {
             return Ok(type_id);
         }
 
+        // resolve declarations in the current module
         if symbol.module_id == module.id {
             let symbol = symbols.get_symbol(symbol.into());
+            // use the primary declaration type when available
             if let Some(primary_declaration) = symbol.primary_declaration
                 && let Some(type_id) = types.get_declared_type_id(primary_declaration)
             {
                 return Ok(type_id);
             }
 
+            // walk parent declarations to recover contextual types
             if let Some(primary_declaration) = symbol.primary_declaration {
                 let mut current_id = primary_declaration.local_id;
                 while let Some(parent_id) = tree.get_parent(current_id.id) {
@@ -747,6 +1430,7 @@ impl Compiler {
                 }
             }
         } else {
+            // resolve remote symbol types through the compiler
             return self.resolve_remote_symbol_value_type(
                 module,
                 context.profile,
@@ -756,6 +1440,7 @@ impl Compiler {
             );
         }
 
+        // fall back to unknown when no type is available
         let unknown_type = Type::TypeLiteral {
             value: TypeLiteral::Unknown,
         };
