@@ -33,6 +33,8 @@ pub struct ModuleDir {
     pub namespace_symbol: dir::LocalSymbolId,
     /// The scope of the Module.
     pub namespace_scope: dir::LocalScopeId,
+    /// The scope for global augmentations within this module.
+    pub global_augmentation_scope: dir::LocalScopeId,
     /// The symbol of the Module default.
     pub default_symbol: dir::LocalSymbolId,
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
@@ -46,9 +48,14 @@ pub struct ModuleDir {
 impl ModuleDir {
     /// Create a new base DIR.
     pub fn new_base(id: ModuleId, version: ModuleVersion) -> Self {
-        // set up default namespace and default symbol
+        // set up default namespace, symbol, scopes, etc.
         let mut symbols = dir::SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
+        let global_augmentation_scope_id = symbols.insert_scope(
+            dir::ScopeKind::Namespace,
+            Some((namespace_scope_id, dir::LocalScopeMark::end())),
+            None,
+        );
         let (namespace_symbol_id, _) = symbols.insert_symbol(
             dir::SymbolKind::Namespace,
             dir::SymbolType::Void,
@@ -80,6 +87,7 @@ impl ModuleDir {
             import_meta: None,
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
+            global_augmentation_scope: global_augmentation_scope_id,
             default_symbol: default_symbol_id,
             namespace_exports: RwLock::new(Vec::new()),
             imported_modules: RwLock::new(IndexMap::new()),
@@ -103,6 +111,7 @@ impl ModuleDir {
             import_meta: None,
             namespace_symbol: base.namespace_symbol,
             namespace_scope: base.namespace_scope,
+            global_augmentation_scope: base.global_augmentation_scope,
             default_symbol: base.default_symbol,
             namespace_exports: RwLock::new(base.namespace_exports.read().clone()),
             imported_modules: RwLock::new(base.imported_modules.read().clone()),

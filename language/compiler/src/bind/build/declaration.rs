@@ -223,13 +223,15 @@ impl Compiler {
             } => {
                 let descriptor =
                     self.bind_global_descriptor(module, ast, scope, descriptor, symbols);
+                let global_scope_id = module.dir_base().global_augmentation_scope;
+                let global_scope = (global_scope_id, symbols.get_scope_mark(global_scope_id));
                 let expressions = expressions
                     .iter()
                     .map(|expression| {
                         self.bind_expression(
                             module,
                             ast,
-                            scope,
+                            global_scope,
                             *expression,
                             Some(declaration_id),
                             tree,
@@ -240,7 +242,7 @@ impl Compiler {
                     .collect();
                 Declaration::Global {
                     descriptor,
-                    scope: scope.0,
+                    scope: global_scope_id,
                     expressions,
                 }
             }
