@@ -26,5 +26,13 @@ tracing = { workspace = true }
 criterion = { workspace = true }
 pprof = { workspace = true }
 
+[[bench]]
+name = "destack_parse"
+harness = false
+
+[[bench]]
+name = "destack_lex"
+harness = false
+
 [lints]
 workspace = true

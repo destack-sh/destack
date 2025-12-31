@@ -92,6 +92,8 @@ pub const EOF_CHAR: char = '\0';
 impl<'a> Lexer<'a> {
     /// Create a new Lexer from a string.
     pub fn new(file_id: FileId, source: &'a str, language: LanguageType) -> Lexer<'a> {
+        // estimate ~8 bytes per token on average for capacity hint
+        let estimated_tokens = source.len() / 8;
         Lexer {
             file_id,
             source,
@@ -100,7 +102,7 @@ impl<'a> Lexer<'a> {
             len_remaining_in_token: source.len(),
             chars: source.chars(),
             prev: EOF_CHAR,
-            tokens: Vec::new(),
+            tokens: Vec::with_capacity(estimated_tokens),
             language,
         }
     }

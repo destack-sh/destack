@@ -73,7 +73,7 @@ impl NodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: HashMap::new(),
-            source_map: NodeSourceMap::new(),
+            source_map: NodeSourceMap::with_capacity(capacity),
             expressions: Arena::new(),
             blocks: Arena::new(),
             declarations: Arena::new(),
