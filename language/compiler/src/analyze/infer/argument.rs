@@ -328,6 +328,7 @@ impl Compiler {
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
                     actual_ty: substitution_ty_id.into_global(module.id),
                 });
+                return Some(types.insert_type(Type::Error));
             }
 
             return Some(substitution_ty_id);
@@ -370,7 +371,7 @@ impl Compiler {
     }
 
     /// Resolve static arguments for a type reference.
-    pub(super) fn resolve_type_reference_static_arguments(
+    pub(crate) fn resolve_type_reference_static_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -469,7 +470,7 @@ impl Compiler {
             };
 
             // resolve the argument value or synthesize a fallback
-            let resolved_argument = self
+            let mut resolved_argument = self
                 .resolve_static_argument(
                     module,
                     profile,
@@ -504,7 +505,7 @@ impl Compiler {
                 });
 
             // validate type and value arguments against declared bounds
-            self.validate_static_argument(
+            let validated_type = self.validate_static_argument(
                 module,
                 profile,
                 error_node,
@@ -516,6 +517,22 @@ impl Compiler {
                 options,
             );
 
+            // update resolved type arguments with validated substitutions
+            if static_parameter.kind == StaticParameterKind::Type
+                && let Some(substitution_ty_id) = validated_type
+            {
+                let argument_name = match &resolved_argument {
+                    StaticArgument::Evaluated { name, .. } => *name,
+                    StaticArgument::Unevaluated { .. } => None,
+                };
+                resolved_argument = StaticArgument::Evaluated {
+                    name: argument_name,
+                    value: StaticExpression::Type {
+                        ty: substitution_ty_id,
+                    },
+                };
+            }
+
             resolved_arguments.push(resolved_argument);
         }
 
@@ -523,7 +540,7 @@ impl Compiler {
     }
 
     /// Build type parameter substitutions for a type symbol.
-    pub(super) fn build_type_parameter_substitutions_for_symbol(
+    pub(crate) fn build_type_parameter_substitutions_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -777,7 +794,7 @@ impl Compiler {
     }
 
     /// Substitute static parameter references in a type.
-    pub(super) fn substitute_static_parameters(
+    pub(crate) fn substitute_static_parameters(
         &self,
         ty_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,

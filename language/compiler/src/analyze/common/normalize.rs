@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use destack_dir::{
-    LocalTypeId, NormalizationMode, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument, SymbolTable,
+    SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    TypeUnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -23,7 +26,7 @@ impl Compiler {
     }
 
     /// Normalize a type id with a recursion guard.
-    fn normalize_type_inner(
+    pub(super) fn normalize_type_inner(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -80,6 +83,26 @@ impl Compiler {
                         mode,
                         visited,
                     )
+                }
+                // expand type aliases with static arguments
+                else if symbol.ty() == SymbolType::TypeAlias {
+                    let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                    let expanded = self.normalize_type_alias_reference_with_arguments(
+                        module, profile, source_id, symbol, arguments, symbols, types, mode,
+                        visited,
+                    );
+                    if let Some(expanded) = expanded {
+                        expanded
+                    } else {
+                        let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
+                        if unwrapped != type_id {
+                            self.normalize_type_inner(
+                                module, profile, unwrapped, symbols, types, mode, visited,
+                            )
+                        } else {
+                            type_id
+                        }
+                    }
                 } else {
                     let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
                     if unwrapped != type_id {
@@ -163,7 +186,9 @@ impl Compiler {
                 construct_signatures,
                 index_signatures,
             } => {
+                // track object member changes
                 let mut did_change = false;
+
                 // normalize object fields
                 let mut normalized_fields = Vec::with_capacity(fields.len());
                 for field in fields {
@@ -257,6 +282,7 @@ impl Compiler {
                 dynamic_parameters,
                 return_type,
             } => {
+                // track function member changes
                 let mut did_change = false;
                 // normalize type parameter and parameter lists
                 let normalized_static = self.normalize_type_list(
@@ -325,153 +351,21 @@ impl Compiler {
                 right,
                 then_type,
                 else_type,
-            } => {
-                // normalize conditional branches
-                let original_left = left;
-                let original_right = right;
-                let original_then = then_type;
-                let original_else = else_type;
-
-                let left = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_left,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                let right = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_right,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                let then_type = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_then,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                let else_type = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_else,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-
-                if left == original_left
-                    && right == original_right
-                    && then_type == original_then
-                    && else_type == original_else
-                {
-                    type_id
-                } else {
-                    let normalized = Type::Conditional {
-                        left,
-                        right,
-                        then_type,
-                        else_type,
-                    };
-                    types.insert_type_from_any(normalized, source_id)
-                }
-            }
+            } => self.normalize_conditional_type(
+                module, profile, source_id, left, right, then_type, else_type, symbols, types,
+                mode, visited,
+            ),
             Type::Mapped {
                 parameter,
                 modifiers,
                 value,
-            } => {
-                // normalize mapped parameter and value types
-                let TypeMappedParameter {
-                    name,
-                    constraint,
-                    key_remap,
-                } = parameter;
-                let original_constraint = constraint;
-                let original_key_remap = key_remap;
-                let original_value = value;
-
-                let constraint = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_constraint,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                let key_remap = original_key_remap.map(|type_id| {
-                    self.normalize_type_inner(
-                        module, profile, type_id, symbols, types, mode, visited,
-                    )
-                });
-                let value = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_value,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-
-                if constraint == original_constraint
-                    && key_remap == original_key_remap
-                    && value == original_value
-                {
-                    type_id
-                } else {
-                    let normalized = Type::Mapped {
-                        parameter: TypeMappedParameter {
-                            name,
-                            constraint,
-                            key_remap,
-                        },
-                        modifiers,
-                        value,
-                    };
-                    types.insert_type_from_any(normalized, source_id)
-                }
-            }
-            Type::Index { left, index } => {
-                // normalize indexed access operands
-                let original_left = left;
-                let original_index = index;
-                let left = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_left,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                let index = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_index,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-
-                if left == original_left && index == original_index {
-                    type_id
-                } else {
-                    let normalized = Type::Index { left, index };
-                    types.insert_type_from_any(normalized, source_id)
-                }
-            }
+            } => self.normalize_mapped_type(
+                module, profile, source_id, parameter, modifiers, value, symbols, types, mode,
+                visited,
+            ),
+            Type::Index { left, index } => self.normalize_index_type(
+                module, profile, source_id, left, index, symbols, types, mode, visited,
+            ),
             Type::TemplateLiteral { strings, spans } => {
                 // normalize template literal spans
                 let mut did_change = false;
@@ -535,25 +429,30 @@ impl Compiler {
                     types.insert_type_from_any(normalized, source_id)
                 }
             }
-            Type::Unary { operator, right } => {
-                // normalize unary operand
-                let original_right = right;
-                let right = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_right,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                if right == original_right {
-                    type_id
-                } else {
-                    let normalized = Type::Unary { operator, right };
-                    types.insert_type_from_any(normalized, source_id)
+            Type::Unary { operator, right } => match operator {
+                TypeUnaryOperator::Keyof => self.normalize_keyof_type(
+                    module, profile, source_id, right, symbols, types, mode, visited,
+                ),
+                _ => {
+                    // normalize unary operand
+                    let original_right = right;
+                    let right = self.normalize_type_inner(
+                        module,
+                        profile,
+                        original_right,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
+                    );
+                    if right == original_right {
+                        type_id
+                    } else {
+                        let normalized = Type::Unary { operator, right };
+                        types.insert_type_from_any(normalized, source_id)
+                    }
                 }
-            }
+            },
             Type::Binary {
                 left,
                 operator,
@@ -705,10 +604,105 @@ impl Compiler {
             Type::TypeLiteral { .. } | Type::InferVar { .. } | Type::This | Type::Error => type_id,
         };
 
+        // release the recursion guard for this type
         visited.pop();
         // cache the normalized result for reuse
         types.set_normalized_type(mode, type_id, normalized_id);
         normalized_id
+    }
+
+    /// Normalize type alias references with static arguments.
+    fn normalize_type_alias_reference_with_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        arguments: &[StaticArgument],
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: NormalizationMode,
+        visited: &mut Vec<LocalTypeId>,
+    ) -> Option<LocalTypeId> {
+        // fetch the alias instance type
+        let instance_type_id = types.get_instance_type_id(symbol)?;
+
+        // prefer resolved instance arguments when available
+        let mut resolved_arguments = self
+            .resolved_static_arguments_for_reference(module, source_id, types)
+            .unwrap_or_default();
+
+        // resolve arguments on demand when instances are not registered yet
+        if resolved_arguments.is_empty() {
+            let tree = module.dir(profile).tree.read();
+            let options = self.analyze_context_options_for_module(module.id);
+            match self.resolve_type_reference_static_arguments(
+                module,
+                profile,
+                source_id,
+                symbol,
+                Some(arguments),
+                &options,
+                &tree,
+                symbols,
+                types,
+            ) {
+                Ok(Some(arguments)) => {
+                    resolved_arguments = arguments;
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    self.error(error);
+                }
+            }
+        }
+        if resolved_arguments.is_empty() {
+            return Some(self.normalize_type_inner(
+                module,
+                profile,
+                instance_type_id,
+                symbols,
+                types,
+                mode,
+                visited,
+            ));
+        }
+
+        // build type parameter substitutions
+        let tree = module.dir(profile).tree.read();
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            symbol,
+            &resolved_arguments,
+            &tree,
+            symbols,
+            types,
+        );
+        if substitutions.is_empty() {
+            return Some(instance_type_id);
+        }
+
+        // substitute parameters inside the instance type
+        let mut cache = HashMap::new();
+        let substituted =
+            self.substitute_static_parameters(instance_type_id, &substitutions, types, &mut cache);
+
+        // normalize the substituted shape
+        Some(self.normalize_type_inner(module, profile, substituted, symbols, types, mode, visited))
+    }
+
+    /// Resolve static arguments from registered instances.
+    fn resolved_static_arguments_for_reference(
+        &self,
+        module: &Module,
+        source_id: LocalNodeIdAny,
+        types: &TypeTable,
+    ) -> Option<Vec<StaticArgument>> {
+        // return resolved instance arguments when available
+        let instance_id = types.get_instance_for_node(source_id.into_global(module.id))?;
+        let instance = types.get_instance(instance_id);
+        Some(instance.static_arguments.clone())
     }
 
     /// Normalize union types by flattening and collapsing special cases.
@@ -723,6 +717,7 @@ impl Compiler {
         mode: NormalizationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // prepare union element collection
         let mut flattened = Vec::new();
 
         // normalize and collect union elements
@@ -736,7 +731,23 @@ impl Compiler {
                 mode,
                 visited,
             );
-            append_union_elements(normalized, &mut flattened, types);
+            // flatten nested unions
+            match types.get_type(normalized) {
+                Type::Union { elements: union } => {
+                    // keep elements unique
+                    for element_id in union {
+                        if !flattened.contains(element_id) {
+                            flattened.push(*element_id);
+                        }
+                    }
+                }
+                _ => {
+                    // keep elements unique
+                    if !flattened.contains(&normalized) {
+                        flattened.push(normalized);
+                    }
+                }
+            }
         }
 
         // collapse any or unknown and remove never
@@ -805,6 +816,7 @@ impl Compiler {
         mode: NormalizationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // prepare intersection element collection
         let mut flattened = Vec::new();
 
         // normalize and collect intersection elements
@@ -818,7 +830,25 @@ impl Compiler {
                 mode,
                 visited,
             );
-            self.append_intersection_elements(normalized, &mut flattened, types);
+            // flatten nested intersections
+            match types.get_type(normalized) {
+                Type::Intersection {
+                    elements: intersection,
+                } => {
+                    // keep elements unique
+                    for element_id in intersection {
+                        if !flattened.contains(element_id) {
+                            flattened.push(*element_id);
+                        }
+                    }
+                }
+                _ => {
+                    // keep elements unique
+                    if !flattened.contains(&normalized) {
+                        flattened.push(normalized);
+                    }
+                }
+            }
         }
 
         // collapse any or unknown and handle never
@@ -850,6 +880,7 @@ impl Compiler {
             return any_type;
         }
 
+        // fall back to unknown when the intersection collapses
         if filtered.is_empty() {
             return unknown_type.unwrap_or_else(|| {
                 types.insert_type_from_any(
@@ -876,30 +907,31 @@ impl Compiler {
     }
 
     /// Unwrap structural type aliases using cached instance types.
-    fn unwrap_normalization_alias_reference(
+    pub(super) fn unwrap_normalization_alias_reference(
         &self,
         type_id: LocalTypeId,
         types: &TypeTable,
     ) -> LocalTypeId {
-        // walk alias references until we reach a concrete type
+        // track alias chains as we walk
         let mut current_id = type_id;
+        // record visited symbols to avoid cycles
         let mut visited = Vec::new();
         loop {
-            // stop when the current type is not a reference
+            // exit when the current type is not a reference
             let Type::Reference { symbol, .. } = types.get_type(current_id) else {
                 break;
             };
-            // stop when this is not a type alias
+            // exit when this is not a type alias
             if symbol.ty() != SymbolType::TypeAlias {
                 break;
             }
-            // stop on alias cycles
+            // exit on alias cycles
             if visited.contains(symbol) {
                 break;
             }
             visited.push(*symbol);
 
-            // stop when the alias has no instance type yet
+            // exit when the alias has no instance type yet
             let Some(instance_id) = types.get_instance_type_id(*symbol) else {
                 break;
             };
@@ -907,34 +939,6 @@ impl Compiler {
         }
 
         current_id
-    }
-
-    /// Append intersection elements from a type id.
-    fn append_intersection_elements(
-        &self,
-        type_id: LocalTypeId,
-        elements: &mut Vec<LocalTypeId>,
-        types: &TypeTable,
-    ) {
-        // flatten nested intersections
-        match types.get_type(type_id) {
-            Type::Intersection {
-                elements: intersection,
-            } => {
-                // keep elements unique
-                for element_id in intersection {
-                    if !elements.contains(element_id) {
-                        elements.push(*element_id);
-                    }
-                }
-            }
-            _ => {
-                // keep elements unique
-                if !elements.contains(&type_id) {
-                    elements.push(type_id);
-                }
-            }
-        }
     }
 
     /// Normalize a list of type ids, updating the change flag.
@@ -960,26 +964,5 @@ impl Compiler {
             normalized.push(normalized_id);
         }
         normalized
-    }
-}
-
-/// Append union elements for a type id to a list.
-fn append_union_elements(type_id: LocalTypeId, elements: &mut Vec<LocalTypeId>, types: &TypeTable) {
-    // flatten nested unions
-    match types.get_type(type_id) {
-        Type::Union { elements: union } => {
-            // keep elements unique
-            for element_id in union {
-                if !elements.contains(element_id) {
-                    elements.push(*element_id);
-                }
-            }
-        }
-        _ => {
-            // keep elements unique
-            if !elements.contains(&type_id) {
-                elements.push(type_id);
-            }
-        }
     }
 }
