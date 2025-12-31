@@ -65,9 +65,18 @@ pub const TREE_OPENING_TOKEN_TYPES: [TokenType; 9] = [
     TokenType::Maybe,           // {condition ? <div/> : null}
 ];
 
+/// Check if a token is semantic (not whitespace or comment).
+/// Optimized for fast inline checking.
 #[inline]
 pub fn is_semantic(token_type: TokenType) -> bool {
-    !TRIVIA_TOKEN_TYPES.contains(&token_type)
+    !matches!(
+        token_type,
+        TokenType::Whitespace
+            | TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment
+    )
 }
 
 impl Lexer<'_> {
