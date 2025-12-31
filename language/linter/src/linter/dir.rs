@@ -123,6 +123,18 @@ impl<'a> LintModuleDirContext<'a> {
         self.module.id
     }
 
+    /// Resolve the inferred type id for a DIR expression.
+    pub fn expression_type_id(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::LocalTypeId> {
+        // build a global id for the expression
+        let global_id = dir::GlobalNodeIdAny::new(self.module.id, expression_id.into_any());
+
+        // fetch the inferred type id from the module type table
+        self.types.get_inferred_type_id(global_id)
+    }
+
     /// Resolve severity for a rule.
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
         self.options
