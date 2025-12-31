@@ -3,7 +3,7 @@ use destack_dir::{
     DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachBinding,
     ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind,
     MatchSource, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolTable, SymbolType, TypeMappedParameterExpression, TypePredicateSubject, TypeTable,
+    SymbolTable, SymbolType, Type, TypeMappedParameterExpression, TypePredicateSubject, TypeTable,
     YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
@@ -1838,17 +1838,8 @@ impl Compiler {
             )
         });
         // set declared type on declarator if type annotation is present
-        if let Some(ty_id) = ty {
-            let declared_ty = self.bind_expression_to_type(
-                module,
-                ast,
-                scope,
-                *ty_id,
-                Some(declarator_id),
-                tree,
-                symbols,
-                types,
-            );
+        if let Some(ty_id) = bound_ty {
+            let declared_ty = types.insert_type_from(Type::Unevaluated(ty_id), ty_id);
             types.set_declared_type(declarator_id.into_global(module.id), declared_ty);
         }
         let declarator = Declarator {

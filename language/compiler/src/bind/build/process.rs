@@ -46,6 +46,12 @@ impl Compiler {
             self.attach_annotations(&module, ast, scope, &mut tree, &mut symbols, &mut types);
         }
 
+        // mark global augmentations (for declaration merging)
+        {
+            let module = module.read();
+            self.mark_global_augmentation_symbols(&module);
+        }
+
         // bind module exports
         {
             let mut module = module.write();

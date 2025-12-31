@@ -9,7 +9,7 @@ import { intrinsic } from "../intrinsic/decorator.ds";
 newtype TypeId = string;;
 
 /// Common interface implemented by all type descriptor variants.
-newtype interface TypeBase<T> {
+interface TypeBase<T> {
     /// The name of this type (e.g., "User", "int", "string[]").
     readonly name: string,
 
@@ -40,11 +40,13 @@ type PrimitiveKind = "string"
     | "int32"
     | "int64"
     | "int128"
+    | "isize"
     | "uint8"
     | "uint16"
     | "uint32"
     | "uint64"
     | "uint128"
+    | "usize"
     | "float32"
     | "float64"
     | "bigint";
@@ -237,25 +239,9 @@ struct RefinedType<T> implements TypeBase<T> {
 /// A type descriptor.
 /// Type is the union of all possible type variants.
 /// 
-/// This is the primary type for working with runtime type information.
+/// This is the primary type for working with type reflection.
 /// All variants implement `TypeBase<T>`, so common operations like
 /// `.name`, `.id`, `.is()`, and `.validate()` work on any `Type<T>`.
-/// 
-/// # Example
-/// 
-/// ```
-/// struct User { name: string, age: int }
-/// 
-/// // Type<User> is actually StructType<User>
-/// match (User) {
-///     StructType { properties } => {
-///         for (const prop of properties) {
-///             print(`${prop.name}: ${prop.type.name}`);
-///         }
-///     }
-///     _ => {}
-/// }
-/// ```
 newtype Type<T> = PrimitiveType<T>
     | StructType<T>
     | ClassType<T>
@@ -274,12 +260,5 @@ newtype Type<T> = PrimitiveType<T>
 /// 
 /// Unlike JavaScript's `typeof` (which returns a coarse string like "object"),
 /// this returns the full `Type<T>` descriptor.
-/// 
-/// ```
-/// const user = User { name: "Alice", age: 30 };
-/// const t = typeOf(user);  // Type<User>
-/// t.name                   // "User"
-/// t.kind                   // "struct"
-/// ```
 @intrinsic
 declare function typeOf<T>(value: T): Type<T>;

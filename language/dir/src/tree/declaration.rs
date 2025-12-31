@@ -189,6 +189,21 @@ impl Declaration {
             Declaration::Extension { scope, .. } => Some(*scope),
         }
     }
+
+    /// Get the member ids for structured declarations.
+    pub fn member_ids(&self) -> Option<&[LocalNodeId<Member>]> {
+        match self {
+            Declaration::Struct { members, .. }
+            | Declaration::Class { members, .. }
+            | Declaration::Enum { members, .. }
+            | Declaration::Interface { members, .. }
+            | Declaration::Extension { members, .. } => Some(members),
+            Declaration::Global { .. }
+            | Declaration::Namespace { .. }
+            | Declaration::Type { .. }
+            | Declaration::Function { .. } => None,
+        }
+    }
 }
 
 /// The kind of an enum declaration.

@@ -56,6 +56,18 @@ impl LanguageType {
             Self::Destack | Self::DestackDeclaration | Self::JavaScriptXml | Self::TypeScriptXml
         )
     }
+
+    /// Whether this language type supports declaration merging.
+    #[inline]
+    pub fn supports_declaration_merging(&self) -> bool {
+        matches!(
+            self,
+            Self::DestackDeclaration
+                | Self::TypeScript
+                | Self::TypeScriptDeclaration
+                | Self::TypeScriptXml
+        )
+    }
 }
 
 impl From<FileType> for LanguageType {

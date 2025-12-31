@@ -1,7 +1,7 @@
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalNodeIdAny, GlobalSymbolId, Instance, LocalInstanceId, LocalNodeId,
-    LocalTypeId, NodeTree, NodeType, StaticArgument, SymbolTable, SymbolType, Type, TypeTable,
+    LocalTypeId, NodeTree, NodeType, StaticArgument, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -32,16 +32,14 @@ impl Compiler {
         let options = self.analyze_context_options_for_module(module.id);
         for id in 0..type_count {
             let ty_id = LocalTypeId::new(id);
-            let ty = types.get_type(ty_id).clone();
-            let Type::Reference {
-                symbol,
-                static_arguments,
-            } = ty
+
+            // skip non reference types
+            let Some((symbol, static_arguments, source_id)) = self.unwrap_type_symbol(types, ty_id)
             else {
                 continue;
             };
 
-            let source_id = types.get_type_source(ty_id);
+            // skip non expression types
             if source_id.id == u32::MAX || source_id.ty != NodeType::Expression {
                 continue;
             }

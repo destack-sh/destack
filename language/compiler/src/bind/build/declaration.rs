@@ -48,7 +48,7 @@ impl Compiler {
     /// Bind AST declaration descriptor into DIR declaration descriptor (including symbol and scope).
     pub(super) fn bind_declaration_descriptor(
         &self,
-        _module: &Module,
+        module: &Module,
         ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         descriptor: &ast::DeclarationDescriptor,
@@ -74,28 +74,73 @@ impl Compiler {
             | SymbolType::Extension => SymbolSpace::TypeValue,
             SymbolType::Void => SymbolSpace::Value,
         };
-        let binding = match descriptor.kind {
-            ast::DeclarationKind::Declaration => SymbolBinding::Ambient,
-            ast::DeclarationKind::Definition => SymbolBinding::Runtime,
+
+        // declaration kind is always a declaration in declaration files
+        let mut declaration_kind = self.bind_declaration_kind(descriptor.kind);
+        if module.language_type.is_declaration() {
+            declaration_kind = DeclarationKind::Declaration;
+        }
+
+        // map the declaration kind into a binding mode
+        let binding = match declaration_kind {
+            DeclarationKind::Declaration => SymbolBinding::Ambient,
+            DeclarationKind::Definition => SymbolBinding::Runtime,
         };
-        let (symbol_id, scope_id) = {
-            let (symbol_id, _) = symbols.insert_symbol(
-                kind,
-                symbol_type,
-                space,
-                binding,
-                name.map(StaticKey::Name),
-                scope,
-                export,
-            );
-            let scope_id = symbols.insert_scope(ScopeKind::Namespace, Some(scope), Some(symbol_id));
-            (symbol_id, scope_id)
+        let key = name.map(StaticKey::Name);
+
+        // check for mergeable symbols in the current scope
+        let (merge_symbol, merge_group) = key
+            .map(|key| {
+                self.select_merge_candidate(
+                    module,
+                    scope,
+                    key,
+                    kind,
+                    symbol_type,
+                    binding,
+                    space,
+                    symbols,
+                )
+            })
+            .unwrap_or((None, None));
+
+        // bind or reuse a symbol id
+        let symbol_id = if let Some(existing_id) = merge_symbol {
+            if let Some(export) = export
+                && symbols.get_symbol(existing_id).export.is_none()
+            {
+                symbols.get_symbol_mut(existing_id).export = Some(export);
+            }
+            existing_id
+        } else {
+            let (symbol_id, _) =
+                symbols.insert_symbol(kind, symbol_type, space, binding, key, scope, export);
+            symbol_id
         };
-        let kind = self.bind_declaration_kind(descriptor.kind);
+
+        // select a declaration scope
+        let reuse_scope = merge_symbol.is_some() && kind == SymbolKind::Namespace;
+
+        // reuse the existing scope for namespace merges
+        let scope_id = if reuse_scope {
+            symbols.get_symbol(symbol_id).scope.0
+        }
+        // create a fresh scope for this declaration
+        else {
+            let scope_kind = ScopeKind::Namespace;
+            symbols.insert_scope(scope_kind, Some(scope), Some(symbol_id))
+        };
+
+        // attach the new symbol to a merge group if needed
+        if let Some(group_id) = merge_group
+            && symbols.get_symbol(symbol_id).merge_group != Some(group_id)
+        {
+            symbols.add_to_merge_group(group_id, symbol_id);
+        }
         let abstraction = self.bind_declaration_abstraction(descriptor.abstraction);
         let anchor = self.bind_binding_anchor(descriptor.anchor);
         let descriptor = DeclarationDescriptor {
-            kind,
+            kind: declaration_kind,
             abstraction,
             anchor,
             name,
@@ -108,7 +153,7 @@ impl Compiler {
     /// Bind AST declaration descriptor for a global augmentation.
     pub(super) fn bind_global_descriptor(
         &self,
-        _module: &Module,
+        module: &Module,
         _ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
         descriptor: &ast::DeclarationDescriptor,
@@ -117,9 +162,17 @@ impl Compiler {
         let export = descriptor
             .export
             .map(|export| self.bind_dependency_mode(export));
-        let binding = match descriptor.kind {
-            ast::DeclarationKind::Declaration => SymbolBinding::Ambient,
-            ast::DeclarationKind::Definition => SymbolBinding::Runtime,
+
+        // declare bindings are implicit in declaration files
+        let mut declaration_kind = self.bind_declaration_kind(descriptor.kind);
+        if module.language_type.is_declaration() {
+            declaration_kind = DeclarationKind::Declaration;
+        }
+
+        // map the declaration kind into a binding mode
+        let binding = match declaration_kind {
+            DeclarationKind::Declaration => SymbolBinding::Ambient,
+            DeclarationKind::Definition => SymbolBinding::Runtime,
         };
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolKind::Item,
@@ -130,9 +183,10 @@ impl Compiler {
             scope,
             export,
         );
-        let kind = self.bind_declaration_kind(descriptor.kind);
+        let kind = declaration_kind;
         let abstraction = self.bind_declaration_abstraction(descriptor.abstraction);
         let anchor = self.bind_binding_anchor(descriptor.anchor);
+
         DeclarationDescriptor {
             kind,
             abstraction,
@@ -200,7 +254,7 @@ impl Compiler {
                     ast,
                     scope,
                     descriptor,
-                    SymbolKind::Item,
+                    SymbolKind::Namespace,
                     SymbolType::Void,
                     symbols,
                 );
@@ -666,9 +720,13 @@ impl Compiler {
         };
         let symbol_id = declaration.symbol();
         let declaration_id = tree.insert(declaration_id, declaration);
-        symbols
-            .get_symbol_mut(symbol_id)
-            .declare_primary(declaration_id);
+        // attach the declaration to the symbol
+        let symbol_entry = symbols.get_symbol_mut(symbol_id);
+        if symbol_entry.primary_declaration.is_some() {
+            symbol_entry.declare_secondary(declaration_id);
+        } else {
+            symbol_entry.declare_primary(declaration_id);
+        }
         declaration_id
     }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::merge::InferredShape;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     BindingKind, Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem,
@@ -14,10 +15,14 @@ use destack_workspace::Module;
 /// Inferred type contributions from a member declaration.
 #[derive(Debug, Default)]
 pub(super) struct InferredMember {
-    field: Option<TypeField>,
-    call_signatures: Vec<LocalTypeId>,
-    construct_signatures: Vec<LocalTypeId>,
-    index_signatures: Vec<TypeIndexSignature>,
+    /// Field contribution from a member declaration.
+    pub(super) field: Option<TypeField>,
+    /// Call signatures contributed by the member.
+    pub(super) call_signatures: Vec<LocalTypeId>,
+    /// Construct signatures contributed by the member.
+    pub(super) construct_signatures: Vec<LocalTypeId>,
+    /// Index signatures contributed by the member.
+    pub(super) index_signatures: Vec<TypeIndexSignature>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -136,6 +141,13 @@ impl Compiler {
                 scope: _,
                 members,
             } => {
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
@@ -150,31 +162,33 @@ impl Compiler {
                     ctx,
                 )?;
 
-                // type fields
-                let mut fields = Vec::new();
-                let mut call_signatures = Vec::new();
-                let mut construct_signatures = Vec::new();
-                let mut index_signatures = Vec::new();
-                for member_id in members {
-                    let inferred = self
-                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
-                    if let Some(field) = inferred.field {
-                        fields.push(field);
-                    }
-                    call_signatures.extend(inferred.call_signatures);
-                    construct_signatures.extend(inferred.construct_signatures);
-                    index_signatures.extend(inferred.index_signatures);
-                }
+                // collect instance member shape
+                let shape = self.collect_member_shape(
+                    module, members, tree, symbols, types, infer, ctx, None,
+                )?;
 
-                // struct instance type: object type with fields
-                let instance_ty = Type::Object {
-                    fields,
-                    call_signatures,
-                    construct_signatures,
-                    index_signatures,
-                };
-                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+                // merge instance type across declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        ctx.profile,
+                    )?;
+                }
 
                 // struct nominal type: reference type
                 let nominal_ty = Type::Reference {
@@ -199,6 +213,13 @@ impl Compiler {
                 scope: _,
                 members,
             } => {
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
@@ -217,32 +238,33 @@ impl Compiler {
                 let is_abstract = descriptor.abstraction == DeclarationAbstraction::Abstract;
                 let mut ctx = ctx.fork().in_abstract_class_maybe(is_abstract);
 
-                // type fields
-                let mut fields = Vec::new();
-                let mut call_signatures = Vec::new();
-                let mut construct_signatures = Vec::new();
-                let mut index_signatures = Vec::new();
-                for member_id in members {
-                    let inferred = self.infer_member(
-                        module, *member_id, tree, symbols, types, infer, &mut ctx, None,
-                    )?;
-                    if let Some(field) = inferred.field {
-                        fields.push(field);
-                    }
-                    call_signatures.extend(inferred.call_signatures);
-                    construct_signatures.extend(inferred.construct_signatures);
-                    index_signatures.extend(inferred.index_signatures);
-                }
+                // collect instance member shape
+                let shape = self.collect_member_shape(
+                    module, members, tree, symbols, types, infer, &mut ctx, None,
+                )?;
 
-                // class instance type: object type with fields
-                let instance_ty = Type::Object {
-                    fields,
-                    call_signatures,
-                    construct_signatures,
-                    index_signatures,
-                };
-                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+                // merge instance type across declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        ctx.profile,
+                    )?;
+                }
 
                 // class nominal type: reference type
                 let nominal_ty = Type::Reference {
@@ -269,6 +291,10 @@ impl Compiler {
                 fields,
                 members,
             } => {
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
@@ -282,6 +308,7 @@ impl Compiler {
                     infer,
                     ctx,
                 )?;
+
                 // enum instance type: nominal enum value
                 let enum_symbol = descriptor.symbol.into_global(module.id);
                 let instance_ty = Type::Reference {
@@ -312,9 +339,19 @@ impl Compiler {
                     self.infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
                 }
 
-                // enum value type: object with variant fields
+                // merge enum fields with any existing enum value type
+                let mut merged_fields = Vec::new();
+                if allow_merge
+                    && let Some(existing_id) = types.get_value_type_id(enum_symbol)
+                    && let Type::Object { fields, .. } = types.get_type(existing_id)
+                {
+                    merged_fields.extend_from_slice(fields);
+                }
+                merged_fields.extend(value_fields);
+
+                // enum value type: object with merged fields
                 let value_ty = Type::Object {
-                    fields: value_fields,
+                    fields: merged_fields,
                     call_signatures: Vec::new(),
                     construct_signatures: Vec::new(),
                     index_signatures: Vec::new(),
@@ -411,6 +448,13 @@ impl Compiler {
                 scope: _,
                 members,
             } => {
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
                 // walk
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_heritage(
@@ -425,31 +469,33 @@ impl Compiler {
                     ctx,
                 )?;
 
-                // collect type fields from members
-                let mut fields = Vec::new();
-                let mut call_signatures = Vec::new();
-                let mut construct_signatures = Vec::new();
-                let mut index_signatures = Vec::new();
-                for member_id in members {
-                    let inferred = self
-                        .infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
-                    if let Some(field) = inferred.field {
-                        fields.push(field);
-                    }
-                    call_signatures.extend(inferred.call_signatures);
-                    construct_signatures.extend(inferred.construct_signatures);
-                    index_signatures.extend(inferred.index_signatures);
-                }
+                // collect instance member shape
+                let shape = self.collect_member_shape(
+                    module, members, tree, symbols, types, infer, ctx, None,
+                )?;
 
-                // interface instance type: object type with fields
-                let instance_ty = Type::Object {
-                    fields,
-                    call_signatures,
-                    construct_signatures,
-                    index_signatures,
-                };
-                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                types.set_instance_type(descriptor.symbol.into_global(module.id), instance_ty_id);
+                // merge instance type across declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        ctx.profile,
+                    )?;
+                }
 
                 // interface nominal type: reference type
                 let nominal_ty = Type::Reference {
@@ -473,6 +519,11 @@ impl Compiler {
                 scope: _,
                 body,
             } => {
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+
+                // infer the function signature
                 let fn_ty_id = self.infer_signature(
                     module,
                     declaration_id.into_any(),
@@ -485,10 +536,32 @@ impl Compiler {
                     infer,
                     ctx,
                 )?;
-                // register the function type as the value_type for the function's symbol #Suspicious
-                types.set_value_type(descriptor.symbol.into_global(module.id), fn_ty_id);
+
+                // merge the function signature into callable instance shape
+                let mut shape = InferredShape::default();
+                shape.push_call_signature(fn_ty_id);
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge the function value type and overload signatures
+                self.merge_function_value_type(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    fn_ty_id,
+                    types,
+                    allow_merge,
+                );
 
                 if let Some(body) = body {
+                    // prepare return type tracking for the body
                     let return_type = self.function_return_type(fn_ty_id, types);
                     let ctx = ctx
                         .reset()
@@ -604,12 +677,7 @@ impl Compiler {
                 }
 
                 // extract the static key from the dynamic key
-                let static_key = key.and_then(|k| match k {
-                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-                    // dynamic keys can't be used for static type inference (?)
-                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-                });
+                let static_key = key.and_then(|key| key.as_static_key());
 
                 // evaluate the field type
                 let value_ty_id = if let Some(value) = value {
@@ -669,11 +737,7 @@ impl Compiler {
                 }
 
                 // extract the static key from the dynamic key
-                let static_key = key.and_then(|k| match k {
-                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-                });
+                let static_key = key.and_then(|key| key.as_static_key());
 
                 // signature
                 let method_ty_id = self.infer_signature(
@@ -1256,12 +1320,29 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         let options = ctx.options;
         let declarator = tree.get(declarator_id);
-        let Declarator { pattern, ty, value } = declarator;
+        let Declarator {
+            pattern,
+            ty: _,
+            value,
+        } = declarator;
 
         // infer type from value or annotation
         // declared type is now on the declarator node, not the let expression
         let declared_ty_id =
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
+
+        // evaluate and prepare declared types before inference
+        if let Some(declared_ty_id) = declared_ty_id {
+            self.evaluate_type(module, declared_ty_id, tree, symbols, types)?;
+            self.ensure_reference_instance_types_for_type(
+                module,
+                ctx.profile,
+                declarator_id.into_any(),
+                declared_ty_id,
+                types,
+            )?;
+        }
+
         let inferred_ty_id = if let Some(value) = value {
             // apply declared type as the expected type when available
             let mut value_ctx = if let Some(declared_ty_id) = declared_ty_id {
@@ -1300,11 +1381,6 @@ impl Compiler {
                     actual_ty: inferred.into_global(module.id),
                 });
             }
-        }
-
-        // analyze the type expression if present
-        if let Some(ty_id) = ty {
-            let _ = self.try_evaluate_expression_to_type(module, *ty_id, tree, symbols, types)?;
         }
 
         // infer pattern bindings from declared or inferred type

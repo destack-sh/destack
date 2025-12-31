@@ -1,18 +1,523 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible};
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
+use crate::{
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
+};
 use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
-    LocalNodeId, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticProperty, SymbolType, Type, TypeBinaryOperator, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, StaticProperty, SymbolType, Type,
+    TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::{Module, ProfileId};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Unwrap `type` operator annotations to reach the underlying reference.
+    pub(super) fn unwrap_type_symbol(
+        &self,
+        types: &TypeTable,
+        ty_id: LocalTypeId,
+    ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>, LocalNodeIdAny)> {
+        let ty = types.get_type(ty_id);
+
+        // unwrap type operator annotations to reach the underlying reference
+        let (symbol, static_arguments) = match ty {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => (*symbol, static_arguments.clone()),
+            Type::Unary {
+                operator: TypeUnaryOperator::Type,
+                right,
+            } => {
+                let right_ty = types.get_type(*right);
+                let Type::Reference {
+                    symbol,
+                    static_arguments,
+                } = right_ty
+                else {
+                    return None;
+                };
+                (*symbol, static_arguments.clone())
+            }
+            _ => return None,
+        };
+
+        // keep the outer type source id for node registration
+        Some((symbol, static_arguments, types.get_type_source(ty_id)))
+    }
+
+    /// Ensure instance types for any reference types inside a type.
+    pub(super) fn ensure_reference_instance_types_for_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        let mut visited = HashSet::new();
+        self.ensure_reference_instance_types_for_type_inner(
+            module,
+            profile,
+            node_id,
+            ty_id,
+            types,
+            &mut visited,
+        )
+    }
+
+    /// Ensure instance types for any reference types inside a type.
+    fn ensure_reference_instance_types_for_type_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        ty_id: LocalTypeId,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> AnalyzeResult<()> {
+        // skip types we have already visited
+        if !visited.insert(ty_id) {
+            return Ok(());
+        }
+
+        // clone to avoid holding a borrow across recursion
+        let ty = types.get_type(ty_id).clone();
+
+        // ensure reference symbols have instance types
+        if let Type::Reference { symbol, .. } = ty {
+            let _ =
+                self.resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?;
+            return Ok(());
+        }
+
+        // walk nested types based on structure
+        match ty {
+            Type::Value { value } => self.ensure_reference_instance_types_for_type_inner(
+                module, profile, node_id, value, types, visited,
+            ),
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, left, types, visited,
+                )?;
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, right, types, visited,
+                )?;
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, then_type, types, visited,
+                )?;
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, else_type, types, visited,
+                )?;
+                Ok(())
+            }
+            Type::Mapped {
+                parameter, value, ..
+            } => {
+                self.ensure_reference_instance_types_for_type_inner(
+                    module,
+                    profile,
+                    node_id,
+                    parameter.constraint,
+                    types,
+                    visited,
+                )?;
+
+                if let Some(key_remap) = parameter.key_remap {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, key_remap, types, visited,
+                    )?;
+                }
+
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, value, types, visited,
+                )
+            }
+            Type::Index { left, index } => {
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, left, types, visited,
+                )?;
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, index, types, visited,
+                )
+            }
+            Type::TemplateLiteral { spans, .. } => {
+                for span in spans {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, span, types, visited,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::Infer { constraint, .. } => {
+                if let Some(constraint) = constraint {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, constraint, types, visited,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::Predicate { target, .. } => {
+                if let Some(target) = target {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, target, types, visited,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::Unary { right, .. }
+            | Type::Mutable { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => self.ensure_reference_instance_types_for_type_inner(
+                module, profile, node_id, right, types, visited,
+            ),
+            Type::Binary { left, right, .. } => {
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, left, types, visited,
+                )?;
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, right, types, visited,
+                )
+            }
+            Type::ArraySized { element, .. } => self
+                .ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, element, types, visited,
+                ),
+            Type::Array { element } => {
+                if let Some(element) = element {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, element, types, visited,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::Tuple { elements } => {
+                for element in elements {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, element.ty, types, visited,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                for field in fields {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, field.ty, types, visited,
+                    )?;
+                }
+
+                for signature in call_signatures {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, signature, types, visited,
+                    )?;
+                }
+
+                for signature in construct_signatures {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, signature, types, visited,
+                    )?;
+                }
+
+                for signature in index_signatures {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module,
+                        profile,
+                        node_id,
+                        signature.key_type,
+                        types,
+                        visited,
+                    )?;
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module,
+                        profile,
+                        node_id,
+                        signature.value_type,
+                        types,
+                        visited,
+                    )?;
+                }
+
+                Ok(())
+            }
+            Type::Function {
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                for parameter in static_parameters {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, parameter, types, visited,
+                    )?;
+                }
+
+                if let Some(this_parameter) = this_parameter {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module,
+                        profile,
+                        node_id,
+                        this_parameter,
+                        types,
+                        visited,
+                    )?;
+                }
+
+                for parameter in dynamic_parameters {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, parameter, types, visited,
+                    )?;
+                }
+
+                if let Some(return_type) = return_type {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module,
+                        profile,
+                        node_id,
+                        return_type,
+                        types,
+                        visited,
+                    )?;
+                }
+
+                Ok(())
+            }
+            Type::Union { elements } | Type::Intersection { elements } => {
+                for element in elements {
+                    self.ensure_reference_instance_types_for_type_inner(
+                        module, profile, node_id, element, types, visited,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::TypeLiteral { .. }
+            | Type::InferVar { .. }
+            | Type::This
+            | Type::Reference { .. }
+            | Type::Unevaluated(_)
+            | Type::Import { .. }
+            | Type::Error => Ok(()),
+        }
+    }
+
+    /// Resolve the instance type for a referenced symbol into the local type table.
+    pub(super) fn resolve_instance_type_id_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // load symbol metadata for merge group selection
+        let (symbol_type, symbol_key, symbol_space) = {
+            let symbol_module = self.program.modules.get(symbol.module_id);
+            let symbol_module = symbol_module.read();
+            let symbol_table = symbol_module.dir_base().symbols.read();
+            let symbol_entry = symbol_table.get_symbol(symbol.local_id);
+            (symbol_entry.ty, symbol_entry.key, symbol_entry.space)
+        };
+
+        // normalize the symbol id to the stored symbol type
+        let symbol = GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_type));
+
+        // skip symbols that cannot have instance types
+        if !self.is_instantiable_symbol(symbol) {
+            return Ok(None);
+        }
+
+        // ensure the defining module is analyzed before reading its types #RemoteAnalyze
+        if symbol.module_id != module.id {
+            self.require_analyze_module(symbol.module_id, profile)
+                .map_err(AnalyzeError::from)?;
+        }
+
+        // ensure the global symbol table is available for this module
+        self.require_resolve_module_prepare(module.id, profile)
+            .map_err(AnalyzeError::from)?;
+
+        // select the global merge group when the symbol participates
+        let mut group_symbols = Vec::new();
+        if let Some(key) = symbol_key
+            && let Some(group) = self.get_global_symbol_group(module.id, profile, key, symbol_space)
+        {
+            group_symbols = group;
+        }
+        if group_symbols.is_empty() {
+            group_symbols.push(symbol);
+        }
+
+        // normalize group symbols to the stored symbol types
+        let mut normalized_group_symbols = Vec::with_capacity(group_symbols.len());
+        for group_symbol in group_symbols {
+            let group_module = self.program.modules.get(group_symbol.module_id);
+            let group_module = group_module.read();
+            let group_symbol_table = group_module.dir_base().symbols.read();
+            let group_entry = group_symbol_table.get_symbol(group_symbol.local_id);
+            let normalized = GlobalSymbolId::new(
+                group_symbol.module_id,
+                group_symbol.local_id.with_type(group_entry.ty),
+            );
+            normalized_group_symbols.push(normalized);
+        }
+        let group_symbols = normalized_group_symbols;
+
+        // reuse cached instance types when no merge is needed
+        if group_symbols.len() == 1
+            && let Some(existing) = types.get_instance_type_id(symbol)
+        {
+            return Ok(Some(existing));
+        }
+
+        // reuse an already merged instance type when available
+        if group_symbols.len() > 1 {
+            let mut merged_id = None;
+            let mut all_match = true;
+            for group_symbol in &group_symbols {
+                let Some(group_instance_id) = types.get_instance_type_id(*group_symbol) else {
+                    all_match = false;
+                    break;
+                };
+                if let Some(existing) = merged_id {
+                    if existing != group_instance_id {
+                        all_match = false;
+                        break;
+                    }
+                } else {
+                    merged_id = Some(group_instance_id);
+                }
+            }
+
+            if all_match && let Some(merged_id) = merged_id {
+                return Ok(Some(merged_id));
+            }
+        }
+
+        // import instance types for each group symbol
+        let mut fields = Vec::new();
+        let mut call_signatures = Vec::new();
+        let mut construct_signatures = Vec::new();
+        let mut index_signatures = Vec::new();
+        let mut fallback_instance_id = None;
+
+        for group_symbol in group_symbols.iter().copied() {
+            // load the instance type for the group symbol
+            let local_instance_id = if let Some(existing) = types.get_instance_type_id(group_symbol)
+            {
+                existing
+            } else if group_symbol.module_id == module.id {
+                continue;
+            } else {
+                let Some(imported) =
+                    self.import_instance_type_for_symbol(profile, node_id, group_symbol, types)?
+                else {
+                    continue;
+                };
+                imported
+            };
+
+            if group_symbol == symbol {
+                fallback_instance_id = Some(local_instance_id);
+            }
+
+            // extract instance type members
+            let local_instance_ty = types.get_type(local_instance_id);
+            if let Type::Object {
+                fields: instance_fields,
+                call_signatures: instance_calls,
+                construct_signatures: instance_constructs,
+                index_signatures: instance_indexes,
+            } = local_instance_ty
+            {
+                fields.extend_from_slice(instance_fields);
+                call_signatures.extend_from_slice(instance_calls);
+                construct_signatures.extend_from_slice(instance_constructs);
+                index_signatures.extend_from_slice(instance_indexes);
+            }
+        }
+
+        // handle non mergeable instances and empty merges
+        if group_symbols.len() == 1
+            || (fields.is_empty()
+                && call_signatures.is_empty()
+                && construct_signatures.is_empty()
+                && index_signatures.is_empty())
+        {
+            if let Some(fallback_instance_id) = fallback_instance_id {
+                types.set_instance_type(symbol, fallback_instance_id);
+            }
+            return Ok(fallback_instance_id);
+        }
+
+        // create a merged instance type for all group symbols
+        let merged_ty = Type::Object {
+            fields,
+            call_signatures,
+            construct_signatures,
+            index_signatures,
+        };
+        let merged_id = types.insert_type_from_any(merged_ty, node_id);
+        for group_symbol in group_symbols {
+            types.set_instance_type(group_symbol, merged_id);
+        }
+
+        Ok(Some(merged_id))
+    }
+
+    /// Import a remote instance type into the local type table.
+    /// FUGU: infer remote module without requiring it be analyzed first? #RemoteAnalyze
+    fn import_instance_type_for_symbol(
+        &self,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // ensure the remote module is analyzed before reading its types
+        self.require_analyze_module(symbol.module_id, profile)
+            .map_err(|error| match error {
+                TaskDependencyError::NotReady { dependency } => AnalyzeError::Yield { dependency },
+                TaskDependencyError::Failed { dependency } => {
+                    AnalyzeError::UnsatisfiedDependency { dependency }
+                }
+            })?;
+
+        // load the remote instance type from its module
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_types = remote_module.dir(profile).types.read();
+        let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {
+            return Ok(None);
+        };
+
+        // import the remote instance type into the local table
+        let remote_instance_ty = remote_types.get_type(remote_instance_id);
+        let local_instance_id = self.import_type_from_remote_for_node(
+            node_id,
+            remote_instance_ty,
+            &remote_types,
+            symbol,
+            types,
+        );
+        Ok(Some(local_instance_id))
+    }
+
     /// Infer the result type of a scalar literal.
     /// Returns the literal type (e.g., `4` has type `4`), allowing assignability to check
     /// whether the literal fits the target type (int32, number, etc.).
@@ -445,7 +950,6 @@ impl Compiler {
     }
 
     /// Infer the result type of a type binary operation.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn infer_type_binary_operation(
         &self,
         module: &Module,
@@ -537,27 +1041,43 @@ impl Compiler {
     pub(super) fn infer_member_of_type(
         &self,
         module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_key: &StaticKey,
         types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
-    ) -> Option<LocalTypeId> {
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         match receiver_ty {
             // object type: look up field directly
-            Type::Object { fields, .. } => fields
+            Type::Object { fields, .. } => Ok(fields
                 .iter()
                 .find(|f| f.key.matches(member_key))
-                .map(|f| f.ty),
+                .map(|f| f.ty)),
 
             // value type: unwrap to the underlying type
             Type::Value { value } => {
                 let value_ty = types.get_type(*value).clone();
-                self.infer_member_of_type(module, &value_ty, member_key, types, visited)
+                self.infer_member_of_type(
+                    module, profile, node_id, &value_ty, member_key, types, visited,
+                )
             }
 
             // reference to a nominal type: look up in the declaration instance type and extensions
-            Type::Reference { symbol, .. } => {
-                self.infer_member_of_symbol(module, *symbol, member_key, types, visited)
+            Type::Reference { symbol, .. } => self.infer_member_of_symbol(
+                module, profile, node_id, *symbol, member_key, types, visited,
+            ),
+
+            // unary wrappers: unwrap before resolving members
+            Type::Unary { right, .. }
+            | Type::Mutable { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => {
+                let inner_ty = types.get_type(*right).clone();
+                self.infer_member_of_type(
+                    module, profile, node_id, &inner_ty, member_key, types, visited,
+                )
             }
 
             // union type: require all elements to have the field, return union of field types
@@ -566,29 +1086,35 @@ impl Compiler {
                 let mut field_types: Vec<LocalTypeId> = Vec::new();
                 for element_id in element_ids {
                     let element_ty = types.get_type(element_id).clone();
-                    if let Some(field_ty) =
-                        self.infer_member_of_type(module, &element_ty, member_key, types, visited)
-                    {
+                    if let Some(field_ty) = self.infer_member_of_type(
+                        module,
+                        profile,
+                        node_id,
+                        &element_ty,
+                        member_key,
+                        types,
+                        visited,
+                    )? {
                         field_types.push(field_ty);
                     } else {
-                        return None;
+                        return Ok(None);
                     }
                 }
                 // if all field types are the same, return that type
                 // otherwise, return a union of the field types
                 if field_types.is_empty() {
-                    None
+                    Ok(None)
                 } else if field_types.len() == 1 {
-                    Some(field_types[0])
+                    Ok(Some(field_types[0]))
                 } else {
                     // check if all types are identical
                     let first = field_types[0];
                     if field_types.iter().all(|&t| t == first) {
-                        Some(first)
+                        Ok(Some(first))
                     } else {
-                        Some(types.insert_type(Type::Union {
+                        Ok(Some(types.insert_type(Type::Union {
                             elements: field_types,
-                        }))
+                        })))
                     }
                 }
             }
@@ -598,16 +1124,22 @@ impl Compiler {
                 let element_ids = elements.clone();
                 for element_id in element_ids {
                     let element_ty = types.get_type(element_id).clone();
-                    if let Some(field_ty) =
-                        self.infer_member_of_type(module, &element_ty, member_key, types, visited)
-                    {
-                        return Some(field_ty);
+                    if let Some(field_ty) = self.infer_member_of_type(
+                        module,
+                        profile,
+                        node_id,
+                        &element_ty,
+                        member_key,
+                        types,
+                        visited,
+                    )? {
+                        return Ok(Some(field_ty));
                     }
                 }
-                None
+                Ok(None)
             }
 
-            _ => None,
+            _ => Ok(None),
         }
     }
 
@@ -633,6 +1165,16 @@ impl Compiler {
             Type::Reference { symbol, .. } => self.infer_index_signature_value_type_for_symbol(
                 module, *symbol, member_key, types, visited,
             ),
+            Type::Unary { right, .. }
+            | Type::Mutable { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => {
+                let inner_ty = types.get_type(*right).clone();
+                self.infer_index_signature_value_type_for_key(
+                    module, &inner_ty, member_key, types, visited,
+                )
+            }
             Type::Union { elements } => {
                 let mut value_types = Vec::new();
                 for element_id in elements.clone() {
@@ -678,25 +1220,31 @@ impl Compiler {
     fn infer_member_of_symbol(
         &self,
         module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
-    ) -> Option<LocalTypeId> {
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         // cycle detection: if we've already visited this symbol, stop
         // NOTE #Suspicious: should we really just return None for already visited symbol types?
         if visited.contains(&symbol) {
-            return None;
+            return Ok(None);
         }
         visited.push(symbol);
+
+        // ensure instance types are resolved for this symbol
+        let _ =
+            self.resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?;
 
         // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
             let ty = types.get_type(ty_id).clone();
-            if let Some(member_ty) =
-                self.infer_member_of_type(module, &ty, member_key, types, visited)
+            if let Some(member_ty) = self
+                .infer_member_of_type(module, profile, node_id, &ty, member_key, types, visited)?
             {
-                return Some(member_ty);
+                return Ok(Some(member_ty));
             }
         }
 
@@ -704,33 +1252,43 @@ impl Compiler {
         if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
             // check parent type (extends)
             if let Some(extends) = lineage.extends
-                && let Some(member_ty) =
-                    self.infer_member_of_symbol(module, extends, member_key, types, visited)
+                && let Some(member_ty) = self.infer_member_of_symbol(
+                    module, profile, node_id, extends, member_key, types, visited,
+                )?
             {
-                return Some(member_ty);
+                return Ok(Some(member_ty));
             }
 
             // check implemented interfaces
             for implements in &lineage.implements {
-                if let Some(member_ty) =
-                    self.infer_member_of_symbol(module, *implements, member_key, types, visited)
-                {
-                    return Some(member_ty);
+                if let Some(member_ty) = self.infer_member_of_symbol(
+                    module,
+                    profile,
+                    node_id,
+                    *implements,
+                    member_key,
+                    types,
+                    visited,
+                )? {
+                    return Ok(Some(member_ty));
                 }
             }
 
             // check embedded types
             for embedded in &lineage.embedded {
-                if let Some(member_ty) =
-                    self.infer_member_of_symbol(module, *embedded, member_key, types, visited)
-                {
-                    return Some(member_ty);
+                if let Some(member_ty) = self.infer_member_of_symbol(
+                    module, profile, node_id, *embedded, member_key, types, visited,
+                )? {
+                    return Ok(Some(member_ty));
                 }
             }
         }
 
         // step 3: check visible extensions
-        let extension_ids = types.get_extensions_for_target(symbol)?.clone();
+        let Some(extension_ids) = types.get_extensions_for_target(symbol) else {
+            return Ok(None);
+        };
+        let extension_ids = extension_ids.clone();
         for extension_id in extension_ids {
             let extension = types.get_extension(extension_id);
             if !self.is_extension_visible(module, extension) {
@@ -741,12 +1299,12 @@ impl Compiler {
                 if let Type::Object { fields, .. } = ty
                     && let Some(field) = fields.iter().find(|f| f.key.matches(member_key))
                 {
-                    return Some(field.ty);
+                    return Ok(Some(field.ty));
                 }
             }
         }
 
-        None
+        Ok(None)
     }
 
     /// Infer the index signature value type for a symbol.
@@ -763,6 +1321,7 @@ impl Compiler {
         }
         visited.push(symbol);
 
+        // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
             let ty = types.get_type(ty_id).clone();
             if let Some(value_ty) = self
@@ -772,6 +1331,7 @@ impl Compiler {
             }
         }
 
+        // step 2: traverse lineage (extends, implements, embedded)
         if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
             if let Some(extends) = lineage.extends
                 && let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
@@ -802,6 +1362,7 @@ impl Compiler {
             }
         }
 
+        // step 3: check visible extensions
         let extension_ids = types.get_extensions_for_target(symbol)?.clone();
         for extension_id in extension_ids {
             let extension = types.get_extension(extension_id);
@@ -885,8 +1446,8 @@ impl Compiler {
         // copy the type into our local TypeTable
         if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
             let remote_ty = remote_types.get_type(remote_ty_id);
-            let local_ty = self.import_type_from_remote(
-                expression_id,
+            let local_ty = self.import_type_from_remote_for_node(
+                expression_id.into_any(),
                 remote_ty,
                 &remote_types,
                 target_symbol,
@@ -906,9 +1467,9 @@ impl Compiler {
     /// Import a type from a remote module into the current module's TypeTable.
     /// For structural types (arrays, objects, ..): recursively copy the type structure.
     /// For nominal types (Type::Reference): keep them as references to the original symbol.
-    pub(super) fn import_type_from_remote(
+    pub(super) fn import_type_from_remote_for_node(
         &self,
-        expression_id: LocalNodeId<Expression>,
+        node_id: LocalNodeIdAny,
         remote_ty: &Type,
         remote_types: &TypeTable,
         target_symbol: GlobalSymbolId,
@@ -916,62 +1477,62 @@ impl Compiler {
     ) -> LocalTypeId {
         match remote_ty {
             // leaf types: copy directly
-            Type::TypeLiteral { value } => types.insert_type_from(
+            Type::TypeLiteral { value } => types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: value.clone(),
                 },
-                expression_id,
+                node_id,
             ),
-            Type::InferVar { .. } => types.insert_type_from(
+            Type::InferVar { .. } => types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
-                expression_id,
+                node_id,
             ),
-            Type::Error => types.insert_type_from(Type::Error, expression_id),
-            Type::This => types.insert_type_from(Type::This, expression_id),
+            Type::Error => types.insert_type_from_any(Type::Error, node_id),
+            Type::This => types.insert_type_from_any(Type::This, node_id),
             Type::Conditional {
                 left,
                 right,
                 then_type,
                 else_type,
             } => {
-                let local_left = self.import_type_from_remote(
-                    expression_id,
+                let local_left = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*left),
                     remote_types,
                     target_symbol,
                     types,
                 );
-                let local_right = self.import_type_from_remote(
-                    expression_id,
+                let local_right = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*right),
                     remote_types,
                     target_symbol,
                     types,
                 );
-                let local_then = self.import_type_from_remote(
-                    expression_id,
+                let local_then = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*then_type),
                     remote_types,
                     target_symbol,
                     types,
                 );
-                let local_else = self.import_type_from_remote(
-                    expression_id,
+                let local_else = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*else_type),
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Conditional {
                         left: local_left,
                         right: local_right,
                         then_type: local_then,
                         else_type: local_else,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::Mapped {
@@ -979,24 +1540,24 @@ impl Compiler {
                 modifiers,
                 value,
             } => {
-                let local_constraint = self.import_type_from_remote(
-                    expression_id,
+                let local_constraint = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(parameter.constraint),
                     remote_types,
                     target_symbol,
                     types,
                 );
                 let local_key_remap = parameter.key_remap.map(|key_remap| {
-                    self.import_type_from_remote(
-                        expression_id,
+                    self.import_type_from_remote_for_node(
+                        node_id,
                         remote_types.get_type(key_remap),
                         remote_types,
                         target_symbol,
                         types,
                     )
                 });
-                let local_value = self.import_type_from_remote(
-                    expression_id,
+                let local_value = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*value),
                     remote_types,
                     target_symbol,
@@ -1007,44 +1568,44 @@ impl Compiler {
                     constraint: local_constraint,
                     key_remap: local_key_remap,
                 };
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Mapped {
                         parameter,
                         modifiers: *modifiers,
                         value: local_value,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::Index { left, index } => {
-                let local_left = self.import_type_from_remote(
-                    expression_id,
+                let local_left = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*left),
                     remote_types,
                     target_symbol,
                     types,
                 );
-                let local_index = self.import_type_from_remote(
-                    expression_id,
+                let local_index = self.import_type_from_remote_for_node(
+                    node_id,
                     remote_types.get_type(*index),
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Index {
                         left: local_left,
                         index: local_index,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::TemplateLiteral { strings, spans } => {
                 let local_spans = spans
                     .iter()
                     .map(|span| {
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             remote_types.get_type(*span),
                             remote_types,
                             target_symbol,
@@ -1052,37 +1613,37 @@ impl Compiler {
                         )
                     })
                     .collect();
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::TemplateLiteral {
                         strings: strings.clone(),
                         spans: local_spans,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
-            Type::Import { target, qualifier } => types.insert_type_from(
+            Type::Import { target, qualifier } => types.insert_type_from_any(
                 Type::Import {
                     target: *target,
                     qualifier: qualifier.clone(),
                 },
-                expression_id,
+                node_id,
             ),
             Type::Infer { name, constraint } => {
                 let local_constraint = constraint.map(|constraint| {
-                    self.import_type_from_remote(
-                        expression_id,
+                    self.import_type_from_remote_for_node(
+                        node_id,
                         remote_types.get_type(constraint),
                         remote_types,
                         target_symbol,
                         types,
                     )
                 });
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Infer {
                         name: *name,
                         constraint: local_constraint,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::Predicate {
@@ -1091,44 +1652,44 @@ impl Compiler {
                 target,
             } => {
                 let local_target = target.map(|target| {
-                    self.import_type_from_remote(
-                        expression_id,
+                    self.import_type_from_remote_for_node(
+                        node_id,
                         remote_types.get_type(target),
                         remote_types,
                         target_symbol,
                         types,
                     )
                 });
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Predicate {
                         asserts: *asserts,
                         subject: *subject,
                         target: local_target,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
             // array types
             Type::Array { element: None } => {
-                types.insert_type_from(Type::Array { element: None }, expression_id)
+                types.insert_type_from_any(Type::Array { element: None }, node_id)
             }
             Type::Array {
                 element: Some(element_id),
             } => {
                 let element_ty = remote_types.get_type(*element_id);
-                let local_elem = self.import_type_from_remote(
-                    expression_id,
+                let local_elem = self.import_type_from_remote_for_node(
+                    node_id,
                     element_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Array {
                         element: Some(local_elem),
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
@@ -1138,8 +1699,8 @@ impl Compiler {
                     .iter()
                     .map(|element| {
                         let ty = remote_types.get_type(element.ty);
-                        let local_ty = self.import_type_from_remote(
-                            expression_id,
+                        let local_ty = self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1150,11 +1711,11 @@ impl Compiler {
                         element
                     })
                     .collect();
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Tuple {
                         elements: local_elements,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
@@ -1169,8 +1730,8 @@ impl Compiler {
                     .iter()
                     .map(|field| {
                         let ty = remote_types.get_type(field.ty);
-                        let local_ty = self.import_type_from_remote(
-                            expression_id,
+                        let local_ty = self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1188,8 +1749,8 @@ impl Compiler {
                     .iter()
                     .map(|signature| {
                         let ty = remote_types.get_type(*signature);
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1201,8 +1762,8 @@ impl Compiler {
                     .iter()
                     .map(|signature| {
                         let ty = remote_types.get_type(*signature);
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1217,15 +1778,15 @@ impl Compiler {
                         let value_type = remote_types.get_type(signature.value_type);
                         TypeIndexSignature {
                             name: signature.name,
-                            key_type: self.import_type_from_remote(
-                                expression_id,
+                            key_type: self.import_type_from_remote_for_node(
+                                node_id,
                                 key_type,
                                 remote_types,
                                 target_symbol,
                                 types,
                             ),
-                            value_type: self.import_type_from_remote(
-                                expression_id,
+                            value_type: self.import_type_from_remote_for_node(
+                                node_id,
                                 value_type,
                                 remote_types,
                                 target_symbol,
@@ -1235,14 +1796,14 @@ impl Compiler {
                         }
                     })
                     .collect();
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Object {
                         fields: local_fields,
                         call_signatures: local_call_signatures,
                         construct_signatures: local_construct_signatures,
                         index_signatures: local_index_signatures,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
@@ -1259,8 +1820,8 @@ impl Compiler {
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1270,8 +1831,8 @@ impl Compiler {
                     .collect();
                 let local_this = this_parameter.map(|this_parameter| {
                     let ty = remote_types.get_type(this_parameter);
-                    self.import_type_from_remote(
-                        expression_id,
+                    self.import_type_from_remote_for_node(
+                        node_id,
                         ty,
                         remote_types,
                         target_symbol,
@@ -1282,8 +1843,8 @@ impl Compiler {
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1293,15 +1854,15 @@ impl Compiler {
                     .collect();
                 let local_return = return_type.map(|id| {
                     let ty = remote_types.get_type(id);
-                    self.import_type_from_remote(
-                        expression_id,
+                    self.import_type_from_remote_for_node(
+                        node_id,
                         ty,
                         remote_types,
                         target_symbol,
                         types,
                     )
                 });
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Function {
                         asynchrony: *asynchrony,
                         cardinality: *cardinality,
@@ -1310,7 +1871,7 @@ impl Compiler {
                         dynamic_parameters: local_dynamic_params,
                         return_type: local_return,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
@@ -1320,8 +1881,8 @@ impl Compiler {
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1329,11 +1890,11 @@ impl Compiler {
                         )
                     })
                     .collect();
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Union {
                         elements: local_elements,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::Intersection { elements } => {
@@ -1341,8 +1902,8 @@ impl Compiler {
                     .iter()
                     .map(|id| {
                         let ty = remote_types.get_type(*id);
-                        self.import_type_from_remote(
-                            expression_id,
+                        self.import_type_from_remote_for_node(
+                            node_id,
                             ty,
                             remote_types,
                             target_symbol,
@@ -1350,41 +1911,41 @@ impl Compiler {
                         )
                     })
                     .collect();
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Intersection {
                         elements: local_elements,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
             // type modifiers: recurse into inner type
             Type::Value { value } => {
                 let inner_ty = remote_types.get_type(*value);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
+                let local_inner = self.import_type_from_remote_for_node(
+                    node_id,
                     inner_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(Type::Value { value: local_inner }, expression_id)
+                types.insert_type_from_any(Type::Value { value: local_inner }, node_id)
             }
             Type::Mutable { mutability, right } => {
                 let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
+                let local_inner = self.import_type_from_remote_for_node(
+                    node_id,
                     inner_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Mutable {
                         mutability: *mutability,
                         right: local_inner,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::ValueOf {
@@ -1393,20 +1954,20 @@ impl Compiler {
                 right,
             } => {
                 let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
+                let local_inner = self.import_type_from_remote_for_node(
+                    node_id,
                     inner_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::ValueOf {
                         mutability: *mutability,
                         variance: *variance,
                         right: local_inner,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::ReferenceOf {
@@ -1415,54 +1976,54 @@ impl Compiler {
                 right,
             } => {
                 let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
+                let local_inner = self.import_type_from_remote_for_node(
+                    node_id,
                     inner_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::ReferenceOf {
                         mutability: *mutability,
                         variance: *variance,
                         right: local_inner,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::PointerOf { mutability, right } => {
                 let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
+                let local_inner = self.import_type_from_remote_for_node(
+                    node_id,
                     inner_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::PointerOf {
                         mutability: *mutability,
                         right: local_inner,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::Unary { operator, right } => {
                 let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote(
-                    expression_id,
+                let local_inner = self.import_type_from_remote_for_node(
+                    node_id,
                     inner_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Unary {
                         operator: *operator,
                         right: local_inner,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
             Type::Binary {
@@ -1472,27 +2033,27 @@ impl Compiler {
             } => {
                 let left_ty = remote_types.get_type(*left);
                 let right_ty = remote_types.get_type(*right);
-                let local_left = self.import_type_from_remote(
-                    expression_id,
+                let local_left = self.import_type_from_remote_for_node(
+                    node_id,
                     left_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                let local_right = self.import_type_from_remote(
-                    expression_id,
+                let local_right = self.import_type_from_remote_for_node(
+                    node_id,
                     right_ty,
                     remote_types,
                     target_symbol,
                     types,
                 );
-                types.insert_type_from(
+                types.insert_type_from_any(
                     Type::Binary {
                         left: local_left,
                         operator: *operator,
                         right: local_right,
                     },
-                    expression_id,
+                    node_id,
                 )
             }
 
@@ -1500,21 +2061,21 @@ impl Compiler {
             Type::Reference {
                 symbol,
                 static_arguments,
-            } => types.insert_type_from(
+            } => types.insert_type_from_any(
                 Type::Reference {
                     symbol: *symbol,
                     static_arguments: static_arguments.clone(),
                 },
-                expression_id,
+                node_id,
             ),
 
             // types that can't be meaningfully copied: fall back to reference
-            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_type_from(
+            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_type_from_any(
                 Type::Reference {
                     symbol: target_symbol,
                     static_arguments: None,
                 },
-                expression_id,
+                node_id,
             ),
         }
     }
@@ -1526,7 +2087,7 @@ impl Compiler {
         interface_item: LanguageItem,
         types: &TypeTable,
     ) -> bool {
-        let interface_symbol = self.expect_language_item(interface_item);
+        let interface_symbol = self.language_item(interface_item);
         match ty {
             Type::Reference { symbol, .. } => {
                 self.is_type_lineage_assignable(*symbol, interface_symbol, types)

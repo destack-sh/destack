@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferContext};
 use destack_dir::{
-    Argument, BindingKind, Block, Constraint, Declaration, DynamicKey, Expression,
-    FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalSymbolId, InferTable, LocalNodeId,
-    LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, Pattern,
+    Argument, BindingKind, Block, Constraint, Declaration, Expression, FlowGraphBuilder,
+    ForEachBinding, FunctionKind, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern,
     PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeElement, TypeField,
     TypeLiteral, TypeTable,
 };
@@ -21,6 +21,76 @@ pub(super) struct ObjectLiteralField {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve a declared type for a direct binding symbol.
+    /// Direct bindings are pattern bindings without nested patterns and not pattern fields.
+    fn declared_type_for_direct_binding_symbol(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // only local bindings can use local declaration data
+        if symbol.module_id != module.id {
+            return Ok(None);
+        }
+
+        // read the primary declaration for the symbol
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(None);
+        };
+
+        // ensure the declaration is local to the module
+        if primary_declaration.module_id != module.id {
+            return Ok(None);
+        }
+
+        // only treat direct binding patterns as eligible for declared type reuse
+        if primary_declaration.local_id.ty == NodeType::Pattern {
+            let pattern_id = primary_declaration.into_local_typed();
+            let Pattern::Binding {
+                symbol: binding_symbol,
+                pattern,
+                ..
+            } = tree.get(pattern_id)
+            else {
+                return Ok(None);
+            };
+
+            // confirm the binding symbol matches
+            if *binding_symbol != symbol.local_id {
+                return Ok(None);
+            }
+
+            // skip bindings with nested patterns
+            if pattern.is_some() {
+                return Ok(None);
+            }
+        } else if primary_declaration.local_id.ty == NodeType::PatternField {
+            // skip pattern fields, these are not primary bindings
+            return Ok(None);
+        }
+
+        // walk up to a declarator to read the declared type
+        let mut current = primary_declaration.local_id;
+        while let Some(parent) = tree.get_parent(current.id) {
+            if parent.ty == NodeType::Declarator {
+                let declared_ty_id = types.get_declared_type_id(parent.into_global(module.id));
+                let Some(declared_ty_id) = declared_ty_id else {
+                    return Ok(None);
+                };
+                self.evaluate_type(module, declared_ty_id, tree, symbols, types)?;
+                return Ok(Some(declared_ty_id));
+            }
+
+            current = parent;
+        }
+
+        Ok(None)
+    }
+
     /// Infer an (expression) body with flow aware typing.
     pub fn infer_body(
         &self,
@@ -608,8 +678,13 @@ impl Compiler {
             // object expression: object type
             Expression::ObjectExpression { properties } => {
                 // apply contextual object type when available
-                let expected_object_ty_id =
-                    self.expected_object_type_id(ctx.expected_type, types);
+                let expected_object_ty_id = self.expected_object_type_id(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    ctx.expected_type,
+                    types,
+                )?;
                 let mut literal_fields = Vec::new();
                 for property_id in properties {
                     if let Some(field) = self.infer_property(
@@ -628,10 +703,12 @@ impl Compiler {
                 }
                 self.check_excess_object_literal_properties(
                     module,
+                    ctx.profile,
+                    expression_id.into_any(),
                     ctx.expected_type,
                     &literal_fields,
                     types,
-                );
+                )?;
 
                 let fields = literal_fields
                     .iter()
@@ -1226,7 +1303,13 @@ impl Compiler {
             }
             Expression::TaggedObjectExpression { ty, properties } => {
                 let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
-                let expected_object_ty_id = self.expected_object_type_id(Some(ty_id), types);
+                let expected_object_ty_id = self.expected_object_type_id(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    Some(ty_id),
+                    types,
+                )?;
                 for property_id in properties {
                     self.infer_property(
                         module,
@@ -1404,12 +1487,7 @@ impl Compiler {
                 symbol: _,
             } => {
                 // extract the static key from the dynamic key
-                let static_key = key.and_then(|k| match k {
-                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-                    // dynamic keys can't be used for static type inference
-                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-                });
+                let static_key = key.and_then(|key| key.as_static_key());
 
                 // derive an expected field type from the contextual object type
                 let expected_field_ty_id = static_key
@@ -1483,13 +1561,8 @@ impl Compiler {
                 symbol,
                 ..
             } => {
-                let expected_method_ty_id = key
-                    .and_then(|key| match key {
-                        DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-                        DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-                        DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-                    })
-                    .and_then(|key| {
+                let expected_method_ty_id =
+                    key.and_then(|key| key.as_static_key()).and_then(|key| {
                         self.expected_field_type_id(expected_object_ty_id, &key, types)
                     });
 
@@ -1548,11 +1621,7 @@ impl Compiler {
                         }
                     }
                 }
-                let static_key = key.and_then(|key| match key {
-                    DynamicKey::Name(name) => Some(StaticKey::Name(name)),
-                    DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-                    DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-                });
+                let static_key = key.and_then(|key| key.as_static_key());
                 let is_optional = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
@@ -2007,11 +2076,27 @@ impl Compiler {
             self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
 
         // pick the base type for the symbol
+        // prefer flow narrowed types when available
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
             narrowed_ty_id
-        } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
+        }
+        // reuse a known value type for the symbol
+        else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
-        } else if canonical_symbol.module_id != module.id {
+        }
+        // try to recover declared types for local bindings
+        else if let Some(declared_ty_id) = self.declared_type_for_direct_binding_symbol(
+            module,
+            canonical_symbol,
+            tree,
+            symbols,
+            types,
+        )? {
+            types.set_value_type(canonical_symbol, declared_ty_id);
+            declared_ty_id
+        }
+        // import remote symbol types as needed
+        else if canonical_symbol.module_id != module.id {
             self.resolve_remote_symbol_value_type(
                 module,
                 ctx.profile,
@@ -2019,15 +2104,34 @@ impl Compiler {
                 canonical_symbol,
                 types,
             )?
-        } else {
+        }
+        // default to unknown when no type is available
+        else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
             types.insert_type_from(ty, expression_id)
         };
 
+        // ensure instance types for referenced symbols
+        self.ensure_reference_instance_types_for_type(
+            module,
+            ctx.profile,
+            expression_id.into_any(),
+            base_ty_id,
+            types,
+        )?;
+
         // handle static arguments for generic instantiation
         let Some(static_argument_ids) = static_arguments else {
+            return Ok(base_ty_id);
+        };
+
+        // resolve a callable signature for generic instantiation
+        let Some(signature_ty_id) = self.call_signature_for_type(base_ty_id, types) else {
+            self.error(AnalyzeError::MissingType {
+                node: expression_id.into_global_any(module.id),
+            });
             return Ok(base_ty_id);
         };
 
@@ -2038,7 +2142,7 @@ impl Compiler {
             this_parameter,
             dynamic_parameters,
             return_type,
-        } = types.get_type(base_ty_id).clone()
+        } = types.get_type(signature_ty_id).clone()
         else {
             self.error(AnalyzeError::MissingType {
                 node: expression_id.into_global_any(module.id),
@@ -2088,36 +2192,47 @@ impl Compiler {
     fn check_excess_object_literal_properties(
         &self,
         module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
         expected_ty_id: Option<LocalTypeId>,
         fields: &[ObjectLiteralField],
-        types: &TypeTable,
-    ) {
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
         // collect candidates for excess property checks
+        // bail when no contextual type is available
         let Some(expected_ty_id) = self.expected_value_type_id(expected_ty_id, types) else {
-            return;
+            return Ok(());
         };
         let mut candidates: Vec<LocalTypeId> = Vec::new();
-        self.collect_object_literal_candidates(expected_ty_id, types, &mut candidates);
+        self.collect_object_literal_candidates(
+            module,
+            profile,
+            node_id,
+            expected_ty_id,
+            types,
+            &mut candidates,
+        )?;
         if candidates.is_empty() {
-            return;
+            return Ok(());
         }
 
         // check if any candidate matches the fields
         for candidate in candidates.iter().copied() {
             if self.object_literal_matches_target(fields, candidate, types) {
-                return;
+                return Ok(());
             }
         }
 
         // if no candidate matches, report the first excess property
         let Some(candidate) = candidates.first().copied() else {
-            return;
+            return Ok(());
         };
         let excess_fields = self.object_literal_excess_properties(fields, candidate, types);
         if excess_fields.is_empty() {
-            return;
+            return Ok(());
         }
 
+        // emit excess property diagnostics
         for (property_id, member_key) in excess_fields {
             self.error(AnalyzeError::ExcessProperty {
                 node: property_id.into_global_any(module.id),
@@ -2125,29 +2240,42 @@ impl Compiler {
                 member_key,
             });
         }
+
+        Ok(())
     }
 
-    /// Collect object-like candidates for excess property checks.
+    /// Collect object style candidates for excess property checks.
     fn collect_object_literal_candidates(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
-        types: &TypeTable,
+        types: &mut TypeTable,
         candidates: &mut Vec<LocalTypeId>,
-    ) {
-        match types.get_type(expected_ty_id) {
-            Type::Object { .. } => candidates.push(expected_ty_id),
+    ) -> AnalyzeResult<()> {
+        match types.get_type(expected_ty_id).clone() {
+            Type::Object { .. } => {
+                candidates.push(expected_ty_id);
+            }
             Type::Reference { symbol, .. } => {
-                if let Some(instance_ty_id) = types.get_instance_type_id(*symbol) {
+                let instance_ty_id = self
+                    .resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?;
+                if let Some(instance_ty_id) = instance_ty_id {
                     candidates.push(instance_ty_id);
                 }
             }
             Type::Union { elements } => {
                 for element in elements {
-                    self.collect_object_literal_candidates(*element, types, candidates);
+                    self.collect_object_literal_candidates(
+                        module, profile, node_id, element, types, candidates,
+                    )?;
                 }
             }
             _ => {}
         }
+
+        Ok(())
     }
 
     /// Check if an object literal matches a target object type.

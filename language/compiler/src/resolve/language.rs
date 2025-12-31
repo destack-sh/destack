@@ -9,7 +9,7 @@ use destack_dir::{GlobalSymbolId, StaticKey};
 use destack_workspace::ProfileId;
 use indexmap::IndexMap;
 
-use crate::{Compiler, ResolveError, ResolveResult, ResolveWarning};
+use crate::{Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
     /// Resolve a profile's libraries.
@@ -114,18 +114,7 @@ impl Compiler {
                     continue;
                 };
                 if canonical_name_ids.contains(&name_id) {
-                    if let Some(existing_module) = canonical_modules.get(&name_id) {
-                        if *existing_module != module_id {
-                            self.warning(ResolveWarning::AmbiguousLibSymbol {
-                                module: module_id,
-                                name: name_id,
-                                first_module: *existing_module,
-                                second_module: module_id,
-                            });
-                        }
-                    } else {
-                        canonical_modules.insert(name_id, module_id);
-                    }
+                    canonical_modules.insert(name_id, module_id);
                     lib_symbols
                         .entry(name_id)
                         .or_insert(symbol_id.into_global(module_id));
@@ -223,30 +212,29 @@ impl Compiler {
         Ok(global_id)
     }
 
+    /// Get a language item from the cache, returning None if not found.
+    pub fn get_language_item(&self, item: LanguageItem) -> Option<GlobalSymbolId> {
+        let builtins = self.program.builtins.as_ref()?;
+        builtins.items.get(&item).map(|r| *r)
+    }
+
     /// Get a language item from the cache, panicking if not found.
-    pub fn expect_language_item(&self, item: LanguageItem) -> GlobalSymbolId {
-        let builtins = self
-            .program
-            .builtins
-            .as_ref()
-            .expect("builtins not available");
-        *builtins
-            .items
-            .get(&item)
-            .unwrap_or_else(|| panic!("language item {item:?} not resolved"))
+    pub fn language_item(&self, item: LanguageItem) -> GlobalSymbolId {
+        self.get_language_item(item)
+            .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 
     /// Get a cached lib symbol for a profile and name.
-    pub fn lib_symbol(&self, profile: ProfileId, name: StringId) -> Option<GlobalSymbolId> {
+    pub fn get_lib_item(&self, profile: ProfileId, name: StringId) -> Option<GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
         builtins.lib_symbol(profile, name)
     }
 
     /// Get a lib symbol from the cache, panicking if not found.
-    pub fn expect_lib_symbol(&self, profile: ProfileId, name: StringId) -> GlobalSymbolId {
-        self.lib_symbol(profile, name).unwrap_or_else(|| {
+    pub fn lib_item(&self, profile: ProfileId, name: StringId) -> GlobalSymbolId {
+        self.get_lib_item(profile, name).unwrap_or_else(|| {
             let name = self.program.strings.get(name);
-            panic!("lib symbol '{}' not resolved", name.as_ref())
+            panic!("lib symbol '{}' not available", name.as_ref())
         })
     }
 }
@@ -264,7 +252,7 @@ mod tests {
         test.resolve_builtins();
         test.compile();
 
-        let language_item_id = test.compiler.expect_language_item(LanguageItem::Add);
+        let language_item_id = test.compiler.language_item(LanguageItem::Add);
         let language_item_module = test.program.modules.get(language_item_id.module_id);
         let language_item_module = language_item_module.read();
         let profile = test.default_profile_id(language_item_id.module_id);
@@ -285,6 +273,6 @@ mod tests {
         let profile = test.default_profile_id_for_root();
         let array_name = test.program.strings.intern("Array");
 
-        assert!(test.compiler.lib_symbol(profile, array_name).is_some());
+        assert!(test.compiler.get_lib_item(profile, array_name).is_some());
     }
 }

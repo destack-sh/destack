@@ -61,6 +61,24 @@ pub enum SymbolBinding {
     Ambient,
 }
 
+/// Where a symbol originated in the source.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum SymbolOrigin {
+    /// Declaration in module scope.
+    #[default]
+    Primary,
+    /// Declaration inside a `declare global` block.
+    GlobalAugmentation,
+}
+
+impl SymbolOrigin {
+    /// Check if this symbol originates from a global augmentation.
+    #[inline]
+    pub fn is_global_augmentation(self) -> bool {
+        matches!(self, SymbolOrigin::GlobalAugmentation)
+    }
+}
+
 /// The type of a symbol (declaration type).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SymbolType {
@@ -133,6 +151,17 @@ impl LocalSymbolId {
     }
 }
 
+/// Unique identifier for a merge group of symbols.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LocalMergeGroupId(pub u32);
+
+impl LocalMergeGroupId {
+    /// Create a new merge group id.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
 /// Global symbol id across modules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GlobalSymbolId {
@@ -181,6 +210,8 @@ pub struct Symbol {
     pub space: SymbolSpace,
     /// How this symbol was introduced/bound.
     pub binding: SymbolBinding,
+    /// Where this symbol was introduced.
+    pub origin: SymbolOrigin,
     /// The key of the symbol.
     pub key: Option<StaticKey>,
     /// The scope that introduces the symbol.
@@ -191,8 +222,10 @@ pub struct Symbol {
     pub export: Option<DependencyMode>,
     /// The main declaration node of the symbol.
     pub primary_declaration: Option<GlobalNodeIdAny>,
-    /// Secondary declaration nodes of the symbol (for merging with other symbols).
+    /// Secondary declaration nodes of the symbol (for merging with other symbols within this module).
     pub secondary_declarations: Option<Box<Vec<GlobalNodeIdAny>>>,
+    /// Merge group for cross-space declarations.
+    pub merge_group: Option<LocalMergeGroupId>,
     /// Forward to the *next* remote symbol (like for imports, pattern bindings, etc.).
     pub target_symbol: Option<GlobalSymbolId>,
     /// Final remote symbol in the chain (end of target-symbol chain).

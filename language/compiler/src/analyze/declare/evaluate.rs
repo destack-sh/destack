@@ -2,8 +2,8 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
     FunctionSignature, LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument,
-    StaticExpression, StaticKey, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator,
+    StaticExpression, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -11,7 +11,7 @@ use destack_workspace::Module;
 impl Compiler {
     /// Evaluate a Type (in-place).
     /// Converts Type::Unevaluated to the actual Type value.
-    pub(super) fn evaluate_type(
+    pub(crate) fn evaluate_type(
         &self,
         module: &Module,
         ty_id: LocalTypeId,
@@ -135,14 +135,18 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        // skip when there are no static arguments
         let Some(static_arguments) = static_arguments else {
             return Ok(None);
         };
 
         let mut evaluated_arguments = Vec::with_capacity(static_arguments.len());
 
+        // evaluate each static argument into a literal or type
         for argument_id in static_arguments {
             let argument = tree.get(*argument_id);
+
+            // capture the name for named arguments
             let name = match argument {
                 Argument::Named { name, .. } => Some(*name),
                 _ => None,
@@ -150,6 +154,7 @@ impl Compiler {
 
             let expression_id = argument.value();
 
+            // evaluate static values directly when possible
             if let Some(value) = self.evaluate_static_expression_value_for_type(
                 module,
                 expression_id,
@@ -161,14 +166,17 @@ impl Compiler {
                 continue;
             }
 
+            // fall back to resolving the argument type
             let ty_id =
                 self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
 
+            // keep unevaluated types so later phases can resolve them
             if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
                 evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
                 continue;
             }
 
+            // treat resolved types as static arguments
             evaluated_arguments.push(StaticArgument::Evaluated {
                 name,
                 value: StaticExpression::Type { ty: ty_id },
@@ -294,7 +302,7 @@ impl Compiler {
                         module, &signature, tree, symbols, types,
                     )?
                 } else {
-                    // NOTE #Incomplete: only function declarations are evaluable as types (?)
+                    // #Incomplete: only function declarations are evaluable as types (?)
                     return Ok(None);
                 }
             }
@@ -654,14 +662,10 @@ impl Compiler {
                                 continue;
                             }
 
-                            let key = match key {
-                                Some(DynamicKey::Name(name)) => StaticKey::Name(name),
-                                Some(DynamicKey::Number(name)) => StaticKey::Number(name),
-                                _ => {
-                                    return Err(AnalyzeError::UnsupportedConstruct {
-                                        node: property_id.into_global_any(module.id),
-                                    });
-                                }
+                            let Some(key) = key.and_then(|key| key.as_static_key()) else {
+                                return Err(AnalyzeError::UnsupportedConstruct {
+                                    node: property_id.into_global_any(module.id),
+                                });
                             };
 
                             let ty = if let Some(value_id) = value {
@@ -718,14 +722,10 @@ impl Compiler {
                                 continue;
                             }
 
-                            let key = match key {
-                                Some(DynamicKey::Name(name)) => StaticKey::Name(name),
-                                Some(DynamicKey::Number(name)) => StaticKey::Number(name),
-                                _ => {
-                                    return Err(AnalyzeError::UnsupportedConstruct {
-                                        node: property_id.into_global_any(module.id),
-                                    });
-                                }
+                            let Some(key) = key.and_then(|key| key.as_static_key()) else {
+                                return Err(AnalyzeError::UnsupportedConstruct {
+                                    node: property_id.into_global_any(module.id),
+                                });
                             };
 
                             let ty = self.evaluate_function_signature_to_type(
