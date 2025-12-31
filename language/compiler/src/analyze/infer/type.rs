@@ -6,11 +6,11 @@ use crate::{
 };
 use destack_builtin::LanguageItem;
 use destack_dir::{
-    BinaryOperator, DeclarationType, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId, SymbolType, Type,
-    TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
-    TypeUnaryOperator, UnaryOperator, VarianceBound,
+    BinaryOperator, Declaration, DeclarationType, Expression, Extension, ExtensionKind,
+    GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty,
+    StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -103,6 +103,69 @@ impl Compiler {
 
         // keep the outer type source id for node registration
         Some((symbol, static_arguments, types.get_type_source(ty_id)))
+    }
+
+    /// Unwrap structural type aliases to their instance types when possible.
+    pub(super) fn unwrap_type_alias_reference(
+        &self,
+        module: &Module,
+        type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        let symbol = match types.get_type(type_id) {
+            Type::Reference { symbol, .. } => *symbol,
+            _ => return Ok(type_id),
+        };
+
+        // only unwrap structural type aliases
+        if symbol.ty() != SymbolType::TypeAlias {
+            return Ok(type_id);
+        }
+
+        // reuse cached instance types when available
+        if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
+            return Ok(instance_type_id);
+        }
+
+        // skip remote aliases during local flow computation
+        if symbol.module_id != module.id {
+            return Ok(type_id);
+        }
+
+        // load the type alias declaration
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(type_id);
+        };
+        let declaration_id = match primary_declaration.local_id.try_into_typed::<Declaration>() {
+            Ok(declaration_id) => declaration_id,
+            Err(_) => return Ok(type_id),
+        };
+        let Declaration::Type {
+            static_parameters,
+            value,
+            ..
+        } = tree.get(declaration_id)
+        else {
+            return Ok(type_id);
+        };
+
+        // avoid eager evaluation for generic aliases
+        if static_parameters
+            .as_ref()
+            .is_some_and(|parameters| !parameters.is_empty())
+        {
+            return Ok(type_id);
+        }
+
+        // evaluate the alias value into an instance type
+        let instance_type_id =
+            self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?;
+        types.set_instance_type(symbol, instance_type_id);
+
+        Ok(instance_type_id)
     }
 
     /// Ensure instance types for any reference types inside a type.
@@ -2947,6 +3010,69 @@ impl Compiler {
             }
             _ => false,
         }
+    }
+
+    /// Resolve the type for a field with the given key.
+    pub(super) fn type_field_type_for_key(
+        &self,
+        module: &Module,
+        type_id: LocalTypeId,
+        key: &StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<(LocalTypeId, bool)>> {
+        // unwrap aliases before walking fields
+        let type_id = self.unwrap_type_alias_reference(module, type_id, tree, symbols, types)?;
+        let mut field_types = Vec::new();
+        let mut is_optional = true;
+
+        // collect matching field types for the key
+        let mut pending_type_ids = vec![type_id];
+        let mut visited_type_ids = Vec::new();
+        while let Some(current_type_id) = pending_type_ids.pop() {
+            if visited_type_ids.contains(&current_type_id) {
+                continue;
+            }
+            visited_type_ids.push(current_type_id);
+            match types.get_type(current_type_id) {
+                Type::Object { fields, .. } => {
+                    // collect all matching fields from the object
+                    for field in fields {
+                        if field.key.matches(key) {
+                            field_types.push(field.ty);
+                            is_optional = is_optional && field.is_optional;
+                        }
+                    }
+                }
+                Type::Reference { symbol, .. } => {
+                    // prefer instance types when available
+                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                        pending_type_ids.push(instance_id);
+                    }
+                }
+                Type::Intersection { elements } => {
+                    // gather fields from every element
+                    for element_id in elements {
+                        pending_type_ids.push(*element_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if field_types.is_empty() {
+            return Ok(None);
+        }
+
+        // combine multiple field types with intersection
+        let field_type_id = match field_types.len() {
+            1 => field_types[0],
+            _ => types.insert_type(Type::Intersection {
+                elements: field_types,
+            }),
+        };
+
+        Ok(Some((field_type_id, is_optional)))
     }
 
     /// Check whether a type id is any or unknown.
