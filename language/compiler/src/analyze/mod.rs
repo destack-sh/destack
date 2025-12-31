@@ -1,8 +1,7 @@
-mod canonical;
+mod common;
 mod declare;
 mod error;
 mod infer;
-mod key;
 mod options;
 mod process;
 mod r#static;

@@ -1,5 +1,4 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_builtin::WellKnownSymbol;
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
     FunctionSignature, LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument,
@@ -200,33 +199,6 @@ impl Compiler {
         }
 
         Ok(Some(evaluated_arguments))
-    }
-
-    /// Convert a static argument into a type id for type evaluation.
-    fn static_argument_type_id(
-        &self,
-        argument: &StaticArgument,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        let ty = match argument {
-            StaticArgument::Evaluated { value, .. } => match value {
-                StaticExpression::Type { ty } => return *ty,
-                StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
-                    value: value.clone(),
-                },
-                StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(value.clone()),
-                },
-                _ => Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                },
-            },
-            StaticArgument::Unevaluated { .. } => Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
-        };
-
-        types.insert_type(ty)
     }
 
     /// Evaluate an expression into a static value expression.
@@ -667,18 +639,15 @@ impl Compiler {
                 )?;
 
                 // normalize well known references into canonical structural types
-                let canonical_symbol =
-                    self.canonical_symbol_id(module, symbols, profile, target_symbol);
-                let is_array_symbol = self
-                    .get_well_known_symbol(profile, WellKnownSymbol::Array)
-                    .is_some_and(|array_symbol| array_symbol == canonical_symbol);
-                if is_array_symbol {
-                    let element = static_arguments
-                        .as_ref()
-                        .and_then(|arguments| arguments.first())
-                        .map(|argument| self.static_argument_type_id(argument, types));
-
-                    return Ok(Some(Type::Array { element }));
+                if let Some(normalized) = self.normalize_well_known_type_reference(
+                    module,
+                    symbols,
+                    profile,
+                    target_symbol,
+                    static_arguments.as_deref(),
+                    types,
+                ) {
+                    return Ok(Some(normalized));
                 }
 
                 Type::Reference {
