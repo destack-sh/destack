@@ -65,3 +65,27 @@ import "./b.ds";
 const thing: GlobalThing = { value: 1, label: "ok" };
 thing.label satisfies string;
 ```
+
+### global declarations do not conflict with module declarations
+
+> Global declarations live in a separate scope from module declarations.
+
+```ds:globals.d.ds
+export {};
+
+declare class Iterator<T> {
+    next(value?: T): T;
+}
+
+interface IteratorConstructor {
+    from<T>(value: T): Iterator<T>;
+}
+
+declare global {
+    var Iterator: IteratorConstructor;
+}
+```
+
+```ds:main.ds
+import "./globals.d.ds";
+```
