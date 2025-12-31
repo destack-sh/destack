@@ -174,10 +174,10 @@ mod tests {
     fn test_interval_tree_flat_decls() {
         // simulates a flat declaration file with global scope
         let tree = IntervalTree::build(vec![
-            (0, 1000, 0),   // global scope
-            (10, 20, 1),    // decl 1
-            (30, 40, 2),    // decl 2
-            (50, 60, 3),    // decl 3
+            (0, 1000, 0), // global scope
+            (10, 20, 1),  // decl 1
+            (30, 40, 2),  // decl 2
+            (50, 60, 3),  // decl 3
         ]);
 
         // query inside decl 2 should find decl 2 and global scope

@@ -928,13 +928,9 @@ impl Parser {
     }
 
     /// Check if two spans are on the same line.
+    #[inline]
     pub fn is_same_line(&self, left: Span, right: Span) -> bool {
-        let left_line = self.file.get_position(left.start).map(|(line, _)| line);
-        let right_line = self.file.get_position(right.end).map(|(line, _)| line);
-        match (left_line, right_line) {
-            (Some(lhs), Some(rhs)) => lhs == rhs,
-            _ => false,
-        }
+        self.file.is_same_line(left.start, right.end)
     }
 }
 

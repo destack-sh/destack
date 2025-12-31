@@ -104,24 +104,37 @@ impl Span {
     }
 }
 
-/// A MultiSpan is a collection of Spans.
+/// A MultiSpan is a collection of Spans, sorted for fast containment queries.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MultiSpan {
-    /// The Spans.
+    /// The Spans, sorted by start position for binary search.
     pub spans: Vec<Span>,
 }
 
 impl MultiSpan {
-    /// Create a new MultiSpan.
-    pub fn new(spans: Vec<Span>) -> Self {
+    /// Create a new MultiSpan, sorting spans by start position.
+    pub fn new(mut spans: Vec<Span>) -> Self {
+        spans.sort_unstable_by_key(|s| s.start);
         Self { spans }
     }
 
     /// Check if the MultiSpan contains the given Span fully (start and end).
+    /// Uses binary search for O(log n) lookup instead of O(n).
+    #[inline]
     pub fn contains(&self, span: &Span) -> bool {
-        self.spans
-            .iter()
-            .any(|s| s.contains(span.start) && s.contains(span.end - 1))
+        if self.spans.is_empty() {
+            return false;
+        }
+
+        // binary search for the rightmost span where span.start <= query.start
+        let idx = self.spans.partition_point(|s| s.start <= span.start);
+        if idx == 0 {
+            return false;
+        }
+
+        // check if the span at idx-1 contains our query span
+        let candidate = &self.spans[idx - 1];
+        candidate.contains(span.start) && candidate.contains(span.end - 1)
     }
 }
 
