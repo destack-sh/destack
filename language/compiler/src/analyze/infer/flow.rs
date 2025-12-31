@@ -579,6 +579,22 @@ impl Compiler {
                         return Ok(environments);
                     }
 
+                    // narrow based on discriminant equality
+                    if let Some(environments) = self.narrow_environment_for_discriminant_guard(
+                        module,
+                        guard_id,
+                        *left,
+                        *right,
+                        is_negated,
+                        tree,
+                        symbols,
+                        types,
+                        environment,
+                        context,
+                    )? {
+                        return Ok(environments);
+                    }
+
                     Ok((environment.clone(), environment.clone()))
                 }
                 _ => Ok((environment.clone(), environment.clone())),
@@ -775,6 +791,89 @@ impl Compiler {
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) =
             self.type_guard_target_types(base_type_id, target, types, &context.options);
+
+        // apply the narrowings for each branch
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        // flip environments when the guard is negated
+        if is_negated {
+            return Ok(Some((false_environment, true_environment)));
+        }
+
+        Ok(Some((true_environment, false_environment)))
+    }
+
+    /// Split the environment based on a discriminant equality guard.
+    fn narrow_environment_for_discriminant_guard(
+        &self,
+        module: &Module,
+        guard_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+        is_negated: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        // normalize both sides for matching
+        let left_id = self.unwrap_parenthesized_expression(left_id, tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, tree);
+
+        // identify the discriminant access and literal
+        let (symbol, key, literal) = match (
+            self.discriminant_access_for_expression(module, left_id, tree, symbols, context),
+            self.scalar_literal_for_expression(tree, right_id),
+            self.discriminant_access_for_expression(module, right_id, tree, symbols, context),
+            self.scalar_literal_for_expression(tree, left_id),
+        ) {
+            (Some((symbol, key)), Some(literal), _, _) => (symbol, key, literal),
+            (_, _, Some((symbol, key)), Some(literal)) => (symbol, key, literal),
+            _ => return Ok(None),
+        };
+
+        // resolve the base type for the symbol
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            guard_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+
+        // evaluate unevaluated types before applying discriminant narrowing
+        self.evaluate_type(module, base_type_id, tree, symbols, types)?;
+        // clone union elements to avoid holding a borrow across evaluation
+        let mut union_elements = Vec::new();
+        if let Type::Union { elements } = types.get_type(base_type_id) {
+            union_elements.extend(elements.iter().copied());
+        }
+        for element_id in union_elements {
+            self.evaluate_type(module, element_id, tree, symbols, types)?;
+        }
+
+        // compute narrowed types for each branch
+        let (true_type_id, false_type_id) = self.discriminant_guard_types(
+            module,
+            base_type_id,
+            &key,
+            literal,
+            tree,
+            symbols,
+            types,
+            &context.options,
+        )?;
 
         // apply the narrowings for each branch
         let mut true_environment = environment.clone();
@@ -1097,6 +1196,117 @@ impl Compiler {
         }
     }
 
+    /// Derive guard types for a discriminant equality check.
+    fn discriminant_guard_types(
+        &self,
+        module: &Module,
+        base_type_id: LocalTypeId,
+        key: &StaticKey,
+        literal: ScalarLiteral,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> AnalyzeResult<(Option<LocalTypeId>, Option<LocalTypeId>)> {
+        // avoid narrowing any or unknown types
+        if self.type_is_any_or_unknown(base_type_id, types) {
+            return Ok((Some(base_type_id), Some(base_type_id)));
+        }
+
+        // build a literal type for assignability checks
+        let literal_type = self.infer_scalar_literal(&literal);
+        let literal_type_id = types.insert_type(Type::TypeLiteral {
+            value: literal_type.clone(),
+        });
+
+        // split union and non union targets
+        let base_type = types.get_type(base_type_id).clone();
+        match base_type {
+            Type::Union { elements } => {
+                // avoid narrowing unions with any or unknown members
+                if elements
+                    .iter()
+                    .any(|element_id| self.type_is_any_or_unknown(*element_id, types))
+                {
+                    return Ok((Some(base_type_id), Some(base_type_id)));
+                }
+
+                let mut matching_elements = Vec::new();
+                let mut remaining_elements = Vec::new();
+
+                // collect union members based on discriminant compatibility
+                for element_id in elements {
+                    let field_info = self
+                        .type_field_type_for_key(module, element_id, key, tree, symbols, types)?;
+
+                    let Some((field_type_id, is_optional)) = field_info else {
+                        remaining_elements.push(element_id);
+                        continue;
+                    };
+
+                    let is_assignable = self
+                        .check_is_type_assignable(field_type_id, literal_type_id, types, options)
+                        .is_assignable();
+
+                    if is_assignable {
+                        matching_elements.push(element_id);
+                    }
+
+                    if !is_assignable {
+                        remaining_elements.push(element_id);
+                        continue;
+                    }
+
+                    let (remaining_literal, _) =
+                        self.strip_literal_from_union(field_type_id, types, literal_type.clone());
+                    if is_optional || remaining_literal.is_some() {
+                        remaining_elements.push(element_id);
+                    }
+                }
+
+                let true_type_id = match matching_elements.len() {
+                    0 => None,
+                    1 => Some(matching_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: matching_elements,
+                    })),
+                };
+                let false_type_id = match remaining_elements.len() {
+                    0 => None,
+                    1 => Some(remaining_elements[0]),
+                    _ => Some(types.insert_type(Type::Union {
+                        elements: remaining_elements,
+                    })),
+                };
+
+                Ok((true_type_id, false_type_id))
+            }
+            _ => {
+                let Some((field_type_id, is_optional)) =
+                    self.type_field_type_for_key(module, base_type_id, key, tree, symbols, types)?
+                else {
+                    return Ok((Some(base_type_id), Some(base_type_id)));
+                };
+
+                let is_assignable = self
+                    .check_is_type_assignable(field_type_id, literal_type_id, types, options)
+                    .is_assignable();
+
+                if !is_assignable {
+                    return Ok((None, Some(base_type_id)));
+                }
+
+                let (remaining_literal, _) =
+                    self.strip_literal_from_union(field_type_id, types, literal_type);
+                if is_optional || remaining_literal.is_some() {
+                    Ok((Some(base_type_id), Some(base_type_id)))
+                } else {
+                    Ok((Some(base_type_id), None))
+                }
+            }
+        }
+    }
+
     /// Derive guard types using a predicate for the true branch.
     fn predicate_guard_types<F>(
         &self,
@@ -1300,6 +1510,57 @@ impl Compiler {
         }
     }
 
+    /// Extract a scalar literal when present.
+    fn scalar_literal_for_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<ScalarLiteral> {
+        match tree.get(expression_id) {
+            Expression::ScalarLiteral { value } => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    /// Resolve a discriminant access from an expression.
+    fn discriminant_access_for_expression(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        context: &InferContext,
+    ) -> Option<(GlobalSymbolId, StaticKey)> {
+        match tree.get(expression_id) {
+            Expression::Member { left, name, .. } => {
+                let left_id = self.unwrap_parenthesized_expression(*left, tree);
+                let symbol = self.reference_symbol_for_expression(
+                    module,
+                    left_id,
+                    context.profile,
+                    tree,
+                    symbols,
+                )?;
+                Some((symbol, StaticKey::Name(*name)))
+            }
+            Expression::Index { left, right, .. } => {
+                let right_id = right.as_ref()?;
+                let right_id = self.unwrap_parenthesized_expression(*right_id, tree);
+                let key = self.string_literal_id(tree, right_id)?;
+                let left_id = self.unwrap_parenthesized_expression(*left, tree);
+                let symbol = self.reference_symbol_for_expression(
+                    module,
+                    left_id,
+                    context.profile,
+                    tree,
+                    symbols,
+                )?;
+                Some((symbol, StaticKey::Name(key)))
+            }
+            _ => None,
+        }
+    }
+
     /// Apply nullish guard types to a symbol type.
     fn nullish_guard_types(
         &self,
@@ -1399,12 +1660,12 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse an environment narrowing when present
         if let Some(type_id) = environment.bindings.get(&symbol) {
-            return Ok(*type_id);
+            return self.unwrap_type_alias_reference(module, *type_id, tree, symbols, types);
         }
 
         // fall back to any known value type
         if let Some(type_id) = types.get_value_type_id(symbol) {
-            return Ok(type_id);
+            return self.unwrap_type_alias_reference(module, type_id, tree, symbols, types);
         }
 
         // resolve declarations in the current module
@@ -1414,7 +1675,7 @@ impl Compiler {
             if let Some(primary_declaration) = symbol.primary_declaration
                 && let Some(type_id) = types.get_declared_type_id(primary_declaration)
             {
-                return Ok(type_id);
+                return self.unwrap_type_alias_reference(module, type_id, tree, symbols, types);
             }
 
             // walk parent declarations to recover contextual types
@@ -1424,7 +1685,8 @@ impl Compiler {
                     if let Some(type_id) =
                         types.get_declared_type_id(parent_id.into_global(module.id))
                     {
-                        return Ok(type_id);
+                        return self
+                            .unwrap_type_alias_reference(module, type_id, tree, symbols, types);
                     }
                     current_id = parent_id;
                 }

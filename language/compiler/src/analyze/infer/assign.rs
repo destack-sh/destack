@@ -1,6 +1,6 @@
 use destack_dir::{
-    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, Type, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeTable,
+    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, SymbolType, Type,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
 
 use super::{field_key_matches_index_kind, index_key_kind_for_type, index_key_kinds_compatible};
@@ -54,6 +54,7 @@ impl Compiler {
         options: &AnalyzeOptions,
     ) -> Assignability {
         // FUGU #Incomplete: normalize type-level constructs (for assignability, ..) #TypeNormalization
+
         // handle special target types first
         match target {
             Type::InferVar { .. } => return Assignability::Assignable,
@@ -90,6 +91,10 @@ impl Compiler {
 
             _ => {}
         }
+
+        // unwrap transparent type aliases before structural comparisons
+        let target = self.unwrap_assignability_aliases(target, types);
+        let source = self.unwrap_assignability_aliases(source, types);
 
         // structural comparison
         match (target, source) {
@@ -957,6 +962,34 @@ impl Compiler {
         }
 
         Assignability::Assignable
+    }
+
+    /// Follow cached alias instances for assignability comparisons.
+    fn unwrap_assignability_aliases<'a>(&self, ty: &'a Type, types: &'a TypeTable) -> &'a Type {
+        let mut visited_symbols: Vec<GlobalSymbolId> = Vec::new();
+        let mut current = ty;
+
+        loop {
+            let Type::Reference { symbol, .. } = current else {
+                break;
+            };
+
+            if symbol.ty() != SymbolType::TypeAlias {
+                break;
+            }
+
+            if visited_symbols.contains(symbol) {
+                break;
+            }
+            visited_symbols.push(*symbol);
+
+            let Some(instance_ty_id) = types.get_instance_type_id(*symbol) else {
+                break;
+            };
+            current = types.get_type(instance_ty_id);
+        }
+
+        current
     }
 
     /// Check assignability of signature sets (target signatures must be matched).
