@@ -1,8 +1,6 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
-use destack_base::StringId;
 use destack_compiler_macros::DefineWarning;
 use destack_dir::GlobalNodeIdAny;
-use destack_source::ModuleId;
 use destack_workspace::Program;
 
 /// Warnings during the resolve phase.
@@ -20,16 +18,4 @@ pub enum ResolveWarning {
     /// Import that resolves but is only used for side effects.
     #[warning(code = "WR003", message = "side effect only import")]
     SideEffectOnlyImport { node: GlobalNodeIdAny },
-
-    /// Lib symbol defined by multiple libs.
-    #[warning(
-        code = "WR004",
-        message = "lib symbol {name} is defined by multiple libs: {first_module}, {second_module}"
-    )]
-    AmbiguousLibSymbol {
-        module: ModuleId,
-        name: StringId,
-        first_module: ModuleId,
-        second_module: ModuleId,
-    },
 }

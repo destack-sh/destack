@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use destack_base::StringId;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
-    Path, StaticKey, SymbolKind, SymbolTable,
+    Path, StaticKey, SymbolKind, SymbolSpace, SymbolTable,
 };
 use destack_source::{ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{Module, ProfileId, Target, TargetDiscovery, TargetId};
@@ -31,8 +31,12 @@ pub(crate) struct GlobalSymbolCache {
     pub module_versions: IndexMap<ModuleId, ModuleVersion>,
     /// First symbol observed for each global key.
     pub symbols: IndexMap<StaticKey, GlobalSymbolId>,
+    /// First symbol observed for each global key and space.
+    pub symbols_by_space: IndexMap<GlobalSymbolGroupKey, GlobalSymbolId>,
     /// All symbols observed for each global key.
     pub sources: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
+    /// All symbols observed for each global key and space.
+    pub sources_by_space: IndexMap<GlobalSymbolGroupKey, Vec<GlobalSymbolId>>,
 }
 
 impl GlobalSymbolCache {
@@ -42,15 +46,33 @@ impl GlobalSymbolCache {
             roots,
             module_versions: IndexMap::new(),
             symbols: IndexMap::new(),
+            symbols_by_space: IndexMap::new(),
             sources: IndexMap::new(),
+            sources_by_space: IndexMap::new(),
         }
     }
 
     /// Insert a global symbol and preserve the first binding for the key.
-    fn insert_symbol(&mut self, key: StaticKey, symbol: GlobalSymbolId) {
+    fn insert_symbol(&mut self, key: StaticKey, space: SymbolSpace, symbol: GlobalSymbolId) {
         self.sources.entry(key).or_default().push(symbol);
         self.symbols.entry(key).or_insert(symbol);
+
+        let group_key = GlobalSymbolGroupKey { key, space };
+        self.sources_by_space
+            .entry(group_key)
+            .or_default()
+            .push(symbol);
+        self.symbols_by_space.entry(group_key).or_insert(symbol);
     }
+}
+
+/// Key for grouping global symbols by name and space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct GlobalSymbolGroupKey {
+    /// The symbol key.
+    pub key: StaticKey,
+    /// The symbol space.
+    pub space: SymbolSpace,
 }
 
 impl Compiler {
@@ -207,7 +229,7 @@ impl Compiler {
     }
 
     /// Build the cache key for a module and profile.
-    fn build_global_symbol_table_key(
+    pub(crate) fn build_global_symbol_table_key(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
@@ -233,6 +255,24 @@ impl Compiler {
             profile_id,
             entry_module,
         })
+    }
+
+    /// Resolve a global symbol group by key and space.
+    pub(crate) fn get_global_symbol_group(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        let cache_key = self
+            .build_global_symbol_table_key(module_id, profile_id)
+            .ok()?;
+        let cache = self.global_symbol_caches.get(&cache_key)?;
+        cache
+            .sources_by_space
+            .get(&GlobalSymbolGroupKey { key, space })
+            .cloned()
     }
 
     /// Select the global symbol table roots for a module.
@@ -430,7 +470,7 @@ impl Compiler {
                 let Some(key) = symbol.key else {
                     return;
                 };
-                index.insert_symbol(key, symbol_id.into_global(module_id));
+                index.insert_symbol(key, symbol.space, symbol_id.into_global(module_id));
             }
             _ => {}
         }

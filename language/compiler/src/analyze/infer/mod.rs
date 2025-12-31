@@ -10,6 +10,7 @@ mod flow;
 mod instance;
 mod key;
 mod member;
+mod merge;
 mod operator;
 mod parameter;
 mod process;

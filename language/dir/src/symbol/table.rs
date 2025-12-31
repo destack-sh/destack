@@ -1,9 +1,9 @@
 use destack_source::ModuleId;
 
 use crate::{
-    Arena, DependencyMode, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node,
-    NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolType,
+    Arena, DependencyMode, LocalMergeGroupId, LocalNodeId, LocalScopeId, LocalScopeMark,
+    LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding, SymbolKind,
+    SymbolOrigin, SymbolSpace, SymbolType,
 };
 use std::fmt::Debug;
 
@@ -17,11 +17,15 @@ pub struct SymbolTable {
     pub(crate) next_symbol_id: u32,
     /// The next scope id to allocate.
     pub(crate) next_scope_id: u32,
+    /// The next merge group id to allocate.
+    pub(crate) next_merge_group_id: u32,
 
     /// The symbols in the table.
     pub(crate) symbols: Arena<Symbol>,
     /// The scopes in the table.
     pub(crate) scopes: Arena<Scope>,
+    /// The merge groups in the table.
+    pub(crate) merge_groups: Arena<Vec<LocalSymbolId>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -32,8 +36,10 @@ impl SymbolTable {
             module_id,
             next_symbol_id: 0,
             next_scope_id: 0,
+            next_merge_group_id: 0,
             symbols: Arena::new(),
             scopes: Arena::new(),
+            merge_groups: Arena::new(),
         }
     }
 
@@ -73,12 +79,14 @@ impl SymbolTable {
             ty,
             space,
             binding,
+            origin: SymbolOrigin::Primary,
             key,
             scope,
             module_id: self.module_id,
             export,
             primary_declaration: None,
             secondary_declarations: None,
+            merge_group: None,
             target_symbol: None,
             canonical_symbol: None,
         };
@@ -159,5 +167,34 @@ impl SymbolTable {
     #[inline]
     pub fn get_scope_by_id_mut(&mut self, scope_id: LocalScopeId) -> &mut Scope {
         self.scopes.get_mut(scope_id.0)
+    }
+
+    /// Create a merge group from a list of symbols.
+    pub fn create_merge_group(&mut self, symbols: Vec<LocalSymbolId>) -> LocalMergeGroupId {
+        let group_id = LocalMergeGroupId::new(self.next_merge_group_id);
+        self.next_merge_group_id += 1;
+
+        // attach symbols to the merge group
+        for symbol_id in &symbols {
+            self.symbols.get_mut(symbol_id.id).merge_group = Some(group_id);
+        }
+
+        self.merge_groups.allocate(symbols);
+        group_id
+    }
+
+    /// Add a symbol to an existing merge group.
+    pub fn add_to_merge_group(&mut self, group_id: LocalMergeGroupId, symbol_id: LocalSymbolId) {
+        // attach the symbol to the group
+        self.symbols.get_mut(symbol_id.id).merge_group = Some(group_id);
+
+        // record the symbol in the group list
+        self.merge_groups.get_mut(group_id.0).push(symbol_id);
+    }
+
+    /// Get the symbols in a merge group.
+    #[inline]
+    pub fn merge_group_symbols(&self, group_id: LocalMergeGroupId) -> &[LocalSymbolId] {
+        self.merge_groups.get(group_id.0)
     }
 }

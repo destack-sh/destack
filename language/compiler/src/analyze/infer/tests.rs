@@ -1,8 +1,8 @@
 use crate::{AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type};
 use destack_dir::{
     BinaryOperator, Declaration, Expression, FlowEdgeKind, FlowGraphBuilder, InferTable,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolKind, Type, TypeLiteral,
-    TypeUnaryOperator,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind,
+    SymbolSpace, SymbolType, Type, TypeLiteral, TypeUnaryOperator,
 };
 use destack_workspace::DsConfigCompilerOptions;
 
@@ -127,6 +127,125 @@ fn test_analyze_boolean_literal() {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
         }
     );
+}
+
+/// Merge global interface members across imported modules.
+#[test]
+fn test_merge_global_declarations_across_imports() {
+    // arrange test modules
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "a.ds",
+        r#"
+declare global {
+    interface GlobalThing {
+        value: number
+    }
+}
+"#,
+    );
+    test.add_module(
+        "b.ds",
+        r#"
+declare global {
+    interface GlobalThing {
+        label: string
+    }
+}
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import "./a.ds";
+import "./b.ds";
+
+const thing: GlobalThing = { value: 1, label: "ok" };
+"#,
+    );
+
+    // analyze the entry module
+    test.analyze_module(main_id);
+    test.compile_dump_clean();
+
+    // load module data for inspection
+    let module = test.program.modules.get(main_id);
+    let module = module.read();
+    let profile = test.default_profile_id(main_id);
+    let dir = module.dir(profile);
+    let symbols = dir.symbols.read();
+    let types = dir.types.read();
+    let thing_name = test.program.strings.intern("thing");
+    let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
+    let global_group = test
+        .compiler
+        .get_global_symbol_group(main_id, profile, global_key, SymbolSpace::Type)
+        .expect("missing global group for GlobalThing");
+    assert_eq!(global_group.len(), 2);
+
+    for global_symbol in &global_group {
+        let remote_profile = test.default_profile_id(global_symbol.module_id);
+        let remote_module = test.program.modules.get(global_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_types = remote_module.dir(remote_profile).types.read();
+        assert!(
+            remote_types.get_instance_type_id(*global_symbol).is_some(),
+            "expected instance type for GlobalThing in module {:?}",
+            global_symbol.module_id,
+        );
+    }
+
+    // locate the bound symbol for thing in the module scope
+    let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+    let thing_symbol = namespace_scope
+        .named_symbols
+        .iter()
+        .find_map(|(key, symbol_id)| match key {
+            StaticKey::Name(name_id) if *name_id == thing_name => Some(*symbol_id),
+            _ => None,
+        })
+        .expect("missing symbol for thing")
+        .into_global(main_id);
+    let thing_entry = symbols.get_symbol(thing_symbol.local_id);
+    assert!(
+        thing_entry.target_symbol.is_none(),
+        "unexpected target_symbol on thing binding",
+    );
+    assert!(
+        thing_entry.canonical_symbol.is_none(),
+        "unexpected canonical_symbol on thing binding",
+    );
+    let canonical_symbol =
+        test.compiler
+            .canonical_symbol_id(&module, &symbols, profile, thing_symbol);
+    assert_eq!(canonical_symbol, thing_symbol);
+
+    // assert the binding uses a nominal reference type
+    let value_ty_id = types
+        .get_value_type_id(thing_symbol)
+        .expect("missing value type for thing");
+    let value_ty = types.get_type(value_ty_id);
+    let Type::Reference {
+        symbol: global_thing,
+        ..
+    } = value_ty
+    else {
+        panic!("expected reference type for thing");
+    };
+    assert_eq!(global_thing.ty(), SymbolType::Interface);
+
+    // assert the merged instance type includes both fields
+    let instance_ty_id = types
+        .get_instance_type_id(*global_thing)
+        .expect("missing instance type for GlobalThing");
+    let instance_ty = types.get_type(instance_ty_id);
+    let Type::Object { fields, .. } = instance_ty else {
+        panic!("expected object instance type for GlobalThing");
+    };
+    let value_key = StaticKey::Name(test.program.strings.intern("value"));
+    let label_key = StaticKey::Name(test.program.strings.intern("label"));
+    assert!(fields.iter().any(|field| field.key.matches(&value_key)));
+    assert!(fields.iter().any(|field| field.key.matches(&label_key)));
 }
 
 /// Analyze binary number operation.

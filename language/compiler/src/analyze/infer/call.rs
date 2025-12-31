@@ -38,6 +38,215 @@ pub(super) struct ResolvedMemberFunction {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Collect all callable signatures for a type (for #Overloads support).
+    fn call_signatures_for_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> Vec<LocalTypeId> {
+        // use direct function types as call signatures
+        if matches!(types.get_type(ty_id), Type::Function { .. }) {
+            return vec![ty_id];
+        }
+
+        // collect call signatures from object types
+        if let Type::Object {
+            call_signatures, ..
+        } = types.get_type(ty_id)
+        {
+            return call_signatures.clone();
+        }
+
+        // follow nominal references into their instance types
+        if let Type::Reference { symbol, .. } = types.get_type(ty_id)
+            && let Some(instance_id) = types.get_instance_type_id(*symbol)
+            && let Type::Object {
+                call_signatures, ..
+            } = types.get_type(instance_id)
+        {
+            return call_signatures.clone();
+        }
+
+        // unwrap value types to their underlying type
+        if let Type::Value { value } = types.get_type(ty_id) {
+            return self.call_signatures_for_type(*value, types);
+        }
+
+        Vec::new()
+    }
+
+    /// Select a callable signature type for a callee type when possible.
+    pub(super) fn call_signature_for_type(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        self.call_signatures_for_type(ty_id, types).first().copied()
+    }
+
+    /// Resolve a function signature and apply `this` substitutions when needed.
+    fn resolve_call_signature(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        callee_symbol: Option<GlobalSymbolId>,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        signature_ty_id: LocalTypeId,
+        call_receiver_ty_id: Option<LocalTypeId>,
+        profile: ProfileId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) -> AnalyzeResult<Option<ResolvedFunctionSignature>> {
+        let Type::Function {
+            static_parameters,
+            dynamic_parameters,
+            return_type,
+            ..
+        } = types.get_type(signature_ty_id).clone()
+        else {
+            return Ok(None);
+        };
+
+        let resolved = self.resolve_function_signature(
+            module,
+            expression_id.into_any(),
+            callee_symbol,
+            static_arguments,
+            &static_parameters,
+            &dynamic_parameters,
+            return_type,
+            profile,
+            options,
+            tree,
+            symbols,
+            types,
+            infer,
+        )?;
+
+        // substitute `this` for member calls
+        if let Some(receiver_ty_id) = call_receiver_ty_id {
+            let mut cache = HashMap::new();
+            let mapped_parameters = resolved
+                .dynamic_parameters
+                .iter()
+                .map(|parameter| {
+                    self.substitute_this_type(*parameter, receiver_ty_id, types, &mut cache)
+                })
+                .collect::<Vec<_>>();
+            let mapped_return = resolved.return_type.map(|return_type| {
+                self.substitute_this_type(return_type, receiver_ty_id, types, &mut cache)
+            });
+
+            return Ok(Some(ResolvedFunctionSignature {
+                dynamic_parameters: mapped_parameters,
+                return_type: mapped_return,
+                static_arguments: resolved.static_arguments,
+            }));
+        }
+
+        Ok(Some(resolved))
+    }
+
+    /// Resolve the literal argument types when every argument is a scalar literal.
+    /// NOTE #Cleanup #Overloads: literal only selection avoids contextual widening
+    fn literal_argument_types(
+        &self,
+        arguments: &[LocalNodeId<Argument>],
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Option<Vec<LocalTypeId>> {
+        let mut literal_types = Vec::with_capacity(arguments.len());
+
+        // bail out if any argument is non-literal
+        for argument_id in arguments {
+            let argument = tree.get(*argument_id);
+            if matches!(argument, Argument::Spread { .. }) {
+                return None;
+            }
+
+            let value_id = argument.value();
+            let Expression::ScalarLiteral { value } = tree.get(value_id) else {
+                return None;
+            };
+
+            let literal_ty = self.infer_scalar_literal(value);
+            let ty = Type::TypeLiteral { value: literal_ty };
+            let ty_id = types.insert_type_from_any(ty, value_id.into_any());
+            literal_types.push(ty_id);
+        }
+
+        Some(literal_types)
+    }
+
+    /// Select the matching call signature overload for a call expression.
+    fn select_call_signature(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        callee_symbol: Option<GlobalSymbolId>,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        signature_ids: &[LocalTypeId],
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        call_receiver_ty_id: Option<LocalTypeId>,
+        profile: ProfileId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedFunctionSignature)>> {
+        // only attempt selection when overloads exist
+        if signature_ids.len() <= 1 {
+            return Ok(None);
+        }
+
+        // collect the argument types for literal only selection (until full #Overloads support)
+        let Some(argument_types) = self.literal_argument_types(dynamic_arguments, tree, types)
+        else {
+            return Ok(None);
+        };
+
+        // select the matching overload
+        // FUGU #Overloads: replace literal only heuristic with full overload selection
+        for signature_ty_id in signature_ids {
+            let Some(resolved) = self.resolve_call_signature(
+                module,
+                expression_id,
+                callee_symbol,
+                static_arguments,
+                *signature_ty_id,
+                call_receiver_ty_id,
+                profile,
+                options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?
+            else {
+                continue;
+            };
+
+            let mut matches = true;
+            for (argument_ty_id, param_ty_id) in argument_types
+                .iter()
+                .zip(resolved.dynamic_parameters.iter())
+            {
+                if self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types, options)
+                    == Assignability::NotAssignable
+                {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if matches {
+                return Ok(Some((*signature_ty_id, resolved)));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Infer a call expression.
     pub(super) fn infer_call_expression(
         &self,
@@ -55,6 +264,15 @@ impl Compiler {
         let callee_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let options = ctx.options;
+
+        // ensure instance types for callable references
+        self.ensure_reference_instance_types_for_type(
+            module,
+            ctx.profile,
+            expression_id.into_any(),
+            callee_ty_id,
+            types,
+        )?;
 
         // track static arguments that come from member expressions
         let call_has_static_arguments =
@@ -108,6 +326,7 @@ impl Compiler {
                     module,
                     &receiver_ty,
                     &member_key,
+                    ctx.profile,
                     tree,
                     symbols,
                     types,
@@ -162,21 +381,35 @@ impl Compiler {
         } else {
             static_arguments
         };
-        let ty_id = match types.get_type(callee_ty_id).clone() {
-            Type::Function {
-                static_parameters,
-                dynamic_parameters,
-                return_type,
-                ..
-            } => {
-                let resolved = self.resolve_function_signature(
+        let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
+        let ty_id = if !call_signatures.is_empty() {
+            // select the matching overload
+            let selection = self.select_call_signature(
+                module,
+                expression_id,
+                callee_symbol,
+                effective_static_arguments,
+                &call_signatures,
+                dynamic_arguments,
+                call_receiver_ty_id,
+                ctx.profile,
+                &options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?;
+            let (_signature_ty_id, resolved) = if let Some(selection) = selection {
+                selection
+            } else {
+                let signature_ty_id = call_signatures[0];
+                let resolved = self.resolve_call_signature(
                     module,
-                    expression_id.into_any(),
+                    expression_id,
                     callee_symbol,
                     effective_static_arguments,
-                    &static_parameters,
-                    &dynamic_parameters,
-                    return_type,
+                    signature_ty_id,
+                    call_receiver_ty_id,
                     ctx.profile,
                     &options,
                     tree,
@@ -184,161 +417,141 @@ impl Compiler {
                     types,
                     infer,
                 )?;
-
-                let (resolved_dynamic_parameters, resolved_return_type) = if let Some(receiver_ty) =
-                    call_receiver_ty_id
-                {
-                    let mut cache = HashMap::new();
-                    let mapped_parameters = resolved
-                        .dynamic_parameters
-                        .iter()
-                        .map(|parameter| {
-                            self.substitute_this_type(*parameter, receiver_ty, types, &mut cache)
-                        })
-                        .collect::<Vec<_>>();
-                    let mapped_return = resolved.return_type.map(|return_type| {
-                        self.substitute_this_type(return_type, receiver_ty, types, &mut cache)
-                    });
-                    (mapped_parameters, mapped_return)
-                } else {
-                    (resolved.dynamic_parameters, resolved.return_type)
-                };
-                let resolved_static_arguments = resolved.static_arguments;
-
-                // analyze arguments with contextual parameter types
-                let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-                for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-                    let expected_arg_ty_id = resolved_dynamic_parameters.get(index).copied();
-                    self.infer_argument(
-                        module,
-                        *argument_id,
-                        expected_arg_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
-
-                    let argument = tree.get(*argument_id);
-                    let argument_value_id = argument.value();
-                    let argument_ty_id = self.infer_expression(
-                        module,
-                        argument_value_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
-                    argument_ty_ids.push(argument_ty_id);
-                }
-
-                // add constraints between arguments and parameters
-                for (argument_ty_id, param_ty_id) in argument_ty_ids
-                    .iter()
-                    .zip(resolved_dynamic_parameters.iter())
-                {
-                    infer.push_constraint(Constraint::Subtype {
-                        sub_type: *argument_ty_id,
-                        super_type: *param_ty_id,
-                        variance: None,
-                    });
-                }
-
-                // check argument assignability against parameters
-                for (index, (argument_ty_id, param_ty_id)) in argument_ty_ids
-                    .iter()
-                    .zip(resolved_dynamic_parameters.iter())
-                    .enumerate()
-                {
-                    if !self.is_infer_var_type(*param_ty_id, types)
-                        && !self.is_infer_var_type(*argument_ty_id, types)
-                        && self.check_is_type_assignable(
-                            *param_ty_id,
-                            *argument_ty_id,
-                            types,
-                            &options,
-                        ) == Assignability::NotAssignable
-                    {
-                        let argument_node = dynamic_arguments
-                            .get(index)
-                            .map(|id| id.into_global_any(module.id))
-                            .unwrap_or_else(|| expression_id.into_global_any(module.id));
-                        return Err(AnalyzeError::UnassignableType {
-                            node: argument_node,
-                            expected_ty: param_ty_id.into_global(module.id),
-                            actual_ty: argument_ty_id.into_global(module.id),
-                        });
+                match resolved {
+                    Some(resolved) => (signature_ty_id, resolved),
+                    None => {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        return Ok(types.insert_type_from(ty, expression_id));
                     }
                 }
+            };
 
-                // register the instance if the call is to a symbol
-                let mut call_instance_id = None;
-                if let Some(callee_symbol) = callee_symbol {
-                    let instance_arguments = member_instance_arguments.unwrap_or_else(|| {
-                        let mut arguments = inherited_static_arguments;
-                        arguments.extend(resolved_static_arguments);
-                        arguments
-                    });
+            let resolved_dynamic_parameters = resolved.dynamic_parameters;
+            let resolved_return_type = resolved.return_type;
+            let resolved_static_arguments = resolved.static_arguments;
 
-                    if !instance_arguments.is_empty() {
-                        let instance_id = self.register_instance_for_node(
-                            expression_id.into_global_any(module.id),
-                            callee_symbol,
-                            instance_arguments,
-                            types,
-                        );
-                        call_instance_id = Some(instance_id);
-                    }
-                }
+            // analyze arguments with contextual parameter types
+            let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+            for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+                let expected_arg_ty_id = resolved_dynamic_parameters.get(index).copied();
+                self.infer_argument(
+                    module,
+                    *argument_id,
+                    expected_arg_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
-                // record call resolution when possible
-                if let Some(member_resolution) = call_member_resolution {
-                    self.record_member_resolution(
-                        expression_id.into_global_any(module.id),
-                        call_receiver_ty_id,
-                        &member_resolution,
-                        call_instance_id,
-                        true,
-                        types,
-                    );
-                } else if let Some(callee_symbol) = callee_symbol {
-                    self.record_static_resolution(
-                        expression_id.into_global_any(module.id),
-                        call_receiver_ty_id,
-                        callee_symbol,
-                        call_instance_id,
-                        types,
-                    );
-                }
-
-                resolved_return_type.unwrap_or_else(|| {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Void,
-                    };
-                    types.insert_type_from(ty, expression_id)
-                })
+                let argument = tree.get(*argument_id);
+                let argument_value_id = argument.value();
+                let argument_ty_id = self.infer_expression(
+                    module,
+                    argument_value_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+                argument_ty_ids.push(argument_ty_id);
             }
-            _ => {
-                for argument_id in dynamic_arguments {
-                    self.infer_argument(
-                        module,
-                        *argument_id,
-                        None,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
-                }
 
+            // add constraints between arguments and parameters
+            for (argument_ty_id, param_ty_id) in argument_ty_ids
+                .iter()
+                .zip(resolved_dynamic_parameters.iter())
+            {
+                infer.push_constraint(Constraint::Subtype {
+                    sub_type: *argument_ty_id,
+                    super_type: *param_ty_id,
+                    variance: None,
+                });
+            }
+
+            // check argument assignability against parameters
+            for (index, (argument_ty_id, param_ty_id)) in argument_ty_ids
+                .iter()
+                .zip(resolved_dynamic_parameters.iter())
+                .enumerate()
+            {
+                if !self.is_infer_var_type(*param_ty_id, types)
+                    && !self.is_infer_var_type(*argument_ty_id, types)
+                    && self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types, &options)
+                        == Assignability::NotAssignable
+                {
+                    let argument_node = dynamic_arguments
+                        .get(index)
+                        .map(|id| id.into_global_any(module.id))
+                        .unwrap_or_else(|| expression_id.into_global_any(module.id));
+                    return Err(AnalyzeError::UnassignableType {
+                        node: argument_node,
+                        expected_ty: param_ty_id.into_global(module.id),
+                        actual_ty: argument_ty_id.into_global(module.id),
+                    });
+                }
+            }
+
+            // register the instance if the call is to a symbol
+            let mut call_instance_id = None;
+            if let Some(callee_symbol) = callee_symbol {
+                let instance_arguments = member_instance_arguments.unwrap_or_else(|| {
+                    let mut arguments = inherited_static_arguments;
+                    arguments.extend(resolved_static_arguments);
+                    arguments
+                });
+
+                if !instance_arguments.is_empty() {
+                    let instance_id = self.register_instance_for_node(
+                        expression_id.into_global_any(module.id),
+                        callee_symbol,
+                        instance_arguments,
+                        types,
+                    );
+                    call_instance_id = Some(instance_id);
+                }
+            }
+
+            // record call resolution when possible
+            if let Some(member_resolution) = call_member_resolution {
+                self.record_member_resolution(
+                    expression_id.into_global_any(module.id),
+                    call_receiver_ty_id,
+                    &member_resolution,
+                    call_instance_id,
+                    true,
+                    types,
+                );
+            } else if let Some(callee_symbol) = callee_symbol {
+                self.record_static_resolution(
+                    expression_id.into_global_any(module.id),
+                    call_receiver_ty_id,
+                    callee_symbol,
+                    call_instance_id,
+                    types,
+                );
+            }
+
+            resolved_return_type.unwrap_or_else(|| {
                 let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
+                    value: TypeLiteral::Void,
                 };
                 types.insert_type_from(ty, expression_id)
+            })
+        } else {
+            // infer dynamic arguments
+            for argument_id in dynamic_arguments {
+                self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
             }
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            types.insert_type_from(ty, expression_id)
         };
 
         Ok(ty_id)
@@ -609,8 +822,15 @@ impl Compiler {
         )?;
 
         // resolve member dispatch for the receiver type
-        let member_resolution =
-            self.resolve_member_resolution(module, receiver_ty, member_key, tree, symbols, types);
+        let member_resolution = self.resolve_member_resolution(
+            module,
+            receiver_ty,
+            member_key,
+            profile,
+            tree,
+            symbols,
+            types,
+        );
         let member_symbol = match &member_resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
@@ -620,11 +840,13 @@ impl Compiler {
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
             module,
+            profile,
+            receiver_expression_id.into_any(),
             receiver_ty,
             member_key,
             types,
             &mut member_type_visited,
-        );
+        )?;
         let has_member = member_ty_id.is_some();
 
         // bail of we don't know the member type

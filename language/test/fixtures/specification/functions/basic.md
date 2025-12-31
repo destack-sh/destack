@@ -119,6 +119,24 @@ const fn: Fn = (): number => 1;
 fn satisfies { (): number };
 ```
 
+## Declaration Files
+
+### declaration file overloads merge
+
+> Overloads in declaration files merge into a single callable.
+
+```ds:types.d.ds
+export function apply(value: string): number;
+export function apply(value: number): string;
+```
+
+```ds:main.ds
+import { apply } from "./types.d.ds";
+
+apply("ok") satisfies number;
+apply(42) satisfies string;
+```
+
 ## strictFunctionTypes
 
 ### strictFunctionTypes rejects narrow parameters

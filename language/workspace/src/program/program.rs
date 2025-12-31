@@ -547,8 +547,10 @@ mod tests {
             ..Target::default()
         };
 
-        let mut compiler_options = DsConfigCompilerOptions::default();
-        compiler_options.types = vec!["node".to_string(), "dom".to_string()];
+        let compiler_options = DsConfigCompilerOptions {
+            types: vec!["node".to_string(), "dom".to_string()],
+            ..DsConfigCompilerOptions::default()
+        };
 
         let profile_config = ProfileConfig {
             types: Some(vec!["deno".to_string()]),

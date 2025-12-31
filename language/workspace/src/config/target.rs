@@ -456,7 +456,7 @@ pub enum Runtime {
     /// Web Worker / Service Worker / Shared Worker
     Worker,
     /// Cloudflare Workers (workerd)
-    Workerd,
+    Workerd, // FUGU: wait didn't we want to remove Runtime::Workerd?
 
     // WASM runtimes (for output=wasm)
     /// WASM running in a JS host (browser or Node)

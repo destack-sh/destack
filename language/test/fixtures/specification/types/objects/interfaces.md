@@ -158,6 +158,45 @@ const target: Target = source
 
 > Assignments allow required fields when optional is expected.
 
+## interface declarations merge in declaration files
+
+> Declarations in .d.ds merge into a single interface.
+
+```ds:types.d.ds
+export interface Widget {
+    value: number
+}
+
+export interface Widget {
+    label: string
+}
+
+export const widget: Widget;
+```
+
+```ds:main.ds
+import { widget } from "./types.d.ds";
+
+widget.label satisfies string;
+widget.value satisfies number;
+```
+
+## duplicate interface names are errors in .ds
+
+> Duplicate interface declarations are rejected outside declaration files.
+
+```ds
+interface Duplicate {
+    value: number
+}
+
+interface Duplicate {
+    label: string
+}
+```
+
+- contains: duplicate identifier
+
 ```ds
 interface Target {
     name?: string
@@ -167,8 +206,8 @@ interface Source {
     name: string
 }
 
-const source: Source = { name: "Ada" }
-const target: Target = source
+const source: Source = { name: "Ada" };
+const target: Target = source;
 ```
 
 ## interface assignability is structural

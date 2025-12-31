@@ -767,7 +767,7 @@ Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference
 | Aspect | struct | class |
 |--------|--------|-------|
 | Reference identity | No (`===` is compile error) | Yes (`===` compares pointers) |
-| Type identity | Via metadata or fat pointer when needed | Always (vtable pointer) |
+| Type identity | Via metadata or fat pointer when needed | Via vtable or metadata when needed |
 | Equality | By value (`==` compares properties) | By reference (unless `Equal` implemented) |
 | Extends | No | Yes |
 | Implements | Yes | Yes |
@@ -780,6 +780,7 @@ Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference
   - No subclasses exist in the compilation unit → direct call
   - Method not overridden by any subclass → direct call
   - Receiver type is exactly known (not a supertype) → direct call
+- Vtables are only emitted when dynamic dispatch remains, fully devirtualized classes can omit vtables
 
 The `final` keyword on methods or classes is an API contract ("you may not override/extend"), not an optimization hint. 
 For whole-program compilation, the optimizer already knows what's overridden. 
@@ -790,12 +791,12 @@ Both lower to `Type::Struct` with computed property offsets. The key difference 
 #### RTTI and Type Tags
 
 RTTI (runtime type identity) is unified via `TypeDescriptor` pointers.
-Classes always store a vtable pointer in the object layout for virtual dispatch.
+Polymorphic classes store a vtable pointer in the object layout for virtual dispatch.
 Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
 Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
 Interface and `any` values carry `TypeDescriptor` in fat pointers.
-Class references are thin pointers, so the vtable pointer must live in the object layout.
+Class references are thin pointers, so the vtable pointer must live in the object layout when present.
 
 GC metadata lookup only applies to managed references.
 Non-managed values require explicit tags (union tags or fat pointers) or compile-time type knowledge.
@@ -847,7 +848,7 @@ String tags are interned to integers (see [String Tag Interning](#string-tag-int
 
 #### Class Layout
 
-Classes always have vtable pointers for virtual dispatch and RTTI:
+Polymorphic classes have vtable pointers for virtual dispatch and RTTI:
 
 ```ds
 class Animal {
@@ -864,9 +865,10 @@ struct AnimalLayout {
 }
 ```
 
-Classes have both reference identity (`===` compares pointers) and type identity (via vtable).
-Classes always store their vtable pointer because class references are thin pointers and dynamic dispatch is required.
+Classes have both reference identity (`===` compares pointers) and type identity (via vtable or metadata).
+Polymorphic classes store their vtable pointer because class references are thin pointers and dynamic dispatch is required.
 (This is consistent with Java and C++ class objects while keeping struct layouts headerless like Go.)
+Non-polymorphic classes omit the vtable pointer and use metadata or fat pointers for RTTI when needed.
 
 #### Managed Object Metadata
 
@@ -880,7 +882,7 @@ Per span metadata includes:
 - Size class and allocation layout info
 - A TypeDescriptor pointer per object for scanning and type queries
 
-Classes still store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
+Polymorphic classes store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
 Structs remain headerless and rely on metadata or fat pointers for RTTI.
 
 Tradeoffs:
@@ -919,13 +921,13 @@ class Dog extends Animal {
 }
 ```
 
-Dog's MIR layout:
+Dog's MIR layout (polymorphic):
 - offset 0: vtablePtr
 - offset 8: name (from Animal)
 - offset 16: breed (from Dog)
 
 This ensures a `Dog` pointer can be used where an `Animal` pointer is expected.
-Classes use vtables for virtual methods (and non-virtual methods are direct calls).
+Polymorphic classes use vtables for virtual methods (and non-virtual methods are direct calls).
 
 ```
 class Animal {
@@ -1241,7 +1243,7 @@ At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `T
 data is accessed directly.
 (Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
 Runtime type tags are pointers to TypeDescriptor values.
-Classes store the pointer in vtable slot 0, interface and `any` values carry it in fat pointers,
+When a vtable exists, slot 0 stores the TypeDescriptor pointer. Interface and `any` values carry it in fat pointers,
 and thin pointers recover it via GC metadata when needed.
 
 **Lowering Type<T> operations:**
@@ -1276,7 +1278,7 @@ Dead code elimination removes unused RTTI entries.
 Method calls are resolved and dispatched differently based on structural or nominal types (obviously).
 TypeScript's duck typing means any object with matching methods can satisfy an interface, which creates some interesting challenges for native codegen.
 
-Class dispatch uses vtables stored in the object layout, like C++ and Java.
+Polymorphic class dispatch uses vtables stored in the object layout, like C++ and Java.
 Interface dispatch uses itabs carried by fat pointers, like Go.
 Union dispatch generates type checking code when a value could be multiple types.
 

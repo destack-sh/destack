@@ -1,3 +1,5 @@
+use std::path::Path;
+
 /// The format of a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FileType {
@@ -83,6 +85,28 @@ impl FileType {
     /// Get the file extension from an extension or unknown.
     pub fn from_extension_or_unknown(s: &str) -> Self {
         Self::from_extension(s).unwrap_or(FileType::Unknown)
+    }
+
+    /// Get a source format from a file path.
+    pub fn from_path(path: &Path) -> Option<Self> {
+        // detect compound extensions first
+        if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
+            if file_name.ends_with(".d.ds") {
+                return Some(FileType::DestackDeclaration);
+            }
+            if file_name.ends_with(".d.ts") {
+                return Some(FileType::TypeScriptDeclaration);
+            }
+        }
+
+        // fall back to the simple extension
+        let extension = path.extension().and_then(|ext| ext.to_str());
+        extension.and_then(FileType::from_extension)
+    }
+
+    /// Get a source format from a file path, defaulting to unknown.
+    pub fn from_path_or_unknown(path: &Path) -> Self {
+        Self::from_path(path).unwrap_or(FileType::Unknown)
     }
 }
 

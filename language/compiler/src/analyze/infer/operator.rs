@@ -513,6 +513,15 @@ impl Compiler {
             self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
+        // ensure instance types are available for reference receivers
+        self.ensure_reference_instance_types_for_type(
+            module,
+            ctx.profile,
+            expression_id.into_any(),
+            receiver_ty_id,
+            types,
+        )?;
+
         let index_ty_id = if let Some(index_id) = index_id {
             Some(self.infer_expression(module, index_id, tree, symbols, types, infer, ctx)?)
         } else {
@@ -1141,7 +1150,7 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                let result_symbol = self.expect_language_item(LanguageItem::Result);
+                let result_symbol = self.language_item(LanguageItem::Result);
                 if *symbol != result_symbol {
                     return None;
                 }

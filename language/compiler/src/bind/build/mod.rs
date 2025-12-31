@@ -6,6 +6,7 @@ mod declaration;
 mod dependency;
 mod expression;
 mod function;
+mod global;
 mod key;
 mod literal;
 mod r#match;

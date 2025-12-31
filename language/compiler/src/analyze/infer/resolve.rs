@@ -3,7 +3,7 @@ use destack_dir::{
     DispatchKey, GlobalNodeIdAny, GlobalSymbolId, LocalInstanceId, LocalTypeId, NodeTree,
     Resolution, ResolutionCandidate, StaticKey, SymbolTable, Type, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 /// Describe the resolution outcome for a member lookup.
 #[derive(Debug, Clone)]
@@ -18,6 +18,7 @@ pub(super) enum MemberResolution {
     Unresolved,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Record a builtin resolution for a node.
     pub(super) fn record_builtin_resolution(
@@ -40,6 +41,7 @@ impl Compiler {
         module: &Module,
         receiver_ty: &Type,
         member_key: &StaticKey,
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -51,6 +53,7 @@ impl Compiler {
                     module,
                     receiver_ty,
                     member_key,
+                    profile,
                     tree,
                     symbols,
                     types,
@@ -73,6 +76,7 @@ impl Compiler {
                         module,
                         &element_ty,
                         member_key,
+                        profile,
                         tree,
                         symbols,
                         types,

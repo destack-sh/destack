@@ -136,12 +136,7 @@ impl Compiler {
         }
 
         // create blank file entry (content loaded later during import)
-        let extension = path
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .into_owned();
-        let ty = ty.unwrap_or_else(|| FileType::from_extension_or_unknown(extension.as_ref()));
+        let ty = ty.unwrap_or_else(|| FileType::from_path_or_unknown(path));
         let name = path
             .file_name()
             .unwrap_or_default()

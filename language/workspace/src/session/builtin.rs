@@ -10,6 +10,11 @@ use indexmap::IndexMap;
 
 use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, ProfileId};
 
+/// Resolve a file type for a builtin source name.
+fn file_type_for_builtin_name(name: &str) -> FileType {
+    FileType::from_path(Path::new(name)).unwrap_or(FileType::Destack)
+}
+
 /// Well-known package ID for builtins.
 pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 
@@ -72,6 +77,10 @@ impl LanguageBuiltins {
         for source in CORE_SOURCES {
             let uri = Uri::from_string(source.virtual_path());
 
+            // select file/language types for the builtin source
+            let file_type = file_type_for_builtin_name(source.name);
+            let language_type = LanguageType::from(file_type);
+
             // create file
             let file_id = files.next_id();
             let file = File::from_text(
@@ -79,7 +88,7 @@ impl LanguageBuiltins {
                 source.name.to_string(),
                 uri.clone(),
                 None,
-                FileType::Destack,
+                file_type,
                 source.content.to_string(),
             );
             let file_version = file.version;
@@ -106,7 +115,7 @@ impl LanguageBuiltins {
                 BUILTIN_PACKAGE_ID,
                 None,
                 ModuleType::Module,
-                LanguageType::Destack,
+                language_type,
             );
             modules.insert(module);
             core_modules.insert(module_path, module_id);
@@ -222,27 +231,34 @@ impl LanguageBuiltins {
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
     ) -> ModuleId {
+        // check if module already exists
         let uri = Uri::from_string(source.virtual_path());
-
         if let Some(module_id) = modules.get_id_by_uri(&uri) {
             return module_id;
         }
 
+        // select file/language types for the builtin source
+        let file_type = file_type_for_builtin_name(source.name);
+        let language_type = LanguageType::from(file_type);
+
+        // create file
         let file_id = files.next_id();
         let file = File::from_text(
             file_id,
             source.name.to_string(),
             uri.clone(),
             None,
-            FileType::Destack,
+            file_type,
             source.content.to_string(),
         );
         let file_version = file.version;
         files.insert(file);
 
+        // create module id from path
         let module_path = source.module_path();
         let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
 
+        // create blank module (will be parsed/bound later)
         let module = Module::blank(
             module_id,
             file_id,
@@ -252,7 +268,7 @@ impl LanguageBuiltins {
             BUILTIN_PACKAGE_ID,
             None,
             ModuleType::Module,
-            LanguageType::Destack,
+            language_type,
         );
         modules.insert(module);
 
