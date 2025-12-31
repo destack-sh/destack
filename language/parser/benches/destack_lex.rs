@@ -46,13 +46,13 @@ fn bench_lex(c: &mut Criterion) {
     }
 
     // single benchmark over the whole workspace content
-    let mut group = c.benchmark_group("destack_lex");
+    let mut group = c.benchmark_group("destack_lexer");
     let line_count = ds_str.lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
         b.iter(|| {
-            let (tokens, _) = Lexer::lex(FileId::new(0), input, LanguageType::Destack);
-            black_box(tokens);
+            let (tokens, side_tokens, _) = Lexer::lex(FileId::new(0), input, LanguageType::Destack);
+            black_box((tokens, side_tokens));
         });
     });
     group.finish();

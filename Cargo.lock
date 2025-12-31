@@ -621,6 +621,7 @@ name = "destack_base"
 version = "0.51.6"
 dependencies = [
  "parking_lot",
+ "rustc-hash",
  "stacker",
 ]
 

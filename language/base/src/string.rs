@@ -1,7 +1,7 @@
 use parking_lot::{RwLock, RwLockReadGuard};
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use std::fmt::{self, Debug, Formatter};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 
 /// Unique identifier for interned strings in a StringPool.
@@ -73,7 +73,7 @@ pub struct StringPoolState {
     // single ownership of bytes; index is by id (vector index)
     strings: Vec<Box<str>>,
     // hash -> small bucket of candidate ids; we compare bytes to disambiguate
-    index: HashMap<u64, Vec<StringId>>,
+    index: FxHashMap<u64, Vec<StringId>>,
 }
 
 impl Debug for StringPoolState {
@@ -87,7 +87,7 @@ impl Debug for StringPoolState {
 impl StringPoolState {
     #[inline]
     fn hash_str(s: &str) -> u64 {
-        let mut h = DefaultHasher::new();
+        let mut h = FxHasher::default();
         s.hash(&mut h);
         h.finish()
     }
@@ -177,7 +177,7 @@ impl StringPool {
         Self {
             inner: RwLock::new(StringPoolState {
                 strings: Vec::new(),
-                index: HashMap::new(),
+                index: FxHashMap::default(),
             }),
         }
     }
@@ -253,7 +253,7 @@ impl ImmutableStringPool {
         Self {
             inner: StringPoolState {
                 strings: Vec::new(),
-                index: HashMap::new(),
+                index: FxHashMap::default(),
             },
         }
     }

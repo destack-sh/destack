@@ -322,11 +322,8 @@ impl Parser {
     /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
     #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
     pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
-        // tokenize and partition in one pass
-        let (all_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
-        let (tokens, side_tokens): (Vec<TokenSpan>, Vec<TokenSpan>) = all_tokens
-            .into_iter()
-            .partition(|token| is_semantic(token.token.ty));
+        // tokenize directly into semantic and side token vecs (no partition needed)
+        let (tokens, side_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
 
         // make parser with estimated capacity
         // roughly 1 AST node per 3 tokens on average
