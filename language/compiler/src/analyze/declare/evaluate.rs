@@ -1,11 +1,12 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use destack_builtin::WellKnownSymbol;
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
     FunctionSignature, LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument,
     StaticExpression, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
     TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -14,6 +15,7 @@ impl Compiler {
     pub(crate) fn evaluate_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         ty_id: LocalTypeId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -30,6 +32,7 @@ impl Compiler {
         // evaluate and update in place
         let evaluated_ty = self.try_evaluate_expression_to_type_value(
             module,
+            profile,
             expression_id,
             tree,
             symbols,
@@ -46,13 +49,14 @@ impl Compiler {
     pub(crate) fn try_evaluate_expression_to_type_value(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
         let ty = self
-            .evaluate_expression_to_type(module, expression_id, tree, symbols, types)?
+            .evaluate_expression_to_type(module, profile, expression_id, tree, symbols, types)?
             .unwrap_or(Type::Unevaluated(expression_id));
         Ok(ty)
     }
@@ -61,6 +65,7 @@ impl Compiler {
     pub(crate) fn try_evaluate_expression_to_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -68,6 +73,7 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let ty = self.try_evaluate_expression_to_type_value(
             module,
+            profile,
             expression_id,
             tree,
             symbols,
@@ -80,6 +86,7 @@ impl Compiler {
     fn evaluate_function_signature_to_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         signature: &FunctionSignature,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -97,7 +104,7 @@ impl Compiler {
                     types.insert_type_from(ty, *parameter_id)
                 });
 
-            self.evaluate_type(module, declared_type_id, tree, symbols, types)?;
+            self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
 
             dynamic_parameters.push(declared_type_id);
         }
@@ -106,6 +113,7 @@ impl Compiler {
         let return_type = if let Some(return_type_id) = signature.return_type {
             Some(self.try_evaluate_expression_to_type(
                 module,
+                profile,
                 return_type_id,
                 tree,
                 symbols,
@@ -130,6 +138,7 @@ impl Compiler {
     fn evaluate_static_arguments(
         &self,
         module: &Module,
+        profile: ProfileId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -157,6 +166,7 @@ impl Compiler {
             // evaluate static values directly when possible
             if let Some(value) = self.evaluate_static_expression_value_for_type(
                 module,
+                profile,
                 expression_id,
                 tree,
                 symbols,
@@ -167,8 +177,14 @@ impl Compiler {
             }
 
             // fall back to resolving the argument type
-            let ty_id =
-                self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
+            let ty_id = self.try_evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+            )?;
 
             // keep unevaluated types so later phases can resolve them
             if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
@@ -186,11 +202,39 @@ impl Compiler {
         Ok(Some(evaluated_arguments))
     }
 
+    /// Convert a static argument into a type id for type evaluation.
+    fn static_argument_type_id(
+        &self,
+        argument: &StaticArgument,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let ty = match argument {
+            StaticArgument::Evaluated { value, .. } => match value {
+                StaticExpression::Type { ty } => return *ty,
+                StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
+                    value: value.clone(),
+                },
+                StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(value.clone()),
+                },
+                _ => Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+            },
+            StaticArgument::Unevaluated { .. } => Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+        };
+
+        types.insert_type(ty)
+    }
+
     /// Evaluate an expression into a static value expression.
     #[allow(clippy::only_used_in_recursion)]
     fn evaluate_static_expression_value_for_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -212,10 +256,10 @@ impl Compiler {
                 is_inclusive,
             } => {
                 let start_value = self.evaluate_static_expression_value_for_type(
-                    module, *start, tree, symbols, types,
+                    module, profile, *start, tree, symbols, types,
                 )?;
                 let end_value = self.evaluate_static_expression_value_for_type(
-                    module, *end, tree, symbols, types,
+                    module, profile, *end, tree, symbols, types,
                 )?;
 
                 let (Some(start_value), Some(end_value)) = (start_value, end_value) else {
@@ -235,6 +279,7 @@ impl Compiler {
                     let element = tree.get(*element_id);
                     let value = self.evaluate_static_expression_value_for_type(
                         module,
+                        profile,
                         element.value(),
                         tree,
                         symbols,
@@ -255,6 +300,7 @@ impl Compiler {
                     let element = tree.get(*element_id);
                     let value = self.evaluate_static_expression_value_for_type(
                         module,
+                        profile,
                         element.value(),
                         tree,
                         symbols,
@@ -278,6 +324,7 @@ impl Compiler {
     fn evaluate_expression_to_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -295,14 +342,16 @@ impl Compiler {
             },
             Expression::This => Type::This,
             Expression::Parenthesized { expression } => {
-                return self.evaluate_expression_to_type(module, expression, tree, symbols, types);
+                return self.evaluate_expression_to_type(
+                    module, profile, expression, tree, symbols, types,
+                );
             }
 
             Expression::Declaration { declaration } => {
                 let declaration = tree.get(declaration).clone();
                 if let Declaration::Function { signature, .. } = declaration {
                     self.evaluate_function_signature_to_type(
-                        module, &signature, tree, symbols, types,
+                        module, profile, &signature, tree, symbols, types,
                     )?
                 } else {
                     // #Incomplete: only function declarations are evaluable as types (?)
@@ -315,8 +364,9 @@ impl Compiler {
                 operator: UnaryOperator::Not,
                 right,
             } => {
-                let type_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let type_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
                     right: type_id,
@@ -328,8 +378,8 @@ impl Compiler {
             }
             // must
             Expression::Must { left } => {
-                let type_id =
-                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
+                let type_id = self
+                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
                     right: type_id,
@@ -341,8 +391,9 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let type_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let type_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
                 Type::ValueOf {
                     mutability,
                     variance,
@@ -355,8 +406,9 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let type_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let type_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
                 Type::ReferenceOf {
                     mutability,
                     variance,
@@ -365,8 +417,9 @@ impl Compiler {
             }
             // pointer
             Expression::PointerOf { mutability, right } => {
-                let type_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let type_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
                 Type::PointerOf {
                     mutability,
                     right: type_id,
@@ -374,8 +427,9 @@ impl Compiler {
             }
             // unary
             Expression::TypeUnary { operator, right } => {
-                let right_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
                 Type::Unary {
                     operator,
                     right: right_id,
@@ -387,10 +441,11 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_id =
-                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
-                let right_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let left_id = self
+                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
                 Type::Binary {
                     left: left_id,
                     operator,
@@ -403,14 +458,17 @@ impl Compiler {
                 then_type,
                 else_type,
             } => {
-                let left_id =
-                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
-                let right_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
-                let then_type_id =
-                    self.try_evaluate_expression_to_type(module, then_type, tree, symbols, types)?;
-                let else_type_id =
-                    self.try_evaluate_expression_to_type(module, else_type, tree, symbols, types)?;
+                let left_id = self
+                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
+                let then_type_id = self.try_evaluate_expression_to_type(
+                    module, profile, then_type, tree, symbols, types,
+                )?;
+                let else_type_id = self.try_evaluate_expression_to_type(
+                    module, profile, else_type, tree, symbols, types,
+                )?;
                 Type::Conditional {
                     left: left_id,
                     right: right_id,
@@ -425,21 +483,25 @@ impl Compiler {
             } => {
                 let constraint = self.try_evaluate_expression_to_type(
                     module,
+                    profile,
                     parameter.constraint,
                     tree,
                     symbols,
                     types,
                 )?;
                 let key_remap = parameter.key_remap.map(|key_remap| {
-                    self.try_evaluate_expression_to_type(module, key_remap, tree, symbols, types)
+                    self.try_evaluate_expression_to_type(
+                        module, profile, key_remap, tree, symbols, types,
+                    )
                 });
                 let key_remap = match key_remap {
                     Some(Ok(key_remap)) => Some(key_remap),
                     Some(Err(error)) => return Err(error),
                     None => None,
                 };
-                let value_id =
-                    self.try_evaluate_expression_to_type(module, value, tree, symbols, types)?;
+                let value_id = self.try_evaluate_expression_to_type(
+                    module, profile, value, tree, symbols, types,
+                )?;
                 let parameter = TypeMappedParameter {
                     name: parameter.name,
                     constraint,
@@ -452,10 +514,11 @@ impl Compiler {
                 }
             }
             Expression::TypeIndex { left, index } => {
-                let left_id =
-                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
-                let index_id =
-                    self.try_evaluate_expression_to_type(module, index, tree, symbols, types)?;
+                let left_id = self
+                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let index_id = self.try_evaluate_expression_to_type(
+                    module, profile, index, tree, symbols, types,
+                )?;
                 Type::Index {
                     left: left_id,
                     index: index_id,
@@ -465,7 +528,9 @@ impl Compiler {
                 let spans = spans
                     .iter()
                     .map(|span| {
-                        self.try_evaluate_expression_to_type(module, *span, tree, symbols, types)
+                        self.try_evaluate_expression_to_type(
+                            module, profile, *span, tree, symbols, types,
+                        )
                     })
                     .collect::<AnalyzeResult<Vec<_>>>()?;
                 Type::TemplateLiteral {
@@ -479,7 +544,9 @@ impl Compiler {
             },
             Expression::TypeInfer { name, constraint } => {
                 let constraint = constraint.map(|constraint| {
-                    self.try_evaluate_expression_to_type(module, constraint, tree, symbols, types)
+                    self.try_evaluate_expression_to_type(
+                        module, profile, constraint, tree, symbols, types,
+                    )
                 });
                 let constraint = match constraint {
                     Some(Ok(constraint)) => Some(constraint),
@@ -494,7 +561,9 @@ impl Compiler {
                 target,
             } => {
                 let target = target.map(|target| {
-                    self.try_evaluate_expression_to_type(module, target, tree, symbols, types)
+                    self.try_evaluate_expression_to_type(
+                        module, profile, target, tree, symbols, types,
+                    )
                 });
                 let target = match target {
                     Some(Ok(target)) => Some(target),
@@ -515,10 +584,11 @@ impl Compiler {
                 right,
                 ..
             } => {
-                let left_id =
-                    self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
-                let right_id =
-                    self.try_evaluate_expression_to_type(module, right, tree, symbols, types)?;
+                let left_id = self
+                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module, profile, right, tree, symbols, types,
+                )?;
 
                 match operator {
                     BinaryOperator::ElementwiseOr => {
@@ -586,16 +656,36 @@ impl Compiler {
                 target_symbol,
                 static_arguments,
                 ..
-            } => Type::Reference {
-                symbol: target_symbol,
-                static_arguments: self.evaluate_static_arguments(
+            } => {
+                let static_arguments = self.evaluate_static_arguments(
                     module,
+                    profile,
                     static_arguments.as_deref(),
                     tree,
                     symbols,
                     types,
-                )?,
-            },
+                )?;
+
+                // normalize well known references into canonical structural types
+                let canonical_symbol =
+                    self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                let is_array_symbol = self
+                    .get_well_known_symbol(profile, WellKnownSymbol::Array)
+                    .is_some_and(|array_symbol| array_symbol == canonical_symbol);
+                if is_array_symbol {
+                    let element = static_arguments
+                        .as_ref()
+                        .and_then(|arguments| arguments.first())
+                        .map(|argument| self.static_argument_type_id(argument, types));
+
+                    return Ok(Some(Type::Array { element }));
+                }
+
+                Type::Reference {
+                    symbol: target_symbol,
+                    static_arguments,
+                }
+            }
 
             // tuple (anonymous)
             Expression::TupleExpression { elements } => {
@@ -606,8 +696,9 @@ impl Compiler {
                         let argument = tree.get(element_id);
                         argument.value()
                     };
-                    let value_ty_id = self
-                        .try_evaluate_expression_to_type(module, value_id, tree, symbols, types)?;
+                    let value_ty_id = self.try_evaluate_expression_to_type(
+                        module, profile, value_id, tree, symbols, types,
+                    )?;
                     element_types.push(TypeElement::new(value_ty_id));
                 }
 
@@ -641,11 +732,11 @@ impl Compiler {
                             // index signature
                             if let Some(DynamicKey::NamedExpression { name, key }) = key {
                                 let key_type = self.try_evaluate_expression_to_type(
-                                    module, key, tree, symbols, types,
+                                    module, profile, key, tree, symbols, types,
                                 )?;
                                 let value_type = if let Some(value_id) = value {
                                     self.try_evaluate_expression_to_type(
-                                        module, value_id, tree, symbols, types,
+                                        module, profile, value_id, tree, symbols, types,
                                     )?
                                 } else {
                                     let ty = Type::TypeLiteral {
@@ -665,7 +756,9 @@ impl Compiler {
                                 continue;
                             }
 
-                            let Some(key) = key.and_then(|key| key.as_static_key()) else {
+                            let Some(key) = key.and_then(|key| {
+                                self.static_key_from_dynamic_key(profile, key, tree)
+                            }) else {
                                 return Err(AnalyzeError::UnsupportedConstruct {
                                     node: property_id.into_global_any(module.id),
                                 });
@@ -673,7 +766,7 @@ impl Compiler {
 
                             let ty = if let Some(value_id) = value {
                                 self.try_evaluate_expression_to_type(
-                                    module, value_id, tree, symbols, types,
+                                    module, profile, value_id, tree, symbols, types,
                                 )?
                             } else {
                                 let ty = Type::TypeLiteral {
@@ -711,7 +804,7 @@ impl Compiler {
                                 )
                             {
                                 let ty = self.evaluate_function_signature_to_type(
-                                    module, &signature, tree, symbols, types,
+                                    module, profile, &signature, tree, symbols, types,
                                 )?;
                                 let ty_id = types.insert_type_from(ty, property_id);
                                 match signature.mode {
@@ -725,14 +818,16 @@ impl Compiler {
                                 continue;
                             }
 
-                            let Some(key) = key.and_then(|key| key.as_static_key()) else {
+                            let Some(key) = key.and_then(|key| {
+                                self.static_key_from_dynamic_key(profile, key, tree)
+                            }) else {
                                 return Err(AnalyzeError::UnsupportedConstruct {
                                     node: property_id.into_global_any(module.id),
                                 });
                             };
 
                             let ty = self.evaluate_function_signature_to_type(
-                                module, &signature, tree, symbols, types,
+                                module, profile, &signature, tree, symbols, types,
                             )?;
                             let ty_id = types.insert_type_from(ty, property_id);
 
@@ -773,8 +868,9 @@ impl Compiler {
             Expression::Index { left, right } => {
                 // array with static length
                 if let Some(right) = right {
-                    let left_id =
-                        self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
+                    let left_id = self.try_evaluate_expression_to_type(
+                        module, profile, left, tree, symbols, types,
+                    )?;
                     Type::ArraySized {
                         element: left_id,
                         count: right,
@@ -782,8 +878,9 @@ impl Compiler {
                 }
                 // slice
                 else {
-                    let left_id =
-                        self.try_evaluate_expression_to_type(module, left, tree, symbols, types)?;
+                    let left_id = self.try_evaluate_expression_to_type(
+                        module, profile, left, tree, symbols, types,
+                    )?;
                     Type::Array {
                         element: Some(left_id),
                     }

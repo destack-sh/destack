@@ -10,7 +10,8 @@ impl ModuleLowerer<'_> {
             dir::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Number(*bigint as f64),
             dir::ScalarLiteral::Float(float) => ScalarLiteral::Number(*float),
             dir::ScalarLiteral::Character(character) => {
-                let string = self.strings.intern(character.to_string());
+                let character_text = character.to_string();
+                let string = self.strings.intern(&character_text);
                 ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::String(string) => {

@@ -241,8 +241,9 @@ impl Compiler {
         if let Some(argument) = assigned_argument {
             let resolved_argument = match (static_parameter.kind, argument) {
                 (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
-                    let resolved =
-                        self.evaluate_static_argument_as_type(module, node, tree, symbols, types)?;
+                    let resolved = self.evaluate_static_argument_as_type(
+                        module, profile, node, tree, symbols, types,
+                    )?;
                     resolved.unwrap_or(StaticArgument::Unevaluated { node })
                 }
                 (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => self
@@ -576,6 +577,7 @@ impl Compiler {
     pub(super) fn evaluate_static_argument_as_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         argument_id: LocalNodeId<Argument>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -589,8 +591,14 @@ impl Compiler {
 
         // try evaluate expression as a type
         let expression_id = argument.value();
-        let ty_id =
-            self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
+        let ty_id = self.try_evaluate_expression_to_type(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        )?;
         if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
             return Ok(None);
         }
@@ -727,6 +735,7 @@ impl Compiler {
             StaticParameterKind::Type => {
                 let ty_id = self.try_evaluate_expression_to_type(
                     &module,
+                    profile,
                     default_expression.local_id,
                     &tree,
                     &symbols,

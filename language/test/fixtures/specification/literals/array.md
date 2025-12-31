@@ -61,6 +61,28 @@ const values: number[] = [1, "two"];
 
 - contains: type (number, "two") is not assignable to type number[]
 
+## Named Array Types
+
+### Array<T> matches array syntax
+
+```test libs=es5
+```
+
+```ds
+const values: Array<number> = [1, 2, 3];
+values satisfies number[];
+```
+
+### array syntax matches Array<T>
+
+```test libs=es5
+```
+
+```ds
+const values: number[] = [1, 2, 3];
+values satisfies Array<number>;
+```
+
 ## index access
 
 ### noUncheckedIndexedAccess adds undefined to array reads

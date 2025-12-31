@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
 use destack_base::StringId;
-use destack_builtin::{LanguageItem, builtin_lib};
+use destack_builtin::{LanguageItem, WellKnownSymbol, builtin_lib};
 use destack_dir::{DependencyItem, Expression, GlobalSymbolId, NodeTree, StaticKey};
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, WellKnownSymbols};
 use indexmap::IndexMap;
 
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -116,7 +116,8 @@ impl Compiler {
             let symbols = dir.symbols.read();
             let scope = symbols.get_scope_by_id(dir.namespace_scope);
 
-            for (key, symbol_id) in &scope.named_symbols {
+            // prefer the last symbol so lib symbols match ambient resolution order
+            for (key, symbol_id) in scope.named_symbols.iter().rev() {
                 let StaticKey::Name(name_id) = *key else {
                     continue;
                 };
@@ -129,7 +130,9 @@ impl Compiler {
             }
         }
 
-        builtins.set_lib_symbols(profile_id, lib_symbols);
+        builtins.set_lib_symbols(profile_id, lib_symbols.clone());
+        let well_known_symbols = WellKnownSymbols::build(&self.program.strings, &lib_symbols);
+        builtins.set_well_known_symbols(profile_id, well_known_symbols);
 
         Ok(())
     }
@@ -268,11 +271,41 @@ impl Compiler {
             panic!("lib symbol '{}' not available", name.as_ref())
         })
     }
+
+    /// Get well-known symbols for a profile.
+    pub fn get_well_known_symbols(&self, profile: ProfileId) -> Option<WellKnownSymbols> {
+        let builtins = self.program.builtins.as_ref()?;
+        builtins.well_known_symbols(profile)
+    }
+
+    /// Get well-known symbols for a profile, panicking if not found.
+    pub fn well_known_symbols(&self, profile: ProfileId) -> WellKnownSymbols {
+        self.get_well_known_symbols(profile)
+            .unwrap_or_else(|| panic!("well-known symbols not available for profile {profile:?}"))
+    }
+
+    /// Get a specific well-known symbol for a profile.
+    pub fn get_well_known_symbol(
+        &self,
+        profile: ProfileId,
+        symbol: WellKnownSymbol,
+    ) -> Option<GlobalSymbolId> {
+        let well_known_symbols = self.get_well_known_symbols(profile)?;
+        well_known_symbols.get_symbol(symbol)
+    }
+
+    /// Get a specific well-known symbol for a profile, panicking if not found.
+    pub fn well_known_symbol(&self, profile: ProfileId, symbol: WellKnownSymbol) -> GlobalSymbolId {
+        self.get_well_known_symbol(profile, symbol)
+            .unwrap_or_else(|| {
+                panic!("well-known symbol {symbol:?} not available for profile {profile:?}")
+            })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use destack_builtin::LanguageItem;
+    use destack_builtin::{LIBS, LanguageItem, STD_LIB, WellKnownSymbol};
 
     use crate::{TestProgram, assert_string};
 
@@ -305,5 +338,54 @@ mod tests {
         let array_name = test.program.strings.intern("Array");
 
         assert!(test.compiler.get_lib_item(profile, array_name).is_some());
+    }
+
+    /// Resolve well known symbols from builtin libs.
+    #[test]
+    fn test_resolve_well_known_symbols() {
+        let test =
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2015"]);
+        test.resolve_builtins();
+        test.resolve_libs();
+        test.compile();
+
+        let profile = test.default_profile_id_for_root();
+        let well_known = test
+            .compiler
+            .get_well_known_symbols(profile)
+            .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
+        for symbol in WellKnownSymbol::all() {
+            if symbol.export_name().is_some() {
+                assert!(well_known.get_symbol(symbol).is_some());
+            }
+
+            if let Some(expected_member) = symbol.member_name() {
+                let key = well_known
+                    .get_key(symbol)
+                    .unwrap_or_else(|| panic!("missing well-known key {symbol:?}"));
+                assert_string!(test.program, key.member, expected_member);
+            }
+
+            if let Some(expected_name) = symbol.global_symbol_name() {
+                let key = well_known
+                    .get_key(symbol)
+                    .unwrap_or_else(|| panic!("missing well-known key {symbol:?}"));
+                assert_string!(test.program, key.global_name, expected_name);
+            }
+        }
+    }
+
+    /// Resolve all builtin libs without errors.
+    // FUGU #Incomplete: support all builtin libs properly
+    #[test]
+    #[ignore]
+    fn test_resolve_all_builtin_libs() {
+        for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
+            let test = TestProgram::memory_sequential_with_prelude_and_libs()
+                .with_profile_libs(&[lib.name]);
+            test.resolve_builtins();
+            test.resolve_libs();
+            test.compile();
+        }
     }
 }

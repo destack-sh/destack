@@ -51,14 +51,16 @@ impl Compiler {
         };
 
         // resolve object types or instance types for references
-        match types.get_type(expected_ty_id).clone() {
-            Type::Object { .. } => Ok(Some(expected_ty_id)),
-            Type::Reference { symbol, .. } => {
-                Ok(self
-                    .resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?)
-            }
-            _ => Ok(None),
+        let expected_type = types.get_type(expected_ty_id);
+        if matches!(expected_type, Type::Object { .. }) {
+            return Ok(Some(expected_ty_id));
         }
+
+        let Some(symbol) = expected_type.symbol() else {
+            return Ok(None);
+        };
+
+        self.resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)
     }
 
     /// Resolve an expected field type from a contextual object type and key.

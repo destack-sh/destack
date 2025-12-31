@@ -1,5 +1,6 @@
 use crate::{Compiler, ImportError, ImportResult, TaskDependencyError};
 
+use destack_base::StringPool;
 use destack_compiler_macros::DefineTask;
 use destack_parser::Parser;
 use destack_source::{File, LanguageType, ModuleId};
@@ -47,35 +48,35 @@ impl Compiler {
 
         // load file if not already loaded
         let file = self.program.files.get(file_id);
-        let file =
-            if file.is_loaded() {
-                // file already has content (e.g., inline string or pre-loaded)
-                file
-            } else {
-                // read from filesystem
-                let path = path.ok_or_else(|| ImportError::ModuleNotFound {
-                    target: self.program.strings.intern(&uri),
+        let file = if file.is_loaded() {
+            // file already has content (e.g., inline string or pre-loaded)
+            file
+        } else {
+            // read from filesystem
+            let path = path.ok_or_else(|| ImportError::ModuleNotFound {
+                target: self.program.strings.intern(uri.as_ref()),
+                error: None,
+            })?;
+            let content = self.program.fs.read_to_string(&path).map_err(|_| {
+                let path_str = path.to_string_lossy();
+                ImportError::ModuleNotFound {
+                    target: self.program.strings.intern(path_str.as_ref()),
                     error: None,
-                })?;
-                let content = self.program.fs.read_to_string(&path).map_err(|_| {
-                    ImportError::ModuleNotFound {
-                        target: self.program.strings.intern(path.to_string_lossy()),
-                        error: None,
-                    }
-                })?;
+                }
+            })?;
 
-                // replace the blank file with loaded content
-                let loaded_file = File::from_text(
-                    file_id,
-                    file.name.clone(),
-                    uri,
-                    Some(path),
-                    file.ty,
-                    content,
-                );
-                self.program.files.replace(loaded_file);
-                self.program.files.get(file_id)
-            };
+            // replace the blank file with loaded content
+            let loaded_file = File::from_text(
+                file_id,
+                file.name.clone(),
+                uri,
+                Some(path),
+                file.ty,
+                content,
+            );
+            self.program.files.replace(loaded_file);
+            self.program.files.get(file_id)
+        };
 
         // parse
         let language_type = LanguageType::from(file.ty);
@@ -91,12 +92,13 @@ impl Compiler {
 
         // update module with AST
         let mut module = module.write();
+        let strings = StringPool::from_local(parser.strings);
         module.ast = Some(ModuleAst::from_tree(
             module_id,
             module.version,
             parser.tree,
             expressions,
-            parser.strings,
+            strings,
             parser.tokens,
             parser.side_tokens,
         ));
