@@ -721,6 +721,7 @@ dependencies = [
 name = "destack_compiler"
 version = "0.51.6"
 dependencies = [
+ "criterion",
  "crossbeam-deque",
  "dashmap",
  "destack_ast",
@@ -742,6 +743,7 @@ dependencies = [
  "destack_workspace",
  "indexmap",
  "parking_lot",
+ "pprof",
  "rayon",
  "serde",
  "serde_json",
