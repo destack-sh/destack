@@ -45,6 +45,24 @@ impl StaticKey {
         }
     }
 
+    /// Return true when this key behaves as a string like key.
+    pub fn is_string_like(&self) -> bool {
+        matches!(self, StaticKey::Name(_) | StaticKey::Number(_))
+    }
+
+    /// Return true when this key behaves as a number like key.
+    pub fn is_number_like(&self) -> bool {
+        matches!(self, StaticKey::Number(_))
+    }
+
+    /// Return true when this key behaves as a symbol like key.
+    pub fn is_symbol_like(&self) -> bool {
+        matches!(
+            self,
+            StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_)
+        )
+    }
+
     /// Get the debug string given a mutable string pool.
     pub fn debug_string(&self, strings: &StringPool) -> String {
         match self {
