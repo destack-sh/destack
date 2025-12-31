@@ -98,6 +98,14 @@ impl Lexer<'_> {
                 },
             };
             self.tokens.push(token_span);
+
+            // track last tokens for O(1) context lookups
+            if token.ty != TokenType::Whitespace {
+                self.options.last_non_whitespace_token = Some(token_span);
+                if token.ty != TokenType::Newline {
+                    self.options.last_semantic_token = Some(token_span);
+                }
+            }
             if token.ty == TokenType::End {
                 break;
             }
@@ -184,13 +192,9 @@ impl Lexer<'_> {
                         }
                         // regex or divide
                         _ => {
-                            // /regex/ if we're in a "start" context
-                            let prev_non_whitespace_token = {
-                                self.tokens
-                                    .iter()
-                                    .rev()
-                                    .find(|token| token.token.ty != TokenType::Whitespace)
-                            };
+                            // /regex/ if we're in a "start" context, use cached token for O(1) lookup
+                            let prev_non_whitespace_token =
+                                self.options.last_non_whitespace_token.as_ref();
                             let is_expression_start = {
                                 if let Some(prev_non_whitespace_token) = prev_non_whitespace_token {
                                     EXPRESSION_START_TOKEN_TYPES
@@ -1534,11 +1538,8 @@ impl Lexer<'_> {
             return true;
         }
 
-        // check previous non-whitespace/newline token
-        let prev =
-            self.tokens.iter().rev().find(|token| {
-                !matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline)
-            });
+        // use cached last semantic token for O(1) lookup
+        let prev = self.options.last_semantic_token.as_ref();
 
         match prev {
             // start of file: tree is allowed (top-level JSX expression)
