@@ -455,8 +455,6 @@ pub enum Runtime {
     Bun,
     /// Web Worker / Service Worker / Shared Worker
     Worker,
-    /// Cloudflare Workers (workerd)
-    Workerd, // FUGU: wait didn't we want to remove Runtime::Workerd?
 
     // WASM runtimes (for output=wasm)
     /// WASM running in a JS host (browser or Node)
@@ -483,7 +481,6 @@ impl std::str::FromStr for Runtime {
             "deno" => Ok(Self::Deno),
             "bun" => Ok(Self::Bun),
             "worker" => Ok(Self::Worker),
-            "workerd" => Ok(Self::Workerd),
             "wasm_js" | "wasm-js" | "wasmjs" => Ok(Self::WasmJs),
             "wasm_wasi" | "wasm-wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
             "native" | "native_hosted" | "native-hosted" => Ok(Self::NativeHosted),
@@ -504,7 +501,7 @@ impl Runtime {
     pub fn is_js(&self) -> bool {
         matches!(
             self,
-            Self::Browser | Self::Node | Self::Deno | Self::Bun | Self::Worker | Self::Workerd
+            Self::Browser | Self::Node | Self::Deno | Self::Bun | Self::Worker
         )
     }
 
@@ -1021,7 +1018,7 @@ impl Target {
                 libs.push(versioned_lib("bun", runtime_version));
                 libs.push("node".to_string());
             }
-            Runtime::Worker | Runtime::Workerd => {
+            Runtime::Worker => {
                 libs.push("worker".to_string());
                 libs.push("worker.iterable".to_string());
                 libs.push("worker.asynciterable".to_string());
