@@ -24,7 +24,7 @@ pub struct IntervalTree {
 impl IntervalTree {
     /// Build a nested interval tree from spans.
     /// Takes (start, end, node_id) tuples.
-    pub fn build(intervals: Vec<(u32, u32, u32)>) -> Self {
+    pub fn build(mut intervals: Vec<(u32, u32, u32)>) -> Self {
         if intervals.is_empty() {
             return Self {
                 entries: Vec::new(),
@@ -34,19 +34,21 @@ impl IntervalTree {
         let n = intervals.len();
 
         // sort by (start ASC, end DESC) - parents come before children at same start
-        let mut sorted: Vec<(u32, u32, u32, usize)> = intervals
-            .into_iter()
-            .enumerate()
-            .map(|(orig_idx, (s, e, id))| (s, e, id, orig_idx))
-            .collect();
-        sorted.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
+        // check if already sorted by (start ASC, end DESC) (common case from parsing)
+        let needs_sort = intervals.windows(2).any(|w| {
+            let (s1, e1, _) = w[0];
+            let (s2, e2, _) = w[1];
+            s1 > s2 || (s1 == s2 && e1 < e2)
+        });
+        if needs_sort {
+            intervals.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
+        }
 
         // build entries with parent pointers using a stack
         // the stack contains indices of potential parents (intervals that haven't ended yet)
         let mut entries: Vec<IntervalEntry> = Vec::with_capacity(n);
-        let mut stack: Vec<usize> = Vec::new(); // indices into entries
-
-        for (start, end, node_id, _) in sorted {
+        let mut stack: Vec<usize> = Vec::with_capacity(32); // typical nesting depth
+        for (start, end, node_id) in intervals {
             // pop intervals that have ended before this one starts
             while let Some(&top_idx) = stack.last() {
                 if entries[top_idx].end <= start {

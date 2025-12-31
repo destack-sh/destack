@@ -77,7 +77,7 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
         return source.get(start..end).unwrap_or("").to_string();
     }
 
-    let (tokens, _eof) = Lexer::lex(file.id, source, Default::default());
+    let (tokens, _side_tokens, _eof) = Lexer::lex(file.id, source, Default::default());
 
     let mut result = String::with_capacity((end - start) * 2);
     let mut last_end = start;

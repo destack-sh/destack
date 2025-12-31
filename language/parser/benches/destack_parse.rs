@@ -53,7 +53,7 @@ fn bench_parse(c: &mut Criterion) {
     let file = Arc::new(file);
 
     // single benchmark over the whole workspace content
-    let mut group = c.benchmark_group("destack_ast");
+    let mut group = c.benchmark_group("destack_parser");
     let line_count = file.text().lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("parse", "all"), &file, |b, file| {

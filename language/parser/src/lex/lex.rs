@@ -80,21 +80,23 @@ pub fn is_semantic(token_type: TokenType) -> bool {
 }
 
 impl Lexer<'_> {
-    /// Lex the input string into TokenSpans and the end-of-sequence Token.
+    /// Lex the input string into semantic tokens, side tokens, and the end-of-sequence Token.
+    /// Semantic tokens are identifiers, keywords, literals, operators.
+    /// Side tokens are whitespace and comments.
     pub fn lex(
         file_id: FileId,
         input: &str,
         language: LanguageType,
-    ) -> (Vec<TokenSpan>, TokenSpan) {
+    ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
         let mut lexer = Lexer::new(file_id, input, language);
         let eof_token = lexer.run();
-        (lexer.tokens, eof_token)
+        (lexer.tokens, lexer.side_tokens, eof_token)
     }
 
     /// Runs the lexer until the end of the input string.
     /// Returns the end-of-sequence Token.
     fn run(&mut self) -> TokenSpan {
-        // tokenize with spans
+        // tokenize with spans, classifying into semantic vs side tokens
         loop {
             let start = self.pos as u32;
             let token = self.advance();
@@ -106,7 +108,13 @@ impl Lexer<'_> {
                     end: (start + token.len),
                 },
             };
-            self.tokens.push(token_span);
+
+            // push to appropriate vec based on token type
+            if is_semantic(token.ty) {
+                self.tokens.push(token_span);
+            } else {
+                self.side_tokens.push(token_span);
+            }
 
             // track last tokens for O(1) context lookups
             if token.ty != TokenType::Whitespace {
@@ -120,7 +128,7 @@ impl Lexer<'_> {
             }
         }
 
-        // eof token
+        // eof token (always in semantic tokens)
         *self.tokens.last().unwrap_or(&TokenSpan {
             span: Span {
                 file: self.file_id,

@@ -196,7 +196,7 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-/// FUGU: make GlobalNodeId/GlobalSymbolId/GlobalTypeId/.. carry ProfileId as well..?
+/// NOTE #Architecture: should we make GlobalNodeId/GlobalSymbolId/GlobalTypeId/.. carry ProfileId?
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.

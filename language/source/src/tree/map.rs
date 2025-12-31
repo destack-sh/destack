@@ -58,8 +58,12 @@ pub struct EnclosingSpan {
 
 impl NodeSourceMap {
     pub fn new() -> Self {
+        Self::with_capacity(0)
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            enclosing_spans: Vec::new(),
+            enclosing_spans: Vec::with_capacity(capacity),
             side_spans: HashMap::new(),
             interval_tree: None,
         }
