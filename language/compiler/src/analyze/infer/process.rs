@@ -74,7 +74,7 @@ impl Compiler {
         }
 
         // solve constraints (and commit inferred types)
-        self.solve_infer_table(&infer, &mut types, &ctx.options);
+        self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
 
         Ok(())
     }

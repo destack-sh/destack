@@ -210,7 +210,7 @@ impl Compiler {
         // ensure reference symbols have instance types
         if let Type::Reference { symbol, .. } = ty {
             let _ =
-                self.resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?;
+                self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
             return Ok(());
         }
 
@@ -435,7 +435,7 @@ impl Compiler {
     }
 
     /// Resolve the instance type for a referenced symbol into the local type table.
-    pub(super) fn resolve_instance_type_id_for_symbol(
+    pub(super) fn resolve_instance_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1071,21 +1071,37 @@ impl Compiler {
     pub(super) fn infer_type_binary_operation(
         &self,
         module: &Module,
+        profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         operator: &TypeBinaryOperator,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
-        types: &TypeTable,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Type {
         match operator {
             TypeBinaryOperator::Cast => {
                 // type assertion: `x as T`
                 // check if cast is valid (types overlap: at least one direction is assignable)
-                let left_to_right =
-                    self.check_is_type_assignable(right_ty_id, left_ty_id, types, options);
-                let right_to_left =
-                    self.check_is_type_assignable(left_ty_id, right_ty_id, types, options);
+                let left_to_right = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    right_ty_id,
+                    left_ty_id,
+                    types,
+                    options,
+                );
+                let right_to_left = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    left_ty_id,
+                    right_ty_id,
+                    types,
+                    options,
+                );
 
                 if left_to_right == Assignability::NotAssignable
                     && right_to_left == Assignability::NotAssignable
@@ -1112,8 +1128,15 @@ impl Compiler {
                 };
 
                 // check if left type satisfies (is assignable to) right type
-                if self.check_is_type_assignable(target_ty_id, actual_ty_id, types, options)
-                    == Assignability::NotAssignable
+                if self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_ty_id,
+                    actual_ty_id,
+                    types,
+                    options,
+                ) == Assignability::NotAssignable
                 {
                     self.error(AnalyzeError::UnsatisfiedType {
                         node: expression_id.into_global_any(module.id),
@@ -1312,7 +1335,7 @@ impl Compiler {
                 match value_types.len() {
                     0 => None,
                     1 => Some(value_types[0]),
-                    _ => Some(self.union_type_ids_from_list(value_types, types)),
+                    _ => Some(self.union_types_from_list(value_types, types)),
                 }
             }
             Type::Intersection { elements } => {
@@ -1353,8 +1376,7 @@ impl Compiler {
         visited.push(symbol);
 
         // ensure instance types are resolved for this symbol
-        let _ =
-            self.resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?;
+        let _ = self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
 
         // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
@@ -1520,7 +1542,7 @@ impl Compiler {
         match value_types.len() {
             0 => None,
             1 => Some(value_types[0]),
-            _ => Some(self.union_type_ids_from_list(value_types, types)),
+            _ => Some(self.union_types_from_list(value_types, types)),
         }
     }
 
@@ -3126,7 +3148,7 @@ impl Compiler {
             return Some(types.insert_type(ty));
         };
 
-        Some(self.convert_static_argument_to_type_id(first_argument, types))
+        Some(self.convert_static_argument_type(first_argument, types))
     }
 
     /// Check whether a type is object like for typeof guards.
@@ -3189,7 +3211,7 @@ impl Compiler {
     }
 
     /// Build a union type from two type ids.
-    pub(super) fn union_type_ids(
+    pub(super) fn union_types(
         &self,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
@@ -3211,7 +3233,7 @@ impl Compiler {
     }
 
     /// Build a union type from a list of type ids.
-    pub(super) fn union_type_ids_from_list(
+    pub(super) fn union_types_from_list(
         &self,
         type_ids: Vec<LocalTypeId>,
         types: &mut TypeTable,

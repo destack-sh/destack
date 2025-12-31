@@ -19,6 +19,13 @@ pub(super) struct ObjectLiteralField {
     property_id: LocalNodeId<Property>,
 }
 
+impl ObjectLiteralField {
+    /// Return the object literal field type information.
+    pub(super) fn field(&self) -> &TypeField {
+        &self.field
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve a declared type for a direct binding symbol.
@@ -373,10 +380,12 @@ impl Compiler {
 
                 let ty = self.infer_type_binary_operation(
                     module,
+                    ctx.profile,
                     expression_id,
                     operator,
                     left_ty_id,
                     right_ty_id,
+                    symbols,
                     types,
                     &ctx.options,
                 );
@@ -693,29 +702,23 @@ impl Compiler {
             // object expression: object type
             Expression::ObjectExpression { properties } => {
                 // apply contextual object type when available
-                let expected_object_ty_id = self.expected_object_type_id(
+                let expected_object_ty_id = self.expected_object_type(
                     module,
                     ctx.profile,
                     expression_id.into_any(),
                     ctx.expected_type,
                     types,
                 )?;
-                let mut literal_fields = Vec::new();
-                for property_id in properties {
-                    if let Some(field) = self.infer_property(
-                        module,
-                        *property_id,
-                        expected_object_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?
-                    {
-                        literal_fields.push(field);
-                    }
-                }
+                let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
+                    module,
+                    properties,
+                    expected_object_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
                 self.check_excess_object_literal_properties(
                     module,
                     ctx.profile,
@@ -724,18 +727,35 @@ impl Compiler {
                     &literal_fields,
                     types,
                 )?;
+                if let Some(spread_override) = spread_override {
+                    return Ok(spread_override);
+                }
 
-                let fields = literal_fields
-                    .iter()
-                    .map(|field| field.field.clone())
-                    .collect();
-                let ty = Type::Object {
-                    fields,
-                    call_signatures: Vec::new(),
-                    construct_signatures: Vec::new(),
-                    index_signatures: Vec::new(),
-                };
-                types.insert_type_from(ty, expression_id)
+                // synthesize the final object type from collected shapes
+                let mut shape_ids = Vec::with_capacity(shapes.len());
+                for shape in shapes {
+                    shape_ids
+                        .push(types.insert_type_from(shape.into_object_type(), expression_id));
+                }
+
+                match shape_ids.len() {
+                    0 => types.insert_type_from(
+                        Type::Object {
+                            fields: Vec::new(),
+                            call_signatures: Vec::new(),
+                            construct_signatures: Vec::new(),
+                            index_signatures: Vec::new(),
+                        },
+                        expression_id,
+                    ),
+                    1 => shape_ids[0],
+                    _ => types.insert_type_from(
+                        Type::Union {
+                            elements: shape_ids,
+                        },
+                        expression_id,
+                    ),
+                }
             }
 
             // call: return type of callee
@@ -1316,24 +1336,56 @@ impl Compiler {
             }
             Expression::TaggedObjectExpression { ty, properties } => {
                 let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
-                let expected_object_ty_id = self.expected_object_type_id(
+                let expected_object_ty_id = self.expected_object_type(
                     module,
                     ctx.profile,
                     expression_id.into_any(),
                     Some(ty_id),
                     types,
                 )?;
-                for property_id in properties {
-                    self.infer_property(
-                        module,
-                        *property_id,
-                        expected_object_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
+                    module,
+                    properties,
+                    expected_object_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+                self.check_excess_object_literal_properties(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    Some(ty_id),
+                    &literal_fields,
+                    types,
+                )?;
+                if let Some(expected_object_ty_id) = expected_object_ty_id
+                    && spread_override.is_none()
+                {
+                    // validate spread shapes against the explicit type
+                    for shape in shapes {
+                        let shape_ty_id =
+                            types.insert_type_from(shape.into_object_type(), expression_id);
+                        if self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            expected_object_ty_id,
+                            shape_ty_id,
+                            types,
+                            &ctx.options,
+                        ) == Assignability::NotAssignable
+                        {
+                            self.error(AnalyzeError::UnassignableType {
+                                node: expression_id.into_global_any(module.id),
+                                expected_ty: expected_object_ty_id.into_global(module.id),
+                                actual_ty: shape_ty_id.into_global(module.id),
+                            });
+                            break;
+                        }
+                    }
                 }
                 ty_id
             }
@@ -1476,7 +1528,6 @@ impl Compiler {
         }
     }
 
-    /// Infer a declaration.
     /// Infer a property and return its TypeField if it has a static key.
     pub(super) fn infer_property(
         &self,
@@ -1506,7 +1557,7 @@ impl Compiler {
                 // derive an expected field type from the contextual object type
                 let expected_field_ty_id = static_key
                     .as_ref()
-                    .and_then(|key| self.expected_field_type_id(expected_object_ty_id, key, types));
+                    .and_then(|key| self.expected_field_type(expected_object_ty_id, key, types));
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
@@ -1577,9 +1628,7 @@ impl Compiler {
             } => {
                 let expected_method_ty_id = key
                     .and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree))
-                    .and_then(|key| {
-                        self.expected_field_type_id(expected_object_ty_id, &key, types)
-                    });
+                    .and_then(|key| self.expected_field_type(expected_object_ty_id, &key, types));
 
                 // infer the method signature with contextual typing
                 let method_ty_id = self.infer_signature(
@@ -1621,7 +1670,10 @@ impl Compiler {
 
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
-                            && self.check_is_type_assignable(
+                            && self.is_type_assignable(
+                                module,
+                                ctx.profile,
+                                symbols,
                                 return_ty_id,
                                 body_ty_id,
                                 types,
@@ -1658,10 +1710,8 @@ impl Compiler {
                     Ok(None)
                 }
             }
-            Property::Spread { value, .. } => {
-                // #Incomplete: expand spread type into object type #TypeNormalization
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
-                Ok(None)
+            Property::Spread { .. } => {
+                unreachable!("spread properties are handled before infer_property")
             }
         }
     }
@@ -2217,7 +2267,7 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // collect candidates for excess property checks
         // bail when no contextual type is available
-        let Some(expected_ty_id) = self.expected_value_type_id(expected_ty_id, types) else {
+        let Some(expected_ty_id) = self.expected_value_type(expected_ty_id, types) else {
             return Ok(());
         };
         let mut candidates: Vec<LocalTypeId> = Vec::new();
@@ -2276,8 +2326,8 @@ impl Compiler {
                 candidates.push(expected_ty_id);
             }
             Type::Reference { symbol, .. } => {
-                let instance_ty_id = self
-                    .resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)?;
+                let instance_ty_id =
+                    self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
                 if let Some(instance_ty_id) = instance_ty_id {
                     candidates.push(instance_ty_id);
                 }

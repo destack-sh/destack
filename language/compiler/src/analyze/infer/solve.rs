@@ -1,6 +1,8 @@
 use destack_dir::{
-    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, Type, TypeLiteral, TypeTable,
+    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, SymbolTable, Type, TypeLiteral,
+    TypeTable,
 };
+use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
@@ -49,10 +51,14 @@ impl InferSolution {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Solve inference variables and commit the results into the TypeTable.
     pub fn solve_infer_table(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         infer: &InferTable,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
@@ -78,7 +84,9 @@ impl Compiler {
                 if solution.resolved[index].is_some() {
                     continue;
                 }
-                if let Some(resolved) = self.resolve_bounds(bound, &solution, types, options) {
+                if let Some(resolved) =
+                    self.resolve_bounds(module, profile, symbols, bound, &solution, types, options)
+                {
                     solution.resolved[index] = Some(resolved);
                     did_resolve = true;
                 }
@@ -154,6 +162,9 @@ impl Compiler {
     /// Resolve bounds for a single inference variable.
     fn resolve_bounds(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         bound: &Bounds,
         solution: &InferSolution,
         types: &mut TypeTable,
@@ -167,7 +178,7 @@ impl Compiler {
         // prefer a consistent bound when possible
         match (lower, upper) {
             (Some(lower), Some(upper)) => {
-                if self.check_is_type_assignable(upper, lower, types, options)
+                if self.is_type_assignable(module, profile, symbols, upper, lower, types, options)
                     == Assignability::Assignable
                 {
                     Some(lower)
@@ -281,5 +292,7 @@ impl Compiler {
                 *types.get_type_mut(ty_id) = resolved_ty;
             }
         }
+
+        types.clear_normalization_cache();
     }
 }

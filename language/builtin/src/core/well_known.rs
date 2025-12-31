@@ -1,4 +1,5 @@
 /// Compiler known builtin symbols and symbol keys.
+/// NOTE #Architecture: split well known declarations (Array/Promise/..) from Symbol.iteartor/split/...?
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum WellKnownSymbol {

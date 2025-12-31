@@ -67,7 +67,7 @@ impl Compiler {
         {
             let element = static_arguments
                 .and_then(|arguments| arguments.first())
-                .map(|argument| self.static_argument_type_id(argument, types));
+                .map(|argument| self.static_argument_type(argument, types));
             return Some(Type::Array { element });
         }
 
@@ -75,7 +75,7 @@ impl Compiler {
     }
 
     /// Convert a static argument into a type id for type evaluation.
-    fn static_argument_type_id(
+    fn static_argument_type(
         &self,
         argument: &StaticArgument,
         types: &mut TypeTable,

@@ -8,6 +8,15 @@ use crate::{
     Node, Resolution, StaticArgument, Type,
 };
 
+/// Select a normalization cache.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NormalizationMode {
+    /// Normalize for assignability and constraint solving.
+    Assignability,
+    /// Normalize for flow narrowing and guard checks.
+    Flow,
+}
+
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
 #[derive(Debug, Clone)]
 pub struct TypeTable {
@@ -21,6 +30,10 @@ pub struct TypeTable {
     pub(crate) types: Arena<Type>,
     /// The source ids of all types. Index is the type id.
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
+    /// Cached normalization results for assignability.
+    pub(crate) normalized_assignability_type_by_id: Vec<Option<LocalTypeId>>,
+    /// Cached normalization results for flow.
+    pub(crate) normalized_flow_type_by_id: Vec<Option<LocalTypeId>>,
 
     // node types
     /// The declared type by node id (type annotations live on nodes).
@@ -78,6 +91,8 @@ impl TypeTable {
             next_type_id: 0,
             types: Arena::new(),
             source_id_by_type_id: Vec::new(),
+            normalized_assignability_type_by_id: Vec::new(),
+            normalized_flow_type_by_id: Vec::new(),
 
             // node types
             declared_type_by_node_id: IndexMap::new(),
@@ -111,6 +126,7 @@ impl TypeTable {
         self.next_type_id += 1;
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id.into_any());
+        self.grow_normalization_cache();
         type_id
     }
 
@@ -123,6 +139,7 @@ impl TypeTable {
         // use a sentinel value for synthetic types
         self.source_id_by_type_id
             .push(LocalNodeIdAny::new(u32::MAX, NodeType::Expression));
+        self.grow_normalization_cache();
         type_id
     }
 
@@ -132,6 +149,7 @@ impl TypeTable {
         self.next_type_id += 1;
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id);
+        self.grow_normalization_cache();
         type_id
     }
 
@@ -148,6 +166,63 @@ impl TypeTable {
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
         self.source_id_by_type_id[type_id.0 as usize]
+    }
+
+    /// Get a cached normalized type for the chosen mode.
+    pub fn normalized_type(
+        &self,
+        mode: NormalizationMode,
+        type_id: LocalTypeId,
+    ) -> Option<LocalTypeId> {
+        let cache_index = type_id.0 as usize;
+        match mode {
+            NormalizationMode::Assignability => self
+                .normalized_assignability_type_by_id
+                .get(cache_index)
+                .copied()
+                .flatten(),
+            NormalizationMode::Flow => self
+                .normalized_flow_type_by_id
+                .get(cache_index)
+                .copied()
+                .flatten(),
+        }
+    }
+
+    /// Cache a normalized type for the chosen mode.
+    pub fn set_normalized_type(
+        &mut self,
+        mode: NormalizationMode,
+        type_id: LocalTypeId,
+        normalized_type: LocalTypeId,
+    ) {
+        let cache_index = type_id.0 as usize;
+        match mode {
+            NormalizationMode::Assignability => {
+                if self.normalized_assignability_type_by_id.len() <= cache_index {
+                    self.normalized_assignability_type_by_id
+                        .resize(cache_index + 1, None);
+                }
+                self.normalized_assignability_type_by_id[cache_index] = Some(normalized_type);
+            }
+            NormalizationMode::Flow => {
+                if self.normalized_flow_type_by_id.len() <= cache_index {
+                    self.normalized_flow_type_by_id
+                        .resize(cache_index + 1, None);
+                }
+                self.normalized_flow_type_by_id[cache_index] = Some(normalized_type);
+            }
+        }
+    }
+
+    /// Clear cached normalization results.
+    pub fn clear_normalization_cache(&mut self) {
+        let type_count = self.next_type_id as usize;
+        self.normalized_assignability_type_by_id.clear();
+        self.normalized_assignability_type_by_id
+            .resize(type_count, None);
+        self.normalized_flow_type_by_id.clear();
+        self.normalized_flow_type_by_id.resize(type_count, None);
     }
 
     /// Get the number of types in the table.
@@ -207,6 +282,7 @@ impl TypeTable {
     /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);
+        self.clear_normalization_cache();
     }
 
     /// Get the instance type for a symbol.
@@ -342,6 +418,12 @@ impl TypeTable {
         lineage_id: LocalLineageId,
     ) {
         self.lineage_by_symbol_id.insert(symbol_id, lineage_id);
+    }
+
+    /// Grow normalization caches to cover the next type id.
+    fn grow_normalization_cache(&mut self) {
+        self.normalized_assignability_type_by_id.push(None);
+        self.normalized_flow_type_by_id.push(None);
     }
 
     /// Get the lineage id for a symbol.

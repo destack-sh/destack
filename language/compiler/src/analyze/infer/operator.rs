@@ -293,8 +293,15 @@ impl Compiler {
 
             if !self.is_infer_var_type(parameter_ty_id, types)
                 && !self.is_infer_var_type(right_ty_id, types)
-                && self.check_is_type_assignable(parameter_ty_id, right_ty_id, types, &options)
-                    == Assignability::NotAssignable
+                && self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    parameter_ty_id,
+                    right_ty_id,
+                    types,
+                    &options,
+                ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
@@ -374,8 +381,15 @@ impl Compiler {
         // check assignability when types are resolved
         if !self.is_infer_var_type(left_ty_id, types)
             && !self.is_infer_var_type(right_ty_id, types)
-            && self.check_is_type_assignable(left_ty_id, right_ty_id, types, &options)
-                == Assignability::NotAssignable
+            && self.is_type_assignable(
+                module,
+                ctx.profile,
+                symbols,
+                left_ty_id,
+                right_ty_id,
+                types,
+                &options,
+            ) == Assignability::NotAssignable
         {
             return Err(AnalyzeError::UnassignableType {
                 node: expression_id.into_global_any(module.id),
@@ -470,7 +484,7 @@ impl Compiler {
 
             self.record_try_branch_resolution(module, expression_id, left_ty_id, &branch, types);
 
-            let union_ty_id = self.union_type_ids(value_ty_id, right_ty_id, types);
+            let union_ty_id = self.union_types(value_ty_id, right_ty_id, types);
             return Ok(union_ty_id);
         }
 
@@ -478,7 +492,7 @@ impl Compiler {
         let (non_nullish_ty_id, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
         let result_ty_id = if has_nullish {
             if let Some(non_nullish_ty_id) = non_nullish_ty_id {
-                self.union_type_ids(non_nullish_ty_id, right_ty_id, types)
+                self.union_types(non_nullish_ty_id, right_ty_id, types)
             } else {
                 right_ty_id
             }
@@ -616,8 +630,15 @@ impl Compiler {
 
             if !self.is_infer_var_type(parameter_ty_id, types)
                 && !self.is_infer_var_type(index_ty_id, types)
-                && self.check_is_type_assignable(parameter_ty_id, index_ty_id, types, &options)
-                    == Assignability::NotAssignable
+                && self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    parameter_ty_id,
+                    index_ty_id,
+                    types,
+                    &options,
+                ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
@@ -697,8 +718,15 @@ impl Compiler {
 
             if !self.is_infer_var_type(builtin_value_ty_id, types)
                 && !self.is_infer_var_type(value_ty_id, types)
-                && self.check_is_type_assignable(builtin_value_ty_id, value_ty_id, types, &options)
-                    == Assignability::NotAssignable
+                && self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    builtin_value_ty_id,
+                    value_ty_id,
+                    types,
+                    &options,
+                ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
@@ -814,8 +842,15 @@ impl Compiler {
 
             if !self.is_infer_var_type(value_param_ty_id, types)
                 && !self.is_infer_var_type(value_ty_id, types)
-                && self.check_is_type_assignable(value_param_ty_id, value_ty_id, types, &options)
-                    == Assignability::NotAssignable
+                && self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    value_param_ty_id,
+                    value_ty_id,
+                    types,
+                    &options,
+                ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: expression_id.into_global_any(module.id),
@@ -1023,7 +1058,7 @@ impl Compiler {
                 let undefined_ty_id = types.insert_type(Type::TypeLiteral {
                     value: TypeLiteral::Undefined,
                 });
-                self.union_type_ids(ty_id, undefined_ty_id, types)
+                self.union_types(ty_id, undefined_ty_id, types)
             } else {
                 ty_id
             }
@@ -1057,7 +1092,7 @@ impl Compiler {
                 }
 
                 let elements = elements.iter().map(|element| element.ty).collect();
-                let union_ty_id = self.union_type_ids_from_list(elements, types);
+                let union_ty_id = self.union_types_from_list(elements, types);
                 Some(add_unchecked_undefined(union_ty_id, types))
             }
             Type::Object {
@@ -1104,7 +1139,7 @@ impl Compiler {
         match value_types.len() {
             0 => None,
             1 => Some(value_types[0]),
-            _ => Some(self.union_type_ids_from_list(value_types, types)),
+            _ => Some(self.union_types_from_list(value_types, types)),
         }
     }
 
@@ -1140,7 +1175,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_ids_from_list(value_types, types))
+                    Some(self.union_types_from_list(value_types, types))
                 }
             }
             Type::Object { fields, .. } => {
@@ -1156,7 +1191,7 @@ impl Compiler {
                 }
                 let arguments = static_arguments.as_ref()?;
                 let first_argument = arguments.first()?;
-                Some(self.convert_static_argument_to_type_id(first_argument, types))
+                Some(self.convert_static_argument_type(first_argument, types))
             }
             _ => None,
         }

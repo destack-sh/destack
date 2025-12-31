@@ -39,6 +39,7 @@ impl Compiler {
         )?;
         let ty = types.get_type_mut(ty_id);
         *ty = evaluated_ty;
+        types.clear_normalization_cache();
 
         Ok(())
     }

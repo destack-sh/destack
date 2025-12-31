@@ -592,7 +592,10 @@ impl Compiler {
 
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
-                            && self.check_is_type_assignable(
+                            && self.is_type_assignable(
+                                module,
+                                ctx.profile,
+                                symbols,
                                 return_ty_id,
                                 body_ty_id,
                                 types,
@@ -839,7 +842,10 @@ impl Compiler {
 
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
-                            && self.check_is_type_assignable(
+                            && self.is_type_assignable(
+                                module,
+                                ctx.profile,
+                                symbols,
                                 return_ty_id,
                                 body_ty_id,
                                 types,
@@ -1407,8 +1413,15 @@ impl Compiler {
             });
             if !self.is_infer_var_type(declared, types)
                 && !self.is_infer_var_type(inferred, types)
-                && self.check_is_type_assignable(declared, inferred, types, &options)
-                    == Assignability::NotAssignable
+                && self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    declared,
+                    inferred,
+                    types,
+                    &options,
+                ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
                     node: declarator_id.into_global(module.id).into(),

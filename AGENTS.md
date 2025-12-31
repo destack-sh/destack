@@ -28,6 +28,21 @@ Documentation comments for functions/types/etc. should be proper sentences with 
 *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
 Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
 
+When documenting if/else-if/else logic, the comments should go *before* each case like so:
+```
+// do this
+if (...) {
+  ...
+} 
+// otherwise do this
+else if (...) {
+  ...
+} 
+// fall back to this
+else {
+  ...
+}
+
 Comments MAY start with keywords:
 - `NOTE`: call out something important
 - `TODO`: something to address eventually

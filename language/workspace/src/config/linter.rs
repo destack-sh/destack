@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 
 /// Lint rule categories.
 ///
-/// Each category has a letter code used in lint identifiers (e.g., `LC001` for Correctness).
+/// Each category has a letter code used in lint identifiers (e.g., `LC002` for Correctness).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LintCategory {
     /// Correctness (C) lints detect likely bugs and logic errors.

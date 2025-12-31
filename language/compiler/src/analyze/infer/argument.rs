@@ -254,7 +254,7 @@ impl Compiler {
                         name,
                         value: value.clone(),
                     };
-                    let ty_id = self.convert_static_argument_to_type_id(&argument, types);
+                    let ty_id = self.convert_static_argument_type(&argument, types);
 
                     StaticArgument::Evaluated {
                         name,
@@ -288,9 +288,11 @@ impl Compiler {
     pub(super) fn validate_static_argument(
         &self,
         module: &Module,
+        profile: ProfileId,
         error_node: GlobalNodeIdAny,
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: Option<&mut InferTable>,
         options: &AnalyzeOptions,
@@ -298,7 +300,7 @@ impl Compiler {
         // validate type arguments against the declared bound
         if static_parameter.kind == StaticParameterKind::Type {
             let substitution_ty_id =
-                self.convert_static_argument_to_type_id(resolved_static_argument, types);
+                self.convert_static_argument_type(resolved_static_argument, types);
 
             if let Some(infer) = infer {
                 infer.push_constraint(Constraint::Subtype {
@@ -311,7 +313,10 @@ impl Compiler {
             // report unassignable type
             if !self.is_infer_var_type(static_parameter.declared_type_id, types)
                 && !self.is_infer_var_type(substitution_ty_id, types)
-                && self.check_is_type_assignable(
+                && self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
                     static_parameter.declared_type_id,
                     substitution_ty_id,
                     types,
@@ -343,7 +348,10 @@ impl Compiler {
             };
             let value_ty_id = types.insert_type(ty);
             if !self.is_infer_var_type(static_parameter.declared_type_id, types)
-                && self.check_is_type_assignable(
+                && self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
                     static_parameter.declared_type_id,
                     value_ty_id,
                     types,
@@ -498,9 +506,11 @@ impl Compiler {
             // validate type and value arguments against declared bounds
             self.validate_static_argument(
                 module,
+                profile,
                 error_node,
                 static_parameter,
                 &resolved_argument,
+                symbols,
                 types,
                 None,
                 options,
@@ -565,7 +575,7 @@ impl Compiler {
         for (static_parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter())
         {
             if static_parameter.kind == StaticParameterKind::Type {
-                let ty_id = self.convert_static_argument_to_type_id(argument, types);
+                let ty_id = self.convert_static_argument_type(argument, types);
                 substitutions.insert(static_parameter.symbol, ty_id);
             }
         }
@@ -631,7 +641,7 @@ impl Compiler {
     }
 
     /// Convert a static argument into a type id for substitution.
-    pub(super) fn convert_static_argument_to_type_id(
+    pub(super) fn convert_static_argument_type(
         &self,
         argument: &StaticArgument,
         types: &mut TypeTable,

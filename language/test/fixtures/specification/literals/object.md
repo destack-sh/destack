@@ -31,6 +31,69 @@ const x = { a: { b: 1 } };
 x satisfies { a: { b: 1 } };
 ```
 
+## Object Spreads
+
+### object spread adds fields
+
+> Object literals incorporate spread fields.
+
+```ds
+const base = { a: 1, b: "two" };
+const value = { ...base, c: true };
+value satisfies { a: number, b: string, c: boolean };
+```
+
+### object spread overrides fields
+
+> Later fields override earlier spread fields.
+
+```ds
+const base = { a: 1, b: 2 };
+const value = { ...base, b: "two" };
+value satisfies { a: number, b: string };
+```
+
+### object spread preserves unions
+
+> Union spreads produce union object shapes.
+
+```ds
+const value: { a: number } | { b: string } = { a: 1 };
+const merged = { ...value };
+merged satisfies { a: number } | { b: string };
+```
+
+### object spread unwraps aliases
+
+> Object spreads unwrap structural type aliases.
+
+```ds
+type Base = { a: number };
+const base: Base = { a: 1 };
+const value = { ...base, b: "two" };
+value satisfies { a: number, b: string };
+```
+
+### object spread merges intersections
+
+> Object spreads merge intersection shapes.
+
+```ds
+const base: { a: number } & { b: string } = { a: 1, b: "two" };
+const value = { ...base, c: true };
+value satisfies { a: number, b: string, c: boolean };
+```
+
+### object spread with any
+
+> Any spreads preserve the any type.
+
+```ds
+const value: any = { a: 1 };
+const merged = { ...value, b: "two" };
+merged satisfies any;
+```
+
 ## Contextual Objects
 
 ### contextual object literal
