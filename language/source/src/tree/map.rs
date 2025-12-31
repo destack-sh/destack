@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::interval::IntervalTree;
 use crate::Span;
 
 /// The type of node search to perform.
@@ -31,12 +32,9 @@ pub struct NodeSourceMap {
     enclosing_spans: Vec<Span>,
     /// Extra side spans for nodes that have them (sparse).
     side_spans: HashMap<(u32, NodeSpanType), Span>,
-    /// Position index for fast enclosing span lookups: (start, end, node_id) sorted by start.
+    /// Interval tree for O(log n + k) enclosing span queries.
     /// Built via `build_position_index()` after parsing completes.
-    start_index: Option<Vec<(u32, u32, u32)>>,
-    /// End position index: (end, node_id) sorted by end descending.
-    /// Used with start_index for O(log n + k) enclosing span queries.
-    end_index: Option<Vec<(u32, u32)>>,
+    interval_tree: Option<IntervalTree>,
 }
 
 impl Default for NodeSourceMap {
@@ -63,8 +61,7 @@ impl NodeSourceMap {
         Self {
             enclosing_spans: Vec::new(),
             side_spans: HashMap::new(),
-            start_index: None,
-            end_index: None,
+            interval_tree: None,
         }
     }
 
@@ -87,28 +84,16 @@ impl NodeSourceMap {
         self.side_spans.retain(|&(id, _), _| id < from_idx);
     }
 
-    /// Build position indices for fast enclosing span lookups.
+    /// Build interval tree for fast enclosing span lookups.
     /// Call this after parsing is complete.
     pub fn build_position_index(&mut self) {
-        // start index: (start, end, node_id) sorted by start ascending
-        let mut start_idx: Vec<(u32, u32, u32)> = self
+        let intervals: Vec<(u32, u32, u32)> = self
             .enclosing_spans
             .iter()
             .enumerate()
             .map(|(i, span)| (span.start, span.end, i as u32))
             .collect();
-        start_idx.sort_unstable_by_key(|(start, _, _)| *start);
-        self.start_index = Some(start_idx);
-
-        // end index: (end, node_id) sorted by end descending
-        let mut end_idx: Vec<(u32, u32)> = self
-            .enclosing_spans
-            .iter()
-            .enumerate()
-            .map(|(i, span)| (span.end, i as u32))
-            .collect();
-        end_idx.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-        self.end_index = Some(end_idx);
+        self.interval_tree = Some(IntervalTree::build(intervals));
     }
 
     /// Set a side span for a node.
@@ -163,72 +148,34 @@ impl NodeSourceMap {
 
     /// Get all enclosing spans containing the given range.
     ///
-    /// Uses dual binary search for O(log n + k) lookup where k is the number of enclosing spans.
-    /// Falls back to linear scan if position indices haven't been built.
+    /// Uses interval tree for O(log n + k) lookup where k is the number of enclosing spans.
+    /// Falls back to linear scan if interval tree hasn't been built.
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
-        match (&self.start_index, &self.end_index) {
-            (Some(start_idx), Some(end_idx)) => {
-                self.get_enclosing_spans_indexed(start_idx, end_idx, start, end_inclusive)
+        match &self.interval_tree {
+            Some(tree) => {
+                let file_id = self
+                    .enclosing_spans
+                    .first()
+                    .map(|s| s.file)
+                    .unwrap_or(crate::FileId(0));
+                tree.query_containing(start, end_inclusive)
+                    .into_iter()
+                    .map(|(span_start, span_end, node_id, length)| {
+                        let distance = start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
+                        EnclosingSpan {
+                            idx: node_id,
+                            distance,
+                            length,
+                            span: Span {
+                                file: file_id,
+                                start: span_start,
+                                end: span_end,
+                            },
+                        }
+                    })
+                    .collect()
             }
-            _ => self.get_enclosing_spans_linear(start, end_inclusive),
-        }
-    }
-
-    /// Get all enclosing spans containing the given range using dual indices.
-    fn get_enclosing_spans_indexed(
-        &self,
-        start_index: &[(u32, u32, u32)],
-        end_index: &[(u32, u32)],
-        start: u32,
-        end_inclusive: u32,
-    ) -> Vec<EnclosingSpan> {
-        // find spans where span.start <= start (candidates from start perspective)
-        let start_partition = start_index.partition_point(|(s, _, _)| *s <= start);
-
-        // find spans where span.end > end_inclusive (candidates from end perspective)
-        // end_index is sorted descending, so we find first entry where end <= end_inclusive
-        let end_partition = end_index.partition_point(|(e, _)| *e > end_inclusive);
-
-        // use the smaller set as the base for intersection
-        let start_count = start_partition;
-        let end_count = end_partition;
-
-        if start_count <= end_count {
-            // iterate start candidates, check end condition inline
-            let mut spans = Vec::new();
-            for &(span_start, span_end, node_id) in &start_index[..start_partition] {
-                if span_end > end_inclusive {
-                    let distance = start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
-                    let span = Span {
-                        file: self.enclosing_spans[node_id as usize].file,
-                        start: span_start,
-                        end: span_end,
-                    };
-                    spans.push(EnclosingSpan {
-                        idx: node_id,
-                        distance,
-                        length: span_end.saturating_sub(span_start),
-                        span,
-                    });
-                }
-            }
-            spans
-        } else {
-            // iterate end candidates, check start condition via lookup
-            let mut spans = Vec::new();
-            for &(span_end, node_id) in &end_index[..end_partition] {
-                let span = self.enclosing_spans[node_id as usize];
-                if span.start <= start {
-                    let distance = start.abs_diff(span.start) + span_end.abs_diff(end_inclusive);
-                    spans.push(EnclosingSpan {
-                        idx: node_id,
-                        distance,
-                        length: span_end.saturating_sub(span.start),
-                        span,
-                    });
-                }
-            }
-            spans
+            None => self.get_enclosing_spans_linear(start, end_inclusive),
         }
     }
 

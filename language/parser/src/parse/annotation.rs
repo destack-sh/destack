@@ -138,11 +138,14 @@ impl Parser {
             if token.token.ty != current_token_type {
                 let start_token = current_token_group[0];
                 let prev_token = if i > 1 { Some(tokens[i - 2]) } else { None };
+
+                // check for line postfix: single token on same line as previous non-newline token
+                // short-circuit to avoid expensive is_same_line calls
                 let is_line_postfix = current_token_group.len() == 1
-                    && self.is_same_line(start_token.span, start_token.span)
-                    && prev_token.is_some()
-                    && self.is_same_line(start_token.span, prev_token.unwrap().span)
-                    && prev_token.unwrap().token.ty != TokenType::Newline;
+                    && prev_token.is_some_and(|prev| {
+                        prev.token.ty != TokenType::Newline
+                            && self.is_same_line(start_token.span, prev.span)
+                    });
 
                 // skip up to one newline in-between non-blank annotations
                 //  (unless the current token is a suffix comment)

@@ -426,7 +426,7 @@ impl Parser {
     #[inline]
     pub fn finish(&mut self) {
         if !self.is_finished {
-            // Build position index BEFORE annotation attachment for O(log n) lookups
+            // build position index BEFORE annotation attachment for O(log n) lookups
             self.tree.build_position_index();
             self.attach_annotations();
             self.is_finished = true;
