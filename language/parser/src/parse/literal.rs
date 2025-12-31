@@ -42,7 +42,7 @@ impl Parser {
         let Some(body) = literal_span.token.literal else {
             return Err(ParseError::unexpected(literal_span.span));
         };
-        let literal_str = self.get_span_str(literal_span.span);
+        let literal_str = self.file.span_str(literal_span.span);
 
         match body {
             // boolean literal
@@ -295,7 +295,7 @@ impl Parser {
         mut parse_span: impl FnMut(&mut Parser) -> ParseResult<T>,
     ) -> ParseResult<(Vec<StringId>, Vec<T>)> {
         let next = *self.eat()?;
-        let next_str = self.get_span_str(next.span);
+        let next_str = self.file.span_str(next.span);
 
         // template string without interpolation
         if next.token.ty == TokenType::TemplateString {
@@ -321,7 +321,7 @@ impl Parser {
                 // string
                 if self.peek_token(TokenType::TemplateStringMiddle).is_ok() {
                     let token = *self.eat()?;
-                    let token_str = self.get_span_str(token.span);
+                    let token_str = self.file.span_str(token.span);
                     // remove } prefix and ${ suffix
                     let string = token_str
                         .strip_prefix('}')
@@ -341,7 +341,7 @@ impl Parser {
 
             // end: remove } prefix and ` suffix
             let token = *self.eat_token(TokenType::TemplateStringEnd)?;
-            let token_str = self.get_span_str(token.span);
+            let token_str = self.file.span_str(token.span);
             let string = token_str
                 .strip_prefix('}')
                 .and_then(|s| s.strip_suffix('`'))
