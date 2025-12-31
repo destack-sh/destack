@@ -154,7 +154,7 @@ pub fn underline(text: &str) -> String {
 
 /// Format a duration in a human-friendly way.
 ///
-/// - Less than 1s: shows seconds with precision, clamped to 0.001s (e.g., "0.123s", "0.001s")
+/// - Less than 1s: shows seconds with millisecond precision, clamped to 0.001s (0s prints as "0.000s")
 /// - 1s to 59s: shows seconds with one decimal (e.g., "5.2s")
 /// - 60s to 59m59s: shows minutes and seconds (e.g., "1m 32s", "5m 0s")
 /// - 1h+: shows hours and minutes (e.g., "1h 5m", "2h 30m")
@@ -163,22 +163,17 @@ pub fn format_duration(duration: Duration) -> String {
     let millis = duration.subsec_millis();
 
     if total_secs == 0 {
-        // sub-second: show as decimal seconds
-        let secs_f = duration.as_secs_f64();
-        if secs_f == 0.0 {
-            "0s".to_string()
-        } else if secs_f < 0.001 {
-            "0.001s".to_string()
-        } else if secs_f < 0.01 {
-            // very small: 3 decimal places
-            format!("{secs_f:.3}s")
-        } else if secs_f < 0.1 {
-            // small: 2 decimal places
-            format!("{secs_f:.2}s")
+        // subsecond: show milliseconds without rounding
+        // clamp sub millisecond durations to 1ms
+        let millis = if duration.is_zero() {
+            0
+        } else if millis == 0 {
+            1
         } else {
-            // larger sub-second: 1 decimal
-            format!("{secs_f:.1}s")
-        }
+            millis
+        };
+
+        format!("0.{millis:03}s")
     } else if total_secs < 60 {
         // under a minute: seconds with one decimal
         let secs_f = duration.as_secs_f64();
@@ -443,12 +438,13 @@ mod tests {
 
     #[test]
     fn test_format_duration_subsecond() {
+        assert_eq!(format_duration(Duration::ZERO), "0.000s");
         assert_eq!(format_duration(Duration::from_millis(1)), "0.001s");
         assert_eq!(format_duration(Duration::from_millis(5)), "0.005s");
-        assert_eq!(format_duration(Duration::from_millis(12)), "0.01s");
-        assert_eq!(format_duration(Duration::from_millis(123)), "0.1s");
-        assert_eq!(format_duration(Duration::from_millis(500)), "0.5s");
-        assert_eq!(format_duration(Duration::from_millis(999)), "1.0s");
+        assert_eq!(format_duration(Duration::from_millis(12)), "0.012s");
+        assert_eq!(format_duration(Duration::from_millis(123)), "0.123s");
+        assert_eq!(format_duration(Duration::from_millis(500)), "0.500s");
+        assert_eq!(format_duration(Duration::from_millis(999)), "0.999s");
     }
 
     #[test]
