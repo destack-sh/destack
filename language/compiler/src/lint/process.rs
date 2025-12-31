@@ -135,7 +135,7 @@ debugger;
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LC001");
+        test.check_has_diagnostic("LU010");
     }
 
     #[test]
@@ -148,7 +148,7 @@ debugger;
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LC002");
+        test.check_has_diagnostic("LU014");
     }
 
     #[test]
@@ -162,7 +162,7 @@ if (true) { foo(); }
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LC003");
+        test.check_has_diagnostic("LC014");
     }
 
     #[test]
@@ -177,6 +177,6 @@ x == x;
         );
         test.lint_module(module);
         test.compile();
-        test.check_has_diagnostic("LC004");
+        test.check_has_diagnostic("LC038");
     }
 }

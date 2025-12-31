@@ -1,21 +1,25 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext, TaskDependencyError};
 use destack_dir::{
-    Declaration, InferTable, LocalNodeId, LocalSymbolId, LocalTypeId, Member, NodeTree,
-    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeTable,
+    Declaration, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member,
+    NodeTree, Property, SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
-/// Accumulate instance type members while inferring a declaration.
-/// NOTE #Architecture: this should probably be a Type::Object builder
+use super::super::common::NormalizationMode;
+use super::expression::ObjectLiteralField;
+
+/// Accumulate object shape members for inference.
+/// NOTE #Architecture: this should probably be a shared Type::Object builder.
 #[derive(Debug, Default, Clone)]
 pub(super) struct InferredShape {
-    /// Fields collected for the instance shape.
+    /// Fields collected for the shape.
     fields: Vec<TypeField>,
-    /// Call signatures collected for the instance shape.
+    /// Call signatures collected for the shape.
     call_signatures: Vec<LocalTypeId>,
-    /// Construct signatures collected for the instance shape.
+    /// Construct signatures collected for the shape.
     construct_signatures: Vec<LocalTypeId>,
-    /// Index signatures collected for the instance shape.
+    /// Index signatures collected for the shape.
     index_signatures: Vec<TypeIndexSignature>,
 }
 
@@ -37,7 +41,7 @@ impl InferredShape {
     }
 
     /// Extend this set from an object type.
-    fn extend_from_object(&mut self, ty: &Type) -> bool {
+    pub(super) fn extend_from_object(&mut self, ty: &Type) -> bool {
         let Type::Object {
             fields,
             call_signatures,
@@ -57,7 +61,7 @@ impl InferredShape {
     }
 
     /// Convert into an object type.
-    fn into_object_type(self) -> Type {
+    pub(super) fn into_object_type(self) -> Type {
         Type::Object {
             fields: self.fields,
             call_signatures: self.call_signatures,
@@ -65,10 +69,328 @@ impl InferredShape {
             index_signatures: self.index_signatures,
         }
     }
+
+    /// Apply a direct field override to the shape.
+    pub(super) fn apply_field(&mut self, field: TypeField) {
+        // remove existing field with the same key
+        self.fields
+            .retain(|existing| !existing.key.matches(&field.key));
+        self.fields.push(field);
+    }
+
+    /// Apply another shape to this one with override semantics.
+    pub(super) fn apply_spread(&mut self, spread: &InferredShape) {
+        // override fields on matching keys
+        for field in &spread.fields {
+            self.fields
+                .retain(|existing| !existing.key.matches(&field.key));
+            self.fields.push(field.clone());
+        }
+
+        self.call_signatures
+            .extend_from_slice(&spread.call_signatures);
+        self.construct_signatures
+            .extend_from_slice(&spread.construct_signatures);
+        self.index_signatures
+            .extend_from_slice(&spread.index_signatures);
+    }
+
+    /// Apply another shape to this one for intersection semantics.
+    pub(super) fn apply_intersection(&mut self, other: &InferredShape, types: &mut TypeTable) {
+        // merge fields by intersecting overlapping keys
+        for field in &other.fields {
+            if let Some(existing) = self
+                .fields
+                .iter_mut()
+                .find(|existing| existing.key.matches(&field.key))
+            {
+                let merged_type = if existing.ty == field.ty {
+                    existing.ty
+                } else {
+                    types.insert_type(Type::Intersection {
+                        elements: vec![existing.ty, field.ty],
+                    })
+                };
+                existing.ty = merged_type;
+                existing.is_optional = existing.is_optional && field.is_optional;
+                existing.is_readonly = existing.is_readonly || field.is_readonly;
+            } else {
+                self.fields.push(field.clone());
+            }
+        }
+
+        self.call_signatures
+            .extend_from_slice(&other.call_signatures);
+        self.construct_signatures
+            .extend_from_slice(&other.construct_signatures);
+        self.index_signatures
+            .extend_from_slice(&other.index_signatures);
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Infer literal fields and spread shapes for an object literal.
+    pub(super) fn infer_object_literal_shapes(
+        &self,
+        module: &Module,
+        properties: &[LocalNodeId<Property>],
+        expected_object_ty_id: Option<LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<(
+        Vec<ObjectLiteralField>,
+        Vec<InferredShape>,
+        Option<LocalTypeId>,
+    )> {
+        let mut literal_fields = Vec::new();
+        let mut shapes = vec![InferredShape::default()];
+        let mut spread_override = None;
+        let mut has_any_spread = false;
+
+        // collect literal fields and spread shapes
+        for property_id in properties {
+            let property = tree.get(*property_id);
+            match property {
+                Property::Spread { value, .. } => {
+                    let mut spread_ctx = ctx.fork().with_expected_type(None);
+                    let spread_type = self.infer_expression(
+                        module,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut spread_ctx,
+                    )?;
+                    // normalize spreads before extracting shapes
+                    let spread_type = self.normalize_type(
+                        module,
+                        ctx.profile,
+                        spread_type,
+                        symbols,
+                        types,
+                        NormalizationMode::Assignability,
+                    );
+
+                    // short circuit on any or unknown spreads
+                    match types.get_type(spread_type) {
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Any,
+                        } => {
+                            spread_override = Some(spread_type);
+                            has_any_spread = true;
+                            continue;
+                        }
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        } => {
+                            if !has_any_spread {
+                                spread_override = Some(spread_type);
+                            }
+                            continue;
+                        }
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Never,
+                        } => continue,
+                        _ => {}
+                    }
+
+                    // expand spread types into object shapes
+                    let spread_shapes = self.collect_object_spread_shapes(
+                        module,
+                        ctx.profile,
+                        (*property_id).into_any(),
+                        spread_type,
+                        symbols,
+                        types,
+                    )?;
+                    shapes = self.merge_object_spread_shape_sets(shapes, spread_shapes);
+                }
+                _ => {
+                    if let Some(field) = self.infer_property(
+                        module,
+                        *property_id,
+                        expected_object_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )? {
+                        literal_fields.push(field.clone());
+                        for shape in shapes.iter_mut() {
+                            shape.apply_field(field.field().clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok((literal_fields, shapes, spread_override))
+    }
+
+    /// Merge shape sets with spread override semantics.
+    fn merge_object_spread_shape_sets(
+        &self,
+        base_shapes: Vec<InferredShape>,
+        spread_shapes: Vec<InferredShape>,
+    ) -> Vec<InferredShape> {
+        let mut merged = Vec::new();
+
+        // apply each spread shape onto each base shape
+        for base_shape in base_shapes {
+            for spread_shape in &spread_shapes {
+                let mut combined = base_shape.clone();
+                combined.apply_spread(spread_shape);
+                merged.push(combined);
+            }
+        }
+
+        merged
+    }
+
+    /// Merge shape sets with intersection semantics.
+    fn merge_object_spread_shape_sets_for_intersection(
+        &self,
+        base_shapes: Vec<InferredShape>,
+        intersection_shapes: Vec<InferredShape>,
+        types: &mut TypeTable,
+    ) -> Vec<InferredShape> {
+        let mut merged = Vec::new();
+
+        // intersect each incoming shape with each base shape
+        for base_shape in base_shapes {
+            for intersection_shape in &intersection_shapes {
+                let mut combined = base_shape.clone();
+                combined.apply_intersection(intersection_shape, types);
+                merged.push(combined);
+            }
+        }
+
+        merged
+    }
+
+    /// Collect object shapes from a spread type.
+    fn collect_object_spread_shapes(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Vec<InferredShape>> {
+        let mut visited = Vec::new();
+        self.collect_object_spread_shapes_inner(
+            module,
+            profile,
+            node_id,
+            type_id,
+            symbols,
+            types,
+            &mut visited,
+        )
+    }
+
+    /// Collect object shapes with recursion protection.
+    fn collect_object_spread_shapes_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visited: &mut Vec<LocalTypeId>,
+    ) -> AnalyzeResult<Vec<InferredShape>> {
+        // guard against recursive types
+        if visited.contains(&type_id) {
+            return Ok(vec![InferredShape::default()]);
+        }
+        visited.push(type_id);
+
+        // normalize before inspecting the spread shape
+        let normalized_type = self.normalize_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assignability,
+        );
+
+        // derive shapes based on the normalized type
+        let normalized_type_value = types.get_type(normalized_type).clone();
+        let shapes = match normalized_type_value {
+            Type::Object { .. } => {
+                // direct object shapes map to a single inferred shape
+                let mut shape = InferredShape::default();
+                shape.extend_from_object(types.get_type(normalized_type));
+                vec![shape]
+            }
+            Type::Reference { symbol, .. } => {
+                // follow instance types when available
+                let instance_id = if let Some(instance_id) = types.get_instance_type_id(symbol) {
+                    Some(instance_id)
+                } else {
+                    self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?
+                };
+
+                if let Some(instance_id) = instance_id {
+                    self.collect_object_spread_shapes_inner(
+                        module,
+                        profile,
+                        node_id,
+                        instance_id,
+                        symbols,
+                        types,
+                        visited,
+                    )?
+                } else {
+                    // default to an empty shape when no instance type is available
+                    vec![InferredShape::default()]
+                }
+            }
+            Type::Union { elements } => {
+                // union spreads fan out into distinct shapes
+                let mut merged = Vec::new();
+                for element_id in elements {
+                    let mut element_shapes = self.collect_object_spread_shapes_inner(
+                        module, profile, node_id, element_id, symbols, types, visited,
+                    )?;
+                    merged.append(&mut element_shapes);
+                }
+                merged
+            }
+            Type::Intersection { elements } => {
+                // intersection spreads merge shapes together
+                let mut merged = vec![InferredShape::default()];
+                for element_id in elements {
+                    let element_shapes = self.collect_object_spread_shapes_inner(
+                        module, profile, node_id, element_id, symbols, types, visited,
+                    )?;
+                    merged = self.merge_object_spread_shape_sets_for_intersection(
+                        merged,
+                        element_shapes,
+                        types,
+                    );
+                }
+                merged
+            }
+            _ => {
+                // non object spreads contribute no fields
+                vec![InferredShape::default()]
+            }
+        };
+
+        visited.pop();
+        Ok(shapes)
+    }
+
     /// Check whether a symbol should receive merged instance members.
     fn symbol_supports_instance_merge(&self, symbol: &destack_dir::Symbol) -> bool {
         matches!(

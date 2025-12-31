@@ -1,8 +1,10 @@
 use destack_dir::{
-    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, SymbolType, Type,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, SymbolTable, SymbolType,
+    Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
+use destack_workspace::{Module, ProfileId};
 
+use super::super::common::NormalizationMode;
 use super::{field_key_matches_index_kind, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{AnalyzeOptions, Compiler};
 
@@ -27,11 +29,14 @@ impl Assignability {
 impl Compiler {
     /// Check if `source` type is assignable to `target` type.
     /// Returns true if a value of type `source` can be assigned to a location of type `target`.
-    pub fn check_is_type_assignable(
+    pub fn is_type_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
         // same type id: trivially assignable
@@ -39,24 +44,52 @@ impl Compiler {
             return Assignability::Assignable;
         }
 
-        let target = types.get_type(target_id);
-        let source = types.get_type(source_id);
+        let target_id = self.normalize_type(
+            module,
+            profile,
+            target_id,
+            symbols,
+            types,
+            NormalizationMode::Assignability,
+        );
+        let source_id = self.normalize_type(
+            module,
+            profile,
+            source_id,
+            symbols,
+            types,
+            NormalizationMode::Assignability,
+        );
 
-        self.is_type_assignable(target, source, types, options)
+        if target_id == source_id {
+            return Assignability::Assignable;
+        }
+
+        self.is_type_assignable_inner(
+            module, profile, symbols, target_id, source_id, types, options,
+        )
     }
 
     /// Inner assignability check on Type values.
-    fn is_type_assignable(
+    fn is_type_assignable_inner(
         &self,
-        target: &Type,
-        source: &Type,
-        types: &TypeTable,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        // FUGU #Incomplete: normalize type-level constructs (for assignability, ..) #TypeNormalization
+        // follow cached alias instances for assignability comparisons
+        let target_id = self.unwrap_assignability_alias_type(target_id, types);
+        let source_id = self.unwrap_assignability_alias_type(source_id, types);
+
+        let target = types.get_type(target_id).clone();
+        let source = types.get_type(source_id).clone();
 
         // handle special target types first
-        match target {
+        match &target {
             Type::InferVar { .. } => return Assignability::Assignable,
             // any accepts everything
             Type::TypeLiteral {
@@ -77,7 +110,7 @@ impl Compiler {
         }
 
         // handle special source types
-        match source {
+        match &source {
             Type::InferVar { .. } => return Assignability::Assignable,
             // never is assignable to everything (bottom type)
             Type::TypeLiteral {
@@ -92,15 +125,11 @@ impl Compiler {
             _ => {}
         }
 
-        // unwrap transparent type aliases before structural comparisons
-        let target = self.unwrap_assignability_aliases(target, types);
-        let source = self.unwrap_assignability_aliases(source, types);
-
         // structural comparison
         match (target, source) {
             // type literals: must match exactly (with some exceptions)
             (Type::TypeLiteral { value: target_lit }, Type::TypeLiteral { value: source_lit }) => {
-                self.is_type_literal_assignable(target_lit, source_lit)
+                self.is_type_literal_assignable(&target_lit, &source_lit)
             }
 
             // arrays: covariant in element type
@@ -111,7 +140,15 @@ impl Compiler {
                 Type::Array {
                     element: Some(source_elem),
                 },
-            ) => self.check_is_type_assignable(*target_elem, *source_elem, types, options),
+            ) => self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_elem,
+                source_elem,
+                types,
+                options,
+            ),
 
             // empty array is assignable to any array
             (Type::Array { element: Some(_) }, Type::Array { element: None }) => {
@@ -132,7 +169,15 @@ impl Compiler {
                 }
                 for (target_elem, source_elem) in target_elems.iter().zip(source_elems.iter()) {
                     if !self
-                        .check_is_type_assignable(target_elem.ty, source_elem.ty, types, options)
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            target_elem.ty,
+                            source_elem.ty,
+                            types,
+                            options,
+                        )
                         .is_assignable()
                     {
                         return Assignability::NotAssignable;
@@ -152,7 +197,15 @@ impl Compiler {
             ) => {
                 for source_elem in source_elems {
                     if !self
-                        .check_is_type_assignable(*target_elem, source_elem.ty, types, options)
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            target_elem,
+                            source_elem.ty,
+                            types,
+                            options,
+                        )
                         .is_assignable()
                     {
                         return Assignability::NotAssignable;
@@ -176,14 +229,17 @@ impl Compiler {
                     index_signatures: source_index_signatures,
                 },
             ) => self.is_object_type_assignable(
-                target_fields,
-                target_call_signatures,
-                target_construct_signatures,
-                target_index_signatures,
-                source_fields,
-                source_call_signatures,
-                source_construct_signatures,
-                source_index_signatures,
+                module,
+                profile,
+                symbols,
+                &target_fields,
+                &target_call_signatures,
+                &target_construct_signatures,
+                &target_index_signatures,
+                &source_fields,
+                &source_call_signatures,
+                &source_construct_signatures,
+                &source_index_signatures,
                 types,
                 options,
             ),
@@ -203,12 +259,15 @@ impl Compiler {
                     ..
                 },
             ) => self.is_function_type_assignable(
-                target_params,
-                target_this,
-                target_return,
-                source_params,
-                source_this,
-                source_return,
+                module,
+                profile,
+                symbols,
+                &target_params,
+                &target_this,
+                &target_return,
+                &source_params,
+                &source_this,
+                &source_return,
                 types,
                 options,
             ),
@@ -228,13 +287,16 @@ impl Compiler {
                     ..
                 },
             ) => self.is_object_assignable_from_function(
-                target_fields,
-                target_call_signatures,
-                target_construct_signatures,
-                target_index_signatures,
-                source_params,
-                source_this,
-                source_return,
+                module,
+                profile,
+                symbols,
+                &target_fields,
+                &target_call_signatures,
+                &target_construct_signatures,
+                &target_index_signatures,
+                &source_params,
+                &source_this,
+                &source_return,
                 types,
                 options,
             ),
@@ -252,10 +314,13 @@ impl Compiler {
                     ..
                 },
             ) => self.is_function_assignable_from_object(
-                target_params,
-                target_this,
-                target_return,
-                source_call_signatures,
+                module,
+                profile,
+                symbols,
+                &target_params,
+                &target_this,
+                &target_return,
+                &source_call_signatures,
                 types,
                 options,
             ),
@@ -270,12 +335,18 @@ impl Compiler {
                 },
             ) => {
                 for source_elem in source_elems {
-                    let source_ty = types.get_type(*source_elem);
                     let mut is_assignable = false;
-                    for target_elem in target_elems {
-                        let target_ty = types.get_type(*target_elem);
+                    for target_elem in &target_elems {
                         if self
-                            .is_type_assignable(target_ty, source_ty, types, options)
+                            .is_type_assignable_inner(
+                                module,
+                                profile,
+                                symbols,
+                                *target_elem,
+                                source_elem,
+                                types,
+                                options,
+                            )
                             .is_assignable()
                         {
                             is_assignable = true;
@@ -297,9 +368,16 @@ impl Compiler {
                 _,
             ) => {
                 for target_elem in target_elems {
-                    let target_elem_ty = types.get_type(*target_elem);
                     if self
-                        .is_type_assignable(target_elem_ty, source, types, options)
+                        .is_type_assignable_inner(
+                            module,
+                            profile,
+                            symbols,
+                            target_elem,
+                            source_id,
+                            types,
+                            options,
+                        )
                         .is_assignable()
                     {
                         return Assignability::Assignable;
@@ -323,10 +401,24 @@ impl Compiler {
                     return Assignability::NotAssignable;
                 }
 
-                let target_assignable =
-                    self.check_is_type_assignable(*target_right, *source_right, types, options);
-                let source_assignable =
-                    self.check_is_type_assignable(*source_right, *target_right, types, options);
+                let target_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_right,
+                    source_right,
+                    types,
+                    options,
+                );
+                let source_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    source_right,
+                    target_right,
+                    types,
+                    options,
+                );
                 if target_assignable.is_assignable() && source_assignable.is_assignable() {
                     Assignability::Assignable
                 } else {
@@ -348,26 +440,32 @@ impl Compiler {
                 },
             ) => {
                 if target_symbol.ty().is_interface()
-                    && let Some(target_instance_ty) = types.get_instance_type(*target_symbol)
-                    && let Type::Object {
+                    && let Some(target_instance_id) = types.get_instance_type_id(target_symbol)
+                {
+                    let target_instance = types.get_type(target_instance_id).clone();
+                    if let Type::Object {
                         fields: target_fields,
                         call_signatures: target_call_signatures,
                         construct_signatures: target_construct_signatures,
                         index_signatures: target_index_signatures,
-                    } = target_instance_ty
-                {
-                    return self.is_object_type_assignable(
-                        target_fields,
-                        target_call_signatures,
-                        target_construct_signatures,
-                        target_index_signatures,
-                        source_fields,
-                        source_call_signatures,
-                        source_construct_signatures,
-                        source_index_signatures,
-                        types,
-                        options,
-                    );
+                    } = target_instance
+                    {
+                        return self.is_object_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            &target_fields,
+                            &target_call_signatures,
+                            &target_construct_signatures,
+                            &target_index_signatures,
+                            &source_fields,
+                            &source_call_signatures,
+                            &source_construct_signatures,
+                            &source_index_signatures,
+                            types,
+                            options,
+                        );
+                    }
                 }
 
                 Assignability::NotAssignable
@@ -387,25 +485,31 @@ impl Compiler {
                 },
             ) => {
                 if target_symbol.ty().is_interface()
-                    && let Some(target_instance_ty) = types.get_instance_type(*target_symbol)
-                    && let Type::Object {
+                    && let Some(target_instance_id) = types.get_instance_type_id(target_symbol)
+                {
+                    let target_instance = types.get_type(target_instance_id).clone();
+                    if let Type::Object {
                         fields: target_fields,
                         call_signatures: target_call_signatures,
                         construct_signatures: target_construct_signatures,
                         index_signatures: target_index_signatures,
-                    } = target_instance_ty
-                {
-                    return self.is_object_assignable_from_function(
-                        target_fields,
-                        target_call_signatures,
-                        target_construct_signatures,
-                        target_index_signatures,
-                        source_params,
-                        source_this,
-                        source_return,
-                        types,
-                        options,
-                    );
+                    } = target_instance
+                    {
+                        return self.is_object_assignable_from_function(
+                            module,
+                            profile,
+                            symbols,
+                            &target_fields,
+                            &target_call_signatures,
+                            &target_construct_signatures,
+                            &target_index_signatures,
+                            &source_params,
+                            &source_this,
+                            &source_return,
+                            types,
+                            options,
+                        );
+                    }
                 }
 
                 Assignability::NotAssignable
@@ -425,26 +529,32 @@ impl Compiler {
                 },
             ) => {
                 if source_symbol.ty().is_interface()
-                    && let Some(source_instance_ty) = types.get_instance_type(*source_symbol)
-                    && let Type::Object {
+                    && let Some(source_instance_id) = types.get_instance_type_id(source_symbol)
+                {
+                    let source_instance = types.get_type(source_instance_id).clone();
+                    if let Type::Object {
                         fields: source_fields,
                         call_signatures: source_call_signatures,
                         construct_signatures: source_construct_signatures,
                         index_signatures: source_index_signatures,
-                    } = source_instance_ty
-                {
-                    return self.is_object_type_assignable(
-                        target_fields,
-                        target_call_signatures,
-                        target_construct_signatures,
-                        target_index_signatures,
-                        source_fields,
-                        source_call_signatures,
-                        source_construct_signatures,
-                        source_index_signatures,
-                        types,
-                        options,
-                    );
+                    } = source_instance
+                    {
+                        return self.is_object_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            &target_fields,
+                            &target_call_signatures,
+                            &target_construct_signatures,
+                            &target_index_signatures,
+                            &source_fields,
+                            &source_call_signatures,
+                            &source_construct_signatures,
+                            &source_index_signatures,
+                            types,
+                            options,
+                        );
+                    }
                 }
 
                 Assignability::NotAssignable
@@ -464,20 +574,26 @@ impl Compiler {
                 },
             ) => {
                 if source_symbol.ty().is_interface()
-                    && let Some(source_instance_ty) = types.get_instance_type(*source_symbol)
-                    && let Type::Object {
+                    && let Some(source_instance_id) = types.get_instance_type_id(source_symbol)
+                {
+                    let source_instance = types.get_type(source_instance_id).clone();
+                    if let Type::Object {
                         call_signatures: source_call_signatures,
                         ..
-                    } = source_instance_ty
-                {
-                    return self.is_function_assignable_from_object(
-                        target_params,
-                        target_this,
-                        target_return,
-                        source_call_signatures,
-                        types,
-                        options,
-                    );
+                    } = source_instance
+                    {
+                        return self.is_function_assignable_from_object(
+                            module,
+                            profile,
+                            symbols,
+                            &target_params,
+                            &target_this,
+                            &target_return,
+                            &source_call_signatures,
+                            types,
+                            options,
+                        );
+                    }
                 }
 
                 Assignability::NotAssignable
@@ -491,9 +607,16 @@ impl Compiler {
                 },
             ) => {
                 for source_elem in source_elems {
-                    let source_elem_ty = types.get_type(*source_elem);
                     if !self
-                        .is_type_assignable(target, source_elem_ty, types, options)
+                        .is_type_assignable_inner(
+                            module,
+                            profile,
+                            symbols,
+                            target_id,
+                            source_elem,
+                            types,
+                            options,
+                        )
                         .is_assignable()
                     {
                         return Assignability::NotAssignable;
@@ -510,9 +633,16 @@ impl Compiler {
                 _,
             ) => {
                 for target_elem in target_elems {
-                    let target_elem_ty = types.get_type(*target_elem);
                     if !self
-                        .is_type_assignable(target_elem_ty, source, types, options)
+                        .is_type_assignable_inner(
+                            module,
+                            profile,
+                            symbols,
+                            target_elem,
+                            source_id,
+                            types,
+                            options,
+                        )
                         .is_assignable()
                     {
                         return Assignability::NotAssignable;
@@ -529,9 +659,16 @@ impl Compiler {
                 },
             ) => {
                 for source_elem in source_elems {
-                    let source_elem_ty = types.get_type(*source_elem);
                     if self
-                        .is_type_assignable(target, source_elem_ty, types, options)
+                        .is_type_assignable_inner(
+                            module,
+                            profile,
+                            symbols,
+                            target_id,
+                            source_elem,
+                            types,
+                            options,
+                        )
                         .is_assignable()
                     {
                         return Assignability::Assignable;
@@ -554,18 +691,21 @@ impl Compiler {
             ) => {
                 // nominal check: same symbol or lineage
                 if target_symbol == source_symbol
-                    || self.is_type_lineage_assignable(*source_symbol, *target_symbol, types)
+                    || self.is_type_lineage_assignable(source_symbol, target_symbol, types)
                 {
                     return Assignability::Assignable;
                 }
 
                 // structural check: only for interfaces
                 if target_symbol.ty().is_interface()
-                    && let (Some(target_instance_ty), Some(source_instance_ty)) = (
-                        types.get_instance_type(*target_symbol),
-                        types.get_instance_type(*source_symbol),
+                    && let (Some(target_instance_id), Some(source_instance_id)) = (
+                        types.get_instance_type_id(target_symbol),
+                        types.get_instance_type_id(source_symbol),
                     )
-                    && let (
+                {
+                    let target_instance = types.get_type(target_instance_id).clone();
+                    let source_instance = types.get_type(source_instance_id).clone();
+                    if let (
                         Type::Object {
                             fields: target_fields,
                             call_signatures: target_call_signatures,
@@ -578,20 +718,24 @@ impl Compiler {
                             construct_signatures: source_construct_signatures,
                             index_signatures: source_index_signatures,
                         },
-                    ) = (target_instance_ty, source_instance_ty)
-                {
-                    return self.is_object_type_assignable(
-                        target_fields,
-                        target_call_signatures,
-                        target_construct_signatures,
-                        target_index_signatures,
-                        source_fields,
-                        source_call_signatures,
-                        source_construct_signatures,
-                        source_index_signatures,
-                        types,
-                        options,
-                    );
+                    ) = (target_instance, source_instance)
+                    {
+                        return self.is_object_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            &target_fields,
+                            &target_call_signatures,
+                            &target_construct_signatures,
+                            &target_index_signatures,
+                            &source_fields,
+                            &source_call_signatures,
+                            &source_construct_signatures,
+                            &source_index_signatures,
+                            types,
+                            options,
+                        );
+                    }
                 }
 
                 Assignability::NotAssignable
@@ -770,6 +914,9 @@ impl Compiler {
     /// Check object type assignability (structural subtyping).
     fn is_object_type_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_fields: &[TypeField],
         target_call_signatures: &[LocalTypeId],
         target_construct_signatures: &[LocalTypeId],
@@ -778,16 +925,26 @@ impl Compiler {
         source_call_signatures: &[LocalTypeId],
         source_construct_signatures: &[LocalTypeId],
         source_index_signatures: &[TypeIndexSignature],
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        if self.is_object_fields_assignable(target_fields, source_fields, types, options)
-            == Assignability::NotAssignable
+        if self.is_object_fields_assignable(
+            module,
+            profile,
+            symbols,
+            target_fields,
+            source_fields,
+            types,
+            options,
+        ) == Assignability::NotAssignable
         {
             return Assignability::NotAssignable;
         }
 
         if !self.is_signature_set_assignable(
+            module,
+            profile,
+            symbols,
             target_call_signatures,
             source_call_signatures,
             types,
@@ -797,6 +954,9 @@ impl Compiler {
         }
 
         if !self.is_signature_set_assignable(
+            module,
+            profile,
+            symbols,
             target_construct_signatures,
             source_construct_signatures,
             types,
@@ -806,6 +966,9 @@ impl Compiler {
         }
 
         if !self.is_index_signatures_assignable(
+            module,
+            profile,
+            symbols,
             target_index_signatures,
             source_index_signatures,
             source_fields,
@@ -821,6 +984,9 @@ impl Compiler {
     /// Check callable object assignability from a function type.
     fn is_object_assignable_from_function(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_fields: &[TypeField],
         target_call_signatures: &[LocalTypeId],
         target_construct_signatures: &[LocalTypeId],
@@ -828,16 +994,26 @@ impl Compiler {
         source_params: &[LocalTypeId],
         source_this: &Option<LocalTypeId>,
         source_return: &Option<LocalTypeId>,
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        if self.is_object_fields_assignable(target_fields, &[], types, options)
-            == Assignability::NotAssignable
+        if self.is_object_fields_assignable(
+            module,
+            profile,
+            symbols,
+            target_fields,
+            &[],
+            types,
+            options,
+        ) == Assignability::NotAssignable
         {
             return Assignability::NotAssignable;
         }
 
         if !self.is_call_signatures_assignable_from_function(
+            module,
+            profile,
+            symbols,
             target_call_signatures,
             source_params,
             source_this,
@@ -848,11 +1024,28 @@ impl Compiler {
             return Assignability::NotAssignable;
         }
 
-        if !self.is_signature_set_assignable(target_construct_signatures, &[], types, options) {
+        if !self.is_signature_set_assignable(
+            module,
+            profile,
+            symbols,
+            target_construct_signatures,
+            &[],
+            types,
+            options,
+        ) {
             return Assignability::NotAssignable;
         }
 
-        if !self.is_index_signatures_assignable(target_index_signatures, &[], &[], types, options) {
+        if !self.is_index_signatures_assignable(
+            module,
+            profile,
+            symbols,
+            target_index_signatures,
+            &[],
+            &[],
+            types,
+            options,
+        ) {
             return Assignability::NotAssignable;
         }
 
@@ -862,11 +1055,14 @@ impl Compiler {
     /// Check function assignability from callable object signatures.
     fn is_function_assignable_from_object(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_params: &[LocalTypeId],
         target_this: &Option<LocalTypeId>,
         target_return: &Option<LocalTypeId>,
         source_call_signatures: &[LocalTypeId],
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
         if source_call_signatures.is_empty() {
@@ -874,24 +1070,28 @@ impl Compiler {
         }
 
         for source_signature in source_call_signatures {
+            let signature = types.get_type(*source_signature).clone();
             let Type::Function {
                 dynamic_parameters: source_params,
                 this_parameter: source_this,
                 return_type: source_return,
                 ..
-            } = types.get_type(*source_signature)
+            } = signature
             else {
                 continue;
             };
 
             if self
                 .is_function_type_assignable(
+                    module,
+                    profile,
+                    symbols,
                     target_params,
                     target_this,
                     target_return,
-                    source_params,
-                    source_this,
-                    source_return,
+                    &source_params,
+                    &source_this,
+                    &source_return,
                     types,
                     options,
                 )
@@ -907,14 +1107,17 @@ impl Compiler {
     /// Check object field assignability (structural subtyping).
     fn is_object_fields_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_fields: &[TypeField],
         source_fields: &[TypeField],
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        let undefined_ty = Type::TypeLiteral {
+        let undefined_ty_id = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Undefined,
-        };
+        });
 
         // for each target field, find matching source field
         for target_field in target_fields {
@@ -928,22 +1131,43 @@ impl Compiler {
                         return Assignability::NotAssignable;
                     }
 
-                    let target_ty = types.get_type(target_field.ty);
-                    let source_ty = types.get_type(source_field.ty);
-
                     let mut is_assignable = self
-                        .is_type_assignable(target_ty, source_ty, types, options)
+                        .is_type_assignable_inner(
+                            module,
+                            profile,
+                            symbols,
+                            target_field.ty,
+                            source_field.ty,
+                            types,
+                            options,
+                        )
                         .is_assignable();
 
                     if !options.exact_optional_property_types && target_field.is_optional {
                         is_assignable |= self
-                            .is_type_assignable(&undefined_ty, source_ty, types, options)
+                            .is_type_assignable_inner(
+                                module,
+                                profile,
+                                symbols,
+                                undefined_ty_id,
+                                source_field.ty,
+                                types,
+                                options,
+                            )
                             .is_assignable();
                     }
 
                     if !options.exact_optional_property_types && source_field.is_optional {
                         let undefined_assignable = self
-                            .is_type_assignable(target_ty, &undefined_ty, types, options)
+                            .is_type_assignable_inner(
+                                module,
+                                profile,
+                                symbols,
+                                target_field.ty,
+                                undefined_ty_id,
+                                types,
+                                options,
+                            )
                             .is_assignable();
                         is_assignable &= undefined_assignable;
                     }
@@ -965,12 +1189,16 @@ impl Compiler {
     }
 
     /// Follow cached alias instances for assignability comparisons.
-    fn unwrap_assignability_aliases<'a>(&self, ty: &'a Type, types: &'a TypeTable) -> &'a Type {
+    fn unwrap_assignability_alias_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> LocalTypeId {
         let mut visited_symbols: Vec<GlobalSymbolId> = Vec::new();
-        let mut current = ty;
+        let mut current_id = type_id;
 
         loop {
-            let Type::Reference { symbol, .. } = current else {
+            let Type::Reference { symbol, .. } = types.get_type(current_id) else {
                 break;
             };
 
@@ -986,18 +1214,21 @@ impl Compiler {
             let Some(instance_ty_id) = types.get_instance_type_id(*symbol) else {
                 break;
             };
-            current = types.get_type(instance_ty_id);
+            current_id = instance_ty_id;
         }
 
-        current
+        current_id
     }
 
     /// Check assignability of signature sets (target signatures must be matched).
     fn is_signature_set_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_signatures: &[LocalTypeId],
         source_signatures: &[LocalTypeId],
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
         if target_signatures.is_empty() {
@@ -1007,7 +1238,15 @@ impl Compiler {
             let mut matched = false;
             for source_signature in source_signatures {
                 if self
-                    .check_is_type_assignable(*target_signature, *source_signature, types, options)
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        *target_signature,
+                        *source_signature,
+                        types,
+                        options,
+                    )
                     .is_assignable()
                 {
                     matched = true;
@@ -1024,11 +1263,14 @@ impl Compiler {
     /// Check assignability of call signatures against a single function source.
     fn is_call_signatures_assignable_from_function(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_signatures: &[LocalTypeId],
         source_params: &[LocalTypeId],
         source_this: &Option<LocalTypeId>,
         source_return: &Option<LocalTypeId>,
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
         if target_signatures.is_empty() {
@@ -1036,21 +1278,25 @@ impl Compiler {
         }
 
         for target_signature in target_signatures {
+            let signature = types.get_type(*target_signature).clone();
             let Type::Function {
                 dynamic_parameters: target_params,
                 this_parameter: target_this,
                 return_type: target_return,
                 ..
-            } = types.get_type(*target_signature)
+            } = signature
             else {
                 return false;
             };
 
             if !self
                 .is_function_type_assignable(
-                    target_params,
-                    target_this,
-                    target_return,
+                    module,
+                    profile,
+                    symbols,
+                    &target_params,
+                    &target_this,
+                    &target_return,
                     source_params,
                     source_this,
                     source_return,
@@ -1069,10 +1315,13 @@ impl Compiler {
     /// Check assignability of index signatures.
     fn is_index_signatures_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_signatures: &[TypeIndexSignature],
         source_signatures: &[TypeIndexSignature],
         source_fields: &[TypeField],
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
         if target_signatures.is_empty() {
@@ -1089,6 +1338,9 @@ impl Compiler {
                 }
                 has_matching_key_kind = true;
                 if self.is_index_signature_assignable(
+                    module,
+                    profile,
+                    symbols,
                     target_signature,
                     source_signature,
                     types,
@@ -1105,6 +1357,9 @@ impl Compiler {
                 return false;
             }
             if !self.are_fields_assignable_to_index_signature(
+                module,
+                profile,
+                symbols,
                 target_signature,
                 source_fields,
                 types,
@@ -1119,9 +1374,12 @@ impl Compiler {
     /// Check assignability for a single index signature.
     fn is_index_signature_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_signature: &TypeIndexSignature,
         source_signature: &TypeIndexSignature,
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
         let target_kind = index_key_kind_for_type(target_signature.key_type, types);
@@ -1131,7 +1389,10 @@ impl Compiler {
         }
 
         if !self
-            .check_is_type_assignable(
+            .is_type_assignable(
+                module,
+                profile,
+                symbols,
                 target_signature.value_type,
                 source_signature.value_type,
                 types,
@@ -1148,9 +1409,12 @@ impl Compiler {
     /// Check if any source field violates a target index signature.
     fn are_fields_assignable_to_index_signature(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_signature: &TypeIndexSignature,
         source_fields: &[TypeField],
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
         let key_kind = index_key_kind_for_type(target_signature.key_type, types);
@@ -1159,6 +1423,9 @@ impl Compiler {
                 continue;
             }
             if !self.is_field_type_assignable_to_index_signature(
+                module,
+                profile,
+                symbols,
                 target_signature.value_type,
                 field,
                 types,
@@ -1173,24 +1440,35 @@ impl Compiler {
     /// Check if a field type is compatible with an index signature value type.
     fn is_field_type_assignable_to_index_signature(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value_type: LocalTypeId,
         field: &TypeField,
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
-        let value_ty = types.get_type(value_type);
-        let field_ty = types.get_type(field.ty);
-        let undefined_ty = Type::TypeLiteral {
+        let undefined_ty_id = types.insert_type(Type::TypeLiteral {
             value: TypeLiteral::Undefined,
-        };
+        });
 
         let mut is_assignable = self
-            .is_type_assignable(value_ty, field_ty, types, options)
+            .is_type_assignable_inner(
+                module, profile, symbols, value_type, field.ty, types, options,
+            )
             .is_assignable();
 
         if !options.exact_optional_property_types && field.is_optional {
             let undefined_assignable = self
-                .is_type_assignable(value_ty, &undefined_ty, types, options)
+                .is_type_assignable_inner(
+                    module,
+                    profile,
+                    symbols,
+                    value_type,
+                    undefined_ty_id,
+                    types,
+                    options,
+                )
                 .is_assignable();
             is_assignable &= undefined_assignable;
         }
@@ -1201,22 +1479,41 @@ impl Compiler {
     /// Check function type assignability (contravariant params, covariant return).
     fn is_function_type_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         target_params: &[LocalTypeId],
         target_this: &Option<LocalTypeId>,
         target_return: &Option<LocalTypeId>,
         source_params: &[LocalTypeId],
         source_this: &Option<LocalTypeId>,
         source_return: &Option<LocalTypeId>,
-        types: &TypeTable,
+        types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
         // this parameter: contravariant when strict, bivariant otherwise
         if let (Some(target_this), Some(source_this)) = (target_this, source_this) {
             let strict_assignable = self
-                .check_is_type_assignable(*source_this, *target_this, types, options)
+                .is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    *source_this,
+                    *target_this,
+                    types,
+                    options,
+                )
                 .is_assignable();
             let loose_assignable = self
-                .check_is_type_assignable(*target_this, *source_this, types, options)
+                .is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    *target_this,
+                    *source_this,
+                    types,
+                    options,
+                )
                 .is_assignable();
             if options.strict_function_types {
                 if !strict_assignable {
@@ -1235,10 +1532,26 @@ impl Compiler {
         // parameters: contravariant when strict, bivariant otherwise
         for (target_param, source_param) in target_params.iter().zip(source_params.iter()) {
             let strict_assignable = self
-                .check_is_type_assignable(*source_param, *target_param, types, options)
+                .is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    *source_param,
+                    *target_param,
+                    types,
+                    options,
+                )
                 .is_assignable();
             let loose_assignable = self
-                .check_is_type_assignable(*target_param, *source_param, types, options)
+                .is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    *target_param,
+                    *source_param,
+                    types,
+                    options,
+                )
                 .is_assignable();
             if options.strict_function_types {
                 if !strict_assignable {
@@ -1251,9 +1564,15 @@ impl Compiler {
 
         // return type: covariant (target return must be assignable from source return)
         match (target_return, source_return) {
-            (Some(target_ret), Some(source_ret)) => {
-                self.check_is_type_assignable(*target_ret, *source_ret, types, options)
-            }
+            (Some(target_ret), Some(source_ret)) => self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                *target_ret,
+                *source_ret,
+                types,
+                options,
+            ),
             (None, _) => Assignability::Assignable,
             (Some(_), None) => Assignability::NotAssignable,
         }
@@ -1354,7 +1673,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1362,8 +1684,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(number_ty, number_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, number_ty, number_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1378,7 +1701,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1389,8 +1715,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(number_ty, string_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, number_ty, string_ty, &mut types, &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -1405,7 +1732,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1416,8 +1746,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(number_ty, literal_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, number_ty, literal_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1432,7 +1763,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let any_ty = types.insert_type(Type::TypeLiteral {
@@ -1443,8 +1777,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(any_ty, number_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, any_ty, number_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1459,7 +1794,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let never_ty = types.insert_type(Type::TypeLiteral {
@@ -1470,8 +1808,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(number_ty, never_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, number_ty, never_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1486,7 +1825,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let never_ty = types.insert_type(Type::TypeLiteral {
@@ -1497,8 +1839,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(never_ty, number_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, never_ty, number_ty, &mut types, &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -1513,7 +1856,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1527,8 +1873,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(tuple_ty, tuple_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, tuple_ty, tuple_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1543,7 +1890,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1560,8 +1910,15 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(tuple_short, tuple_long, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                tuple_short,
+                tuple_long,
+                &mut types,
+                &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -1576,7 +1933,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1587,8 +1947,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(array_ty, array_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, array_ty, array_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1603,7 +1964,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1617,8 +1981,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(array_ty, tuple_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, array_ty, tuple_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1633,7 +1998,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -1680,15 +2048,17 @@ mod tests {
 
         // larger object assignable to smaller (has all required fields)
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(obj_small, obj_large, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, obj_small, obj_large, &mut types, &options
+            ),
             Assignability::Assignable
         );
 
         // smaller object not assignable to larger (missing field b)
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(obj_large, obj_small, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, obj_large, obj_small, &mut types, &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -1703,7 +2073,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -1737,13 +2110,27 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(required_obj, optional_obj, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                required_obj,
+                optional_obj,
+                &mut types,
+                &options
+            ),
             Assignability::NotAssignable
         );
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(optional_obj, required_obj, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                optional_obj,
+                required_obj,
+                &mut types,
+                &options
+            ),
             Assignability::Assignable
         );
     }
@@ -1758,7 +2145,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1796,13 +2186,21 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_obj, source_obj, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, target_obj, source_obj, &mut types, &options
+            ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_obj, missing_call, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_obj,
+                missing_call,
+                &mut types,
+                &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -1817,7 +2215,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -1853,13 +2254,27 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_fn, source_fn_fewer, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_fn,
+                source_fn_fewer,
+                &mut types,
+                &options
+            ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_fn, source_fn_more, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_fn,
+                source_fn_more,
+                &mut types,
+                &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -1874,7 +2289,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -1942,19 +2360,25 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler.check_is_type_assignable(
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
                 target_fn,
                 source_fn_wider_this,
-                &types,
+                &mut types,
                 &options
             ),
             Assignability::NotAssignable
         );
         assert_eq!(
-            test.compiler.check_is_type_assignable(
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
                 source_fn_wider_this,
                 source_fn_narrow_this,
-                &types,
+                &mut types,
                 &options
             ),
             Assignability::Assignable
@@ -1971,7 +2395,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -2032,25 +2459,43 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_obj, source_obj, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, target_obj, source_obj, &mut types, &options
+            ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_obj, missing_index, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_obj,
+                missing_index,
+                &mut types,
+                &options
+            ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_obj, compatible_fields, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_obj,
+                compatible_fields,
+                &mut types,
+                &options
+            ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler.check_is_type_assignable(
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
                 target_obj,
                 incompatible_fields,
-                &types,
+                &mut types,
                 &options
             ),
             Assignability::NotAssignable
@@ -2067,7 +2512,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -2116,13 +2564,27 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_number, source_string, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_number,
+                source_string,
+                &mut types,
+                &options
+            ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_string, source_number, &types, &options),
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                target_string,
+                source_number,
+                &mut types,
+                &options
+            ),
             Assignability::Assignable
         );
     }
@@ -2137,7 +2599,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -2172,8 +2637,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(target_obj, source_obj, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, target_obj, source_obj, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -2188,7 +2654,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
@@ -2240,19 +2709,25 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler.check_is_type_assignable(
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
                 target_obj,
                 source_optional_number,
-                &types,
+                &mut types,
                 &options
             ),
             Assignability::Assignable
         );
         assert_eq!(
-            test.compiler.check_is_type_assignable(
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
                 target_obj,
                 source_optional_undefined,
-                &types,
+                &mut types,
                 &options
             ),
             Assignability::NotAssignable
@@ -2269,7 +2744,10 @@ mod tests {
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let number_ty = types.insert_type(Type::TypeLiteral {
@@ -2283,8 +2761,9 @@ mod tests {
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(union_ty, number_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, union_ty, number_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -2566,7 +3045,10 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let int_ty = types.insert_type(Type::TypeLiteral {
@@ -2577,8 +3059,9 @@ let x: number = getNumber();
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(int_ty, literal_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, int_ty, literal_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -2593,7 +3076,10 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let float_ty = types.insert_type(Type::TypeLiteral {
@@ -2605,8 +3091,9 @@ let x: number = getNumber();
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(float_ty, literal_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, float_ty, literal_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
     }
@@ -2621,7 +3108,10 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let int8_ty = types.insert_type(Type::TypeLiteral {
@@ -2632,8 +3122,9 @@ let x: number = getNumber();
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(int8_ty, literal_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, int8_ty, literal_ty, &mut types, &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -2648,7 +3139,10 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let int8_ty = types.insert_type(Type::TypeLiteral {
@@ -2660,14 +3154,16 @@ let x: number = getNumber();
 
         // widening allowed
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(int16_ty, int8_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, int16_ty, int8_ty, &mut types, &options
+            ),
             Assignability::Assignable
         );
         // narrowing not allowed
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(int8_ty, int16_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, int8_ty, int16_ty, &mut types, &options
+            ),
             Assignability::NotAssignable
         );
     }
@@ -2682,7 +3178,10 @@ let x: number = getNumber();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
-        let mut types = module.dir(test.default_profile_id(module_id)).types.write();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
         let int8_ty = types.insert_type(Type::TypeLiteral {
@@ -2693,8 +3192,9 @@ let x: number = getNumber();
         });
 
         assert_eq!(
-            test.compiler
-                .check_is_type_assignable(uint8_ty, int8_ty, &types, &options),
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, uint8_ty, int8_ty, &mut types, &options
+            ),
             Assignability::NotAssignable
         );
     }

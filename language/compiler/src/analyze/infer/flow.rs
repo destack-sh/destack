@@ -11,6 +11,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use super::super::common::NormalizationMode;
 use super::r#type::TypeGuardTarget;
 
 use crate::{AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
@@ -288,7 +289,7 @@ impl Compiler {
 
             // build a union for differing branch types
             let merged_type_id =
-                self.merge_flow_type_ids(left_type_id, right_type_id, baseline_type_id, types);
+                self.merge_flow_types(left_type_id, right_type_id, baseline_type_id, types);
             bindings.insert(*symbol, merged_type_id);
         }
 
@@ -299,7 +300,7 @@ impl Compiler {
     }
 
     /// Merge two type ids for flow environments, preserving baseline ordering when possible.
-    fn merge_flow_type_ids(
+    fn merge_flow_types(
         &self,
         left_type_id: LocalTypeId,
         right_type_id: LocalTypeId,
@@ -789,8 +790,15 @@ impl Compiler {
         }
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) =
-            self.type_guard_target_types(base_type_id, target, types, &context.options);
+        let (true_type_id, false_type_id) = self.type_guard_target_types(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target,
+            types,
+            &context.options,
+        );
 
         // apply the narrowings for each branch
         let mut true_environment = environment.clone();
@@ -976,7 +984,7 @@ impl Compiler {
         };
 
         // resolve the target type
-        let target_type_id = self.guard_target_type_id(
+        let target_type_id = self.guard_target_type(
             module,
             context.profile,
             self.unwrap_parenthesized_expression(target_id, tree),
@@ -984,7 +992,7 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let target_type_id = self.unwrap_type_value_id(target_type_id, types);
+        let target_type_id = self.unwrap_type_value(target_type_id, types);
         if !self.guard_target_is_class(target_type_id, types) {
             return Ok(None);
         }
@@ -1002,8 +1010,15 @@ impl Compiler {
         )?;
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) =
-            self.type_guard_types(base_type_id, target_type_id, types, &context.options);
+        let (true_type_id, false_type_id) = self.type_guard_types(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
 
         // apply the narrowings for each branch
         let mut true_environment = environment.clone();
@@ -1040,7 +1055,7 @@ impl Compiler {
         };
 
         // resolve the target type
-        let target_type_id = self.guard_target_type_id(
+        let target_type_id = self.guard_target_type(
             module,
             context.profile,
             self.unwrap_parenthesized_expression(target_id, tree),
@@ -1048,7 +1063,7 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let target_type_id = self.unwrap_type_value_id(target_type_id, types);
+        let target_type_id = self.unwrap_type_value(target_type_id, types);
 
         // resolve the base type for the symbol
         let base_type_id = self.symbol_type_for_guard(
@@ -1063,8 +1078,15 @@ impl Compiler {
         )?;
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) =
-            self.type_guard_types(base_type_id, target_type_id, types, &context.options);
+        let (true_type_id, false_type_id) = self.type_guard_types(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
 
         // apply the narrowings for each branch
         let mut true_environment = environment.clone();
@@ -1080,7 +1102,7 @@ impl Compiler {
     }
 
     /// Determine the target type for a guard expression.
-    fn guard_target_type_id(
+    fn guard_target_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1099,7 +1121,7 @@ impl Compiler {
     }
 
     /// Unwrap a Type::Value wrapper to a usable guard target.
-    fn unwrap_type_value_id(&self, type_id: LocalTypeId, types: &TypeTable) -> LocalTypeId {
+    fn unwrap_type_value(&self, type_id: LocalTypeId, types: &TypeTable) -> LocalTypeId {
         match types.get_type(type_id) {
             Type::Value { value } => *value,
             _ => type_id,
@@ -1117,6 +1139,9 @@ impl Compiler {
     /// Derive guard types for a symbol based on a target type.
     fn type_guard_types(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         base_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
         types: &mut TypeTable,
@@ -1124,17 +1149,26 @@ impl Compiler {
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // handle union and non union cases separately
         // filter union members that satisfy the target guard
-        let true_type_id = match types.get_type(base_type_id) {
+        let base_type = types.get_type(base_type_id).clone();
+        let true_type_id = match base_type {
             Type::Union { elements } => {
                 let mut matching_elements = Vec::new();
 
                 // collect assignable union members
                 for element_id in elements {
                     let is_assignable = self
-                        .check_is_type_assignable(target_type_id, *element_id, types, options)
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            target_type_id,
+                            element_id,
+                            types,
+                            options,
+                        )
                         .is_assignable();
                     if is_assignable {
-                        matching_elements.push(*element_id);
+                        matching_elements.push(element_id);
                     }
                 }
 
@@ -1149,10 +1183,26 @@ impl Compiler {
             _ => {
                 // keep the base type when it is already narrow enough
                 let base_is_assignable = self
-                    .check_is_type_assignable(target_type_id, base_type_id, types, options)
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        target_type_id,
+                        base_type_id,
+                        types,
+                        options,
+                    )
                     .is_assignable();
                 let target_is_assignable = self
-                    .check_is_type_assignable(base_type_id, target_type_id, types, options)
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        base_type_id,
+                        target_type_id,
+                        types,
+                        options,
+                    )
                     .is_assignable();
 
                 if base_is_assignable {
@@ -1168,8 +1218,15 @@ impl Compiler {
         };
 
         // drop assignable types for the false branch
-        let (false_type_id, _) =
-            self.strip_assignable_from_union(base_type_id, target_type_id, types, options);
+        let (false_type_id, _) = self.strip_assignable_from_union(
+            module,
+            profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            options,
+        );
 
         (true_type_id, false_type_id)
     }
@@ -1177,6 +1234,9 @@ impl Compiler {
     /// Derive guard types for a typed guard target.
     fn type_guard_target_types(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         base_type_id: LocalTypeId,
         target: TypeGuardTarget,
         types: &mut TypeTable,
@@ -1184,9 +1244,15 @@ impl Compiler {
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // route guard targets to their narrowing strategy
         match target {
-            TypeGuardTarget::TypeId(target_type_id) => {
-                self.type_guard_types(base_type_id, target_type_id, types, options)
-            }
+            TypeGuardTarget::TypeId(target_type_id) => self.type_guard_types(
+                module,
+                profile,
+                symbols,
+                base_type_id,
+                target_type_id,
+                types,
+                options,
+            ),
             TypeGuardTarget::ObjectLike => {
                 self.predicate_guard_types(base_type_id, types, |type_id, types| {
                     self.type_is_object_like(type_id, types)
@@ -1251,7 +1317,15 @@ impl Compiler {
                     };
 
                     let is_assignable = self
-                        .check_is_type_assignable(field_type_id, literal_type_id, types, options)
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            field_type_id,
+                            literal_type_id,
+                            types,
+                            options,
+                        )
                         .is_assignable();
 
                     if is_assignable {
@@ -1302,7 +1376,15 @@ impl Compiler {
                 };
 
                 let is_assignable = self
-                    .check_is_type_assignable(field_type_id, literal_type_id, types, options)
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        field_type_id,
+                        literal_type_id,
+                        types,
+                        options,
+                    )
                     .is_assignable();
 
                 if !is_assignable {
@@ -1439,14 +1521,16 @@ impl Compiler {
     /// Strip assignable elements from a union for guard negation.
     fn strip_assignable_from_union(
         &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         type_id: LocalTypeId,
         target_type_id: LocalTypeId,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> (Option<LocalTypeId>, bool) {
         // split unions from non union types
-        let type_value = types.get_type(type_id);
-
+        let type_value = types.get_type(type_id).clone();
         match type_value {
             Type::Union { elements } => {
                 let mut filtered_elements = Vec::new();
@@ -1455,12 +1539,20 @@ impl Compiler {
                 // drop assignable elements while tracking removals
                 for element_id in elements {
                     let is_assignable = self
-                        .check_is_type_assignable(target_type_id, *element_id, types, options)
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            target_type_id,
+                            element_id,
+                            types,
+                            options,
+                        )
                         .is_assignable();
                     if is_assignable {
                         removed = true;
                     } else {
-                        filtered_elements.push(*element_id);
+                        filtered_elements.push(element_id);
                     }
                 }
 
@@ -1483,7 +1575,15 @@ impl Compiler {
             _ => {
                 // remove the type when it is assignable to the target
                 let is_assignable = self
-                    .check_is_type_assignable(target_type_id, type_id, types, options)
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        target_type_id,
+                        type_id,
+                        types,
+                        options,
+                    )
                     .is_assignable();
                 if is_assignable {
                     (None, true)
@@ -1672,81 +1772,88 @@ impl Compiler {
         context: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse an environment narrowing when present
-        if let Some(type_id) = environment.bindings.get(&symbol) {
-            return self.unwrap_type_alias_reference(
+        let resolved_type = if let Some(type_id) = environment.bindings.get(&symbol) {
+            self.unwrap_type_alias_reference(
                 module,
                 context.profile,
                 *type_id,
                 tree,
                 symbols,
                 types,
-            );
+            )?
         }
-
         // fall back to any known value type
-        if let Some(type_id) = types.get_value_type_id(symbol) {
-            return self.unwrap_type_alias_reference(
+        else if let Some(type_id) = types.get_value_type_id(symbol) {
+            self.unwrap_type_alias_reference(
                 module,
                 context.profile,
                 type_id,
                 tree,
                 symbols,
                 types,
-            );
+            )?
         }
-
         // resolve declarations in the current module
-        if symbol.module_id == module.id {
+        else if symbol.module_id == module.id {
             let symbol = symbols.get_symbol(symbol.into());
             // use the primary declaration type when available
             if let Some(primary_declaration) = symbol.primary_declaration
                 && let Some(type_id) = types.get_declared_type_id(primary_declaration)
             {
-                return self.unwrap_type_alias_reference(
+                self.unwrap_type_alias_reference(
                     module,
                     context.profile,
                     type_id,
                     tree,
                     symbols,
                     types,
-                );
-            }
-
-            // walk parent declarations to recover contextual types
-            if let Some(primary_declaration) = symbol.primary_declaration {
-                let mut current_id = primary_declaration.local_id;
-                while let Some(parent_id) = tree.get_parent(current_id.id) {
-                    if let Some(type_id) =
-                        types.get_declared_type_id(parent_id.into_global(module.id))
-                    {
-                        return self.unwrap_type_alias_reference(
-                            module,
-                            context.profile,
-                            type_id,
-                            tree,
-                            symbols,
-                            types,
-                        );
+                )?
+            } else {
+                // walk parent declarations to recover contextual types
+                let mut declared_type = None;
+                if let Some(primary_declaration) = symbol.primary_declaration {
+                    let mut current_id = primary_declaration.local_id;
+                    while let Some(parent_id) = tree.get_parent(current_id.id) {
+                        if let Some(type_id) =
+                            types.get_declared_type_id(parent_id.into_global(module.id))
+                        {
+                            declared_type = Some(self.unwrap_type_alias_reference(
+                                module,
+                                context.profile,
+                                type_id,
+                                tree,
+                                symbols,
+                                types,
+                            )?);
+                            break;
+                        }
+                        current_id = parent_id;
                     }
-                    current_id = parent_id;
                 }
+
+                // fall back to unknown when no type is available
+                declared_type.unwrap_or_else(|| {
+                    types.insert_type_from(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        },
+                        guard_id,
+                    )
+                })
             }
         } else {
             // resolve remote symbol types through the compiler
-            return self.resolve_remote_symbol_value_type(
-                module,
-                context.profile,
-                guard_id,
-                symbol,
-                types,
-            );
-        }
-
-        // fall back to unknown when no type is available
-        let unknown_type = Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
+            self.resolve_remote_symbol_value_type(module, context.profile, guard_id, symbol, types)?
         };
-        Ok(types.insert_type_from(unknown_type, guard_id))
+
+        Ok(self.normalize_type(
+            module,
+            context.profile,
+            resolved_type,
+            symbols,
+            types,
+            NormalizationMode::Flow,
+        ))
     }
 
     /// Extract a nullish literal kind from an expression.

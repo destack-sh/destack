@@ -1,9 +1,3 @@
-/// Fast interval queries for properly nested AST spans.
-///
-/// Exploits the nesting property: AST spans never partially overlap,
-/// they either contain each other or are disjoint. This allows O(log n + k)
-/// queries by building a containment tree.
-
 /// Interval entry with parent pointer for containment tree.
 #[derive(Debug, Clone, Copy)]
 struct IntervalEntry {

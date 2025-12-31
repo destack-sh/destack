@@ -231,8 +231,15 @@ impl Compiler {
                 .iter()
                 .zip(resolved.dynamic_parameters.iter())
             {
-                if self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types, options)
-                    == Assignability::NotAssignable
+                if self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    *param_ty_id,
+                    *argument_ty_id,
+                    types,
+                    options,
+                ) == Assignability::NotAssignable
                 {
                     matches = false;
                     break;
@@ -481,8 +488,15 @@ impl Compiler {
             {
                 if !self.is_infer_var_type(*param_ty_id, types)
                     && !self.is_infer_var_type(*argument_ty_id, types)
-                    && self.check_is_type_assignable(*param_ty_id, *argument_ty_id, types, &options)
-                        == Assignability::NotAssignable
+                    && self.is_type_assignable(
+                        module,
+                        ctx.profile,
+                        symbols,
+                        *param_ty_id,
+                        *argument_ty_id,
+                        types,
+                        &options,
+                    ) == Assignability::NotAssignable
                 {
                     let argument_node = dynamic_arguments
                         .get(index)
@@ -759,9 +773,11 @@ impl Compiler {
             // record substitutions and constraints
             if let Some(substitution_ty_id) = self.validate_static_argument(
                 module,
+                profile,
                 error_node,
                 static_parameter,
                 &resolved_argument,
+                symbols,
                 types,
                 Some(infer),
                 options,

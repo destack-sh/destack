@@ -21,7 +21,7 @@ impl Compiler {
         expected_ty_id: Option<LocalTypeId>,
         types: &TypeTable,
     ) -> Option<ExpectedFunctionSignature> {
-        let expected_ty_id = self.expected_value_type_id(expected_ty_id, types)?;
+        let expected_ty_id = self.expected_value_type(expected_ty_id, types)?;
         match types.get_type(expected_ty_id) {
             Type::Function {
                 dynamic_parameters,
@@ -36,7 +36,7 @@ impl Compiler {
     }
 
     /// Derive an expected object type id from a contextual type.
-    pub(super) fn expected_object_type_id(
+    pub(super) fn expected_object_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -45,7 +45,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip when there is no contextual type
-        let expected_ty_id = self.expected_value_type_id(expected_ty_id, types);
+        let expected_ty_id = self.expected_value_type(expected_ty_id, types);
         let Some(expected_ty_id) = expected_ty_id else {
             return Ok(None);
         };
@@ -60,11 +60,11 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.resolve_instance_type_id_for_symbol(module, profile, node_id, symbol, types)
+        self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)
     }
 
     /// Resolve an expected field type from a contextual object type and key.
-    pub(super) fn expected_field_type_id(
+    pub(super) fn expected_field_type(
         &self,
         expected_object_ty_id: Option<LocalTypeId>,
         key: &StaticKey,
@@ -88,7 +88,7 @@ impl Compiler {
         types: &TypeTable,
     ) -> Vec<Option<LocalTypeId>> {
         let mut expected = vec![None; element_count];
-        let expected_ty_id = match self.expected_value_type_id(expected_ty_id, types) {
+        let expected_ty_id = match self.expected_value_type(expected_ty_id, types) {
             Some(expected_ty_id) => expected_ty_id,
             None => return expected,
         };
@@ -117,12 +117,12 @@ impl Compiler {
         expected_ty_id: Option<LocalTypeId>,
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
-        let expected_ty_id = self.expected_value_type_id(expected_ty_id, types)?;
+        let expected_ty_id = self.expected_value_type(expected_ty_id, types)?;
         self.match_scalar_literal_expected(value, expected_ty_id, types)
     }
 
     /// Strip a Type::Value wrapper from a type id.
-    pub(super) fn expected_value_type_id(
+    pub(super) fn expected_value_type(
         &self,
         expected_ty_id: Option<LocalTypeId>,
         types: &TypeTable,
