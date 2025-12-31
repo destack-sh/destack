@@ -43,7 +43,13 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 destack_formatter = { workspace = true }
+criterion = { workspace = true }
+pprof = { workspace = true }
 tracing-subscriber = { workspace = true }
+
+[[bench]]
+name = "destack_compile"
+harness = false
 
 [lints]
 workspace = true

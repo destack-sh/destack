@@ -6,7 +6,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-fn bench_parse(c: &mut Criterion) {
+/// Benchmark parsing for workspace sources.
+fn bench_parse(criterion: &mut Criterion) {
     // workspace root
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
@@ -24,41 +25,49 @@ fn bench_parse(c: &mut Criterion) {
 
     // load sources and count lines
     let mut total_lines: u64 = 0;
-    let mut files: Vec<Arc<File>> = Vec::with_capacity(ds_files.len());
+    let mut source_files: Vec<Arc<File>> = Vec::with_capacity(ds_files.len());
 
     for path in ds_files.iter() {
+        // file type
         let file_type = FileType::from_path_or_unknown(path);
-        assert!(
-            matches!(file_type, FileType::Destack | FileType::DestackDeclaration),
-            "path is not a destack source: {path:?}"
-        );
-        let content = fs::read_to_string(path).unwrap_or_default();
-        let file_id = FileId::new(files.len() as u32);
-        let file_name = path.to_string_lossy().into_owned();
-        let uri = Uri::from_string(file_name.clone());
+        let is_destack_source =
+            matches!(file_type, FileType::Destack | FileType::DestackDeclaration);
+        assert!(is_destack_source, "path is not a destack source: {path:?}");
 
-        total_lines = total_lines.saturating_add(content.lines().count() as u64);
-        files.push(Arc::new(File::from_text(
-            file_id, file_name, uri, None, file_type, content,
-        )));
+        // file content
+        let content = fs::read_to_string(path).unwrap_or_default();
+        let line_count = content.lines().count() as u64;
+        total_lines = total_lines.saturating_add(line_count);
+
+        // register file
+        let file_id = FileId::new(source_files.len() as u32);
+        let (file_name, uri) = Uri::from_path_with_name(path);
+        let file = File::from_text(file_id, file_name, uri, None, file_type, content);
+        source_files.push(Arc::new(file));
     }
 
     // benchmark
-    let mut group = c.benchmark_group("destack_parser");
+    let mut group = criterion.benchmark_group("destack_parser");
     group.throughput(Throughput::Elements(total_lines));
-    group.bench_with_input(BenchmarkId::new("parse", "all"), &files, |b, files| {
-        b.iter(|| {
-            for file in files.iter() {
-                let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
-                parser.parse();
-                black_box(parser);
-            }
-        });
-    });
+    group.bench_with_input(
+        BenchmarkId::new("parse", "all"),
+        &source_files,
+        |bencher, source_files| {
+            bencher.iter(|| {
+                // parse each file
+                for file in source_files.iter() {
+                    let language_type = LanguageType::from(file.ty);
+                    let mut parser = Parser::lex_file(file.clone(), language_type);
+                    parser.parse();
+                    black_box(parser);
+                }
+            });
+        },
+    );
     group.finish();
 }
 
-// configure Criterion with pprof
+/// Configure Criterion with pprof.
 fn profiler() -> Criterion {
     Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
 }

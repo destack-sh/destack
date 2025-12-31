@@ -170,6 +170,10 @@ generate-stress-checker:
 bench:
     cargo bench -p destack_parser
 
+# run compiler benchmarks
+bench-compiler:
+    cargo bench -p destack_compiler -- destack_compile
+
 # run lexer benchmarks
 bench-lexer:
     cargo bench -p destack_parser -- destack_lex

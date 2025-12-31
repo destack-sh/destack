@@ -42,6 +42,7 @@ just language/test-stress
 
 ```bash
 just bench                      # parser benchmarks
+just language/bench-compiler     # compiler benchmarks
 just language/bench-lexer        # lexer only
 just language/bench-parser       # parser only
 ```

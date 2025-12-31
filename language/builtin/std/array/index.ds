@@ -4,5 +4,3 @@
 // The base Array type comes from lib/es/, these add Destack-specific functionality.
 
 // NOTE #Incomplete: Array extensions
-// - Destack-specific methods
-// - Native target implementations
