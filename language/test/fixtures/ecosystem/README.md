@@ -17,7 +17,7 @@ ecosystem/
 
 ```bash
 # fetch all packages
-just ecosystem-fetch
+just language/ecosystem-fetch
 
 # run ecosystem tests
 cargo test --release --test ecosystem
@@ -30,7 +30,7 @@ cargo test --release --test ecosystem -- zod
 
 1. Create `packages/<name>.toml` with package metadata
 2. Optionally add patches in `patches/<name>/`
-3. Run `just ecosystem-fetch`
+3. Run `just language/ecosystem-fetch`
 4. Run tests with `--update-known-failures` to capture baseline
 
 ## Tiers

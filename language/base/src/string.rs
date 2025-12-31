@@ -193,6 +193,13 @@ impl StringPool {
         }
     }
 
+    /// Create a StringPool from a LocalStringPool.
+    pub fn from_local(local: LocalStringPool) -> Self {
+        Self {
+            inner: RwLock::new(local),
+        }
+    }
+
     /// Check if the pool contains the given StringId.
     #[inline]
     pub fn contains(&self, id: StringId) -> bool {

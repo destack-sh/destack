@@ -5,3 +5,16 @@ For example, parser tests need to parse without errors, and compiler tests need 
 
 ## Layout
 
+```
+smoke/
+├── parser/        # parser inputs that must parse cleanly
+└── compiler/      # compiler inputs that must compile cleanly
+```
+
+Files are named `parser-####.<ext>` or `compiler-####.<ext>` and use `.ds`, `.ts`, `.tsx`, or `.js` as needed.
+
+## Running
+
+```bash
+just test-smoke
+```

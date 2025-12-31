@@ -29,7 +29,13 @@ cargo test --test smoke           # smoke tests only
 cargo test --test codegen         # codegen tests only
 cargo test --test specification   # type checking specification tests
 cargo test --test query           # IDE query tests
+cargo test --test conformance     # parser conformance tests
+cargo test --test formatter       # formatter tests
+cargo test --test ecosystem       # ecosystem tests (requires fetched packages)
 cargo test --test stress          # stress tests (requires generated fixtures)
+
+# resolver tests (separate crate)
+cargo test -p destack_resolver
 
 # filter by name
 cargo test --test smoke -- parser      # only parser smoke tests
@@ -47,6 +53,7 @@ cargo test --test smoke -- --verbose
 
 ```bash
 cd language
+just ecosystem-fetch    # fetch ecosystem packages
 just test                # run all language tests
 just test-smoke          # run smoke tests
 just test-codegen        # run codegen tests
@@ -54,6 +61,8 @@ just test-specification  # run type checking specification tests
 just test-query          # run IDE query tests
 just test-conformance    # run conformance tests
 just test-formatter      # run formatter tests
+just test-resolver       # run resolver tests
+just test-ecosystem      # run ecosystem tests (requires fetched packages)
 just test-stress         # run stress tests
 ```
 

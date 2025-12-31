@@ -11,7 +11,7 @@ Ecosystem tests validate Destack against real-world TypeScript/JavaScript packag
 Tests do not fetch packages automatically. Fetch them explicitly:
 
 ```bash
-./language/test/fixtures/ecosystem/ecosystem-fetch.sh
+just language/ecosystem-fetch
 ```
 
 ### Running
@@ -21,4 +21,3 @@ cargo test -p destack_test --test ecosystem -- --list
 cargo test -p destack_test --test ecosystem -- ms
 cargo test -p destack_test --test ecosystem -- --analyze
 ```
-

@@ -17,6 +17,9 @@ install:
     ./test/fixtures/ecosystem/ecosystem-fetch.sh
     just install-resolver
 
+# alias for install
+install-fixtures := "install"
+
 # install resolver fixture dependencies
 install-resolver:
     #!/usr/bin/env bash
@@ -27,6 +30,10 @@ install-resolver:
             (cd "$dir" && pnpm install --ignore-workspace)
         fi
     done
+
+# fetch ecosystem packages
+ecosystem-fetch:
+    ./test/fixtures/ecosystem/ecosystem-fetch.sh
 
 # --- build ---
 
@@ -102,9 +109,10 @@ test-smoke:
 test-codegen:
     cargo test --release --test codegen
 
-# run mdtest (markdown-driven type tests)
+# run mdtest suites (specification + query)
 test-mdtest:
-    cargo test --release --test mdtest
+    just test-specification
+    just test-query
 
 # run conformance tests
 test-conformance:
@@ -158,7 +166,7 @@ generate-stress-checker:
 
 # --- bench ---
 
-# run all benchmarks
+# run parser benchmarks
 bench:
     cargo bench -p destack_parser
 

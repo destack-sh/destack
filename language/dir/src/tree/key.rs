@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, StaticKey, StringId};
+use crate::{Expression, LocalNodeId, StringId};
 
 /// A dynamic key is a name or a dynamic key.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -14,15 +14,4 @@ pub enum DynamicKey {
         name: StringId,
         key: LocalNodeId<Expression>,
     },
-}
-
-impl DynamicKey {
-    /// Convert a dynamic key into a static key when possible.
-    pub fn as_static_key(&self) -> Option<StaticKey> {
-        match self {
-            DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
-            DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
-            DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-        }
-    }
 }

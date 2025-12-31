@@ -39,15 +39,15 @@ This mindest also extends to the features Destack extends TypeScript with:
 
 | Feature | Description | Tests |
 |---------|-------------|-------|
-| [Expressions](#expressions) | Expression extensions: "as values", ranges, patterns, `loop`, `using` | [expressions/](test/fixtures/mdtest/expressions/) |
+| [Expressions](#expressions) | Expression extensions: "as values", ranges, patterns, `loop`, `using` | [expressions/](test/fixtures/specification/expressions/) |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
 | [Annotations](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | |
 | [Errors](#errors) | `Result`-first error handling with `?` propagation, no exceptions | |
-| [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/mdtest/types/) |
+| [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
-| [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/mdtest/reflection/) |
-| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/mdtest/dispatch/) |
-| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/mdtest/ownership/) |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/specification/reflection/) |
+| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/specification/dispatch/) |
+| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/specification/ownership/) |
 
 ## Expressions
 
@@ -250,7 +250,7 @@ This design is intentional:
 The standard library uses `Result` throughout.
 If you need traditional exception semantics, target JS/TS output.
 
-<sub>See [test/fixtures/mdtest/errors/](test/fixtures/mdtest/errors/) for specification tests.</sub>
+<sub>See [test/fixtures/specification/](test/fixtures/specification/) for specification tests.</sub>
 
 
 ## Types
@@ -542,7 +542,7 @@ type User = { name: string.minLength(1) }
 parse(User, data);  // User IS the schema
 ```
 
-<sub>See [test/fixtures/mdtest/reflection/](test/fixtures/mdtest/reflection/) for specification tests.</sub>
+<sub>See [test/fixtures/specification/reflection/](test/fixtures/specification/reflection/) for specification tests.</sub>
 
 ### Runtime Type Identity
 
@@ -638,7 +638,7 @@ extension for Vector2 implements Add<Vector2> {
 For operators, Destack uses **receiver-based dispatch**: `a + b` becomes `a.add(b)`.
 Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first matching overload wins.
 
-<sub>See [test/fixtures/mdtest/dispatch/](test/fixtures/mdtest/dispatch/) for specification tests.</sub>
+<sub>See [test/fixtures/specification/dispatch/](test/fixtures/specification/dispatch/) for specification tests.</sub>
 
 ## Ownership
 
@@ -732,7 +732,7 @@ function processFrame(entities: &Entity[]) {
 }
 ```
 
-<sub>See [test/fixtures/mdtest/ownership/](test/fixtures/mdtest/ownership/) for specification tests.</sub>
+<sub>See [test/fixtures/specification/ownership/](test/fixtures/specification/ownership/) for specification tests.</sub>
 
 ## Performance Strategy
 
