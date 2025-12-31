@@ -9,7 +9,7 @@ use destack_dir::{
     SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
     UnaryOperator,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 use super::r#type::TypeGuardTarget;
 
@@ -778,14 +778,14 @@ impl Compiler {
         )?;
 
         // evaluate unevaluated types before applying typeof narrowing
-        self.evaluate_type(module, base_type_id, tree, symbols, types)?;
+        self.evaluate_type(module, context.profile, base_type_id, tree, symbols, types)?;
         // clone union elements to avoid holding a borrow across evaluation
         let mut union_elements = Vec::new();
         if let Type::Union { elements } = types.get_type(base_type_id) {
             union_elements.extend(elements.iter().copied());
         }
         for element_id in union_elements {
-            self.evaluate_type(module, element_id, tree, symbols, types)?;
+            self.evaluate_type(module, context.profile, element_id, tree, symbols, types)?;
         }
 
         // compute narrowed types for each branch
@@ -853,19 +853,20 @@ impl Compiler {
         )?;
 
         // evaluate unevaluated types before applying discriminant narrowing
-        self.evaluate_type(module, base_type_id, tree, symbols, types)?;
+        self.evaluate_type(module, context.profile, base_type_id, tree, symbols, types)?;
         // clone union elements to avoid holding a borrow across evaluation
         let mut union_elements = Vec::new();
         if let Type::Union { elements } = types.get_type(base_type_id) {
             union_elements.extend(elements.iter().copied());
         }
         for element_id in union_elements {
-            self.evaluate_type(module, element_id, tree, symbols, types)?;
+            self.evaluate_type(module, context.profile, element_id, tree, symbols, types)?;
         }
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) = self.discriminant_guard_types(
             module,
+            context.profile,
             base_type_id,
             &key,
             literal,
@@ -977,6 +978,7 @@ impl Compiler {
         // resolve the target type
         let target_type_id = self.guard_target_type_id(
             module,
+            context.profile,
             self.unwrap_parenthesized_expression(target_id, tree),
             tree,
             symbols,
@@ -1040,6 +1042,7 @@ impl Compiler {
         // resolve the target type
         let target_type_id = self.guard_target_type_id(
             module,
+            context.profile,
             self.unwrap_parenthesized_expression(target_id, tree),
             tree,
             symbols,
@@ -1080,6 +1083,7 @@ impl Compiler {
     fn guard_target_type_id(
         &self,
         module: &Module,
+        profile: ProfileId,
         target_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1091,7 +1095,7 @@ impl Compiler {
         }
 
         // fall back to evaluating the expression as a type
-        self.try_evaluate_expression_to_type(module, target_id, tree, symbols, types)
+        self.try_evaluate_expression_to_type(module, profile, target_id, tree, symbols, types)
     }
 
     /// Unwrap a Type::Value wrapper to a usable guard target.
@@ -1104,10 +1108,10 @@ impl Compiler {
 
     /// Check whether a guard target is a class type.
     fn guard_target_is_class(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
-        match types.get_type(type_id) {
-            Type::Reference { symbol, .. } => symbol.local_id.ty == SymbolType::Class,
-            _ => false,
-        }
+        types
+            .get_type(type_id)
+            .symbol()
+            .is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class)
     }
 
     /// Derive guard types for a symbol based on a target type.
@@ -1200,6 +1204,7 @@ impl Compiler {
     fn discriminant_guard_types(
         &self,
         module: &Module,
+        profile: ProfileId,
         base_type_id: LocalTypeId,
         key: &StaticKey,
         literal: ScalarLiteral,
@@ -1236,8 +1241,9 @@ impl Compiler {
 
                 // collect union members based on discriminant compatibility
                 for element_id in elements {
-                    let field_info = self
-                        .type_field_type_for_key(module, element_id, key, tree, symbols, types)?;
+                    let field_info = self.type_field_type_for_key(
+                        module, profile, element_id, key, tree, symbols, types,
+                    )?;
 
                     let Some((field_type_id, is_optional)) = field_info else {
                         remaining_elements.push(element_id);
@@ -1282,8 +1288,15 @@ impl Compiler {
                 Ok((true_type_id, false_type_id))
             }
             _ => {
-                let Some((field_type_id, is_optional)) =
-                    self.type_field_type_for_key(module, base_type_id, key, tree, symbols, types)?
+                let Some((field_type_id, is_optional)) = self.type_field_type_for_key(
+                    module,
+                    profile,
+                    base_type_id,
+                    key,
+                    tree,
+                    symbols,
+                    types,
+                )?
                 else {
                     return Ok((Some(base_type_id), Some(base_type_id)));
                 };
@@ -1660,12 +1673,26 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse an environment narrowing when present
         if let Some(type_id) = environment.bindings.get(&symbol) {
-            return self.unwrap_type_alias_reference(module, *type_id, tree, symbols, types);
+            return self.unwrap_type_alias_reference(
+                module,
+                context.profile,
+                *type_id,
+                tree,
+                symbols,
+                types,
+            );
         }
 
         // fall back to any known value type
         if let Some(type_id) = types.get_value_type_id(symbol) {
-            return self.unwrap_type_alias_reference(module, type_id, tree, symbols, types);
+            return self.unwrap_type_alias_reference(
+                module,
+                context.profile,
+                type_id,
+                tree,
+                symbols,
+                types,
+            );
         }
 
         // resolve declarations in the current module
@@ -1675,7 +1702,14 @@ impl Compiler {
             if let Some(primary_declaration) = symbol.primary_declaration
                 && let Some(type_id) = types.get_declared_type_id(primary_declaration)
             {
-                return self.unwrap_type_alias_reference(module, type_id, tree, symbols, types);
+                return self.unwrap_type_alias_reference(
+                    module,
+                    context.profile,
+                    type_id,
+                    tree,
+                    symbols,
+                    types,
+                );
             }
 
             // walk parent declarations to recover contextual types
@@ -1685,8 +1719,14 @@ impl Compiler {
                     if let Some(type_id) =
                         types.get_declared_type_id(parent_id.into_global(module.id))
                     {
-                        return self
-                            .unwrap_type_alias_reference(module, type_id, tree, symbols, types);
+                        return self.unwrap_type_alias_reference(
+                            module,
+                            context.profile,
+                            type_id,
+                            tree,
+                            symbols,
+                            types,
+                        );
                     }
                     current_id = parent_id;
                 }

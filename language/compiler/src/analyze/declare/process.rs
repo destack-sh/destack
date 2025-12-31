@@ -33,7 +33,7 @@ impl Compiler {
             let ty_id = LocalTypeId::new(i);
             self.collect(
                 &mut collector,
-                self.evaluate_type(&module, ty_id, &tree, &symbols, &mut types),
+                self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
             );
         }
 

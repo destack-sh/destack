@@ -26,6 +26,7 @@ impl Compiler {
     fn declared_type_for_direct_binding_symbol(
         &self,
         module: &Module,
+        profile: ProfileId,
         symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -81,7 +82,7 @@ impl Compiler {
                 let Some(declared_ty_id) = declared_ty_id else {
                     return Ok(None);
                 };
-                self.evaluate_type(module, declared_ty_id, tree, symbols, types)?;
+                self.evaluate_type(module, profile, declared_ty_id, tree, symbols, types)?;
                 return Ok(Some(declared_ty_id));
             }
 
@@ -345,11 +346,25 @@ impl Compiler {
                 let left_ty_id = match operator {
                     destack_dir::TypeBinaryOperator::Extends
                     | destack_dir::TypeBinaryOperator::Implements => self
-                        .try_evaluate_expression_to_type(module, *left, tree, symbols, types)?,
+                        .try_evaluate_expression_to_type(
+                            module,
+                            ctx.profile,
+                            *left,
+                            tree,
+                            symbols,
+                            types,
+                        )?,
                     _ => self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?,
                 };
                 let mut right_ty_id =
-                    self.try_evaluate_expression_to_type(module, *right, tree, symbols, types)?;
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *right,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
 
                 if matches!(types.get_type(right_ty_id), Type::Unevaluated { .. }) {
                     right_ty_id =
@@ -1170,13 +1185,11 @@ impl Compiler {
                         node: expression_id.into_global_any(module.id),
                     });
                 }
-                let _inner_ty_id =
+                let inner_ty_id =
                     self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
-                // NOTE #Incomplete: unwrap Promise type
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
+                self
+                    .unwrap_promise_type(module, symbols, ctx.profile, inner_ty_id, types)
+                    .unwrap_or(inner_ty_id)
             }
 
             // await? should be desugared in Bind
@@ -1487,7 +1500,8 @@ impl Compiler {
                 symbol: _,
             } => {
                 // extract the static key from the dynamic key
-                let static_key = key.and_then(|key| key.as_static_key());
+                let static_key =
+                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
 
                 // derive an expected field type from the contextual object type
                 let expected_field_ty_id = static_key
@@ -1561,8 +1575,9 @@ impl Compiler {
                 symbol,
                 ..
             } => {
-                let expected_method_ty_id =
-                    key.and_then(|key| key.as_static_key()).and_then(|key| {
+                let expected_method_ty_id = key
+                    .and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree))
+                    .and_then(|key| {
                         self.expected_field_type_id(expected_object_ty_id, &key, types)
                     });
 
@@ -1621,7 +1636,8 @@ impl Compiler {
                         }
                     }
                 }
-                let static_key = key.and_then(|key| key.as_static_key());
+                let static_key =
+                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
                 let is_optional = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
@@ -2087,6 +2103,7 @@ impl Compiler {
         // try to recover declared types for local bindings
         else if let Some(declared_ty_id) = self.declared_type_for_direct_binding_symbol(
             module,
+            ctx.profile,
             canonical_symbol,
             tree,
             symbols,

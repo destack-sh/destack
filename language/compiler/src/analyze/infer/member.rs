@@ -4,8 +4,8 @@ use super::resolve::MemberResolution;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
-    Argument, Declaration, DynamicKey, Expression, GlobalSymbolId, InferTable, LocalNodeId,
-    LocalTypeId, NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId,
+    NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -391,6 +391,7 @@ impl Compiler {
         // step 1: check members declared directly on this symbol
         if let Some(member_symbol) = self.find_member_symbol_in_declaration(
             symbol.module_id,
+            profile,
             symbol,
             member_key,
             tree,
@@ -496,6 +497,7 @@ impl Compiler {
 
             if let Some(member_symbol) = self.find_member_symbol_in_declaration(
                 symbol.module_id,
+                profile,
                 extension.symbol,
                 member_key,
                 tree,
@@ -512,6 +514,7 @@ impl Compiler {
     pub(super) fn find_member_symbol_in_declaration(
         &self,
         module_id: destack_source::ModuleId,
+        profile: ProfileId,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         tree: &NodeTree,
@@ -551,7 +554,9 @@ impl Compiler {
                 // check enum methods and members
                 for member_id in members {
                     let member = tree.get(*member_id);
-                    let static_key = member.key().and_then(DynamicKey::as_static_key);
+                    let static_key = member
+                        .key()
+                        .and_then(|key| self.static_key_from_dynamic_key(profile, *key, tree));
 
                     if let Some(static_key) = static_key
                         && static_key.matches(member_key)
@@ -570,7 +575,9 @@ impl Compiler {
 
             for member_id in members {
                 let member = tree.get(*member_id);
-                let static_key = member.key().and_then(DynamicKey::as_static_key);
+                let static_key = member
+                    .key()
+                    .and_then(|key| self.static_key_from_dynamic_key(profile, *key, tree));
 
                 if let Some(static_key) = static_key
                     && static_key.matches(member_key)
@@ -581,45 +588,5 @@ impl Compiler {
         }
 
         None
-    }
-
-    /// Resolve the canonical symbol for a reference.
-    pub(super) fn canonical_symbol_id(
-        &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-    ) -> GlobalSymbolId {
-        let mut current_symbol = symbol;
-        let mut visited = Vec::new();
-
-        loop {
-            if visited.contains(&current_symbol) {
-                return current_symbol;
-            }
-            visited.push(current_symbol);
-
-            let (canonical_symbol, target_symbol) = if current_symbol.module_id == module.id {
-                let symbol_entry = symbols.get_symbol(current_symbol.local_id);
-                (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
-            } else {
-                let remote_module = self.program.modules.get(current_symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_symbols = remote_module.dir(profile).symbols.read();
-                let symbol_entry = remote_symbols.get_symbol(current_symbol.local_id);
-                (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
-            };
-
-            if let Some(canonical_symbol) = canonical_symbol {
-                return canonical_symbol;
-            }
-
-            if let Some(target_symbol) = target_symbol {
-                current_symbol = target_symbol;
-            } else {
-                return current_symbol;
-            }
-        }
     }
 }

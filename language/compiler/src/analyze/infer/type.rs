@@ -4,7 +4,7 @@ use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
 };
-use destack_builtin::LanguageItem;
+use destack_builtin::{LanguageItem, WellKnownSymbol};
 use destack_dir::{
     BinaryOperator, Declaration, DeclarationType, Expression, Extension, ExtensionKind,
     GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
@@ -109,14 +109,15 @@ impl Compiler {
     pub(super) fn unwrap_type_alias_reference(
         &self,
         module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        let symbol = match types.get_type(type_id) {
-            Type::Reference { symbol, .. } => *symbol,
-            _ => return Ok(type_id),
+        let symbol = match types.get_type(type_id).symbol() {
+            Some(symbol) => symbol,
+            None => return Ok(type_id),
         };
 
         // only unwrap structural type aliases
@@ -162,7 +163,7 @@ impl Compiler {
 
         // evaluate the alias value into an instance type
         let instance_type_id =
-            self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?;
+            self.try_evaluate_expression_to_type(module, profile, *value, tree, symbols, types)?;
         types.set_instance_type(symbol, instance_type_id);
 
         Ok(instance_type_id)
@@ -3016,6 +3017,7 @@ impl Compiler {
     pub(super) fn type_field_type_for_key(
         &self,
         module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         key: &StaticKey,
         tree: &NodeTree,
@@ -3023,7 +3025,8 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<(LocalTypeId, bool)>> {
         // unwrap aliases before walking fields
-        let type_id = self.unwrap_type_alias_reference(module, type_id, tree, symbols, types)?;
+        let type_id =
+            self.unwrap_type_alias_reference(module, profile, type_id, tree, symbols, types)?;
         let mut field_types = Vec::new();
         let mut is_optional = true;
 
@@ -3084,6 +3087,46 @@ impl Compiler {
                 value: TypeLiteral::Any | TypeLiteral::Unknown,
             }
         )
+    }
+
+    /// Unwrap a Promise reference into its value type when possible.
+    pub(super) fn unwrap_promise_type(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let ty = types.get_type(type_id);
+        let symbol = ty.symbol()?;
+        let static_arguments = match ty {
+            Type::Reference {
+                static_arguments, ..
+            } => static_arguments.clone(),
+            _ => return None,
+        };
+
+        // compare canonical symbols to avoid alias mismatches
+        let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
+        let is_promise_symbol = self
+            .get_well_known_symbol(profile, WellKnownSymbol::Promise)
+            .is_some_and(|promise_symbol| promise_symbol == canonical_symbol);
+        if !is_promise_symbol {
+            return None;
+        }
+
+        let Some(first_argument) = static_arguments
+            .as_ref()
+            .and_then(|arguments| arguments.first())
+        else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Some(types.insert_type(ty));
+        };
+
+        Some(self.convert_static_argument_to_type_id(first_argument, types))
     }
 
     /// Check whether a type is object like for typeof guards.

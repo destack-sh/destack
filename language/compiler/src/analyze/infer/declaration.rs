@@ -106,8 +106,14 @@ impl Compiler {
                 }
 
                 // type instance type: type value
-                let instance_ty_id =
-                    self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?;
+                let instance_ty_id = self.try_evaluate_expression_to_type(
+                    module,
+                    ctx.profile,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                )?;
                 match *kind {
                     TypeKind::Structural => {
                         types.set_instance_type(
@@ -647,10 +653,23 @@ impl Compiler {
             } => {
                 // index signature
                 if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                    let key_type =
-                        self.try_evaluate_expression_to_type(module, *key, tree, symbols, types)?;
+                    let key_type = self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *key,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
                     let value_type = if let Some(value) = value {
-                        self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?
+                        self.try_evaluate_expression_to_type(
+                            module,
+                            ctx.profile,
+                            *value,
+                            tree,
+                            symbols,
+                            types,
+                        )?
                     } else {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
@@ -677,11 +696,19 @@ impl Compiler {
                 }
 
                 // extract the static key from the dynamic key
-                let static_key = key.and_then(|key| key.as_static_key());
+                let static_key =
+                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
 
                 // evaluate the field type
                 let value_ty_id = if let Some(value) = value {
-                    self.try_evaluate_expression_to_type(module, *value, tree, symbols, types)?
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                    )?
                 } else {
                     // no value, return unknown type
                     let ty = Type::TypeLiteral {
@@ -737,7 +764,8 @@ impl Compiler {
                 }
 
                 // extract the static key from the dynamic key
-                let static_key = key.and_then(|key| key.as_static_key());
+                let static_key =
+                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
 
                 // signature
                 let method_ty_id = self.infer_signature(
@@ -931,8 +959,14 @@ impl Compiler {
                               symbols: &SymbolTable,
                               types: &mut TypeTable|
          -> AnalyzeResult<Option<GlobalSymbolId>> {
-            let ty_id =
-                self.try_evaluate_expression_to_type(module, expression_id, tree, symbols, types)?;
+            let ty_id = self.try_evaluate_expression_to_type(
+                module,
+                ctx.profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+            )?;
             let ty = types.get_type(ty_id);
             let type_symbol = match ty {
                 Type::Reference { symbol, .. } => Some(*symbol),
@@ -1105,6 +1139,7 @@ impl Compiler {
         let return_type = if let Some(return_type_expr_id) = signature.return_type {
             Some(self.try_evaluate_expression_to_type(
                 module,
+                ctx.profile,
                 return_type_expr_id,
                 tree,
                 symbols,
@@ -1333,7 +1368,7 @@ impl Compiler {
 
         // evaluate and prepare declared types before inference
         if let Some(declared_ty_id) = declared_ty_id {
-            self.evaluate_type(module, declared_ty_id, tree, symbols, types)?;
+            self.evaluate_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
             self.ensure_reference_instance_types_for_type(
                 module,
                 ctx.profile,

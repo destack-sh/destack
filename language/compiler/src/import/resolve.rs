@@ -104,7 +104,7 @@ impl Compiler {
         }
 
         let path = uri.to_path().ok_or_else(|| ImportError::ModuleNotFound {
-            target: self.program.strings.intern(uri),
+            target: self.program.strings.intern(uri.as_ref()),
             error: None,
         })?;
 

@@ -2,8 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_base::StringId;
-use destack_builtin::{BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, builtin_lib};
+use destack_base::{StringId, StringPool};
+use destack_builtin::{
+    BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, WellKnownSymbol, builtin_lib,
+};
 use destack_dir::GlobalSymbolId;
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 use indexmap::IndexMap;
@@ -20,6 +22,96 @@ pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 
 /// Well-known package name for builtins.
 pub const BUILTIN_PACKAGE_NAME: &str = "@destack-sh/builtin";
+
+/// Well-known symbol key metadata.
+#[derive(Debug, Clone, Copy)]
+pub struct WellKnownKey {
+    /// The base symbol for the key.
+    pub symbol: GlobalSymbolId,
+    /// The member name on the base symbol.
+    pub member: StringId,
+    /// The full global key name (like "Symbol.iterator").
+    pub global_name: StringId,
+}
+
+/// Resolved compiler-known symbols for a profile.
+#[derive(Debug, Clone)]
+pub struct WellKnownSymbols {
+    /// Top-level builtin symbols by well-known id.
+    pub symbols: IndexMap<WellKnownSymbol, GlobalSymbolId>,
+    /// Well-known symbol keys by id.
+    pub keys: IndexMap<WellKnownSymbol, WellKnownKey>,
+}
+
+impl WellKnownSymbols {
+    /// Build the well-known symbol map from resolved lib symbols.
+    pub fn build(strings: &StringPool, lib_symbols: &IndexMap<StringId, GlobalSymbolId>) -> Self {
+        let mut symbols = IndexMap::new();
+        let mut keys = IndexMap::new();
+
+        for item in WellKnownSymbol::all() {
+            let Some(export_name) = item.export_name() else {
+                continue;
+            };
+            let name_id = strings.intern(export_name);
+            let Some(symbol_id) = lib_symbols.get(&name_id).copied() else {
+                continue;
+            };
+            symbols.insert(item, symbol_id);
+        }
+
+        for item in WellKnownSymbol::all() {
+            let Some(member_name) = item.member_name() else {
+                continue;
+            };
+            let Some(base_symbol) = item.base_symbol() else {
+                continue;
+            };
+            let Some(base_symbol_id) = symbols.get(&base_symbol).copied() else {
+                continue;
+            };
+            let Some(global_name) = item.global_symbol_name() else {
+                continue;
+            };
+            let member_id = strings.intern(member_name);
+            let global_name_id = strings.intern(global_name);
+            keys.insert(
+                item,
+                WellKnownKey {
+                    symbol: base_symbol_id,
+                    member: member_id,
+                    global_name: global_name_id,
+                },
+            );
+        }
+
+        Self { symbols, keys }
+    }
+
+    /// Get a well-known symbol by id.
+    pub fn get_symbol(&self, item: WellKnownSymbol) -> Option<GlobalSymbolId> {
+        self.symbols.get(&item).copied()
+    }
+
+    /// Get a well-known key by id.
+    pub fn get_key(&self, item: WellKnownSymbol) -> Option<&WellKnownKey> {
+        self.keys.get(&item)
+    }
+
+    /// Resolve a global symbol key for a base symbol and member name.
+    pub fn global_symbol_key_for_member(
+        &self,
+        symbol: GlobalSymbolId,
+        member: StringId,
+    ) -> Option<StringId> {
+        self.keys.values().find_map(|key| {
+            if key.symbol == symbol && key.member == member {
+                return Some(key.global_name);
+            }
+            None
+        })
+    }
+}
 
 /// Language builtins.
 #[derive(Debug)]
@@ -44,6 +136,9 @@ pub struct LanguageBuiltins {
 
     /// Canonical lib symbols per profile.
     pub lib_symbols_by_profile: DashMap<ProfileId, IndexMap<StringId, GlobalSymbolId>>,
+
+    /// Well-known symbols per profile.
+    pub well_known_by_profile: DashMap<ProfileId, WellKnownSymbols>,
 
     /// Resolved language items cache (LanguageItem -> GlobalSymbolId).
     /// (Populated lazily when items are first resolved after module compilation.)
@@ -151,6 +246,7 @@ impl LanguageBuiltins {
             lib_module_by_name: DashMap::new(),
             ambient_libs_by_profile: DashMap::new(),
             lib_symbols_by_profile: DashMap::new(),
+            well_known_by_profile: DashMap::new(),
             items: DashMap::new(),
         }
     }
@@ -211,6 +307,13 @@ impl LanguageBuiltins {
             .and_then(|symbols| symbols.get(&name).copied())
     }
 
+    /// Get well-known symbols for a profile.
+    pub fn well_known_symbols(&self, profile_id: ProfileId) -> Option<WellKnownSymbols> {
+        self.well_known_by_profile
+            .get(&profile_id)
+            .map(|symbols| symbols.clone())
+    }
+
     /// Set the ambient lib modules for a profile.
     pub fn set_ambient_libs(&self, profile_id: ProfileId, modules: Vec<ModuleId>) {
         self.ambient_libs_by_profile.insert(profile_id, modules);
@@ -225,6 +328,12 @@ impl LanguageBuiltins {
         self.lib_symbols_by_profile.insert(profile_id, symbols);
     }
 
+    /// Set well-known symbols for a profile.
+    pub fn set_well_known_symbols(&self, profile_id: ProfileId, symbols: WellKnownSymbols) {
+        self.well_known_by_profile.insert(profile_id, symbols);
+    }
+
+    /// Register a lib source as a module.
     fn register_lib_source(
         &self,
         source: &BuiltinLibSource,
