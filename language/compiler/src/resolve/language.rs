@@ -90,7 +90,7 @@ impl Compiler {
 
         // collect canonical lib symbols
         let mut canonical_name_ids = HashSet::new();
-        for name in ES_CANONICAL_EXPORTS
+        for name in ES_CANONICAL_EXPORTS // FUGU: iterate over libs canonical exports properly?
             .iter()
             .chain(DOM_CANONICAL_EXPORTS)
             .chain(WORKER_CANONICAL_EXPORTS)
