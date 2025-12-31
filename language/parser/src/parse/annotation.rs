@@ -172,15 +172,17 @@ impl Parser {
     fn attach_side_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
         // build annotation groups
         let mut current_token_type: TokenType = tokens[0].token.ty;
-        let mut current_token_group: Vec<TokenSpan> = Vec::new();
-        for (i, token) in tokens.iter().enumerate() {
+        let mut group_start_idx: usize = 0;
+        let mut group_end_idx: usize = 0;
+        let mut group_len: usize = 1;
+        for (i, token) in tokens.iter().enumerate().skip(1) {
             if token.token.ty != current_token_type {
-                let start_token = current_token_group[0];
+                let start_token = tokens[group_start_idx];
                 let prev_token = if i > 1 { Some(tokens[i - 2]) } else { None };
 
                 // check for line postfix: single token on same line as previous non-newline token
                 // short-circuit to avoid expensive is_same_line calls
-                let is_line_postfix = current_token_group.len() == 1
+                let is_line_postfix = group_len == 1
                     && prev_token.is_some_and(|prev| {
                         prev.token.ty != TokenType::Newline
                             && self.is_same_line(start_token.span, prev.span)
@@ -199,36 +201,48 @@ impl Parser {
 
                 // flush group before different annotation type
                 if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
-                    && (current_token_type != TokenType::Newline || current_token_group.len() > 1)
-                    && !ignore_span.contains(&current_token_group[0].span)
-                    && !ignore_span
-                        .contains(&current_token_group[current_token_group.len() - 1].span)
+                    && (current_token_type != TokenType::Newline || group_len > 1)
+                    && !ignore_span.contains(&start_token.span)
+                    && !ignore_span.contains(&tokens[group_end_idx].span)
                 {
                     self.attach_side_annotation(
-                        (i - current_token_group.len()) as u32,
+                        (i - group_len) as u32,
                         current_token_type,
                         tokens,
-                        &current_token_group,
+                        group_start_idx,
+                        group_end_idx,
+                        group_len,
                         ignore_span,
                     );
                 }
 
                 // begin new group
                 current_token_type = token.token.ty;
-                current_token_group.clear();
+                group_start_idx = i;
+                group_end_idx = i;
+                group_len = 0;
             }
-            current_token_group.push(*token);
+
+            if token.token.ty == current_token_type {
+                if group_len == 0 {
+                    group_start_idx = i;
+                }
+                group_end_idx = i;
+                group_len += 1;
+            }
         }
 
         // flush group at the end
         if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
-            && (current_token_type != TokenType::Newline || current_token_group.len() > 1)
+            && (current_token_type != TokenType::Newline || group_len > 1)
         {
             self.attach_side_annotation(
-                (tokens.len() - current_token_group.len()) as u32,
+                (tokens.len() - group_len) as u32,
                 current_token_type,
                 tokens,
-                &current_token_group,
+                group_start_idx,
+                group_end_idx,
+                group_len,
                 ignore_span,
             );
         }
@@ -277,18 +291,24 @@ impl Parser {
             .iter()
             .position(|token| token.span.start == span.start)
             .unwrap_or_else(|| unreachable!("annotation span not found in tokens: {span:?}"));
-        let token_group = tokens
-            .iter()
-            .skip(token_idx)
-            .take_while(|token| token.span.end <= span.end)
-            .copied()
-            .collect::<Vec<_>>();
+        let mut group_end_idx = token_idx;
+        while let Some(token) = tokens.get(group_end_idx) {
+            if token.span.end > span.end {
+                break;
+            }
+            group_end_idx += 1;
+        }
+        debug_assert!(group_end_idx > token_idx);
+        let group_len = group_end_idx - token_idx;
+        let group_end_idx = group_end_idx - 1;
 
         // find annotation position
         self.find_annotation_target(
             token_idx as u32,
             tokens,
-            &token_group,
+            token_idx,
+            group_end_idx,
+            group_len,
             true,
             is_block_prefix_only,
             ignore_span,
@@ -300,15 +320,17 @@ impl Parser {
         &self,
         token_idx: u32,
         tokens: &[TokenSpan],
-        group: &[TokenSpan],
+        group_start_idx: usize,
+        group_end_idx: usize,
+        group_len: usize,
         is_full_line: bool,
         is_block_prefix_only: bool,
         ignore_span: &MultiSpan,
     ) -> Option<(AnnotationPosition, u32)> {
-        debug_assert!(!group.is_empty());
+        debug_assert!(group_len > 0);
 
-        let start_token = group[0];
-        let end_token = group[group.len() - 1];
+        let start_token = tokens[group_start_idx];
+        let end_token = tokens[group_end_idx];
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
         let enclosing_scope = self.find_node_enclosing_at(
             &start_token.span,
@@ -360,7 +382,7 @@ impl Parser {
 
             // find next token not in ignore span
             let next_token = {
-                let mut next_token_idx = token_idx as usize + group.len();
+                let mut next_token_idx = token_idx as usize + group_len;
                 loop {
                     let Some(next_token) = tokens.get(next_token_idx) else {
                         break None; // stop at the end of the tokens
@@ -451,7 +473,7 @@ impl Parser {
         }
 
         // block prefix: find the following targetable node
-        let mut next_token_idx = token_idx as usize + group.len();
+        let mut next_token_idx = token_idx as usize + group_len;
         while let Some(next_token) = tokens.get(next_token_idx) {
             #[cfg(debug_assertions)]
             let _next_token_str = self.get_span_str(next_token.span);
@@ -519,14 +541,16 @@ impl Parser {
         token_idx: u32,
         token_type: TokenType,
         tokens: &[TokenSpan],
-        group: &[TokenSpan],
+        group_start_idx: usize,
+        group_end_idx: usize,
+        group_len: usize,
         ignore_span: &MultiSpan,
     ) {
         debug_assert!(ANNOTATION_TOKEN_TYPES.contains(&token_type));
-        debug_assert!(!group.is_empty());
+        debug_assert!(group_len > 0);
 
-        let start_token = group[0];
-        let end_token = group[group.len() - 1];
+        let start_token = tokens[group_start_idx];
+        let end_token = tokens[group_end_idx];
         let span = Span::new(
             start_token.span.file,
             start_token.span.start,
@@ -541,7 +565,9 @@ impl Parser {
         let Some((position, target_node_id)) = self.find_annotation_target(
             token_idx,
             tokens,
-            group,
+            group_start_idx,
+            group_end_idx,
+            group_len,
             is_line_comment,
             false,
             ignore_span,
@@ -560,7 +586,7 @@ impl Parser {
         // create the annotation
         let annotation_id = match token_type {
             TokenType::Newline => {
-                let lines = group.len() as u32 - 1;
+                let lines = group_len as u32 - 1;
                 let blank = self.tree.insert(Blank { lines }, span);
                 self.tree.insert(
                     Annotation::Blank {
@@ -571,7 +597,13 @@ impl Parser {
                 )
             }
             TokenType::LineComment => {
-                let string = self.clean_annotation_string(token_type, group);
+                let string = self.clean_annotation_string(
+                    token_type,
+                    tokens,
+                    group_start_idx,
+                    group_end_idx,
+                    group_len,
+                );
                 let string = self.strings.intern(string);
                 let comment = self.tree.insert(
                     Comment {
@@ -589,7 +621,13 @@ impl Parser {
                 )
             }
             TokenType::BlockComment => {
-                let string = self.clean_annotation_string(token_type, group);
+                let string = self.clean_annotation_string(
+                    token_type,
+                    tokens,
+                    group_start_idx,
+                    group_end_idx,
+                    group_len,
+                );
                 let string = self.strings.intern(string);
                 let comment = self.tree.insert(
                     Comment {
@@ -607,7 +645,13 @@ impl Parser {
                 )
             }
             TokenType::DocLineComment => {
-                let string = self.clean_annotation_string(token_type, group);
+                let string = self.clean_annotation_string(
+                    token_type,
+                    tokens,
+                    group_start_idx,
+                    group_end_idx,
+                    group_len,
+                );
                 let string = self.strings.intern(string);
                 let doc = self.tree.insert(
                     Doc {
@@ -625,7 +669,13 @@ impl Parser {
                 )
             }
             TokenType::DocBlockComment => {
-                let string = self.clean_annotation_string(token_type, group);
+                let string = self.clean_annotation_string(
+                    token_type,
+                    tokens,
+                    group_start_idx,
+                    group_end_idx,
+                    group_len,
+                );
                 let string = self.strings.intern(string);
                 let doc = self.tree.insert(
                     Doc {
@@ -650,12 +700,22 @@ impl Parser {
     }
 
     /// Clean annotation tokens into their inner string, preserving intentional spacing.
-    fn clean_annotation_string(&self, token_type: TokenType, group: &[TokenSpan]) -> String {
-        debug_assert!(!group.is_empty());
+    fn clean_annotation_string(
+        &self,
+        token_type: TokenType,
+        tokens: &[TokenSpan],
+        group_start_idx: usize,
+        group_end_idx: usize,
+        group_len: usize,
+    ) -> String {
+        debug_assert!(group_len > 0);
 
-        let mut cleaned_tokens = Vec::with_capacity(group.len());
+        let mut cleaned_tokens = Vec::with_capacity(group_len);
 
-        for token in group {
+        for token in tokens[group_start_idx..=group_end_idx].iter() {
+            if token.token.ty != token_type {
+                continue;
+            }
             // strip comment prefixes and suffixes
             let raw_str = self.file.get_span_str(token.span).unwrap_or_default();
             let mut inner_str = match token_type {
