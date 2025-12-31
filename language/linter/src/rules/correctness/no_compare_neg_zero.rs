@@ -11,7 +11,7 @@ declare_lint! {
     /// to explicitly check for negative zero.
     #[lint(
         id = "no-compare-neg-zero",
-        code = "LC005",
+        code = "LC011",
         category = Correctness,
         level = Ast,
         fixable = Sometimes,

@@ -10,7 +10,7 @@ declare_lint! {
     /// The same behavior can be achieved by removing the try-catch entirely.
     #[lint(
         id = "no-useless-catch",
-        code = "LU002",
+        code = "LU050",
         category = Suspicious,
         level = Ast,
         fixable = Always,

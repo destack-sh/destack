@@ -10,7 +10,7 @@ declare_lint! {
     /// runtime errors. Use proper null checks or optional chaining instead.
     #[lint(
         id = "no-non-null-assertion",
-        code = "LR012",
+        code = "LR020",
         category = Restriction,
         level = Ast,
         fixable = No,

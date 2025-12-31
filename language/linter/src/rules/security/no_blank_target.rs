@@ -13,7 +13,7 @@ declare_lint! {
     /// Adding `rel="noopener"` or `rel="noreferrer"` prevents this.
     #[lint(
         id = "no-blank-target",
-        code = "LS002",
+        code = "LS001",
         category = Security,
         level = Ast,
         fixable = No,

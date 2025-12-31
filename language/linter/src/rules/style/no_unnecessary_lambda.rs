@@ -23,7 +23,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-unnecessary-lambda",
-        code = "LY064",
+        code = "LY035",
         category = Style,
         level = Ast,
         fixable = Always,

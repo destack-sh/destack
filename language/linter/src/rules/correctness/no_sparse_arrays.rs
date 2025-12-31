@@ -10,7 +10,7 @@ declare_lint! {
     /// lead to confusing behavior. If intentional, use explicit `undefined` instead.
     #[lint(
         id = "no-sparse-arrays",
-        code = "LC015",
+        code = "LC039",
         category = Correctness,
         level = Ast,
         fixable = No,

@@ -11,7 +11,7 @@ declare_lint! {
     /// Note: In `.ds` files, `(a, b, c)` is a tuple literal, not a sequence expression.
     #[lint(
         id = "no-sequences",
-        code = "LR002",
+        code = "LR028",
         category = Restriction,
         level = Ast,
         fixable = No,

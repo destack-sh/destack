@@ -9,7 +9,7 @@ declare_lint! {
     /// Use `x += 1` instead of `x = x + 1` for brevity and clarity.
     #[lint(
         id = "operator-assignment",
-        code = "LY016",
+        code = "LY038",
         category = Style,
         level = Ast,
         fixable = Always,

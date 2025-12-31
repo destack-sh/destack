@@ -22,7 +22,7 @@ declare_lint! {
     /// (uppercase first letter convention for struct types).
     #[lint(
         id = "prefer-struct-literal",
-        code = "LY059",
+        code = "LY068",
         category = Style,
         level = Ast,
         fixable = No,

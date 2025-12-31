@@ -21,7 +21,7 @@ declare_lint! {
     /// Additionally, nesting increases the penalty for each structure.
     #[lint(
         id = "cognitive-complexity",
-        code = "LX008",
+        code = "LX001",
         category = Complexity,
         level = Ast,
         fixable = No,

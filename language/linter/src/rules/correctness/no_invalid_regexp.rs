@@ -9,7 +9,7 @@ declare_lint! {
     /// catches syntax errors in regex literals at lint time.
     #[lint(
         id = "no-invalid-regexp",
-        code = "LC019",
+        code = "LC029",
         category = Correctness,
         level = Ast,
         fixable = No,

@@ -59,7 +59,7 @@ pub enum Stability {
 pub struct LintMeta {
     /// Rule ID like "no-floating-promise".
     pub id: &'static str,
-    /// Code like "LC001".
+    /// Code like "LC002".
     pub code: &'static str,
     /// Name like "NoFloatingPromise".
     pub name: &'static str,

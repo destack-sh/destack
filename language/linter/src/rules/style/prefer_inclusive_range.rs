@@ -23,7 +23,7 @@ declare_lint! {
     /// are idiomatic for exclusive iteration.
     #[lint(
         id = "prefer-inclusive-range",
-        code = "LY055",
+        code = "LY049",
         category = Style,
         level = Ast,
         fixable = No,

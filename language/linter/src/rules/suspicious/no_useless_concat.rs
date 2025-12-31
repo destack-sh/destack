@@ -10,7 +10,7 @@ declare_lint! {
     /// they could be written as a single literal `"ab"`.
     #[lint(
         id = "no-useless-concat",
-        code = "LU003",
+        code = "LU052",
         category = Suspicious,
         level = Ast,
         fixable = Always,

@@ -12,7 +12,7 @@ declare_lint! {
     /// valid, they can be confusing and are less natural to read.
     #[lint(
         id = "yoda",
-        code = "LY035",
+        code = "LY080",
         category = Style,
         level = Ast,
         fixable = Always,

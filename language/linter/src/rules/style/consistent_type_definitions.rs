@@ -10,7 +10,7 @@ declare_lint! {
     /// Configure via `type_definition_style` option.
     #[lint(
         id = "consistent-type-definitions",
-        code = "LY023",
+        code = "LY007",
         category = Style,
         level = Ast,
         fixable = No,

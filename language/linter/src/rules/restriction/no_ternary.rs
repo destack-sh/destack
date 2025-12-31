@@ -10,7 +10,7 @@ declare_lint! {
     /// especially when nested. Use if-else for clarity.
     #[lint(
         id = "no-ternary",
-        code = "LR009",
+        code = "LR031",
         category = Restriction,
         level = Ast,
         fixable = No,

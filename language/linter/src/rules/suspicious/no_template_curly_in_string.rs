@@ -10,7 +10,7 @@ declare_lint! {
     /// `` `${x}` `` won't interpolate the variable and is likely a mistake.
     #[lint(
         id = "no-template-curly-in-string",
-        code = "LU017",
+        code = "LU042",
         category = Suspicious,
         level = Ast,
         fixable = No,

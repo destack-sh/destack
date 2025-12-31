@@ -14,7 +14,7 @@ declare_lint! {
     /// Consider extracting logic into separate functions or simplifying control flow.
     #[lint(
         id = "max-depth",
-        code = "LX002",
+        code = "LX004",
         category = Complexity,
         level = Ast,
         fixable = No,

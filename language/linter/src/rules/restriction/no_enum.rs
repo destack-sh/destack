@@ -10,7 +10,7 @@ declare_lint! {
     /// bundle sizes. Consider using union types or const objects instead.
     #[lint(
         id = "no-enum",
-        code = "LR016",
+        code = "LR013",
         category = Restriction,
         level = Ast,
         fixable = No,

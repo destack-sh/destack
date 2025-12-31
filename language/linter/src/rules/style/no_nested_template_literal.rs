@@ -11,7 +11,7 @@ declare_lint! {
     /// string concatenation instead.
     #[lint(
         id = "no-nested-template-literal",
-        code = "LY021",
+        code = "LY028",
         category = Style,
         level = Ast,
         fixable = No,

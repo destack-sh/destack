@@ -21,7 +21,7 @@ struct DeclareLintInput {
 struct LintAttr {
     /// The rule ID (e.g., "no-debugger").
     id: String,
-    /// The rule code (e.g., "LC001").
+    /// The rule code (e.g., "LC002").
     code: String,
     /// The rule category (e.g., Correctness).
     category: Ident,

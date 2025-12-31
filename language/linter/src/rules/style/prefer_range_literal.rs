@@ -13,7 +13,7 @@ declare_lint! {
     /// Range literals are more concise and clearly express iteration intent.
     #[lint(
         id = "prefer-range-literal",
-        code = "LY030",
+        code = "LY061",
         category = Style,
         level = Ast,
         fixable = No,

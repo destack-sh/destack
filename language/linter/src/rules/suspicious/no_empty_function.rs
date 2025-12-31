@@ -10,7 +10,7 @@ declare_lint! {
     /// add a comment explaining why the function is empty.
     #[lint(
         id = "no-empty-function",
-        code = "LU013",
+        code = "LU015",
         category = Suspicious,
         level = Ast,
         fixable = No,

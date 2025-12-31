@@ -11,7 +11,7 @@ declare_lint! {
     /// false, the arm will never match and should be removed.
     #[lint(
         id = "no-redundant-match-guard",
-        code = "LU016",
+        code = "LU036",
         category = Suspicious,
         level = Ast,
         fixable = Always,

@@ -22,7 +22,7 @@ declare_lint! {
     /// - Ternary expressions
     #[lint(
         id = "cyclomatic-complexity",
-        code = "LX007",
+        code = "LX002",
         category = Complexity,
         level = Ast,
         fixable = No,

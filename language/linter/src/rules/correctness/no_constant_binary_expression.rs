@@ -11,7 +11,7 @@ declare_lint! {
     /// with certain operators, and operations that have no effect.
     #[lint(
         id = "no-constant-binary-expression",
-        code = "LC006",
+        code = "LC013",
         category = Correctness,
         level = Ast,
         fixable = No,

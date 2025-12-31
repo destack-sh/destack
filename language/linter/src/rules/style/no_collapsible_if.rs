@@ -24,7 +24,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-collapsible-if",
-        code = "LY048",
+        code = "LY018",
         category = Style,
         level = Ast,
         fixable = Always,

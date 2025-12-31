@@ -11,7 +11,7 @@ declare_lint! {
     /// is a valid identifier.
     #[lint(
         id = "dot-notation",
-        code = "LY020",
+        code = "LY011",
         category = Style,
         level = Ast,
         fixable = Always,

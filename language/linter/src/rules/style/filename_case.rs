@@ -9,7 +9,7 @@ declare_lint! {
     /// Configure via `filename_case` option.
     #[lint(
         id = "filename-case",
-        code = "LY022",
+        code = "LY015",
         category = Style,
         level = Ast,
         fixable = No,

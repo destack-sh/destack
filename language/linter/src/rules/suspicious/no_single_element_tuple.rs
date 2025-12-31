@@ -10,7 +10,7 @@ declare_lint! {
     /// mistake. If intentional, consider using a newtype instead.
     #[lint(
         id = "no-single-element-tuple",
-        code = "LU016",
+        code = "LU041",
         category = Suspicious,
         level = Ast,
         fixable = No,

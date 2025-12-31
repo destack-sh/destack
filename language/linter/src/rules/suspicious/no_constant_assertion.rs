@@ -23,7 +23,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "no-constant-assertion",
-        code = "LU027",
+        code = "LU008",
         category = Suspicious,
         level = Ast,
         fixable = No,

@@ -25,7 +25,7 @@ declare_lint! {
     /// ```
     #[lint(
         id = "prefer-if-else-over-match-bool",
-        code = "LY054",
+        code = "LY047",
         category = Style,
         level = Ast,
         fixable = No,

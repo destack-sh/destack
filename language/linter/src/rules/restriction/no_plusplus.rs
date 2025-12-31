@@ -10,7 +10,7 @@ declare_lint! {
     /// their prefix vs postfix semantics. Use `+= 1` or `-= 1` instead.
     #[lint(
         id = "no-plusplus",
-        code = "LR010",
+        code = "LR024",
         category = Restriction,
         level = Ast,
         fixable = No,

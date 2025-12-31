@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider breaking them into smaller, focused helper functions.
     #[lint(
         id = "max-lines-per-function",
-        code = "LX004",
+        code = "LX007",
         category = Complexity,
         level = Ast,
         fixable = No,

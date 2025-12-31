@@ -11,7 +11,7 @@ declare_lint! {
     /// if assignment is intentional.
     #[lint(
         id = "no-confusing-assignment",
-        code = "LU017",
+        code = "LU006",
         category = Suspicious,
         level = Ast,
         fixable = No,

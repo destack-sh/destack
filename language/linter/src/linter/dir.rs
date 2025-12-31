@@ -316,7 +316,7 @@ function foo() {
         let result = test.lint(
             "test.ds",
             r#"
-@allow("LC004")
+@allow("LC038")
 function foo() {
     let x = 1
     x == x

@@ -12,7 +12,7 @@ declare_lint! {
     /// combine patterns or extracting the common logic.
     #[lint(
         id = "no-duplicate-match-arms",
-        code = "LU012",
+        code = "LU013",
         category = Suspicious,
         level = Ast,
         fixable = No,

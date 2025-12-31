@@ -10,7 +10,7 @@ declare_lint! {
     /// Consider using a lookup table, polymorphism, or splitting the logic.
     #[lint(
         id = "max-switch-cases",
-        code = "LX017",
+        code = "LX012",
         category = Complexity,
         level = Ast,
         fixable = No,

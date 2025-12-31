@@ -11,7 +11,7 @@ declare_lint! {
     /// This rule enforces class-only object definitions.
     #[lint(
         id = "no-struct",
-        code = "LR014",
+        code = "LR030",
         category = Restriction,
         level = Ast,
         fixable = No,

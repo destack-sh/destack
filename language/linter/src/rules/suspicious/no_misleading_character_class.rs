@@ -11,7 +11,7 @@ declare_lint! {
     /// in regex character classes like `[ñ]` may not match what you expect.
     #[lint(
         id = "no-misleading-character-class",
-        code = "LU013",
+        code = "LU029",
         category = Suspicious,
         level = Ast,
         fixable = No,

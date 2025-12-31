@@ -9,7 +9,7 @@ declare_lint! {
     /// Using `{x: x}` in destructuring is the same as `{x}` and is unnecessarily verbose.
     #[lint(
         id = "no-useless-rename",
-        code = "LU008",
+        code = "LU055",
         category = Suspicious,
         level = Ast,
         fixable = Always,
