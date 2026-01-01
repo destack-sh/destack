@@ -36,6 +36,8 @@ pub struct InferContext {
     pub is_generator: bool,
     /// Whether we're in an abstract class/struct (abstract methods allowed).
     pub in_abstract_class: bool,
+    /// Track nested try frames for error propagation.
+    pub try_stack: Vec<TryContextFrame>,
     /// Flow context for the current function body.
     pub flow: Option<FlowContext>,
 }
@@ -49,6 +51,15 @@ pub struct FlowContext {
     pub graph: Arc<FlowGraph>,
     /// Store flow environments for the control flow graph.
     pub table: Arc<FlowTable>,
+}
+
+/// Track try catch state during inference.
+#[derive(Debug, Clone)]
+pub struct TryContextFrame {
+    /// Whether this try has a catch clause.
+    pub has_catch: bool,
+    /// Collected error types for `?` in this try.
+    pub error_types: Vec<LocalTypeId>,
 }
 
 impl InferContext {
@@ -67,6 +78,7 @@ impl InferContext {
             is_async: false,
             is_generator: false,
             in_abstract_class: false,
+            try_stack: Vec::new(),
             flow: None,
         }
     }
@@ -86,6 +98,7 @@ impl InferContext {
             is_async: self.is_async,
             is_generator: self.is_generator,
             in_abstract_class: self.in_abstract_class,
+            try_stack: self.try_stack.clone(),
             flow: self.flow.clone(),
         }
     }
@@ -105,6 +118,7 @@ impl InferContext {
             is_async: false,
             is_generator: false,
             in_abstract_class: false,
+            try_stack: Vec::new(),
             flow: self.flow.clone(),
         }
     }
@@ -172,6 +186,32 @@ impl InferContext {
     pub fn in_abstract_class_maybe(mut self, is_abstract: bool) -> Self {
         self.in_abstract_class = is_abstract;
         self
+    }
+
+    /// Push a new try frame onto the stack.
+    pub fn push_try_frame(&mut self, has_catch: bool) {
+        self.try_stack.push(TryContextFrame {
+            has_catch,
+            error_types: Vec::new(),
+        });
+    }
+
+    /// Pop the current try frame from the stack.
+    pub fn pop_try_frame(&mut self) -> Option<TryContextFrame> {
+        self.try_stack.pop()
+    }
+
+    /// Record a try error type for the nearest catch.
+    pub fn record_try_error(&mut self, error_type_id: LocalTypeId) -> bool {
+        // search for the nearest catch frame
+        for frame in self.try_stack.iter_mut().rev() {
+            if frame.has_catch {
+                frame.error_types.push(error_type_id);
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Check if we can break (in loop or match).

@@ -217,6 +217,10 @@ pub enum AnalyzeError {
     #[error(code = "EA025", message = "invalid return")]
     InvalidReturn { node: GlobalNodeIdAny },
 
+    /// Incomplkete try expression.
+    #[error(code = "EA038", message = "try requires a catch or finally")]
+    IncompleteTry { node: GlobalNodeIdAny },
+
     /// Invalid constructor.
     #[error(code = "EA026", message = "invalid constructor")]
     InvalidConstructor { node: GlobalNodeIdAny },
