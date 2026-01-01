@@ -191,7 +191,7 @@ impl Lexer<'_> {
                             }
                         }
                         // /*
-                        // block comments starting with '/*' (with nesting)
+                        // block comments starting with '/*'
                         Some(b'*') => {
                             // detect doc block comment for exactly '/**' (not '/***')
                             let third_is_star = bytes.get(1).copied() == Some(b'*');
@@ -199,7 +199,12 @@ impl Lexer<'_> {
                             let is_doc_block = third_is_star && !fourth_is_star;
                             // consume the initial '*'
                             self.eat();
-                            let is_terminated = self.eat_block_comment();
+                            // doc block comments do not nest
+                            let is_terminated = if is_doc_block {
+                                self.eat_doc_block_comment()
+                            } else {
+                                self.eat_block_comment()
+                            };
                             // unterminated comment is an error
                             if !is_terminated {
                                 (TokenType::Unknown, None)
@@ -1487,6 +1492,28 @@ impl Lexer<'_> {
             self.eat();
         }
         self.eat_decimal_digits()
+    }
+
+    /// Parse a doc block comment body without nesting support.
+    /// Assume the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
+    /// Return true if the comment was properly terminated, false if EOF was reached.
+    #[cfg_attr(feature = "profile-parser", inline(never))]
+    pub(crate) fn eat_doc_block_comment(&mut self) -> bool {
+        // scan until the first closing delimiter
+        while !self.is_end() {
+            let bytes = self.as_str().as_bytes();
+            if bytes.len() >= 2 && bytes[0] == b'*' && bytes[1] == b'/' {
+                // consume '*/'
+                self.eat();
+                self.eat();
+                return true;
+            }
+            // consume a single character and continue
+            let _ = self.eat();
+        }
+
+        // reached EOF without closing comment
+        false
     }
 
     /// Parses a block comment body with nesting support.

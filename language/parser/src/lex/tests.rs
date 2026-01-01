@@ -713,6 +713,17 @@ fn test_lex_doc_block_exact_two_stars() {
 }
 
 #[test]
+fn test_lex_doc_block_comment_no_nesting() {
+    // doc block comments stop at the first closing delimiter even with inner /*
+    assert_tokenize_eq_roundtrip!(
+        "/** a /* b c */ d",
+        Token::new(TokenType::DocBlockComment, 15, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+    );
+}
+
+#[test]
 fn test_lex_logical_assignments() {
     assert_tokenize_eq_roundtrip!(
         "a&&=b ||= c",
