@@ -203,7 +203,7 @@ const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
 Both operators work via the `Try` interface, which `Result` implements.
-The `??` operator first coalesces nullish values, then branches on `Try` for non-nullish values.
+The `??` operator coalesces nullish values before and after a single `Try` unwrap.
 This keeps `Result<T, E> | null` ergonomic without recursive unwrapping.
 
 ### Panic (throw)
@@ -224,21 +224,23 @@ This enables zero-cost error handling for the common (non-error) path.
 
 **JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
 
-### try/catch on Result
+### try/catch with Result and exceptions
 
-The `try`/`catch` syntax works with `Result` types as pattern matching sugar:
+The `try`/`catch` syntax handles exceptions and explicit `Try` propagation:
 
 ```
 try {
-    const config = readConfig("config.json")?
-    process(config)
+    const config = readConfig("config.json")?;
+    process(config);
 } catch (e: IOError) {
     log("Failed to read config:", e)
 }
 ```
 
-This desugars to a `match` on the `Result`, with no stack unwinding involved.
-It's purely syntactic convenience for handling `Result` errors.
+The example uses `Result`, but any type implementing `Try` behaves the same.
+`try` does not implicitly unwrap `Result` values.
+Use `?` or `??` inside the block to propagate `Try` errors into the catch.
+Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
 
 ### Design Rationale
 

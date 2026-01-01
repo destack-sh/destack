@@ -2158,7 +2158,8 @@ Evaluation order is fixed and does not depend on union ordering:
 1. Evaluate the left-hand side
 2. If the value is nullish, return the right-hand side
 3. Else if the value implements `Try`, branch and return the success value or the right-hand side on error
-4. Otherwise, return the value as-is
+4. If the resulting value is nullish, return the right-hand side
+5. Otherwise, return the value as-is
 
 `??` performs at most one `Try` unwrap.
 
@@ -2167,14 +2168,14 @@ const value: Result<User, IOError> | null = loadUser();
 const user = value ?? defaultUser;  // default on null or Err
 ```
 
-#### try/catch on Result
+#### try/catch with Result and exceptions
 
-The `try`/`catch` syntax works with `Result` types as pattern matching sugar:
+The `try`/`catch` syntax handles exceptions and explicit `Try` propagation:
 
 ```
 try {
-    const config = readConfig("config.json")?
-    process(config)
+    const config = readConfig("config.json")?;
+    process(config);
 } catch (e: IOError) {
     log("Failed:", e)
 } finally {
@@ -2182,7 +2183,10 @@ try {
 }
 ```
 
-This desugars to a `match` on the `Result`. No stack unwinding is involved.
+The example uses `Result`, but any type implementing `Try` behaves the same.
+`try` does not implicitly unwrap `Result` values.
+Use `?` or `??` inside the block to propagate `Try` errors into the catch.
+Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
 
 #### Panic
 
