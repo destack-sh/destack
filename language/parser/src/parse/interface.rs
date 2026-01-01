@@ -200,6 +200,34 @@ interface Foo extends Bar
     }
 
     #[test]
+    fn test_parse_interface_extends_with_newline_separated_types() {
+        let mut test = TestParser::new(
+            r###"
+interface Foo extends Bar
+Baz {
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+            assert_eq!(extends_types.len(), 2);
+            assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
+            assert_expression_path!(parser, parser.tree.get(extends_types[1]), "Baz");
+        });
+    }
+
+    #[test]
     fn test_parse_interface_with_members() {
         let mut test = TestParser::new(
             r###"
