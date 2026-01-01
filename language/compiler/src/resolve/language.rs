@@ -401,11 +401,13 @@ mod tests {
             test.compile();
 
             let builtins = test.program.builtins.as_ref().unwrap();
-            let lib = builtins.load_lib(
-                lib.name,
-                test.program.files.clone(),
-                test.program.modules.clone(),
-            ).unwrap();
+            let lib = builtins
+                .load_lib(
+                    lib.name,
+                    test.program.files.clone(),
+                    test.program.modules.clone(),
+                )
+                .unwrap();
 
             for module_id in lib {
                 test.analyze_module(module_id);

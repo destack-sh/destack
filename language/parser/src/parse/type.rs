@@ -598,11 +598,16 @@ impl Parser {
 
     /// Eat extends types (without the leading keyword).
     pub fn eat_extends_types_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
+        // allow newlines before extends
+        let mark = self.mark();
+        self.eat_newlines_maybe()?;
+
         // check for extends keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
             self.eat_super_types_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
         } else {
+            self.rewind(mark);
             Ok(None)
         }
     }
@@ -612,11 +617,16 @@ impl Parser {
     pub fn eat_implements_types_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
+        // allow newlines before implements
+        let mark = self.mark();
+        self.eat_newlines_maybe()?;
+
         // check for implements keyword before calling underlying implementation
         if self.peek_keyword(Keyword::Implements).is_ok() {
             self.bump(); // eat implements
             self.eat_super_types_maybe(&[Keyword::With, Keyword::Where])
         } else {
+            self.rewind(mark);
             Ok(None)
         }
     }
