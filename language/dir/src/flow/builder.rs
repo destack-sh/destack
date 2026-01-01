@@ -33,6 +33,15 @@ struct ControlTarget {
     continue_target: Option<FlowBlockId>,
 }
 
+/// Track finally blocks for abrupt control flow.
+#[derive(Debug, Clone)]
+struct FinallyTarget {
+    /// The finally block to execute.
+    finally_block: FlowBlockId,
+    /// Exit targets to run after the finally block.
+    exit_targets: Vec<FlowBlockId>,
+}
+
 /// Build a control flow graph from DIR expressions.
 #[derive(Debug)]
 pub struct FlowGraphBuilder<'tree> {
@@ -46,6 +55,8 @@ pub struct FlowGraphBuilder<'tree> {
     block_by_node: IndexMap<LocalNodeIdAny, FlowBlockId>,
     /// Track control flow targets for break and continue.
     control_stack: Vec<ControlTarget>,
+    /// Track finally blocks for abrupt control flow.
+    finally_stack: Vec<FinallyTarget>,
 }
 
 impl<'tree> FlowGraphBuilder<'tree> {
@@ -57,15 +68,18 @@ impl<'tree> FlowGraphBuilder<'tree> {
             blocks: Vec::new(),
             block_by_node: IndexMap::new(),
             control_stack: Vec::new(),
+            finally_stack: Vec::new(),
         }
     }
 
     /// Build a control flow graph for a body expression.
     pub fn build(mut self, body_id: LocalNodeId<Expression>) -> FlowGraph {
+        // create entry and exit blocks
         let entry_block = self.create_block();
         let body_exit_block = self.build_expression(body_id, entry_block);
         let exit_block = self.create_block();
 
+        // connect fallthrough to the exit block
         if let Some(body_exit_block) = body_exit_block {
             self.connect_blocks(
                 body_exit_block,
@@ -85,10 +99,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
     /// Build a control flow graph for a sequence of root expressions.
     pub fn build_roots(mut self, roots: &[LocalNodeId<Expression>]) -> FlowGraph {
+        // create entry and exit blocks
         let entry_block = self.create_block();
         let roots_exit_block = self.build_expression_sequence(roots, entry_block);
         let exit_block = self.create_block();
 
+        // connect fallthrough to the exit block
         if let Some(roots_exit_block) = roots_exit_block {
             self.connect_blocks(
                 roots_exit_block,
@@ -119,8 +135,17 @@ impl<'tree> FlowGraphBuilder<'tree> {
         block_id
     }
 
+    /// Create a new terminal block.
+    fn create_terminal_block(&mut self) -> FlowBlockId {
+        let block_id = self.create_block();
+        let block_index = block_id.0 as usize;
+        self.blocks[block_index].is_terminal = true;
+        block_id
+    }
+
     /// Record a node inside a block.
     fn record_node(&mut self, block_id: FlowBlockId, node_id: LocalNodeIdAny) {
+        // skip nodes that are already recorded
         if self.block_by_node.insert(node_id, block_id).is_some() {
             return;
         }
@@ -160,6 +185,33 @@ impl<'tree> FlowGraphBuilder<'tree> {
         !self.blocks[block_id.0 as usize].predecessors.is_empty()
     }
 
+    /// Get the innermost finally block when present.
+    fn current_finally_block(&self) -> Option<FlowBlockId> {
+        self.finally_stack.last().map(|target| target.finally_block)
+    }
+
+    /// Record an abrupt exit to run after all finally blocks.
+    fn record_finally_exit(&mut self, final_target: FlowBlockId) {
+        // skip when no finally stack is active
+        if self.finally_stack.is_empty() {
+            return;
+        }
+
+        // wire exits from inner to outer finally blocks
+        for index in (0..self.finally_stack.len()).rev() {
+            let next_target = if index > 0 {
+                self.finally_stack[index - 1].finally_block
+            } else {
+                final_target
+            };
+
+            let target = &mut self.finally_stack[index];
+            if !target.exit_targets.contains(&next_target) {
+                target.exit_targets.push(next_target);
+            }
+        }
+    }
+
     /// Build an expression and return the fallthrough block when it exists.
     fn build_expression(
         &mut self,
@@ -169,6 +221,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         self.record_node(current_block_id, expression_id.into_any());
         let expression = self.tree.get(expression_id);
 
+        // dispatch based on expression kind
         match expression {
             Expression::Block { block } => self.build_block(*block, current_block_id),
             Expression::Statement { statement } => {
@@ -323,6 +376,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         // evaluate the right side and connect to the join when it falls through
         if let Some(right_exit_block_id) = self.build_expression(right_id, right_block_id) {
+            // connect right fallthrough into the join block
             self.connect_blocks(
                 right_exit_block_id,
                 join_block_id,
@@ -355,6 +409,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         let mut fallthrough_block_id = Some(current_block_id);
         let mut is_reachable = true;
 
+        // walk each expression in order
         for expression_id in expression_ids {
             // start a new unreachable block for the remainder
             if !is_reachable {
@@ -362,6 +417,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 is_reachable = true;
             }
 
+            // update the active block from the expression fallthrough
             let next_block_id = self.build_expression(*expression_id, active_block_id);
             match next_block_id {
                 Some(next_block_id) => {
@@ -388,6 +444,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         let label_symbol = symbol.into_global(self.module_id);
         let break_target = self.create_block();
 
+        // register the labelled control target
         self.control_stack.push(ControlTarget {
             kind: ControlTargetKind::Label,
             symbol: Some(label_symbol),
@@ -395,10 +452,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
             continue_target: None,
         });
 
+        // build the labelled body
         let body_exit_block_id = self.build_expression(body_id, current_block_id);
 
+        // pop the label target after building the body
         self.control_stack.pop();
 
+        // connect fallthrough to the break target
         if let Some(body_exit_block_id) = body_exit_block_id {
             self.connect_blocks(
                 body_exit_block_id,
@@ -445,7 +505,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             else_exit_block_id = self.build_expression(else_expression_id, else_block_id);
         }
 
-        // fallthrough
+        // determine if either branch can fall through
         let then_reachable = self.block_has_predecessors(then_block_id);
         let else_reachable = else_block_id
             .map(|else_block_id| self.block_has_predecessors(else_block_id))
@@ -460,7 +520,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             return None;
         }
 
-        // join
+        // connect branch exits to the join block
         if then_reachable && let Some(then_exit_block_id) = then_exit_block_id {
             self.connect_blocks(
                 then_exit_block_id,
@@ -491,11 +551,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
     ) -> bool {
         let guard_id = self.unwrap_parenthesized_expression(guard_id);
 
+        // decide how to expand the guard expression
         match self.tree.get(guard_id) {
             Expression::Unary {
                 operator: UnaryOperator::Not,
                 right,
             } => {
+                // invert guard targets for logical not
                 self.build_guard_expression(*right, false_block_id, true_block_id, current_block_id)
             }
             Expression::Binary {
@@ -560,6 +622,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 else {
                     return false;
                 };
+                // wire guard edges to true and false targets
                 self.connect_blocks(
                     guard_exit_block_id,
                     true_block_id,
@@ -582,6 +645,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         &self,
         mut expression_id: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
+        // peel off parenthesized layers
         loop {
             let Expression::Parenthesized { expression } = self.tree.get(expression_id) else {
                 break;
@@ -604,8 +668,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
         let loop_symbol = symbol.into_global(self.module_id);
         let exit_block_id = self.create_block();
 
+        // dispatch based on loop kind
         match kind {
             LoopKind::NoTest => {
+                // connect entry to the loop body
                 let body_block_id = self.create_block();
                 self.connect_blocks(
                     current_block_id,
@@ -621,10 +687,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     continue_target: Some(body_block_id),
                 });
 
+                // build the loop body
                 let body_exit_block_id = self.build_block(body_id, body_block_id);
 
+                // pop loop control targets after the body
                 self.control_stack.pop();
 
+                // loop back to the body block
                 if let Some(body_exit_block_id) = body_exit_block_id {
                     self.connect_blocks(
                         body_exit_block_id,
@@ -638,6 +707,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     .then_some(exit_block_id)
             }
             LoopKind::PreTest => {
+                // build condition and body blocks for the loop
                 let condition_block_id = self.create_block();
                 self.connect_blocks(
                     current_block_id,
@@ -646,6 +716,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     None,
                 );
 
+                // body block
                 let body_block_id = self.create_block();
                 self.control_stack.push(ControlTarget {
                     kind: ControlTargetKind::Loop,
@@ -654,12 +725,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     continue_target: Some(condition_block_id),
                 });
 
+                // evaluate the loop condition
                 let condition_exit_block_id = if let Some(condition_id) = condition_id {
                     self.build_expression(condition_id, condition_block_id)?
                 } else {
                     condition_block_id
                 };
 
+                // connect condition to body or exit
                 if let Some(condition_id) = condition_id {
                     self.connect_blocks(
                         condition_exit_block_id,
@@ -682,11 +755,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     );
                 }
 
+                // build the loop body
                 let body_exit_block_id = self.build_block(body_id, body_block_id);
 
+                // pop loop control targets after the body
                 self.control_stack.pop();
 
                 if let Some(body_exit_block_id) = body_exit_block_id {
+                    // loop back to the condition block
                     self.connect_blocks(
                         body_exit_block_id,
                         condition_block_id,
@@ -699,6 +775,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     .then_some(exit_block_id)
             }
             LoopKind::PostTest => {
+                // build body and condition blocks for the loop
                 let body_block_id = self.create_block();
                 self.connect_blocks(
                     current_block_id,
@@ -707,6 +784,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     None,
                 );
 
+                // condition block
                 let condition_block_id = self.create_block();
                 self.control_stack.push(ControlTarget {
                     kind: ControlTargetKind::Loop,
@@ -715,8 +793,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     continue_target: Some(condition_block_id),
                 });
 
+                // evaluate the loop body
                 let body_exit_block_id = self.build_block(body_id, body_block_id);
                 if let Some(body_exit_block_id) = body_exit_block_id {
+                    // connect body to the condition block
                     self.connect_blocks(
                         body_exit_block_id,
                         condition_block_id,
@@ -725,12 +805,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     );
                 }
 
+                // evaluate the loop condition
                 let condition_exit_block_id = if let Some(condition_id) = condition_id {
                     self.build_expression(condition_id, condition_block_id)?
                 } else {
                     condition_block_id
                 };
 
+                // connect condition to body or exit
                 if let Some(condition_id) = condition_id {
                     self.connect_blocks(
                         condition_exit_block_id,
@@ -753,6 +835,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     );
                 }
 
+                // pop loop control targets after the body
                 self.control_stack.pop();
 
                 self.block_has_predecessors(exit_block_id)
@@ -770,11 +853,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
         symbol: LocalSymbolId,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate the iterator expression
         let iterator_exit_block_id = self.build_expression(iterator_id, current_block_id)?;
         let condition_block_id = self.create_block();
         let body_block_id = self.create_block();
         let exit_block_id = self.create_block();
 
+        // connect iterator to the condition block
         self.connect_blocks(
             iterator_exit_block_id,
             condition_block_id,
@@ -782,9 +867,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
             None,
         );
 
+        // wire condition to body and exit
         self.connect_blocks(condition_block_id, body_block_id, FlowEdgeKind::Guard, None);
         self.connect_blocks(condition_block_id, exit_block_id, FlowEdgeKind::Guard, None);
 
+        // register loop control targets
         let loop_symbol = symbol.into_global(self.module_id);
         self.control_stack.push(ControlTarget {
             kind: ControlTargetKind::Loop,
@@ -793,6 +880,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             continue_target: Some(condition_block_id),
         });
 
+        // evaluate the binding pattern before the loop body
         let mut body_entry_block_id = body_block_id;
         match binding {
             ForEachBinding::Pattern { pattern } | ForEachBinding::Using { pattern, .. } => {
@@ -804,11 +892,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
         }
 
+        // evaluate the loop body
         let body_exit_block_id = self.build_block(body_id, body_entry_block_id);
 
+        // pop loop control targets after the body
         self.control_stack.pop();
 
         if let Some(body_exit_block_id) = body_exit_block_id {
+            // loop back to the condition block
             self.connect_blocks(
                 body_exit_block_id,
                 condition_block_id,
@@ -831,12 +922,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
         symbol: LocalSymbolId,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate the initialization expression
         let mut initialization_block_id = current_block_id;
         if let Some(initialization_id) = initialization_id {
             initialization_block_id =
                 self.build_expression(initialization_id, initialization_block_id)?;
         }
 
+        // connect initialization to the condition block
         let condition_block_id = self.create_block();
         self.connect_blocks(
             initialization_block_id,
@@ -853,6 +946,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             condition_block_id
         };
 
+        // register loop control targets
         let loop_symbol = symbol.into_global(self.module_id);
         self.control_stack.push(ControlTarget {
             kind: ControlTargetKind::Loop,
@@ -861,12 +955,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
             continue_target: Some(increment_block_id),
         });
 
+        // evaluate the loop condition
         let condition_exit_block_id = if let Some(condition_id) = condition_id {
             self.build_expression(condition_id, condition_block_id)?
         } else {
             condition_block_id
         };
 
+        // connect condition to body or exit
         if let Some(condition_id) = condition_id {
             self.connect_blocks(
                 condition_exit_block_id,
@@ -889,8 +985,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
             );
         }
 
+        // evaluate the loop body
         let body_exit_block_id = self.build_block(body_id, body_block_id);
         if let Some(body_exit_block_id) = body_exit_block_id {
+            // connect body to the increment block
             self.connect_blocks(
                 body_exit_block_id,
                 increment_block_id,
@@ -899,6 +997,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             );
         }
 
+        // evaluate the increment expression
         if let Some(increment_id) = increment_id {
             let increment_exit_block_id =
                 self.build_expression(increment_id, increment_block_id)?;
@@ -910,6 +1009,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             );
         }
 
+        // pop loop control targets after the loop body
         self.control_stack.pop();
 
         self.block_has_predecessors(exit_block_id)
@@ -925,9 +1025,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
         symbol: LocalSymbolId,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate the match value
         let match_value_block_id = self.build_expression(value_id, current_block_id)?;
         let match_exit_block_id = self.create_block();
 
+        // register match control targets when needed
         let should_push_match = source == MatchSource::Match;
         if should_push_match {
             let match_symbol = symbol.into_global(self.module_id);
@@ -939,6 +1041,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             });
         }
 
+        // build each match case
         for case_id in cases {
             let case_block_id = self.create_block();
             let guard = self.guard_for_match_case(*case_id);
@@ -949,6 +1052,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 guard,
             );
 
+            // evaluate the case body
             let case_exit_block_id = self.build_match_case(*case_id, case_block_id);
             if let Some(case_exit_block_id) = case_exit_block_id {
                 self.connect_blocks(
@@ -960,6 +1064,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
         }
 
+        // pop match control targets after processing cases
         if should_push_match {
             self.control_stack.pop();
         }
@@ -979,11 +1084,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
 
         match match_case {
             MatchCase::Expression { selector, body, .. } => {
+                // evaluate selector then expression body
                 let selector_exit_block_id =
                     self.build_match_selector(selector, current_block_id)?;
                 self.build_expression(*body, selector_exit_block_id)
             }
             MatchCase::Block { selector, body, .. } => {
+                // evaluate selector then block body
                 let selector_exit_block_id =
                     self.build_match_selector(selector, current_block_id)?;
                 self.build_block(*body, selector_exit_block_id)
@@ -999,8 +1106,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
     ) -> Option<FlowBlockId> {
         match selector {
             MatchSelector::Pattern { pattern, guard } => {
+                // evaluate the pattern before any guard
                 let pattern_exit_block_id = self.build_pattern(*pattern, current_block_id)?;
                 if let Some(guard_id) = guard {
+                    // evaluate the guard expression when present
                     return self.build_expression(*guard_id, pattern_exit_block_id);
                 }
                 Some(pattern_exit_block_id)
@@ -1009,7 +1118,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         }
     }
 
-    /// Build a try expression without modeling control flow yet.
+    /// Build a try expression with catch and finally control flow.
     fn build_try_expression(
         &mut self,
         try_expression_id: LocalNodeId<Expression>,
@@ -1018,30 +1127,137 @@ impl<'tree> FlowGraphBuilder<'tree> {
         finally_expression_id: Option<LocalNodeId<Expression>>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
-        // NOTE #Incomplete: build try catch finally control flow
-        // linearize try catch finally to keep nodes in the graph
-        // evaluate the try body first
-        let mut active_block_id = self.build_expression(try_expression_id, current_block_id)?;
+        // allocate blocks for catch and finally
+        let catch_block_id = catch_expression_id.map(|_| self.create_block());
+        let finally_block_id = finally_expression_id.map(|_| self.create_block());
+        let join_block_id = self.create_block();
 
-        // evaluate the catch pattern
-        if let Some(catch_pattern_id) = catch_pattern_id
-            && let Some(pattern_exit_block_id) =
-                self.build_pattern(catch_pattern_id, active_block_id)
+        // enable finally tracking while building the try body
+        if let Some(finally_block_id) = finally_block_id {
+            self.finally_stack.push(FinallyTarget {
+                finally_block: finally_block_id,
+                exit_targets: Vec::new(),
+            });
+        }
+
+        // evaluate the try body
+        let try_exit_block_id = self.build_expression(try_expression_id, current_block_id);
+
+        // evaluate the catch body
+        let mut catch_exit_block_id = None;
+        if let (Some(catch_block_id), Some(catch_expression_id)) =
+            (catch_block_id, catch_expression_id)
         {
-            active_block_id = pattern_exit_block_id;
+            // allow exceptions to flow into catch
+            self.connect_blocks(
+                current_block_id,
+                catch_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+
+            // evaluate the catch pattern before the catch body
+            let mut catch_block_id = catch_block_id;
+            if let Some(catch_pattern_id) = catch_pattern_id
+                && let Some(pattern_exit_block_id) =
+                    self.build_pattern(catch_pattern_id, catch_block_id)
+            {
+                catch_block_id = pattern_exit_block_id;
+            }
+
+            // evaluate the catch expression
+            catch_exit_block_id = self.build_expression(catch_expression_id, catch_block_id);
         }
 
-        // evaluate the catch expression
-        if let Some(catch_expression_id) = catch_expression_id {
-            active_block_id = self.build_expression(catch_expression_id, active_block_id)?;
+        // compute try and catch fallthrough reachability
+        let try_reachable = try_exit_block_id
+            .map(|block_id| self.block_has_predecessors(block_id))
+            .unwrap_or(false);
+        let catch_reachable = catch_exit_block_id
+            .map(|block_id| self.block_has_predecessors(block_id))
+            .unwrap_or(false);
+        let has_fallthrough = try_reachable || catch_reachable;
+
+        // wire try and catch exits through finally when present
+        if let Some(finally_block_id) = finally_block_id {
+            // connect try and catch exits into finally
+            if try_reachable && let Some(try_exit_block_id) = try_exit_block_id {
+                self.connect_blocks(
+                    try_exit_block_id,
+                    finally_block_id,
+                    FlowEdgeKind::Unconditional,
+                    None,
+                );
+            }
+            if catch_reachable && let Some(catch_exit_block_id) = catch_exit_block_id {
+                self.connect_blocks(
+                    catch_exit_block_id,
+                    finally_block_id,
+                    FlowEdgeKind::Unconditional,
+                    None,
+                );
+            }
+
+            // unwind finally tracking before evaluating the finally block
+            let finally_target = self.finally_stack.pop();
+
+            // evaluate the finally expression
+            let finally_exit_block_id = if let Some(finally_expression_id) = finally_expression_id {
+                self.build_expression(finally_expression_id, finally_block_id)
+            } else {
+                Some(finally_block_id)
+            };
+
+            // connect normal fallthrough out of finally
+            if has_fallthrough && let Some(finally_exit_block_id) = finally_exit_block_id {
+                self.connect_blocks(
+                    finally_exit_block_id,
+                    join_block_id,
+                    FlowEdgeKind::Unconditional,
+                    None,
+                );
+            }
+
+            // connect abrupt exits out of finally
+            if let (Some(finally_exit_block_id), Some(finally_target)) =
+                (finally_exit_block_id, finally_target)
+            {
+                for target in finally_target.exit_targets {
+                    self.connect_blocks(
+                        finally_exit_block_id,
+                        target,
+                        FlowEdgeKind::Unconditional,
+                        None,
+                    );
+                }
+            }
+
+            return has_fallthrough
+                .then_some(join_block_id)
+                .filter(|block_id| self.block_has_predecessors(*block_id));
         }
 
-        // evaluate the finally expression
-        if let Some(finally_expression_id) = finally_expression_id {
-            active_block_id = self.build_expression(finally_expression_id, active_block_id)?;
+        // connect try and catch exits into the join block
+        if try_reachable && let Some(try_exit_block_id) = try_exit_block_id {
+            self.connect_blocks(
+                try_exit_block_id,
+                join_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+        }
+        if catch_reachable && let Some(catch_exit_block_id) = catch_exit_block_id {
+            self.connect_blocks(
+                catch_exit_block_id,
+                join_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
         }
 
-        Some(active_block_id)
+        has_fallthrough
+            .then_some(join_block_id)
+            .filter(|block_id| self.block_has_predecessors(*block_id))
     }
 
     /// Build a return expression.
@@ -1050,11 +1266,26 @@ impl<'tree> FlowGraphBuilder<'tree> {
         value_id: Option<LocalNodeId<Expression>>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate the return value when present
         let mut return_block_id = current_block_id;
         if let Some(value_id) = value_id {
             return_block_id = self.build_expression(value_id, return_block_id)?;
         }
 
+        // route return through finally when needed
+        if let Some(finally_block_id) = self.current_finally_block() {
+            let return_target = self.create_terminal_block();
+            self.connect_blocks(
+                return_block_id,
+                finally_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+            self.record_finally_exit(return_target);
+            return None;
+        }
+
+        // mark the current block as terminal when no finally is active
         let return_block_index = return_block_id.0 as usize;
         self.blocks[return_block_index].is_terminal = true;
         None
@@ -1066,7 +1297,23 @@ impl<'tree> FlowGraphBuilder<'tree> {
         value_id: LocalNodeId<Expression>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate the throw value
         let throw_block_id = self.build_expression(value_id, current_block_id)?;
+
+        // route throw through finally when needed
+        if let Some(finally_block_id) = self.current_finally_block() {
+            let throw_target = self.create_terminal_block();
+            self.connect_blocks(
+                throw_block_id,
+                finally_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+            self.record_finally_exit(throw_target);
+            return None;
+        }
+
+        // mark the current block as terminal when no finally is active
         let throw_block_index = throw_block_id.0 as usize;
         self.blocks[throw_block_index].is_terminal = true;
         None
@@ -1079,12 +1326,26 @@ impl<'tree> FlowGraphBuilder<'tree> {
         value_id: Option<LocalNodeId<Expression>>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate the break value when present
         let mut break_block_id = current_block_id;
         if let Some(value_id) = value_id {
             break_block_id = self.build_expression(value_id, break_block_id)?;
         }
 
         if let Some(target_block_id) = self.resolve_break_target(target_symbol) {
+            // route break through finally when needed
+            if let Some(finally_block_id) = self.current_finally_block() {
+                self.connect_blocks(
+                    break_block_id,
+                    finally_block_id,
+                    FlowEdgeKind::Unconditional,
+                    None,
+                );
+                self.record_finally_exit(target_block_id);
+                return None;
+            }
+
+            // connect break to its target
             self.connect_blocks(
                 break_block_id,
                 target_block_id,
@@ -1103,6 +1364,19 @@ impl<'tree> FlowGraphBuilder<'tree> {
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
         if let Some(target_block_id) = self.resolve_continue_target(target_symbol) {
+            // route continue through finally when needed
+            if let Some(finally_block_id) = self.current_finally_block() {
+                self.connect_blocks(
+                    current_block_id,
+                    finally_block_id,
+                    FlowEdgeKind::Unconditional,
+                    None,
+                );
+                self.record_finally_exit(target_block_id);
+                return None;
+            }
+
+            // connect continue to its target
             self.connect_blocks(
                 current_block_id,
                 target_block_id,
@@ -1134,6 +1408,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
     /// Resolve the break target for a break expression.
     fn resolve_break_target(&self, target_symbol: Option<GlobalSymbolId>) -> Option<FlowBlockId> {
         if let Some(target_symbol) = target_symbol {
+            // find a matching labelled target
             for target in self.control_stack.iter().rev() {
                 if target.symbol == Some(target_symbol) {
                     return Some(target.break_target);
@@ -1143,6 +1418,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             return None;
         }
 
+        // fall back to the innermost loop or match
         for target in self.control_stack.iter().rev() {
             if matches!(
                 target.kind,
@@ -1161,6 +1437,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         target_symbol: Option<GlobalSymbolId>,
     ) -> Option<FlowBlockId> {
         if let Some(target_symbol) = target_symbol {
+            // find a matching labelled loop target
             for target in self.control_stack.iter().rev() {
                 if target.kind == ControlTargetKind::Loop && target.symbol == Some(target_symbol) {
                     return target.continue_target;
@@ -1170,6 +1447,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             return None;
         }
 
+        // fall back to the innermost loop
         for target in self.control_stack.iter().rev() {
             if target.kind == ControlTargetKind::Loop {
                 return target.continue_target;
@@ -1185,6 +1463,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         expression: &Expression,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // walk child expressions based on expression shape
         match expression {
             Expression::Declaration { declaration } => {
                 self.build_declaration_expression(*declaration, current_block_id)
@@ -1309,7 +1588,6 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 if let Some(left_id) = left {
                     tree_block_id = self.build_expression(*left_id, tree_block_id)?;
                 }
-
                 tree_block_id = self.build_arguments(arguments.as_deref(), tree_block_id)?;
                 self.build_arguments(elements.as_deref(), tree_block_id)
             }
@@ -1368,7 +1646,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 self.build_expression_sequence(expressions, current_block_id)
             }
             _ => {
-                // NOTE #Incomplete: declaration bodies and static blocks are not expanded
+                // skip declaration bodies for now
+                // NOTE #Incomplete: declaration bodies and static blocks are not expanded in flow
                 Some(current_block_id)
             }
         }
@@ -1396,11 +1675,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
         self.record_node(current_block_id, declarator_id.into_any());
         let declarator = self.tree.get(declarator_id);
 
+        // evaluate the initializer first
         let mut declarator_block_id = current_block_id;
         if let Some(value_id) = declarator.value {
             declarator_block_id = self.build_expression(value_id, declarator_block_id)?;
         }
 
+        // evaluate the binding pattern next
         if let Some(pattern_exit_block_id) =
             self.build_pattern(declarator.pattern, declarator_block_id)
         {
@@ -1416,10 +1697,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
         arguments: Option<&[LocalNodeId<Argument>]>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // return early when there are no arguments
         let Some(arguments) = arguments else {
             return Some(current_block_id);
         };
 
+        // evaluate each argument in order
         let mut argument_block_id = current_block_id;
         for argument_id in arguments {
             argument_block_id = self.build_argument(*argument_id, argument_block_id)?;
@@ -1435,6 +1718,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
     ) -> Option<FlowBlockId> {
         self.record_node(current_block_id, argument_id.into_any());
         let argument = self.tree.get(argument_id);
+        // evaluate the argument value
         self.build_expression(argument.value(), current_block_id)
     }
 
@@ -1447,6 +1731,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         self.record_node(current_block_id, pattern_id.into_any());
         let pattern = self.tree.get(pattern_id);
 
+        // walk the pattern structure
         match pattern {
             Pattern::Wildcard => Some(current_block_id),
             Pattern::Must(inner)
@@ -1508,6 +1793,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         self.record_node(current_block_id, field_id.into_any());
         let field = self.tree.get(field_id);
 
+        // walk the pattern field shape
         match field {
             PatternField::Named {
                 pattern, default, ..
@@ -1554,6 +1840,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         self.record_node(current_block_id, property_id.into_any());
         let property = self.tree.get(property_id);
 
+        // walk the property shape
         match property {
             Property::Field {
                 key,
@@ -1582,10 +1869,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
         key: Option<&DynamicKey>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // no key means no work
         let Some(key) = key else {
             return Some(current_block_id);
         };
 
+        // evaluate computed key expressions
         match key {
             DynamicKey::Expression(expression_id) => {
                 self.build_expression(*expression_id, current_block_id)
@@ -1603,6 +1892,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         literal: &TemplateLiteral,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
+        // evaluate interpolation arguments when present
         match literal {
             TemplateLiteral::String { .. } => Some(current_block_id),
             TemplateLiteral::InterpolatedString { arguments, .. } => {

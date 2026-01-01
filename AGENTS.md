@@ -20,6 +20,7 @@ Inline comments should be short and begin with a lowercase letter.
  - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
  - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
 Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
+Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 
 Documentation comments for functions/types/etc. should be proper sentences with punctuation.
  - Files should NOT have a top-level documentation comments. They always get stale.
