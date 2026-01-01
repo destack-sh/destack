@@ -5,6 +5,7 @@ mod no_bitwise;
 mod no_class;
 mod no_continue;
 mod no_default_export;
+mod no_delete;
 mod no_enum;
 mod no_explicit_any;
 mod no_implicit_return;
@@ -28,6 +29,7 @@ pub use no_bitwise::*;
 pub use no_class::*;
 pub use no_continue::*;
 pub use no_default_export::*;
+pub use no_delete::*;
 pub use no_enum::*;
 pub use no_explicit_any::*;
 pub use no_implicit_return::*;
@@ -55,6 +57,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoClass),
         Box::new(NoContinue),
         Box::new(NoDefaultExport),
+        Box::new(NoDelete),
         Box::new(NoEnum),
         Box::new(NoImplicitReturn),
         Box::new(NoLabels),

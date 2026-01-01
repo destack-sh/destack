@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use destack_ast::StringId;
+use destack_builtin::{LanguageItem, WellKnownSymbol};
 use destack_source::{EditBuilder, File, ModuleId, Span};
-use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
+use destack_workspace::{
+    LintSeverity, LinterOptions, Module, ProfileId, Program, WellKnownSymbols,
+};
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
@@ -22,6 +25,8 @@ pub struct LintModuleDirContext<'a> {
     pub program: Arc<Program>,
     /// The module being linted.
     pub module: &'a Module,
+    /// The profile for this module.
+    pub profile_id: ProfileId,
     /// The source file.
     pub file: Arc<File>,
 
@@ -76,6 +81,7 @@ impl<'a> LintModuleDirContext<'a> {
     pub fn new(
         program: Arc<Program>,
         module: &'a Module,
+        profile_id: ProfileId,
         file: Arc<File>,
         ast: &'a ast::NodeTree,
         tree: &'a dir::NodeTree,
@@ -94,6 +100,7 @@ impl<'a> LintModuleDirContext<'a> {
         Self {
             program,
             module,
+            profile_id,
             file,
             ast,
             tree,
@@ -128,11 +135,82 @@ impl<'a> LintModuleDirContext<'a> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalTypeId> {
+        // unwrap parenthesized expressions first
+        let expression = self.tree.get(expression_id);
+        if let dir::Expression::Parenthesized { expression } = expression {
+            return self.expression_type_id(*expression);
+        }
+
         // build a global id for the expression
         let global_id = dir::GlobalNodeIdAny::new(self.module.id, expression_id.into_any());
 
         // fetch the inferred type id from the module type table
-        self.types.get_inferred_type_id(global_id)
+        if let Some(type_id) = self.types.get_inferred_type_id(global_id) {
+            return Some(type_id);
+        }
+
+        // fall back to value types for direct references
+        expression
+            .target_symbol()
+            .and_then(|symbol| self.types.get_value_type_id(symbol))
+    }
+
+    /// Get a language item from the cache, returning None if not found.
+    pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
+        let builtins = self.program.builtins.as_ref()?;
+        builtins.items.get(&item).map(|value| *value)
+    }
+
+    /// Get a language item from the cache, panicking if not found.
+    pub fn language_item(&self, item: LanguageItem) -> dir::GlobalSymbolId {
+        self.get_language_item(item)
+            .unwrap_or_else(|| panic!("language item {item:?} not available"))
+    }
+
+    /// Get a cached lib symbol for the module profile and name.
+    pub fn get_lib_item(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
+        let builtins = self.program.builtins.as_ref()?;
+        builtins.lib_symbol(self.profile_id, name)
+    }
+
+    /// Get a lib symbol from the cache, panicking if not found.
+    pub fn lib_item(&self, name: StringId) -> dir::GlobalSymbolId {
+        self.get_lib_item(name).unwrap_or_else(|| {
+            let name = self.program.strings.get(name);
+            panic!("lib symbol '{}' not available", name.as_ref())
+        })
+    }
+
+    /// Get well-known symbols for the module profile.
+    pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
+        let builtins = self.program.builtins.as_ref()?;
+        builtins.well_known_symbols(self.profile_id)
+    }
+
+    /// Get well-known symbols for the module profile, panicking if not found.
+    pub fn well_known_symbols(&self) -> WellKnownSymbols {
+        self.get_well_known_symbols().unwrap_or_else(|| {
+            panic!(
+                "well-known symbols not available for profile {:?}",
+                self.profile_id
+            )
+        })
+    }
+
+    /// Get a specific well-known symbol for the module profile.
+    pub fn get_well_known_symbol(&self, symbol: WellKnownSymbol) -> Option<dir::GlobalSymbolId> {
+        let well_known_symbols = self.get_well_known_symbols()?;
+        well_known_symbols.get_symbol(symbol)
+    }
+
+    /// Get a specific well-known symbol for the module profile, panicking if not found.
+    pub fn well_known_symbol(&self, symbol: WellKnownSymbol) -> dir::GlobalSymbolId {
+        self.get_well_known_symbol(symbol).unwrap_or_else(|| {
+            panic!(
+                "well-known symbol {symbol:?} not available for profile {:?}",
+                self.profile_id
+            )
+        })
     }
 
     /// Resolve severity for a rule.

@@ -88,9 +88,9 @@ High-confidence issues that are almost always wrong.
 | `LC002` | `for-direction` | ESLint | AST | ✓ | ✅ | None | Enforce for loop update clause moving in the correct direction |
 | `LC003` | `no-approx-constant` | Destack | AST | ✓ | ✅ | Safe | Disallow approximate representations of mathematical constants |
 | `LC004` | `no-arguments-order-mismatch` | SonarQube | DIR | ✓ | 🔶 | Suggestion | Disallow arguments that appear swapped based on parameter names |
-| `LC005` | `no-array-constructor` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow `new Array()` (confusing behavior) |
-| `LC006` | `no-array-delete` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow `delete` on arrays (creates holes) |
-| `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | 🔶 | Unsafe | Disallow async functions as Promise executor |
+| `LC005` | `no-array-constructor` | ESLint | DIR | ✓ | ✅ | Safe | Disallow `new Array()` (confusing behavior) |
+| `LC006` | `no-array-delete` | TS-ESLint | DIR | ✓ | ✅ | None | Disallow `delete` on arrays (creates holes) |
+| `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | ✅ | Unsafe | Disallow async functions as Promise executor |
 | `LC008` | `no-base-to-string` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow `.toString()` on objects without useful representation |
 | `LC009` | `no-borrow-across-await` | Destack | DIR | ✓ | 🔶 | None | Disallow holding borrows across await points |
 | `LC010` | `no-class-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning class/struct declarations |
@@ -120,7 +120,7 @@ High-confidence issues that are almost always wrong.
 | `LC034` | `no-new-native-nonconstructor` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow `new` on Symbol and BigInt |
 | `LC035` | `no-obj-calls` | ESLint | DIR | ✓ | 🔶 | None | Disallow calling global objects as functions |
 | `LC036` | `no-overlapping-match-arms` | Destack | DIR | ✓ | 🔶 | Safe | Disallow match patterns that subsume later arms |
-| `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow returning values from Promise executor |
+| `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | ✅ | Safe | Disallow returning values from Promise executor |
 | `LC038` | `no-self-compare` | ESLint | AST | ✓ | ✅ | None | Disallow comparisons where both sides are exactly the same |
 | `LC039` | `no-sparse-arrays` | ESLint | AST | ✓ | ✅ | None | Disallow sparse arrays with holes |
 | `LC040` | `no-struct-identity-compare` | Destack | DIR | ✓ | 🔶 | Safe | Disallow identity comparison on value types |
@@ -442,3 +442,4 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR033` | `no-warning-comments` | ESLint | AST | ✓ | ✅ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `LR034` | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Unsafe | Disallow wildcard imports |
 | `LR035` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Unsafe | Disallow truthy/falsy coercion in conditions |
+| `LR036` | `no-delete` | Destack | AST | ✓ | ✅ | None | Disallow the `delete` operator |
