@@ -8,6 +8,7 @@ export { Type, typeOf } from "./reflect/type.ds";
 
 // control flow
 export { Try } from "./control/try.ds";
+export { Error } from "./control/error.ds";
 export { Ok, Err, Result, AsyncResult } from "./control/result.ds";
 export {
     Bound,
