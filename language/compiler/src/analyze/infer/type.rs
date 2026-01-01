@@ -3128,11 +3128,11 @@ impl Compiler {
             })
         });
 
+        // make promise type
         let static_arguments = vec![StaticArgument::Evaluated {
             name: None,
             value: StaticExpression::Type { ty: value_type },
         }];
-
         Some(types.insert_type(Type::Reference {
             symbol: promise_symbol,
             static_arguments: Some(static_arguments),

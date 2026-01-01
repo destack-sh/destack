@@ -679,9 +679,11 @@ impl Parser {
                     || terminators
                         .iter()
                         .any(|terminator| self.peek_keyword(*terminator).is_ok());
-                self.rewind(mark);
                 if is_terminator {
+                    self.rewind(mark);
                     break;
+                } else {
+                    continue;
                 }
             }
             // consume any stop
