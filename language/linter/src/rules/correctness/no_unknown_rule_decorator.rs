@@ -168,7 +168,7 @@ function foo() {}
         let result = test.lint_ast(
             "test.ds",
             r#"
-@warn("LU002")
+@warn("LU014")
 function foo() {}
 "#,
         );

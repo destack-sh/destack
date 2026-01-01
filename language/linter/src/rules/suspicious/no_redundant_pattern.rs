@@ -132,8 +132,11 @@ fn field_binds_anything(
             pattern.map(|p| binds_anything(ctx, p)).unwrap_or(true)
         }
 
-        // alias binds
-        ast::PatternField::Alias { .. } => true,
+        // alias binds unless it's a wildcard
+        ast::PatternField::Alias { alias, .. } => {
+            let alias_name = ctx.strings.get(*alias);
+            alias_name != "_"
+        }
 
         // positional field binds if its pattern binds
         ast::PatternField::Positional { pattern } => binds_anything(ctx, *pattern),
