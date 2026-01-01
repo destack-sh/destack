@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportTask, ResolveTask};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
@@ -135,6 +135,13 @@ impl TestProgram {
         let profile = self.program.default_profile_id_for_module(module);
         self.compiler
             .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+    }
+
+    /// Resolve a module (bind, resolve symbols).
+    pub(crate) fn resolve_module(&self, module: ModuleId) {
+        let profile = self.program.default_profile_id_for_module(module);
+        self.compiler
+            .enqueue(ResolveTask::ResolveModuleCanonical { module, profile });
     }
 
     /// Run all queued tasks.

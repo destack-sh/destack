@@ -163,6 +163,7 @@ impl LintRunner {
         let mut ctx = LintModuleDirContext::new(
             program,
             &module,
+            profile,
             file,
             &ast.tree,
             &tree,
