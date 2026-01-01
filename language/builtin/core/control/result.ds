@@ -90,15 +90,12 @@ extension<T, E> for Result<T, E> {
 
     /// Returns true if this is Ok.
     isOk(): boolean {
-        match (this) {
-            Ok { value: _ } => true
-            Err { error: _ } => false
-        }
+        this.kind == "ok"
     }
 
     /// Returns true if this is Err.
     isErr(): boolean {
-        !this.isOk()
+        this.kind == "err"
     }
 
     /// Returns the contained Ok value, or panics if Err.

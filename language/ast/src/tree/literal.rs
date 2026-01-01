@@ -135,6 +135,24 @@ pub enum TypeIntrinsic {
     BuiltinIteratorReturn,
 }
 
+impl TryFrom<&str> for TypeIntrinsic {
+    /// The error type for intrinsic parsing.
+    type Error = ();
+
+    /// Parse a TypeIntrinsic from a standard intrinsic name.
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Uppercase" => Ok(TypeIntrinsic::Uppercase),
+            "Lowercase" => Ok(TypeIntrinsic::Lowercase),
+            "Capitalize" => Ok(TypeIntrinsic::Capitalize),
+            "Uncapitalize" => Ok(TypeIntrinsic::Uncapitalize),
+            "NoInfer" => Ok(TypeIntrinsic::NoInfer),
+            "BuiltinIteratorReturn" => Ok(TypeIntrinsic::BuiltinIteratorReturn),
+            _ => Err(()),
+        }
+    }
+}
+
 /// An IntType represents arbitrary width integer with signedness.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum IntType {

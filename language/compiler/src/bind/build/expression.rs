@@ -673,12 +673,37 @@ impl Compiler {
                     .collect();
                 Expression::TypeTemplateLiteral { strings, spans }
             }
-            ast::Expression::TypeImport { target, qualifier } => {
+            ast::Expression::TypeImport {
+                target,
+                qualifier,
+                static_arguments,
+            } => {
                 let target = self.program.strings.intern_from(&ast.strings, *target);
                 let qualifier = qualifier
                     .as_ref()
                     .map(|path| self.bind_path(module, ast, path));
-                Expression::TypeImport { target, qualifier }
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.bind_argument(
+                                module,
+                                ast,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect()
+                });
+                Expression::TypeImport {
+                    target,
+                    qualifier,
+                    static_arguments,
+                }
             }
             ast::Expression::TypeInfer { name, constraint } => {
                 let name = self.program.strings.intern_from(&ast.strings, *name);

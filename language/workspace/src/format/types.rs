@@ -108,13 +108,27 @@ pub fn format_type(
             result.push('`');
             result
         }
-        dir::Type::Import { target, qualifier } => {
+        dir::Type::Import {
+            target,
+            qualifier,
+            static_arguments,
+        } => {
             let target = strings.get(*target);
             let mut result = format!("import(\"{}\")", target.as_ref());
             if let Some(qualifier) = qualifier {
                 let path = format_path(qualifier, strings);
                 result.push('.');
                 result.push_str(&path);
+            }
+            if let Some(static_arguments) = static_arguments {
+                let formatted_arguments = static_arguments
+                    .iter()
+                    .map(|argument| format_static_argument(argument, strings))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                result.push('<');
+                result.push_str(&formatted_arguments);
+                result.push('>');
             }
             result
         }

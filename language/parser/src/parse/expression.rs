@@ -134,6 +134,7 @@ fn to_infix_operator(
     else if !options.in_super_type
         && let Some(type_binary_operator) =
             TypeBinaryOperator::from_token(token_str, token.token.ty)
+        && (!options.in_type_mapped_constraint || type_binary_operator != TypeBinaryOperator::Cast)
     {
         Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
     }
@@ -585,15 +586,15 @@ impl Parser {
                 // eat expression
                 let expression_id = self.eat_expression()?;
 
-                // check if it's the same elementwise operator
+                // allow leading elementwise operators in type expressions
                 let expression = self.tree.get(expression_id);
-                match expression {
-                    Expression::Binary { operator, .. } if *operator == leading_binary_operator => {
-                        // all good, leading operator matches inner operator
-                    }
-                    _ => {
-                        return Err(ParseError::unexpected(self.get_span_from(start)));
-                    }
+                if !matches!(
+                    expression,
+                    Expression::Binary { operator, .. }
+                        if *operator == leading_binary_operator
+                ) && !self.options.in_type
+                {
+                    return Err(ParseError::unexpected(self.get_span_from(start)));
                 }
 
                 // expand span

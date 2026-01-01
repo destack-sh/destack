@@ -119,7 +119,10 @@ impl Compiler {
         };
 
         // select a declaration scope
-        let reuse_scope = merge_symbol.is_some() && kind == SymbolKind::Namespace;
+        let reuse_scope = kind == SymbolKind::Namespace
+            && merge_symbol.is_some_and(|existing_id| {
+                symbols.get_symbol(existing_id).kind == SymbolKind::Namespace
+            });
 
         // reuse the existing scope for namespace merges
         let scope_id = if reuse_scope {
@@ -130,6 +133,14 @@ impl Compiler {
             let scope_kind = ScopeKind::Namespace;
             symbols.insert_scope(scope_kind, Some(scope), Some(symbol_id))
         };
+
+        // promote namespace merges to namespace symbols and point to the namespace scope
+        if kind == SymbolKind::Namespace {
+            let scope_mark = symbols.get_scope_mark(scope_id);
+            let symbol = symbols.get_symbol_mut(symbol_id);
+            symbol.kind = SymbolKind::Namespace;
+            symbol.scope = (scope_id, scope_mark);
+        }
 
         // attach the new symbol to a merge group if needed
         if let Some(group_id) = merge_group

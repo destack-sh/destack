@@ -211,12 +211,36 @@ impl Compiler {
                     ast::Expression::TypeTemplateLiteral { strings, spans }
                 }
 
-                dir::Expression::TypeImport { target, qualifier } => {
+                dir::Expression::TypeImport {
+                    target,
+                    qualifier,
+                    static_arguments,
+                } => {
                     let target = ast_strings.intern_from(&self.program.strings, *target);
                     let qualifier = qualifier.as_ref().map(|qualifier| {
                         self.unbind_path(qualifier, ast_strings, context)
                     });
-                    ast::Expression::TypeImport { target, qualifier }
+                    let static_arguments = static_arguments.as_ref().map(|arguments| {
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                self.unbind_argument(
+                                    module,
+                                    *argument,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect()
+                    });
+                    ast::Expression::TypeImport {
+                        target,
+                        qualifier,
+                        static_arguments,
+                    }
                 }
 
                 dir::Expression::TypeInfer { name, constraint } => {

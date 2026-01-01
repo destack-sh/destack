@@ -1762,10 +1762,15 @@ impl Compiler {
                     node_id,
                 )
             }
-            Type::Import { target, qualifier } => types.insert_type_from_any(
+            Type::Import {
+                target,
+                qualifier,
+                static_arguments,
+            } => types.insert_type_from_any(
                 Type::Import {
                     target: *target,
                     qualifier: qualifier.clone(),
+                    static_arguments: static_arguments.clone(),
                 },
                 node_id,
             ),

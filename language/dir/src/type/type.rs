@@ -156,6 +156,7 @@ pub enum Type {
     Import {
         target: StringId,
         qualifier: Option<Path>,
+        static_arguments: Option<Vec<StaticArgument>>,
     },
     /// Type infer binding.
     Infer {

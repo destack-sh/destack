@@ -127,6 +127,7 @@ pub enum Expression {
     TypeImport {
         target: StringId,
         qualifier: Option<Path>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Type infer binding.
     TypeInfer {

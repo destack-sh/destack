@@ -224,6 +224,8 @@ struct ObjectType<T> implements TypeBase<T> {
 }
 
 /// Refined type descriptor (a type with additional constraints).
+/// 
+/// Refinements are metadata only, the compiler does not validate them.
 struct RefinedType<T> implements TypeBase<T> {
     kind: "refined" = "refined",
     name: string,
