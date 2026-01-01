@@ -301,12 +301,23 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
             }
-            Argument::Spread { modifiers, value } => {
+            Argument::Spread {
+                modifiers,
+                label,
+                value,
+            } => {
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // keyword
                 write!(f, [token("...")])?;
-                write!(f, [value])?;
+                if let Some(label) = label {
+                    write!(f, [label])?;
+                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                    write!(f, [token(":"), space(), value])?;
+                } else {
+                    write!(f, [value])?;
+                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                }
             }
         }
 

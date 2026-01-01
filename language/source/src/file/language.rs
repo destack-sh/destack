@@ -68,6 +68,19 @@ impl LanguageType {
                 | Self::TypeScriptXml
         )
     }
+
+    /// Whether this language type supports module declarations.
+    #[inline]
+    pub fn supports_module_declaration(&self) -> bool {
+        matches!(
+            self,
+            Self::Destack
+                | Self::DestackDeclaration
+                | Self::TypeScript
+                | Self::TypeScriptDeclaration
+                | Self::TypeScriptXml
+        )
+    }
 }
 
 impl From<FileType> for LanguageType {

@@ -77,9 +77,10 @@ pub enum Argument {
         modifiers: Option<BindingModifier>,
         value: LocalNodeId<Expression>,
     },
-    /// Spread argument (like `...args`).
+    /// Spread argument (like `...args` or `[...args: any[]]`).
     Spread {
         modifiers: Option<BindingModifier>,
+        label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },
 }

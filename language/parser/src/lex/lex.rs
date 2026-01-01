@@ -614,7 +614,10 @@ impl Lexer<'_> {
                 // NOTE: we check tree_state() directly, not in_tree_content()
                 // (because in_tree_content() returns false inside expression containers
                 //  but we still need to recognize </tag> for nested tree literals)
-                else if self.tree_state() == TreeState::Content && self.peek() == '/' {
+                else if self.language.supports_jsx()
+                    && self.tree_state() == TreeState::Content
+                    && self.peek() == '/'
+                {
                     // pop from content mode (closing tag will finish with >)
                     self.pop_tree_state();
                     // push closing tag mode
@@ -622,7 +625,10 @@ impl Lexer<'_> {
                     (TokenType::LessThan, None)
                 }
                 // <Ident - tree opening tag (only in expression-start position)
-                else if self.is_tree_opening_position() && self.peek_tree_tag_start() {
+                else if self.language.supports_jsx()
+                    && self.is_tree_opening_position()
+                    && self.peek_tree_tag_start()
+                {
                     self.push_tree_state(TreeState::OpeningTag);
                     (TokenType::LessThan, None)
                 }

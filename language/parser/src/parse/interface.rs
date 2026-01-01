@@ -76,6 +76,7 @@ impl Parser {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
+        self.eat_newlines_maybe()?;
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
@@ -168,6 +169,33 @@ mod tests {
             assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Bar");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_interface_extends_with_newline() {
+        let mut test = TestParser::new(
+            r###"
+interface Foo extends Bar
+{
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+            assert_eq!(extends_types.len(), 1);
+            assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
         });
     }
 

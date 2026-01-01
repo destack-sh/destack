@@ -1450,10 +1450,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Argument::Spread {
                 modifiers,
+                label,
                 value: _,
             } => {
                 self.node("Argument::Spread", _id.id)
                     .field_optional("modifiers", modifiers)
+                    .field_optional("label", label)
                     .end();
             }
         }

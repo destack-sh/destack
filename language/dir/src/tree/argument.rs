@@ -70,8 +70,11 @@ pub enum Argument {
     },
     /// Positional argument (like `42` in `foo(42)`).
     Positional { value: LocalNodeId<Expression> },
-    /// Spread argument (like `...args`).
-    Spread { value: LocalNodeId<Expression> },
+    /// Spread argument (like `...args` or `[...args: any[]]`).
+    Spread {
+        label: Option<StringId>,
+        value: LocalNodeId<Expression>,
+    },
 }
 
 impl Argument {
