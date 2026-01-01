@@ -535,8 +535,8 @@ function merge<T, U>(): T where (
 
 ### Refinements
 
-Refinements add constraints and metadata to types.
-The compiler checks provided refinements at compile time where provable; runtime validation is opt-in via the `@destack-sh/schema` library.
+Refinements attach metadata to types for schema and validation tooling.
+The compiler treats refinements as opaque metadata and does not validate them.
 
 ```
 int.min(0)                           // int >= 0
@@ -603,39 +603,13 @@ type Percentage = float.min(0).max(100);
 type NonEmptyString = string.nonEmpty();
 ```
 
-Refined types propagate through assignments and narrowing:
-```
-function process(x: int.min(0).max(100)) {
-    // x is known to be in [0, 100]
-    
-    if x > 50 {
-        // x is narrowed to int.min(51).max(100)
-    }
-}
+Refinements do not affect type checking or narrowing.
+Assignability is based on the base type, and refinement metadata is preserved for reflection.
 
-const a: int.min(10) = 15;
-const b: int.min(0) = a;    // ok: min(10) implies min(0)
-const c: int.min(20) = a;   // error: min(10) doesn't imply min(20)
-```
+#### Runtime Validation
 
-#### Refinement Validation
-
-The compiler checks refinements at compile time when values are provable:
-
-```
-function setAge(age: uint.max(150)) { }
-
-setAge(30);      // ok: 30 ≤ 150
-setAge(200);     // compile error: 200 > 150
-
-const x = 25;
-setAge(x);       // ok: x is known to be 25
-
-let y = getInput();
-setAge(y);       // compile error: can't prove y ≤ 150
-```
-
-When the compiler can't prove a refinement, it's a **compile error**, and you need to coerce or dynamically check.
+Refinement validation is explicit and runtime.
+The compiler does not validate refinements or reject values based on them.
 For the standard library `@destack-sh/schema`, we provide convenient checks:
 
 ```
@@ -643,12 +617,10 @@ import { parse, safeParse } from "@destack-sh/schema";
 
 let y = getInput();
 const validated = parse(uint.max(150), y);  // throws if y > 150
-setAge(validated);                           // ok: validated has refined type
-
 // or without throwing:
 const result = safeParse(uint.max(150), y);
 if (result.ok) {
-    setAge(result.value);
+    const value = result.value;
 }
 ```
 
@@ -2187,6 +2159,17 @@ The example uses `Result`, but any type implementing `Try` behaves the same.
 `try` does not implicitly unwrap `Result` values.
 Use `?` or `??` inside the block to propagate `Try` errors into the catch.
 Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
+A try expression must include a catch or finally block.
+
+```
+try {
+    riskyOperationA()?;
+} catch match e {
+    NumericError(x) => Error(@format("bad number: {x}"))
+    FormatError => Error(@format("bad format {e}"))
+    _ => Error(@format("unknown error: {e}"))
+}
+```
 
 #### Panic
 
