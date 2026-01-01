@@ -49,6 +49,8 @@ This mindest also extends to the features Destack extends TypeScript with:
 | [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/specification/dispatch/) |
 | [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/specification/ownership/) |
 
+<!-- FUGU: remove refinements? (keep as metadata, but no builtin validation, too much magic) -->
+
 ## Expressions
 
 In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value out. 

@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn test_resolve_well_known_symbols() {
         let test =
-            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2015"]);
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2018"]);
         test.resolve_builtins();
         test.resolve_libs();
         test.compile();
@@ -356,7 +356,10 @@ mod tests {
             .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
         for symbol in WellKnownSymbol::all() {
             if symbol.export_name().is_some() {
-                assert!(well_known.get_symbol(symbol).is_some());
+                assert!(
+                    well_known.get_symbol(symbol).is_some(),
+                    "missing well-known symbol {symbol:?}"
+                );
             }
 
             if let Some(expected_member) = symbol.member_name() {
@@ -376,9 +379,7 @@ mod tests {
     }
 
     /// Resolve all builtin libs without errors.
-    // FUGU #Incomplete: support all builtin libs properly
     #[test]
-    #[ignore]
     fn test_resolve_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
             let test = TestProgram::memory_sequential_with_prelude_and_libs()
