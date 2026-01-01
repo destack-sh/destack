@@ -45,11 +45,10 @@ This mindest also extends to the features Destack extends TypeScript with:
 | [Errors](#errors) | `Result`-first error handling with `?` propagation, no exceptions | |
 | [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
-| [Reflection](#reflection) | Types as values, runtime type descriptors, refinements, schema validation | [reflection/](test/fixtures/specification/reflection/) |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, refinement metadata, schema validation | [reflection/](test/fixtures/specification/reflection/) |
 | [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/specification/dispatch/) |
 | [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/specification/ownership/) |
 
-<!-- FUGU: remove refinements? (keep as metadata, but no builtin validation, too much magic) -->
 
 ## Expressions
 
@@ -241,6 +240,17 @@ The example uses `Result`, but any type implementing `Try` behaves the same.
 `try` does not implicitly unwrap `Result` values.
 Use `?` or `??` inside the block to propagate `Try` errors into the catch.
 Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
+A try expression must include a catch or finally block.
+
+```
+try {
+    riskyOperationA()?;
+} catch match e {
+    NumericError(x) => Error(@format("bad number: {x}"))
+    FormatError => Error(@format("bad format {e}"))
+    _ => Error(@format("unknown error: {e}"))
+}
+```
 
 ### Design Rationale
 
@@ -501,7 +511,8 @@ oldAPI.decorators       // [{ name: "deprecated", arguments: ["use newAPI"] }]
 
 ### Refinements
 
-Refinements add constraints to types that are checked both at compile time (when provable) and at runtime (via validation).
+Refinements attach metadata to types for schema and validation tooling.
+The compiler treats refinements as opaque metadata and does not validate them.
 Refinement methods are defined via extensions on types:
 
 ```
@@ -512,12 +523,8 @@ type User = {
 }
 ```
 
-The compiler checks refinements when values are provable:
-
-```
-{ name: "", age: 200, ... } satisfies User      // compile error: "" too short, 200 > max
-{ name: "Alice", age: 30, ... } satisfies User  // ok
-```
+Refinements do not affect type checking or narrowing.
+Use explicit `where` clauses or guards for static enforcement, and runtime validation when needed.
 
 ### Standard Library Schema
 
@@ -541,7 +548,7 @@ This is similar to how schema libraries work, but without the schema/type duplic
 const UserSchema = t.object({ name: z.string().min(1) });
 type User = t.infer<typeof UserSchema>;
 
-// Destack: define type, validation is automatic
+// Destack: define type, validation is explicit
 type User = { name: string.minLength(1) }
 parse(User, data);  // User IS the schema
 ```
