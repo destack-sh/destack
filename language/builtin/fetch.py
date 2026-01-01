@@ -187,7 +187,7 @@ def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
 
     # fetch scripthost libraries
     print("  - scripthost")
-    fetch_typescript_library("lib.scripthost.d.ts", library_directory / "scripthost.d.ts")
+    fetch_typescript_library("lib.scripthost.d.ts", library_directory / "scripthost" / "index.d.ts")
 
 
 def parse_target_overrides(value: str, default: list[tuple[str, str]]) -> list[tuple[str, str]]:
