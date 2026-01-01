@@ -19,7 +19,7 @@ async function read(): Promise<number> {
 }
 ```
 
-### await keeps non promise values
+### await rejects non promise values
 
 ```test libs=es2015.promise
 ```
@@ -32,13 +32,15 @@ async function read(): Promise<string> {
 }
 ```
 
+- contains: not assignable
+
 ### await distributes over unions
 
 ```test libs=es2015.promise
 ```
 
 ```ds
-declare const value: Promise<number> | string;
+declare const value: Promise<number> | Promise<string>;
 
 async function read(): Promise<number | string> {
     const inner = await value;
@@ -77,13 +79,13 @@ async function read(): Promise<any> {
 }
 ```
 
-### await preserves unknown values
+### await preserves unknown promise values
 
 ```test libs=es2015.promise
 ```
 
 ```ds
-declare const value: unknown;
+declare const value: Promise<unknown>;
 
 async function read(): Promise<unknown> {
     const inner = await value;

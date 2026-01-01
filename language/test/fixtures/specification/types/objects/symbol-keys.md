@@ -21,6 +21,34 @@ const box: IterableBox = { [Symbol.iterator]: 1 }
 box[Symbol.iterator] satisfies int32
 ```
 
+## keyof preserves well-known symbol keys
+
+> Keyof should include the specific well-known symbol.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "lib": ["es2015"] } }
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds
+interface IterableBox {
+    [Symbol.iterator]: int32
+    name: string
+}
+
+type Keys = keyof IterableBox;
+
+const goodWellKnown: Keys = Symbol.iterator;
+const goodName: Keys = "name";
+const other: symbol = Symbol("other");
+const badSymbol: Keys = other;
+```
+
+- contains: not assignable
+
 ## Symbol.for keys are accepted
 
 > Registry symbol keys can be used in object types.
