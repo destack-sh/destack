@@ -274,7 +274,7 @@ impl LanguageBuiltins {
 
         let lib = builtin_lib(name)?;
 
-        // recursively load dependencies first
+        // recursively load dependencies
         for &dependency in lib.dependencies {
             self.load_lib(dependency, files.clone(), modules.clone())?;
         }
@@ -291,6 +291,11 @@ impl LanguageBuiltins {
             .insert(name.to_string(), module_ids.clone());
 
         Some(module_ids)
+    }
+
+    /// Set the ambient lib modules for a profile.
+    pub fn set_ambient_libs(&self, profile_id: ProfileId, modules: Vec<ModuleId>) {
+        self.ambient_libs_by_profile.insert(profile_id, modules);
     }
 
     /// Get the ambient lib modules for a profile, if any.
@@ -312,11 +317,6 @@ impl LanguageBuiltins {
         self.well_known_by_profile
             .get(&profile_id)
             .map(|symbols| symbols.clone())
-    }
-
-    /// Set the ambient lib modules for a profile.
-    pub fn set_ambient_libs(&self, profile_id: ProfileId, modules: Vec<ModuleId>) {
-        self.ambient_libs_by_profile.insert(profile_id, modules);
     }
 
     /// Set the canonical lib symbols for a profile.
