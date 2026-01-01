@@ -103,7 +103,7 @@ impl TestProgram {
 
         // resolve path segments
         for segment in path_segments {
-            let segment_id = self.program.strings.intern(*segment);
+            let segment_id = self.program.strings.intern(segment);
             let key = StaticKey::Name(segment_id);
             if let Some(next_symbol_id) = scope.find(key) {
                 current_symbol_id = next_symbol_id;

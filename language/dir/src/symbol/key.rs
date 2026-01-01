@@ -1,6 +1,17 @@
 use crate::LocalNodeIdAny;
 use destack_base::{StringId, StringPool};
 
+/// Symbol as a key.
+#[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
+pub enum SymbolKey {
+    /// Unique symbol expression (like `const x = Symbol("x");`).
+    UniqueSymbol(LocalNodeIdAny),
+    /// Global symbol key (like `Symbol.iterator`).
+    GlobalSymbol(StringId),
+    /// Unknown expression.
+    Unknown(LocalNodeIdAny),
+}
+
 /// Key for a symbol / some static "identifier".
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
 pub enum StaticKey {
@@ -11,7 +22,7 @@ pub enum StaticKey {
     /// Unique symbol expression (like `const x = Symbol("x");`).
     UniqueSymbol(LocalNodeIdAny),
     /// Global symbol key (like `Symbol.iterator`).
-    /// FUGU: wire WellKnownSymbol into StaticKey?
+    /// FUGU: wire WellKnownSymbol into StaticKey? replace UniqueSymbol and GlobalSymbol with SymbolKey?
     GlobalSymbol(StringId),
 }
 

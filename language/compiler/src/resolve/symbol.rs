@@ -1162,7 +1162,6 @@ export let B = A + 1;
     /// Stress test: resolve symbols across N modules with overlapping imports.
     /// Module i imports from all modules 1..i, creating many concurrent imports to the same files.
     #[test]
-    #[ignore] // FUGU: fix test_resolve_symbol_across_n_modules timeout 
     fn test_resolve_symbol_across_n_modules() {
         const N: usize = 20;
         let test = TestProgram::memory_parallel();
