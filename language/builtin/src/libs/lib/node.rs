@@ -3,26 +3,26 @@ use super::super::source::{BuiltinLib, BuiltinLibSource};
 const LIB_NODE_V18_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "node/v18",
-    "index.d.ds",
-    include_str!(concat!("../../../lib/node/v18/index.d.ds")),
+    "index.d.ts",
+    include_str!(concat!("../../../lib/node/v18/index.d.ts")),
 );
 const LIB_NODE_V20_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "node/v20",
-    "index.d.ds",
-    include_str!(concat!("../../../lib/node/v20/index.d.ds")),
+    "index.d.ts",
+    include_str!(concat!("../../../lib/node/v20/index.d.ts")),
 );
 const LIB_NODE_V22_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "node/v22",
-    "index.d.ds",
-    include_str!(concat!("../../../lib/node/v22/index.d.ds")),
+    "index.d.ts",
+    include_str!(concat!("../../../lib/node/v22/index.d.ts")),
 );
 const LIB_NODE_V24_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "node/v24",
-    "index.d.ds",
-    include_str!(concat!("../../../lib/node/v24/index.d.ds")),
+    "index.d.ts",
+    include_str!(concat!("../../../lib/node/v24/index.d.ts")),
 );
 
 pub const LIB_NODE: BuiltinLib =

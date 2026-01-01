@@ -86,14 +86,13 @@ generate-schema:
 
 # --- builtin libs ---
 
-# typescript lib version is pinned in builtin/scripts/versions.sh
+# typescript lib version is pinned in builtin/fetch.py
 fetch-builtin-libs-version:
-    source ./builtin/scripts/versions.sh
-    echo "typescript lib version: ${TS_VERSION}"
+    python3 ./builtin/fetch.py --print-versions
 
 # fetch typescript libs into builtin/lib
 fetch-builtin-libs:
-    ./builtin/scripts/fetch.sh
+    python3 ./builtin/fetch.py
 
 # --- test ---
 

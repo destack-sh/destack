@@ -19,10 +19,12 @@ pub use worker::*;
 pub const LIBS: &[BuiltinLib] = &[
     LIB_BUN,
     LIB_BUN_V1_3,
+    LIB_BUN_V1_2,
     LIB_DECORATORS,
     LIB_DECORATORS_LEGACY,
     LIB_DENO,
     LIB_DENO_V2_6,
+    LIB_DENO_V2_5,
     LIB_DOM,
     LIB_DOM_ASYNCITERABLE,
     LIB_DOM_ITERABLE,

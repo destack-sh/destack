@@ -12,13 +12,13 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2018_ASYNCGENERATOR_D_DS, "asyncgenerator.d.ds");
-lib_source!(LIB_ES_ES2018_ASYNCITERABLE_D_DS, "asynciterable.d.ds");
-lib_source!(LIB_ES_ES2018_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2018_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2018_INTL_D_DS, "intl.d.ds");
-lib_source!(LIB_ES_ES2018_PROMISE_D_DS, "promise.d.ds");
-lib_source!(LIB_ES_ES2018_REGEXP_D_DS, "regexp.d.ds");
+lib_source!(LIB_ES_ES2018_ASYNCGENERATOR_D_DS, "asyncgenerator.d.ts");
+lib_source!(LIB_ES_ES2018_ASYNCITERABLE_D_DS, "asynciterable.d.ts");
+lib_source!(LIB_ES_ES2018_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2018_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2018_INTL_D_DS, "intl.d.ts");
+lib_source!(LIB_ES_ES2018_PROMISE_D_DS, "promise.d.ts");
+lib_source!(LIB_ES_ES2018_REGEXP_D_DS, "regexp.d.ts");
 
 pub const LIB_ES2018: BuiltinLib = BuiltinLib::ambient(
     "es2018",

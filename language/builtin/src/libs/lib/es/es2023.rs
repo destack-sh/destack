@@ -12,11 +12,11 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2023_ARRAY_D_DS, "array.d.ds");
-lib_source!(LIB_ES_ES2023_COLLECTION_D_DS, "collection.d.ds");
-lib_source!(LIB_ES_ES2023_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2023_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2023_INTL_D_DS, "intl.d.ds");
+lib_source!(LIB_ES_ES2023_ARRAY_D_DS, "array.d.ts");
+lib_source!(LIB_ES_ES2023_COLLECTION_D_DS, "collection.d.ts");
+lib_source!(LIB_ES_ES2023_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2023_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2023_INTL_D_DS, "intl.d.ts");
 
 pub const LIB_ES2023: BuiltinLib = BuiltinLib::ambient(
     "es2023",

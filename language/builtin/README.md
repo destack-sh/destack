@@ -114,5 +114,5 @@ Everything else is a library that the compiler doesn't need to know or assume an
 
 ## Updating builtin libs
 
-TypeScript lib sources are fetched with `language/builtin/scripts/fetch.sh`.
-The pinned TypeScript version lives in `language/builtin/scripts/versions.sh` and should be updated manually.
+TypeScript lib sources are fetched with `language/builtin/fetch.py`.
+The pinned TypeScript version lives in `language/builtin/fetch.py` and should be updated manually.

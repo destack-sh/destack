@@ -11,18 +11,18 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ESNEXT_ARRAY_D_DS, "array.d.ds");
-lib_source!(LIB_ES_ESNEXT_COLLECTION_D_DS, "collection.d.ds");
-lib_source!(LIB_ES_ESNEXT_DECORATORS_D_DS, "decorators.d.ds");
-lib_source!(LIB_ES_ESNEXT_DISPOSABLE_D_DS, "disposable.d.ds");
-lib_source!(LIB_ES_ESNEXT_ERROR_D_DS, "error.d.ds");
-lib_source!(LIB_ES_ESNEXT_FLOAT16_D_DS, "float16.d.ds");
-lib_source!(LIB_ES_ESNEXT_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ESNEXT_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ESNEXT_INTL_D_DS, "intl.d.ds");
-lib_source!(LIB_ES_ESNEXT_ITERATOR_D_DS, "iterator.d.ds");
-lib_source!(LIB_ES_ESNEXT_PROMISE_D_DS, "promise.d.ds");
-lib_source!(LIB_ES_ESNEXT_SHAREDMEMORY_D_DS, "sharedmemory.d.ds");
+lib_source!(LIB_ES_ESNEXT_ARRAY_D_DS, "array.d.ts");
+lib_source!(LIB_ES_ESNEXT_COLLECTION_D_DS, "collection.d.ts");
+lib_source!(LIB_ES_ESNEXT_DECORATORS_D_DS, "decorators.d.ts");
+lib_source!(LIB_ES_ESNEXT_DISPOSABLE_D_DS, "disposable.d.ts");
+lib_source!(LIB_ES_ESNEXT_ERROR_D_DS, "error.d.ts");
+lib_source!(LIB_ES_ESNEXT_FLOAT16_D_DS, "float16.d.ts");
+lib_source!(LIB_ES_ESNEXT_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ESNEXT_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ESNEXT_INTL_D_DS, "intl.d.ts");
+lib_source!(LIB_ES_ESNEXT_ITERATOR_D_DS, "iterator.d.ts");
+lib_source!(LIB_ES_ESNEXT_PROMISE_D_DS, "promise.d.ts");
+lib_source!(LIB_ES_ESNEXT_SHAREDMEMORY_D_DS, "sharedmemory.d.ts");
 
 pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::ambient(
     "esnext",

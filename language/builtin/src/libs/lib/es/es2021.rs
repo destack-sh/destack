@@ -12,12 +12,12 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2021_INTL_D_DS, "intl.d.ds");
-lib_source!(LIB_ES_ES2021_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2021_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2021_PROMISE_D_DS, "promise.d.ds");
-lib_source!(LIB_ES_ES2021_STRING_D_DS, "string.d.ds");
-lib_source!(LIB_ES_ES2021_WEAKREF_D_DS, "weakref.d.ds");
+lib_source!(LIB_ES_ES2021_INTL_D_DS, "intl.d.ts");
+lib_source!(LIB_ES_ES2021_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2021_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2021_PROMISE_D_DS, "promise.d.ts");
+lib_source!(LIB_ES_ES2021_STRING_D_DS, "string.d.ts");
+lib_source!(LIB_ES_ES2021_WEAKREF_D_DS, "weakref.d.ts");
 
 pub const LIB_ES2021: BuiltinLib = BuiltinLib::ambient(
     "es2021",

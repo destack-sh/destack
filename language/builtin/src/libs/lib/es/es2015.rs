@@ -12,16 +12,16 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2015_COLLECTION_D_DS, "collection.d.ds");
-lib_source!(LIB_ES_ES2015_CORE_D_DS, "core.d.ds");
-lib_source!(LIB_ES_ES2015_GENERATOR_D_DS, "generator.d.ds");
-lib_source!(LIB_ES_ES2015_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2015_ITERABLE_D_DS, "iterable.d.ds");
-lib_source!(LIB_ES_ES2015_PROMISE_D_DS, "promise.d.ds");
-lib_source!(LIB_ES_ES2015_PROXY_D_DS, "proxy.d.ds");
-lib_source!(LIB_ES_ES2015_REFLECT_D_DS, "reflect.d.ds");
-lib_source!(LIB_ES_ES2015_SYMBOL_D_DS, "symbol.d.ds");
-lib_source!(LIB_ES_ES2015_SYMBOL_WELLKNOWN_D_DS, "symbol.wellknown.d.ds");
+lib_source!(LIB_ES_ES2015_COLLECTION_D_DS, "collection.d.ts");
+lib_source!(LIB_ES_ES2015_CORE_D_DS, "core.d.ts");
+lib_source!(LIB_ES_ES2015_GENERATOR_D_DS, "generator.d.ts");
+lib_source!(LIB_ES_ES2015_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2015_ITERABLE_D_DS, "iterable.d.ts");
+lib_source!(LIB_ES_ES2015_PROMISE_D_DS, "promise.d.ts");
+lib_source!(LIB_ES_ES2015_PROXY_D_DS, "proxy.d.ts");
+lib_source!(LIB_ES_ES2015_REFLECT_D_DS, "reflect.d.ts");
+lib_source!(LIB_ES_ES2015_SYMBOL_D_DS, "symbol.d.ts");
+lib_source!(LIB_ES_ES2015_SYMBOL_WELLKNOWN_D_DS, "symbol.wellknown.d.ts");
 
 pub const LIB_ES2015: BuiltinLib = BuiltinLib::ambient(
     "es2015",

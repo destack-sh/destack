@@ -12,10 +12,10 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2016_ARRAY_INCLUDE_D_DS, "array.include.d.ds");
-lib_source!(LIB_ES_ES2016_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2016_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2016_INTL_D_DS, "intl.d.ds");
+lib_source!(LIB_ES_ES2016_ARRAY_INCLUDE_D_DS, "array.include.d.ts");
+lib_source!(LIB_ES_ES2016_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2016_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2016_INTL_D_DS, "intl.d.ts");
 
 pub const LIB_ES2016: BuiltinLib = BuiltinLib::ambient(
     "es2016",
