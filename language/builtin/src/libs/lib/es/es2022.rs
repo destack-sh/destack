@@ -12,14 +12,14 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2022_ARRAY_D_DS, "array.d.ds");
-lib_source!(LIB_ES_ES2022_ERROR_D_DS, "error.d.ds");
-lib_source!(LIB_ES_ES2022_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2022_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2022_INTL_D_DS, "intl.d.ds");
-lib_source!(LIB_ES_ES2022_OBJECT_D_DS, "object.d.ds");
-lib_source!(LIB_ES_ES2022_REGEXP_D_DS, "regexp.d.ds");
-lib_source!(LIB_ES_ES2022_STRING_D_DS, "string.d.ds");
+lib_source!(LIB_ES_ES2022_ARRAY_D_DS, "array.d.ts");
+lib_source!(LIB_ES_ES2022_ERROR_D_DS, "error.d.ts");
+lib_source!(LIB_ES_ES2022_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2022_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2022_INTL_D_DS, "intl.d.ts");
+lib_source!(LIB_ES_ES2022_OBJECT_D_DS, "object.d.ts");
+lib_source!(LIB_ES_ES2022_REGEXP_D_DS, "regexp.d.ts");
+lib_source!(LIB_ES_ES2022_STRING_D_DS, "string.d.ts");
 
 pub const LIB_ES2022: BuiltinLib = BuiltinLib::ambient(
     "es2022",

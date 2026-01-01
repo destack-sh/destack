@@ -12,15 +12,15 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2017_DATE_D_DS, "date.d.ds");
-lib_source!(LIB_ES_ES2017_ARRAYBUFFER_D_DS, "arraybuffer.d.ds");
-lib_source!(LIB_ES_ES2017_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2017_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2017_INTL_D_DS, "intl.d.ds");
-lib_source!(LIB_ES_ES2017_OBJECT_D_DS, "object.d.ds");
-lib_source!(LIB_ES_ES2017_SHAREDMEMORY_D_DS, "sharedmemory.d.ds");
-lib_source!(LIB_ES_ES2017_STRING_D_DS, "string.d.ds");
-lib_source!(LIB_ES_ES2017_TYPEDARRAYS_D_DS, "typedarrays.d.ds");
+lib_source!(LIB_ES_ES2017_DATE_D_DS, "date.d.ts");
+lib_source!(LIB_ES_ES2017_ARRAYBUFFER_D_DS, "arraybuffer.d.ts");
+lib_source!(LIB_ES_ES2017_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2017_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2017_INTL_D_DS, "intl.d.ts");
+lib_source!(LIB_ES_ES2017_OBJECT_D_DS, "object.d.ts");
+lib_source!(LIB_ES_ES2017_SHAREDMEMORY_D_DS, "sharedmemory.d.ts");
+lib_source!(LIB_ES_ES2017_STRING_D_DS, "string.d.ts");
+lib_source!(LIB_ES_ES2017_TYPEDARRAYS_D_DS, "typedarrays.d.ts");
 
 pub const LIB_ES2017: BuiltinLib = BuiltinLib::ambient(
     "es2017",

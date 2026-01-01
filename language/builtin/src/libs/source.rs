@@ -38,7 +38,7 @@ impl BuiltinLibSource {
         }
     }
 
-    /// Return the full virtual path (e.g., "builtin://lib/es/es2024/arraybuffer.d.ds").
+    /// Return the full virtual path (e.g., "builtin://lib/es/es2024/arraybuffer.d.ts").
     pub fn virtual_path(&self) -> String {
         if self.path.is_empty() {
             format!("builtin://{}/{}", self.root, self.name)
@@ -47,7 +47,7 @@ impl BuiltinLibSource {
         }
     }
 
-    /// Return the relative module path (e.g., "lib/es/es2024/arraybuffer.d.ds").
+    /// Return the relative module path (e.g., "lib/es/es2024/arraybuffer.d.ts").
     pub fn module_path(&self) -> String {
         if self.path.is_empty() {
             format!("{}/{}", self.root, self.name)

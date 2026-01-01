@@ -3,20 +3,20 @@ use super::super::source::{BuiltinLib, BuiltinLibSource};
 const LIB_DOM_ASYNCITERABLE_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "dom",
-    "asynciterable.d.ds",
-    include_str!(concat!("../../../lib/dom/asynciterable.d.ds")),
+    "asynciterable.d.ts",
+    include_str!(concat!("../../../lib/dom/asynciterable.d.ts")),
 );
 const LIB_DOM_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "dom",
-    "index.d.ds",
-    include_str!(concat!("../../../lib/dom/index.d.ds")),
+    "index.d.ts",
+    include_str!(concat!("../../../lib/dom/index.d.ts")),
 );
 const LIB_DOM_ITERABLE_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "dom",
-    "iterable.d.ds",
-    include_str!(concat!("../../../lib/dom/iterable.d.ds")),
+    "iterable.d.ts",
+    include_str!(concat!("../../../lib/dom/iterable.d.ts")),
 );
 
 const DOM_CANONICAL_EXPORTS: &[&str] = &["Document", "Element", "Event", "EventTarget", "Window"];

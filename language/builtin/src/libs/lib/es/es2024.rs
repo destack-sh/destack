@@ -12,15 +12,15 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2024_ARRAYBUFFER_D_DS, "arraybuffer.d.ds");
-lib_source!(LIB_ES_ES2024_COLLECTION_D_DS, "collection.d.ds");
-lib_source!(LIB_ES_ES2024_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2024_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2024_OBJECT_D_DS, "object.d.ds");
-lib_source!(LIB_ES_ES2024_PROMISE_D_DS, "promise.d.ds");
-lib_source!(LIB_ES_ES2024_REGEXP_D_DS, "regexp.d.ds");
-lib_source!(LIB_ES_ES2024_SHAREDMEMORY_D_DS, "sharedmemory.d.ds");
-lib_source!(LIB_ES_ES2024_STRING_D_DS, "string.d.ds");
+lib_source!(LIB_ES_ES2024_ARRAYBUFFER_D_DS, "arraybuffer.d.ts");
+lib_source!(LIB_ES_ES2024_COLLECTION_D_DS, "collection.d.ts");
+lib_source!(LIB_ES_ES2024_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2024_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2024_OBJECT_D_DS, "object.d.ts");
+lib_source!(LIB_ES_ES2024_PROMISE_D_DS, "promise.d.ts");
+lib_source!(LIB_ES_ES2024_REGEXP_D_DS, "regexp.d.ts");
+lib_source!(LIB_ES_ES2024_SHAREDMEMORY_D_DS, "sharedmemory.d.ts");
+lib_source!(LIB_ES_ES2024_STRING_D_DS, "string.d.ts");
 
 pub const LIB_ES2024: BuiltinLib = BuiltinLib::ambient(
     "es2024",

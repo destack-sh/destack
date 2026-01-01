@@ -12,16 +12,16 @@ macro_rules! lib_source {
     };
 }
 
-lib_source!(LIB_ES_ES2020_BIGINT_D_DS, "bigint.d.ds");
-lib_source!(LIB_ES_ES2020_DATE_D_DS, "date.d.ds");
-lib_source!(LIB_ES_ES2020_FULL_D_DS, "full.d.ds");
-lib_source!(LIB_ES_ES2020_INDEX_D_DS, "index.d.ds");
-lib_source!(LIB_ES_ES2020_INTL_D_DS, "intl.d.ds");
-lib_source!(LIB_ES_ES2020_NUMBER_D_DS, "number.d.ds");
-lib_source!(LIB_ES_ES2020_PROMISE_D_DS, "promise.d.ds");
-lib_source!(LIB_ES_ES2020_SHAREDMEMORY_D_DS, "sharedmemory.d.ds");
-lib_source!(LIB_ES_ES2020_STRING_D_DS, "string.d.ds");
-lib_source!(LIB_ES_ES2020_SYMBOL_WELLKNOWN_D_DS, "symbol.wellknown.d.ds");
+lib_source!(LIB_ES_ES2020_BIGINT_D_DS, "bigint.d.ts");
+lib_source!(LIB_ES_ES2020_DATE_D_DS, "date.d.ts");
+lib_source!(LIB_ES_ES2020_FULL_D_DS, "full.d.ts");
+lib_source!(LIB_ES_ES2020_INDEX_D_DS, "index.d.ts");
+lib_source!(LIB_ES_ES2020_INTL_D_DS, "intl.d.ts");
+lib_source!(LIB_ES_ES2020_NUMBER_D_DS, "number.d.ts");
+lib_source!(LIB_ES_ES2020_PROMISE_D_DS, "promise.d.ts");
+lib_source!(LIB_ES_ES2020_SHAREDMEMORY_D_DS, "sharedmemory.d.ts");
+lib_source!(LIB_ES_ES2020_STRING_D_DS, "string.d.ts");
+lib_source!(LIB_ES_ES2020_SYMBOL_WELLKNOWN_D_DS, "symbol.wellknown.d.ts");
 
 pub const LIB_ES2020: BuiltinLib = BuiltinLib::ambient(
     "es2020",

@@ -4,14 +4,14 @@ use super::ES_CANONICAL_EXPORTS;
 const LIB_ES_DECORATORS_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "es",
-    "decorators.d.ds",
-    include_str!(concat!("../../../../lib/es/decorators.d.ds")),
+    "decorators.d.ts",
+    include_str!(concat!("../../../../lib/es/decorators.d.ts")),
 );
 const LIB_ES_DECORATORS_LEGACY_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
     "es",
-    "decorators.legacy.d.ds",
-    include_str!(concat!("../../../../lib/es/decorators.legacy.d.ds")),
+    "decorators.legacy.d.ts",
+    include_str!(concat!("../../../../lib/es/decorators.legacy.d.ts")),
 );
 
 pub const LIB_DECORATORS: BuiltinLib =
