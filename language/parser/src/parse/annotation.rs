@@ -14,6 +14,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
+#[allow(clippy::too_many_arguments)]
 impl Parser {
     /// Eat all side annotations (decorators).
     /// NOTE: One full pass, consuming the entire Parser.

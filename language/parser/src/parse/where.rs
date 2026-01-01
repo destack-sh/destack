@@ -15,9 +15,13 @@ impl Parser {
     /// where !Bar
     /// ```
     pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
+        // allow newlines before where
+        let mark = self.mark();
+        self.eat_newlines_maybe()?;
         if self.peek_keyword(Keyword::Where).is_ok() {
             Ok(Some(self.eat_where()?))
         } else {
+            self.rewind(mark);
             Ok(None)
         }
     }

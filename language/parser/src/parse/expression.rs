@@ -238,6 +238,25 @@ impl Parser {
         to_infix_operator(token_str, token, next_token, next_next_token, self.options)
     }
 
+    /// Peek an infix operator after any newlines.
+    #[inline]
+    pub fn peek_infix_operator_after_newlines(&self) -> ParseResult<(InfixOperator, u8)> {
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos + 1)
+            && token.token.ty == TokenType::Newline
+        {
+            pos += 1;
+        }
+        let token = self
+            .tokens
+            .get(pos + 1)
+            .ok_or(ParseError::unexpected(self.eof_token.span))?;
+        let token_str = self.get_span_str(token.span);
+        let next_token = self.tokens.get(pos + 2).unwrap_or(&self.eof_token);
+        let next_next_token = self.tokens.get(pos + 3).unwrap_or(&self.eof_token);
+        to_infix_operator(token_str, token, next_token, next_next_token, self.options)
+    }
+
     /// Make an expression from an infix operator.
     #[inline]
     fn make_infix_expression(
@@ -1644,6 +1663,22 @@ impl Parser {
                 // infix operator on next line with higher precedence
                 else if self.peek_token(TokenType::Newline).is_ok()
                     && let Ok((operator, operator_offset)) = self.peek_next_infix_operator()
+                    && (self.options.left_precedence.is_none()
+                        || self.options.left_precedence.unwrap() < operator.precedence())
+                {
+                    (operator, operator_offset)
+                }
+                // infix operator after multiple newlines in type expressions
+                else if self.peek_token(TokenType::Newline).is_ok()
+                    && self.options.in_type
+                    && let Ok((operator, operator_offset)) =
+                        self.peek_infix_operator_after_newlines()
+                    && matches!(
+                        operator,
+                        InfixOperator::Binary(
+                            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                        )
+                    )
                     && (self.options.left_precedence.is_none()
                         || self.options.left_precedence.unwrap() < operator.precedence())
                 {
@@ -3339,6 +3374,52 @@ type Value =
                     });
                     // boolean
                     assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
+                });
+            });
+        });
+    }
+
+    /// Parse a leading elementwise operator in a type expression with doc comments.
+    #[test]
+    fn test_parse_elementwise_leading_type_expression_with_docs() {
+        let mut test = TestParser::new(
+            r###"
+type Target =
+  /**
+   * bun
+   */
+  | "bun"
+  /**
+   * node
+   */
+  | "node"
+  /**
+   * browser
+   */
+  | "browser"
+            "###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expr_id = parser.eat_expression().unwrap();
+        // type Target = | "bun" | "node" | "browser"
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor: DeclarationDescriptor { name, .. }, value, .. } => {
+                assert_string!(parser, name.unwrap().string(), "Target");
+                assert_node!(parser.tree, *value, Expression::Binary { left, operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_node!(parser.tree, *left, Expression::Binary { left, operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::String(bun_id)) => {
+                            assert_string!(parser, *bun_id, "bun");
+                        });
+                        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::String(node_id)) => {
+                            assert_string!(parser, *node_id, "node");
+                        });
+                    });
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::String(browser_id)) => {
+                        assert_string!(parser, *browser_id, "browser");
+                    });
                 });
             });
         });
