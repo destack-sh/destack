@@ -1066,18 +1066,94 @@ impl Compiler {
                 scope: _,
                 symbol: _,
             } => {
-                let try_ty_id =
-                    self.infer_expression(module, *try_expression, tree, symbols, types, infer, ctx)?;
-                if let Some(catch_pat) = catch_pattern {
-                    self.infer_pattern(module, *catch_pat, None, tree, symbols, types, infer, ctx)?;
+                // validate try shape
+                if catch_expression.is_none() && finally_expression.is_none() {
+                    self.error(AnalyzeError::IncompleteTry {
+                        node: expression_id.into_global_any(module.id),
+                    });
                 }
+
+                // collect try errors for catch typing
+                let has_catch = catch_expression.is_some();
+                ctx.push_try_frame(has_catch);
+
+                // infer the try body
+                let mut try_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                let try_ty_id = self.infer_expression(
+                    module,
+                    *try_expression,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut try_ctx,
+                )?;
+
+                // capture try errors before entering catch
+                let try_error_types = ctx
+                    .pop_try_frame()
+                    .map(|frame| frame.error_types)
+                    .unwrap_or_default();
+
+                // infer the catch pattern and expression
+                let mut catch_ty_id = None;
                 if let Some(catch_expr) = catch_expression {
-                    self.infer_expression(module, *catch_expr, tree, symbols, types, infer, ctx)?;
+                    if let Some(catch_pat) = catch_pattern {
+                        // infer the catch error type from try branches
+                        let catch_error_type_id = if try_error_types.is_empty() {
+                            types.insert_type(Type::TypeLiteral {
+                                value: TypeLiteral::Unknown,
+                            })
+                        } else {
+                            self.union_types_from_list(try_error_types, types)
+                        };
+
+                        // bind the catch pattern to the error type
+                        self.infer_pattern(
+                            module,
+                            *catch_pat,
+                            Some(catch_error_type_id),
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
+
+                    // infer the catch expression with contextual typing
+                    let mut catch_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                    catch_ty_id = Some(self.infer_expression(
+                        module,
+                        *catch_expr,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut catch_ctx,
+                    )?);
                 }
+
+                // infer the finally expression
                 if let Some(finally_expr) = finally_expression {
-                    self.infer_expression(module, *finally_expr, tree, symbols, types, infer, ctx)?;
+                    let mut finally_ctx = ctx.fork().with_expected_type(None);
+                    self.infer_expression(
+                        module,
+                        *finally_expr,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut finally_ctx,
+                    )?;
                 }
-                try_ty_id
+
+                // combine try and catch result types
+                if let Some(catch_ty_id) = catch_ty_id {
+                    self.union_types(try_ty_id, catch_ty_id, types)
+                } else {
+                    try_ty_id
+                }
             }
 
             // return: never (control flow)
