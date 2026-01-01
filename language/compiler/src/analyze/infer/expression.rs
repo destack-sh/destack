@@ -1207,6 +1207,25 @@ impl Compiler {
                 }
                 let inner_ty_id =
                     self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
+
+                // require await operand to be promise assignable
+                if let Some(promise_ty_id) = self.promise_type(ctx.profile, None, types)
+                    && self.is_type_assignable(
+                        module,
+                        ctx.profile,
+                        symbols,
+                        promise_ty_id,
+                        inner_ty_id,
+                        types,
+                        &ctx.options,
+                    ) == Assignability::NotAssignable
+                    {
+                        self.error(AnalyzeError::UnassignableType {
+                            node: expression_id.into_global_any(module.id),
+                            expected_ty: promise_ty_id.into_global(module.id),
+                            actual_ty: inner_ty_id.into_global(module.id),
+                        });
+                    }
                 self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types)
             }
 

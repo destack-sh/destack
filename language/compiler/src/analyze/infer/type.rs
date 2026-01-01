@@ -3112,6 +3112,33 @@ impl Compiler {
         )
     }
 
+    /// Build a Promise reference type id with an optional value type.
+    pub(super) fn promise_type(
+        &self,
+        profile: ProfileId,
+        value_type: Option<LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let promise_symbol = self.get_well_known_symbol(profile, WellKnownSymbol::Promise)?;
+
+        // default missing type arguments to unknown
+        let value_type = value_type.unwrap_or_else(|| {
+            types.insert_type(Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            })
+        });
+
+        let static_arguments = vec![StaticArgument::Evaluated {
+            name: None,
+            value: StaticExpression::Type { ty: value_type },
+        }];
+
+        Some(types.insert_type(Type::Reference {
+            symbol: promise_symbol,
+            static_arguments: Some(static_arguments),
+        }))
+    }
+
     /// Unwrap a Promise reference into its value type when possible.
     pub(super) fn unwrap_promise_type(
         &self,
