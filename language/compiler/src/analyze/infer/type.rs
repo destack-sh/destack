@@ -1766,14 +1766,31 @@ impl Compiler {
                 target,
                 qualifier,
                 static_arguments,
-            } => types.insert_type_from_any(
-                Type::Import {
-                    target: *target,
-                    qualifier: qualifier.clone(),
-                    static_arguments: static_arguments.clone(),
-                },
-                node_id,
-            ),
+            } => {
+                // map embedded type ids inside static arguments
+                let local_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.import_static_argument_from_remote_for_node(
+                                node_id,
+                                argument,
+                                remote_types,
+                                target_symbol,
+                                types,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                });
+                types.insert_type_from_any(
+                    Type::Import {
+                        target: *target,
+                        qualifier: qualifier.clone(),
+                        static_arguments: local_arguments,
+                    },
+                    node_id,
+                )
+            }
             Type::Infer { name, constraint } => {
                 let local_constraint = constraint.map(|constraint| {
                     self.import_type_from_remote_for_node(
@@ -2207,13 +2224,30 @@ impl Compiler {
             Type::Reference {
                 symbol,
                 static_arguments,
-            } => types.insert_type_from_any(
-                Type::Reference {
-                    symbol: *symbol,
-                    static_arguments: static_arguments.clone(),
-                },
-                node_id,
-            ),
+            } => {
+                // map embedded type ids inside static arguments
+                let local_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.import_static_argument_from_remote_for_node(
+                                node_id,
+                                argument,
+                                remote_types,
+                                target_symbol,
+                                types,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                });
+                types.insert_type_from_any(
+                    Type::Reference {
+                        symbol: *symbol,
+                        static_arguments: local_arguments,
+                    },
+                    node_id,
+                )
+            }
 
             // types that can't be meaningfully copied: fall back to reference
             Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_type_from_any(
@@ -2223,6 +2257,227 @@ impl Compiler {
                 },
                 node_id,
             ),
+        }
+    }
+
+    /// Import a static argument from a remote module into the local type table.
+    fn import_static_argument_from_remote_for_node(
+        &self,
+        node_id: LocalNodeIdAny,
+        argument: &StaticArgument,
+        remote_types: &TypeTable,
+        target_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> StaticArgument {
+        match argument {
+            StaticArgument::Unevaluated { .. } => argument.clone(),
+            StaticArgument::Evaluated { name, value } => {
+                let mapped_value = self.import_static_expression_from_remote_for_node(
+                    node_id,
+                    value,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                StaticArgument::Evaluated {
+                    name: *name,
+                    value: mapped_value,
+                }
+            }
+        }
+    }
+
+    /// Import a static expression from a remote module into the local type table.
+    fn import_static_expression_from_remote_for_node(
+        &self,
+        node_id: LocalNodeIdAny,
+        expression: &StaticExpression,
+        remote_types: &TypeTable,
+        target_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> StaticExpression {
+        match expression {
+            StaticExpression::Unevaluated { .. } => expression.clone(),
+            StaticExpression::ScalarLiteral { .. } => expression.clone(),
+            StaticExpression::TypeLiteral { .. } => expression.clone(),
+            StaticExpression::Type { ty } => {
+                let remote_ty = remote_types.get_type(*ty);
+                let local_ty = self.import_type_from_remote_for_node(
+                    node_id,
+                    remote_ty,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                StaticExpression::Type { ty: local_ty }
+            }
+            StaticExpression::Declaration {
+                declaration,
+                static_arguments,
+            } => {
+                // remap static arguments for declarations
+                let local_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.import_static_argument_from_remote_for_node(
+                                node_id,
+                                argument,
+                                remote_types,
+                                target_symbol,
+                                types,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                });
+                StaticExpression::Declaration {
+                    declaration: *declaration,
+                    static_arguments: local_arguments,
+                }
+            }
+            StaticExpression::RangeExpression {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                let mapped_start = self.import_static_expression_from_remote_for_node(
+                    node_id,
+                    start,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let mapped_end = self.import_static_expression_from_remote_for_node(
+                    node_id,
+                    end,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                StaticExpression::RangeExpression {
+                    start: Box::new(mapped_start),
+                    end: Box::new(mapped_end),
+                    is_inclusive: *is_inclusive,
+                }
+            }
+            StaticExpression::ArrayExpression { elements } => {
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.import_static_expression_from_remote_for_node(
+                            node_id,
+                            element,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                StaticExpression::ArrayExpression {
+                    elements: mapped_elements,
+                }
+            }
+            StaticExpression::TupleExpression { elements } => {
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        self.import_static_expression_from_remote_for_node(
+                            node_id,
+                            element,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                StaticExpression::TupleExpression {
+                    elements: mapped_elements,
+                }
+            }
+            StaticExpression::ObjectExpression { properties } => {
+                let mapped_properties = properties
+                    .iter()
+                    .map(|property| {
+                        self.import_static_property_from_remote_for_node(
+                            node_id,
+                            property,
+                            remote_types,
+                            target_symbol,
+                            types,
+                        )
+                    })
+                    .collect();
+                StaticExpression::ObjectExpression {
+                    properties: mapped_properties,
+                }
+            }
+        }
+    }
+
+    /// Import a static property from a remote module into the local type table.
+    fn import_static_property_from_remote_for_node(
+        &self,
+        node_id: LocalNodeIdAny,
+        property: &StaticProperty,
+        remote_types: &TypeTable,
+        target_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> StaticProperty {
+        match property {
+            StaticProperty::Unevaluated { .. } => property.clone(),
+            StaticProperty::Field {
+                modifiers,
+                key,
+                value,
+                default,
+                symbol,
+            } => {
+                let mapped_value = self.import_static_expression_from_remote_for_node(
+                    node_id,
+                    value,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                let mapped_default = default.as_ref().map(|default| {
+                    self.import_static_expression_from_remote_for_node(
+                        node_id,
+                        default,
+                        remote_types,
+                        target_symbol,
+                        types,
+                    )
+                });
+                StaticProperty::Field {
+                    modifiers: *modifiers,
+                    key: *key,
+                    value: mapped_value,
+                    default: mapped_default,
+                    symbol: *symbol,
+                }
+            }
+            StaticProperty::Method {
+                modifiers,
+                key,
+                signature,
+                body,
+                symbol,
+            } => {
+                let mapped_body = self.import_static_expression_from_remote_for_node(
+                    node_id,
+                    body,
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
+                StaticProperty::Method {
+                    modifiers: *modifiers,
+                    key: *key,
+                    signature: signature.clone(),
+                    body: mapped_body,
+                    symbol: *symbol,
+                }
+            }
         }
     }
 
@@ -3365,7 +3620,7 @@ impl Compiler {
     }
 
     /// Check whether a type is null or undefined.
-    fn is_nullish_type(&self, ty: &Type) -> bool {
+    pub(super) fn is_nullish_type(&self, ty: &Type) -> bool {
         matches!(
             ty,
             Type::TypeLiteral {
