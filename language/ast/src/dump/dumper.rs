@@ -1060,6 +1060,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::TypeImport {
                 target,
                 qualifier: _,
+                static_arguments: _,
             } => {
                 self.node("Expression::TypeImport", _id.id)
                     .field("target", target)
