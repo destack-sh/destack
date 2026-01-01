@@ -221,25 +221,27 @@ pub enum Expression {
     /// ```
     Loop { body: LocalNodeId<Block> },
 
-    /// A Try is try/catch/finally statement.
+    /// A Try is a try/catch/finally expression.
     /// The try expression may be a single statement or a block of statements.
-    /// Any error Result within the try expression aborts the try expression and:
-    ///  1. If there is a catch, jumps to the catch pattern matching for handling.
-    ///  2. If there is no catch, the error is propagated to the caller explicitly.
+    /// Try does not implicitly unwrap Try values, so use `?` or `??` explicitly.
+    /// Errors raised by `?` and thrown exceptions jump to the catch when present.
+    /// A try expression must include a catch or finally block.
+    /// Without a catch, `?` propagates to the caller and exceptions bubble or are rejected.
+    /// Any type implementing `Try` participates, not just `Result`.
     ///
     /// Examples:
     /// ```
-    /// try fileOperation() // implicitly unwraps the Result, returns Error case
-    ///
-    /// try { // implicitly unwraps all Results inside
-    ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
-    ///     riskyOperationB(a)
-    /// } // no catch needed if containing function has compatible Result type (Into suffices)
+    /// try {
+    ///     fileOperation()?;
+    /// } catch e {
+    ///     handle(e)
+    /// }
     ///
     /// try {
-    ///     ...
+    ///     let a = riskyOperationA()?; // a is the success value from the Try
+    ///     riskyOperationB(a)?;
     /// } catch e {
-    ///     ... // regular catch
+    ///     log("failed", e)
     /// }
     ///
     /// try { // explicitly unwraps all Results inside
@@ -615,10 +617,12 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// import("mod").Type
+    /// import("mod").Type<T>
     /// ```
     TypeImport {
         target: StringId,
         qualifier: Option<Path>,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// Type infer binding.
