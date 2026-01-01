@@ -670,6 +670,20 @@ impl Parser {
             {
                 break;
             }
+            // stop on newline if the next non-newline token is a terminator
+            else if self.peek_newline().is_ok() {
+                let mark = self.mark();
+                self.eat_newlines_maybe()?;
+                let is_terminator = self.peek_token(TokenType::OpenBrace).is_ok()
+                    || self.peek_token(TokenType::CloseParenthesis).is_ok()
+                    || terminators
+                        .iter()
+                        .any(|terminator| self.peek_keyword(*terminator).is_ok());
+                self.rewind(mark);
+                if is_terminator {
+                    break;
+                }
+            }
             // consume any stop
             else if self.peek_item_stop().is_ok() {
                 self.eat_item_stop_with_newlines()?;
@@ -954,6 +968,30 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_union_with_construct_signature() {
+        let mut test = TestParser::new("type T = RegExp | (new() => object)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = RegExp | (new() => object)
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "RegExp");
+                    assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Declaration(function_id) => {
+                            assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                                assert_eq!(signature.mode, Some(FunctionMode::New));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_conditional_type_with_semicolon_terminated_properties() {
         let mut test =
             TestParser::new("type T = X extends Y ? {} : { a: string | undefined; b: number; }");
@@ -1031,6 +1069,92 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_optional_tuple_element() {
+        let mut test = TestParser::new("type T = [EventTarget?]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [EventTarget?]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers, value } => {
+                        let modifiers = modifiers.as_ref().expect("expected modifiers");
+                        assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                        assert_expression_path!(parser, parser.tree.get(*value), "EventTarget");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_optional_tuple_element_trailing_comma() {
+        let mut test = TestParser::new("type T = [EventTarget?,]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [EventTarget?,]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers, value } => {
+                        let modifiers = modifiers.as_ref().expect("expected modifiers");
+                        assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                        assert_expression_path!(parser, parser.tree.get(*value), "EventTarget");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_optional_labeled_tuple_element() {
+        let mut test = TestParser::new("type T = [start?: number]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [start?: number]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Labeled { modifiers, label, value } => {
+                        let modifiers = modifiers.as_ref().expect("expected modifiers");
+                        assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                        assert_string!(parser, *label, "start");
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_optional_readonly_tuple_element() {
+        let mut test = TestParser::new("type T = [readonly EventTarget?]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [readonly EventTarget?]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers, value } => {
+                        let modifiers = modifiers.as_ref().expect("expected modifiers");
+                        assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                        assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
+                        assert_expression_path!(parser, parser.tree.get(*value), "EventTarget");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_tuple_type() {
         let mut test = TestParser::new("type T = (string, number)");
         let mut parser = test.prepare();
@@ -1043,11 +1167,11 @@ mod tests {
                     assert_eq!(elements.len(), 2);
                     // string
                     assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
-                        assert_expression_path!(parser, parser.tree.get(*value), "string");
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
                     });
                     // number
                     assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
-                        assert_expression_path!(parser, parser.tree.get(*value), "number");
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
                     });
                 });
             });

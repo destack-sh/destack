@@ -1785,8 +1785,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Argument::Positional { value: _ } => {
                 self.node("Argument::Positional", id.id).end();
             }
-            Argument::Spread { value: _ } => {
-                self.node("Argument::Spread", id.id).end();
+            Argument::Spread { label, value: _ } => {
+                self.node("Argument::Spread", id.id)
+                    .field_optional("label", label)
+                    .end();
             }
             Argument::Labeled { label, value: _ } => {
                 self.node("Argument::Labeled", id.id)

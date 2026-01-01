@@ -1190,6 +1190,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
         }
         | Argument::Spread {
             modifiers: _,
+            label: _,
             value,
         } => {
             let value_expr = tree.get(*value);

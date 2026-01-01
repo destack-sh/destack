@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BlockFormat, Declaration, DeclarationDescriptor, Generics, Keyword, LocalNodeId, NodeType,
-    TokenType,
+    BlockFormat, Declaration, DeclarationDescriptor, Generics, Keyword, LocalNodeId, Name,
+    NodeType, TokenType,
 };
 
 impl Parser {
@@ -30,22 +30,33 @@ impl Parser {
         Ok(self.tree.insert(global, self.get_span_from(start)))
     }
 
-    /// Eat a namespace declaration (incl. `namespace` keyword).
+    /// Eat a namespace declaration (incl. `namespace` or `module` keyword).
     pub fn eat_namespace(
         &mut self,
         start: ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         // keyword
-        self.eat_keyword(Keyword::Namespace)?;
+        let is_module = if self.peek_keyword(Keyword::Namespace).is_ok() {
+            self.bump(); // eat namespace
+            false
+        } else {
+            self.eat_identifier_str("module")?;
+            true
+        };
 
         // name
-        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
-            descriptor = descriptor.with_name(name);
-            Some(span)
+        let (name, name_span) = if is_module {
+            let (name_id, span) = self.eat_string_literal_with_span()?;
+            (Some(Name::String(name_id)), Some(span))
+        } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            (Some(name), Some(span))
         } else {
-            None
+            (None, None)
         };
+        if let Some(name) = name {
+            descriptor = descriptor.with_name(name);
+        }
 
         // where
         let where_clauses = self.eat_where_maybe()?;
@@ -53,7 +64,11 @@ impl Parser {
         // body
         let generics = Generics::new(None, where_clauses);
         let namespace = {
-            let expressions = if self.peek_token(TokenType::OpenBrace).is_ok() {
+            let expressions = if self
+                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+                .is_ok()
+            {
+                self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::OpenBrace)?; // eat open brace
                 let expressions = self
                     .eat_block_body(BlockFormat::Explicit)
@@ -85,9 +100,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
+        BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Name,
         WhereClause,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -112,6 +128,107 @@ declare global {
                 assert!(descriptor.name.is_none());
                 assert!(descriptor.export.is_none());
                 assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_global_block_without_declare() {
+        let mut test = TestParser::new_with_options(
+            r###"
+global {
+    interface Foo { }
+}
+"###,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Global { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                assert!(descriptor.name.is_none());
+                assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_declare_module_block() {
+        let mut test = TestParser::new_with_options(
+            r###"
+declare module "foo" {
+    interface Bar { }
+}
+"###,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                assert_eq!(expressions.len(), 1);
+                let name = descriptor.name.expect("expected name");
+                assert_node!(name, Name::String(name_id) => {
+                    assert_string!(parser, name_id, "foo");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_module_block_destack_declaration() {
+        let mut test = TestParser::new_with_options(
+            r###"
+module "foo" {
+    interface Bar { }
+}
+"###,
+            LanguageType::DestackDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Definition);
+                assert_eq!(expressions.len(), 1);
+                let name = descriptor.name.expect("expected name");
+                assert_node!(name, Name::String(name_id) => {
+                    assert_string!(parser, name_id, "foo");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_module_block_destack() {
+        let mut test = TestParser::new_with_options(
+            r###"
+module "foo" {
+    interface Bar { }
+}
+"###,
+            LanguageType::Destack,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Definition);
+                assert_eq!(expressions.len(), 1);
+                let name = descriptor.name.expect("expected name");
+                assert_node!(name, Name::String(name_id) => {
+                    assert_string!(parser, name_id, "foo");
+                });
             });
         });
     }

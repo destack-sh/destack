@@ -114,7 +114,7 @@ impl ModuleLowerer<'_> {
                     .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                 Argument::Positional { value }
             }
-            dir::Argument::Spread { value } => {
+            dir::Argument::Spread { label: _, value } => {
                 let value = self
                     .lower_expression(*value)
                     .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;

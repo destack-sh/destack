@@ -194,7 +194,9 @@ impl Compiler {
                     value,
                 }
             }
-            dir::Argument::Spread { value } => {
+            dir::Argument::Spread { label, value } => {
+                let label =
+                    label.map(|label| ast_strings.intern_from(&self.program.strings, label));
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -206,6 +208,7 @@ impl Compiler {
                 );
                 ast::Argument::Spread {
                     modifiers: None,
+                    label,
                     value,
                 }
             }

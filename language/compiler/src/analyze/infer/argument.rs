@@ -209,7 +209,7 @@ impl Compiler {
                     &mut argument_ctx,
                 )?;
             }
-            Argument::Spread { value } => {
+            Argument::Spread { label: _, value } => {
                 self.infer_expression(
                     module,
                     *value,

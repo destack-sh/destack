@@ -197,6 +197,7 @@ impl Parser {
         let (ty, ty_span) = if self.peek_colon().is_ok() {
             let type_start = self.mark();
             self.bump(); // eat colon
+            self.eat_newlines_maybe()?;
             let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {
                 parser.eat_expression()
             })?;
@@ -241,9 +242,11 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, DeclarationDescriptor, Declarator, Expression, IntType, Key,
-        Mutability, Name, Pattern, PatternField, Property, ScalarLiteral, TypeLiteral,
+        Argument, Asynchrony, BinaryOperator, DeclarationDescriptor, Declarator, Expression,
+        IntType, Key, Mutability, Name, Pattern, PatternField, Property, ScalarLiteral,
+        TypeLiteral,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
 
@@ -279,6 +282,36 @@ const x: int32 = 1
                 // 1
                 let value_id = value.expect("expected value");
                 assert_node!(parser.tree, value_id, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_type_annotation_newline() {
+        let mut test = TestParser::new_with_options(
+            r###"
+const constants:
+    & typeof Foo
+    & typeof Bar
+"###,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { ty, value, .. } => {
+                assert!(value.is_none());
+                let ty_id = ty.expect("expected explicit type");
+                assert_node!(parser.tree, ty_id, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                });
             });
         });
     }

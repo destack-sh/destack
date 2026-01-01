@@ -272,7 +272,9 @@ impl Compiler {
                 );
                 tree.insert(argument_id, Argument::Positional { value })
             }
-            ast::Argument::Spread { value, .. } => {
+            ast::Argument::Spread { label, value, .. } => {
+                let label =
+                    label.map(|label| self.program.strings.intern_from(&ast.strings, label));
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -283,7 +285,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                tree.insert(argument_id, Argument::Spread { value })
+                tree.insert(argument_id, Argument::Spread { label, value })
             }
             ast::Argument::Labeled { label, value, .. } => {
                 let label = self.program.strings.intern_from(&ast.strings, *label);

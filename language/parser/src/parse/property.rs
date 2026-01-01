@@ -182,6 +182,7 @@ impl Parser {
             let (return_type, return_type_span) = if self.peek_colon().is_ok() {
                 let type_start = self.mark();
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 let return_type = self.with_options(
                     self.options.nested().in_type().in_before_block(),
                     |parser| parser.eat_expression(),
@@ -773,8 +774,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Expression, FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral,
-        TypeLiteral, Visibility,
+        BindingKind, Expression, FunctionMode, IntType, Key, Member, Name, Parameter, Property,
+        ScalarLiteral, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -880,6 +881,31 @@ mod tests {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_computed_optional_method() {
+        let mut test = TestParser::new_with_options(
+            "[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Method { modifiers, key: Some(Key::Expression(key)), signature, .. } => {
+            let modifiers = modifiers.as_ref().expect("expected modifiers");
+            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_expression_path!(parser, parser.tree.get(*key), "EventEmitter.captureRejectionSymbol");
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
+            assert_eq!(static_parameters.len(), 1);
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert!(signature.return_type.is_some());
         });
     }
 

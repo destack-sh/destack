@@ -476,16 +476,18 @@ impl Parser {
         }
 
         // kind (declare must not be followed by newline, similar to abstract)
-        let is_global_declare = self.peek_next_token(TokenType::Identifier).is_ok()
-            && self
-                .peek_next()
-                .is_ok_and(|token| self.get_token_str(*token) == "global");
+        let is_declare_identifier = self.peek_next_token(TokenType::Identifier).is_ok()
+            && self.peek_next().is_ok_and(|token| {
+                let token_str = self.get_token_str(*token);
+                token_str == "global"
+                    || self.language.supports_module_declaration() && token_str == "module"
+            });
         descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
             && self.peek_next_token(TokenType::Newline).is_err()
             && (self
                 .peek_next_any_keyword()
                 .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-                || is_global_declare)
+                || is_declare_identifier)
         {
             self.bump(); // eat declare
             DeclarationKind::Declaration
@@ -516,13 +518,18 @@ impl Parser {
         };
 
         // global declaration
-        if descriptor.kind == DeclarationKind::Declaration
+        if (descriptor.kind == DeclarationKind::Declaration || self.language.is_declaration())
             && self.peek_identifier_str("global").is_ok()
             && self
                 .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
                 .is_ok()
         {
-            let global_id = self.eat_global(start, descriptor)?;
+            let mut global_descriptor = descriptor;
+            if global_descriptor.kind == DeclarationKind::Definition {
+                // global declarations are always declarations
+                global_descriptor.kind = DeclarationKind::Declaration;
+            }
+            let global_id = self.eat_global(start, global_descriptor)?;
             return Ok(self.tree.insert(
                 Expression::Declaration(global_id),
                 self.get_span_from(start),
@@ -681,10 +688,12 @@ impl Parser {
                     // may be a tuple/sequence with anonymous elements or just a parenthesized expression (see below)
                     else {
                         let inner_start = self.pos();
-                        let expression_id = self
-                            .with_options(self.options.nested().in_parenthesis(), |parser| {
-                                parser.eat_expression()
-                            })?;
+                        let mut inner_options = self.options.nested().in_parenthesis();
+                        if self.options.in_type {
+                            inner_options = inner_options.in_type();
+                        }
+                        let expression_id =
+                            self.with_options(inner_options, |parser| parser.eat_expression())?;
                         self.eat_newlines_maybe()?;
                         self.eat_token(TokenType::CloseParenthesis)?;
                         match self.tree.get(expression_id) {
@@ -829,8 +838,10 @@ impl Parser {
                     self.get_span_from(start),
                 )
             }
-            // namespace
-            else if keyword == Some(Keyword::Namespace)
+            // namespace or module declaration
+            else if (keyword == Some(Keyword::Namespace)
+                || self.language.supports_module_declaration()
+                    && self.peek_identifier_str("module").is_ok())
                 && DECLARATION_START_TOKENS.contains(&next_token_type)
             {
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -1735,7 +1746,25 @@ impl Parser {
             if self.options.in_type_conditional_right && conditional_operands.is_none() {
                 return Ok(left_expression_id);
             }
+            let optional_tuple_pos = if self.peek_token(TokenType::Maybe).is_ok() {
+                Some(self.pos())
+            } else if self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok()
+            {
+                Some(self.pos().saturating_add(1))
+            } else {
+                None
+            };
+            let is_optional_tuple = optional_tuple_pos.is_some_and(|pos| {
+                self.peek_token_after_newlines(pos, TokenType::Comma)
+                    .is_ok()
+                    || self
+                        .peek_token_after_newlines(pos, TokenType::CloseBracket)
+                        .is_ok()
+            });
             let Some((left, right)) = conditional_operands else {
+                if is_optional_tuple {
+                    return Ok(left_expression_id);
+                }
                 return Err(ParseError::unexpected(self.peek()?.span));
             };
 

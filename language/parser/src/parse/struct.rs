@@ -82,6 +82,7 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // body
+        self.eat_newlines_maybe()?;
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
