@@ -668,7 +668,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::TypeImport {
             target: _,
             qualifier: _,
-        } => {}
+            static_arguments,
+        } => {
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        }
 
         Expression::TypeInfer {
             name: _,
