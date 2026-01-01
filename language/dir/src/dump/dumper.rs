@@ -2060,17 +2060,25 @@ impl Dump for StaticKey {
             StaticKey::Number(name) => {
                 dumper.object("StaticKey::Number").value(name).end();
             }
-            StaticKey::UniqueSymbol(unique_symbol) => {
-                dumper
-                    .object("StaticKey::UniqueSymbol")
-                    .value(&unique_symbol.id)
-                    .end();
+            StaticKey::Symbol(symbol) => {
+                dumper.object("StaticKey::Symbol").value(symbol).end();
             }
-            StaticKey::GlobalSymbol(global_symbol) => {
-                dumper
-                    .object("StaticKey::GlobalSymbol")
-                    .value(global_symbol)
-                    .end();
+        }
+    }
+}
+
+impl Dump for SymbolKey {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            SymbolKey::Unique(symbol) => {
+                dumper.object("SymbolKey::Unique").value(symbol).end();
+            }
+            SymbolKey::WellKnown(symbol) => {
+                let name = symbol.global_symbol_name();
+                dumper.object("SymbolKey::WellKnown").value(&name).end();
+            }
+            SymbolKey::Registry(name) => {
+                dumper.object("SymbolKey::Registry").value(name).end();
             }
         }
     }

@@ -396,6 +396,7 @@ impl Compiler {
             member_key,
             tree,
             symbols,
+            types,
         ) {
             return Some(member_symbol);
         }
@@ -502,6 +503,7 @@ impl Compiler {
                 member_key,
                 tree,
                 symbols,
+                types,
             ) {
                 return Some(member_symbol);
             }
@@ -519,6 +521,7 @@ impl Compiler {
         member_key: &StaticKey,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        types: &TypeTable,
     ) -> Option<GlobalSymbolId> {
         let symbol_entry = symbols.get_symbol(symbol.local_id);
 
@@ -554,9 +557,9 @@ impl Compiler {
                 // check enum methods and members
                 for member_id in members {
                     let member = tree.get(*member_id);
-                    let static_key = member
-                        .key()
-                        .and_then(|key| self.static_key_from_dynamic_key(profile, *key, tree));
+                    let static_key = member.key().and_then(|key| {
+                        self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
+                    });
 
                     if let Some(static_key) = static_key
                         && static_key.matches(member_key)
@@ -575,9 +578,9 @@ impl Compiler {
 
             for member_id in members {
                 let member = tree.get(*member_id);
-                let static_key = member
-                    .key()
-                    .and_then(|key| self.static_key_from_dynamic_key(profile, *key, tree));
+                let static_key = member.key().and_then(|key| {
+                    self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
+                });
 
                 if let Some(static_key) = static_key
                     && static_key.matches(member_key)

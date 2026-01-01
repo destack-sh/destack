@@ -1,8 +1,10 @@
 use std::collections::HashSet;
 
 use destack_base::StringId;
-use destack_builtin::{LanguageItem, WellKnownSymbol, builtin_lib};
-use destack_dir::{DependencyItem, Expression, GlobalSymbolId, NodeTree, StaticKey};
+use destack_builtin::{LanguageItem, builtin_lib};
+use destack_dir::{
+    DependencyItem, Expression, GlobalSymbolId, NodeTree, StaticKey, WellKnownSymbol,
+};
 use destack_workspace::{ProfileId, WellKnownSymbols};
 use indexmap::IndexMap;
 
@@ -305,7 +307,8 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_builtin::{LIBS, LanguageItem, STD_LIB, WellKnownSymbol};
+    use destack_builtin::{LIBS, LanguageItem, STD_LIB};
+    use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
 
     use crate::{TestProgram, assert_string};
 
@@ -355,26 +358,18 @@ mod tests {
             .get_well_known_symbols(profile)
             .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
         for symbol in WellKnownSymbol::all() {
-            if symbol.export_name().is_some() {
-                assert!(
-                    well_known.get_symbol(symbol).is_some(),
-                    "missing well-known symbol {symbol:?}"
-                );
-            }
+            assert!(
+                well_known.get_symbol(symbol).is_some(),
+                "missing well-known symbol {symbol:?}"
+            );
+        }
 
-            if let Some(expected_member) = symbol.member_name() {
-                let key = well_known
-                    .get_key(symbol)
-                    .unwrap_or_else(|| panic!("missing well-known key {symbol:?}"));
-                assert_string!(test.program, key.member, expected_member);
-            }
-
-            if let Some(expected_name) = symbol.global_symbol_name() {
-                let key = well_known
-                    .get_key(symbol)
-                    .unwrap_or_else(|| panic!("missing well-known key {symbol:?}"));
-                assert_string!(test.program, key.global_name, expected_name);
-            }
+        for symbol in WellKnownSymbolKey::all() {
+            let key = well_known
+                .get_key(symbol)
+                .unwrap_or_else(|| panic!("missing well-known key {symbol:?}"));
+            assert_string!(test.program, key.member, symbol.member_name());
+            assert_string!(test.program, key.global_name, symbol.global_symbol_name());
         }
     }
 

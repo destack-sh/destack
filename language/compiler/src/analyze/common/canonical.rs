@@ -1,7 +1,6 @@
-use destack_builtin::WellKnownSymbol;
 use destack_dir::{
     GlobalSymbolId, LocalTypeId, StaticArgument, StaticExpression, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    TypeTable, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 

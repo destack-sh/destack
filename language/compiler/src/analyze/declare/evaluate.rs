@@ -727,7 +727,7 @@ impl Compiler {
                             }
 
                             let Some(key) = key.and_then(|key| {
-                                self.static_key_from_dynamic_key(profile, key, tree)
+                                self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
                             }) else {
                                 return Err(AnalyzeError::UnsupportedConstruct {
                                     node: property_id.into_global_any(module.id),
@@ -789,7 +789,7 @@ impl Compiler {
                             }
 
                             let Some(key) = key.and_then(|key| {
-                                self.static_key_from_dynamic_key(profile, key, tree)
+                                self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
                             }) else {
                                 return Err(AnalyzeError::UnsupportedConstruct {
                                     node: property_id.into_global_any(module.id),
