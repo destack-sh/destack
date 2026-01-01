@@ -378,7 +378,7 @@ mod tests {
         }
     }
 
-    /// Resolve all builtin libs without errors.
+    /// Resolve all builtin libs (without errors).
     #[test]
     fn test_resolve_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
@@ -387,6 +387,30 @@ mod tests {
             test.resolve_builtins();
             test.resolve_libs();
             test.compile();
+        }
+    }
+
+    /// Analyze all builtin libs (without errors).
+    #[test]
+    fn test_analyze_all_builtin_libs() {
+        for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
+            let test = TestProgram::memory_sequential_with_prelude_and_libs()
+                .with_profile_libs(&[lib.name]);
+            test.resolve_builtins();
+            test.resolve_libs();
+            test.compile();
+
+            let builtins = test.program.builtins.as_ref().unwrap();
+            let lib = builtins.load_lib(
+                lib.name,
+                test.program.files.clone(),
+                test.program.modules.clone(),
+            ).unwrap();
+
+            for module_id in lib {
+                test.analyze_module(module_id);
+            }
+            test.compile_check_clean();
         }
     }
 }
