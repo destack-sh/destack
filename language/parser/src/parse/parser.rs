@@ -57,6 +57,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing the right side of a type conditional.
     /// Stops the parse at `?` so the outer conditional can consume it.
     pub in_type_conditional_right: bool = false,
+    /// Whether we're parsing a mapped type constraint.
+    /// Disables `as` casts so the remap clause can be parsed separately.
+    pub in_type_mapped_constraint: bool = false,
     /// Whether we're parsing a for each expression.
     /// Disallows container operators.
     pub in_for_each: bool = false,
@@ -205,6 +208,15 @@ impl ParserOptions {
     pub(crate) fn in_type_conditional_right(self) -> Self {
         Self {
             in_type_conditional_right: true,
+            ..self
+        }
+    }
+
+    /// Set `in_type_mapped_constraint=true`.
+    #[inline]
+    pub(crate) fn in_type_mapped_constraint(self) -> Self {
+        Self {
+            in_type_mapped_constraint: true,
             ..self
         }
     }

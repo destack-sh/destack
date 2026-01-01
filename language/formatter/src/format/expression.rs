@@ -2537,7 +2537,11 @@ pub(crate) fn format_expression<'ast>(
         Expression::TypeLiteral(node) => node.format(f)?,
 
         // type import
-        Expression::TypeImport { target, qualifier } => {
+        Expression::TypeImport {
+            target,
+            qualifier,
+            static_arguments,
+        } => {
             write!(
                 f,
                 [
@@ -2551,6 +2555,9 @@ pub(crate) fn format_expression<'ast>(
             )?;
             if let Some(qualifier) = qualifier {
                 write!(f, [token("."), qualifier])?;
+            }
+            if let Some(static_arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", static_arguments)])?;
             }
         }
 

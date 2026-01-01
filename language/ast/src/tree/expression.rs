@@ -244,14 +244,12 @@ pub enum Expression {
     ///     log("failed", e)
     /// }
     ///
-    /// try { // explicitly unwraps all Results inside
-    ///     ...
-    /// } catch match e { // match all errors
+    /// try {
+    ///     riskyOperationA()?;
+    /// } catch match e {
     ///     NumericError(x) => Error(@format("bad number: {x}"))
     ///     FormatError => Error(@format("bad format {e}"))
-    ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
-    /// } finally {
-    ///     ...
+    ///     _ => Error(@format("unknown error: {e}"))
     /// }
     /// ```
     Try {

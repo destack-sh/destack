@@ -511,10 +511,25 @@ impl Compiler {
                     spans,
                 }
             }
-            Expression::TypeImport { target, qualifier } => Type::Import {
+            Expression::TypeImport {
                 target,
-                qualifier: qualifier.clone(),
-            },
+                qualifier,
+                static_arguments,
+            } => {
+                let static_arguments = self.evaluate_static_arguments(
+                    module,
+                    profile,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                Type::Import {
+                    target,
+                    qualifier: qualifier.clone(),
+                    static_arguments,
+                }
+            }
             Expression::TypeInfer { name, constraint } => {
                 let constraint = constraint.map(|constraint| {
                     self.try_evaluate_expression_to_type(

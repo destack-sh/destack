@@ -987,7 +987,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             } => {
                 self.node("Expression::TypeTemplateLiteral", id.id).end();
             }
-            Expression::TypeImport { target, qualifier } => {
+            Expression::TypeImport {
+                target,
+                qualifier,
+                static_arguments: _,
+            } => {
                 self.node("Expression::TypeImport", id.id)
                     .field("target", target)
                     .field_optional("qualifier", qualifier)

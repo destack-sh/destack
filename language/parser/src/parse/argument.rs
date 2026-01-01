@@ -209,11 +209,17 @@ impl Parser {
             if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
+
+                // value
+                let value_options = if self.options.in_static {
+                    self.options.not_in_position().in_type()
+                } else {
+                    self.options.not_in_position()
+                };
                 let value = self
-                    .with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_expression()
-                    })
+                    .with_options(value_options, |parser| parser.eat_expression())
                     .for_node_type(NodeType::Parameter)?;
+
                 // named with default
                 if let Some(name) = name {
                     Parameter::Named {

@@ -131,7 +131,6 @@ impl Compiler {
                 tree.insert(item_id, item)
             }
         };
-
         // set primary declaration for the symbol
         symbols.get_symbol_mut(symbol_id).declare_primary(item_id);
 

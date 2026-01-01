@@ -341,19 +341,14 @@ impl Parser {
 
     /// Get the type intrinsic for a name.
     fn type_intrinsic_for_name(&self, name: &Name) -> Option<TypeIntrinsic> {
-        // map known intrinsic aliases to intrinsic markers
+        // only identifiers can be intrinsic aliases
         let Name::Identifier(name_id) = name else {
             return None;
         };
-        match self.strings.get(*name_id) {
-            "Uppercase" => Some(TypeIntrinsic::Uppercase),
-            "Lowercase" => Some(TypeIntrinsic::Lowercase),
-            "Capitalize" => Some(TypeIntrinsic::Capitalize),
-            "Uncapitalize" => Some(TypeIntrinsic::Uncapitalize),
-            "NoInfer" => Some(TypeIntrinsic::NoInfer),
-            "BuiltinIteratorReturn" => Some(TypeIntrinsic::BuiltinIteratorReturn),
-            _ => None,
-        }
+
+        // map identifier to intrinsic
+        let name_str = self.strings.get(*name_id);
+        TypeIntrinsic::try_from(name_str).ok()
     }
 
     /// Eat a type infer expression.
@@ -363,13 +358,11 @@ impl Parser {
         self.eat_keyword(Keyword::Infer)?;
         let name = self.eat_identifier()?;
 
-        // options for parsing constraints
+        // constraint (e.g., infer T extends U)
         let mut constraint_options = self.options.not_in_position().in_type();
         if self.options.in_type_conditional_right {
             constraint_options = constraint_options.in_type_conditional_right();
         }
-
-        // optional constraint: infer T extends U
         let constraint = if self.peek_keyword(Keyword::Extends).is_ok() {
             self.bump(); // eat extends
             self.eat_newlines_maybe()?;
@@ -386,21 +379,38 @@ impl Parser {
     /// Eat a type import expression.
     pub fn eat_type_import_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Import)?;
+
+        // target
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
         let (target, _span) = self.eat_string_literal_with_span()?;
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
-        // optional qualifier: import("mod").Type
-        let qualifier = if self.peek_token(TokenType::Dot).is_ok() {
+
+        // qualifier (e.g., import("mod").Type)
+        let (qualifier, static_arguments) = if self.peek_token(TokenType::Dot).is_ok() {
             self.bump(); // eat dot
-            Some(self.eat_path()?)
+            let qualifier = self.eat_path()?;
+            self.eat_newlines_maybe()?;
+            let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                Some(self.eat_static_arguments()?)
+            } else {
+                None
+            };
+            (Some(qualifier), static_arguments)
         } else {
-            None
+            (None, None)
         };
+
         Ok(self.tree.insert(
-            Expression::TypeImport { target, qualifier },
+            Expression::TypeImport {
+                target,
+                qualifier,
+                static_arguments,
+            },
             self.get_span_from(start),
         ))
     }
@@ -480,9 +490,14 @@ impl Parser {
         self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::In)?;
         self.eat_newlines_maybe()?;
-        let constraint = self.with_options(self.options.not_in_position().in_type(), |parser| {
-            parser.eat_expression()
-        })?;
+        let constraint = self.with_options(
+            self.options
+                .not_in_position()
+                .not_in_left_precedence()
+                .in_type()
+                .in_type_mapped_constraint(),
+            |parser| parser.eat_expression(),
+        )?;
 
         // map key remaps can parse as a type cast in the constraint
         let (constraint, mut key_remap) = match self.tree.get(constraint) {
@@ -499,9 +514,13 @@ impl Parser {
             self.bump(); // eat as
             self.eat_newlines_maybe()?;
             key_remap = Some(
-                self.with_options(self.options.not_in_position().in_type(), |parser| {
-                    parser.eat_expression()
-                })?,
+                self.with_options(
+                    self.options
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .in_type(),
+                    |parser| parser.eat_expression(),
+                )?,
             );
         }
 
@@ -517,9 +536,13 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // value type
-        let value = self.with_options(self.options.not_in_position().in_type(), |parser| {
-            parser.eat_expression()
-        })?;
+        let value = self.with_options(
+            self.options
+                .not_in_position()
+                .not_in_left_precedence()
+                .in_type(),
+            |parser| parser.eat_expression(),
+        )?;
         self.eat_newlines_maybe()?;
         if self.peek_token(TokenType::Semicolon).is_ok()
             || self.peek_token(TokenType::Comma).is_ok()
@@ -710,6 +733,7 @@ mod tests {
         Property, ScalarLiteral, TypeBinaryOperator, TypeIntrinsic, TypeLiteral,
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -787,6 +811,38 @@ mod tests {
                 assert_node!(parser.tree, static_parameters[0], Parameter::Named { ty: Some(ty), .. } => {
                     assert_node!(parser.tree, *ty, Expression::Declaration(func_id) => {
                         assert_node!(parser.tree, *func_id, Declaration::Function { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_parameter_default_conditional() {
+        let mut test = TestParser::new(
+            "type Wrapper<F extends Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Wrapper<F extends Function, ReturnType = F extends (...args: any) => infer T ? T : unknown> = ReturnType
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { static_parameters: Some(static_parameters), .. } => {
+                assert_eq!(static_parameters.len(), 2);
+                assert_node!(parser.tree, static_parameters[1], Parameter::Named { name, default: Some(default), .. } => {
+                    assert_string!(parser, *name, "ReturnType");
+                    assert_node!(parser.tree, *default, Expression::TypeConditional { left, right, then_type, else_type } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "F");
+                        assert_node!(parser.tree, *right, Expression::Declaration(function_id) => {
+                            assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeInfer { name, constraint } => {
+                                    assert_string!(parser, *name, "T");
+                                    assert!(constraint.is_none());
+                                });
+                            });
+                        });
+                        assert_expression_path!(parser, parser.tree.get(*then_type), "T");
+                        assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Unknown));
                     });
                 });
             });
@@ -964,6 +1020,35 @@ mod tests {
                     });
                     assert_expression_path!(parser, parser.tree.get(*then_type), "C");
                     assert_expression_path!(parser, parser.tree.get(*else_type), "D");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_conditional_type_with_abstract_construct_signature() {
+        let mut test =
+            TestParser::new("type T = A extends abstract new (x: number) => infer U ? U : unknown");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends abstract new (x: number) => infer U ? U : unknown
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert_node!(parser.tree, *right, Expression::Declaration(function_id) => {
+                        assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                            assert_eq!(signature.abstraction, FunctionAbstraction::Abstract);
+                            assert_eq!(signature.mode, Some(FunctionMode::New));
+                            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeInfer { name, constraint } => {
+                                assert_string!(parser, *name, "U");
+                                assert!(constraint.is_none());
+                            });
+                        });
+                    });
+                    assert_expression_path!(parser, parser.tree.get(*then_type), "U");
+                    assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Unknown));
                 });
             });
         });
@@ -1240,9 +1325,35 @@ mod tests {
         // type T = import("mod").Type
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::TypeImport { target, qualifier } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, qualifier, static_arguments } => {
                     assert_string!(parser, *target, "mod");
                     assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
+                    assert!(static_arguments.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_import_expression_with_static_arguments() {
+        let mut test = TestParser::new("type T = import(\"mod\").Type<string, number>");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = import("mod").Type<string, number>
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, qualifier, static_arguments } => {
+                    assert_string!(parser, *target, "mod");
+                    assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
+                    let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                    assert_eq!(static_arguments.len(), 2);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                    });
+                    assert_node!(parser.tree, static_arguments[1], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
                 });
             });
         });
@@ -1398,6 +1509,131 @@ mod tests {
                             assert_node!(parser.tree, *key, Expression::TypeLiteral(TypeLiteral::String));
                             assert_expression_path!(parser, parser.tree.get(*value), "PropertyDescriptor");
                         });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_with_key_remap_conditional() {
+        let mut test =
+            TestParser::new("type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, .. } => {
+                    assert_string!(parser, parameter.name, "K");
+                    let key_remap = parameter.key_remap.expect("expected key remap");
+                    assert_node!(parser.tree, key_remap, Expression::TypeConditional { .. });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type T = { [K in keyof T]: T[K] }",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = { [K in keyof T]: T[K] }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { .. });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_with_remap_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T<O> = { [K in keyof O as O[K] extends {} ? K : never]: O[K] }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, .. } => {
+                    assert_string!(parser, parameter.name, "K");
+                    assert!(parameter.key_remap.is_some());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_leading_intersection_with_mapped_types_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type T = (\n  & { [K in keyof T]: T[K] }\n  & { [K in keyof T as K extends string ? K : never]: T[K] }\n)",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = (& { [K in keyof T]: T[K] } & { [K in keyof T as K extends string ? K : never]: T[K] })
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Binary { operator, left, right } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                        assert_node!(parser.tree, *left, Expression::TypeMapped { .. });
+                        assert_node!(parser.tree, *right, Expression::TypeMapped { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_leading_intersection_simple_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type T = (\n  & A\n  & B\n)",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = (& A & B)
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Binary { operator, left, right } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                        assert_expression_path!(parser, parser.tree.get(*left), "A");
+                        assert_expression_path!(parser, parser.tree.get(*right), "B");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_leading_intersection_with_mapped_type_and_path_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type T = (\n  & { [K in keyof T]: T[K] }\n  & A\n)",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = (& { [K in keyof T]: T[K] } & A)
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Binary { operator, left, right } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                        assert_node!(parser.tree, *left, Expression::TypeMapped { .. });
+                        assert_expression_path!(parser, parser.tree.get(*right), "A");
                     });
                 });
             });

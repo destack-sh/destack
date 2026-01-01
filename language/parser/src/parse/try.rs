@@ -2,35 +2,35 @@ use crate::{ParseResult, Parser};
 use destack_ast::{Expression, Keyword, LocalNodeId};
 
 impl Parser {
-    /// Eat a try statement.
+    /// Eat a try expression.
     ///
     /// Examples:
     /// ```
-    /// try fileOperation() // implicitly unwraps the Result, returns Error case
-    ///
-    /// try { // implicitly unwraps all Results inside
-    ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
-    ///     riskyOperationB(a)
-    /// } // no catch needed if containing function has compatible Result type (Into suffices)
-    ///
+    /// try {
+    ///     fileOperation()?;
+    /// } catch e {
+    ///     handle(e);
+    /// }
     ///
     /// try {
-    ///     ...
+    ///     let a = riskyOperationA()?;
+    ///     riskyOperationB(a)?;
     /// } catch e {
-    ///     ... // regular catch
+    ///     log("failed", e);
+    /// } finally {
+    ///     cleanup();
     /// }
     ///
-    ///
-    /// try { // explicitly unwraps all Results inside
-    ///     ...
-    /// } catch e { // match all errors
+    /// try {
+    ///     riskyOperationA()?;
+    /// } catch match e {
     ///     NumericError(x) => Error(@format("bad number: {x}"))
     ///     FormatError => Error(@format("bad format {e}"))
-    ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
-    /// } finally {
-    ///     ...
+    ///     _ => Error(@format("unknown error: {e}"))
     /// }
     /// ```
+    ///
+    /// The parser accepts `try <expr>` without catch/finally, but Analyze rejects it.
     pub fn eat_try(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Try)?;
