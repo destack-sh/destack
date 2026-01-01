@@ -355,13 +355,15 @@ impl Parser {
         // move decorator tokens from main tokens to side tokens
         let side_span = parser.compute_side_span();
         if !side_span.spans.is_empty() {
-            // only re-filter if there are decorators
             let (new_tokens, decorator_tokens): (Vec<_>, Vec<_>) = parser
                 .tokens
                 .drain(..)
                 .partition(|token| !side_span.contains(&token.span));
             parser.tokens = new_tokens;
             parser.side_tokens.extend(decorator_tokens);
+            parser
+                .side_tokens
+                .sort_by_key(|token| (token.span.start, token.span.end));
         }
 
         // return the parser
