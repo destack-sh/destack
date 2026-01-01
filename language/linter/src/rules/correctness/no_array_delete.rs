@@ -1,5 +1,4 @@
-use destack_builtin::WellKnownSymbol;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::is_array_type;

@@ -699,8 +699,9 @@ impl Compiler {
                 }
 
                 // extract the static key from the dynamic key
-                let static_key =
-                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
+                let static_key = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                });
 
                 // evaluate the field type
                 let value_ty_id = if let Some(value) = value {
@@ -767,8 +768,9 @@ impl Compiler {
                 }
 
                 // extract the static key from the dynamic key
-                let static_key =
-                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
+                let static_key = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                });
 
                 // signature
                 let method_ty_id = self.infer_signature(

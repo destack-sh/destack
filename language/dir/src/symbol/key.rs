@@ -1,15 +1,15 @@
-use crate::LocalNodeIdAny;
+use crate::{GlobalSymbolId, WellKnownSymbolKey};
 use destack_base::{StringId, StringPool};
 
 /// Symbol as a key.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq)]
 pub enum SymbolKey {
-    /// Unique symbol expression (like `const x = Symbol("x");`).
-    UniqueSymbol(LocalNodeIdAny),
-    /// Global symbol key (like `Symbol.iterator`).
-    GlobalSymbol(StringId), // FUGU: ???
-    /// Unknown expression (could not be evaluated to a known global symbol).
-    Unknown(LocalNodeIdAny),
+    /// Unique symbol key from a declaration.
+    Unique(GlobalSymbolId),
+    /// Well known Symbol.* key.
+    WellKnown(WellKnownSymbolKey),
+    /// Symbol.for registry key (string is the content of `Symbol.for`).
+    Registry(StringId),
 }
 
 /// Key for some static "identifier" (name, numeric, symbol).
@@ -19,11 +19,8 @@ pub enum StaticKey {
     Name(StringId),
     /// Numeric name key (like `1` or `1e3`).
     Number(StringId),
-    /// Unique symbol expression (like `const x = Symbol("x");`).
-    UniqueSymbol(LocalNodeIdAny),
-    /// Global symbol key (like `Symbol.iterator`).
-    /// FUGU: wire WellKnownSymbol into StaticKey? replace UniqueSymbol and GlobalSymbol with SymbolKey?
-    GlobalSymbol(StringId),
+    /// Symbol key (unique, well known, registry).
+    Symbol(SymbolKey),
 }
 
 impl From<StringId> for StaticKey {
@@ -38,8 +35,7 @@ impl StaticKey {
         match self {
             StaticKey::Name(name) => Some(*name),
             StaticKey::Number(name) => Some(*name),
-            StaticKey::UniqueSymbol(..) => None,
-            StaticKey::GlobalSymbol(name) => Some(*name),
+            StaticKey::Symbol(_) => None,
         }
     }
 
@@ -50,7 +46,8 @@ impl StaticKey {
             (StaticKey::Number(left), StaticKey::Number(right)) => left == right,
             (StaticKey::Name(left), StaticKey::Number(right)) => left == right,
             (StaticKey::Number(left), StaticKey::Name(right)) => left == right,
-            _ => self == other,
+            (StaticKey::Symbol(left), StaticKey::Symbol(right)) => left == right,
+            _ => false,
         }
     }
 
@@ -66,10 +63,7 @@ impl StaticKey {
 
     /// Return true when this key behaves as a symbol like key.
     pub fn is_symbol_like(&self) -> bool {
-        matches!(
-            self,
-            StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_)
-        )
+        matches!(self, StaticKey::Symbol(_))
     }
 
     /// Get the debug string given a mutable string pool.
@@ -81,9 +75,22 @@ impl StaticKey {
             StaticKey::Number(name) => {
                 format!("'{}'", &*strings.get(*name))
             }
-            StaticKey::UniqueSymbol(..) => "<unique symbol>".to_string(),
-            StaticKey::GlobalSymbol(name) => {
-                format!("'{}'", &*strings.get(*name))
+            StaticKey::Symbol(symbol) => symbol.debug_string(strings),
+        }
+    }
+}
+
+impl SymbolKey {
+    /// Get the debug string given a mutable string pool.
+    pub fn debug_string(&self, strings: &StringPool) -> String {
+        match self {
+            SymbolKey::Unique(_) => "<unique symbol>".to_string(),
+            SymbolKey::WellKnown(symbol) => {
+                format!("'{}'", symbol.global_symbol_name())
+            }
+            SymbolKey::Registry(name) => {
+                let name = &*strings.get(*name);
+                format!("'Symbol.for(\"{name}\")'")
             }
         }
     }

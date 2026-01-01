@@ -67,7 +67,7 @@ pub(super) fn index_key_kind_for_member(member_key: &StaticKey) -> IndexKeyKind 
     match member_key {
         StaticKey::Name(_) => IndexKeyKind::String,
         StaticKey::Number(_) => IndexKeyKind::Number,
-        StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_) => IndexKeyKind::Symbol,
+        StaticKey::Symbol(_) => IndexKeyKind::Symbol,
     }
 }
 
@@ -90,7 +90,7 @@ pub(super) fn field_key_matches_index_kind(key: &StaticKey, kind: IndexKeyKind) 
         IndexKeyKind::String => matches!(key, StaticKey::Name(_) | StaticKey::Number(_)),
         IndexKeyKind::Number => matches!(key, StaticKey::Number(_)),
         IndexKeyKind::Symbol => {
-            matches!(key, StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_))
+            matches!(key, StaticKey::Symbol(_))
         }
         IndexKeyKind::Unknown => false,
     }

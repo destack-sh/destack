@@ -3,10 +3,8 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_base::{StringId, StringPool};
-use destack_builtin::{
-    BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, WellKnownSymbol, builtin_lib,
-};
-use destack_dir::GlobalSymbolId;
+use destack_builtin::{BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, builtin_lib};
+use destack_dir::{GlobalSymbolId, WellKnownSymbol, WellKnownSymbolKey};
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 use indexmap::IndexMap;
 
@@ -40,7 +38,7 @@ pub struct WellKnownSymbols {
     /// Top-level builtin symbols by well-known id.
     pub symbols: IndexMap<WellKnownSymbol, GlobalSymbolId>,
     /// Well-known symbol keys by id.
-    pub keys: IndexMap<WellKnownSymbol, WellKnownKey>,
+    pub keys: IndexMap<WellKnownSymbolKey, WellKnownKey>,
 }
 
 impl WellKnownSymbols {
@@ -50,31 +48,20 @@ impl WellKnownSymbols {
         let mut keys = IndexMap::new();
 
         for item in WellKnownSymbol::all() {
-            let Some(export_name) = item.export_name() else {
-                continue;
-            };
-            let name_id = strings.intern(export_name);
+            let name_id = strings.intern(item.export_name());
             let Some(symbol_id) = lib_symbols.get(&name_id).copied() else {
                 continue;
             };
             symbols.insert(item, symbol_id);
         }
 
-        for item in WellKnownSymbol::all() {
-            let Some(member_name) = item.member_name() else {
-                continue;
-            };
-            let Some(base_symbol) = item.base_symbol() else {
-                continue;
-            };
+        for item in WellKnownSymbolKey::all() {
+            let base_symbol = item.base_symbol();
             let Some(base_symbol_id) = symbols.get(&base_symbol).copied() else {
                 continue;
             };
-            let Some(global_name) = item.global_symbol_name() else {
-                continue;
-            };
-            let member_id = strings.intern(member_name);
-            let global_name_id = strings.intern(global_name);
+            let member_id = strings.intern(item.member_name());
+            let global_name_id = strings.intern(item.global_symbol_name());
             keys.insert(
                 item,
                 WellKnownKey {
@@ -94,19 +81,19 @@ impl WellKnownSymbols {
     }
 
     /// Get a well-known key by id.
-    pub fn get_key(&self, item: WellKnownSymbol) -> Option<&WellKnownKey> {
+    pub fn get_key(&self, item: WellKnownSymbolKey) -> Option<&WellKnownKey> {
         self.keys.get(&item)
     }
 
-    /// Resolve a global symbol key for a base symbol and member name.
-    pub fn global_symbol_key_for_member(
+    /// Resolve a well-known key id for a base symbol and member name.
+    pub fn symbol_key_for_member(
         &self,
         symbol: GlobalSymbolId,
         member: StringId,
-    ) -> Option<StringId> {
-        self.keys.values().find_map(|key| {
+    ) -> Option<WellKnownSymbolKey> {
+        self.keys.iter().find_map(|(key_id, key)| {
             if key.symbol == symbol && key.member == member {
-                return Some(key.global_name);
+                return Some(*key_id);
             }
             None
         })

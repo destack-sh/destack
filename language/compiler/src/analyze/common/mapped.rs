@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType,
-    ScalarLiteral, StaticKey, StringId, SymbolTable, Type, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypeTable,
-    TypeUnaryOperator,
+    ScalarLiteral, StaticKey, StringId, SymbolKey, SymbolTable, Type, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
+    TypeTable, TypeUnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -309,7 +309,12 @@ impl Compiler {
             StaticKey::Name(name) | StaticKey::Number(name) => Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(name)),
             },
-            StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_) => Type::TypeLiteral {
+            StaticKey::Symbol(SymbolKey::Unique(_) | SymbolKey::WellKnown(_)) => {
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                }
+            }
+            StaticKey::Symbol(SymbolKey::Registry(_)) => Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Symbol),
             },
         };
@@ -648,9 +653,7 @@ impl Compiler {
         match key {
             StaticKey::Name(_) => Some(MappedIndexKind::String),
             StaticKey::Number(_) => Some(MappedIndexKind::Number),
-            StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_) => {
-                Some(MappedIndexKind::Symbol)
-            }
+            StaticKey::Symbol(_) => Some(MappedIndexKind::Symbol),
         }
     }
 
@@ -804,7 +807,7 @@ impl Compiler {
             MappedIndexKind::String => matches!(key, StaticKey::Name(_) | StaticKey::Number(_)),
             MappedIndexKind::Number => matches!(key, StaticKey::Number(_)),
             MappedIndexKind::Symbol => {
-                matches!(key, StaticKey::UniqueSymbol(_) | StaticKey::GlobalSymbol(_))
+                matches!(key, StaticKey::Symbol(_))
             }
         }
     }

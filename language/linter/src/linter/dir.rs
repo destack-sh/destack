@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_ast::StringId;
-use destack_builtin::{LanguageItem, WellKnownSymbol};
+use destack_builtin::LanguageItem;
+use destack_dir::WellKnownSymbol;
 use destack_source::{EditBuilder, File, ModuleId, Span};
 use destack_workspace::{
     LintSeverity, LinterOptions, Module, ProfileId, Program, WellKnownSymbols,

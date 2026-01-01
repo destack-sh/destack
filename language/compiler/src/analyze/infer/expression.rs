@@ -1198,7 +1198,7 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // await: unwrapped promise type
+            // await: awaited type
             Expression::Await { expression } => {
                 if !ctx.can_await() {
                     self.error(AnalyzeError::InvalidAwait {
@@ -1207,9 +1207,7 @@ impl Compiler {
                 }
                 let inner_ty_id =
                     self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
-                self
-                    .unwrap_promise_type(module, symbols, ctx.profile, inner_ty_id, types)
-                    .unwrap_or(inner_ty_id)
+                self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types)
             }
 
             // await? should be desugared in Bind
@@ -1551,8 +1549,9 @@ impl Compiler {
                 symbol: _,
             } => {
                 // extract the static key from the dynamic key
-                let static_key =
-                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
+                let static_key = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                });
 
                 // derive an expected field type from the contextual object type
                 let expected_field_ty_id = static_key
@@ -1627,7 +1626,9 @@ impl Compiler {
                 ..
             } => {
                 let expected_method_ty_id = key
-                    .and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree))
+                    .and_then(|key| {
+                        self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                    })
                     .and_then(|key| self.expected_field_type(expected_object_ty_id, &key, types));
 
                 // infer the method signature with contextual typing
@@ -1688,8 +1689,9 @@ impl Compiler {
                         }
                     }
                 }
-                let static_key =
-                    key.and_then(|key| self.static_key_from_dynamic_key(ctx.profile, key, tree));
+                let static_key = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                });
                 let is_optional = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));

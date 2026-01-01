@@ -4,13 +4,14 @@ use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
 };
-use destack_builtin::{LanguageItem, WellKnownSymbol};
+use destack_builtin::LanguageItem;
 use destack_dir::{
     BinaryOperator, Declaration, DeclarationType, Expression, Extension, ExtensionKind,
     GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
     PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty,
     StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeField, TypeIndexSignature,
     TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -3149,6 +3150,64 @@ impl Compiler {
         };
 
         Some(self.convert_static_argument_type(first_argument, types))
+    }
+
+    /// Resolve the awaited type for a value.
+    pub(super) fn unwrap_awaited_type(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let mut visited = Vec::new();
+        self.unwrap_awaited_type_inner(module, symbols, profile, type_id, types, &mut visited)
+    }
+
+    /// Resolve the awaited type for a value with cycle detection.
+    fn unwrap_awaited_type_inner(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        types: &mut TypeTable,
+        visited: &mut Vec<LocalTypeId>,
+    ) -> LocalTypeId {
+        // avoid infinite recursion in cyclic types
+        if visited.contains(&type_id) {
+            return type_id;
+        }
+        visited.push(type_id);
+
+        // keep any/unknown as-is
+        if self.type_is_any_or_unknown(type_id, types) {
+            return type_id;
+        }
+
+        // distribute await across unions
+        if let Type::Union { elements } = types.get_type(type_id).clone() {
+            let mut awaited_elements = Vec::new();
+
+            // evaluate each union element independently
+            for element_id in elements {
+                let awaited_id = self.unwrap_awaited_type_inner(
+                    module, symbols, profile, element_id, types, visited,
+                );
+                awaited_elements.push(awaited_id);
+            }
+
+            return self.union_types_from_list(awaited_elements, types);
+        }
+
+        // unwrap promises when possible
+        if let Some(inner_id) = self.unwrap_promise_type(module, symbols, profile, type_id, types) {
+            return self
+                .unwrap_awaited_type_inner(module, symbols, profile, inner_id, types, visited);
+        }
+
+        type_id
     }
 
     /// Check whether a type is object like for typeof guards.
