@@ -314,8 +314,7 @@ def main() -> int:
 
     # resolve script directories
     script_directory = Path(__file__).resolve().parent
-    builtin_directory = script_directory.parent
-    library_directory = builtin_directory / "lib"
+    library_directory = script_directory / "lib"
 
     # resolve typescript version and base url
     typescript_version = os.environ.get("TS_VERSION") or DEFAULT_TYPESCRIPT_VERSION
