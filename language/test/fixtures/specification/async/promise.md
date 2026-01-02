@@ -6,10 +6,8 @@ Tests for Promise<T> and await expressions.
 
 ### await unwraps promise value type
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 declare const value: Promise<number>;
 
 async function read(): Promise<number> {
@@ -21,10 +19,8 @@ async function read(): Promise<number> {
 
 ### await rejects non promise values
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 async function read(): Promise<string> {
     const value = await "hello";
     value satisfies string;
@@ -36,10 +32,8 @@ async function read(): Promise<string> {
 
 ### await distributes over unions
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 declare const value: Promise<number> | Promise<string>;
 
 async function read(): Promise<number | string> {
@@ -51,10 +45,8 @@ async function read(): Promise<number | string> {
 
 ### await unwraps nested promises
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 declare const value: Promise<Promise<number>>;
 
 async function read(): Promise<number> {
@@ -66,10 +58,8 @@ async function read(): Promise<number> {
 
 ### await preserves any values
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 declare const value: any;
 
 async function read(): Promise<any> {
@@ -81,10 +71,8 @@ async function read(): Promise<any> {
 
 ### await preserves unknown promise values
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 declare const value: Promise<unknown>;
 
 async function read(): Promise<unknown> {
@@ -98,10 +86,8 @@ async function read(): Promise<unknown> {
 
 > TODO #Incomplete: await should unwrap generic aliases to Promise.
 
-```test libs=es2015.promise
-```
 
-```ds
+```ds libs=es2015.promise
 type Box<T> = Promise<T>;
 declare const value: Box<int32>;
 

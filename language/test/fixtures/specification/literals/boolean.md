@@ -72,3 +72,16 @@ x satisfies string;
 ```
 
 - expected string, found true
+
+## Boolean Members
+
+### boolean toString resolves
+
+> Boolean literals expose Boolean prototype members.
+
+
+```ds libs=es5
+const value = true;
+const text = value.toString();
+text satisfies string;
+```

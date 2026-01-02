@@ -56,6 +56,19 @@ const add = (a: number, b: number): number => a + b;
 add satisfies (a: number, b: number) => number;
 ```
 
+## Function Members
+
+### function toString resolves
+
+> Function values expose Function prototype members.
+
+
+```ds libs=es5
+const fn = (value: number): number => value + 1;
+const text = fn.toString();
+text satisfies string;
+```
+
 ## Function Assignability
 
 ### function value satisfies callable interface

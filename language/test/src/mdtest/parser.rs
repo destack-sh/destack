@@ -103,6 +103,66 @@ fn parse_language_tag(language: &str) -> ParsedLanguageTag<'_> {
     }
 }
 
+/// Normalize a test option key for profile selection.
+fn normalize_test_option_key(key: &str) -> Option<&'static str> {
+    match key {
+        "lib" | "libs" => Some("libs"),
+        "runtime" => Some("runtime"),
+        "runtime_version" | "runtime-version" | "runtimeVersion" => Some("runtime_version"),
+        "platform" => Some("platform"),
+        "debug" => Some("debug"),
+        _ => None,
+    }
+}
+
+/// Insert a test option, panicking on conflicting values.
+fn insert_test_option(
+    test_name: Option<&str>,
+    options: &mut HashMap<String, String>,
+    key: String,
+    value: String,
+) {
+    if let Some(existing) = options.get(&key)
+        && existing != &value
+    {
+        let name = test_name.unwrap_or("<unknown>");
+        panic!("conflicting test option '{key}' for '{name}': '{existing}' vs '{value}'");
+    }
+
+    options.insert(key, value);
+}
+
+/// Apply test options from a `test` block.
+fn apply_test_options(
+    test_name: Option<&str>,
+    options: HashMap<String, String>,
+    test_options: &mut HashMap<String, String>,
+) {
+    for (key, value) in options {
+        let normalized = normalize_test_option_key(&key).unwrap_or(&key);
+        insert_test_option(test_name, test_options, normalized.to_string(), value);
+    }
+}
+
+/// Split test options from per file options.
+fn split_test_options(
+    test_name: Option<&str>,
+    options: HashMap<String, String>,
+    test_options: &mut HashMap<String, String>,
+) -> HashMap<String, String> {
+    let mut file_options = HashMap::new();
+
+    for (key, value) in options {
+        if let Some(normalized) = normalize_test_option_key(&key) {
+            insert_test_option(test_name, test_options, normalized.to_string(), value);
+        } else {
+            file_options.insert(key, value);
+        }
+    }
+
+    file_options
+}
+
 /// Check if a language tag is a supported source code language.
 fn is_code_language(language: &str) -> bool {
     let lower = language.to_lowercase();
@@ -217,17 +277,24 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
 
                 if parsed.base.eq_ignore_ascii_case("test") {
                     if current_test_name.is_some() {
-                        for (key, value) in parsed.options {
-                            current_options.insert(key, value);
-                        }
+                        apply_test_options(
+                            current_test_name.as_deref(),
+                            parsed.options,
+                            &mut current_options,
+                        );
                     }
                 } else if is_code_language(parsed.base) && !is_expected {
                     // regular source code file
                     let path = parsed.filename.unwrap_or("main.ds").to_string();
+                    let options = split_test_options(
+                        current_test_name.as_deref(),
+                        parsed.options,
+                        &mut current_options,
+                    );
                     current_files.push(MdTestFile {
                         path,
                         content: code_block_content.clone(),
-                        options: parsed.options,
+                        options,
                     });
                 } else if !code_block_language.is_empty() {
                     // non-source block (query, expected, etc.)
@@ -539,17 +606,15 @@ p.$0
         assert!(tests[0].extra_blocks[0].content.contains("x: field"));
     }
 
+    /// Parse test options from a code block.
     #[test]
-    fn test_parse_test_options_block() {
+    fn test_parse_code_block_test_options() {
         let md = r#"
 ## Section
 
 ### Case
 
-```test libs=es2024,dom
-```
-
-```ds
+```ds libs=es2024,dom line-width=40
 const x = 1
 ```
 "#;
@@ -560,5 +625,31 @@ const x = 1
             tests[0].options.get("libs"),
             Some(&"es2024,dom".to_string())
         );
+        assert_eq!(
+            tests[0].files[0].options.get("line-width"),
+            Some(&"40".to_string())
+        );
+        assert!(tests[0].files[0].options.get("libs").is_none());
+    }
+
+    /// Reject conflicting test options across code blocks.
+    #[test]
+    #[should_panic(expected = "conflicting test option 'libs'")]
+    fn test_parse_conflicting_test_options() {
+        let md = r#"
+## Section
+
+### Case
+
+```ds:main.ds libs=es2024
+const x = 1
+```
+
+```ds:other.ds libs=es2015
+const y = 2
+```
+"#;
+
+        let _tests = parse_mdtest(md);
     }
 }

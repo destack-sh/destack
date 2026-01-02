@@ -13,9 +13,8 @@ use crate::harness::{
     RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, format_diagnostics,
 };
 use crate::mdtest::{
-    MdTestCase, MdTestLibs, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file,
-    parse_mdtest_libs, run_with_timeout, select_profile_for_mdtest,
-    setup_test_environment_with_session, slug,
+    MdTestCase, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file, run_with_timeout,
+    select_profile_for_mdtest, setup_test_environment_with_session, slug,
 };
 
 /// Test suite for type checking specification tests.
@@ -85,17 +84,9 @@ impl Suite for SpecificationSuite {
             };
         };
 
-        let timeout = context.timeout.unwrap_or_else(|| {
-            let has_libs = parse_mdtest_libs(md_test)
-                .map(|libs| !matches!(libs, MdTestLibs::None))
-                .unwrap_or(false);
-            let seconds = if has_libs {
-                TEST_TIMEOUT_SECONDS.saturating_mul(5)
-            } else {
-                TEST_TIMEOUT_SECONDS
-            };
-            Duration::from_secs(seconds)
-        });
+        let timeout = context
+            .timeout
+            .unwrap_or_else(|| Duration::from_secs(TEST_TIMEOUT_SECONDS));
         run_with_timeout(md_test.clone(), timeout, run_specification_test)
     }
 

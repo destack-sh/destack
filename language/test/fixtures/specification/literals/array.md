@@ -10,7 +10,7 @@ Tests for array literal type inference and checking.
 
 ```ds
 const x = [1, 2, 3];
-x satisfies [1, 2, 3];
+x satisfies number[];
 ```
 
 ### array of strings
@@ -19,7 +19,7 @@ x satisfies [1, 2, 3];
 
 ```ds
 const x = ["a", "b", "c"];
-x satisfies ["a", "b", "c"];
+x satisfies string[];
 ```
 
 ### empty array
@@ -37,7 +37,7 @@ x satisfies [];
 
 ```ds
 const x = [1, "two", true];
-x satisfies [1, "two", true];
+x satisfies (number | string | boolean)[];
 ```
 
 ## Contextual Arrays
@@ -59,26 +59,22 @@ values satisfies number[];
 const values: number[] = [1, "two"];
 ```
 
-- contains: type (number, "two") is not assignable to type number[]
+- contains: not assignable to type number[]
 
 ## Named Array Types
 
 ### Array<T> matches array syntax
 
-```test libs=es5
-```
 
-```ds
+```ds libs=es5
 const values: Array<number> = [1, 2, 3];
 values satisfies number[];
 ```
 
 ### array syntax matches Array<T>
 
-```test libs=es5
-```
 
-```ds
+```ds libs=es5
 const values: number[] = [1, 2, 3];
 values satisfies Array<number>;
 ```
@@ -88,8 +84,8 @@ values satisfies Array<number>;
 ### noUncheckedIndexedAccess adds undefined to array reads
 
 ```ds
-const values = [1, 2, 3]
-let value: number = values[0]
+const values = [1, 2, 3];
+let value: number = values[0];
 ```
 
 - contains: not assignable
@@ -105,6 +101,30 @@ let value: number = values[0]
 ```
 
 ```ds
-const values = [1, 2, 3]
-let value: number = values[0]
+const values = [1, 2, 3];
+let value: number = values[0];
+```
+
+## Array Members
+
+### array filter resolves
+
+> Arrays expose filter with typed results.
+
+
+```ds libs=es5
+const values = [1, 2, 3];
+const filtered = values.filter(value => value > 1);
+filtered satisfies number[];
+```
+
+### array findIndex resolves
+
+> Arrays expose findIndex.
+
+
+```ds libs=es2015
+const values = [1, 2, 3];
+const index = values.findIndex(value => value > 1);
+index satisfies number;
 ```
