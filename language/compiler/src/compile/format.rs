@@ -25,6 +25,18 @@ pub trait DiagnosticFormat {
 impl DiagnosticFormat for GlobalTypeId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
         let profile = program.default_profile_id_for_module(self.module_id);
+        let module = program.modules.get(self.module_id);
+        let module = module.read();
+        let profile = if module.dir_maybe(profile).is_some() {
+            profile
+        } else {
+            // #Cleanup: fall back to any available profile in diagnostic format?
+            module
+                .dirs
+                .iter()
+                .find_map(|dir| dir.profile_id)
+                .unwrap_or(profile)
+        };
         format_global_type(*self, &program.modules, &program.strings, profile)
     }
 }
