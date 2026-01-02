@@ -52,12 +52,6 @@ impl Compiler {
             self.mark_global_augmentation_symbols(&module);
         }
 
-        // bind module exports
-        {
-            let mut module = module.write();
-            self.bind_module_exports(&mut module);
-        }
-
         Ok(())
     }
 }

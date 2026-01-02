@@ -116,16 +116,17 @@ impl Compiler {
             }
 
             ast::Expression::Import {
+                source,
                 kind,
                 target,
                 items,
                 arguments,
             } => {
-                // Import equals (`import A = B.C`) is lowered to Let in the parser.
                 let target = self
                     .program
                     .strings
                     .intern_from(&ast.strings, *target);
+                let source = self.bind_dependency_source(*source);
                 // items
                 let items: Vec<_> = items
                     .iter()
@@ -134,7 +135,7 @@ impl Compiler {
                             module,
                             ast,
                             scope,
-                            DependencySource::ImportStatement,
+                            source,
                             *kind,
                             Some(target),
                             *item,
@@ -166,6 +167,7 @@ impl Compiler {
                 let kind = self.bind_dependency_kind(*kind);
                 // import
                 Expression::UnresolvedImport {
+                    source,
                     kind,
                     target,
                     items,
@@ -238,6 +240,13 @@ impl Compiler {
                     let kind = self.bind_dependency_kind(*kind);
                     Expression::Export { kind, items }
                 }
+            }
+            ast::Expression::ExportNamespace { name } => {
+                let name = self
+                    .program
+                    .strings
+                    .intern_from(&ast.strings, *name);
+                Expression::ExportNamespace { name }
             }
             ast::Expression::Let {
                 descriptor,

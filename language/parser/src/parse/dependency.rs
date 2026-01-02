@@ -47,9 +47,7 @@ impl Parser {
             self.bump(); // eat =
 
             // require import equals
-            if let Some(import_id) =
-                self.try_eat_import_equals_require(start, kind, name)?
-            {
+            if let Some(import_id) = self.try_eat_import_equals_require(start, kind, name)? {
                 return Ok(import_id);
             }
 

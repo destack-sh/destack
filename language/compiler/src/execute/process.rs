@@ -17,6 +17,7 @@ pub enum ExecuteTask {
         /// Identify the profile to execute.
         profile: ProfileId,
     },
+
     /// Execute comptime code for a module.
     #[task(code = 2, trace = "module={module} profile={profile}")]
     ExecuteModulePatch {
@@ -25,6 +26,7 @@ pub enum ExecuteTask {
         /// Identify the profile to execute.
         profile: ProfileId,
     },
+
     /// Execute comptime code for a specific expression.
     #[task(
         code = 3,

@@ -28,7 +28,6 @@ pub struct ModuleDir {
 
     /// Metadata exposed via import.meta.
     pub import_meta: Option<ImportMeta>,
-
     /// The symbol of the Module namespace.
     pub namespace_symbol: dir::LocalSymbolId,
     /// The scope of the Module.
@@ -37,12 +36,16 @@ pub struct ModuleDir {
     pub global_augmentation_scope: dir::LocalScopeId,
     /// The symbol of the Module default.
     pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+    /// Export assignment item (`export = ...`) when present.
+    pub export_assignment: RwLock<Option<dir::LocalNodeId<dir::DependencyItem>>>,
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    pub namespace_exports: RwLock<Vec<ModuleId>>,
+    pub namespace_exports: RwLock<Vec<dir::NamespaceExport>>,
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
     pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId), ModuleId>>,
     /// Exported symbols by key (space, name).
-    pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>>,
+    pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
 }
 
 impl ModuleDir {
@@ -75,6 +78,15 @@ impl ModuleDir {
             (namespace_scope_id, dir::LocalScopeMark::end()),
             Some(dir::DependencyMode::Default),
         );
+        let (export_assignment_symbol_id, _) = symbols.insert_symbol(
+            dir::SymbolKind::Namespace,
+            dir::SymbolType::Void,
+            dir::SymbolSpace::Value,
+            dir::SymbolBinding::Runtime,
+            None,
+            (namespace_scope_id, dir::LocalScopeMark::end()),
+            None,
+        );
 
         Self {
             profile_id: None,
@@ -89,6 +101,8 @@ impl ModuleDir {
             namespace_scope: namespace_scope_id,
             global_augmentation_scope: global_augmentation_scope_id,
             default_symbol: default_symbol_id,
+            export_assignment_symbol: export_assignment_symbol_id,
+            export_assignment: RwLock::new(None),
             namespace_exports: RwLock::new(Vec::new()),
             imported_modules: RwLock::new(IndexMap::new()),
             exported_symbols: RwLock::new(IndexMap::new()),
@@ -113,6 +127,8 @@ impl ModuleDir {
             namespace_scope: base.namespace_scope,
             global_augmentation_scope: base.global_augmentation_scope,
             default_symbol: base.default_symbol,
+            export_assignment_symbol: base.export_assignment_symbol,
+            export_assignment: RwLock::new(base.export_assignment.read().clone()),
             namespace_exports: RwLock::new(base.namespace_exports.read().clone()),
             imported_modules: RwLock::new(base.imported_modules.read().clone()),
             exported_symbols: RwLock::new(base.exported_symbols.read().clone()),

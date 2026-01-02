@@ -12,6 +12,14 @@ use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Bind an AST import source into a DIR dependency source.
+    pub(super) fn bind_dependency_source(&self, source: ast::ImportSource) -> DependencySource {
+        match source {
+            ast::ImportSource::ImportStatement => DependencySource::ImportStatement,
+            ast::ImportSource::ImportEquals => DependencySource::ImportEquals,
+        }
+    }
+
     /// Bind a dependency mode to a DIR dependency mode.
     pub(super) fn bind_dependency_mode(&self, mode: ast::DependencyMode) -> DependencyMode {
         match mode {
@@ -63,29 +71,29 @@ impl Compiler {
         let alias = ast_item
             .alias
             .map(|alias| self.program.strings.intern_from(&ast.strings, alias));
+
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
         let key = alias.or(name);
-        let (symbol_id, _) = if let Some(key) = key {
-            self.bind_named_item(
+        let symbol_id = if is_export {
+            None
+        } else if let Some(key) = key {
+            let (symbol_id, _) = self.bind_named_item(
                 module,
                 ast,
                 SymbolSpace::Value,
                 StaticKey::Name(key),
                 scope,
-                if is_export { Some(mode) } else { None },
+                None,
                 symbols,
-            )
+            );
+            Some(symbol_id)
         } else {
-            self.bind_anonymous_item(
-                module,
-                ast,
-                SymbolSpace::Value,
-                scope,
-                if is_export { Some(mode) } else { None },
-                symbols,
-            )
+            let (symbol_id, _) =
+                self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+            Some(symbol_id)
         };
+
         let item_id = {
             // `export = expr`
             if let Some(ast_value_id) = ast_item.value {
@@ -131,8 +139,11 @@ impl Compiler {
                 tree.insert(item_id, item)
             }
         };
+
         // set primary declaration for the symbol
-        symbols.get_symbol_mut(symbol_id).declare_primary(item_id);
+        if let Some(symbol_id) = symbol_id {
+            symbols.get_symbol_mut(symbol_id).declare_primary(item_id);
+        }
 
         item_id
     }

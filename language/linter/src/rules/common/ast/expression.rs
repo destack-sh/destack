@@ -528,6 +528,7 @@ pub fn has_side_effects(
         | ast::Expression::Using { .. }
         | ast::Expression::Import { .. }
         | ast::Expression::Export { .. }
+        | ast::Expression::ExportNamespace { .. }
         | ast::Expression::Labelled { .. } => true,
 
         // side effects: debugger, error, stub

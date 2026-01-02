@@ -2013,12 +2013,11 @@ pub(crate) fn format_expression<'ast>(
             // keyword
             write!(f, [Keyword::Import, space()])?;
             if *source == ImportSource::ImportEquals {
-                let alias = items
-                    .first()
-                    .and_then(|item| tree.get(*item).alias)
-                    .ok_or(FormatError::SyntaxError {
+                let alias = items.first().and_then(|item| tree.get(*item).alias).ok_or(
+                    FormatError::SyntaxError {
                         message: "import equals requires an alias",
-                    })?;
+                    },
+                )?;
                 write!(
                     f,
                     [
@@ -2206,7 +2205,15 @@ pub(crate) fn format_expression<'ast>(
         Expression::ExportNamespace { name } => {
             write!(
                 f,
-                [Keyword::Export, space(), Keyword::As, space(), Keyword::Namespace, space(), name]
+                [
+                    Keyword::Export,
+                    space(),
+                    Keyword::As,
+                    space(),
+                    Keyword::Namespace,
+                    space(),
+                    name
+                ]
             )?;
         }
 

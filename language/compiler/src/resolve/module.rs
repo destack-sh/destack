@@ -1,9 +1,16 @@
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
-use destack_dir::{Declaration, DependencyItem, Expression, LocalSymbolId};
+use crate::{BindError, Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use destack_builtin::builtin_lib;
+use destack_dir::{
+    Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind,
+    ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId,
+    NodeTree, StaticKey, SymbolSpace, SymbolTable,
+};
 
 use destack_source::ModuleId;
-use destack_workspace::{ImportMeta, ModuleDir, ProfileId};
+use destack_workspace::{ImportMeta, Module, ModuleDir, ProfileId};
+use indexmap::IndexMap;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
     pub(super) fn resolve_module_prepare(
@@ -11,6 +18,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<()> {
+        // load the module and skip when the profile dir already exists
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
         if module
@@ -20,18 +28,17 @@ impl Compiler {
         {
             return Ok(());
         }
+
+        // load the base dir and profile
         let base = module.dir_base();
-
-        // profile
         let profile = self.program.profile(profile_id);
-
         let path = module.path.clone();
         let dir = module
             .path
             .as_ref()
             .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
 
-        // import meta
+        // build import meta
         let import_meta = ImportMeta {
             url: module.uri.clone(),
             path: path.clone(),
@@ -46,9 +53,16 @@ impl Compiler {
             env: profile.env.clone(),
         };
 
+        // create the profile dir and attach import meta
         let mut dir = ModuleDir::from_base(base, profile_id);
         dir.import_meta = Some(import_meta);
         module.dirs.push(dir);
+
+        // build export table from bound declarations
+        let dir = module.dir(profile_id);
+        let tree = dir.tree.read();
+        let mut symbols = dir.symbols.write();
+        self.build_module_exports(&module, dir, &tree, &mut symbols);
         Ok(())
     }
 
@@ -58,6 +72,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
+        // load module data and acquire resolve locks
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
@@ -108,7 +123,541 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
+        // finalize export targets after dependency resolution
+        self.finalize_module_exports(dir, &tree, &mut symbols);
+
         Ok(())
+    }
+
+    /// Build the export table for a module.
+    fn build_module_exports(
+        &self,
+        module: &Module,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+    ) {
+        // cache the default export name
+        let default_name = self.program.strings.intern("default");
+
+        // collect the export assignment if present
+        let export_assignment_item = self.collect_export_assignment(module, dir, tree);
+
+        // insert exports declared by symbols
+        let mut exports = dir.exported_symbols.write();
+        self.insert_symbol_exports(
+            module.id,
+            dir,
+            tree,
+            symbols,
+            &mut exports,
+            export_assignment_item,
+            default_name,
+        );
+
+        // insert exports declared by dependency items
+        self.insert_dependency_exports(
+            module.id,
+            dir,
+            tree,
+            symbols,
+            &mut exports,
+            export_assignment_item,
+            default_name,
+        );
+
+        // add ambient exports when a builtin lib is global
+        if self.module_is_ambient_lib(module) {
+            self.insert_ambient_exports(dir, symbols, &mut exports);
+        }
+    }
+
+    /// Collect the export assignment item if present.
+    fn collect_export_assignment(
+        &self,
+        module: &Module,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+    ) -> Option<LocalNodeId<DependencyItem>> {
+        // scan export statements for export assignments
+        let mut export_assignment_item: Option<LocalNodeId<DependencyItem>> = None;
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // skip nonexport statements
+            if self.export_statement_parent(tree, item_id).is_none() {
+                continue;
+            }
+
+            // skip nonassignment values
+            let DependencyItem::Value { mode, .. } = tree.get(item_id) else {
+                continue;
+            };
+            if *mode != DependencyMode::Namespace {
+                continue;
+            }
+
+            // report conflicts and keep the first assignment
+            if let Some(existing) = export_assignment_item {
+                self.error(BindError::ConflictingExport {
+                    node: item_id.into_global_any(module.id),
+                    other_node: existing.into_global_any(module.id),
+                    module: module.id,
+                    name: None,
+                });
+                continue;
+            }
+
+            export_assignment_item = Some(item_id);
+        }
+
+        // record the export assignment on the module dir
+        *dir.export_assignment.write() = export_assignment_item;
+
+        export_assignment_item
+    }
+
+    /// Insert exports declared by symbols.
+    fn insert_symbol_exports(
+        &self,
+        module_id: ModuleId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+        export_assignment_item: Option<LocalNodeId<DependencyItem>>,
+        default_name: destack_base::StringId,
+    ) {
+        // collect namespace symbols
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let symbol_ids: Vec<LocalSymbolId> = namespace_scope
+            .named_symbols
+            .iter()
+            .map(|(_, symbol_id)| *symbol_id)
+            .chain(
+                namespace_scope
+                    .anonymous_symbols
+                    .iter()
+                    .copied()
+                    .filter(|symbol_id| *symbol_id != dir.default_symbol),
+            )
+            .collect();
+
+        for symbol_id in symbol_ids {
+            // read symbol metadata
+            let symbol = symbols.get_symbol(symbol_id);
+            let Some(export_mode) = symbol.export else {
+                continue;
+            };
+
+            // reject exports when export assignment is present
+            if let Some(export_assignment_item) = export_assignment_item {
+                let Some(other_node) = symbol.primary_declaration else {
+                    continue;
+                };
+                self.error(BindError::ConflictingExport {
+                    node: export_assignment_item.into_global_any(module_id),
+                    other_node,
+                    module: module_id,
+                    name: None,
+                });
+                continue;
+            }
+
+            // resolve the export key
+            let key = match export_mode {
+                DependencyMode::Default => StaticKey::Name(default_name),
+                _ => {
+                    let Some(name) = symbol.name() else {
+                        continue;
+                    };
+                    StaticKey::Name(name)
+                }
+            };
+
+            // insert the export entry
+            let export = Export::local(key, symbol.space, symbol_id);
+            self.insert_exports(
+                module_id,
+                tree,
+                symbols,
+                exports,
+                export,
+                symbol.primary_declaration,
+            );
+
+            // align the module default symbol with default export declarations
+            if export_mode == DependencyMode::Default
+                && symbols
+                    .get_symbol(dir.default_symbol)
+                    .target_symbol
+                    .is_none()
+            {
+                symbols
+                    .get_symbol_mut(dir.default_symbol)
+                    .resolve_to(symbol_id.into_global(module_id));
+            }
+        }
+    }
+
+    /// Insert exports declared by dependency items.
+    fn insert_dependency_exports(
+        &self,
+        module_id: ModuleId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+        export_assignment_item: Option<LocalNodeId<DependencyItem>>,
+        default_name: destack_base::StringId,
+    ) {
+        // walk dependency items under export expressions
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // skip nonexport dependency items
+            if self.export_item_parent(tree, item_id).is_none() {
+                continue;
+            }
+
+            // reject exports when export assignment is present
+            if let Some(export_assignment_item) = export_assignment_item
+                && export_assignment_item != item_id
+            {
+                self.error(BindError::ConflictingExport {
+                    node: item_id.into_global_any(module_id),
+                    other_node: export_assignment_item.into_global_any(module_id),
+                    module: module_id,
+                    name: None,
+                });
+                continue;
+            }
+
+            // extract export metadata from the dependency item
+            let item = tree.get(item_id);
+            let (mode, kind, name, alias) = match item {
+                DependencyItem::Local {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                }
+                | DependencyItem::Remote {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                }
+                | DependencyItem::UnresolvedLocal {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                }
+                | DependencyItem::UnresolvedRemote {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                } => (*mode, *kind, *name, *alias),
+                DependencyItem::Value { mode, .. } => {
+                    // emit default value exports
+                    if *mode == DependencyMode::Default {
+                        let key = StaticKey::Name(default_name);
+                        let export = Export::local(key, SymbolSpace::Value, dir.default_symbol);
+                        self.insert_exports(
+                            module_id,
+                            tree,
+                            symbols,
+                            exports,
+                            export,
+                            Some(item_id.into_global_any(module_id)),
+                        );
+                    }
+                    continue;
+                }
+            };
+
+            // resolve the export key
+            let export_name = self.export_name_for_dependency(mode, name, alias, default_name);
+            let Some(export_name) = export_name else {
+                continue;
+            };
+            let key = StaticKey::Name(export_name);
+
+            // insert reexport entries
+            let spaces = match kind {
+                DependencyKind::Type => ExportSpaceOrder::TypeOnly,
+                DependencyKind::Value => ExportSpaceOrder::ValueOnly,
+            };
+            for space in spaces.spaces() {
+                let export = Export::reexport(key, *space, item_id);
+                self.insert_exports(
+                    module_id,
+                    tree,
+                    symbols,
+                    exports,
+                    export,
+                    Some(item_id.into_global_any(module_id)),
+                );
+            }
+        }
+    }
+
+    /// Finalize export targets after dependency resolution.
+    fn finalize_module_exports(&self, dir: &ModuleDir, tree: &NodeTree, symbols: &mut SymbolTable) {
+        // resolve export assignment target symbols
+        if let Some(item_id) = *dir.export_assignment.read() {
+            let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                return;
+            };
+            if *mode == DependencyMode::Namespace {
+                let value_expression = tree.get(*value);
+                if let Some(target_symbol) = value_expression.target_symbol() {
+                    symbols
+                        .get_symbol_mut(dir.export_assignment_symbol)
+                        .resolve_to(target_symbol);
+                }
+            }
+        }
+
+        // skip if a default target is already resolved
+        if symbols
+            .get_symbol(dir.default_symbol)
+            .target_symbol
+            .is_some()
+        {
+            return;
+        }
+
+        // resolve the default export target from value expressions
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // skip nonexport statements
+            if self.export_statement_parent(tree, item_id).is_none() {
+                continue;
+            }
+
+            // skip nondefault value exports
+            let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                continue;
+            };
+            if *mode != DependencyMode::Default {
+                continue;
+            }
+
+            // resolve the target symbol for the default export
+            let value_expression = tree.get(*value);
+            if let Some(target_symbol) = value_expression.target_symbol() {
+                symbols
+                    .get_symbol_mut(dir.default_symbol)
+                    .resolve_to(target_symbol);
+                break;
+            }
+        }
+    }
+
+    /// Get the export statement parent for an item, if any.
+    fn export_statement_parent(
+        &self,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+    ) -> Option<LocalNodeId<Expression>> {
+        // resolve the parent expression
+        let parent_id = tree.get_parent(item_id.id)?;
+        let parent_id = parent_id.try_into_typed::<Expression>().ok()?;
+        match tree.get(parent_id) {
+            Expression::Export { .. } => Some(parent_id),
+            _ => None,
+        }
+    }
+
+    /// Get any export parent expression for an item, if any.
+    fn export_item_parent(
+        &self,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+    ) -> Option<LocalNodeId<Expression>> {
+        // resolve the parent expression
+        let parent_id = tree.get_parent(item_id.id)?;
+        let parent_id = parent_id.try_into_typed::<Expression>().ok()?;
+        match tree.get(parent_id) {
+            Expression::Export { .. }
+            | Expression::ReExport { .. }
+            | Expression::UnresolvedReExport { .. } => Some(parent_id),
+            _ => None,
+        }
+    }
+
+    /// Check if this module should export all symbols from its namespace.
+    fn module_is_ambient_lib(&self, module: &Module) -> bool {
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return false;
+        };
+        let Some(lib_name) = builtins.lib_name_for_module(module.id) else {
+            return false;
+        };
+        let Some(lib) = builtin_lib(lib_name) else {
+            return false;
+        };
+        lib.is_ambient
+    }
+
+    /// Insert ambient exports without overriding explicit export entries.
+    fn insert_ambient_exports(
+        &self,
+        dir: &ModuleDir,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+    ) {
+        // collect namespace symbols
+        let scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let symbol_ids: Vec<LocalSymbolId> = scope
+            .named_symbols
+            .iter()
+            .map(|(_, symbol_id)| *symbol_id)
+            .chain(
+                scope
+                    .anonymous_symbols
+                    .iter()
+                    .copied()
+                    .filter(|symbol_id| *symbol_id != dir.default_symbol),
+            )
+            .collect();
+
+        // insert exports without overriding explicit entries
+        for symbol_id in symbol_ids {
+            // skip synthetic export assignment symbol
+            if symbol_id == dir.export_assignment_symbol {
+                continue;
+            }
+
+            // skip anonymous symbols
+            let symbol = symbols.get_symbol(symbol_id);
+            let Some(name) = symbol.name() else {
+                continue;
+            };
+
+            // insert an export if the slot is empty
+            let key = StaticKey::Name(name);
+            let mut insert_if_missing = |space: SymbolSpace| {
+                if exports.contains_key(&(space, key)) {
+                    return;
+                }
+                exports.insert((space, key), Export::local(key, space, symbol_id));
+            };
+
+            // expand type value entries into type and value exports
+            match symbol.space {
+                SymbolSpace::TypeValue => {
+                    insert_if_missing(SymbolSpace::Type);
+                    insert_if_missing(SymbolSpace::Value);
+                }
+                SymbolSpace::Type | SymbolSpace::Value => {
+                    insert_if_missing(symbol.space);
+                }
+                SymbolSpace::Label => {}
+            }
+        }
+    }
+
+    /// Get the export name for a dependency item.
+    fn export_name_for_dependency(
+        &self,
+        mode: DependencyMode,
+        name: Option<destack_base::StringId>,
+        alias: Option<destack_base::StringId>,
+        default_name: destack_base::StringId,
+    ) -> Option<destack_base::StringId> {
+        // prefer explicit aliases
+        if alias.is_some() {
+            return alias;
+        }
+
+        // use mode defaults for unnamed exports
+        match mode {
+            DependencyMode::Item => name,
+            DependencyMode::Default => name.or(Some(default_name)),
+            DependencyMode::Namespace => None,
+        }
+    }
+
+    /// Get the symbol space for a global symbol.
+    pub(super) fn symbol_space_for_global(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> SymbolSpace {
+        let module = self.program.modules.get(symbol.module_id);
+        let module = module.read();
+        let symbols = module.dir(profile).symbols.read();
+        symbols.get_symbol(symbol.local_id).space
+    }
+
+    /// Insert exports into the table and report conflicts.
+    fn insert_exports(
+        &self,
+        module_id: ModuleId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+        export: Export,
+        node: Option<GlobalNodeIdAny>,
+    ) {
+        let key = export.key;
+        let space = export.space;
+        debug_assert!(space != SymbolSpace::Label);
+
+        // expand type value exports into both type and value spaces
+        if export.space == SymbolSpace::TypeValue {
+            let mut type_export = export.clone();
+            type_export.space = SymbolSpace::Type;
+            self.insert_exports(module_id, tree, symbols, exports, type_export, node);
+
+            let mut value_export = export;
+            value_export.space = SymbolSpace::Value;
+            self.insert_exports(module_id, tree, symbols, exports, value_export, node);
+            return;
+        }
+
+        // map an export entry to its target symbol
+        let export_target = |export: &Export| -> Option<GlobalSymbolId> {
+            match export.kind {
+                ExportKind::Local => export.symbol.map(|symbol| symbol.into_global(module_id)),
+                ExportKind::ReExport => export.item.and_then(|item| tree.get(item).target_symbol()),
+            }
+        };
+
+        // insert when the export slot is empty
+        let Some(existing) = exports.get(&(space, key)) else {
+            exports.insert((space, key), export);
+            return;
+        };
+
+        // skip duplicates that resolve to the same target
+        let existing_target = export_target(existing);
+        let next_target = export_target(&export);
+        if existing_target.is_some() && existing_target == next_target {
+            return;
+        }
+
+        // report conflicts when the targets differ
+        let other_node = match existing.kind {
+            ExportKind::Local => existing
+                .symbol
+                .and_then(|symbol| symbols.get_symbol(symbol).primary_declaration),
+            ExportKind::ReExport => existing.item.map(|item| item.into_global_any(module_id)),
+        };
+        if let (Some(node), Some(other_node)) = (node, other_node) {
+            self.error(BindError::ConflictingExport {
+                node,
+                other_node,
+                module: module_id,
+                name: Some(key),
+            });
+        }
+
+        // insert the export entry
+        exports.insert((space, key), export);
     }
 
     /// Compute canonical_symbol for all symbols (phase 2).
@@ -117,6 +666,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
+        // load module data for canonical resolution
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
@@ -124,7 +674,7 @@ impl Compiler {
         let symbols = dir.symbols.read();
 
         // collect symbols that have target_symbol but no canonical_symbol
-        // (only include symbols with primary_declaration, others are internal/incomplete)
+        // (only include symbols with primary_declaration, others are internal or incomplete)
         let symbols_to_resolve: Vec<_> = (0..symbols.symbol_count())
             .map(LocalSymbolId::new)
             .filter_map(|id| {
@@ -148,7 +698,8 @@ impl Compiler {
         drop(tree);
         drop(module);
 
-        // resolve canonical symbols (may yield for cross-module resolution)
+        // resolve canonical symbols
+        // (this may yield for cross module resolution)
         let mut collector = TaskResultCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
             self.collect(

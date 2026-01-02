@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, Expression, GlobalSymbolId, LocalNodeId, NodeTree, SymbolTable};
+use destack_dir::{Declaration, LocalNodeId, NodeTree, SymbolTable};
 
 use destack_workspace::{Module, ModuleDir};
 
@@ -28,7 +28,7 @@ impl Compiler {
 
                 // resolve the target symbol
                 let target_type_expr = tree.get(*target_type);
-                let resolved_target_symbol = Self::extract_target_symbol(target_type_expr);
+                let resolved_target_symbol = target_type_expr.target_symbol();
                 if let Some(resolved_target_symbol) = resolved_target_symbol
                     && let Declaration::Extension { target_symbol, .. } =
                         tree.get_mut(declaration_id)
@@ -54,7 +54,7 @@ impl Compiler {
                 let value_expr = tree.get(*value);
 
                 // extract the target symbol from the resolved reference expressions
-                if let Some(resolved_target_symbol) = Self::extract_target_symbol(value_expr) {
+                if let Some(resolved_target_symbol) = value_expr.target_symbol() {
                     // set the type alias symbol's target_symbol
                     symbols
                         .get_symbol_mut(symbol_id)
@@ -65,16 +65,6 @@ impl Compiler {
             }
 
             _ => Ok(()),
-        }
-    }
-
-    /// Extract target_symbol from a resolved expression.
-    fn extract_target_symbol(expr: &Expression) -> Option<GlobalSymbolId> {
-        match expr {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-            _ => None,
         }
     }
 }
