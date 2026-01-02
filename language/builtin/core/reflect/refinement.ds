@@ -3,7 +3,7 @@
 /// Refinements describe constraints that must be satisfied by values of a type.
 /// They contain both the constraint metadata (for introspection) and a validation
 /// function (for runtime checking).
-struct Refinement {
+export struct Refinement {
     /// The kind of refinement (e.g., "min", "max", "minLength", "pattern").
     kind: string,
 
@@ -25,7 +25,7 @@ struct Refinement {
 /// 
 /// The compiler recognizes these and can generate optimized validation code.
 /// Custom refinements use string kinds and rely on the `validate` function.
-type RefinementKind = 
+export type RefinementKind = 
 // Numeric
 "min" | "max" | "positive" | "negative" | "nonZero" | "multipleOf";
 // Sequence length
