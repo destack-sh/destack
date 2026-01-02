@@ -24,7 +24,7 @@ import { DecoratorInfo } from "./decorator.ds";
 /// //      decorators: [{ name: "unique", args: [] }],
 /// //    }
 /// ```
-struct Property {
+export struct Property {
     /// The name of this property.
     name: string,
 
@@ -67,7 +67,7 @@ struct Property {
 /// Status.variants[0]
 /// // => Variant { name: "Active", value: 0 }
 /// ```
-struct Variant {
+export struct Variant {
     /// The name of this variant.
     name: string,
 

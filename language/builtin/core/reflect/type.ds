@@ -6,10 +6,10 @@ import { intrinsic } from "../intrinsic/decorator.ds";
 /// Stable unique identifier for a type.
 /// 
 /// Format: "module/path:TypeName" (e.g., "myapp/models:User")
-newtype TypeId = string;;
+export newtype TypeId = string;;
 
 /// Common interface implemented by all type descriptor variants.
-interface TypeBase<T> {
+export interface TypeBase<T> {
     /// The name of this type (e.g., "User", "int", "string[]").
     readonly name: string,
 
@@ -21,7 +21,7 @@ interface TypeBase<T> {
 }
 
 /// Primitive type descriptor (string, int, float, boolean, null).
-struct PrimitiveType<T> implements TypeBase<T> {
+export struct PrimitiveType<T> implements TypeBase<T> {
     kind: "primitive" = "primitive",
     name: string,
     id: TypeId,
@@ -31,7 +31,7 @@ struct PrimitiveType<T> implements TypeBase<T> {
 }
 
 /// The specific kind of primitive type.
-type PrimitiveKind = "string"
+export type PrimitiveKind = "string"
     | "boolean"
     | "null"
     | "undefined"
@@ -52,7 +52,7 @@ type PrimitiveKind = "string"
     | "bigint";
 
 /// Struct type descriptor.
-struct StructType<T> implements TypeBase<T> {
+export struct StructType<T> implements TypeBase<T> {
     kind: "struct" = "struct",
     name: string,
     id: TypeId,
@@ -68,7 +68,7 @@ struct StructType<T> implements TypeBase<T> {
 }
 
 /// Class type descriptor.
-struct ClassType<T> implements TypeBase<T> {
+export struct ClassType<T> implements TypeBase<T> {
     kind: "class" = "class",
     name: string,
     id: TypeId,
@@ -90,7 +90,7 @@ struct ClassType<T> implements TypeBase<T> {
 }
 
 /// Enum type descriptor.
-struct EnumType<T> implements TypeBase<T> {
+export struct EnumType<T> implements TypeBase<T> {
     kind: "enum" = "enum",
     name: string,
     id: TypeId,
@@ -106,7 +106,7 @@ struct EnumType<T> implements TypeBase<T> {
 }
 
 /// Interface type descriptor.
-struct InterfaceType<T> implements TypeBase<T> {
+export struct InterfaceType<T> implements TypeBase<T> {
     kind: "interface" = "interface",
     name: string,
     id: TypeId,
@@ -125,7 +125,7 @@ struct InterfaceType<T> implements TypeBase<T> {
 }
 
 /// Newtype type descriptor (nominal wrapper around another type).
-struct NewtypeType<T> implements TypeBase<T> {
+export struct NewtypeType<T> implements TypeBase<T> {
     kind: "newtype" = "newtype",
     name: string,
     id: TypeId,
@@ -141,7 +141,7 @@ struct NewtypeType<T> implements TypeBase<T> {
 }
 
 /// Array type descriptor.
-struct ArrayType<T> implements TypeBase<T> {
+export struct ArrayType<T> implements TypeBase<T> {
     kind: "array" = "array",
     name: string,
     id: TypeId,
@@ -154,7 +154,7 @@ struct ArrayType<T> implements TypeBase<T> {
 }
 
 /// Tuple type descriptor.
-struct TupleType<T> implements TypeBase<T> {
+export struct TupleType<T> implements TypeBase<T> {
     kind: "tuple" = "tuple",
     name: string,
     id: TypeId,
@@ -167,7 +167,7 @@ struct TupleType<T> implements TypeBase<T> {
 }
 
 /// Union type descriptor.
-struct UnionType<T> implements TypeBase<T> {
+export struct UnionType<T> implements TypeBase<T> {
     kind: "union" = "union",
     name: string,
     id: TypeId,
@@ -177,7 +177,7 @@ struct UnionType<T> implements TypeBase<T> {
 }
 
 /// Intersection type descriptor.
-struct IntersectionType<T> implements TypeBase<T> {
+export struct IntersectionType<T> implements TypeBase<T> {
     kind: "intersection" = "intersection",
     name: string,
     id: TypeId,
@@ -187,7 +187,7 @@ struct IntersectionType<T> implements TypeBase<T> {
 }
 
 /// Function type descriptor.
-struct FunctionType<T> implements TypeBase<T> {
+export struct FunctionType<T> implements TypeBase<T> {
     kind: "function" = "function",
     name: string,
     id: TypeId,
@@ -206,7 +206,7 @@ struct FunctionType<T> implements TypeBase<T> {
 }
 
 /// A function parameter.
-struct Parameter {
+export struct Parameter {
     name: string,
     type: Type<unknown>,
     optional: boolean,
@@ -214,7 +214,7 @@ struct Parameter {
 }
 
 /// Object type descriptor (anonymous structural type `{ x: T, y: U }`).
-struct ObjectType<T> implements TypeBase<T> {
+export struct ObjectType<T> implements TypeBase<T> {
     kind: "object" = "object",
     name: string,
     id: TypeId,
@@ -226,7 +226,7 @@ struct ObjectType<T> implements TypeBase<T> {
 /// Refined type descriptor (a type with additional constraints).
 /// 
 /// Refinements are metadata only, the compiler does not validate them.
-struct RefinedType<T> implements TypeBase<T> {
+export struct RefinedType<T> implements TypeBase<T> {
     kind: "refined" = "refined",
     name: string,
     id: TypeId,
@@ -244,7 +244,7 @@ struct RefinedType<T> implements TypeBase<T> {
 /// This is the primary type for working with type reflection.
 /// All variants implement `TypeBase<T>`, so common operations like
 /// `.name`, `.id`, `.is()`, and `.validate()` work on any `Type<T>`.
-newtype Type<T> = PrimitiveType<T>
+export newtype Type<T> = PrimitiveType<T>
     | StructType<T>
     | ClassType<T>
     | EnumType<T>
@@ -263,4 +263,4 @@ newtype Type<T> = PrimitiveType<T>
 /// Unlike JavaScript's `typeof` (which returns a coarse string like "object"),
 /// this returns the full `Type<T>` descriptor.
 @intrinsic
-declare function typeOf<T>(value: T): Type<T>;
+export declare function typeOf<T>(value: T): Type<T>;
