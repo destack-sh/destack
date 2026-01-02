@@ -4,6 +4,7 @@ mod dom;
 mod es;
 mod node;
 mod scripthost;
+mod undici_types;
 mod worker;
 
 use super::source::BuiltinLib;
@@ -14,6 +15,7 @@ pub use dom::*;
 pub use es::*;
 pub use node::*;
 pub use scripthost::*;
+pub use undici_types::*;
 pub use worker::*;
 
 pub const LIBS: &[BuiltinLib] = &[
@@ -123,6 +125,10 @@ pub const LIBS: &[BuiltinLib] = &[
     LIB_NODE_V20,
     LIB_NODE_V22,
     LIB_NODE_V24,
+    LIB_UNDICI_TYPES,
+    LIB_UNDICI_TYPES_V5,
+    LIB_UNDICI_TYPES_V6,
+    LIB_UNDICI_TYPES_V7,
     LIB_WORKER,
     LIB_WORKER_ASYNCITERABLE,
     LIB_WORKER_IMPORTSCRIPTS,

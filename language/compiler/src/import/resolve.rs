@@ -7,6 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_base::StringId;
+use destack_builtin::builtin_lib;
 use destack_resolver::Resolver;
 use destack_source::{File, FileType, FileVersion, LanguageType, ModuleId, PackageId, Uri};
 use destack_workspace::{Module, ModuleType, Package, PackageKind};
@@ -66,9 +67,40 @@ impl Compiler {
             return None;
         }
 
-        // only handle relative imports (for now?)
+        // resolve builtin libs by name for builtin modules
         if !specifier.starts_with("./") && !specifier.starts_with("../") {
-            return None;
+            let builtins = self.program.builtins.as_ref()?;
+
+            // map specifier to builtin lib name
+            let lib_name = if let Some(lib) = builtin_lib(specifier) {
+                lib.name
+            } else if let Some(source_lib_name) = builtins.lib_name_for_module(source_module) {
+                let source_lib = builtin_lib(source_lib_name)?;
+                source_lib
+                    .specifier_aliases
+                    .iter()
+                    .find(|(alias, _)| *alias == specifier)
+                    .map(|(_, target)| *target)?
+            } else {
+                return None;
+            };
+
+            // resolve entry module and ensure lib is loaded
+            let lib = builtin_lib(lib_name)?;
+            let entry_source = lib
+                .sources
+                .iter()
+                .find(|source| source.name == "index.d.ts")
+                .unwrap_or_else(|| &lib.sources[0]);
+            let module_path = entry_source.module_path();
+            let module_id =
+                ModuleId::from_relative_path(builtins.package_id, Path::new(&module_path));
+            builtins.load_lib(
+                lib_name,
+                self.program.files.clone(),
+                self.program.modules.clone(),
+            );
+            return Some(module_id);
         }
 
         // resolve relative path against source URI

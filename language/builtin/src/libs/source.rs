@@ -66,6 +66,8 @@ pub struct BuiltinLib {
     pub sources: &'static [BuiltinLibSource],
     /// Library dependencies by name.
     pub dependencies: &'static [&'static str],
+    /// Import specifier aliases for this library.
+    pub specifier_aliases: &'static [(&'static str, &'static str)],
     /// Canonical exports used by the compiler for fast builtin lookups.
     pub canonical_exports: &'static [&'static str],
     /// Whether symbols are ambient without explicit imports.
@@ -84,6 +86,7 @@ impl BuiltinLib {
             sources,
             dependencies,
             is_ambient: true,
+            specifier_aliases: &[],
             canonical_exports: &[],
         }
     }
@@ -99,6 +102,7 @@ impl BuiltinLib {
             sources,
             dependencies,
             is_ambient: false,
+            specifier_aliases: &[],
             canonical_exports: &[],
         }
     }
@@ -109,6 +113,15 @@ impl BuiltinLib {
         canonical_exports: &'static [&'static str],
     ) -> Self {
         self.canonical_exports = canonical_exports;
+        self
+    }
+
+    /// Attach import specifier aliases to the builtin library definition.
+    pub(crate) const fn with_specifier_aliases(
+        mut self,
+        specifier_aliases: &'static [(&'static str, &'static str)],
+    ) -> Self {
+        self.specifier_aliases = specifier_aliases;
         self
     }
 }
