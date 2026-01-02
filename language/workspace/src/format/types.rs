@@ -13,7 +13,7 @@ pub fn format_global_type(
     let module = modules.get(ty_id.module_id);
     let module = module.read();
     let Some(dir) = module.dir_maybe(profile) else {
-        return "<unknown>".to_string();
+        return "<missing>".to_string();
     };
     let types = dir.types.read();
     let ty = types.get_type(ty_id.local_id);
