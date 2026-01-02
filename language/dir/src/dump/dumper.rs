@@ -835,17 +835,20 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
 
             Expression::UnresolvedImport {
+                source,
                 kind,
                 target,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::UnresolvedImport", id.id)
+                    .field("source", source)
                     .field("kind", kind)
                     .field("target", target)
                     .end();
             }
             Expression::Import {
+                source,
                 kind,
                 target,
                 target_module,
@@ -853,6 +856,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 arguments: _,
             } => {
                 self.node("Expression::Import", id.id)
+                    .field("source", source)
                     .field("kind", kind)
                     .field("target", target)
                     .field("target_module", target_module)
@@ -883,6 +887,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Export { kind, items: _ } => {
                 self.node("Expression::Export", id.id)
                     .field("kind", kind)
+                    .end();
+            }
+            Expression::ExportNamespace { name } => {
+                self.node("Expression::ExportNamespace", id.id)
+                    .field("name", name)
                     .end();
             }
             Expression::Let {

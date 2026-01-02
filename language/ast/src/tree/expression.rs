@@ -10,6 +10,15 @@ use crate::{
 
 // NOTE #Performance: reduce Expression size to <=64B
 
+/// The source of an import declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportSource {
+    /// Standard import statement.
+    ImportStatement,
+    /// Import-equals declaration (`import x = require("mod")`).
+    ImportEquals,
+}
+
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq)]
@@ -45,8 +54,10 @@ pub enum Expression {
     /// import { bar, baz } from "foo"
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true }
+    /// import foo = require("foo")
     /// ```
     Import {
+        source: ImportSource,
         kind: DependencyKind,
         target: StringId,
         items: Vec<LocalNodeId<DependencyItem>>,
@@ -73,6 +84,14 @@ pub enum Expression {
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
     },
+
+    /// Export the module namespace as a global name (declaration files only).
+    ///
+    /// Example:
+    /// ```
+    /// export as namespace Foo
+    /// ```
+    ExportNamespace { name: StringId },
 
     /// Let or var binding for constant or mutable variables.
     /// Both let and var may destructure and pattern match.
@@ -868,6 +887,7 @@ impl Expression {
             Expression::Statement { .. }
                 | Expression::Declaration { .. }
                 | Expression::Import { .. }
+                | Expression::ExportNamespace { .. }
                 | Expression::Let { .. }
                 | Expression::Using { .. }
                 | Expression::While { .. }

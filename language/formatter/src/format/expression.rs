@@ -2,10 +2,10 @@ use std::cmp::Ordering;
 
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, ForEachBinding, ForEachKind, IfKind, Keyword, LetKind, LocalNodeId,
-    MatchCase, MatchKind, MatchSelector, NodeTree, OperatorPrecedence, Pattern, PostfixPosition,
-    Property, ScalarLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhileKind,
-    YieldCardinality,
+    DependencyMode, Expression, ForEachBinding, ForEachKind, IfKind, ImportSource, Keyword,
+    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, NodeTree, OperatorPrecedence,
+    Pattern, PostfixPosition, Property, ScalarLiteral, TypeModifier, TypePredicateSubject,
+    TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -2001,6 +2001,7 @@ pub(crate) fn format_expression<'ast>(
 
         // import
         Expression::Import {
+            source,
             kind,
             target,
             items,
@@ -2011,6 +2012,30 @@ pub(crate) fn format_expression<'ast>(
 
             // keyword
             write!(f, [Keyword::Import, space()])?;
+            if *source == ImportSource::ImportEquals {
+                let alias = items
+                    .first()
+                    .and_then(|item| tree.get(*item).alias)
+                    .ok_or(FormatError::SyntaxError {
+                        message: "import equals requires an alias",
+                    })?;
+                write!(
+                    f,
+                    [
+                        alias,
+                        space(),
+                        token("="),
+                        space(),
+                        token("require"),
+                        token("("),
+                        token("\""),
+                        target,
+                        token("\""),
+                        token(")")
+                    ]
+                )?;
+                return Ok(());
+            }
             if *kind == DependencyKind::Type {
                 write!(f, [Keyword::Type, space()])?;
             }
@@ -2175,6 +2200,14 @@ pub(crate) fn format_expression<'ast>(
                     ]
                 )?;
             }
+        }
+
+        // export as namespace
+        Expression::ExportNamespace { name } => {
+            write!(
+                f,
+                [Keyword::Export, space(), Keyword::As, space(), Keyword::Namespace, space(), name]
+            )?;
         }
 
         // let

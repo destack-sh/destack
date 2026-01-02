@@ -463,6 +463,18 @@ impl_dump_display! {
     YieldCardinality,
 }
 
+/// Dump an ImportSource as a string.
+impl Dump for ImportSource {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let name = match self {
+            ImportSource::ImportStatement => "ImportStatement",
+            ImportSource::ImportEquals => "ImportEquals",
+        };
+
+        dumper.write_str(name, Some(Color::White));
+    }
+}
+
 /// Dump a DeclarationDescriptor as a string.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -732,12 +744,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Import {
+                source,
                 kind,
                 target,
                 items: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", _id.id)
+                    .field("source", source)
                     .field("kind", kind)
                     .field("target", target)
                     .end();
@@ -750,6 +764,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::Export", _id.id)
                     .field("kind", kind)
                     .field_optional("target", target)
+                    .end();
+            }
+            Expression::ExportNamespace { name } => {
+                self.node("Expression::ExportNamespace", _id.id)
+                    .field("name", name)
                     .end();
             }
             Expression::Let {

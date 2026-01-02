@@ -1474,7 +1474,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
             }
             Expression::UnresolvedReExport { .. }
             | Expression::ReExport { .. }
-            | Expression::Export { .. } => Some(current_block_id),
+            | Expression::Export { .. }
+            | Expression::ExportNamespace { .. } => Some(current_block_id),
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
                 self.build_declarators(declarators, current_block_id)
             }
