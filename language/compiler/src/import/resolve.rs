@@ -14,6 +14,11 @@ use destack_workspace::{Module, ModuleType, Package, PackageKind};
 
 use crate::{Compiler, ImportError, ImportResult};
 
+/// Extensions to try for builtin modules.
+const BUILTIN_EXTENSIONS: &[&str] = &[
+    ".d.ts", ".d.ds", ".ds", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".node",
+];
+
 impl Compiler {
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
     pub fn resolve_specifier_to_module(
@@ -111,8 +116,28 @@ impl Compiler {
         let target_uri_str = resolve_relative_uri(source_dir, specifier);
         let target_uri = Uri::from_string(&target_uri_str);
 
-        // look up target module by URI
-        self.program.modules.get_id_by_uri(&target_uri)
+        // look up target module by exact URI
+        if let Some(module_id) = self.program.modules.get_id_by_uri(&target_uri) {
+            return Some(module_id);
+        }
+
+        // try extensions (see FileType)
+        for extension in BUILTIN_EXTENSIONS {
+            let candidate_uri = Uri::from_string(&format!("{target_uri_str}{extension}"));
+            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+                return Some(module_id);
+            }
+        }
+
+        // resolve index modules
+        for extension in BUILTIN_EXTENSIONS {
+            let candidate_uri = Uri::from_string(&format!("{target_uri_str}/index{extension}"));
+            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+                return Some(module_id);
+            }
+        }
+
+        None
     }
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
