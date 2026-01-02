@@ -327,6 +327,27 @@ fn test_lex_single_quoted_strings() {
 }
 
 #[test]
+fn test_lex_import_from_without_space() {
+    // lex import with adjacent string literal
+    assert_tokenize_eq_roundtrip!(
+        "import Foo from'./bar'",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            })
+        ),
+    );
+}
+
+#[test]
 fn test_lex_regex_literals() {
     assert_tokenize_eq_roundtrip!(
         "/abc/ (/def/.exec(input)) / value",
