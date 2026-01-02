@@ -155,9 +155,8 @@ impl Compiler {
         // resolve the flow environment for the node when flow typing is active
         let flow_environment = ctx.flow.as_ref().and_then(|flow_context| {
             if flow_context.module_id != module.id {
-                return None;
+                return None; // #Suspicious: isn't this an internal error anyway?
             }
-
             let block_id = flow_context
                 .graph
                 .block_by_node
@@ -241,6 +240,7 @@ impl Compiler {
             // import / exports
             Expression::Import {
                 kind: _,
+                source: _,
                 target: _,
                 target_module: _,
                 items,
@@ -248,9 +248,11 @@ impl Compiler {
             }
             | Expression::UnresolvedImport {
                 kind: _,
+                source: _,
                 target: _,
                 items,
                 arguments,
+                ..
             } => {
                 for item_id in items {
                     self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
@@ -282,6 +284,12 @@ impl Compiler {
                     self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
                 }
 
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::ExportNamespace { name: _ } => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };

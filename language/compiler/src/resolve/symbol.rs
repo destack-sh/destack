@@ -1,7 +1,7 @@
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, SymbolTable,
+    Argument, ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
+    LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind,
+    StaticKey, StringId, SymbolKind, SymbolSpace, SymbolTable,
 };
 use destack_workspace::{BUILTIN_PACKAGE_ID, Module, ProfileId};
 
@@ -128,22 +128,19 @@ impl Compiler {
         let prelude_module = self.program.modules.get(prelude_module_id);
         let prelude_module = prelude_module.read();
         let prelude_dir = prelude_module.dir(profile);
-        let symbols = prelude_dir.symbols.read();
 
-        // look up symbol by name in prelude's namespace scope
-        let namespace_scope = symbols.get_scope_by_id(prelude_dir.namespace_scope);
+        // look up symbol by name in prelude's export table
         let key = StaticKey::Name(name);
-        let Some(symbol_id) = namespace_scope.find(key) else {
+        let export_spaces = ExportSpaceOrder::ValueThenType;
+        let exports = prelude_dir.exported_symbols.read();
+        let tree = prelude_dir.tree.read();
+        let Some(symbol_id) =
+            self.resolve_exported_symbol(prelude_module_id, &exports, &tree, export_spaces, key)
+        else {
             return Ok(None);
         };
 
-        // verify it's exported
-        let symbol = symbols.get_symbol(symbol_id);
-        if symbol.export.is_none() {
-            return Ok(None);
-        }
-
-        Ok(Some(symbol_id.into_global(prelude_module_id)))
+        Ok(Some(symbol_id))
     }
 
     /// Resolve a path starting from a prelude symbol.
@@ -745,10 +742,9 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
+    use crate::{TestProgram, assert_node, assert_string};
     use destack_builtin::LanguageItem;
     use destack_dir::{Expression, Pattern, ScalarLiteral};
-
-    use crate::{TestProgram, assert_node, assert_string};
 
     /// Resolve labeled break to outer loop.
     #[test]
@@ -1960,7 +1956,7 @@ function printType(t: Type) {
         test.compile();
         test.check_clean();
         for item in LanguageItem::all() {
-            test.compiler.language_item(item);
+            let _ = test.compiler.language_item(item);
         }
     }
 }

@@ -121,17 +121,17 @@ impl Compiler {
             return Some(module_id);
         }
 
-        // try extensions (see FileType)
+        // try extensions
         for extension in BUILTIN_EXTENSIONS {
-            let candidate_uri = Uri::from_string(&format!("{target_uri_str}{extension}"));
+            let candidate_uri = Uri::from_string(format!("{target_uri_str}{extension}"));
             if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
                 return Some(module_id);
             }
         }
 
-        // resolve index modules
+        // try index (with extensions)
         for extension in BUILTIN_EXTENSIONS {
-            let candidate_uri = Uri::from_string(&format!("{target_uri_str}/index{extension}"));
+            let candidate_uri = Uri::from_string(format!("{target_uri_str}/index{extension}"));
             if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
                 return Some(module_id);
             }

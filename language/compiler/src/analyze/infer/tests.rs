@@ -921,7 +921,7 @@ extension for Point {
     test.compile_dump_clean();
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
-    // NOTE #Incomplete: #Extensions
+    // #Incomplete: #Extensions
 }
 
 /// Infer a local extension (on a foreign type).
@@ -932,7 +932,7 @@ fn test_analyze_local_extension() {
     test.add_file(
         "point.ds",
         r#"
-struct Point { 
+export struct Point { 
 x: number, 
 y: number,
 }
@@ -955,7 +955,7 @@ extension for Point {
     test.compile_dump_clean();
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
-    // NOTE #Incomplete: #Extensions
+    // #Incomplete: #Extensions
 }
 
 /// Infer a named extension (on a foreign type, from a foreign extension).
@@ -966,7 +966,7 @@ fn test_analyze_named_extension() {
     test.add_file(
         "point.ds",
         r#"
-struct Point { 
+export struct Point { 
     x: number, 
     y: number,
 }
@@ -977,7 +977,7 @@ struct Point {
         r#"
 import { Point } from "./point.ds";
 
-extension PointHelpers for Point {
+export extension PointHelpers for Point {
     distance(other: Point): number { return 0; }
 }
 "#,
@@ -996,7 +996,7 @@ import { Point } from "./point.ds";
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
-    // NOTE #Incomplete: #Extensions
+    // #Incomplete: #Extensions
 }
 
 /// Analyze infer parameter types from call arguments.

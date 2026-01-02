@@ -78,12 +78,14 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::UnresolvedImport {
+                source: _,
                 kind,
                 target,
                 items,
                 arguments,
             }
             | dir::Expression::Import {
+                source: _,
                 kind,
                 target,
                 target_module: _,

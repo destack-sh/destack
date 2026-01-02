@@ -34,9 +34,11 @@ Resolve is task-driven, and the phase split avoids cycles while keeping dependen
 ```
 ResolveModulePrepare
     │
+    ├─► build export table
+    │
     ├─► ResolveModuleDirect
     │      │
-    │      └─► build export table
+    │      └─► finalize export targets
     │
     └─► ResolveModuleCanonical
 ```
@@ -47,7 +49,8 @@ Prepare does the following:
 - Clone base DIR into a profile DIR.
 - Register builtin libs for the profile.
 - Collect `declare global` and `declare module` declarations.
-- Do not resolve symbols or touch exports.
+- Build the export table from bound declarations and export statements.
+- Do not resolve symbols or follow re-export chains.
 - Requires `ResolveModulePrepare` on the current module.
 
 ### Direct
@@ -56,7 +59,7 @@ Direct does the following:
 - Resolve dependency items and attach `target_symbol` where needed.
 - Resolve `import` and `export` clauses **without** following re-export chains.
 - Record `export *` edges **without** expanding them.
-- Build the export table once dependency items are resolved.
+- Finalize export assignment and default targets from resolved expressions.
 - Require `ResolveModulePrepare` on any referenced module.
 - **Never** trigger another module’s Direct phase.
 
@@ -68,7 +71,7 @@ Canonical does the following:
 - Resolve re-export chains by consulting export tables.
 - Yield if a referenced module is not ready.
 - Requires `ResolveModuleDirect` on the current module.
-- Requires `ResolveModuleDirect` on any module whose export table is consulted.
+- Requires `ResolveModulePrepare` on any module whose export table is consulted.
 
 ---
 
@@ -81,8 +84,8 @@ Export entries are either local or re-exported:
 
 ```ds
 newtype Export =
-    | { kind: "Local" = "Local", symbol: LocalSymbolId }
-    | { kind: "ReExport" = "ReExport", item: LocalNodeId<DependencyItem> }
+    | { key: StaticKey, space: SymbolSpace, kind: "Local", symbol: LocalSymbolId }
+    | { key: StaticKey, space: SymbolSpace, kind: "ReExport", item: LocalNodeId<DependencyItem> }
 ```
 
 Export tables are populated by explicit exports and named re-exports:
@@ -90,6 +93,9 @@ Export tables are populated by explicit exports and named re-exports:
 - `export { ... }` clauses
 - `export default` clauses
 - `export * as Name` clauses
+
+Export tables are built during Prepare and remain stable across Direct.
+Direct only fills target symbols for export assignments and default value exports.
 
 `export * from "..."` is stored as a namespace export edge, not as direct entries.
 Namespace export edges are kind-aware, so `export type *` does not participate in value lookups.
@@ -110,7 +116,7 @@ This matches ES module semantics and our `StaticKey::Name("default")` keying.
 ## Re-Exports and Cycles
 
 Re-exports are resolved by walking export entries.
-Re-export chains follow `Export::ReExport` entries until a concrete "canonical" symbol is found.
+Re-export chains follow `ExportKind::ReExport` entries until a concrete "canonical" symbol is found.
 `export *` is resolved by walking the target module’s export table at lookup time.
 `export *` never re-exports the default export.
 If multiple `export *` edges provide the same name, Resolve reports a conflict unless the targets match.

@@ -413,6 +413,7 @@ impl Compiler {
 
             // collect global declarations from this module
             self.collect_global_symbols(module_id, &tree, &symbols, &mut index);
+            self.collect_export_namespace_globals(&module, &tree, &mut index);
 
             // enqueue dependency targets for further discovery
             let dependency_targets = self.collect_dependency_targets(module_id, &tree);
@@ -445,6 +446,28 @@ impl Compiler {
             for expression_id in expressions {
                 self.collect_global_expression(module_id, tree, symbols, index, *expression_id);
             }
+        }
+    }
+
+    /// Collect global symbols from `export as namespace` declarations.
+    fn collect_export_namespace_globals(
+        &self,
+        module: &Module,
+        tree: &NodeTree,
+        index: &mut GlobalSymbolCache,
+    ) {
+        // skip non-declaration modules
+        if !module.language_type.is_declaration() {
+            return;
+        }
+
+        // collect namespace symbols from export as namespace declarations
+        let symbol_id = module.dir_base().namespace_symbol.into_global(module.id);
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            let Expression::ExportNamespace { name } = tree.get(expression_id) else {
+                continue;
+            };
+            index.insert_symbol(StaticKey::Name(*name), SymbolSpace::Value, symbol_id);
         }
     }
 

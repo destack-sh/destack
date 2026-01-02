@@ -46,8 +46,22 @@ impl Compiler {
                     ast::Expression::Labelled { label, body }
                 }
 
-                dir::Expression::UnresolvedImport { kind, target, items, arguments }
-                | dir::Expression::Import { kind, target, items, arguments, .. } => {
+                dir::Expression::UnresolvedImport {
+                    source,
+                    kind,
+                    target,
+                    items,
+                    arguments,
+                }
+                | dir::Expression::Import {
+                    source,
+                    kind,
+                    target,
+                    items,
+                    arguments,
+                    ..
+                } => {
+                    let source = self.unbind_import_source(*source);
                     let kind = self.unbind_dependency_kind(context, *kind);
                     let target = ast_strings.intern_from(&self.program.strings, *target);
                     let items = items.iter().map(|item| {
@@ -58,7 +72,13 @@ impl Compiler {
                             self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
-                    ast::Expression::Import { kind, target, items, arguments }
+                    ast::Expression::Import {
+                        source,
+                        kind,
+                        target,
+                        items,
+                        arguments,
+                    }
                 }
 
                 dir::Expression::UnresolvedReExport { target, kind, items }
@@ -77,6 +97,10 @@ impl Compiler {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Export { kind, target: None, items }
+                }
+                dir::Expression::ExportNamespace { name } => {
+                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    ast::Expression::ExportNamespace { name }
                 }
 
                 dir::Expression::Let { descriptor, mutability, declarators } => {
@@ -815,6 +839,14 @@ impl Compiler {
         match kind {
             dir::ForEachKind::In => ast::ForEachKind::In,
             dir::ForEachKind::Of => ast::ForEachKind::Of,
+        }
+    }
+
+    /// Convert a DIR import source into an AST import source.
+    fn unbind_import_source(&self, source: dir::DependencySource) -> ast::ImportSource {
+        match source {
+            dir::DependencySource::ImportEquals => ast::ImportSource::ImportEquals,
+            _ => ast::ImportSource::ImportStatement,
         }
     }
 }

@@ -21,6 +21,7 @@ impl Compiler {
 
         let expression: Expression = match expression {
             Expression::UnresolvedImport {
+                source,
                 kind,
                 target,
                 items,
@@ -31,10 +32,11 @@ impl Compiler {
                     dir,
                     profile,
                     expression_id.into_global_any(module.id),
-                    DependencySource::ImportStatement,
+                    *source,
                     *target,
                 )?;
                 Expression::Import {
+                    source: *source,
                     kind: *kind,
                     target: *target,
                     target_module: remote_module_id,
