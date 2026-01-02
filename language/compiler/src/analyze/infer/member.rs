@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-
-use super::resolve::MemberResolution;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
@@ -8,6 +5,20 @@ use destack_dir::{
     NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
+use std::collections::HashMap;
+
+/// Describe the resolution outcome for a member lookup.
+#[derive(Debug, Clone)]
+pub(super) enum MemberResolution {
+    /// No resolution is recorded for this lookup.
+    None,
+    /// A single target symbol is selected.
+    Static { symbol: GlobalSymbolId },
+    /// Multiple target symbols must be dispatched at runtime.
+    Dynamic { symbols: Vec<GlobalSymbolId> },
+    /// A nominal lookup failed, but some candidates exist.
+    Unresolved,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -53,7 +64,7 @@ impl Compiler {
 
         // resolve member dispatch for the left type
         let member_key = StaticKey::Name(member_name);
-        let member_resolution = self.resolve_member_resolution(
+        let member_resolution = self.resolve_member_symbol(
             module,
             &left_ty,
             &member_key,
@@ -273,6 +284,97 @@ impl Compiler {
         Ok(resolved_member_ty_id)
     }
 
+    /// Resolve member symbols for a receiver type when nominal dispatch is possible.
+    pub(super) fn resolve_member_symbol(
+        &self,
+        module: &Module,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> MemberResolution {
+        match receiver_ty {
+            Type::Reference { .. } => {
+                // resolve nominal members first
+                let mut visited = Vec::new();
+                let member_symbol = self.resolve_member_symbol_for_type(
+                    module,
+                    receiver_ty,
+                    member_key,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    &mut visited,
+                    true,
+                );
+                if let Some(symbol) = member_symbol {
+                    MemberResolution::Static { symbol }
+                } else {
+                    MemberResolution::Unresolved
+                }
+            }
+            Type::Union { elements } => {
+                // resolve member symbols for each union element
+                let mut symbols_for_union = Vec::new();
+                for element_id in elements {
+                    let element_ty = types.get_type(*element_id).clone();
+                    let mut visited = Vec::new();
+                    let member_symbol = self.resolve_member_symbol_for_type(
+                        module,
+                        &element_ty,
+                        member_key,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                        &mut visited,
+                        true,
+                    );
+                    let Some(member_symbol) = member_symbol else {
+                        return MemberResolution::None;
+                    };
+                    if !symbols_for_union.contains(&member_symbol) {
+                        symbols_for_union.push(member_symbol);
+                    }
+                }
+
+                // map resolution type depending on variants
+                match symbols_for_union.len() {
+                    0 => MemberResolution::None,
+                    1 => MemberResolution::Static {
+                        symbol: symbols_for_union[0],
+                    },
+                    _ => MemberResolution::Dynamic {
+                        symbols: symbols_for_union,
+                    },
+                }
+            }
+            _ => {
+                // resolve implicit well known member resolution
+                let mut visited = Vec::new();
+                let member_symbol = self.resolve_member_symbol_for_type(
+                    module,
+                    receiver_ty,
+                    member_key,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    &mut visited,
+                    true,
+                );
+                if let Some(symbol) = member_symbol {
+                    MemberResolution::Static { symbol }
+                } else {
+                    MemberResolution::None
+                }
+            }
+        }
+    }
+
     /// Return true when the expression is rooted at import.meta.
     fn is_import_meta_chain(
         &self,
@@ -301,19 +403,38 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
+        allow_implicit: bool,
     ) -> Option<GlobalSymbolId> {
-        match receiver_ty {
+        let resolved = match receiver_ty {
             Type::Value { value } => {
                 let value_ty = types.get_type(*value).clone();
                 self.resolve_member_symbol_for_type(
-                    module, &value_ty, member_key, profile, tree, symbols, types, visited,
+                    module,
+                    &value_ty,
+                    member_key,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                    allow_implicit,
                 )
             }
             Type::Reference { symbol, .. } => self.resolve_member_symbol_for_symbol(
                 module, *symbol, member_key, profile, tree, symbols, types, visited,
             ),
             _ => None,
+        };
+
+        if resolved.is_some() || !allow_implicit {
+            return resolved;
         }
+
+        let well_known_symbol = self.well_known_symbol_for_type(receiver_ty, types)?;
+        let symbol = self.get_well_known_type_symbol(profile, well_known_symbol)?;
+        self.resolve_member_symbol_for_symbol(
+            module, symbol, member_key, profile, tree, symbols, types, visited,
+        )
     }
 
     /// Resolve the member symbol for a nominal type symbol.

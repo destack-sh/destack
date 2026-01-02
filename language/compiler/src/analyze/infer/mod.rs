@@ -9,12 +9,13 @@ mod expression;
 mod flow;
 mod instance;
 mod key;
+mod known;
 mod member;
 mod merge;
 mod operator;
 mod parameter;
 mod process;
-mod resolve;
+mod resolution;
 mod solve;
 mod r#type;
 

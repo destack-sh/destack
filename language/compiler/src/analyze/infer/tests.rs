@@ -556,7 +556,6 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
     // value_type[y] = literal 'abc'
     let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
-
     assert_type!(
         types,
         y_ty_id,
@@ -567,7 +566,6 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
     // value_type[rest] = (true,)
     let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
-
     assert_type!(types, rest_ty_id, Type::Tuple { elements } => {
         assert_eq!(elements.len(), 1);
         assert_type!(types, elements[0].ty, Type::TypeLiteral {
@@ -577,76 +575,6 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
     // value_type[z] = literal 456
     let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
-
-    assert_type!(
-        types,
-        z_ty_id,
-        Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(456))
-        }
-    );
-}
-
-/// Analyze let expression infer array tuple type with pattern.
-#[test]
-fn test_analyze_let_expression_infer_array_tuple_type_with_pattern() {
-    // arrange test module
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.ds",
-        r#"
-let [x, y, ...rest, z] = [123, 'abc', true, 456]; // array used as a tuple
-"#,
-    );
-
-    // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_dump_clean();
-
-    // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
-
-    let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
-    let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
-    let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
-    let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
-
-    // value_type[x] = literal 123
-    let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
-
-    assert_type!(
-        types,
-        x_ty_id,
-        Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(123))
-        }
-    );
-
-    // value_type[y] = literal 'abc'
-    let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
-
-    assert_type!(
-        types,
-        y_ty_id,
-        Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
-        }
-    );
-
-    // value_type[rest] = true[] (array of boolean literal)
-    let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
-
-    assert_type!(types, rest_ty_id, Type::Array { element: Some(element_id) } => {
-        assert_type!(types, *element_id, Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
-        });
-    });
-
-    // value_type[z] = literal 456
-    let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
-
     assert_type!(
         types,
         z_ty_id,
@@ -697,11 +625,10 @@ let x = value;
     );
 }
 
-/// Analyze cross module tuple type import.
+/// Analyze cross module array type import.
 #[test]
-fn test_analyze_cross_module_tuple_type_import() {
-    // import a tuple value from another module
-    // (array literal [1, 2, 3] is inferred as tuple, not array)
+fn test_analyze_cross_module_array_type_import() {
+    // import an array value from another module
     let test = TestProgram::memory_sequential();
     test.add_file(
         "lib.ds",
@@ -726,20 +653,22 @@ let x = items;
     let module = module.read();
     let types = module.dir(test.default_profile_id(module_id)).types.read();
 
-    // x should have tuple type [1, 2, 3] with literal elements (imported from lib.ds)
+    // x should have an array element union from the imported literal values
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
 
-    assert_type!(types, x_ty_id, Type::Tuple { elements } => {
-        // tuple has three literal elements
-        assert_eq!(elements.len(), 3);
+    assert_type!(types, x_ty_id, Type::Array { element: Some(element_id) } => {
+        assert_type!(types, *element_id, Type::Union { elements } => {
+            // union has three literal elements
+            assert_eq!(elements.len(), 3);
 
-        // each element stays a literal integer
-        for element in elements {
-            assert_type!(types, element.ty, Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
-            });
-        }
+            // each element stays a literal integer
+            for element_id in elements {
+                assert_type!(types, *element_id, Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
+                });
+            }
+        });
     });
 }
 
@@ -1936,15 +1865,9 @@ const numbers: number[] = [1, 2];
         .get_inferred_type_id(value_id.into_global_any(module.id))
         .expect("expected array type");
 
-    // tuple elements are numbers from number[] context
-    assert_type!(types, value_ty_id, Type::Tuple { elements } => {
-        assert_eq!(elements.len(), 2);
-        // 1 is number
-        assert_type!(types, elements[0].ty, Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number)
-        });
-        // 2 is number
-        assert_type!(types, elements[1].ty, Type::TypeLiteral {
+    // array element type is number from number[] context
+    assert_type!(types, value_ty_id, Type::Array { element: Some(element_id) } => {
+        assert_type!(types, *element_id, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });

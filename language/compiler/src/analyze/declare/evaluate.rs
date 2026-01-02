@@ -672,6 +672,33 @@ impl Compiler {
                 }
             }
 
+            // array (anonymous)
+            Expression::ArrayExpression { elements } => {
+                // evaluate element types
+                let mut element_type_ids = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let value_id = {
+                        let argument = tree.get(element_id);
+                        argument.value()
+                    };
+                    let value_ty_id = self.try_evaluate_expression_to_type(
+                        module, profile, value_id, tree, symbols, types,
+                    )?;
+                    element_type_ids.push(value_ty_id);
+                }
+
+                // merge element types into a single array element type
+                let element_ty_id = if element_type_ids.is_empty() {
+                    None
+                } else {
+                    Some(self.union_type_from_list(element_type_ids, types))
+                };
+
+                Type::Array {
+                    element: element_ty_id,
+                }
+            }
+
             // tuple (anonymous)
             Expression::TupleExpression { elements } => {
                 // evaluate element types

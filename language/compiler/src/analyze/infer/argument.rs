@@ -112,22 +112,36 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<InheritedStaticArguments> {
-        let Type::Reference {
-            symbol,
-            static_arguments,
-        } = receiver_ty
-        else {
+        // resolve the receiver into a symbol and static arguments
+        let Some((symbol, static_arguments)) = (match receiver_ty {
+            // explicit reference
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => Some((*symbol, static_arguments.clone())),
+            // possibly implicit reference via well known type
+            _ => self
+                .well_known_type(profile, receiver_ty, types)
+                .and_then(|reference_ty| match reference_ty {
+                    Type::Reference {
+                        symbol,
+                        static_arguments,
+                    } => Some((symbol, static_arguments)),
+                    _ => None,
+                }),
+        }) else {
             return Ok(InheritedStaticArguments {
                 arguments: Vec::new(),
                 substitutions: HashMap::new(),
             });
         };
 
+        // resolve static arguments for the type reference
         let resolved = self.resolve_type_reference_static_arguments(
             module,
             profile,
             receiver_id,
-            *symbol,
+            symbol,
             static_arguments.as_deref(),
             options,
             tree,
@@ -145,7 +159,7 @@ impl Compiler {
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
             module,
             profile,
-            *symbol,
+            symbol,
             &resolved_arguments,
             tree,
             symbols,

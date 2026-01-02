@@ -1,4 +1,4 @@
-use super::resolve::MemberResolution;
+use super::member::MemberResolution;
 use super::{index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
@@ -484,7 +484,7 @@ impl Compiler {
 
             self.record_try_branch_resolution(module, expression_id, left_ty_id, &branch, types);
 
-            let union_ty_id = self.union_types(value_ty_id, right_ty_id, types);
+            let union_ty_id = self.union_type(value_ty_id, right_ty_id, types);
             return Ok(union_ty_id);
         }
 
@@ -492,7 +492,7 @@ impl Compiler {
         let (non_nullish_ty_id, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
         let result_ty_id = if has_nullish {
             if let Some(non_nullish_ty_id) = non_nullish_ty_id {
-                self.union_types(non_nullish_ty_id, right_ty_id, types)
+                self.union_type(non_nullish_ty_id, right_ty_id, types)
             } else {
                 right_ty_id
             }
@@ -1058,7 +1058,7 @@ impl Compiler {
                 let undefined_ty_id = types.insert_type(Type::TypeLiteral {
                     value: TypeLiteral::Undefined,
                 });
-                self.union_types(ty_id, undefined_ty_id, types)
+                self.union_type(ty_id, undefined_ty_id, types)
             } else {
                 ty_id
             }
@@ -1092,7 +1092,7 @@ impl Compiler {
                 }
 
                 let elements = elements.iter().map(|element| element.ty).collect();
-                let union_ty_id = self.union_types_from_list(elements, types);
+                let union_ty_id = self.union_type_from_list(elements, types);
                 Some(add_unchecked_undefined(union_ty_id, types))
             }
             Type::Object {
@@ -1139,7 +1139,7 @@ impl Compiler {
         match value_types.len() {
             0 => None,
             1 => Some(value_types[0]),
-            _ => Some(self.union_types_from_list(value_types, types)),
+            _ => Some(self.union_type_from_list(value_types, types)),
         }
     }
 
@@ -1175,7 +1175,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_types_from_list(value_types, types))
+                    Some(self.union_type_from_list(value_types, types))
                 }
             }
             Type::Object { fields, .. } => {

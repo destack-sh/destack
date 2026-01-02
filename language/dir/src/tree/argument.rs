@@ -116,4 +116,9 @@ impl StaticArgument {
             StaticArgument::Evaluated { value, .. } => value.is_evaluated(),
         }
     }
+
+    /// Build an evaluated static argument from a static expression.
+    pub fn value(value: StaticExpression) -> Self {
+        Self::Evaluated { name: None, value }
+    }
 }

@@ -1192,10 +1192,30 @@ impl Compiler {
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         match receiver_ty {
             // object type: look up field directly
-            Type::Object { fields, .. } => Ok(fields
-                .iter()
-                .find(|f| f.key.matches(member_key))
-                .map(|f| f.ty)),
+            Type::Object { fields, .. } => {
+                // check explicit object fields first
+                let field_ty = fields
+                    .iter()
+                    .find(|field| field.key.matches(member_key))
+                    .map(|field| field.ty);
+                if field_ty.is_some() {
+                    return Ok(field_ty);
+                }
+
+                // fall back to implicit Object members
+                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                    return Ok(None);
+                };
+                self.infer_member_of_type(
+                    module,
+                    profile,
+                    node_id,
+                    &reference_ty,
+                    member_key,
+                    types,
+                    visited,
+                )
+            }
 
             // value type: unwrap to the underlying type
             Type::Value { value } => {
@@ -1209,6 +1229,22 @@ impl Compiler {
             Type::Reference { symbol, .. } => self.infer_member_of_symbol(
                 module, profile, node_id, *symbol, member_key, types, visited,
             ),
+
+            // array like types: fall back to well known Array members
+            Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
+                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                    return Ok(None);
+                };
+                self.infer_member_of_type(
+                    module,
+                    profile,
+                    node_id,
+                    &reference_ty,
+                    member_key,
+                    types,
+                    visited,
+                )
+            }
 
             // unary wrappers: unwrap before resolving members
             Type::Unary { right, .. }
@@ -1281,6 +1317,21 @@ impl Compiler {
                 Ok(None)
             }
 
+            Type::Function { .. } | Type::TypeLiteral { .. } => {
+                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                    return Ok(None);
+                };
+                self.infer_member_of_type(
+                    module,
+                    profile,
+                    node_id,
+                    &reference_ty,
+                    member_key,
+                    types,
+                    visited,
+                )
+            }
+
             _ => Ok(None),
         }
     }
@@ -1336,7 +1387,7 @@ impl Compiler {
                 match value_types.len() {
                     0 => None,
                     1 => Some(value_types[0]),
-                    _ => Some(self.union_types_from_list(value_types, types)),
+                    _ => Some(self.union_type_from_list(value_types, types)),
                 }
             }
             Type::Intersection { elements } => {
@@ -1543,7 +1594,7 @@ impl Compiler {
         match value_types.len() {
             0 => None,
             1 => Some(value_types[0]),
-            _ => Some(self.union_types_from_list(value_types, types)),
+            _ => Some(self.union_type_from_list(value_types, types)),
         }
     }
 
@@ -3485,7 +3536,7 @@ impl Compiler {
                 awaited_elements.push(awaited_id);
             }
 
-            return self.union_types_from_list(awaited_elements, types);
+            return self.union_type_from_list(awaited_elements, types);
         }
 
         // unwrap promises when possible
@@ -3553,69 +3604,6 @@ impl Compiler {
                 .iter()
                 .any(|element_id| self.type_is_function_like(*element_id, types)),
             _ => false,
-        }
-    }
-
-    /// Build a union type from two type ids.
-    pub(super) fn union_types(
-        &self,
-        left_ty_id: LocalTypeId,
-        right_ty_id: LocalTypeId,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        if left_ty_id == right_ty_id {
-            return left_ty_id;
-        }
-
-        let mut elements = Vec::new();
-        self.append_union_elements(left_ty_id, &mut elements, types);
-        self.append_union_elements(right_ty_id, &mut elements, types);
-
-        if elements.len() == 1 {
-            elements[0]
-        } else {
-            types.insert_type(Type::Union { elements })
-        }
-    }
-
-    /// Build a union type from a list of type ids.
-    pub(super) fn union_types_from_list(
-        &self,
-        type_ids: Vec<LocalTypeId>,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        let mut elements = Vec::new();
-        for ty_id in type_ids {
-            self.append_union_elements(ty_id, &mut elements, types);
-        }
-
-        if elements.len() == 1 {
-            elements[0]
-        } else {
-            types.insert_type(Type::Union { elements })
-        }
-    }
-
-    /// Append union elements for a type id to a list.
-    fn append_union_elements(
-        &self,
-        ty_id: LocalTypeId,
-        elements: &mut Vec<LocalTypeId>,
-        types: &TypeTable,
-    ) {
-        match types.get_type(ty_id) {
-            Type::Union { elements: union } => {
-                for element_id in union {
-                    if !elements.contains(element_id) {
-                        elements.push(*element_id);
-                    }
-                }
-            }
-            _ => {
-                if !elements.contains(&ty_id) {
-                    elements.push(ty_id);
-                }
-            }
         }
     }
 

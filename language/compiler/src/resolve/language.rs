@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_base::StringId;
 use destack_builtin::{LanguageItem, builtin_lib};
 use destack_dir::{
-    DependencyItem, Expression, GlobalSymbolId, NodeTree, StaticKey, WellKnownSymbol,
+    DependencyItem, Expression, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
 use indexmap::IndexMap;
@@ -296,12 +296,69 @@ impl Compiler {
         well_known_symbols.get_symbol(symbol)
     }
 
+    /// Get a specific well-known symbol from the type space when available.
+    pub fn get_well_known_type_symbol(
+        &self,
+        profile: ProfileId,
+        symbol: WellKnownSymbol,
+    ) -> Option<GlobalSymbolId> {
+        let symbol_id = self.get_well_known_symbol(profile, symbol)?;
+        Some(self.prefer_type_symbol_for_name(profile, symbol_id))
+    }
+
     /// Get a specific well-known symbol for a profile, panicking if not found.
     pub fn well_known_symbol(&self, profile: ProfileId, symbol: WellKnownSymbol) -> GlobalSymbolId {
         self.get_well_known_symbol(profile, symbol)
             .unwrap_or_else(|| {
                 panic!("well-known symbol {symbol:?} not available for profile {profile:?}")
             })
+    }
+
+    /// Prefer a type-space symbol for the given name when one exists.
+    fn prefer_type_symbol_for_name(
+        &self,
+        profile: ProfileId,
+        symbol_id: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        let module = self.program.modules.get(symbol_id.module_id);
+        let module = module.read();
+        let Some(dir) = module.dir_maybe(profile) else {
+            return symbol_id;
+        };
+        let symbols = dir.symbols.read();
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        if matches!(symbol.space, SymbolSpace::Type | SymbolSpace::TypeValue) {
+            return symbol_id;
+        }
+
+        let Some(name) = symbol.name() else {
+            return symbol_id;
+        };
+
+        let scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let mut fallback = None;
+        for (key, candidate_id) in scope.named_symbols.iter().rev() {
+            let StaticKey::Name(candidate_name) = *key else {
+                continue;
+            };
+            if candidate_name != name {
+                continue;
+            }
+            let candidate = symbols.get_symbol(*candidate_id);
+            match candidate.space {
+                SymbolSpace::TypeValue => return candidate_id.into_global(module.id),
+                SymbolSpace::Type => {
+                    if fallback.is_none() {
+                        fallback = Some(*candidate_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        fallback
+            .map(|candidate_id| candidate_id.into_global(module.id))
+            .unwrap_or(symbol_id)
     }
 }
 
@@ -347,7 +404,7 @@ mod tests {
     #[test]
     fn test_resolve_well_known_symbols() {
         let test =
-            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2018"]);
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020"]);
         test.resolve_builtins();
         test.resolve_libs();
         test.compile();
