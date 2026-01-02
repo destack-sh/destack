@@ -505,6 +505,31 @@ impl Dump for TypePredicateSubject {
     }
 }
 
+impl Dump for CastKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let kind = match self {
+            CastKind::Identity => "identity",
+            CastKind::IntWiden => "int_widen",
+            CastKind::IntNarrow => "int_narrow",
+            CastKind::IntSignChange => "int_sign_change",
+            CastKind::FloatWiden => "float_widen",
+            CastKind::FloatNarrow => "float_narrow",
+            CastKind::IntToFloat => "int_to_float",
+            CastKind::FloatToInt => "float_to_int",
+            CastKind::PointerToInt => "ptr_to_int",
+            CastKind::IntToPointer => "int_to_ptr",
+            CastKind::PointerCast => "ptr_cast",
+            CastKind::UnionUpcast => "union_upcast",
+            CastKind::UnionDowncast => "union_downcast",
+            CastKind::InstanceUpcast => "instance_upcast",
+            CastKind::InstanceDowncast => "instance_downcast",
+            CastKind::NullableUpcast => "nullable_upcast",
+            CastKind::NullableDowncast => "nullable_downcast",
+        };
+        dumper.object("CastKind").value(&kind).end();
+    }
+}
+
 /// Dump a DeclarationDescriptor as a structured object.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1022,6 +1047,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::TypePredicate", id.id)
                     .field("asserts", asserts)
                     .field("subject", subject)
+                    .end();
+            }
+            Expression::Cast {
+                value: _,
+                target_type: _,
+                kind,
+            } => {
+                self.node("Expression::Cast", id.id)
+                    .field("kind", kind)
                     .end();
             }
             Expression::Assign { left: _, right: _ } => {

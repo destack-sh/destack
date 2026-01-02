@@ -8,11 +8,12 @@ use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
     /// Reify a module to make abstractions concrete:
-    /// - Range expressions → iterator construction
-    /// - Tree literals → constructor/function calls (`<div>` → `createElement(div, ...)`)
-    /// - Operators → resolved method calls (`a + b` → `a.add(b)` based on Resolution)
-    /// - Type descriptors → runtime type objects (`Type<T>` → actual descriptor)
-    /// - Maybe/Must → explicit error handling (if not overloaded)
+    /// - Range expressions → iterator construction.
+    /// - Tree literals → constructor/function calls (`<div>` → `createElement(div, ...)`).
+    /// - Operators → resolved method calls (`a + b` → `a.add(b)` based on Resolution).
+    /// - Implicit conversions → explicit cast nodes.
+    /// - Type descriptors → runtime type objects (`Type<T>` → actual descriptor).
+    /// - Maybe/Must → explicit error handling (if not overloaded).
     pub(crate) fn elaborate_module_reify(
         &self,
         module_id: ModuleId,

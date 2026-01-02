@@ -413,6 +413,36 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
+            Expression::Cast {
+                value,
+                target_type,
+                kind: _,
+            } => {
+                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                let mut target_ty_id = self.try_evaluate_expression_to_type(
+                    module,
+                    ctx.profile,
+                    *target_type,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                if matches!(types.get_type(target_ty_id), Type::Unevaluated { .. }) {
+                    target_ty_id = self.infer_expression(
+                        module,
+                        *target_type,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                target_ty_id
+            }
+
             // unary operations: compound type
             Expression::Unary { operator, right } => self.infer_unary_expression(
                 module,

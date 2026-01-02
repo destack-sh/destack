@@ -308,6 +308,31 @@ impl Compiler {
                     }
                 }
 
+                dir::Expression::Cast {
+                    value,
+                    target_type,
+                    kind: _,
+                } => {
+                    let left =
+                        self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
+                    let right = self.unbind_expression(
+                        module,
+                        *target_type,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
+                    let operator =
+                        self.unbind_type_binary_operator(context, dir::TypeBinaryOperator::Cast);
+                    ast::Expression::TypeBinary {
+                        left,
+                        operator,
+                        right,
+                    }
+                }
+
                 dir::Expression::Unary { operator, right } => {
                     let operator = self.unbind_unary_operator(context, *operator);
                     let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);

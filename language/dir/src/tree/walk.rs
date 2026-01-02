@@ -256,6 +256,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_declarator(tree, *declarator_id, declarator);
             }
         }
+        Expression::Cast {
+            value,
+            target_type,
+            kind: _,
+        } => {
+            let value_expression = tree.get(*value);
+            visitor.visit_expression(tree, *value, value_expression);
+            let target_expression = tree.get(*target_type);
+            visitor.visit_expression(tree, *target_type, target_expression);
+        }
         Expression::Unary { operator: _, right }
         | Expression::ValueOf {
             mutability: _,

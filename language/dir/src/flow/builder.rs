@@ -1489,6 +1489,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::TypeInfer { .. }
             | Expression::TypePredicate { .. }
             | Expression::PointerOf { .. } => Some(current_block_id),
+            Expression::Cast {
+                value,
+                target_type: _,
+                kind: _,
+            } => self.build_expression(*value, current_block_id),
             Expression::Unary { right, .. }
             | Expression::ValueOf { right, .. }
             | Expression::ReferenceOf { right, .. }
