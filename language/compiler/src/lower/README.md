@@ -2120,7 +2120,7 @@ JS semantics for compatibility.
 # Code Generation
 
 MIR is target-independent, so code generation is mostly mechanical translation.
-See `language/codegen/` for target-specific backends (Cranelift for native/WASM).
+See `language/codegen/` for target-specific backends (Cranelift for native/WASM for now).
 
 ## Debug Info
 

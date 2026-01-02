@@ -31,9 +31,10 @@ pub enum ElaborateTask {
     },
 
     /// Reification: make abstractions concrete.
-    /// - Tree literals → constructor calls
-    /// - Operators → resolved method calls (based on Resolution)
-    /// - Type descriptors → runtime type objects
+    /// - Tree literals → constructor calls.
+    /// - Operators → resolved method calls (based on Resolution).
+    /// - Type descriptors → runtime type objects.
+    /// - Implicit conversions → explicit cast nodes.
     #[task(code = 3, trace = "module={module} profile={profile}")]
     ElaborateModuleReify {
         module: ModuleId,

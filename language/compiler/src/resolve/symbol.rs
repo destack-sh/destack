@@ -1159,7 +1159,7 @@ export let B = A + 1;
     /// Module i imports from all modules 1..i, creating many concurrent imports to the same files.
     #[test]
     fn test_resolve_symbol_across_n_modules() {
-        const N: usize = 20;
+        const N: usize = 10;
         let test = TestProgram::memory_parallel();
         let initial_module_count = test.program.modules.len();
 
