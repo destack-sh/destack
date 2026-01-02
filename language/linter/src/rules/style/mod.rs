@@ -25,6 +25,7 @@ mod no_unneeded_ternary;
 mod no_var;
 mod object_shorthand;
 mod operator_assignment;
+mod prefer_array_some;
 mod prefer_arrow_callback;
 mod prefer_as_const;
 mod prefer_expression;
@@ -80,6 +81,7 @@ pub use no_unneeded_ternary::*;
 pub use no_var::*;
 pub use object_shorthand::*;
 pub use operator_assignment::*;
+pub use prefer_array_some::*;
 pub use prefer_arrow_callback::*;
 pub use prefer_as_const::*;
 pub use prefer_expression::*;
@@ -136,6 +138,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoVar),
         boxed(ObjectShorthand),
         boxed(OperatorAssignment),
+        boxed(PreferArraySome),
         boxed(PreferArrowCallback),
         boxed(PreferAsConst),
         boxed(PreferExpression),
