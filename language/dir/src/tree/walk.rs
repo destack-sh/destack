@@ -172,6 +172,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *body, body_expr);
         }
         Expression::UnresolvedImport {
+            source: _,
             kind: _,
             target: _,
             items,
@@ -189,6 +190,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Import {
+            source: _,
             kind: _,
             target: _,
             target_module: _,
@@ -233,6 +235,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
+        Expression::ExportNamespace { name: _ } => {}
         Expression::Let {
             descriptor: _,
             mutability: _,

@@ -155,6 +155,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Import {
+            source: _,
             kind: _,
             target: _,
             items,
@@ -182,6 +183,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
+        Expression::ExportNamespace { name: _ } => {}
 
         Expression::Let {
             kind: _,

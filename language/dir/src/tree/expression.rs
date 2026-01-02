@@ -3,11 +3,11 @@ use destack_source::ModuleId;
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
-    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource, Mutability, Node, NodeType,
-    Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencySource,
+    GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource,
+    Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral, StaticArgument,
+    StaticProperty, TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeMappedModifiers,
+    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// A mapped type parameter for expressions.
@@ -44,6 +44,7 @@ pub enum Expression {
 
     /// Unresolved import dependency declaration (like `import "foo"`).
     UnresolvedImport {
+        source: DependencySource,
         kind: DependencyKind,
         target: StringId,
         items: Vec<LocalNodeId<DependencyItem>>,
@@ -57,6 +58,7 @@ pub enum Expression {
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {
+        source: DependencySource,
         kind: DependencyKind,
         target: StringId,
         target_module: ModuleId,
@@ -75,6 +77,8 @@ pub enum Expression {
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
     },
+    /// Export the module namespace as a global name (declaration files only).
+    ExportNamespace { name: StringId },
 
     /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
     Let {
@@ -431,6 +435,7 @@ impl Expression {
             Expression::Import { .. } => "import",
             Expression::ReExport { .. } => "re-export",
             Expression::Export { .. } => "export",
+            Expression::ExportNamespace { .. } => "export namespace",
 
             Expression::Block { .. } => "block",
             Expression::Statement { .. } => "statement",

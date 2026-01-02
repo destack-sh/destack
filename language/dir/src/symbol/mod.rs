@@ -1,9 +1,11 @@
+mod export;
 mod key;
 mod known;
 mod scope;
 mod symbol;
 mod table;
 
+pub use export::*;
 pub use key::*;
 pub use known::*;
 pub use scope::*;

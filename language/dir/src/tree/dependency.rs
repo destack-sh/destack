@@ -8,6 +8,8 @@ use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeTy
 pub enum DependencySource {
     /// Plain import statement (like `import "foo"`).
     ImportStatement,
+    /// Import-equals statement (like `import foo = require("foo")`).
+    ImportEquals,
     /// Re-export statement (like `export { bar } from "foo"`).
     ExportStatement,
     /// Import call (like `await import("foo")`).
@@ -50,7 +52,7 @@ pub enum DependencyItem {
         alias: Option<StringId>,
         target: StringId,
         target_module: Option<ModuleId>, // item may remain unresolved even if we can resolve the target module
-        symbol: LocalSymbolId,
+        symbol: Option<LocalSymbolId>,
     },
     /// Unresolved local item from the module.
     UnresolvedLocal {
@@ -58,7 +60,7 @@ pub enum DependencyItem {
         kind: DependencyKind,
         name: Option<StringId>,
         alias: Option<StringId>,
-        symbol: LocalSymbolId,
+        symbol: Option<LocalSymbolId>,
     },
     /// Value expression dependency (like `export = foo` or `export default foo`).
     Value {
@@ -71,7 +73,7 @@ pub enum DependencyItem {
         kind: DependencyKind,
         name: Option<StringId>,
         alias: Option<StringId>,
-        symbol: LocalSymbolId,
+        symbol: Option<LocalSymbolId>,
         target_symbol: GlobalSymbolId,
     },
     /// Remote to the module (i.e., imports and re-exports).
@@ -82,7 +84,7 @@ pub enum DependencyItem {
         alias: Option<StringId>,
         target: StringId,
         target_module: ModuleId,
-        symbol: LocalSymbolId,
+        symbol: Option<LocalSymbolId>,
         target_symbol: GlobalSymbolId,
     },
 }
@@ -100,15 +102,26 @@ impl Node for DependencyItem {
     }
 }
 
+/// A namespace export edge from `export * from` declarations.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NamespaceExport {
+    /// The target module id.
+    pub module_id: ModuleId,
+    /// The dependency kind for the export.
+    pub kind: DependencyKind,
+    /// The dependency item node that declared the export.
+    pub item: LocalNodeId<DependencyItem>,
+}
+
 impl DependencyItem {
     /// Get the symbol of the dependency item.
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            DependencyItem::UnresolvedRemote { symbol, .. } => Some(*symbol),
-            DependencyItem::UnresolvedLocal { symbol, .. } => Some(*symbol),
+            DependencyItem::UnresolvedRemote { symbol, .. } => *symbol,
+            DependencyItem::UnresolvedLocal { symbol, .. } => *symbol,
             DependencyItem::Value { .. } => None,
-            DependencyItem::Local { symbol, .. } => Some(*symbol),
-            DependencyItem::Remote { symbol, .. } => Some(*symbol),
+            DependencyItem::Local { symbol, .. } => *symbol,
+            DependencyItem::Remote { symbol, .. } => *symbol,
         }
     }
 

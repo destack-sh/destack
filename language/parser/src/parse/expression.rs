@@ -299,7 +299,7 @@ impl Parser {
 
     /// Extract the subject and constraint for a type conditional.
     /// Pull union and intersection chains into the right side when they wrap `extends`.
-    /// NOTE #Architecture: split_type_conditional_operands is localized reassociation for conditional types.
+    /// #Architecture: split_type_conditional_operands is localized reassociation for conditional types.
     /// Since we parse type expressions and expressions in the same pass, we have to post patch type precedence.
     fn split_type_conditional_operands(
         &mut self,
@@ -1803,9 +1803,10 @@ mod tests {
     use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
         DeclarationType, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField,
-        EnumKind, Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern,
-        PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
-        TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+        EnumKind, Expression, FunctionKind, ImportSource, IntType, Key, Mutability, Name,
+        Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
+        TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -2075,7 +2076,8 @@ type = type * 2
         let expression_id = parser.eat_expression().unwrap();
 
         // import { bar, baz } from foo
-        assert_node!(parser.tree, expression_id, Expression::Import { kind, target, items, arguments: None, .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 2);
@@ -2102,7 +2104,8 @@ type = type * 2
         let expression_id = parser.eat_expression().unwrap();
 
         // import * as baz from foo with { bar: true }
-        assert_node!(parser.tree, expression_id, Expression::Import { kind, target, items, arguments: Some(arguments), .. } => {
+        assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: Some(arguments), .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
             assert_eq!(*kind, DependencyKind::Value);
             assert_string!(parser, *target, "foo");
             assert_eq!(items.len(), 1);
