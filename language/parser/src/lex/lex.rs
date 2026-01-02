@@ -983,7 +983,7 @@ impl Lexer<'_> {
         }
         // known prefixes must have been handled earlier
         match self.peek() {
-            '#' | '"' | '\'' => return (TokenType::UnknownLiteralPrefix, None),
+            '#' => return (TokenType::UnknownLiteralPrefix, None),
             c if !c.is_ascii() && c.is_emoji_char() => {
                 return (self.eat_invalid_identifier(), None);
             }
