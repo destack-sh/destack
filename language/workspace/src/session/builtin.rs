@@ -118,6 +118,9 @@ pub struct LanguageBuiltins {
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
     pub lib_module_by_name: DashMap<String, Vec<ModuleId>>,
 
+    /// Lib name for each registered lib module.
+    pub lib_name_by_module: DashMap<ModuleId, &'static str>,
+
     /// Ambient lib modules per profile.
     pub ambient_libs_by_profile: DashMap<ProfileId, Vec<ModuleId>>,
 
@@ -231,6 +234,7 @@ impl LanguageBuiltins {
             core_module_by_item: language_item_modules,
             prelude_module_id,
             lib_module_by_name: DashMap::new(),
+            lib_name_by_module: DashMap::new(),
             ambient_libs_by_profile: DashMap::new(),
             lib_symbols_by_profile: DashMap::new(),
             well_known_by_profile: DashMap::new(),
@@ -256,6 +260,11 @@ impl LanguageBuiltins {
     ) -> Option<Vec<ModuleId>> {
         // check cache first
         if let Some(cached) = self.lib_module_by_name.get(name) {
+            if let Some(lib) = builtin_lib(name) {
+                for module_id in cached.iter() {
+                    self.lib_name_by_module.insert(*module_id, lib.name);
+                }
+            }
             return Some(cached.clone());
         }
 
@@ -271,6 +280,10 @@ impl LanguageBuiltins {
         for source in lib.sources {
             let module_id = self.register_lib_source(source, files.clone(), modules.clone());
             module_ids.push(module_id);
+        }
+
+        for module_id in &module_ids {
+            self.lib_name_by_module.insert(*module_id, lib.name);
         }
 
         // cache module ids
@@ -297,6 +310,11 @@ impl LanguageBuiltins {
         self.lib_symbols_by_profile
             .get(&profile_id)
             .and_then(|symbols| symbols.get(&name).copied())
+    }
+
+    /// Get the lib name for a module, if any.
+    pub fn lib_name_for_module(&self, module_id: ModuleId) -> Option<&'static str> {
+        self.lib_name_by_module.get(&module_id).map(|name| *name)
     }
 
     /// Get well-known symbols for a profile.

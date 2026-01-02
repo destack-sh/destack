@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import posixpath
 import re
@@ -7,6 +8,11 @@ import urllib.request
 from pathlib import Path
 
 DEFAULT_TYPESCRIPT_VERSION = "5.9.3"
+DEFAULT_UNDICI_TYPES_TARGETS = [
+    ("v5", "5.26.4"),
+    ("v6", "6.21.0"),
+    ("v7", "7.16.0"),
+]
 DEFAULT_NODE_TARGETS = [
     ("18", "18.19.130"),
     ("20", "20.19.27"),
@@ -90,18 +96,22 @@ def write_text(destination_path: Path, content: str) -> None:
     destination_path.write_text(content, encoding="utf-8")
 
 
-def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
-    """Fetch the TypeScript standard library sources."""
-    # define the library fetch helper
-    def fetch_typescript_library(source_name: str, destination_path: Path) -> None:
-        """Fetch one TypeScript library file."""
-        url = f"{base_url}/{source_name}"
-        content = fetch_remote_text(url)
-        write_text(destination_path, content)
+def fetch_typescript_library(base_url: str, source_name: str, destination_path: Path) -> None:
+    """Fetch one TypeScript library file."""
+    url = f"{base_url}/{source_name}"
+    content = fetch_remote_text(url)
+    write_text(destination_path, content)
 
+
+def fetch_typescript_es_libs(library_directory: Path, base_url: str) -> None:
+    """Fetch the TypeScript ES library sources."""
     # fetch es5
     print("  - es5")
-    fetch_typescript_library("lib.es5.d.ts", library_directory / "es" / "es5" / "index.d.ts")
+    fetch_typescript_library(
+        base_url,
+        "lib.es5.d.ts",
+        library_directory / "es" / "es5" / "index.d.ts",
+    )
 
     # enumerate grouped es libraries
     es_groups = {
@@ -117,7 +127,16 @@ def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
             "symbol.wellknown",
         ],
         "es2016": ["array.include", "intl", "full"],
-        "es2017": ["arraybuffer", "date", "intl", "object", "sharedmemory", "string", "typedarrays", "full"],
+        "es2017": [
+            "arraybuffer",
+            "date",
+            "intl",
+            "object",
+            "sharedmemory",
+            "string",
+            "typedarrays",
+            "full",
+        ],
         "es2018": ["asyncgenerator", "asynciterable", "intl", "promise", "regexp", "full"],
         "es2019": ["array", "intl", "object", "string", "symbol", "full"],
         "es2020": [
@@ -163,31 +182,125 @@ def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
     for group, files in es_groups.items():
         print(f"  - {group}")
         group_directory = library_directory / "es" / group
-        fetch_typescript_library(f"lib.{group}.d.ts", group_directory / "index.d.ts")
+        fetch_typescript_library(
+            base_url,
+            f"lib.{group}.d.ts",
+            group_directory / "index.d.ts",
+        )
         for file_name in files:
-            fetch_typescript_library(f"lib.{group}.{file_name}.d.ts", group_directory / f"{file_name}.d.ts")
+            fetch_typescript_library(
+                base_url,
+                f"lib.{group}.{file_name}.d.ts",
+                group_directory / f"{file_name}.d.ts",
+            )
 
-    # fetch decorators libraries
+
+def fetch_typescript_decorators_libs(library_directory: Path, base_url: str) -> None:
+    """Fetch the TypeScript decorators libraries."""
     print("  - decorators")
-    fetch_typescript_library("lib.decorators.d.ts", library_directory / "es" / "decorators.d.ts")
-    fetch_typescript_library("lib.decorators.legacy.d.ts", library_directory / "es" / "decorators.legacy.d.ts")
+    fetch_typescript_library(
+        base_url,
+        "lib.decorators.d.ts",
+        library_directory / "es" / "decorators.d.ts",
+    )
+    fetch_typescript_library(
+        base_url,
+        "lib.decorators.legacy.d.ts",
+        library_directory / "es" / "decorators.legacy.d.ts",
+    )
 
-    # fetch dom libraries
+
+def fetch_typescript_dom_libs(library_directory: Path, base_url: str) -> None:
+    """Fetch the TypeScript DOM libraries."""
     print("  - dom")
-    fetch_typescript_library("lib.dom.d.ts", library_directory / "dom" / "index.d.ts")
-    fetch_typescript_library("lib.dom.iterable.d.ts", library_directory / "dom" / "iterable.d.ts")
-    fetch_typescript_library("lib.dom.asynciterable.d.ts", library_directory / "dom" / "asynciterable.d.ts")
+    fetch_typescript_library(
+        base_url,
+        "lib.dom.d.ts",
+        library_directory / "dom" / "index.d.ts",
+    )
+    fetch_typescript_library(
+        base_url,
+        "lib.dom.iterable.d.ts",
+        library_directory / "dom" / "iterable.d.ts",
+    )
+    fetch_typescript_library(
+        base_url,
+        "lib.dom.asynciterable.d.ts",
+        library_directory / "dom" / "asynciterable.d.ts",
+    )
 
-    # fetch worker libraries
+
+def fetch_typescript_worker_libs(library_directory: Path, base_url: str) -> None:
+    """Fetch the TypeScript web worker libraries."""
     print("  - worker")
-    fetch_typescript_library("lib.webworker.d.ts", library_directory / "worker" / "index.d.ts")
-    fetch_typescript_library("lib.webworker.iterable.d.ts", library_directory / "worker" / "iterable.d.ts")
-    fetch_typescript_library("lib.webworker.asynciterable.d.ts", library_directory / "worker" / "asynciterable.d.ts")
-    fetch_typescript_library("lib.webworker.importscripts.d.ts", library_directory / "worker" / "importscripts.d.ts")
+    fetch_typescript_library(
+        base_url,
+        "lib.webworker.d.ts",
+        library_directory / "worker" / "index.d.ts",
+    )
+    fetch_typescript_library(
+        base_url,
+        "lib.webworker.iterable.d.ts",
+        library_directory / "worker" / "iterable.d.ts",
+    )
+    fetch_typescript_library(
+        base_url,
+        "lib.webworker.asynciterable.d.ts",
+        library_directory / "worker" / "asynciterable.d.ts",
+    )
+    fetch_typescript_library(
+        base_url,
+        "lib.webworker.importscripts.d.ts",
+        library_directory / "worker" / "importscripts.d.ts",
+    )
 
-    # fetch scripthost libraries
+
+def fetch_typescript_scripthost_libs(library_directory: Path, base_url: str) -> None:
+    """Fetch the TypeScript scripthost libraries."""
     print("  - scripthost")
-    fetch_typescript_library("lib.scripthost.d.ts", library_directory / "scripthost" / "index.d.ts")
+    fetch_typescript_library(
+        base_url,
+        "lib.scripthost.d.ts",
+        library_directory / "scripthost" / "index.d.ts",
+    )
+
+
+def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
+    """Fetch the TypeScript standard library sources."""
+    fetch_typescript_es_libs(library_directory, base_url)
+    fetch_typescript_decorators_libs(library_directory, base_url)
+    fetch_typescript_dom_libs(library_directory, base_url)
+    fetch_typescript_worker_libs(library_directory, base_url)
+    fetch_typescript_scripthost_libs(library_directory, base_url)
+
+
+def fetch_undici_types(library_directory: Path) -> None:
+    """Fetch the undici-types package definitions."""
+    override_value = os.environ.get("UNDICI_TYPES_TARGETS_OVERRIDE", "")
+    targets = parse_target_overrides(override_value, DEFAULT_UNDICI_TYPES_TARGETS)
+
+    for target_name, version in targets:
+        base_url = (
+            os.environ.get("UNDICI_TYPES_BASE_URL")
+            or os.environ.get("UNDICI_TYPES_URL")
+            or f"https://unpkg.com/undici-types@{version}"
+        ).rstrip("/")
+        meta_url = f"{base_url}/?meta"
+
+        print(f"  - undici-types.{target_name} {version}")
+        with urllib.request.urlopen(meta_url) as response:
+            meta = json.load(response)
+
+        for entry in meta.get("files", []):
+            path = entry.get("path")
+            if not path or not path.endswith(".d.ts"):
+                continue
+            relative_path = path.lstrip("/")
+            content = fetch_remote_text(f"{base_url}/{relative_path}")
+            destination_path = (
+                library_directory / "undici-types" / target_name / relative_path
+            )
+            write_text(destination_path, content)
 
 
 def parse_target_overrides(value: str, default: list[tuple[str, str]]) -> list[tuple[str, str]]:
@@ -276,7 +389,7 @@ def parse_only_targets(value: str) -> set[str]:
     """Parse the only argument into target names."""
     # handle empty value
     if not value:
-        return {"ts", "node", "deno", "bun"}
+        return {"ts", "undici-types", "node", "deno", "bun"}
 
     # split target names
     targets = {name.strip() for name in value.split(",") if name.strip()}
@@ -285,6 +398,9 @@ def parse_only_targets(value: str) -> set[str]:
 
 def print_versions(typescript_version: str) -> None:
     """Print the configured library versions."""
+    undici_override = os.environ.get("UNDICI_TYPES_TARGETS_OVERRIDE", "")
+    undici_targets = parse_target_overrides(undici_override, DEFAULT_UNDICI_TYPES_TARGETS)
+
     # resolve node targets for display
     node_override = os.environ.get("NODE_TARGETS_OVERRIDE", "")
     node_targets = parse_target_overrides(node_override, DEFAULT_NODE_TARGETS)
@@ -299,6 +415,7 @@ def print_versions(typescript_version: str) -> None:
 
     # emit version summary
     print(f"typescript lib version: {typescript_version}")
+    print(f"undici-types targets: {format_targets(undici_targets)}")
     print(f"node targets: {format_targets(node_targets)}")
     print(f"deno targets: {format_targets(deno_targets)}")
     print(f"bun targets: {format_targets(bun_targets)}")
@@ -308,7 +425,11 @@ def main() -> int:
     """Run the builtin library fetcher."""
     # parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", help="comma separated list: ts,node,deno,bun", default="")
+    parser.add_argument(
+        "--only",
+        help="comma separated list: ts,undici-types,node,deno,bun",
+        default="",
+    )
     parser.add_argument("--print-versions", action="store_true")
     args = parser.parse_args()
 
@@ -331,6 +452,8 @@ def main() -> int:
     # fetch selected libraries
     if "ts" in only_targets:
         fetch_typescript_libs(library_directory, typescript_base_url)
+    if "undici-types" in only_targets:
+        fetch_undici_types(library_directory)
     if "node" in only_targets:
         fetch_node_libs(library_directory)
     if "deno" in only_targets:
