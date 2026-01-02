@@ -266,7 +266,7 @@ Correct code that could be faster or use less memory.
 | `LP016` | `prefer-array-literal` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest using array literal instead of empty array followed by extend |
 | `LP017` | `prefer-array-some` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.some()` over `.find() !== undefined` |
 | `LP018` | `prefer-for-of` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer for-of loops over index-based for loops |
-| `LP019` | `prefer-includes` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer `.includes()` over `.indexOf() !== -1` |
+| `LP019` | `prefer-includes` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer `.includes()` over `.indexOf() !== -1` | 
 | `LP020` | `prefer-reserve` | Clippy | DIR | ✗ | 🔶 | Suggestion | Prefer reserving capacity when the size is known |
 | `LP021` | `prefer-string-endswith` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.endsWith()` over `.slice(-n) === suffix` |
 | `LP022` | `prefer-string-startswith` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.startsWith()` over `.indexOf() === 0` |
@@ -362,6 +362,7 @@ Subjective preferences for consistent coding style.
 | `LY078` | `sort-imports` | ESLint | AST | ✓ | ✅ | Safe | Enforce sorted import declarations |
 | `LY079` | `symbol-description` | ESLint | DIR | ✓ | 🔶 | Suggestion | Require symbol descriptions |
 | `LY080` | `yoda` | ESLint | AST | ✓ | ✅ | Safe | Disallow Yoda conditions |
+| `LY082` | `prefer-array-some` | Unicorn | DIR | ✓ | ✅ | None | Prefer `some()` over `filter().length` or `findIndex()` comparisons |
 
 ## Complexity (X)
 

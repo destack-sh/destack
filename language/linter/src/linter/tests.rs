@@ -10,7 +10,10 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
 };
-use destack_workspace::{LintCategory, LintSeverity, LinterOptions, Program, Session};
+use destack_workspace::{
+    EnvSnapshot, LintCategory, LintSeverity, LinterOptions, Platform, ProfileFlags, ProfileId,
+    ProfileKey, Program, Runtime, Session,
+};
 
 use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner};
 
@@ -22,6 +25,8 @@ pub(crate) struct TestProgram {
     session: Arc<Session>,
     /// The program.
     pub program: Arc<Program>,
+    /// The profile id for tests.
+    profile_id: ProfileId,
     /// The compiler.
     compiler: Arc<Compiler>,
     /// The lint runner.
@@ -56,6 +61,16 @@ impl TestProgram {
 
         let session = Arc::new(Session::new(cwd.clone()).with_fs(fs.clone()));
         let program = session.add_root(cwd);
+        let profile_key = ProfileKey::new(
+            Runtime::Browser,
+            Platform::Web,
+            vec!["es2024".to_string()],
+            false,
+            false,
+            EnvSnapshot::from_env_all(),
+            ProfileFlags::default(),
+        );
+        let profile_id = program.profiles.get_or_create(profile_key);
 
         let compiler = Arc::new(Compiler::new(
             session.clone(),
@@ -72,6 +87,7 @@ impl TestProgram {
             fs,
             session,
             program,
+            profile_id,
             compiler,
             runner,
             linter_options: test_linter_options(),
@@ -98,17 +114,31 @@ impl TestProgram {
         Self::new_with_builtins(vec![crate::boxed(rule)])
     }
 
-    /// Modify linter options (builder pattern).
+    /// Modify linter options.
     pub(crate) fn with_options(mut self, f: impl FnOnce(&mut LinterOptions)) -> Self {
         f(&mut self.linter_options);
         self
     }
 
-    /// Load a lib module set (builder pattern).
-    pub(crate) fn with_lib(self, name: &str) -> Self {
+    /// Load a lib module set.
+    pub(crate) fn with_lib(mut self, name: &str) -> Self {
         self.session
             .load_lib(name)
             .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
+        let profile = self.program.profile(self.profile_id);
+        let mut libs = profile.key.lib.clone();
+        if !libs.iter().any(|lib| lib == name) {
+            libs.push(name.to_string());
+        }
+        self.profile_id = self.program.profiles.get_or_create(ProfileKey::new(
+            profile.key.runtime,
+            profile.key.platform,
+            libs,
+            profile.key.debug,
+            profile.key.test,
+            profile.key.env,
+            profile.key.flags,
+        ));
         self
     }
 
@@ -125,23 +155,25 @@ impl TestProgram {
             .unwrap()
     }
 
-    /// Import a module (parse).
+    /// Import a module.
     pub(crate) fn import_module(&self, module: ModuleId) {
         self.compiler.enqueue(ImportTask::ImportModule { module });
     }
 
-    /// Analyze a module (bind, resolve, type check).
-    pub(crate) fn analyze_module(&self, module: ModuleId) {
-        let profile = self.program.default_profile_id_for_module(module);
-        self.compiler
-            .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+    /// Resolve a module.
+    pub(crate) fn resolve_module(&self, module: ModuleId) {
+        self.compiler.enqueue(ResolveTask::ResolveModuleCanonical {
+            module,
+            profile: self.profile_id,
+        });
     }
 
-    /// Resolve a module (bind, resolve symbols).
-    pub(crate) fn resolve_module(&self, module: ModuleId) {
-        let profile = self.program.default_profile_id_for_module(module);
-        self.compiler
-            .enqueue(ResolveTask::ResolveModuleCanonical { module, profile });
+    /// Analyze a module.
+    pub(crate) fn analyze_module(&self, module: ModuleId) {
+        self.compiler.enqueue(AnalyzeTask::AnalyzeModule {
+            module,
+            profile: self.profile_id,
+        });
     }
 
     /// Run all queued tasks.
@@ -152,7 +184,7 @@ impl TestProgram {
     /// Lint a module at the given level.
     pub(crate) fn lint_module(&self, module: ModuleId, level: LintLevel) -> Vec<LintDiagnostic> {
         let module = self.program.modules.get(module);
-        let profile = self.program.default_profile_id_for_module(module.read().id);
+        let profile = self.profile_id;
         self.runner.lint_module(
             self.program.clone(),
             module,

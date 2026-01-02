@@ -53,7 +53,7 @@ pub struct LintModuleDirContext<'a> {
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
     pub imported_modules: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
     /// Exported symbols by key (space, name).
-    pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>,
+    pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 
     /// Linter configuration.
     pub options: &'a LinterOptions,
@@ -94,7 +94,7 @@ impl<'a> LintModuleDirContext<'a> {
         default_symbol: dir::LocalSymbolId,
         namespace_exports: Vec<ModuleId>,
         imported_modules: IndexMap<(Option<ModuleId>, StringId), ModuleId>,
-        exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::LocalSymbolId>,
+        exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
         options: &'a LinterOptions,
         compute_fixes: bool,
     ) -> Self {
