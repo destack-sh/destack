@@ -76,3 +76,16 @@ x satisfies string;
 ```
 
 - expected string, found 123
+
+## Number Members
+
+### number toFixed resolves
+
+> Number literals expose Number prototype members.
+
+
+```ds libs=es5
+const value = 12;
+const fixed = value.toFixed(2);
+fixed satisfies string;
+```

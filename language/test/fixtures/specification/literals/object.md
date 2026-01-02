@@ -114,3 +114,27 @@ const value: { a: number, b: string } = { a: 1, b: 2 };
 ```
 
 - contains: type { a: number, b: 2 } is not assignable to type { a: number, b: string }
+
+## Object Members
+
+### object toString resolves
+
+> Object literals expose Object prototype members.
+
+
+```ds libs=es5
+const value = { a: 1, b: "two" };
+const text = value.toString();
+text satisfies string;
+```
+
+### object hasOwnProperty resolves
+
+> Object literals expose hasOwnProperty.
+
+
+```ds libs=es5
+const value = { a: 1 };
+const result = value.hasOwnProperty("a");
+result satisfies boolean;
+```

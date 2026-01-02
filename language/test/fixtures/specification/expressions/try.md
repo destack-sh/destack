@@ -4,7 +4,7 @@ Tests for try/catch/finally expression behavior.
 
 ## Try expression
 
-### _try expression without catch is invalid
+### try expression without catch is invalid
 
 > A try expression requires a catch or finally block.
 
@@ -15,7 +15,7 @@ value satisfies int;
 
 - contains: requires a catch or finally
 
-### _try expression returns body type with finally
+### try expression returns body type with finally
 
 > Finally does not affect the try expression type.
 
@@ -23,17 +23,6 @@ value satisfies int;
 const value = try {
     1
 } finally {
-    2
-};
-value satisfies int;
-```
-
-### _try expression returns single expression type with finally
-
-> Single-expression try uses the expression type.
-
-```ds
-const value = try 1 finally {
     2
 };
 value satisfies int;
@@ -123,7 +112,7 @@ value satisfies Result<int, string> | int;
 
 ## Try and finally
 
-### _try finally keeps body type
+### try finally keeps body type
 
 > Finally does not affect the try expression type.
 

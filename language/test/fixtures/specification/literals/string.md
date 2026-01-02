@@ -58,3 +58,16 @@ x satisfies number;
 ```
 
 - expected number, found "hello"
+
+## String Members
+
+### string toUpperCase resolves
+
+> String literals expose String prototype members.
+
+
+```ds libs=es5
+const value = "hello";
+const upper = value.toUpperCase();
+upper satisfies string;
+```
