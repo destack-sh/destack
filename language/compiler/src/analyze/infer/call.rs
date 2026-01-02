@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use super::member::MemberResolution;
 use super::parameter::StaticParameterKind;
-use super::resolve::MemberResolution;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Expression, GlobalSymbolId, InferTable, LocalInstanceId, LocalNodeId,
@@ -329,7 +329,7 @@ impl Compiler {
 
                 // resolve member dispatch for the receiver type
                 let member_key = StaticKey::Name(*name);
-                let member_resolution = self.resolve_member_resolution(
+                let member_resolution = self.resolve_member_symbol(
                     module,
                     &receiver_ty,
                     &member_key,
@@ -838,7 +838,7 @@ impl Compiler {
         )?;
 
         // resolve member dispatch for the receiver type
-        let member_resolution = self.resolve_member_resolution(
+        let member_resolution = self.resolve_member_symbol(
             module,
             receiver_ty,
             member_key,

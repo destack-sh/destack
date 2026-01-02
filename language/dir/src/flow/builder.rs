@@ -1048,7 +1048,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
             self.connect_blocks(
                 match_value_block_id,
                 case_block_id,
-                FlowEdgeKind::MatchCase,
+                FlowEdgeKind::Case,
                 guard,
             );
 

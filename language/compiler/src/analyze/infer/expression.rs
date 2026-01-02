@@ -606,8 +606,60 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // array or tuple expression: precise tuple type for each element
-            Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
+            // array expression: infer element types and build array type
+            Expression::ArrayExpression { elements } => {
+                // infer element types using any contextual type
+                let expected_element_types =
+                    self.expected_element_types(ctx.expected_type, elements.len(), types);
+
+                // infer element types
+                for (index, element_id) in elements.iter().enumerate() {
+                    let expected_element_ty_id =
+                        expected_element_types.get(index).copied().flatten();
+                    self.infer_argument(
+                        module,
+                        *element_id,
+                        expected_element_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                // collect element types
+                let mut element_type_ids = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let element = tree.get(*element_id);
+                    let value_id = element.value();
+                    let ty_id = self.infer_expression(
+                        module,
+                        value_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                    element_type_ids.push(ty_id);
+                }
+
+                // resolve the array element type
+                let element_ty_id = if element_type_ids.is_empty() {
+                    self.expected_array_element_type(ctx.expected_type, types)
+                } else {
+                    Some(self.union_type_from_list(element_type_ids, types))
+                };
+
+                let ty = Type::Array {
+                    element: element_ty_id,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
+            // tuple expression: preserve positional element types
+            Expression::TupleExpression { elements } => {
                 // infer element types using any contextual type
                 let expected_element_types =
                     self.expected_element_types(ctx.expected_type, elements.len(), types);
@@ -859,7 +911,7 @@ impl Compiler {
                     )?;
                 }
 
-                // NOTE #Incomplete: compute union or common type of then/else branches
+                // #Incomplete: compute union or common type of then/else branches
                 then_ty_id
             }
 
@@ -876,7 +928,7 @@ impl Compiler {
                 }
                 let mut ctx = ctx.fork().in_loop(expression_id.into_any());
                 self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
-                // NOTE #Incomplete: loop return type depends on break value
+                // #Incomplete: loop return type depends on break value
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
@@ -1047,7 +1099,7 @@ impl Compiler {
                         )?;
                     }
 
-                    // NOTE #Incomplete: compute union of case types
+                    // #Incomplete: compute union of case types
                 }
                 result_ty_id.unwrap_or_else(|| {
                     let ty = Type::TypeLiteral {
@@ -1105,7 +1157,7 @@ impl Compiler {
                                 value: TypeLiteral::Unknown,
                             })
                         } else {
-                            self.union_types_from_list(try_error_types, types)
+                            self.union_type_from_list(try_error_types, types)
                         };
 
                         // bind the catch pattern to the error type
@@ -1150,7 +1202,7 @@ impl Compiler {
 
                 // combine try and catch result types
                 if let Some(catch_ty_id) = catch_ty_id {
-                    self.union_types(try_ty_id, catch_ty_id, types)
+                    self.union_type(try_ty_id, catch_ty_id, types)
                 } else {
                     try_ty_id
                 }
@@ -1312,7 +1364,7 @@ impl Compiler {
 
             // comptime: type of body (evaluated at compile time)
             Expression::Comptime { body } => {
-                // NOTE #Incomplete: validate that body can be evaluated at comptime
+                // #Incomplete: validate that body can be evaluated at comptime
                 self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?
             }
 
@@ -1329,7 +1381,7 @@ impl Compiler {
                 if let Some(value_id) = value {
                     self.infer_expression(module, *value_id, tree, symbols, types, infer, ctx)?;
                 }
-                // NOTE #Incomplete: yield type depends on generator context
+                // #Incomplete: yield type depends on generator context
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -1377,7 +1429,7 @@ impl Compiler {
             }
             Expression::TaggedTemplateExpression { tag, value: _ } => {
                 let _tag_ty_id = self.infer_expression(module, *tag, tree, symbols, types, infer, ctx)?;
-                // NOTE #Incomplete: tagged template should return type from tag function
+                // #Incomplete: tagged template should return type from tag function
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
@@ -1385,7 +1437,7 @@ impl Compiler {
             }
 
             // range expression: analyze bounds, type is Iterable<T>
-            // NOTE #Incomplete: range should satisfy Iterable<T> where T is the element type
+            // #Incomplete: range should satisfy Iterable<T> where T is the element type
             Expression::RangeExpression {
                 start,
                 end,
@@ -1502,7 +1554,7 @@ impl Compiler {
                         self.infer_argument(module, *elem, None, tree, symbols, types, infer, ctx)?;
                     }
                 }
-                // NOTE #Incomplete: JSX element type (see Elaborate/reify)
+                // #Incomplete: JSX element type (see Elaborate/reify)
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };

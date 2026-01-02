@@ -27,7 +27,7 @@ pub enum TypeLiteral {
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Composite type.
-    Composite(DeclarationType),
+    Composite(DeclarationType), // FUGU: remove TypeLiteral::Composite + DeclarationType?
     /// Intrinsic type (TypeScript compiler-provided).
     Intrinsic(TypeIntrinsic),
     /// Scalar literal.

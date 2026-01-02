@@ -4,6 +4,18 @@
 pub enum WellKnownSymbol {
     /// Builtin Array constructor symbol.
     Array,
+    /// Builtin Object constructor symbol.
+    Object,
+    /// Builtin Function constructor symbol.
+    Function,
+    /// Builtin String constructor symbol.
+    String,
+    /// Builtin Number constructor symbol.
+    Number,
+    /// Builtin Boolean constructor symbol.
+    Boolean,
+    /// Builtin BigInt constructor symbol.
+    BigInt,
     /// Builtin Promise constructor symbol.
     Promise,
     /// Builtin Iterable type symbol.
@@ -23,6 +35,12 @@ impl WellKnownSymbol {
     pub fn export_name(&self) -> &'static str {
         match self {
             WellKnownSymbol::Array => "Array",
+            WellKnownSymbol::Object => "Object",
+            WellKnownSymbol::Function => "Function",
+            WellKnownSymbol::String => "String",
+            WellKnownSymbol::Number => "Number",
+            WellKnownSymbol::Boolean => "Boolean",
+            WellKnownSymbol::BigInt => "BigInt",
             WellKnownSymbol::Promise => "Promise",
             WellKnownSymbol::Iterable => "Iterable",
             WellKnownSymbol::Iterator => "Iterator",
@@ -36,6 +54,12 @@ impl WellKnownSymbol {
     pub fn all() -> impl Iterator<Item = Self> {
         const ALL: &[WellKnownSymbol] = &[
             WellKnownSymbol::Array,
+            WellKnownSymbol::Object,
+            WellKnownSymbol::Function,
+            WellKnownSymbol::String,
+            WellKnownSymbol::Number,
+            WellKnownSymbol::Boolean,
+            WellKnownSymbol::BigInt,
             WellKnownSymbol::Promise,
             WellKnownSymbol::Iterable,
             WellKnownSymbol::Iterator,

@@ -110,6 +110,21 @@ impl Compiler {
         expected
     }
 
+    /// Resolve a contextual element type for an array literal.
+    pub(super) fn expected_array_element_type(
+        &self,
+        expected_ty_id: Option<LocalTypeId>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let expected_ty_id = self.expected_value_type(expected_ty_id, types)?;
+        match types.get_type(expected_ty_id) {
+            Type::Array {
+                element: Some(element_ty_id),
+            } => Some(*element_ty_id),
+            _ => None,
+        }
+    }
+
     /// Match a scalar literal against a contextual type when possible.
     pub(super) fn expected_type_for_scalar_literal(
         &self,

@@ -222,7 +222,7 @@ impl Compiler {
                 )?;
                 Ok(false_environment)
             }
-            FlowEdgeKind::MatchCase | FlowEdgeKind::Guard => {
+            FlowEdgeKind::Case | FlowEdgeKind::Guard => {
                 let (guard_environment, _) = self.narrow_environment_for_guard(
                     module,
                     guard_id,

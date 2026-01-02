@@ -52,14 +52,14 @@ pub struct FlowEdge {
 /// Describe the kind of control flow edge between blocks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FlowEdgeKind {
-    /// Represent an unconditional branch.
+    /// Unconditional branch.
     Unconditional,
-    /// Represent a true branch from a guard.
+    /// True branch from a guard.
     True,
-    /// Represent a false branch from a guard.
+    /// False branch from a guard.
     False,
-    /// Represent a match case branch.
-    MatchCase,
-    /// Represent a guard branch that is not tied to a boolean condition.
+    /// Match / switch case branch.
+    Case,
+    /// Guard branch.
     Guard,
 }
