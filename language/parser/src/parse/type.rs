@@ -253,10 +253,12 @@ impl Parser {
                 self.eat_token(TokenType::Assign)?;
                 self.eat_newlines_maybe()?;
                 // value
-                let value_id = self
-                    .with_options(self.options.not_in_position().in_type(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                let mut value_options = self.options.not_in_position().in_type();
+                if self.options.in_type_conditional_right {
+                    value_options = value_options.in_type_conditional_right();
+                }
+                let value_id =
+                    self.with_options(value_options, |parser| parser.eat_expression())?;
                 if let Some(name) = descriptor.name.as_ref() {
                     self.apply_intrinsic_type_literal(name, value_id);
                 }
@@ -282,10 +284,11 @@ impl Parser {
             else {
                 // re-parse from before the static parameters to get them as a arguments
                 self.restore(speculative_start.0, speculative_start.1);
-                let right = self
-                    .with_options(self.options.not_in_position().in_type(), |parser| {
-                        parser.eat_expression()
-                    })?;
+                let mut right_options = self.options.not_in_position().in_type();
+                if self.options.in_type_conditional_right {
+                    right_options = right_options.in_type_conditional_right();
+                }
+                let right = self.with_options(right_options, |parser| parser.eat_expression())?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
                 } else if kind == TypeKind::Nominal {
@@ -299,9 +302,11 @@ impl Parser {
         }
         // type expression
         else {
-            let right = self.with_options(self.options.not_in_position().in_type(), |parser| {
-                parser.eat_expression()
-            })?;
+            let mut right_options = self.options.not_in_position().in_type();
+            if self.options.in_type_conditional_right {
+                right_options = right_options.in_type_conditional_right();
+            }
+            let right = self.with_options(right_options, |parser| parser.eat_expression())?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
             } else if kind == TypeKind::Nominal {
@@ -849,6 +854,29 @@ mod tests {
         });
     }
 
+    /// Parse conditional types with infer constraints.
+    #[test]
+    fn test_parse_type_conditional_with_infer_constraint() {
+        let mut test = TestParser::new(
+            "type Wrapper<T> = T extends infer A extends readonly unknown[] ? A : never",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Wrapper<T> = T extends infer A extends readonly unknown[] ? A : never
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { right, then_type, else_type, .. } => {
+                    assert_node!(parser.tree, *right, Expression::TypeInfer { constraint, .. } => {
+                        assert!(constraint.is_some());
+                    });
+                    assert_node!(parser.tree, *then_type, Expression::Path { .. });
+                    assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Never));
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_type_expression_with_static_parameters() {
         let mut test = TestParser::new("type T<A, B>");
@@ -1104,6 +1132,42 @@ mod tests {
         let expr_id = parser.eat_expression().unwrap();
 
         // type T = A extends B ? C extends D ? E : F : G
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { then_type, .. } => {
+                    assert_node!(parser.tree, *then_type, Expression::TypeConditional { .. });
+                });
+            });
+        });
+    }
+
+    /// Parse extends with readonly array types.
+    #[test]
+    fn test_parse_type_extends_readonly_array() {
+        let mut test = TestParser::new("type T = A extends readonly unknown[]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = A extends readonly unknown[]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, .. } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Extends);
+                });
+            });
+        });
+    }
+
+    /// Parse multiline conditional types with readonly array constraints.
+    #[test]
+    fn test_parse_type_conditional_multiline_readonly_array() {
+        let mut test = TestParser::new(
+            "type IsTuple<T> = T extends readonly unknown[]\n  ? number extends T[\"length\"]\n    ? false\n    : true\n  : false",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type IsTuple<T> = T extends readonly unknown[] ? number extends T["length"] ? false : true : false
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeConditional { then_type, .. } => {
