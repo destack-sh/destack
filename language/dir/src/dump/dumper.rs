@@ -531,6 +531,16 @@ impl Dump for CastKind {
     }
 }
 
+impl Dump for CastSource {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let source = match self {
+            CastSource::Explicit => "explicit",
+            CastSource::Implicit => "implicit",
+        };
+        dumper.object("CastSource").value(&source).end();
+    }
+}
+
 /// Dump a DeclarationDescriptor as a structured object.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1052,12 +1062,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Cast {
+                kind,
+                source,
                 value: _,
                 target_type: _,
-                kind,
             } => {
                 self.node("Expression::Cast", id.id)
                     .field("kind", kind)
+                    .field("source", source)
                     .end();
             }
             Expression::Assign { left: _, right: _ } => {

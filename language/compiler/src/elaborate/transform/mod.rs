@@ -1,2 +1,9 @@
+mod blocks;
+mod declarators;
 mod expression;
+mod r#let;
+mod r#match;
 mod process;
+mod returns;
+mod statement;
+mod ternary;

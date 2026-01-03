@@ -1,7 +1,7 @@
 use destack_base::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastKind, Declaration,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastKind, CastSource, Declaration,
     DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencySource,
     GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource,
     ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
@@ -146,9 +146,14 @@ pub enum Expression {
 
     /// Cast a value expression to a target type.
     Cast {
-        value: LocalNodeId<Expression>,
-        target_type: LocalNodeId<Expression>,
+        /// The semantic kind of cast.
         kind: CastKind,
+        /// The origin of the cast in source.
+        source: CastSource,
+        /// The value to cast.
+        value: LocalNodeId<Expression>,
+        /// The target type expression.
+        target_type: LocalNodeId<Expression>,
     },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).

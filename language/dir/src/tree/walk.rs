@@ -257,9 +257,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Cast {
+            kind: _,
+            source: _,
             value,
             target_type,
-            kind: _,
         } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);

@@ -15,7 +15,7 @@ fn test_analyze_number_literal() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -56,7 +56,7 @@ fn test_analyze_string_literal() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -97,7 +97,7 @@ fn test_analyze_boolean_literal() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -166,7 +166,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 
     // analyze the entry module
     test.analyze_module(main_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load module data for inspection
     let module = test.program.modules.get(main_id);
@@ -257,7 +257,7 @@ fn test_analyze_binary_number_operation() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -308,7 +308,7 @@ if (value != null) {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -389,7 +389,7 @@ fn test_analyze_binary_number_comparison() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -430,7 +430,7 @@ fn test_analyze_let_expression_infer_type() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -469,7 +469,7 @@ fn test_analyze_let_expression_declare_type() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -531,7 +531,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -605,7 +605,7 @@ let x = value;
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -646,7 +646,7 @@ let x = items;
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -693,7 +693,7 @@ let x = greeting;
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -795,7 +795,7 @@ let result = builder.combine(other);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -838,7 +838,7 @@ let boxed = builder.box();
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -918,7 +918,7 @@ extension for Point {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     // #Incomplete: #Extensions
@@ -952,7 +952,7 @@ extension for Point {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     // #Incomplete: #Extensions
@@ -992,7 +992,7 @@ import { Point } from "./point.ds";
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
@@ -1016,7 +1016,7 @@ add(1, 2)
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1067,7 +1067,7 @@ function greet(name = "hi") {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1114,7 +1114,7 @@ identity<number>(1);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1161,7 +1161,7 @@ let one = identity(1);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1215,7 +1215,7 @@ let as_number = identity<number>;
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1280,7 +1280,7 @@ let value: Box<number> = makeBox();
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1342,7 +1342,7 @@ let buffer: Buffer<string> = makeBuffer();
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1414,7 +1414,7 @@ let result = getContainer().map<string>(1);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1496,7 +1496,7 @@ mapper(1);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1575,7 +1575,7 @@ let result = wrap(1);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     let result_symbol = test.resolve_to_symbol("test.ds", "result").unwrap();
 
@@ -1638,7 +1638,7 @@ const add: (a: number, b: number) => number = (a, b) => a + b;
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1706,7 +1706,7 @@ apply((a) => a + 1);
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1769,7 +1769,7 @@ const point: { x: number, y: string } = { x: 1, y: "hi" };
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1837,7 +1837,7 @@ const numbers: number[] = [1, 2];
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load typed module data
     let module = test.program.modules.get(module_id);
@@ -1880,7 +1880,7 @@ fn test_analyze_type_mapped_parameter_scope() {
     let module_id = test.add_module("test.ds", "type Map<T> = { [K in keyof T]: T[K] };");
 
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
     let module = module.read();
@@ -1926,7 +1926,7 @@ fn test_analyze_type_infer_scope() {
     let module_id = test.add_module("test.ds", "type Foo<T> = T extends infer U ? U : never;");
 
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     let module = test.program.modules.get(module_id);
     let module = module.read();
@@ -1972,7 +1972,7 @@ fn test_build_flow_graph_if_expression() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load tree data
     let module = test.program.modules.get(module_id);
@@ -2036,7 +2036,7 @@ fn test_build_flow_graph_short_circuit_guard() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load tree data
     let module = test.program.modules.get(module_id);
@@ -2167,7 +2167,7 @@ fn test_build_flow_graph_for_loop() {
 
     // run analyze pipeline
     test.analyze_module(module_id);
-    test.compile_dump_clean();
+    test.compile_check_clean();
 
     // load tree data
     let module = test.program.modules.get(module_id);
