@@ -69,8 +69,27 @@ impl Compiler {
             key.entry_module = Some(module_id);
         }
 
-        // build the cache when missing
-        if !self.module_binding_caches.contains_key(&key) {
+        // include ambient lib modules when available
+        if let Some(builtins) = self.program.builtins.as_ref()
+            && let Some(ambient_modules) = builtins.ambient_libs(profile_id)
+        {
+            let mut seen = HashSet::new();
+            for root in roots.iter().copied() {
+                seen.insert(root);
+            }
+            for module_id in ambient_modules {
+                if seen.insert(module_id) {
+                    roots.push(module_id);
+                }
+            }
+        }
+
+        // rebuild when module bindings changed since the cache was built
+        let mut rebuild_cache = true;
+        if let Some(cache) = self.module_binding_caches.get(&key) {
+            rebuild_cache = self.module_binding_cache_is_stale(&cache);
+        }
+        if rebuild_cache {
             let cache = self.build_module_binding_table(&roots)?;
             self.module_binding_caches.insert(key.clone(), cache);
         }
@@ -151,18 +170,7 @@ impl Compiler {
                     .push(binding_ref);
             }
 
-            // enqueue dependency targets for further discovery
-            let tree = base_dir.tree.read();
-            let dependency_targets = self.collect_dependency_targets(module_id, &tree);
-            for (target, _node) in dependency_targets {
-                // skip specifiers that don't resolve to modules
-                let remote_module_id =
-                    match self.resolve_specifier_to_module(target, Some(module_id)) {
-                        Ok(module_id) => module_id,
-                        Err(_) => continue,
-                    };
-                queue.push_back(remote_module_id);
-            }
+            // skip dependency traversal, module declarations are indexed from bound modules
         }
 
         // include module bindings from any already-bound modules
@@ -193,6 +201,26 @@ impl Compiler {
 
         Ok(cache)
     }
+
+    /// Whether a module binding cache is missing any bound modules.
+    fn module_binding_cache_is_stale(&self, cache: &ModuleBindingCache) -> bool {
+        // check every bound module for version mismatches
+        for module in self.program.modules.iter() {
+            let module = module.read();
+            if module.dir_base_maybe().is_none() {
+                continue;
+            }
+
+            let Some(version) = cache.module_versions.get(&module.id) else {
+                return true;
+            };
+            if *version != module.version {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[cfg(test)]
@@ -203,7 +231,6 @@ mod tests {
     /// Resolve imports from module declarations.
     #[test]
     fn test_resolve_module_binding_import() {
-        // arrange test modules
         let test = TestProgram::memory_sequential();
         let decl_source = r#"
 declare module "foo" {
@@ -218,10 +245,8 @@ value;
 "#;
         let decl_module_id = test.add_module("decl.d.ts", decl_source);
         let main_module_id = test.add_module("main.ts", main_source);
-
-        // run resolve pipeline
         test.resolve_module(main_module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         // load symbol data for the main module
         let module = test.program.modules.get(main_module_id);
@@ -243,5 +268,62 @@ value;
 
         // assert the import resolves to the module binding declaration
         assert_eq!(target_symbol.module_id, decl_module_id);
+    }
+
+    /// Resolve type imports from module declarations.
+    #[test]
+    fn test_resolve_module_binding_type_import() {
+        // arrange test modules
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "node:worker_threads" {
+    export const SHARE_ENV: unique symbol;
+}
+"#;
+        let main_source = r#"
+import "./decl.d.ts";
+
+type Share = (typeof import("node:worker_threads"))["SHARE_ENV"];
+"#;
+        let decl_module_id = test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", main_source);
+
+        // run resolve pipeline
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+
+        // assert the module binding was registered in the declaring module's base DIR
+        let module = test.program.modules.get(decl_module_id);
+        let module = module.read();
+        let bindings = module
+            .dir_base()
+            .module_bindings
+            .read()
+            .iter()
+            .filter(|binding| {
+                binding.specifier == test.program.strings.intern("node:worker_threads")
+            })
+            .count();
+        assert_eq!(
+            bindings, 1,
+            "expected a module binding for node:worker_threads"
+        );
+
+        // assert the binding can be resolved from the importing module via the cache
+        let profile = test.default_profile_id(main_module_id);
+        let bindings = test
+            .compiler
+            .module_bindings_for_specifier(
+                main_module_id,
+                profile,
+                test.program.strings.intern("node:worker_threads"),
+            )
+            .unwrap()
+            .unwrap();
+        let binding_ref = bindings.first().expect("expected module binding");
+        assert_eq!(
+            binding_ref.module_id, decl_module_id,
+            "expected module binding to resolve to declaration module"
+        );
     }
 }

@@ -309,9 +309,10 @@ impl Compiler {
                 }
 
                 dir::Expression::Cast {
+                    kind: _,
+                    source: _,
                     value,
                     target_type,
-                    kind: _,
                 } => {
                     let left =
                         self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);

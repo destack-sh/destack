@@ -550,7 +550,7 @@ type User = t.infer<typeof UserSchema>;
 
 // Destack: define type, validation is explicit
 type User = { name: string.minLength(1) }
-parse(User, data);  // User IS the schema
+parse(User, data);  // User IS the Type (schema)
 ```
 
 <sub>See [test/fixtures/specification/reflection/](test/fixtures/specification/reflection/) for specification tests.</sub>

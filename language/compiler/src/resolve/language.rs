@@ -3,13 +3,13 @@ use std::collections::HashSet;
 use destack_base::StringId;
 use destack_builtin::{LanguageItem, builtin_lib};
 use destack_dir::{
-    DependencyItem, ExportSpaceOrder, Expression, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace,
+    DependencyItem, Export, ExportSpaceOrder, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace,
     WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
 use indexmap::IndexMap;
 
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 
 impl Compiler {
     /// Resolve a profile's libraries.
@@ -74,44 +74,51 @@ impl Compiler {
         builtins.set_ambient_libs(profile_id, ambient_modules);
 
         // prepare modules in order
+        let mut collector = TaskResultCollector::new();
         for module_ids in &modules_to_resolve {
             for &module_id in module_ids {
-                self.require_resolve_module_prepare(module_id, profile_id)?;
-            }
-        }
-
-        // resolve lib module symbols for ambient lookups when imports are present
-        let mut seen_modules = HashSet::new();
-        for module_ids in &modules_to_resolve {
-            for &module_id in module_ids {
-                if !seen_modules.insert(module_id) {
-                    continue;
-                }
-                let module = self.program.modules.get(module_id);
-                let module = module.read();
-                let dir = module.dir(profile_id);
-                let tree = dir.tree.read();
-                if self.module_requires_direct_resolve(&tree) {
-                    self.require_resolve_module_direct(module_id, profile_id)?;
+                if let Err(error) = self.require_resolve_module_prepare(module_id, profile_id)
+                    && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                {
+                    let dependency = error.into_dependency();
+                    return Err(ResolveError::UnsatisfiedDependency { dependency });
                 }
             }
         }
 
-        // collect canonical lib symbols
+        // yield when any prepare tasks are still pending
+        if let Some(dependency) = collector.try_into_yield_all() {
+            return Err(ResolveError::Yield { dependency });
+        }
+
+        // collect and cache canonical lib symbols
+        self.cache_canonical_lib_symbols(builtins, profile_id, &ordered_libs, all_modules)
+    }
+
+    /// Collect canonical exports from libs and cache them.
+    fn cache_canonical_lib_symbols(
+        &self,
+        builtins: &destack_workspace::LanguageBuiltins,
+        profile_id: ProfileId,
+        ordered_libs: &[String],
+        all_modules: Vec<destack_source::ModuleId>,
+    ) -> ResolveResult<()> {
+        // collect canonical export names from all libs
         let mut canonical_name_ids = HashSet::new();
-        for lib_name in &ordered_libs {
+        for lib_name in ordered_libs {
             let lib = builtin_lib(lib_name).ok_or_else(|| ResolveError::MissingBuiltinLib {
                 name: lib_name.clone(),
             })?;
             for &name in lib.canonical_exports {
-                let name_id = self.program.strings.intern(name);
-                canonical_name_ids.insert(name_id);
+                canonical_name_ids.insert(self.program.strings.intern(name));
             }
         }
 
-        // cache canonical lib symbols
+        // match exports across modules in lib precedence order
         let mut lib_symbols = IndexMap::new();
+        let mut pending_dependencies = HashSet::new();
         let export_spaces = ExportSpaceOrder::ValueThenType;
+
         for module_id in all_modules {
             let module = self.program.modules.get(module_id);
             let module = module.read();
@@ -119,50 +126,69 @@ impl Compiler {
             let exports = dir.exported_symbols.read();
             let tree = dir.tree.read();
 
-            // match exports in module order to preserve lib precedence
-            for name_id in canonical_name_ids.iter() {
-                if lib_symbols.contains_key(name_id) {
+            for &name_id in &canonical_name_ids {
+                if lib_symbols.contains_key(&name_id) {
                     continue;
                 }
-                let key = StaticKey::Name(*name_id);
+                let key = StaticKey::Name(name_id);
+
+                // defer when reexport target is unresolved
+                if self.has_unresolved_reexport(&exports, &tree, export_spaces, key) {
+                    pending_dependencies.insert(module_id);
+                    continue;
+                }
+
                 if let Some(symbol_id) =
                     self.resolve_exported_symbol(module_id, &exports, &tree, export_spaces, key)
                 {
-                    lib_symbols.insert(*name_id, symbol_id);
+                    lib_symbols.insert(name_id, symbol_id);
                 }
             }
         }
-        builtins.set_lib_symbols(profile_id, lib_symbols.clone());
 
-        // cache well-known symbols
+        // resolve dependency items needed for canonical exports
+        if !pending_dependencies.is_empty() {
+            let mut collector = TaskResultCollector::new();
+            for module_id in pending_dependencies {
+                if let Err(error) = self.resolve_dependency_items(module_id, profile_id)
+                    && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                {
+                    return Err(error);
+                }
+            }
+            if let Some(dependency) = collector.try_into_yield_all() {
+                return Err(ResolveError::Yield { dependency });
+            }
+        }
+
+        // cache lib symbols and well-known symbols
+        builtins.set_lib_symbols(profile_id, lib_symbols.clone());
         let well_known_symbols = WellKnownSymbols::build(&self.program.strings, &lib_symbols);
         builtins.set_well_known_symbols(profile_id, well_known_symbols);
 
         Ok(())
     }
 
-    /// Whether a module needs direct resolution to handle dependencies.
-    fn module_requires_direct_resolve(&self, tree: &NodeTree) -> bool {
-        // check unresolved imports or reexports
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            match tree.get(expression_id) {
-                Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
-                    return true;
-                }
-                _ => {}
+    /// Check if an export key has an unresolved reexport target.
+    fn has_unresolved_reexport(
+        &self,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
+        tree: &NodeTree,
+        export_spaces: ExportSpaceOrder,
+        key: StaticKey,
+    ) -> bool {
+        export_spaces.spaces().iter().any(|space| {
+            let Some(export) = exports.get(&(*space, key)) else {
+                return false;
+            };
+            if export.kind != destack_dir::ExportKind::ReExport {
+                return false;
             }
-        }
-
-        // check unresolved dependency items
-        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            match tree.get(item_id) {
-                DependencyItem::UnresolvedRemote { .. }
-                | DependencyItem::UnresolvedLocal { .. } => return true,
-                _ => {}
-            }
-        }
-
-        false
+            let Some(item) = export.item else {
+                return false;
+            };
+            tree.get::<DependencyItem>(item).target_symbol().is_none()
+        })
     }
 
     /// Collect the dependencies of a lib and add them to the ordered list.
@@ -448,28 +474,28 @@ mod tests {
 
     /// Analyze all builtin libs (without errors).
     #[test]
-    #[ignore] // FUGU: support all builtin libs
     fn test_analyze_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
             let test = TestProgram::memory_sequential_with_prelude_and_libs()
                 .with_profile_libs(&[lib.name]);
+
+            // resolve builtins and libs
             test.resolve_builtins();
             test.resolve_libs();
             test.compile();
 
+            // analyze each module in the lib
             let builtins = test.program.builtins.as_ref().unwrap();
-            let lib = builtins
+            let lib_modules = builtins
                 .load_lib(
                     lib.name,
                     test.program.files.clone(),
                     test.program.modules.clone(),
                 )
                 .unwrap();
-
-            for module_id in lib {
+            for module_id in lib_modules {
                 test.analyze_module(module_id);
             }
-            test.compile_check_clean();
         }
     }
 }

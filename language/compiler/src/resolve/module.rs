@@ -81,20 +81,25 @@ impl Compiler {
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
 
-        // resolve expressions
+        // resolve module dependency expressions first
         let mut collector = TaskResultCollector::new();
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.collect(
-                &mut collector,
-                self.resolve_expression(
-                    &module,
-                    dir,
-                    profile,
-                    expression_id,
-                    &mut tree,
-                    &mut symbols,
-                ),
-            );
+            match tree.get(expression_id) {
+                Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
+                    self.collect(
+                        &mut collector,
+                        self.resolve_expression(
+                            &module,
+                            dir,
+                            profile,
+                            expression_id,
+                            &mut tree,
+                            &mut symbols,
+                        ),
+                    );
+                }
+                _ => {}
+            }
         }
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(ResolveError::Yield { dependency });
@@ -119,6 +124,28 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
+        // build the global symbol table after dependency resolution
+        self.require_global_symbol_cache(module.id, profile)?;
+
+        // resolve expressions
+        let mut collector = TaskResultCollector::new();
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            self.collect(
+                &mut collector,
+                self.resolve_expression(
+                    &module,
+                    dir,
+                    profile,
+                    expression_id,
+                    &mut tree,
+                    &mut symbols,
+                ),
+            );
+        }
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(ResolveError::Yield { dependency });
+        }
+
         // resolve declarations (e.g., extension target_symbol)
         let mut collector = TaskResultCollector::new();
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
@@ -134,6 +161,41 @@ impl Compiler {
         // finalize export targets after dependency resolution
         self.finalize_module_exports(dir, &tree, &mut symbols);
         self.finalize_module_binding_exports(dir, &tree, &mut symbols);
+
+        Ok(())
+    }
+
+    /// Resolve dependency items (imports/reexports) for a module.
+    pub(super) fn resolve_dependency_items(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> ResolveResult<()> {
+        // load module data and acquire resolve locks
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let mut tree = dir.tree.write();
+        let mut symbols = dir.symbols.write();
+
+        // resolve dependency items
+        let mut collector = TaskResultCollector::new();
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            self.collect(
+                &mut collector,
+                self.resolve_dependency_item(
+                    &module,
+                    dir,
+                    profile,
+                    item_id,
+                    &mut tree,
+                    &mut symbols,
+                ),
+            );
+        }
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(ResolveError::Yield { dependency });
+        }
 
         Ok(())
     }
@@ -1095,6 +1157,18 @@ impl Compiler {
         let next_target = export_target(&export);
         if existing_target.is_some() && existing_target == next_target {
             return;
+        }
+
+        // skip duplicates that are part of the same merge group
+        if existing.kind == ExportKind::Local
+            && export.kind == ExportKind::Local
+            && let (Some(existing_symbol), Some(next_symbol)) = (existing.symbol, export.symbol)
+        {
+            let existing_merge = symbols.get_symbol(existing_symbol).merge_group;
+            let next_merge = symbols.get_symbol(next_symbol).merge_group;
+            if existing_merge.is_some() && existing_merge == next_merge {
+                return;
+            }
         }
 
         // report conflicts when the targets differ
