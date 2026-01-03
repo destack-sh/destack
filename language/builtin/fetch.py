@@ -376,13 +376,21 @@ def fetch_bun_libs(library_directory: Path) -> None:
 
     # fetch each target
     for library_version, bun_version in targets:
-        url = os.environ.get(
-            "BUN_TYPES_URL",
-            f"https://raw.githubusercontent.com/oven-sh/bun/bun-v{bun_version}/packages/bun-types/bun.d.ts",
+        base_url = os.environ.get(
+            "BUN_TYPES_BASE_URL",
+            os.environ.get(
+                "BUN_TYPES_URL",
+                f"https://raw.githubusercontent.com/oven-sh/bun/bun-v{bun_version}/packages/bun-types",
+            ),
         )
+        entry_path = os.environ.get("BUN_TYPES_ENTRY", "index.d.ts")
+        if base_url.endswith(".d.ts"):
+            entry_path = posixpath.basename(base_url)
+            base_url = posixpath.dirname(base_url)
         print(f"  - bun.v{library_version}")
         destination_path = library_directory / "bun" / f"v{library_version}" / "index.d.ts"
-        write_text(destination_path, fetch_remote_text(url))
+        content = fetch_reference_tree(base_url, entry_path)
+        write_text(destination_path, content)
 
 
 def parse_only_targets(value: str) -> set[str]:
