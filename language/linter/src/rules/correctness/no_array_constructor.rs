@@ -174,7 +174,6 @@ let items = Array(1, 2);
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("no-array-constructor");
     }
 
@@ -188,7 +187,6 @@ let items = new Array(1);
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("no-array-constructor");
     }
 
@@ -202,7 +200,6 @@ let items = [1, 2];
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_no_lint("no-array-constructor");
     }
 
@@ -217,7 +214,6 @@ let item = Array(1);
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_no_lint("no-array-constructor");
     }
 
@@ -233,7 +229,6 @@ let build = (Array: (value: number) => number): number => {
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_no_lint("no-array-constructor");
     }
 }

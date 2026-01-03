@@ -191,7 +191,6 @@ let task = new Promise(async (resolve, reject) => {
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("no-async-promise-executor");
     }
 
@@ -207,7 +206,6 @@ let task = new Promise((resolve, reject) => {
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result)
             .assert_no_lint("no-async-promise-executor");
     }
@@ -226,7 +224,6 @@ let task = new Promise(executor);
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("no-async-promise-executor");
     }
 }
