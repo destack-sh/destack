@@ -1,0 +1,543 @@
+# Elaborate
+
+Elaborate runs after Analyze and turns DIR into a "canonical" form.
+The exact responsibilities of Elaborate are unfortunately a bit fuzzy because we need to support both high-level targets like JS/TS *and* low-level targets like WASM.
+We try to keep most transforms the same across targets to reduce the combinatorial explosion, but in some cases it's inevitable (like to retain some nullish coalescing behavior without complicating the JS/TS codegen backend).
+
+## Pipeline
+
+Elaborate runs per profile on analyzed DIR.
+It feeds into Execute and then Lower.
+
+```
+... ─-──► Analyze ───► Elaborate ───► Execute ───► Lower ───► ...
+                           │
+                           ├─► Transform
+                           └─► Reify
+```
+
+## Transform
+
+Transform rewrites (and "simplifies") structure without changing meaning.
+Evaluation order stays the same and the output remains target-independent DIR.
+
+### Split multi declarators into single bindings
+
+Multi declarator lets are split into one statement per binding.
+
+```ds
+// source
+function init(): int32 {
+    let a = 1, b = 2, c = 3;
+    return a + b + c;
+}
+```
+
+```ds
+// after transform
+function init(): int32 {
+    let a = 1;
+    let b = 2;
+    let c = 3;
+    return a + b + c;
+}
+```
+
+### Unwrap single expression blocks in source if else
+
+Single expression blocks inside source if else are unwrapped to enable ternary lowering.
+
+```ds
+// source
+function choose(x: boolean, y: int32, z: int32): int32 {
+    if (x) { y } else { z }
+}
+```
+
+```ds
+// after transform
+function choose(x: boolean, y: int32, z: int32): int32 {
+    if (x) y else z
+}
+```
+
+### Lower if let bindings to explicit checks
+
+Refutable bindings in if conditions become explicit temporaries and checks.
+(Irrefutable bindings are an Analyze error and are left alone.)
+
+```ds
+// source
+function unwrap(value: Option<int32>): int32 {
+    if let Some(x) = value { x } else { 0 }
+}
+```
+
+```ds
+// after transform
+function unwrap(value: Option<int32>): int32 {
+    {
+        let __m = value;
+        if (__m is Some) { let x = __m.value; x } else { 0 }
+    }
+}
+```
+
+### Lower match expressions into decision trees
+
+Match expressions become decision trees with explicit blocks.
+
+```ds
+// source
+function classify(x: Option<int32>): int32 {
+    match (x) {
+        Some(v) if v > 0 => v
+        Some(v) => -v
+        None => 0
+    }
+}
+```
+
+```ds
+// after transform
+function classify(x: Option<int32>): int32 {
+    if (x is Some) {
+        let v = x.value;
+        if (v > 0) { v } else { -v }
+    } else { 
+        0
+    }
+}
+```
+
+### Convert simple if else expressions to ternary form
+
+Simple if else expressions are converted to ternary form.
+
+```ds
+// source
+function abs(x: int32): int32 {
+    if (x < 0) -x else x
+}
+```
+
+```ds
+// after transform
+function abs(x: int32): int32 {
+    x < 0 ? -x : x
+}
+```
+
+### Insert explicit returns
+
+Implicit returns in function bodies become explicit return expressions.
+
+```ds
+// source
+function addOne(x: int32): int32 {
+    x + 1
+}
+```
+
+```ds
+// after transform
+function addOne(x: int32): int32 {
+    return x + 1;
+}
+```
+
+### Normalize value expressions into statement form
+
+Control flow expressions used as values are rewritten into explicit assignments or returns.
+This makes value flow explicit for Lower and codegen without changing ordering.
+
+#### Normalize if expressions used as values
+
+If expressions in value position are rewritten to assignments or branch returns.
+
+```ds
+// source
+function total(flag: boolean, a: int32, b: int32): int32 {
+    let x = if (flag) { a } else { b }
+    return x + 1;
+}
+```
+
+```ds
+// after transform
+function total(flag: boolean, a: int32, b: int32): int32 {
+    let x;
+    if (flag) { x = a } else { x = b }
+    return x + 1;
+}
+```
+
+```ds
+// source
+function choose(flag: boolean, a: int32, b: int32): int32 {
+    return if (flag) { a } else { b }
+}
+```
+
+```ds
+// after transform
+function choose(flag: boolean, a: int32, b: int32): int32 {
+    if (flag) { return a } else { return b }
+}
+```
+
+#### Normalize block expressions used as values
+
+Block expressions are lifted into statement blocks that assign to a temp.
+
+```ds
+// source
+function scoped(flag: boolean, a: int32): int32 {
+    let value = do { let x = a + 1; if (flag) { x } else { x + 1 } };
+    return value * 2;
+}
+```
+
+```ds
+// after transform
+function scoped(flag: boolean, a: int32): int32 {
+    let value;
+    { let x = a + 1; if (flag) { value = x } else { value = x + 1 } }
+    return value * 2;
+}
+```
+
+#### Normalize sequence expressions into statements
+
+Sequence expressions become statements that preserve evaluation order.
+
+```ds
+// source
+function ordered(a: int32, b: int32): int32 {
+    let value = (log(a), log(b), b + 1);
+    return value;
+}
+```
+
+```ds
+// after transform
+function ordered(a: int32, b: int32): int32 {
+    let value;
+    log(a);
+    log(b);
+    value = b + 1;
+    return value;
+}
+```
+
+#### Normalize labeled block break values
+
+Labeled blocks stay labeled, but break-with-value becomes assignment plus a plain break.
+
+```ds
+// source
+function pick(flag: boolean): int32 {
+    let value = outer: {
+        if (flag) { break outer 1 }
+        2
+    };
+    return value;
+}
+```
+
+```ds
+// after transform
+function pick(flag: boolean): int32 {
+    let value;
+    outer: {
+        if (flag) { value = 1; break outer; }
+        value = 2;
+    }
+    return value;
+}
+```
+
+### Drop parenthesized expressions
+
+Parenthesized expressions are removed because precedence is already encoded in the tree.
+
+```ds
+// source
+function add(a: int32, b: int32): int32 {
+    return (a + b);
+}
+```
+
+```ds
+// after transform
+function add(a: int32, b: int32): int32 {
+    return a + b;
+}
+```
+
+## Reify
+
+Reify makes certain abstractions explicit ("realized").
+It is profile-aware and uses Analyze resolutions and profile libraries.
+The output remains DIR and feeds Execute and Lower.
+
+### Insert explicit and implicit casts
+
+All `as T` expressions are real casts and must be preserved.
+When a cast can fail at runtime, it is checked.
+(Unchecked casts use the transmute intrinsic and do not use CastKind.)
+Reify replaces type-cast expressions with `Expression::Cast`.
+Explicit casts become `CastKind::Explicit` and inserted casts become `CastKind::Implicit`.
+
+#### Insert casts at type boundaries
+
+Implicit casts are inserted at boundaries where a target type is known.
+
+| Site | Example | After reify |
+| --- | --- | --- |
+| binding initializer | `let x: float64 = y;` | `let x = y as float64;` |
+| assignment | `x = y;` | `x = y as T;` |
+| return | `return y;` | `return y as T;` |
+| call argument | `f(y);` | `f(y as T);` |
+| ternary | `cond ? a : b` | `cond ? (a as T) : (b as T)` |
+| match arm | `case => expr` | `case => (expr as T)` |
+
+#### Cast implicitly when conversions are lossless
+
+Certain conversions are guaranteed to be lossless and can be performed implicitly.
+Reify makes this explicit.
+
+| Conversion | Implicit | Notes |
+| --- | --- | --- |
+| intN → intM | yes | when M > N and signedness matches |
+| float32 → float64 | yes | widening |
+| int → float | yes | only when the full int range fits the float mantissa |
+| literal → float | yes | only when the literal is exactly representable |
+| T → T \| U | yes | union upcast |
+| T → T \| null \| undefined | yes | nullable upcast |
+| subtype → base | yes | instance upcast when assignable |
+
+```ds
+// source
+function intoFloat(x: int32): float64 {
+    let y: float64 = x;
+    return y;
+}
+```
+
+```ds
+// after reify
+function intoFloat(x: int32): float64 {
+    let y = x as float64;
+    return y;
+}
+```
+
+#### Cast explicitly for narrowing or checked conversions
+
+These conversions require an explicit `as T` in source.
+Analyze enforces the requirement and Reify only classifies explicit casts.
+
+| Conversion | Explicit | Notes |
+| --- | --- | --- |
+| intM → intN | yes | narrowing |
+| float64 → float32 | yes | narrowing |
+| int ↔ float | yes | when not provably lossless |
+| int signedness change | yes | checked |
+| pointer ↔ int | yes | checked |
+| pointer ↔ pointer | yes | checked |
+| union downcast | yes | checked |
+| nullable downcast | yes | checked |
+| instance downcast | yes | checked |
+
+```ds
+// source
+function trunc(x: float64): int32 {
+    return x as int32;
+}
+```
+
+```ds
+// after reify
+function trunc(x: float64): int32 {
+    return x as int32;
+}
+```
+
+### Resolve operators to calls or builtin ops
+
+Operator reify uses Analyze resolutions.
+Builtins stay as builtin ops and all others become proper calls.
+
+```ds
+// source
+struct Vec2 { x: int32, y: int32 }
+
+extension Vec2 {
+    add(other: Vec2): Vec2 {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+function sum(a: Vec2, b: Vec2): Vec2 {
+    a + b
+}
+```
+
+```ds
+// after reify
+struct Vec2 { x: int32, y: int32 }
+
+extension Vec2 {
+    add(other: Vec2): Vec2 {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+function sum(a: Vec2, b: Vec2): Vec2 {
+    a.add(b)
+}
+```
+
+### Reify nominal constructor calls into tagged expressions
+
+Calls that Analyze resolves as nominal constructors become tagged expressions in DIR.
+This preserves newtype and nominal struct intent for Lower and codegen.
+
+```ds
+// source
+newtype UserId = int64;
+newtype Point = (float32, float32);
+
+function build(): (UserId, Point) {
+    let id = UserId(42);
+    let point = Point(1.0, 2.0);
+    return (id, point);
+}
+```
+
+```ds
+// after reify (DIR)
+newtype UserId = int64;
+newtype Point = (float32, float32);
+
+function build(): (UserId, Point) {
+    let id = TaggedScalarExpression { ty: UserId, value: 42 };
+    let point = TaggedTupleExpression { ty: Point, elements: [1.0, 2.0] };
+    return (id, point);
+}
+```
+
+### Desugar Try, Maybe, Must, and Coalesce
+
+Overload resolution is reified in all profiles.
+This uses the same resolution machinery as operator overloading.
+If no overload exists, explicit control flow is inserted.
+Coalesce uses Try semantics when the left side implements Try and nullish semantics otherwise.
+Profiles with native nullish operators may keep them instead of rewriting.
+
+```ds
+// source
+function loadCount(): Result<int32, Error> {
+    let value = readCount()?;
+    let fallback = readCount() ?? 0;
+    return Result.ok(value + fallback);
+}
+```
+
+```ds
+// after reify
+function loadCount(): Result<int32, Error> {
+    let __try0 = readCount();
+    let value = match (__try0.branch()) {
+        Ok { value } => value
+        Err { error } => return Result.fromError(error)
+    };
+
+    let __try1 = readCount();
+    let fallback = match (__try1.branch()) {
+        Ok { value } => value
+        Err { error: _ } => 0
+    };
+
+    return Result.ok(value + fallback);
+}
+```
+
+```ds
+// source
+function nameOrDefault(name: string | undefined, fallback: string): string {
+    name ?? fallback
+}
+```
+
+```ds
+// JS/TS profile reify
+function nameOrDefault(name: string | undefined, fallback: string): string {
+    name ?? fallback
+}
+```
+
+```ds
+// native profile reify
+function nameOrDefault(name: string | undefined, fallback: string): string {
+    if (name == null || name == undefined) fallback else name
+}
+```
+
+```ds
+// source
+function requireName(name: string | null): string {
+    name!
+}
+```
+
+```ds
+// after reify
+function requireName(name: string | null): string {
+    if (name == null || name == undefined) throw "nullish value" else name
+}
+```
+
+### Realize tree literals via renderer protocols
+
+Tree literals are realized via a renderer protocol chosen by tag type.
+Renderer selection is static when possible and dynamic when needed.
+NOTE #Incomplete: the renderer protocol and routing rules are still evolving.
+
+```ds
+// source
+function view(label: string): unknown {
+    <Button>{label}</Button>
+}
+```
+
+```ds
+// after reify
+function view(label: string): unknown {
+    Renderer.create(Button, null, label)
+}
+```
+
+### Reify ranges into core range structs
+
+Range expressions reify to core control range structs.
+The core library defines RangeBounds and concrete Range types.
+
+```ds
+// source
+function sumRange(): int32 {
+    let sum = 0;
+    for (const i of 0..=5) { sum += i }
+    return sum;
+}
+```
+
+```ds
+// after reify
+function sumRange(): int32 {
+    let sum = 0;
+    for (const i of RangeInclusive { start: 0, end: 5 }) { sum += i }
+    return sum;
+}
+```

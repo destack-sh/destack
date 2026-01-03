@@ -1,8 +1,9 @@
 use destack_dir::{
     Asynchrony, BinaryOperator, BindingAnchor, Block, Declaration, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, Declarator, Expression, IfKind, LocalNodeId,
-    LocalSymbolId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern,
-    PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
+    DeclarationDescriptor, DeclarationKind, DeclarationNameKind, Declarator, Expression, IfKind,
+    LocalNodeId, LocalSymbolId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree,
+    NodeType, Pattern, PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator,
+    TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
@@ -1105,6 +1106,7 @@ impl Compiler {
                 abstraction: DeclarationAbstraction::Concrete,
                 anchor: BindingAnchor::Instance,
                 name: Some(name),
+                name_kind: Some(DeclarationNameKind::Identifier),
                 export: None,
                 symbol,
             };
