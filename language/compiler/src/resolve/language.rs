@@ -463,29 +463,41 @@ mod tests {
     /// Resolve all builtin libs (without errors).
     #[test]
     fn test_resolve_all_builtin_libs() {
-        for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
-            let test = TestProgram::memory_sequential_with_prelude_and_libs()
-                .with_profile_libs(&[lib.name]);
-            test.resolve_builtins();
-            test.resolve_libs();
-            test.compile();
-        }
+        // collect all lib names
+        let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
+            .chain(LIBS.iter())
+            .map(|lib| lib.name)
+            .collect();
+
+        // create single TestProgram with all libs and resolve once
+        let test =
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&lib_names);
+        test.resolve_builtins();
+        test.resolve_libs();
+        test.compile();
     }
 
     /// Analyze all builtin libs (without errors).
     #[test]
     fn test_analyze_all_builtin_libs() {
+        // collect all lib names
+        let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
+            .chain(LIBS.iter())
+            .map(|lib| lib.name)
+            .collect();
+
+        // create single TestProgram with all libs
+        let test =
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&lib_names);
+
+        // resolve once
+        test.resolve_builtins();
+        test.resolve_libs();
+        test.compile();
+
+        // analyze each module from each lib
+        let builtins = test.program.builtins.as_ref().unwrap();
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
-            let test = TestProgram::memory_sequential_with_prelude_and_libs()
-                .with_profile_libs(&[lib.name]);
-
-            // resolve builtins and libs
-            test.resolve_builtins();
-            test.resolve_libs();
-            test.compile();
-
-            // analyze each module in the lib
-            let builtins = test.program.builtins.as_ref().unwrap();
             let lib_modules = builtins
                 .load_lib(
                     lib.name,
