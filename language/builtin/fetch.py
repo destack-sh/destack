@@ -506,52 +506,19 @@ def fetch_bun_libs(library_directory: Path) -> None:
     targets = _parse_target_overrides(override_value, DEFAULT_BUN_TARGETS)
 
     # fetch each target
-    bun_sources: dict[str, list[str]] = {}
     for library_version, bun_version in targets:
         # resolve the base url
-        base_url = os.environ.get("BUN_TYPES_BASE_URL") or os.environ.get("BUN_TYPES_URL")
-        if not base_url:
-            base_url = (
-                f"https://raw.githubusercontent.com/oven-sh/bun/bun-v{bun_version}"
-                "/packages/bun-types"
-            )
-        base_url = base_url.rstrip("/")
-        if base_url.endswith(".d.ts"):
-            base_url = posixpath.dirname(base_url)
-
-        # resolve the tree url
-        tree_url = os.environ.get("BUN_TYPES_TREE_URL")
-        if not tree_url:
-            tree_url = (
-                "https://api.github.com/repos/oven-sh/bun/git/trees/"
-                f"bun-v{bun_version}?recursive=1"
-            )
-
-        # fetch type definitions
-        print(f"  - bun.v{library_version}")
-        relative_paths = _fetch_git_tree_paths(
-            tree_url, "packages/bun-types/", ".d.ts"
+        base_url = (
+            os.environ.get("BUN_TYPES_BASE_URL")
+            or os.environ.get("BUN_TYPES_URL")
+            or f"https://raw.githubusercontent.com/oven-sh/bun/bun-v{bun_version}/packages/bun-types"
         )
-        bun_sources[library_version] = relative_paths
 
-        # write type files
-        for relative_path in relative_paths:
-            destination_path = (
-                library_directory / "bun" / f"v{library_version}" / relative_path
-            )
-            url = f"{base_url}/{relative_path}"
-            content = _fetch_remote_text(url)
-            _write_text(destination_path, content)
-
-    # write the rust sources list
-    _write_lib_sources(
-        library_directory,
-        targets,
-        bun_sources,
-        output_name="bun_sources.rs",
-        const_prefix="BUN",
-        path_template="bun/v{version}",
-    )
+        # fetch bun definitions (follows /// <reference path="..." /> directives)
+        print(f"  - bun.v{library_version} {bun_version}")
+        content = _fetch_reference_tree(base_url, "index.d.ts")
+        destination_path = library_directory / "bun" / f"v{library_version}" / "index.d.ts"
+        _write_text(destination_path, content)
 
 def _print_versions(typescript_version: str) -> None:
     """Print the configured library versions."""
