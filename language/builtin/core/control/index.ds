@@ -8,6 +8,14 @@ export { Try } from "./try.ds";
 export { Error } from "./error.ds";
 export { Ok, Err, Result, AsyncResult } from "./result.ds";
 export {
+    IteratorYieldResult,
+    IteratorReturnResult,
+    IteratorResult,
+    Iterator,
+    Iterable,
+    IterableIterator,
+} from "./iterable.ds";
+export {
     Bound,
     RangeBounds,
     Range,

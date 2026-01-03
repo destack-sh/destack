@@ -63,6 +63,7 @@ builtin_source!(CONTROL_TRY, "control", "try.ds");
 builtin_source!(CONTROL_ERROR, "control", "error.ds");
 builtin_source!(CONTROL_RESULT, "control", "result.ds");
 builtin_source!(CONTROL_RANGE, "control", "range.ds");
+builtin_source!(CONTROL_ITERABLE, "control", "iterable.ds");
 
 // reflect
 builtin_source!(REFLECT_INDEX, "reflect", "index.ds");
@@ -91,6 +92,7 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     CONTROL_TRY,
     CONTROL_ERROR,
     CONTROL_RANGE,
+    CONTROL_ITERABLE,
     CONTROL_RESULT,
     CONTROL_INDEX,
     // intrinsic (decorator newtypes have no deps, needed by reflect/type.ds)
