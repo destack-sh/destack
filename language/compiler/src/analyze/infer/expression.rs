@@ -414,9 +414,10 @@ impl Compiler {
             }
 
             Expression::Cast {
+                kind: _,
+                source: _,
                 value,
                 target_type,
-                kind: _,
             } => {
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 let mut target_ty_id = self.try_evaluate_expression_to_type(

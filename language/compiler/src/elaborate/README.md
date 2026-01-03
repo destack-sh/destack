@@ -287,7 +287,7 @@ All `as T` expressions are real casts and must be preserved.
 When a cast can fail at runtime, it is checked.
 (Unchecked casts use the transmute intrinsic and do not use CastKind.)
 Reify replaces type-cast expressions with `Expression::Cast`.
-Explicit casts become `CastKind::Explicit` and inserted casts become `CastKind::Implicit`.
+Explicit casts use `CastSource::Explicit` and inserted casts use `CastSource::Implicit`.
 
 #### Insert casts at type boundaries
 

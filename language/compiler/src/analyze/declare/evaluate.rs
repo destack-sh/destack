@@ -917,7 +917,7 @@ mod tests {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module("test.ds", "declare let x: number");
         test.analyze_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -957,7 +957,7 @@ mod tests {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module("test.ds", "declare let x: int");
         test.analyze_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();

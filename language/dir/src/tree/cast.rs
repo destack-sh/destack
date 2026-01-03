@@ -36,3 +36,12 @@ pub enum CastKind {
     /// Downcast from a nullable type with a runtime check.
     NullableDowncast,
 }
+
+/// The source of a cast expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CastSource {
+    /// Casts written explicitly in source.
+    Explicit,
+    /// Casts inserted implicitly at type boundaries.
+    Implicit,
+}
