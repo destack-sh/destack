@@ -427,6 +427,20 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         .iter()
         .find(|v| v.yield_marker == YieldMarker::YieldFailed);
 
+    let is_yield_expr = if let Some(yv) = yield_variant {
+        let yield_name = &yv.name;
+        quote! { matches!(self, Self::#yield_name { .. }) }
+    } else {
+        quote! { false }
+    };
+
+    let is_yield_failed_expr = if let Some(yfv) = yield_failed_variant {
+        let yield_failed_name = &yfv.name;
+        quote! { matches!(self, Self::#yield_failed_name { .. }) }
+    } else {
+        quote! { false }
+    };
+
     let try_from_impl = if let Some(yv) = yield_variant {
         let yield_name = &yv.name;
         quote! {
@@ -515,6 +529,18 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
                 match self {
                     #(#code_arms),*
                 }
+            }
+
+            /// Check whether this error represents a yielded dependency.
+            #[inline]
+            pub fn is_yield(&self) -> bool {
+                #is_yield_expr
+            }
+
+            /// Check whether this error represents a failed dependency yield.
+            #[inline]
+            pub fn is_yield_failed(&self) -> bool {
+                #is_yield_failed_expr
             }
 
             /// Get the anchor for this error.
