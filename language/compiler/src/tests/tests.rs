@@ -144,6 +144,18 @@ impl TestProgram {
         )
     }
 
+    /// In-memory, parallel, with prelude injection and libs.
+    pub fn memory_parallel_with_prelude_and_libs() -> Self {
+        Self::new(
+            TestFileSystem::Memory {
+                fs: Arc::new(MemoryFileSystem::new()),
+            },
+            default_workers(),
+            true,
+            true,
+        )
+    }
+
     /// In-memory, sequential, without prelude injection.
     pub fn memory_sequential() -> Self {
         Self::new(

@@ -74,10 +74,16 @@ impl Compiler {
             SymbolType::TypeAlias | SymbolType::Interface => SymbolSpace::Type,
             SymbolType::Class
             | SymbolType::Enum
-            | SymbolType::Function
             | SymbolType::Struct
             | SymbolType::Newtype
             | SymbolType::Extension => SymbolSpace::TypeValue,
+            SymbolType::Function => {
+                if module.language_type.is_destack() {
+                    SymbolSpace::TypeValue
+                } else {
+                    SymbolSpace::Value
+                }
+            }
             SymbolType::Void => SymbolSpace::Value,
         };
 

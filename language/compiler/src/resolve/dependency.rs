@@ -749,7 +749,29 @@ impl Compiler {
             return Ok(remote_target);
         }
 
-        // check for module bindings first
+        // check if already resolved globally
+        if !is_relative {
+            self.require_resolve_module_prepare_if_needed(
+                module.id,
+                self.program.root_module_id,
+                profile,
+            )?;
+            let global_module = self.program.modules.get(self.program.root_module_id);
+            let global_module = global_module.read();
+            if let Some(&remote_target) = global_module
+                .dir(profile)
+                .imported_modules
+                .read()
+                .get(&(None, target))
+            {
+                dir.imported_modules
+                    .write()
+                    .insert((None, target), remote_target);
+                return Ok(remote_target);
+            }
+        }
+
+        // check for module bindings (i.e. `declare module`)
         if let Some(binding_target) =
             self.resolve_module_binding_target(module.id, profile, target)?
         {
@@ -771,28 +793,6 @@ impl Compiler {
                     .insert((None, target), binding_target);
             }
             return Ok(binding_target);
-        }
-
-        // check if already resolved globally
-        if !is_relative {
-            self.require_resolve_module_prepare_if_needed(
-                module.id,
-                self.program.root_module_id,
-                profile,
-            )?;
-            let global_module = self.program.modules.get(self.program.root_module_id);
-            let global_module = global_module.read();
-            if let Some(&remote_target) = global_module
-                .dir(profile)
-                .imported_modules
-                .read()
-                .get(&(None, target))
-            {
-                dir.imported_modules
-                    .write()
-                    .insert((None, target), remote_target);
-                return Ok(remote_target);
-            }
         }
 
         // resolve specifier to module id (synchronous)

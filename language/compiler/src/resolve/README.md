@@ -38,25 +38,29 @@ ResolveModulePrepare
     │
     ├─► ResolveModuleDirect
     │      │
+    │      ├─► resolve dependencies
+    │      ├─► build global symbol table
     │      └─► finalize export targets
     │
     └─► ResolveModuleCanonical
 ```
 
+ResolveBuiltins and ResolveLibs run before any module-level Resolve tasks for a profile.
+ResolveLibs is the only task that loads builtin libs and registers ambient modules.
+
 ### Prepare
 
-Prepare does the following:
+Prepare prepares the per profile DIR for a module:
 - Clone base DIR into a profile DIR.
-- Register builtin libs for the profile.
-- Collect `declare global` and `declare module` declarations.
 - Build the export table from bound declarations and export statements.
 - Do not resolve symbols or follow re-export chains.
 - Requires `ResolveModulePrepare` on the current module.
 
 ### Direct
 
-Direct does the following:
+Direct resolves dependencies and builds the information required for canonicalization:
 - Resolve dependency items and attach `target_symbol` where needed.
+- Build the global symbol table (`declare global`, `export as namespace`) for the profile.
 - Resolve `import` and `export` clauses **without** following re-export chains.
 - Record `export *` edges **without** expanding them.
 - Finalize export assignment and default targets from resolved expressions.
@@ -65,7 +69,7 @@ Direct does the following:
 
 ### Canonical
 
-Canonical does the following:
+Canonical computes the canonical target for each symbol:
 - Compute `canonical_symbol` for symbols that alias other symbols.
 - Walk `target_symbol` chains across modules.
 - Resolve re-export chains by consulting export tables.
@@ -158,6 +162,7 @@ Resolution is order-sensitive, and resolution order matches TS semantics:
 
 Module declarations act as synthetic modules with their own scopes.
 Module declarations are available in `.ts` and `.d.ts` files.
+Module declarations from ambient libs are visible once ResolveLibs registers those libs.
 
 Value imports resolve in the value space when possible.
 If only a type export exists, the binding resolves to the type space.
@@ -179,6 +184,10 @@ Builtin libs are registered as modules with explicit dependency graphs.
 Builtin libs may be **ambient** or **explicit**.
 Ambient libs participate in global symbol resolution.
 Explicit libs must be imported or re-exported.
+
+ResolveLibs is the only entry point that loads builtin libs and registers ambient modules.
+Module resolution and module-binding lookup must treat builtin registration as read-only.
+Any cross-module lookup should assume ResolveLibs already ran for the profile.
 
 Builtin libs can define specifier aliases:
 

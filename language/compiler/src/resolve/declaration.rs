@@ -87,7 +87,7 @@ type Bar = Foo;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         // Foo
         let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
@@ -122,7 +122,7 @@ extension for Foo {
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         // Foo
         let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();

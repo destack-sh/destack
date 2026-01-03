@@ -73,7 +73,6 @@ impl Compiler {
                         self.require_resolve_libs(profile)?;
                     }
                 }
-                self.prepare_global_symbol_table(module, profile)?;
                 self.resolve_module_prepare(module, profile)?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {

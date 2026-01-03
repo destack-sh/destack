@@ -236,7 +236,7 @@ impl Compiler {
     /// Resolve a path from ambient lib modules, if available.
     fn resolve_ambient_path(
         &self,
-        _module: &Module,
+        module: &Module,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         profile: ProfileId,
@@ -255,6 +255,13 @@ impl Compiler {
 
         // search ambient lib namespace scopes in order
         for module_id in ambient_modules {
+            // skip self
+            if module_id == module.id {
+                continue;
+            }
+
+            // read the ambient module's symbols
+            self.require_resolve_module_prepare_if_needed(module.id, module_id, profile)?;
             let ambient_module = self.program.modules.get(module_id);
             let ambient_module = ambient_module.read();
             let ambient_dir = ambient_module.dir(profile);
@@ -761,7 +768,7 @@ outer: while (true) {
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -816,7 +823,7 @@ outer: for (let i = 0; i < 10; i++) {
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
 
@@ -870,7 +877,7 @@ myblock: {
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let block_symbol_id = test.resolve_label_symbol("test.ds", "myblock").unwrap();
 
@@ -955,7 +962,7 @@ outer: while (true) {
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let middle_symbol_id = test.resolve_label_symbol("test.ds", "middle").unwrap();
 
@@ -1000,7 +1007,7 @@ outer: loop {
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let outer_symbol_id = test.resolve_label_symbol("test.ds", "outer").unwrap();
 
@@ -1043,7 +1050,7 @@ let z = y;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -1114,7 +1121,7 @@ export let B = A + 1;
             "#,
         );
         test.resolve_module(module_b_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module_a = test.module("a.ds");
         let module_a = module_a.read();
@@ -1218,7 +1225,7 @@ export let M{N} = {sum_expression_str} + 1;
             let module_id = test.add_module(&format!("m{N}.ds"), &content);
             test.resolve_module(module_id);
         }
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         // verify all N modules were created (no duplicates from race conditions)
         let module_count = test.program.modules.len();
@@ -1243,7 +1250,7 @@ export let B = A + 1;
             "#,
         );
         test.resolve_module(module_b_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         // get the original symbol from a.ds
         let (a_symbol_id, _) = test.resolve_to_node::<Pattern>("a.ds", "A").unwrap();
@@ -1271,7 +1278,7 @@ type Bar = Baz;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
         let bar_symbol_id = test.resolve_to_symbol("test.ds", "Bar").unwrap();
@@ -1598,7 +1605,7 @@ let b = obj.y;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -1649,7 +1656,7 @@ let a = obj.inner.value;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -1707,7 +1714,7 @@ export let C = A + B;
         );
 
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -1754,7 +1761,7 @@ export let C = A + B;
         );
 
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
         let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
@@ -1795,7 +1802,7 @@ export let C = A + B;
         );
 
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
         let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
@@ -1845,7 +1852,7 @@ export let D = A + B + C;
         );
 
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let a_symbol_id = test.resolve_to_symbol("a.ds", "A").unwrap();
         let b_symbol_id = test.resolve_to_symbol("b.ds", "B").unwrap();
@@ -1887,7 +1894,7 @@ export let Z = X + Y;
         );
 
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let a_x_symbol_id = test.resolve_to_symbol("a.ds", "X").unwrap();
         let b_y_symbol_id = test.resolve_to_symbol("b.ds", "Y").unwrap();

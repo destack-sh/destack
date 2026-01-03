@@ -673,6 +673,7 @@ function test(): float {
         test.compile_check_clean();
         test.assert_elaborated(
             // FUGU: make casts (and/or unbind?) more specific than "float"?
+            // (IIRC we "temporarily" added some unbind expression/type hack around this?)
             module_id,
             r#"
 function intValue(): int32 {

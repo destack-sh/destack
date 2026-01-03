@@ -128,7 +128,7 @@ string;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();
@@ -223,7 +223,7 @@ string;
 "#,
         );
         test.resolve_module(module_id);
-        test.compile_dump_clean();
+        test.compile_check_clean();
 
         let module = test.program.modules.get(module_id);
         let module = module.read();

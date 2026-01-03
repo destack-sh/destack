@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use destack_base::StringId;
 use destack_dir::{
@@ -35,6 +35,8 @@ pub(crate) struct GlobalSymbolCache {
     pub sources: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
     /// All symbols observed for each global key and space.
     pub sources_by_space: IndexMap<GlobalSymbolGroupKey, Vec<GlobalSymbolId>>,
+    /// Modules remaining to process (empty once complete).
+    pub pending: VecDeque<ModuleId>,
 }
 
 impl GlobalSymbolCache {
@@ -46,7 +48,13 @@ impl GlobalSymbolCache {
             symbols_by_space: IndexMap::new(),
             sources: IndexMap::new(),
             sources_by_space: IndexMap::new(),
+            pending: VecDeque::new(),
         }
+    }
+
+    /// Check if the cache is complete (no pending modules).
+    fn is_complete(&self) -> bool {
+        self.pending.is_empty()
     }
 
     /// Insert a global symbol and preserve the first binding for the key.
@@ -74,19 +82,24 @@ pub(crate) struct GlobalSymbolGroupKey {
 
 impl Compiler {
     /// Prepare the global symbol table for a module and profile.
-    pub(super) fn prepare_global_symbol_table(
+    pub(super) fn require_global_symbol_cache(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolCacheKey> {
-        // select the root set for this module
         let (key, roots) = self.select_global_symbol_table(module_id, profile_id)?;
 
-        // build the table when missing
-        if !self.global_symbol_caches.contains_key(&key) {
-            let index = self.build_global_symbol_table(&roots, profile_id)?;
-            self.global_symbol_caches.insert(key.clone(), index);
+        // build the cache when incomplete
+        let needs_build = self
+            .global_symbol_caches
+            .get(&key)
+            .map(|c| !c.is_complete())
+            .unwrap_or(true);
+        if needs_build {
+            let cache = self.build_global_symbol_table(&key, &roots, profile_id)?;
+            self.global_symbol_caches.insert(key.clone(), cache);
         }
+
         Ok(key)
     }
 
@@ -351,33 +364,45 @@ impl Compiler {
     }
 
     /// Build the global symbol table for a root module set.
+    /// Resumes from partial state if available.
     fn build_global_symbol_table(
         &self,
+        key: &GlobalSymbolCacheKey,
         roots: &[ModuleId],
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolCache> {
-        // initialize the traversal state
-        let mut index = GlobalSymbolCache::new();
-        let mut visited = HashSet::new();
-        let mut queue = VecDeque::new();
-        queue.extend(roots.iter().copied());
+        // resume from partial cache or start fresh
+        let mut cache = self
+            .global_symbol_caches
+            .remove(key)
+            .map(|(_, c)| c)
+            .unwrap_or_else(|| {
+                let mut c = GlobalSymbolCache::new();
+                c.pending.extend(roots.iter().copied());
+                c
+            });
 
-        // walk the module graph starting from the roots
-        while let Some(module_id) = queue.pop_front() {
-            if !visited.insert(module_id) {
+        // walk the module graph
+        while let Some(module_id) = cache.pending.pop_front() {
+            // skip already processed modules
+            if cache.module_versions.contains_key(&module_id) {
                 continue;
             }
 
             // ensure bind validation before reading dir data
-            self.require_bind_module_validate(module_id)
-                .map_err(|error| match error {
+            if let Err(error) = self.require_bind_module_validate(module_id) {
+                // put current module back for retry
+                cache.pending.push_front(module_id);
+                self.global_symbol_caches.insert(key.clone(), cache);
+                return Err(match error {
                     TaskDependencyError::NotReady { dependency } => {
                         ResolveError::Yield { dependency }
                     }
                     TaskDependencyError::Failed { dependency } => {
                         ResolveError::UnsatisfiedDependency { dependency }
                     }
-                })?;
+                });
+            }
 
             // load the module tree and symbols
             let module = self.program.modules.get(module_id);
@@ -385,33 +410,32 @@ impl Compiler {
             let base_dir = module.dir_base();
             let tree = base_dir.tree.read();
             let symbols = base_dir.symbols.read();
-            index.module_versions.insert(module_id, module.version);
+            cache.module_versions.insert(module_id, module.version);
 
             // collect global declarations from this module
-            self.collect_global_symbols(module_id, &tree, &symbols, &mut index);
-            self.collect_export_namespace_globals(&module, &tree, &mut index);
+            self.collect_global_symbols(module_id, &tree, &symbols, &mut cache);
+            self.collect_export_namespace_globals(&module, &tree, &mut cache);
 
             // enqueue dependency targets for further discovery
             let dependency_targets = self.collect_dependency_targets(module_id, &tree);
             for (target, node) in dependency_targets {
-                let remote_module_id =
-                    match self.resolve_specifier_to_module(target, Some(module_id)) {
-                        Ok(module_id) => module_id,
-                        Err(_) => {
-                            if self
-                                .resolve_module_binding_target(module_id, profile_id, target)?
-                                .is_some()
-                            {
-                                continue;
-                            }
-                            return Err(ResolveError::UnresolvedModule { node, target });
-                        }
-                    };
-                queue.push_back(remote_module_id);
+                // skip module bindings before resolving file targets
+                if self
+                    .resolve_module_binding_target(module_id, profile_id, target)?
+                    .is_some()
+                {
+                    continue;
+                }
+
+                // resolve specifiers to modules for traversal
+                let remote_module_id = self
+                    .resolve_specifier_to_module(target, Some(module_id))
+                    .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
+                cache.pending.push_back(remote_module_id);
             }
         }
 
-        Ok(index)
+        Ok(cache)
     }
 
     /// Collect global symbols from declare global blocks in a module.
