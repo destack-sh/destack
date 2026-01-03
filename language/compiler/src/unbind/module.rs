@@ -28,25 +28,31 @@ impl Compiler {
 
     /// Unbind a module's DIR tree to an AST tree.
     pub fn unbind_module(&self, module: &Module, profile: ProfileId) -> UnboundModule {
+        // use the profile dir when available
         if let Some(dir) = module.dir_maybe(profile) {
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
-            return self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots);
+            return self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots, profile);
         }
+
+        // fall back to the base dir
         let dir = module.dir_base();
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
-        self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots)
+        self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots, profile)
     }
 
+    /// Unbind module parts into an AST tree.
     fn unbind_module_from_parts(
         &self,
         module: &Module,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
         roots: &[dir::LocalNodeId<dir::Expression>],
+        profile: ProfileId,
     ) -> UnboundModule {
-        let mut context = UnbindContext::new();
+        // initialize the unbind context
+        let mut context = UnbindContext::new(profile);
 
         // rebuild the AST tree
         let mut ast_tree = ast::NodeTree::new();
@@ -76,6 +82,7 @@ impl Compiler {
             &mut context,
         );
 
+        // return the unbound module
         UnboundModule {
             tree: ast_tree,
             strings: ast_strings,
