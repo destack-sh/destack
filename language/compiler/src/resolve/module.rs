@@ -616,6 +616,12 @@ impl Compiler {
         // scan export statements for export assignments
         let mut export_assignment_item: Option<LocalNodeId<DependencyItem>> = None;
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // only process items at the module's namespace scope level
+            let (item_scope, _) = tree.get_scope(item_id);
+            if item_scope != dir.namespace_scope {
+                continue;
+            }
+
             // skip nonexport statements
             if self.export_statement_parent(tree, item_id).is_none() {
                 continue;
@@ -745,6 +751,12 @@ impl Compiler {
     ) {
         // walk dependency items under export expressions
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // only process items at the module's namespace scope level
+            let (item_scope, _) = tree.get_scope(item_id);
+            if item_scope != dir.namespace_scope {
+                continue;
+            }
+
             // skip nonexport dependency items
             if self.export_item_parent(tree, item_id).is_none() {
                 continue;

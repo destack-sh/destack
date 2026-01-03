@@ -326,4 +326,118 @@ type Share = (typeof import("node:worker_threads"))["SHARE_ENV"];
             "expected module binding to resolve to declaration module"
         );
     }
+
+    /// Test that a single module binding with `export = X` doesn't produce errors.
+    #[test]
+    fn test_module_binding_export_assignment_single() {
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "foo" {
+    const foo: number;
+    export = foo;
+}
+"#;
+        test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", "import './decl.d.ts';");
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Test that multiple module bindings with different specifiers each having
+    /// `export = X` don't conflict with each other.
+    #[test]
+    fn test_module_binding_export_assignment_multiple() {
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "foo" {
+    const foo: number;
+    export = foo;
+}
+declare module "node:foo" {
+    import foo = require("foo");
+    export = foo;
+}
+"#;
+        test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", "import './decl.d.ts';");
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Test that a module binding with only `export * from "X"` doesn't produce errors.
+    #[test]
+    fn test_module_binding_export_star_only() {
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "foo" {
+    export const value: number;
+}
+declare module "node:foo" {
+    export * from "foo";
+}
+"#;
+        test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", "import './decl.d.ts';");
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Test multiple module bindings: one with `export =` and another with `export * from`.
+    #[test]
+    fn test_module_binding_mixed_export_patterns() {
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "assert" {
+    function ok(value: unknown): void;
+    export = ok;
+}
+declare module "node:assert" {
+    export * from "assert";
+}
+"#;
+        test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", "import './decl.d.ts';");
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Test many module bindings with various export patterns (simulating Node.js typings).
+    #[test]
+    fn test_module_binding_many_modules() {
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "assert" {
+    function ok(value: unknown): void;
+    export = ok;
+}
+declare module "node:assert" {
+    import assert = require("assert");
+    export = assert;
+}
+declare module "buffer" {
+    class Buffer {}
+    export { Buffer };
+}
+declare module "node:buffer" {
+    export * from "buffer";
+}
+declare module "wasi" {
+    class WASI {}
+}
+declare module "node:wasi" {
+    export * from "wasi";
+}
+declare module "zlib" {
+    function gzip(data: unknown): unknown;
+    export = gzip;
+}
+declare module "node:zlib" {
+    export * from "zlib";
+}
+"#;
+        test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", "import './decl.d.ts';");
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
 }
