@@ -74,7 +74,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::Cast {
                 destination,
-                kind,
+                operator,
                 argument,
                 to_type,
             } => {
@@ -85,7 +85,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token(kind.to_str()),
+                        token(operator.to_str()),
                         space(),
                         argument,
                         space(),

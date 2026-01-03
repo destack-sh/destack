@@ -414,7 +414,7 @@ impl Compiler {
             }
 
             Expression::Cast {
-                kind: _,
+                operator: _,
                 source: _,
                 value,
                 target_type,

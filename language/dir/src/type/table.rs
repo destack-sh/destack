@@ -3,9 +3,9 @@ use indexmap::IndexMap;
 use destack_source::ModuleId;
 
 use crate::{
-    Arena, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage, LocalExtensionId,
-    LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId,
-    Node, Resolution, StaticArgument, Type,
+    Arena, EnumBackingType, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage,
+    LocalExtensionId, LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny,
+    LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, Type,
 };
 
 /// Select a normalization cache.
@@ -46,6 +46,9 @@ pub struct TypeTable {
     pub(crate) instance_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// The value type by symbol id (the type when used as a value).
     pub(crate) value_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    // TODO #Architecture: move enum backing type into Type::Enum
+    /// The backing type of enum symbols.
+    pub(crate) enum_backing_type_by_symbol_id: IndexMap<GlobalSymbolId, EnumBackingType>,
 
     // instances (statically parameterised types)
     /// The next instance id to allocate.
@@ -100,6 +103,7 @@ impl TypeTable {
             // symbol types
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
+            enum_backing_type_by_symbol_id: IndexMap::new(),
             // instances
             next_instance_id: 0,
             instances: Arena::new(),
@@ -312,6 +316,21 @@ impl TypeTable {
     /// Get the value type id for a symbol.
     pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.value_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Set the enum backing type for a symbol.
+    pub fn set_enum_backing_type(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        backing_type: EnumBackingType,
+    ) {
+        self.enum_backing_type_by_symbol_id
+            .insert(symbol_id, backing_type);
+    }
+
+    /// Get the enum backing type for a symbol.
+    pub fn get_enum_backing_type(&self, symbol_id: GlobalSymbolId) -> Option<EnumBackingType> {
+        self.enum_backing_type_by_symbol_id.get(&symbol_id).copied()
     }
 
     /// Insert a new instance.

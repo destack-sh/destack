@@ -21,8 +21,17 @@ pub enum PrimitiveType {
     UniqueSymbol,
 }
 
+/// The backing representation of an enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnumBackingType {
+    /// Integer-backed enums.
+    Int(IntType),
+    /// String-backed enums.
+    String,
+}
+
 /// An IntType represents arbitrary width integer with signedness.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum IntType {
     /// 8-bit signed integer (range: -2^7 to 2^7-1)
     Int8,

@@ -1,6 +1,6 @@
-/// The kind of cast to perform.
+/// The operator used to perform a cast.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CastKind {
+pub enum CastOperator {
     /// Preserve the representation without conversion.
     Identity,
     /// Widen an integer type to a larger width.
@@ -23,6 +23,16 @@ pub enum CastKind {
     IntToPointer,
     /// Convert one pointer type to another.
     PointerCast,
+    /// Convert a sized array to a slice view.
+    ArraySizedToSlice,
+    /// Convert an enum to an integer.
+    EnumToInt,
+    /// Convert an integer to an enum.
+    IntToEnum,
+    /// Convert an enum to a string.
+    EnumToString,
+    /// Convert a string to an enum.
+    StringToEnum,
     /// Upcast into a wider union.
     UnionUpcast,
     /// Downcast from a union with a runtime check.
@@ -35,6 +45,12 @@ pub enum CastKind {
     NullableUpcast,
     /// Downcast from a nullable type with a runtime check.
     NullableDowncast,
+    /// Downcast from unknown with a runtime check.
+    UnknownDowncast,
+    /// Downcast from any.
+    AnyDowncast,
+    /// Upcast into any.
+    AnyUpcast,
 }
 
 /// The source of a cast expression.

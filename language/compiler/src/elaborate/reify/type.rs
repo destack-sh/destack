@@ -1,6 +1,7 @@
 use destack_dir::{
-    Argument, CastKind, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member,
-    NodeTree, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral, TypeTable,
+    Argument, CastOperator, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
+    Member, NodeTree, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_source::ModuleId;
 
@@ -170,7 +171,7 @@ fn numeric_kind_for_type(ty: &Type) -> Option<NumericKind> {
 }
 
 /// Classify a numeric cast when both sides are numeric.
-pub(super) fn numeric_cast_kind(source: &Type, target: &Type) -> Option<CastKind> {
+pub(super) fn numeric_cast_operator(source: &Type, target: &Type) -> Option<CastOperator> {
     // read numeric kinds from both sides
     let source_kind = numeric_kind_for_type(source)?;
     let target_kind = numeric_kind_for_type(target)?;
@@ -187,32 +188,32 @@ pub(super) fn numeric_cast_kind(source: &Type, target: &Type) -> Option<CastKind
             },
         ) => {
             if left_width == right_width && left_signed != right_signed {
-                return Some(CastKind::IntSignChange);
+                return Some(CastOperator::IntSignChange);
             }
 
             if right_width > left_width {
-                return Some(CastKind::IntWiden);
+                return Some(CastOperator::IntWiden);
             }
 
             if right_width < left_width {
-                return Some(CastKind::IntNarrow);
+                return Some(CastOperator::IntNarrow);
             }
 
-            Some(CastKind::Identity)
+            Some(CastOperator::Identity)
         }
         (NumericKind::Float { width: left_width }, NumericKind::Float { width: right_width }) => {
             if right_width > left_width {
-                return Some(CastKind::FloatWiden);
+                return Some(CastOperator::FloatWiden);
             }
 
             if right_width < left_width {
-                return Some(CastKind::FloatNarrow);
+                return Some(CastOperator::FloatNarrow);
             }
 
-            Some(CastKind::Identity)
+            Some(CastOperator::Identity)
         }
-        (NumericKind::Int { .. }, NumericKind::Float { .. }) => Some(CastKind::IntToFloat),
-        (NumericKind::Float { .. }, NumericKind::Int { .. }) => Some(CastKind::FloatToInt),
+        (NumericKind::Int { .. }, NumericKind::Float { .. }) => Some(CastOperator::IntToFloat),
+        (NumericKind::Float { .. }, NumericKind::Int { .. }) => Some(CastOperator::FloatToInt),
     }
 }
 
@@ -224,6 +225,38 @@ pub(super) fn is_integer_type(ty: &Type) -> bool {
             value: TypeLiteral::Primitive(PrimitiveType::Int(_))
         } | Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
+        }
+    )
+}
+
+/// Check whether a type is the `any` type.
+pub(super) fn is_any_type(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::TypeLiteral {
+            value: TypeLiteral::Any
+        }
+    )
+}
+
+/// Check whether a type is the `unknown` type.
+pub(super) fn is_unknown_type(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::TypeLiteral {
+            value: TypeLiteral::Unknown
+        }
+    )
+}
+
+/// Check whether a type is a string type.
+pub(super) fn is_string_type(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String)
+        } | Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
         }
     )
 }

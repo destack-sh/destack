@@ -1,9 +1,9 @@
 //! MIR tree dumper for debugging and visualization.
 
 use crate::{
-    BinaryOperator, Block, CastKind, Constant, Function, Global, GlobalInitializer, Instruction,
-    Local, LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
-    SwitchCase, Terminator, Type, UnaryOperator, Value,
+    BinaryOperator, Block, CastOperator, Constant, Function, Global, GlobalInitializer,
+    Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions,
+    Ownership, SwitchCase, Terminator, Type, UnaryOperator, Value,
 };
 use destack_base::{Color, StringPool};
 
@@ -230,20 +230,20 @@ impl<'a> Dumper<'a> {
         }
     }
 
-    fn format_cast_kind(&self, kind: CastKind) -> &'static str {
-        match kind {
-            CastKind::Bitcast => "bitcast",
-            CastKind::Truncate => "trunc",
-            CastKind::ZeroExtend => "zext",
-            CastKind::SignExtend => "sext",
-            CastKind::FloatToSignedInt => "fptosi",
-            CastKind::FloatToUnsignedInt => "fptoui",
-            CastKind::SignedIntToFloat => "sitofp",
-            CastKind::UnsignedIntToFloat => "uitofp",
-            CastKind::FloatTruncate => "fptrunc",
-            CastKind::FloatExtend => "fpext",
-            CastKind::PointerToInt => "ptrtoint",
-            CastKind::IntToPointer => "inttoptr",
+    fn format_cast_operator(&self, operator: CastOperator) -> &'static str {
+        match operator {
+            CastOperator::Bitcast => "bitcast",
+            CastOperator::Truncate => "trunc",
+            CastOperator::ZeroExtend => "zext",
+            CastOperator::SignExtend => "sext",
+            CastOperator::FloatToSignedInt => "fptosi",
+            CastOperator::FloatToUnsignedInt => "fptoui",
+            CastOperator::SignedIntToFloat => "sitofp",
+            CastOperator::UnsignedIntToFloat => "uitofp",
+            CastOperator::FloatTruncate => "fptrunc",
+            CastOperator::FloatExtend => "fpext",
+            CastOperator::PointerToInt => "ptrtoint",
+            CastOperator::IntToPointer => "inttoptr",
         }
     }
 
@@ -288,13 +288,13 @@ impl<'a> Dumper<'a> {
 
             Instruction::Cast {
                 destination,
-                kind,
+                operator,
                 argument,
                 to_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = ");
-                self.write_colored(self.format_cast_kind(*kind), Color::Cyan);
+                self.write_colored(self.format_cast_operator(*operator), Color::Cyan);
                 self.write(" ");
                 self.write(&self.format_value(*argument));
                 self.write(" to ");

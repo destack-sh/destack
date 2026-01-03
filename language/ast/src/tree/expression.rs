@@ -56,6 +56,9 @@ pub enum Expression {
     /// import foo as baz with { bar: true }
     /// import foo = require("foo")
     /// ```
+    ///
+    /// NOTE #Incomplete: support `/// <reference path="..." />` triple-slash directives.
+    /// (These are TypeScript's legacy file inclusion mechanism, still used in .d.ts files.)
     Import {
         source: ImportSource,
         kind: DependencyKind,

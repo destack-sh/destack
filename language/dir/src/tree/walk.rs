@@ -257,7 +257,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::Cast {
-            kind: _,
+            operator: _,
             source: _,
             value,
             target_type,

@@ -57,7 +57,7 @@ impl Interpreter {
             // dest = argument as to_type
             mir::Instruction::Cast {
                 destination,
-                kind,
+                operator,
                 argument,
                 to_type,
             } => {
@@ -65,7 +65,7 @@ impl Interpreter {
                     let frame = self.current_frame()?;
                     frame.get_value(*argument)?
                 };
-                let result = self.execute_cast(*kind, arg, *to_type)?;
+                let result = self.execute_cast(*operator, arg, *to_type)?;
                 let frame = self.current_frame_mut()?;
                 frame.set_value(*destination, result);
             }

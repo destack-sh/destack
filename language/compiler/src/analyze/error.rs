@@ -103,6 +103,13 @@ pub enum AnalyzeError {
         to_ty: GlobalTypeId,
     },
 
+    /// Enum member value has an invalid backing type.
+    #[error(code = "EA039", message = "invalid enum backing type {ty}")]
+    InvalidEnumBackingType {
+        node: GlobalNodeIdAny,
+        ty: GlobalTypeId,
+    },
+
     /// No overload found for operator/method with given types.
     #[error(
         code = "EA015",

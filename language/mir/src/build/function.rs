@@ -1,7 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastKind, Constant, Function, Global, Instruction,
+    AllocationMode, BinaryOperator, Block, CastOperator, Constant, Function, Global, Instruction,
     Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership,
     Terminator, Type, TypedValue, UnaryOperator, Value,
 };
@@ -801,11 +801,16 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: casts
 
     /// Cast a value to a different type.
-    pub fn cast(&mut self, kind: CastKind, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+    pub fn cast(
+        &mut self,
+        operator: CastOperator,
+        argument: Value,
+        to_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Cast {
             destination,
-            kind,
+            operator,
             argument,
             to_type,
         });
@@ -814,22 +819,22 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Bitcast (reinterpret bits, same size).
     pub fn bitcast(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastKind::Bitcast, argument, to_type)
+        self.cast(CastOperator::Bitcast, argument, to_type)
     }
 
     /// Truncate integer to smaller width.
     pub fn trunc(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastKind::Truncate, argument, to_type)
+        self.cast(CastOperator::Truncate, argument, to_type)
     }
 
     /// Zero-extend integer to larger width.
     pub fn zext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastKind::ZeroExtend, argument, to_type)
+        self.cast(CastOperator::ZeroExtend, argument, to_type)
     }
 
     /// Sign-extend integer to larger width.
     pub fn sext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastKind::SignExtend, argument, to_type)
+        self.cast(CastOperator::SignExtend, argument, to_type)
     }
 
     // instruction builders: intrinsics

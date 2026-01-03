@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    BinaryOperator, Block, CastKind, Constant, Field, Function, Global, GlobalInitializer,
+    BinaryOperator, Block, CastOperator, Constant, Field, Function, Global, GlobalInitializer,
     Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
     Ownership, SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
 };
@@ -658,14 +658,14 @@ impl<'a> Parser<'a> {
             }
 
             // cast ops
-            _ if opcode_text.parse::<CastKind>().is_ok() => {
-                let kind = opcode_text.parse().unwrap();
+            _ if opcode_text.parse::<CastOperator>().is_ok() => {
+                let operator = opcode_text.parse().unwrap();
                 let argument = self.parse_value()?;
                 self.eat_token(TokenType::Arrow)?;
                 let to_type = self.parse_type()?;
                 Instruction::Cast {
                     destination,
-                    kind,
+                    operator,
                     argument,
                     to_type,
                 }

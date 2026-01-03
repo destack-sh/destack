@@ -309,7 +309,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Cast {
-                    kind: _,
+                    operator: _,
                     source: _,
                     value,
                     target_type,
