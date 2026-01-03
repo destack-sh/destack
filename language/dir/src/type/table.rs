@@ -36,9 +36,9 @@ pub struct TypeTable {
     pub(crate) normalized_flow_type_by_id: Vec<Option<LocalTypeId>>,
 
     // node types
-    /// The declared type by node id (type annotations live on nodes).
+    /// The declared type by node id.
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
-    /// The inferred type by node id (expression-like types at specific locations).
+    /// The inferred type by node id.
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
 
     // symbol types
@@ -247,7 +247,7 @@ impl TypeTable {
         self.declared_type_by_node_id.get(&node_id).copied()
     }
 
-    /// Set the inferred type for a node (expression type at this location).
+    /// Set the inferred type for a node.
     pub fn set_inferred_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
         self.inferred_type_by_node_id.insert(node_id, ty);
     }

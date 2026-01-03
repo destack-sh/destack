@@ -1178,6 +1178,9 @@ impl Compiler {
         };
         let ty_id = types.insert_type_from_any(ty, node_id);
 
+        // record signature type for lowering
+        types.set_inferred_type(node_id.into_global(module.id), ty_id);
+
         Ok(ty_id)
     }
 
