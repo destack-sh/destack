@@ -522,28 +522,36 @@ impl Dump for TypePredicateSubject {
     }
 }
 
-impl Dump for CastKind {
+impl Dump for CastOperator {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let kind = match self {
-            CastKind::Identity => "identity",
-            CastKind::IntWiden => "int_widen",
-            CastKind::IntNarrow => "int_narrow",
-            CastKind::IntSignChange => "int_sign_change",
-            CastKind::FloatWiden => "float_widen",
-            CastKind::FloatNarrow => "float_narrow",
-            CastKind::IntToFloat => "int_to_float",
-            CastKind::FloatToInt => "float_to_int",
-            CastKind::PointerToInt => "ptr_to_int",
-            CastKind::IntToPointer => "int_to_ptr",
-            CastKind::PointerCast => "ptr_cast",
-            CastKind::UnionUpcast => "union_upcast",
-            CastKind::UnionDowncast => "union_downcast",
-            CastKind::InstanceUpcast => "instance_upcast",
-            CastKind::InstanceDowncast => "instance_downcast",
-            CastKind::NullableUpcast => "nullable_upcast",
-            CastKind::NullableDowncast => "nullable_downcast",
+            CastOperator::Identity => "identity",
+            CastOperator::IntWiden => "int_widen",
+            CastOperator::IntNarrow => "int_narrow",
+            CastOperator::IntSignChange => "int_sign_change",
+            CastOperator::FloatWiden => "float_widen",
+            CastOperator::FloatNarrow => "float_narrow",
+            CastOperator::IntToFloat => "int_to_float",
+            CastOperator::FloatToInt => "float_to_int",
+            CastOperator::PointerToInt => "ptr_to_int",
+            CastOperator::IntToPointer => "int_to_ptr",
+            CastOperator::PointerCast => "ptr_cast",
+            CastOperator::ArraySizedToSlice => "array_sized_to_slice",
+            CastOperator::EnumToInt => "enum_to_int",
+            CastOperator::IntToEnum => "int_to_enum",
+            CastOperator::EnumToString => "enum_to_string",
+            CastOperator::StringToEnum => "string_to_enum",
+            CastOperator::UnionUpcast => "union_upcast",
+            CastOperator::UnionDowncast => "union_downcast",
+            CastOperator::InstanceUpcast => "instance_upcast",
+            CastOperator::InstanceDowncast => "instance_downcast",
+            CastOperator::NullableUpcast => "nullable_upcast",
+            CastOperator::NullableDowncast => "nullable_downcast",
+            CastOperator::UnknownDowncast => "unknown_downcast",
+            CastOperator::AnyDowncast => "any_downcast",
+            CastOperator::AnyUpcast => "any_upcast",
         };
-        dumper.object("CastKind").value(&kind).end();
+        dumper.object("CastOperator").value(&kind).end();
     }
 }
 
@@ -1071,13 +1079,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Cast {
-                kind,
+                operator,
                 source,
                 value: _,
                 target_type: _,
             } => {
                 self.node("Expression::Cast", id.id)
-                    .field("kind", kind)
+                    .field("operator", operator)
                     .field("source", source)
                     .end();
             }

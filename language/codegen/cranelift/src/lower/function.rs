@@ -633,13 +633,13 @@ impl<'a> FunctionLowerer<'a> {
             // cast -> sextend/uextend/ireduce/bitcast/etc (type conversion)
             mir::Instruction::Cast {
                 destination,
-                kind,
+                operator,
                 argument,
                 to_type,
             } => {
                 let argument_value = value_map[argument];
                 let target_type = lower_type(self.tree, *to_type, self.pointer_bytes)?;
-                let result = self.lower_cast(*kind, argument_value, target_type, builder)?;
+                let result = self.lower_cast(*operator, argument_value, target_type, builder)?;
                 value_map.insert(*destination, result);
             }
 
@@ -1467,26 +1467,26 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a cast operation to Cranelift IR.
     fn lower_cast(
         &self,
-        kind: mir::CastKind,
+        operator: mir::CastOperator,
         argument: cir::Value,
         to_type: cir::Type,
         builder: &mut FunctionBuilder<'_>,
     ) -> Result<cir::Value, CodegenCraneliftError> {
         let ins = builder.ins();
 
-        let result = match kind {
-            mir::CastKind::Bitcast => ins.bitcast(to_type, cir::MemFlags::new(), argument),
-            mir::CastKind::Truncate => ins.ireduce(to_type, argument),
-            mir::CastKind::ZeroExtend => ins.uextend(to_type, argument),
-            mir::CastKind::SignExtend => ins.sextend(to_type, argument),
-            mir::CastKind::FloatToSignedInt => ins.fcvt_to_sint(to_type, argument),
-            mir::CastKind::FloatToUnsignedInt => ins.fcvt_to_uint(to_type, argument),
-            mir::CastKind::SignedIntToFloat => ins.fcvt_from_sint(to_type, argument),
-            mir::CastKind::UnsignedIntToFloat => ins.fcvt_from_uint(to_type, argument),
-            mir::CastKind::FloatTruncate => ins.fdemote(to_type, argument),
-            mir::CastKind::FloatExtend => ins.fpromote(to_type, argument),
+        let result = match operator {
+            mir::CastOperator::Bitcast => ins.bitcast(to_type, cir::MemFlags::new(), argument),
+            mir::CastOperator::Truncate => ins.ireduce(to_type, argument),
+            mir::CastOperator::ZeroExtend => ins.uextend(to_type, argument),
+            mir::CastOperator::SignExtend => ins.sextend(to_type, argument),
+            mir::CastOperator::FloatToSignedInt => ins.fcvt_to_sint(to_type, argument),
+            mir::CastOperator::FloatToUnsignedInt => ins.fcvt_to_uint(to_type, argument),
+            mir::CastOperator::SignedIntToFloat => ins.fcvt_from_sint(to_type, argument),
+            mir::CastOperator::UnsignedIntToFloat => ins.fcvt_from_uint(to_type, argument),
+            mir::CastOperator::FloatTruncate => ins.fdemote(to_type, argument),
+            mir::CastOperator::FloatExtend => ins.fpromote(to_type, argument),
             // pointer is already an integer in Cranelift
-            mir::CastKind::PointerToInt | mir::CastKind::IntToPointer => argument,
+            mir::CastOperator::PointerToInt | mir::CastOperator::IntToPointer => argument,
         };
 
         Ok(result)

@@ -285,7 +285,7 @@ The output remains DIR and feeds Execute and Lower.
 
 All `as T` expressions are real casts and must be preserved.
 When a cast can fail at runtime, it is checked.
-(Unchecked casts use the transmute intrinsic and do not use CastKind.)
+(Unchecked casts use the transmute intrinsic and do not use CastOperator.)
 Reify replaces type-cast expressions with `Expression::Cast`.
 Explicit casts use `CastSource::Explicit` and inserted casts use `CastSource::Implicit`.
 
@@ -316,6 +316,9 @@ Reify makes this explicit.
 | T → T \| U | yes | union upcast |
 | T → T \| null \| undefined | yes | nullable upcast |
 | subtype → base | yes | instance upcast when assignable |
+| T[N] → T[] | yes | sized array to slice |
+| T → any | yes | widen to any |
+| T → unknown | yes | widen to unknown |
 
 ```ds
 // source
@@ -349,6 +352,13 @@ Analyze enforces the requirement and Reify only classifies explicit casts.
 | union downcast | yes | checked |
 | nullable downcast | yes | checked |
 | instance downcast | yes | checked |
+| enum ↔ int | yes | checked |
+| enum ↔ string | yes | checked |
+| any → T | yes | unchecked |
+| unknown → T | yes | checked |
+
+Enum casts follow the enum backing type (int or string).
+Downcasts from `any` are unchecked, and downcasts from `unknown` are checked.
 
 ```ds
 // source

@@ -472,18 +472,18 @@ impl Interpreter {
     /// Execute a cast operation.
     pub(super) fn execute_cast(
         &self,
-        kind: mir::CastKind,
+        operator: mir::CastOperator,
         argument: Value,
         to_type: mir::LocalNodeId<mir::Type>,
     ) -> RuntimeResult<Value> {
         let target_type = self.tree.get(to_type);
 
-        let result = match kind {
+        let result = match operator {
             // reinterpret bits without conversion
-            mir::CastKind::Bitcast => argument,
+            mir::CastOperator::Bitcast => argument,
 
             // truncate integer to smaller width
-            mir::CastKind::Truncate => {
+            mir::CastOperator::Truncate => {
                 let target_width = match target_type {
                     mir::Type::Int { width, .. } => *width as u8,
                     _ => return Ok(argument),
@@ -508,7 +508,7 @@ impl Interpreter {
             }
 
             // zero-extend integer to larger width
-            mir::CastKind::ZeroExtend => {
+            mir::CastOperator::ZeroExtend => {
                 let target_width = match target_type {
                     mir::Type::Int { width, .. } => *width as u8,
                     _ => return Ok(argument),
@@ -530,7 +530,7 @@ impl Interpreter {
             }
 
             // sign-extend integer to larger width
-            mir::CastKind::SignExtend => {
+            mir::CastOperator::SignExtend => {
                 let target_width = match target_type {
                     mir::Type::Int { width, .. } => *width as u8,
                     _ => return Ok(argument),
@@ -556,7 +556,7 @@ impl Interpreter {
             }
 
             // float to signed integer
-            mir::CastKind::FloatToSignedInt => {
+            mir::CastOperator::FloatToSignedInt => {
                 let target_width = match target_type {
                     mir::Type::Int { width, .. } => *width as u8,
                     _ => 64,
@@ -575,7 +575,7 @@ impl Interpreter {
             }
 
             // float to unsigned integer
-            mir::CastKind::FloatToUnsignedInt => {
+            mir::CastOperator::FloatToUnsignedInt => {
                 let target_width = match target_type {
                     mir::Type::Int { width, .. } => *width as u8,
                     _ => 64,
@@ -594,7 +594,7 @@ impl Interpreter {
             }
 
             // signed integer to float
-            mir::CastKind::SignedIntToFloat => {
+            mir::CastOperator::SignedIntToFloat => {
                 let target_width = match target_type {
                     mir::Type::Float { width } => *width,
                     _ => 64,
@@ -612,7 +612,7 @@ impl Interpreter {
             }
 
             // unsigned integer to float
-            mir::CastKind::UnsignedIntToFloat => {
+            mir::CastOperator::UnsignedIntToFloat => {
                 let target_width = match target_type {
                     mir::Type::Float { width } => *width,
                     _ => 64,
@@ -630,19 +630,19 @@ impl Interpreter {
             }
 
             // f32 to f64
-            mir::CastKind::FloatExtend => match argument {
+            mir::CastOperator::FloatExtend => match argument {
                 Value::Float32(f) => Value::Float64(f as f64),
                 _ => argument,
             },
 
             // f64 to f32
-            mir::CastKind::FloatTruncate => match argument {
+            mir::CastOperator::FloatTruncate => match argument {
                 Value::Float64(f) => Value::Float32(f as f32),
                 _ => argument,
             },
 
             // pointer to integer
-            mir::CastKind::PointerToInt => {
+            mir::CastOperator::PointerToInt => {
                 let target_width = match target_type {
                     mir::Type::Int { width, .. } => *width as u8,
                     _ => 64,
@@ -661,7 +661,7 @@ impl Interpreter {
             }
 
             // integer to pointer
-            mir::CastKind::IntToPointer => match argument {
+            mir::CastOperator::IntToPointer => match argument {
                 Value::UInt { value, .. } => Value::RawPointer(RawPointer::new(value)),
                 Value::Int { value, .. } => Value::RawPointer(RawPointer::new(value as u64)),
                 _ => argument,

@@ -4,11 +4,11 @@ use super::merge::InferredShape;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     BindingKind, Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem,
-    DynamicKey, EnumField, Expression, Extension, ExtensionKind, FunctionMode, FunctionSignature,
-    Generics, GlobalSymbolId, Heritage, InferOrigin, InferScope, InferTable, Lineage, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree, Parameter, StaticKey,
-    SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable,
-    WhereClause,
+    DynamicKey, EnumBackingType, EnumField, Expression, Extension, ExtensionKind, FunctionMode,
+    FunctionSignature, Generics, GlobalSymbolId, Heritage, InferOrigin, InferScope, InferTable,
+    IntType, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, NodeTree,
+    Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeField,
+    TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::Module;
 
@@ -340,6 +340,10 @@ impl Compiler {
                         is_readonly: true,
                     });
                 }
+
+                // infer and record the enum backing type
+                let backing_type = self.infer_enum_backing_type(module, fields, tree, types)?;
+                types.set_enum_backing_type(enum_symbol, backing_type);
 
                 for member_id in members {
                     self.infer_member(module, *member_id, tree, symbols, types, infer, ctx, None)?;
@@ -1350,6 +1354,95 @@ impl Compiler {
             self.infer_expression(module, value, tree, symbols, types, infer, ctx)?;
         }
         Ok(())
+    }
+
+    /// Infer the enum backing type from member values.
+    pub(super) fn infer_enum_backing_type(
+        &self,
+        module: &Module,
+        fields: &[LocalNodeId<EnumField>],
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> AnalyzeResult<EnumBackingType> {
+        // start with no backing type chosen
+        let mut backing_type: Option<EnumBackingType> = None;
+
+        // walk explicit enum member values to decide backing type
+        for field_id in fields {
+            let field = tree.get(*field_id);
+            let Some(value_id) = field.value else {
+                continue;
+            };
+
+            // read the enum member value type
+            let value_type_id = types
+                .get_declared_or_inferred_type_id(value_id.into_global_any(module.id))
+                .ok_or(AnalyzeError::MissingType {
+                    node: value_id.into_global_any(module.id),
+                })?;
+            let value_type = types.get_type(value_type_id);
+
+            // map the value type to a backing type
+            let field_backing_type = match value_type {
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Int(int_type)),
+                } => Some(EnumBackingType::Int(int_type.simplify())),
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
+                } => Some(EnumBackingType::Int(
+                    IntType::Arbitrary {
+                        width: self.options.default_int_width,
+                        is_signed: true,
+                    }
+                    .simplify(),
+                )),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                }
+                | Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+                } => Some(EnumBackingType::String),
+                _ => None,
+            };
+
+            let Some(field_backing_type) = field_backing_type else {
+                return Err(AnalyzeError::InvalidEnumBackingType {
+                    node: value_id.into_global_any(module.id),
+                    ty: value_type_id.into_global(module.id),
+                });
+            };
+
+            // ensure backing type consistency across members
+            if let Some(existing_type) = backing_type {
+                let matches = match (existing_type, field_backing_type) {
+                    (EnumBackingType::Int(left), EnumBackingType::Int(right)) => left == right,
+                    (EnumBackingType::String, EnumBackingType::String) => true,
+                    _ => false,
+                };
+
+                if !matches {
+                    return Err(AnalyzeError::InvalidEnumBackingType {
+                        node: value_id.into_global_any(module.id),
+                        ty: value_type_id.into_global(module.id),
+                    });
+                }
+            } else {
+                backing_type = Some(field_backing_type);
+            }
+        }
+
+        // default to the configured integer width when unspecified
+        let backing_type = backing_type.unwrap_or_else(|| {
+            EnumBackingType::Int(
+                IntType::Arbitrary {
+                    width: self.options.default_int_width,
+                    is_signed: true,
+                }
+                .simplify(),
+            )
+        });
+
+        Ok(backing_type)
     }
 
     /// Infer a pattern, given an optional binding type of the pattern.

@@ -50,8 +50,8 @@ pub enum Instruction {
     Cast {
         /// The SSA value to define with the converted result.
         destination: Value,
-        /// The kind of cast to perform.
-        kind: CastKind,
+        /// The cast operator to perform.
+        operator: CastOperator,
         /// The value to cast.
         argument: Value,
         /// The target type to cast to.
@@ -315,7 +315,7 @@ impl Instruction {
 
 /// Kind of type cast.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CastKind {
+pub enum CastOperator {
     /// Bitcast (reinterpret bits, same size).
     Bitcast,
     /// Truncate integer to smaller width.
@@ -342,49 +342,49 @@ pub enum CastKind {
     IntToPointer,
 }
 
-impl CastKind {
+impl CastOperator {
     /// Text representation for formatting/parsing.
     pub fn to_str(self) -> &'static str {
         match self {
-            CastKind::Bitcast => "bitcast",
-            CastKind::Truncate => "trunc",
-            CastKind::ZeroExtend => "uextend",
-            CastKind::SignExtend => "sextend",
-            CastKind::FloatToSignedInt => "fcvt_to_sint",
-            CastKind::FloatToUnsignedInt => "fcvt_to_uint",
-            CastKind::SignedIntToFloat => "scvt_to_float",
-            CastKind::UnsignedIntToFloat => "ucvt_to_float",
-            CastKind::FloatTruncate => "fnarrow",
-            CastKind::FloatExtend => "fwiden",
-            CastKind::PointerToInt => "ptr_to_int",
-            CastKind::IntToPointer => "int_to_ptr",
+            CastOperator::Bitcast => "bitcast",
+            CastOperator::Truncate => "trunc",
+            CastOperator::ZeroExtend => "uextend",
+            CastOperator::SignExtend => "sextend",
+            CastOperator::FloatToSignedInt => "fcvt_to_sint",
+            CastOperator::FloatToUnsignedInt => "fcvt_to_uint",
+            CastOperator::SignedIntToFloat => "scvt_to_float",
+            CastOperator::UnsignedIntToFloat => "ucvt_to_float",
+            CastOperator::FloatTruncate => "fnarrow",
+            CastOperator::FloatExtend => "fwiden",
+            CastOperator::PointerToInt => "ptr_to_int",
+            CastOperator::IntToPointer => "int_to_ptr",
         }
     }
 }
 
-impl fmt::Display for CastKind {
+impl fmt::Display for CastOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.to_str())
     }
 }
 
-impl FromStr for CastKind {
+impl FromStr for CastOperator {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bitcast" => Ok(CastKind::Bitcast),
-            "trunc" => Ok(CastKind::Truncate),
-            "uextend" => Ok(CastKind::ZeroExtend),
-            "sextend" => Ok(CastKind::SignExtend),
-            "fcvt_to_sint" => Ok(CastKind::FloatToSignedInt),
-            "fcvt_to_uint" => Ok(CastKind::FloatToUnsignedInt),
-            "scvt_to_float" => Ok(CastKind::SignedIntToFloat),
-            "ucvt_to_float" => Ok(CastKind::UnsignedIntToFloat),
-            "fnarrow" => Ok(CastKind::FloatTruncate),
-            "fwiden" => Ok(CastKind::FloatExtend),
-            "ptr_to_int" => Ok(CastKind::PointerToInt),
-            "int_to_ptr" => Ok(CastKind::IntToPointer),
+            "bitcast" => Ok(CastOperator::Bitcast),
+            "trunc" => Ok(CastOperator::Truncate),
+            "uextend" => Ok(CastOperator::ZeroExtend),
+            "sextend" => Ok(CastOperator::SignExtend),
+            "fcvt_to_sint" => Ok(CastOperator::FloatToSignedInt),
+            "fcvt_to_uint" => Ok(CastOperator::FloatToUnsignedInt),
+            "scvt_to_float" => Ok(CastOperator::SignedIntToFloat),
+            "ucvt_to_float" => Ok(CastOperator::UnsignedIntToFloat),
+            "fnarrow" => Ok(CastOperator::FloatTruncate),
+            "fwiden" => Ok(CastOperator::FloatExtend),
+            "ptr_to_int" => Ok(CastOperator::PointerToInt),
+            "int_to_ptr" => Ok(CastOperator::IntToPointer),
             _ => Err(()),
         }
     }

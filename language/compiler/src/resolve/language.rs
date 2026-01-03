@@ -493,7 +493,7 @@ mod tests {
         // resolve once
         test.resolve_builtins();
         test.resolve_libs();
-        test.compile();
+        test.compile(); // FUGU: compile_check_clean on test_analyze_all_builtin_libs
 
         // analyze each module from each lib
         let builtins = test.program.builtins.as_ref().unwrap();

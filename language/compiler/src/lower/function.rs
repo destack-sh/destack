@@ -108,8 +108,7 @@ impl ModuleLowerer<'_> {
         let symbol_id = descriptor.symbol.into_global(self.module_id);
 
         // return type
-        let return_type =
-            self.resolve_function_return_type(symbol_id, signature.return_type, declaration_id)?;
+        let return_type = self.resolve_function_return_type(declaration_id)?;
 
         // parameter types
         let mut parameter_types = Vec::new();
@@ -184,43 +183,33 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve a function return type for lowering.
-    /// FUGU #Suspicious #Cleanup: why don't all functions have value types post-Analyze? #FunctionType
     fn resolve_function_return_type(
         &mut self,
-        function_symbol: GlobalSymbolId,
-        return_type_expr: Option<dir::LocalNodeId<dir::Expression>>,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        if let Some(function_type_id) = self.types.get_value_type_id(function_symbol) {
-            let function_type = self.types.get_type(function_type_id);
-            if let dir::Type::Function { return_type, .. } = function_type {
-                if let Some(return_type) = return_type {
-                    return self.type_lowerer.lower_type(
-                        self.types,
-                        *return_type,
-                        self.module_id,
-                        declaration_id.into_global_any(self.module_id),
-                        &mut self.builder,
-                    );
-                }
-                return Ok(self.type_lowerer.ty_void);
-            }
-        }
+        let node_id = declaration_id.into_global_any(self.module_id);
 
-        let return_type_expr = return_type_expr.ok_or(LowerError::UnsupportedConstruct {
-            node: declaration_id.into_global_any(self.module_id),
-            message: "missing return type".to_string(),
-        })?;
-        let return_node = GlobalNodeId::new(self.module_id, return_type_expr).into();
-        let declared = self
+        let signature_type_id = self
             .types
-            .get_declared_or_inferred_type_id(return_node)
-            .ok_or(LowerError::MissingType { node: return_node })?;
+            .get_inferred_type_id(node_id)
+            .ok_or(LowerError::MissingType { node: node_id })?;
+        let return_type_id = match self.types.get_type(signature_type_id) {
+            dir::Type::Function { return_type, .. } => {
+                return_type.ok_or(LowerError::MissingType { node: node_id })?
+            }
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: node_id,
+                    message: "missing function signature type".to_string(),
+                })?;
+            }
+        };
+
         self.type_lowerer.lower_type(
             self.types,
-            declared,
+            return_type_id,
             self.module_id,
-            return_node,
+            node_id,
             &mut self.builder,
         )
     }

@@ -1,13 +1,13 @@
 use destack_dir::{
-    Argument, Block, CastKind, CastSource, Declarator, Expression, IfKind, LocalNodeId,
-    LocalTypeId, MatchCase, NodeTree, NodeType, SymbolTable, Type, TypeTable,
+    Argument, Block, CastOperator, CastSource, Declarator, EnumBackingType, Expression, IfKind,
+    LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType, SymbolTable, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::r#type::{
-    is_integer_type, is_nullable_union, is_pointer_type, is_scalar_literal_type, is_union_type,
-    numeric_cast_kind,
+    is_any_type, is_integer_type, is_nullable_union, is_pointer_type, is_scalar_literal_type,
+    is_string_type, is_union_type, is_unknown_type, numeric_cast_operator,
 };
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
@@ -39,7 +39,7 @@ impl Compiler {
             })?;
 
         // classify the cast
-        let kind = self.cast_kind_for_types(
+        let operator = self.cast_operator_for_types(
             module_id,
             profile,
             symbols,
@@ -53,7 +53,7 @@ impl Compiler {
         tree.replace(
             expression_id,
             Expression::Cast {
-                kind,
+                operator,
                 source: CastSource::Explicit,
                 value,
                 target_type,
@@ -471,7 +471,7 @@ impl Compiler {
         }
 
         // classify the cast
-        let kind = self.cast_kind_for_types(
+        let operator = self.cast_operator_for_types(
             module_id,
             profile,
             symbols,
@@ -483,10 +483,10 @@ impl Compiler {
 
         // skip numeric casts for scalar literals
         let value_type = types.get_type(value_type_id);
-        if is_scalar_literal_type(value_type) && is_numeric_cast_kind(kind) {
+        if is_scalar_literal_type(value_type) && is_numeric_cast_operator(operator) {
             return Ok(value_id);
         }
-        if kind == CastKind::Identity {
+        if operator == CastOperator::Identity {
             return Ok(value_id);
         }
 
@@ -520,7 +520,7 @@ impl Compiler {
         let cast_expression_id = tree.insert(
             cast_expression_id,
             Expression::Cast {
-                kind,
+                operator,
                 source: CastSource::Implicit,
                 value: value_id,
                 target_type: target_expression_id,
@@ -534,8 +534,8 @@ impl Compiler {
         Ok(cast_expression_id)
     }
 
-    /// Classify the cast kind for two types.
-    fn cast_kind_for_types(
+    /// Classify the cast operator for two types.
+    fn cast_operator_for_types(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -544,46 +544,81 @@ impl Compiler {
         source_id: LocalTypeId,
         target_id: LocalTypeId,
         module: &Module,
-    ) -> CastKind {
+    ) -> CastOperator {
         // fast path for identical types
         if source_id == target_id {
-            return CastKind::Identity;
+            return CastOperator::Identity;
         }
 
         // read the source and target types
         let source = types.get_type(source_id).clone();
         let target = types.get_type(target_id).clone();
 
+        // handle any and unknown casts
+        if is_any_type(&target) {
+            return CastOperator::AnyUpcast;
+        }
+        if is_unknown_type(&target) {
+            return CastOperator::Identity;
+        }
+        if is_any_type(&source) {
+            return CastOperator::AnyDowncast;
+        }
+        if is_unknown_type(&source) {
+            return CastOperator::UnknownDowncast;
+        }
+
         // handle numeric casts first
-        if let Some(kind) = numeric_cast_kind(&source, &target) {
-            return kind;
+        if let Some(operator) = numeric_cast_operator(&source, &target) {
+            return operator;
         }
 
         // handle pointer casts
         if is_pointer_type(&source) && is_integer_type(&target) {
-            return CastKind::PointerToInt;
+            return CastOperator::PointerToInt;
         }
         if is_integer_type(&source) && is_pointer_type(&target) {
-            return CastKind::IntToPointer;
+            return CastOperator::IntToPointer;
         }
         if is_pointer_type(&source) && is_pointer_type(&target) {
-            return CastKind::PointerCast;
+            return CastOperator::PointerCast;
+        }
+
+        // handle sized array to slice casts
+        if let (
+            Type::ArraySized { element, .. },
+            Type::Array {
+                element: target_element,
+            },
+        ) = (&source, &target)
+        {
+            let matches_element = target_element
+                .map(|target_element| target_element == *element)
+                .unwrap_or(true);
+            if matches_element {
+                return CastOperator::ArraySizedToSlice;
+            }
+        }
+
+        // handle enum casts
+        if let Some(operator) = enum_cast_operator(&source, &target, types) {
+            return operator;
         }
 
         // handle nullable casts
         if is_nullable_union(&target, types) {
-            return CastKind::NullableUpcast;
+            return CastOperator::NullableUpcast;
         }
         if is_nullable_union(&source, types) {
-            return CastKind::NullableDowncast;
+            return CastOperator::NullableDowncast;
         }
 
         // handle union casts
         if is_union_type(&target) {
-            return CastKind::UnionUpcast;
+            return CastOperator::UnionUpcast;
         }
         if is_union_type(&source) {
-            return CastKind::UnionDowncast;
+            return CastOperator::UnionDowncast;
         }
 
         // fall back to assignability based instance casts
@@ -592,25 +627,65 @@ impl Compiler {
             module, profile, symbols, target_id, source_id, types, &options,
         );
         if assignable.is_assignable() {
-            CastKind::InstanceUpcast
+            CastOperator::InstanceUpcast
         } else {
-            CastKind::InstanceDowncast
+            CastOperator::InstanceDowncast
         }
     }
 }
 
-/// Check whether a cast kind is numeric.
-fn is_numeric_cast_kind(kind: CastKind) -> bool {
+/// Check whether a cast operator is numeric.
+fn is_numeric_cast_operator(operator: CastOperator) -> bool {
     matches!(
-        kind,
-        CastKind::IntWiden
-            | CastKind::IntNarrow
-            | CastKind::IntSignChange
-            | CastKind::FloatWiden
-            | CastKind::FloatNarrow
-            | CastKind::IntToFloat
-            | CastKind::FloatToInt
+        operator,
+        CastOperator::IntWiden
+            | CastOperator::IntNarrow
+            | CastOperator::IntSignChange
+            | CastOperator::FloatWiden
+            | CastOperator::FloatNarrow
+            | CastOperator::IntToFloat
+            | CastOperator::FloatToInt
     )
+}
+
+/// Classify enum casts between enum and primitive types.
+fn enum_cast_operator(source: &Type, target: &Type, types: &TypeTable) -> Option<CastOperator> {
+    // enum to primitive casts
+    if let Some(backing) = enum_backing_type_for_type(source, types) {
+        match backing {
+            EnumBackingType::Int(_) if is_integer_type(target) => {
+                return Some(CastOperator::EnumToInt);
+            }
+            EnumBackingType::String if is_string_type(target) => {
+                return Some(CastOperator::EnumToString);
+            }
+            _ => {}
+        }
+    }
+
+    // primitive to enum casts
+    if let Some(backing) = enum_backing_type_for_type(target, types) {
+        match backing {
+            EnumBackingType::Int(_) if is_integer_type(source) => {
+                return Some(CastOperator::IntToEnum);
+            }
+            EnumBackingType::String if is_string_type(source) => {
+                return Some(CastOperator::StringToEnum);
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+/// Read the enum backing type for a type when it is an enum reference.
+fn enum_backing_type_for_type(ty: &Type, types: &TypeTable) -> Option<EnumBackingType> {
+    let Type::Reference { symbol, .. } = ty else {
+        return None;
+    };
+
+    types.get_enum_backing_type(*symbol)
 }
 
 #[cfg(test)]
@@ -794,6 +869,74 @@ function intValue(): int32 {
 
 function test(condition): float64 {
     return condition ? floatValue() : intValue() as float64;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_union_upcast() {
+        // union upcasts are inserted for union bindings
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | float64 {
+    let value: int32 | float64 = intValue();
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | float64 {
+    let value = intValue() as int32 | float64;
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_nullable_upcast() {
+        // nullable upcasts are inserted for nullable bindings
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | null {
+    let value: int32 | null = intValue();
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | null {
+    let value = intValue() as int32 | null;
+    return value;
 }
 "#,
         );

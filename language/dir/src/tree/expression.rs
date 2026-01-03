@@ -1,12 +1,13 @@
 use destack_base::StringId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastKind, CastSource, Declaration,
-    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencySource,
-    GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource,
-    ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
-    StaticArgument, StaticProperty, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
-    TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator, CastSource,
+    Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
+    DependencySource, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
+    MatchCase, MatchSource, ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property,
+    ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, TypeBinaryOperator,
+    TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 
 /// A mapped type parameter for expressions.
@@ -146,8 +147,8 @@ pub enum Expression {
 
     /// Cast a value expression to a target type.
     Cast {
-        /// The semantic kind of cast.
-        kind: CastKind,
+        /// The cast operator to apply.
+        operator: CastOperator,
         /// The origin of the cast in source.
         source: CastSource,
         /// The value to cast.
