@@ -286,6 +286,12 @@ impl Compiler {
             std::mem::take(&mut *seen)
         };
         for error in errors {
+            // skip yielded dependency failures
+            // (this is internal; they are already reported by other user-facing diagnostics)
+            if error.is_yield_failed() {
+                continue;
+            }
+
             let diagnostic: CompileDiagnostic = error.into();
             self.pending_diagnostics
                 .insert(diagnostic.to_diagnostic(&self.program));

@@ -206,4 +206,24 @@ impl TaskError {
     pub fn full_code(&self) -> String {
         format!("E{}{:03}", self.phase_letter(), self.sub_code())
     }
+
+    /// Check whether this error represents a failed dependency yield.
+    pub fn is_yield_failed(&self) -> bool {
+        match self {
+            Self::Import(error) => error.is_yield_failed(),
+            Self::Bind(error) => error.is_yield_failed(),
+            Self::Resolve(error) => error.is_yield_failed(),
+            Self::Analyze(error) => error.is_yield_failed(),
+            Self::Elaborate(error) => error.is_yield_failed(),
+            Self::Execute(error) => error.is_yield_failed(),
+            Self::Lower(error) => error.is_yield_failed(),
+            Self::Verify(error) => error.is_yield_failed(),
+            Self::Optimize(error) => error.is_yield_failed(),
+            Self::Generate(error) => error.is_yield_failed(),
+            Self::Link(error) => error.is_yield_failed(),
+            Self::Emit(error) => error.is_yield_failed(),
+            Self::Lint(error) => error.is_yield_failed(),
+            Self::Internal(_) => false,
+        }
+    }
 }
