@@ -62,9 +62,6 @@ impl Compiler {
                     ast::TypeLiteral::Float(self.unbind_float_type(float_type, context))
                 }
             },
-            dir::TypeLiteral::Composite(composite_type) => {
-                ast::TypeLiteral::Composite(self.unbind_declaration_type(composite_type, context))
-            }
             dir::TypeLiteral::Intrinsic(intrinsic) => {
                 ast::TypeLiteral::Intrinsic(self.unbind_type_intrinsic(intrinsic, context))
             }
@@ -183,25 +180,6 @@ impl Compiler {
                     }
                 }
             }
-        }
-    }
-
-    /// Unbind a DIR declaration type to an AST declaration type.
-    fn unbind_declaration_type(
-        &self,
-        declaration_type: &dir::DeclarationType,
-        _context: &mut UnbindContext,
-    ) -> ast::DeclarationType {
-        match declaration_type {
-            dir::DeclarationType::Type => ast::DeclarationType::Type,
-            dir::DeclarationType::Namespace => ast::DeclarationType::Namespace,
-            dir::DeclarationType::Struct => ast::DeclarationType::Struct,
-            dir::DeclarationType::Class => ast::DeclarationType::Class,
-            dir::DeclarationType::Enum => ast::DeclarationType::Enum,
-            dir::DeclarationType::Union => ast::DeclarationType::Union,
-            dir::DeclarationType::Interface => ast::DeclarationType::Interface,
-            dir::DeclarationType::Extension => ast::DeclarationType::Extension,
-            dir::DeclarationType::Function => ast::DeclarationType::Function,
         }
     }
 

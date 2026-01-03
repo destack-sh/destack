@@ -108,8 +108,6 @@ pub enum TypeLiteral {
     Int(IntType),
     /// Float type.
     Float(FloatType),
-    /// Composite type.
-    Composite(DeclarationType),
     /// Symbol type.
     Symbol,
     /// Unique symbol type.
@@ -221,27 +219,4 @@ impl FloatType {
             "float".to_string()
         }
     }
-}
-
-/// A DeclarationType represents composite types.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DeclarationType {
-    /// Root type `type`.
-    Type,
-    /// Module type.
-    Namespace,
-    /// Struct type.
-    Struct,
-    /// Class type.
-    Class,
-    /// Enum type.
-    Enum,
-    /// Union type.
-    Union,
-    /// Interface type.
-    Interface,
-    /// Extension type.
-    Extension,
-    /// Function type.
-    Function,
 }

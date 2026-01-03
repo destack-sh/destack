@@ -1,9 +1,9 @@
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, DeclarationDescriptor, DeclarationType, Expression, FloatType, IntType, Keyword,
-    LocalNodeId, Mutability, Name, TokenType, TypeBinaryOperator, TypeIntrinsic, TypeKind,
-    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
+    Declaration, DeclarationDescriptor, Expression, FloatType, IntType, Keyword, LocalNodeId,
+    Mutability, Name, TokenType, TypeBinaryOperator, TypeIntrinsic, TypeKind, TypeLiteral,
+    TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
@@ -55,24 +55,7 @@ impl Parser {
         }
     }
 
-    /// Eat a composite / declaration type literal.
-    pub fn eat_composite_type_literal(&mut self) -> ParseResult<TypeLiteral> {
-        let next = self.eat_keyword_any()?;
-        match next {
-            Keyword::Type => Ok(TypeLiteral::Composite(DeclarationType::Type)),
-            Keyword::Namespace => Ok(TypeLiteral::Composite(DeclarationType::Namespace)),
-            Keyword::Struct => Ok(TypeLiteral::Composite(DeclarationType::Struct)),
-            Keyword::Class => Ok(TypeLiteral::Composite(DeclarationType::Class)),
-            Keyword::Enum => Ok(TypeLiteral::Composite(DeclarationType::Enum)),
-            Keyword::Union => Ok(TypeLiteral::Composite(DeclarationType::Union)),
-            Keyword::Interface => Ok(TypeLiteral::Composite(DeclarationType::Interface)),
-            Keyword::Extension => Ok(TypeLiteral::Composite(DeclarationType::Extension)),
-            Keyword::Function => Ok(TypeLiteral::Composite(DeclarationType::Function)),
-            _ => Err(ParseError::unexpected(self.peek()?.span)),
-        }
-    }
-
-    /// Peek a type literal (except composite types).
+    /// Peek a type literal.
     /// Certain type literals are only parsed at the AST-level in static or type contexts.
     /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
     pub fn peek_type_literal(&self) -> ParseResult<TypeLiteral> {

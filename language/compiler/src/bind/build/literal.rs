@@ -1,9 +1,8 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    DeclarationType, FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
-    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeIntrinsic, TypeLiteral,
-    TypeTable,
+    FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, PrimitiveType,
+    ScalarLiteral, SymbolTable, TemplateLiteral, TypeIntrinsic, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -155,24 +154,6 @@ impl Compiler {
         float_type.simplify()
     }
 
-    /// Bind a composite type to a DIR composite type.
-    pub(super) fn bind_declaration_type(
-        &self,
-        composite_type: &ast::DeclarationType,
-    ) -> DeclarationType {
-        match composite_type {
-            ast::DeclarationType::Type => DeclarationType::Type,
-            ast::DeclarationType::Namespace => DeclarationType::Namespace,
-            ast::DeclarationType::Struct => DeclarationType::Struct,
-            ast::DeclarationType::Class => DeclarationType::Class,
-            ast::DeclarationType::Enum => DeclarationType::Enum,
-            ast::DeclarationType::Union => DeclarationType::Union,
-            ast::DeclarationType::Interface => DeclarationType::Interface,
-            ast::DeclarationType::Extension => DeclarationType::Extension,
-            ast::DeclarationType::Function => DeclarationType::Function,
-        }
-    }
-
     /// Bind a type literal to a DIR type literal.
     pub(super) fn bind_type_literal(&self, type_literal: &ast::TypeLiteral) -> TypeLiteral {
         match type_literal {
@@ -193,9 +174,6 @@ impl Compiler {
             }
             ast::TypeLiteral::Float(float_type) => {
                 TypeLiteral::Primitive(PrimitiveType::Float(self.bind_float_type(float_type)))
-            }
-            ast::TypeLiteral::Composite(composite_type) => {
-                TypeLiteral::Composite(self.bind_declaration_type(composite_type))
             }
             ast::TypeLiteral::Symbol => TypeLiteral::Primitive(PrimitiveType::Symbol),
             ast::TypeLiteral::UniqueSymbol => TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),

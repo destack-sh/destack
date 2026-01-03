@@ -3,8 +3,7 @@ use std::borrow::Cow;
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, DeclarationType, FloatType, IntType, Keyword, LocalNodeId, ScalarLiteral,
-    TemplateLiteral, TypeLiteral,
+    Argument, FloatType, IntType, LocalNodeId, ScalarLiteral, TemplateLiteral, TypeLiteral,
 };
 use destack_base::StringId;
 use destack_fir::format::{Format, FormatResult, text, token};
@@ -158,7 +157,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Number => write!(f, [token("number")]),
             TypeLiteral::Int(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
-            TypeLiteral::Composite(composite_type) => write!(f, [composite_type]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
             TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
             TypeLiteral::Intrinsic(_) => write!(f, [token("intrinsic")]),
@@ -205,22 +203,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FloatType {
             write!(f, [token("float"), text(&width.to_string())])
         } else {
             write!(f, [token("float")])
-        }
-    }
-}
-
-impl<'ast> Format<DestackFormatContext<'ast>> for DeclarationType {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
-        match self {
-            DeclarationType::Type => write!(f, [Keyword::Type]),
-            DeclarationType::Namespace => write!(f, [Keyword::Namespace]),
-            DeclarationType::Struct => write!(f, [Keyword::Struct]),
-            DeclarationType::Class => write!(f, [Keyword::Class]),
-            DeclarationType::Enum => write!(f, [Keyword::Enum]),
-            DeclarationType::Union => write!(f, [Keyword::Union]),
-            DeclarationType::Interface => write!(f, [Keyword::Interface]),
-            DeclarationType::Extension => write!(f, [Keyword::Extension]),
-            DeclarationType::Function => write!(f, [Keyword::Function]),
         }
     }
 }

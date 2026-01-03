@@ -21,29 +21,6 @@ pub enum PrimitiveType {
     UniqueSymbol,
 }
 
-/// A DeclarationType represents composite types.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DeclarationType {
-    /// Root type `type`.
-    Type,
-    /// Module type.
-    Namespace,
-    /// Struct type.
-    Struct,
-    /// Class type.
-    Class,
-    /// Enum type.
-    Enum,
-    /// Union type.
-    Union,
-    /// Interface type.
-    Interface,
-    /// Extension type.
-    Extension,
-    /// Function type.
-    Function,
-}
-
 /// An IntType represents arbitrary width integer with signedness.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum IntType {

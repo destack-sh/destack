@@ -437,7 +437,6 @@ impl_dump_display! {
     DeclarationKind,
     DependencyKind,
     DocStyle,
-    DeclarationType,
     DependencyMode,
     EnumKind,
     ForEachKind,
@@ -681,12 +680,6 @@ impl Dump for TypeLiteral {
             }
             TypeLiteral::Float(float_type) => {
                 dumper.object("TypeLiteral::Float").value(float_type).end();
-            }
-            TypeLiteral::Composite(composite_type) => {
-                dumper
-                    .object("TypeLiteral::Composite")
-                    .value(composite_type)
-                    .end();
             }
             TypeLiteral::Symbol => {
                 dumper.object("TypeLiteral::Symbol").end();

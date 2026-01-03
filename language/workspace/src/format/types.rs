@@ -355,7 +355,6 @@ pub fn format_type_literal(lit: &dir::TypeLiteral, strings: &StringPool) -> Stri
         dir::TypeLiteral::Void => "void".to_string(),
         dir::TypeLiteral::Null => "null".to_string(),
         dir::TypeLiteral::Primitive(p) => format_primitive_type(p),
-        dir::TypeLiteral::Composite(c) => format_composite_type(c),
         dir::TypeLiteral::Intrinsic(intrinsic) => format_type_intrinsic(intrinsic),
         dir::TypeLiteral::ScalarLiteral(s) => format_scalar_literal(s, strings),
     }
@@ -373,21 +372,6 @@ pub fn format_primitive_type(prim: &dir::PrimitiveType) -> String {
         dir::PrimitiveType::Float(float_type) => float_type.as_str(),
         dir::PrimitiveType::Symbol => "symbol".to_string(),
         dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
-    }
-}
-
-/// Format a DeclarationType.
-pub fn format_composite_type(comp: &dir::DeclarationType) -> String {
-    match comp {
-        dir::DeclarationType::Type => "type".to_string(),
-        dir::DeclarationType::Namespace => "namespace".to_string(),
-        dir::DeclarationType::Struct => "struct".to_string(),
-        dir::DeclarationType::Class => "class".to_string(),
-        dir::DeclarationType::Enum => "enum".to_string(),
-        dir::DeclarationType::Union => "union".to_string(),
-        dir::DeclarationType::Interface => "interface".to_string(),
-        dir::DeclarationType::Extension => "extension".to_string(),
-        dir::DeclarationType::Function => "function".to_string(),
     }
 }
 

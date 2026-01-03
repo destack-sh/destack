@@ -45,17 +45,6 @@ pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
     TokenType::LessThan,
 ];
 
-pub static COMPOSITE_TYPE_KEYWORDS: [Keyword; 8] = [
-    Keyword::Type,
-    Keyword::Newtype,
-    Keyword::Struct,
-    Keyword::Class,
-    Keyword::Enum,
-    Keyword::Union,
-    Keyword::Interface,
-    Keyword::Function,
-];
-
 pub static PATTERN_START_TOKENS: [TokenType; 6] = [
     TokenType::Identifier,
     TokenType::Literal,
@@ -819,26 +808,6 @@ impl Parser {
             // ------------------------------------------------------------
             //
 
-            // composite type
-            else if let Some(keyword) = keyword
-                && COMPOSITE_TYPE_KEYWORDS.contains(&keyword)
-                && next_token_type != TokenType::Dot
-                && next_token_type != TokenType::OpenBracket
-                // function* is a generator declaration, not a type literal
-                && !(keyword == Keyword::Function && next_token_type == TokenType::Multiply)
-                // composite type is eagerly closed before a block
-                // (to allow stuff like `if x instanceof type { ... }` where type excludes the block)
-                && (!DECLARATION_START_TOKENS.contains(&next_token_type) || self.options.in_before_block && next_token_type == TokenType::OpenBrace)
-                // type is only allowed in `(type)` parenthesis to disambiguate from expression form
-                // (other composites don't need this since they're always followed by `<`, `(`, or `{`))
-                && (keyword != Keyword::Type && keyword != Keyword::Newtype || self.prev_token_type() == TokenType::OpenParenthesis && next_token_type == TokenType::CloseParenthesis)
-            {
-                let type_literal = self.eat_composite_type_literal()?;
-                self.tree.insert(
-                    Expression::TypeLiteral(type_literal),
-                    self.get_span_from(start),
-                )
-            }
             // namespace or module declaration
             else if (keyword == Some(Keyword::Namespace)
                 || self.language.supports_module_declaration()
@@ -1802,11 +1771,10 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
-        DeclarationType, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField,
-        EnumKind, Expression, FunctionKind, ImportSource, IntType, Key, Mutability, Name,
-        Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
-        TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
-        VarianceBound,
+        Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField, EnumKind,
+        Expression, FunctionKind, ImportSource, IntType, Key, Mutability, Name, Parameter, Pattern,
+        PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -1914,20 +1882,20 @@ type = type * 2
         let _ = parser.eat_expression().unwrap();
     }
 
-    /// Parse an if extends struct condition without consuming the block.
+    /// Parse an if extends condition without consuming the block.
     #[test]
-    fn test_parse_if_extends_struct_type_literal() {
-        let mut test = TestParser::new("if x extends struct {\n    body\n}");
+    fn test_parse_if_extends_type_reference() {
+        let mut test = TestParser::new("if x extends Foo {\n    body\n}");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
             assert!(else_expression.is_none());
-            // x extends struct
+            // x extends Foo
             assert_node!(parser.tree, *condition, Expression::TypeBinary { left, operator, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "x");
                 assert_eq!(*operator, TypeBinaryOperator::Extends);
-                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Struct)));
+                assert_expression_path!(parser, parser.tree.get(*right), "Foo");
             });
             // { body }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
@@ -1939,20 +1907,20 @@ type = type * 2
         });
     }
 
-    /// Parse an if instanceof class condition inside parentheses.
+    /// Parse an if instanceof condition inside parentheses.
     #[test]
-    fn test_parse_if_instanceof_class_type_literal() {
-        let mut test = TestParser::new("if (T instanceof class) {\n    value\n}");
+    fn test_parse_if_instanceof_type_reference() {
+        let mut test = TestParser::new("if (T instanceof Foo) {\n    value\n}");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
             assert!(else_expression.is_none());
-            // T instanceof class
+            // T instanceof Foo
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "T");
                 assert_eq!(*operator, BinaryOperator::InstanceOf);
-                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Composite(DeclarationType::Class)));
+                assert_expression_path!(parser, parser.tree.get(*right), "Foo");
             });
             // { value }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {

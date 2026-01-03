@@ -30,9 +30,7 @@ mod r#type;
 mod visibility;
 mod r#where;
 
-pub use expression::{
-    COMPOSITE_TYPE_KEYWORDS, DECLARATION_KEYWORDS, DECLARATION_START_TOKENS, PATTERN_START_TOKENS,
-};
+pub use expression::{DECLARATION_KEYWORDS, DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
 pub use function::FUNCTION_MODIFIERS;
 pub use prelude::*;
 pub use property::BINDING_MODIFIERS;
