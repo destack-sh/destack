@@ -45,11 +45,11 @@ pub fn workspace_symbols(
         for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
             // get the declaration name
             let descriptor = declaration.descriptor();
-            let Some(string_id) = descriptor.name else {
+            let Some(name) = descriptor.name else {
                 continue;
             };
 
-            let name = ctx.ast.strings.get(string_id).to_string();
+            let name = ctx.ast.strings.get(name.string()).to_string();
 
             // check if name matches query (case-insensitive substring match)
             if !query.is_empty() && !name.to_lowercase().contains(&query_lower) {
@@ -119,8 +119,8 @@ fn find_container_name(
             };
             let parent_decl = dir_tree.get(decl_id);
             let descriptor = parent_decl.descriptor();
-            if let Some(name_id) = descriptor.name {
-                return Some(strings.get(name_id).to_string());
+            if let Some(name) = descriptor.name {
+                return Some(strings.get(name.string()).to_string());
             }
         }
         current_id = parent.id;
