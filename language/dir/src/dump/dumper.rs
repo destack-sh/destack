@@ -437,7 +437,6 @@ impl_dump_display! {
     BinaryOperator,
     DeclarationAbstraction,
     DeclarationKind,
-    DeclarationType,
     DependencyKind,
     DependencySource,
     DependencyMode,
@@ -762,12 +761,6 @@ impl Dump for TypeLiteral {
                 dumper
                     .object("TypeLiteral::Primitive")
                     .value(primitive)
-                    .end();
-            }
-            TypeLiteral::Composite(composite) => {
-                dumper
-                    .object("TypeLiteral::Composite")
-                    .value(composite)
                     .end();
             }
             TypeLiteral::Intrinsic(intrinsic) => {

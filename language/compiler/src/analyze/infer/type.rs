@@ -6,12 +6,11 @@ use crate::{
 };
 use destack_builtin::LanguageItem;
 use destack_dir::{
-    BinaryOperator, Declaration, DeclarationType, Expression, Extension, ExtensionKind,
-    GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty,
-    StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
-    WellKnownSymbol,
+    BinaryOperator, Declaration, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId, SymbolTable, SymbolType,
+    Type, TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter,
+    TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -2556,9 +2555,6 @@ impl Compiler {
     pub(super) fn is_definitely_struct_type(&self, ty: &Type) -> bool {
         match ty {
             Type::Reference { symbol, .. } => symbol.ty() == SymbolType::Struct,
-            Type::TypeLiteral {
-                value: TypeLiteral::Composite(DeclarationType::Struct),
-            } => true,
             _ => false,
         }
     }

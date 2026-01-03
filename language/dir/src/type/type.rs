@@ -5,7 +5,7 @@ use crate::{
     ScalarLiteral, StaticArgument, StaticKey, StringId, VarianceBound,
 };
 
-use super::{DeclarationType, PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
+use super::{PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
 
 /// A TypeLiteral is a scalar type.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,9 +26,7 @@ pub enum TypeLiteral {
     Null,
     /// Primitive type.
     Primitive(PrimitiveType),
-    /// Composite type.
-    Composite(DeclarationType), // FUGU: remove TypeLiteral::Composite + DeclarationType?
-    /// Intrinsic type (TypeScript compiler-provided).
+    /// Intrinsic type.
     Intrinsic(TypeIntrinsic),
     /// Scalar literal.
     ScalarLiteral(ScalarLiteral),
