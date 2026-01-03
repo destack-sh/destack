@@ -193,9 +193,13 @@ impl Parser {
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
                 let ty = self
-                    .with_options(self.options.not_in_position().in_type(), |parser| {
-                        parser.eat_expression()
-                    })
+                    .with_options(
+                        self.options
+                            .not_in_position()
+                            .not_in_left_precedence()
+                            .in_type(),
+                        |parser| parser.eat_expression(),
+                    )
                     .for_node_type(NodeType::Parameter)?;
                 (Some(ty), Some(self.get_span_from(type_start)))
             } else {

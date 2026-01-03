@@ -1119,7 +1119,7 @@ impl Parser {
                     } else {
                         self.restore(speculative_start, speculative_start_idx);
                         let properties = self
-                            .with_options(self.options.not_in_position(), |parser| {
+                            .with_options(self.options.not_in_position().in_type(), |parser| {
                                 parser.eat_object_literal()
                             })?;
                         self.tree.insert(
