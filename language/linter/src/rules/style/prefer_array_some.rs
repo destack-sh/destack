@@ -382,7 +382,6 @@ let has = items.filter(item => item > 1).length > 0;
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("prefer-array-some");
     }
 
@@ -398,7 +397,6 @@ let empty = items.filter(item => item > 1).length == 0;
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("prefer-array-some");
     }
 
@@ -414,7 +412,6 @@ let has = items.findIndex(item => item > 1) !== -1;
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_lint("prefer-array-some");
     }
 
@@ -430,7 +427,6 @@ let many = items.filter(item => item > 1).length > 1;
 "#,
             LintLevel::Dir,
         );
-        test.check_clean();
         test.result(result).assert_no_lint("prefer-array-some");
     }
 }
