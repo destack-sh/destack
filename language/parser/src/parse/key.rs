@@ -260,6 +260,7 @@ impl Parser {
             {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 let key_type =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                 self.eat_token(TokenType::CloseBracket)?;
@@ -308,6 +309,7 @@ impl Parser {
             {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 let key_type =
                     self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
                 self.eat_token(TokenType::CloseBracket)?;
@@ -336,6 +338,32 @@ impl Parser {
             Ok(Some(self.eat_key_with_span()?))
         } else {
             Ok(None)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_ast::{Expression, Key};
+
+    use crate::tests::TestParser;
+    use crate::{assert_node, assert_string};
+
+    #[test]
+    fn test_parse_key_named_expression_with_multiline_type() {
+        let mut test = TestParser::new(
+            r#"[key:
+    | string
+    | number]"#,
+        );
+        let mut parser = test.prepare();
+        let (key, _span) = parser.eat_key_with_span().unwrap();
+        match key {
+            Key::NamedExpression { name, key } => {
+                assert_string!(parser, name, "key");
+                assert_node!(parser.tree, key, Expression::Binary { .. });
+            }
+            _ => panic!("expected NamedExpression"),
         }
     }
 }

@@ -452,6 +452,7 @@ impl Parser {
             // optional type bound: `: Bound`
             let ty = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 Some(self.with_options(self.options.in_type(), |parser| parser.eat_expression())?)
             } else {
                 None
@@ -597,6 +598,7 @@ impl Parser {
             let (return_type, return_type_span) = if self.peek_colon().is_ok() {
                 let type_start = self.mark();
                 self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
                 let return_type = self.with_options(
                     self.options.nested().in_type().in_before_block(),
                     |parser| parser.eat_expression(),
@@ -932,6 +934,21 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_member_type_with_multiline_bound() {
+        let mut test = TestParser::new(
+            r#"type Item:
+    | Foo
+    | Bar"#,
+        );
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: Some(ty), value: None } => {
+            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+            assert_node!(parser.tree, *ty, Expression::Binary { .. });
+        });
+    }
+
+    #[test]
     fn test_parse_member_type_with_bound_and_value() {
         let mut test = TestParser::new("type Item: Hashable = string");
         let mut parser = test.prepare();
@@ -971,6 +988,27 @@ mod tests {
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::ComptimeBlock { modifiers: _, body } => {
             assert_node!(parser.tree, *body, Expression::Block(_));
+        });
+    }
+
+    #[test]
+    fn test_parse_member_method_with_multiline_return_type() {
+        let mut test = TestParser::new_with_options(
+            r#"Type(object: unknown):
+    | 'Undefined'
+    | 'Boolean'
+    | 'String'"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.options.in_variant = true;
+
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, .. } => {
+            assert_string!(parser, name.string(), "Type");
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert!(signature.return_type.is_some());
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Binary { .. });
         });
     }
 }
