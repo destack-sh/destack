@@ -174,9 +174,15 @@ impl Compiler {
         match float_type {
             dir::FloatType::Float32 => ast::FloatType { width: Some(32) },
             dir::FloatType::Float64 => ast::FloatType { width: Some(64) },
-            dir::FloatType::Arbitrary { width } => ast::FloatType {
-                width: Some(*width),
-            },
+            dir::FloatType::Arbitrary { width } => {
+                if *width == self.options.default_float_width {
+                    ast::FloatType { width: None }
+                } else {
+                    ast::FloatType {
+                        width: Some(*width),
+                    }
+                }
+            }
         }
     }
 

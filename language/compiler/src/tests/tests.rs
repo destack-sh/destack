@@ -30,6 +30,23 @@ use super::tracing::init_tracing;
 
 const TEST_TIMEOUT_SECONDS: u64 = 1;
 
+/// Choose a worker count for parallel tests without oversubscribing the host.
+fn test_parallel_workers() -> u16 {
+    let default_workers = default_workers();
+    if default_workers <= 1 {
+        return default_workers;
+    }
+
+    let test_threads = std::env::var("RUST_TEST_THREADS")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(default_workers)
+        .max(1);
+    let base = (default_workers / test_threads).max(1);
+    let min_workers = 2;
+    base.max(min_workers).min(default_workers)
+}
+
 /// A test file system.
 #[derive(Debug, Clone)]
 pub enum TestFileSystem {
@@ -109,7 +126,7 @@ impl TestProgram {
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),
             },
-            default_workers(),
+            test_parallel_workers(),
             false,
             false,
         )
@@ -121,7 +138,7 @@ impl TestProgram {
             TestFileSystem::Memory {
                 fs: Arc::new(MemoryFileSystem::new()),
             },
-            default_workers(),
+            test_parallel_workers(),
             true,
             false,
         )
@@ -442,8 +459,8 @@ impl TestProgram {
 
     /// Run all queued tasks to completion with a custom timeout.
     pub fn compile_with_timeout(&self, timeout: Duration) {
+        // spawn the compile thread
         let compiler = self.compiler.clone();
-
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
             compiler.compile();
@@ -633,14 +650,14 @@ impl TestProgram {
             strings: &strings,
         };
 
-        // format each root expression and join with newlines
+        // format each root expression and join with blank lines
         let mut results = Vec::new();
         for root_id in &unbound.roots {
             let formatted = destack_fir::format!(context.clone(), [root_id]).unwrap();
             let printed = formatted.print().unwrap();
             results.push(printed.into_str());
         }
-        results.join("\n")
+        results.join("\n\n")
     }
 
     /// Format a module's MIR to a string.

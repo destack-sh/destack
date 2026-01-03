@@ -4,6 +4,17 @@ use crate::{
     Parameter, StringId, TypeKind,
 };
 
+/// The kind of a declaration name.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DeclarationNameKind {
+    /// Identifier name (like `Foo`).
+    Identifier,
+    /// String name (like `"foo"`).
+    String,
+    /// Numeric name (like `123`).
+    Number,
+}
+
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeclarationKind {
@@ -33,6 +44,8 @@ pub struct DeclarationDescriptor {
     pub anchor: BindingAnchor,
     /// The name of the declaration.
     pub name: Option<StringId>,
+    /// The kind of declaration name.
+    pub name_kind: Option<DeclarationNameKind>, // FUGU: fold DeclarationNameKind into name (like in AST)
     /// The export type of the declaration.
     pub export: Option<DependencyMode>,
     /// The symbol of the declaration.
@@ -43,15 +56,6 @@ pub struct DeclarationDescriptor {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Declaration {
     /// Global augmentation declaration.
-    ///
-    /// Examples:
-    /// ```
-    /// declare global {
-    ///     interface Iterator<T> {
-    ///         next(): IteratorResult<T>;
-    ///     }
-    /// }
-    /// ```
     Global {
         descriptor: DeclarationDescriptor,
         scope: LocalScopeId,
@@ -73,8 +77,6 @@ pub enum Declaration {
         value: LocalNodeId<Expression>,
     },
     /// Struct declaration: nominal object type with value semantics and fixed layout.
-    /// Structs have no identity (value equality) and cannot use `extends`.
-    /// Use embedding for composition. Can `implements` interfaces.
     Struct {
         descriptor: DeclarationDescriptor,
         generics: Generics,
@@ -101,8 +103,6 @@ pub enum Declaration {
         members: Vec<LocalNodeId<Member>>,
     },
     /// Interface declaration.
-    /// Interfaces can be structural (default) or nominal (`newtype interface`).
-    /// Nominal interfaces require explicit `implements` declarations.
     Interface {
         descriptor: DeclarationDescriptor,
         kind: TypeKind,
@@ -119,10 +119,6 @@ pub enum Declaration {
         body: Option<LocalNodeId<Expression>>,
     },
     /// Extension declaration.
-    ///
-    /// Extensions require nominal types—types with declaration identity.
-    /// The `target_symbol` must resolve to a `struct`, `class`, `enum`, `newtype`,
-    /// or a prelude-declared primitive. Type aliases and structural types cannot be extended.
     Extension {
         descriptor: DeclarationDescriptor,
         generics: Generics,

@@ -1,7 +1,6 @@
 use destack_base::StringId;
-use destack_source::ModuleId;
 
-use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, Node, NodeType};
+use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleTarget, Node, NodeType};
 
 /// The source of a dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
@@ -51,7 +50,7 @@ pub enum DependencyItem {
         name: Option<StringId>,
         alias: Option<StringId>,
         target: StringId,
-        target_module: Option<ModuleId>, // item may remain unresolved even if we can resolve the target module
+        target_module: Option<ModuleTarget>, // item may remain unresolved even if we can resolve the target module
         symbol: Option<LocalSymbolId>,
     },
     /// Unresolved local item from the module.
@@ -83,7 +82,7 @@ pub enum DependencyItem {
         name: Option<StringId>,
         alias: Option<StringId>,
         target: StringId,
-        target_module: ModuleId,
+        target_module: ModuleTarget,
         symbol: Option<LocalSymbolId>,
         target_symbol: GlobalSymbolId,
     },
@@ -105,8 +104,8 @@ impl Node for DependencyItem {
 /// A namespace export edge from `export * from` declarations.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NamespaceExport {
-    /// The target module id.
-    pub module_id: ModuleId,
+    /// The target module.
+    pub module_id: ModuleTarget,
     /// The dependency kind for the export.
     pub kind: DependencyKind,
     /// The dependency item node that declared the export.

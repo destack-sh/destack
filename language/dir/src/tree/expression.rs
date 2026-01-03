@@ -1,13 +1,12 @@
 use destack_base::StringId;
-use destack_source::ModuleId;
 
 use crate::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastKind, Declaration,
     DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencySource,
     GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId, MatchCase, MatchSource,
-    Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral, StaticArgument,
-    StaticProperty, TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeMappedModifiers,
-    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral,
+    StaticArgument, StaticProperty, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
+    TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// A mapped type parameter for expressions.
@@ -19,45 +18,6 @@ pub struct TypeMappedParameterExpression {
     pub constraint: LocalNodeId<Expression>,
     /// The optional key remap (like `as Foo<K>`).
     pub key_remap: Option<LocalNodeId<Expression>>,
-}
-
-/// The kind of cast to perform.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CastKind {
-    /// Preserve the representation without conversion.
-    Identity,
-    /// Widen an integer type to a larger width.
-    IntWiden,
-    /// Narrow an integer type to a smaller width.
-    IntNarrow,
-    /// Change integer signedness at the same width.
-    IntSignChange,
-    /// Widen a float type to a larger width.
-    FloatWiden,
-    /// Narrow a float type to a smaller width.
-    FloatNarrow,
-    /// Convert an integer to a float.
-    IntToFloat,
-    /// Convert a float to an integer.
-    FloatToInt,
-    /// Convert a pointer to an integer.
-    PointerToInt,
-    /// Convert an integer to a pointer.
-    IntToPointer,
-    /// Convert one pointer type to another.
-    PointerCast,
-    /// Upcast into a wider union.
-    UnionUpcast,
-    /// Downcast from a union with a runtime check.
-    UnionDowncast,
-    /// Upcast into an instance type.
-    InstanceUpcast,
-    /// Downcast from an instance type with a runtime check.
-    InstanceDowncast,
-    /// Upcast into a nullable type.
-    NullableUpcast,
-    /// Downcast from a nullable type with a runtime check.
-    NullableDowncast,
 }
 
 /// An Expression is a generic container for all constructs.
@@ -100,14 +60,14 @@ pub enum Expression {
         source: DependencySource,
         kind: DependencyKind,
         target: StringId,
-        target_module: ModuleId,
+        target_module: ModuleTarget,
         items: Vec<LocalNodeId<DependencyItem>>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Re-export dependency (like `export { bar } from "foo"` or `export * as foo from "foo"`).
     ReExport {
         target: StringId,
-        target_module: ModuleId,
+        target_module: ModuleTarget,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
     },

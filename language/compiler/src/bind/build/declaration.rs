@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    EnumField, EnumKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
-    NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
-    SymbolType, TypeTable,
+    DeclarationNameKind, DependencyMode, EnumField, EnumKind, Expression, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree, NodeType, ScopeKind,
+    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -56,11 +56,17 @@ impl Compiler {
         symbol_type: SymbolType,
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
-        let name = descriptor.name.map(|name| {
-            self.program
-                .strings
-                .intern_from(&ast.strings, name.string())
-        });
+        let (name, name_kind) = if let Some(name) = descriptor.name {
+            let (name_id, name_kind) = match name {
+                ast::Name::Identifier(name_id) => (name_id, DeclarationNameKind::Identifier),
+                ast::Name::String(name_id) => (name_id, DeclarationNameKind::String),
+                ast::Name::Number(name_id) => (name_id, DeclarationNameKind::Number),
+            };
+            let name_id = self.program.strings.intern_from(&ast.strings, name_id);
+            (Some(name_id), Some(name_kind))
+        } else {
+            (None, None)
+        };
         let export = descriptor
             .export
             .map(|export| self.bind_dependency_mode(export));
@@ -155,6 +161,7 @@ impl Compiler {
             abstraction,
             anchor,
             name,
+            name_kind,
             export,
             symbol: symbol_id,
         };
@@ -203,6 +210,7 @@ impl Compiler {
             abstraction,
             anchor,
             name: None,
+            name_kind: None,
             export,
             symbol: symbol_id,
         }
@@ -227,6 +235,11 @@ impl Compiler {
             scope,
             parent_id,
         );
+
+        // track module binding data for module declarations
+        let mut module_binding_data = None;
+
+        // bind the declaration payload
         let declaration = match ast_declaration {
             ast::Declaration::Global {
                 descriptor,
@@ -236,7 +249,7 @@ impl Compiler {
                     self.bind_global_descriptor(module, ast, scope, descriptor, symbols);
                 let global_scope_id = module.dir_base().global_augmentation_scope;
                 let global_scope = (global_scope_id, symbols.get_scope_mark(global_scope_id));
-                let expressions = expressions
+                let expressions: Vec<LocalNodeId<Expression>> = expressions
                     .iter()
                     .map(|expression| {
                         self.bind_expression(
@@ -257,6 +270,7 @@ impl Compiler {
                     expressions,
                 }
             }
+
             ast::Declaration::Namespace {
                 descriptor,
                 generics,
@@ -281,7 +295,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                let expressions = expressions
+                let expressions: Vec<LocalNodeId<Expression>> = expressions
                     .iter()
                     .map(|expression| {
                         self.bind_expression(
@@ -296,6 +310,46 @@ impl Compiler {
                         )
                     })
                     .collect();
+
+                // register module declarations for ambient module resolution
+                if descriptor.name_kind == Some(DeclarationNameKind::String)
+                    && let Some(specifier) = descriptor.name
+                {
+                    // insert default and export assignment symbols for module declarations
+                    let scope_mark = symbols.get_scope_mark(scope_id);
+                    let scope = (scope_id, scope_mark);
+                    let binding = match descriptor.kind {
+                        DeclarationKind::Declaration => SymbolBinding::Ambient,
+                        DeclarationKind::Definition => SymbolBinding::Runtime,
+                    };
+                    let (default_symbol, _) = symbols.insert_symbol(
+                        SymbolKind::Namespace,
+                        SymbolType::Void,
+                        SymbolSpace::Value,
+                        binding,
+                        None,
+                        scope,
+                        Some(DependencyMode::Default),
+                    );
+                    let (export_assignment_symbol, _) = symbols.insert_symbol(
+                        SymbolKind::Namespace,
+                        SymbolType::Void,
+                        SymbolSpace::Value,
+                        binding,
+                        None,
+                        scope,
+                        None,
+                    );
+
+                    module_binding_data = Some((
+                        specifier,
+                        scope_id,
+                        expressions.clone(),
+                        default_symbol,
+                        export_assignment_symbol,
+                    ));
+                }
+
                 Declaration::Namespace {
                     descriptor,
                     generics,
@@ -303,6 +357,7 @@ impl Compiler {
                     expressions,
                 }
             }
+
             ast::Declaration::Type {
                 descriptor,
                 kind,
@@ -362,6 +417,7 @@ impl Compiler {
                     value,
                 }
             }
+
             ast::Declaration::Struct {
                 descriptor,
                 generics,
@@ -420,6 +476,7 @@ impl Compiler {
                     members,
                 }
             }
+
             ast::Declaration::Class {
                 descriptor,
                 generics,
@@ -478,6 +535,7 @@ impl Compiler {
                     members,
                 }
             }
+
             ast::Declaration::Enum {
                 descriptor,
                 kind,
@@ -556,6 +614,7 @@ impl Compiler {
                     members,
                 }
             }
+
             ast::Declaration::Interface {
                 descriptor,
                 kind,
@@ -616,6 +675,7 @@ impl Compiler {
                     members,
                 }
             }
+
             ast::Declaration::Extension {
                 descriptor,
                 generics,
@@ -687,6 +747,7 @@ impl Compiler {
                     members,
                 }
             }
+
             ast::Declaration::Function {
                 descriptor,
                 signature,
@@ -733,6 +794,26 @@ impl Compiler {
         };
         let symbol_id = declaration.symbol();
         let declaration_id = tree.insert(declaration_id, declaration);
+
+        // register module bindings once the declaration id is stable
+        if let Some((specifier, scope_id, expressions, default_symbol, export_assignment_symbol)) =
+            module_binding_data
+        {
+            let module_binding = ModuleBinding {
+                specifier,
+                declaration: declaration_id,
+                scope: scope_id,
+                expressions,
+                default_symbol,
+                export_assignment_symbol,
+            };
+            module
+                .dir_base()
+                .module_bindings
+                .write()
+                .push(module_binding);
+        }
+
         // attach the declaration to the symbol
         let symbol_entry = symbols.get_symbol_mut(symbol_id);
         if symbol_entry.primary_declaration.is_some() {

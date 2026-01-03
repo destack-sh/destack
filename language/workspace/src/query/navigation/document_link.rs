@@ -93,8 +93,13 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
                 target_module,
                 ..
             } => {
+                // skip module bindings for document links
+                let destack_dir::ModuleTarget::Module(target_module_id) = target_module else {
+                    continue;
+                };
+
                 // get the target module's file path
-                let target_module_ref = session.modules.get(*target_module);
+                let target_module_ref = session.modules.get(*target_module_id);
                 let target_guard = target_module_ref.read();
                 let Some(ref path) = target_guard.path else {
                     continue;

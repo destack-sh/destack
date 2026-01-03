@@ -10,8 +10,9 @@ use parking_lot::Mutex;
 
 use crate::{
     CompileDiagnostic, CompilerEvent, CompilerEventHandler, CompilerStats, DiagnosticAnchor,
-    GlobalSymbolCache, GlobalSymbolCacheKey, Task, TaskDependency, TaskDependencyError, TaskError,
-    TaskQueue, TaskResultCollector, TaskStatus, TaskWarning,
+    GlobalSymbolCache, GlobalSymbolCacheKey, ModuleBindingCache, ModuleBindingCacheKey, Task,
+    TaskDependency, TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus,
+    TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -167,6 +168,8 @@ pub struct Compiler {
     pub comptime_target: Target,
     /// Global symbol tables indexed by target and profile.
     pub(crate) global_symbol_caches: DashMap<GlobalSymbolCacheKey, GlobalSymbolCache>,
+    /// Module binding tables indexed by target and profile.
+    pub(crate) module_binding_caches: DashMap<ModuleBindingCacheKey, ModuleBindingCache>,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -196,6 +199,7 @@ impl Compiler {
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
             global_symbol_caches: DashMap::new(),
+            module_binding_caches: DashMap::new(),
             stats: Arc::new(CompilerStats::new()),
             comptime_target,
         }

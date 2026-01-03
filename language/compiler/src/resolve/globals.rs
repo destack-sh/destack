@@ -25,8 +25,6 @@ pub(crate) struct GlobalSymbolCacheKey {
 /// Track global symbols from declare global blocks reachable from a root set.
 #[derive(Debug, Clone)]
 pub(crate) struct GlobalSymbolCache {
-    /// Root modules used to seed discovery.
-    pub roots: Vec<ModuleId>,
     /// Versions for modules included in the index.
     pub module_versions: IndexMap<ModuleId, ModuleVersion>,
     /// First symbol observed for each global key.
@@ -40,10 +38,9 @@ pub(crate) struct GlobalSymbolCache {
 }
 
 impl GlobalSymbolCache {
-    /// Create an empty table seeded with roots.
-    fn new(roots: Vec<ModuleId>) -> Self {
+    /// Create an empty table.
+    fn new() -> Self {
         Self {
-            roots,
             module_versions: IndexMap::new(),
             symbols: IndexMap::new(),
             symbols_by_space: IndexMap::new(),
@@ -85,16 +82,9 @@ impl Compiler {
         // select the root set for this module
         let (key, roots) = self.select_global_symbol_table(module_id, profile_id)?;
 
-        // reuse cached table when roots and module versions match
-        let should_rebuild = self
-            .global_symbol_caches
-            .get(&key)
-            .map(|index| self.is_global_symbol_table_stale(&index, &roots))
-            .unwrap_or(true);
-
-        // rebuild the table when it is stale
-        if should_rebuild {
-            let index = self.build_global_symbol_table(&roots)?;
+        // build the table when missing
+        if !self.global_symbol_caches.contains_key(&key) {
+            let index = self.build_global_symbol_table(&roots, profile_id)?;
             self.global_symbol_caches.insert(key.clone(), index);
         }
         Ok(key)
@@ -210,24 +200,6 @@ impl Compiler {
         )))
     }
 
-    /// Check whether a cached symbol table is stale.
-    fn is_global_symbol_table_stale(&self, index: &GlobalSymbolCache, roots: &[ModuleId]) -> bool {
-        // roots must match the current selection
-        if index.roots != roots {
-            return true;
-        }
-
-        // module versions must match the current program view
-        for (module_id, version) in &index.module_versions {
-            let module = self.program.modules.get(*module_id);
-            let module = module.read();
-            if module.version != *version {
-                return true;
-            }
-        }
-        false
-    }
-
     /// Build the cache key for a module and profile.
     pub(crate) fn build_global_symbol_table_key(
         &self,
@@ -277,7 +249,7 @@ impl Compiler {
 
     /// Select the global symbol table roots for a module.
     /// Returns the cache key and root module list.
-    fn select_global_symbol_table(
+    pub(super) fn select_global_symbol_table(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
@@ -379,9 +351,13 @@ impl Compiler {
     }
 
     /// Build the global symbol table for a root module set.
-    fn build_global_symbol_table(&self, roots: &[ModuleId]) -> ResolveResult<GlobalSymbolCache> {
+    fn build_global_symbol_table(
+        &self,
+        roots: &[ModuleId],
+        profile_id: ProfileId,
+    ) -> ResolveResult<GlobalSymbolCache> {
         // initialize the traversal state
-        let mut index = GlobalSymbolCache::new(roots.to_vec());
+        let mut index = GlobalSymbolCache::new();
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         queue.extend(roots.iter().copied());
@@ -418,9 +394,19 @@ impl Compiler {
             // enqueue dependency targets for further discovery
             let dependency_targets = self.collect_dependency_targets(module_id, &tree);
             for (target, node) in dependency_targets {
-                let remote_module_id = self
-                    .resolve_specifier_to_module(target, Some(module_id))
-                    .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
+                let remote_module_id =
+                    match self.resolve_specifier_to_module(target, Some(module_id)) {
+                        Ok(module_id) => module_id,
+                        Err(_) => {
+                            if self
+                                .resolve_module_binding_target(module_id, profile_id, target)?
+                                .is_some()
+                            {
+                                continue;
+                            }
+                            return Err(ResolveError::UnresolvedModule { node, target });
+                        }
+                    };
                 queue.push_back(remote_module_id);
             }
         }
@@ -500,7 +486,7 @@ impl Compiler {
     }
 
     /// Collect module specifiers referenced by imports and reexports.
-    fn collect_dependency_targets(
+    pub(super) fn collect_dependency_targets(
         &self,
         module_id: ModuleId,
         tree: &NodeTree,

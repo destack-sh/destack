@@ -419,6 +419,7 @@ impl_dump_display! {
     BinaryOperator,
     DeclarationAbstraction,
     DeclarationKind,
+    DeclarationNameKind,
     DeclarationType,
     DependencyKind,
     DependencySource,
@@ -538,6 +539,7 @@ impl Dump for DeclarationDescriptor {
             .field("kind", &self.kind)
             .field("abstraction", &self.abstraction)
             .field_optional("name", &self.name)
+            .field_optional("name_kind", &self.name_kind)
             .field_optional("export", &self.export)
             .field("symbol", &self.symbol)
             .end();
@@ -2049,6 +2051,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 // ----------------------------------------------------------------------------
 
 impl_dump_display! {
+    ModuleTarget,
     ScopeKind,
     SymbolSpace,
     SymbolKind,
