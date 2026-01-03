@@ -672,6 +672,7 @@ function test(): float {
         test.elaborate_module(module_id);
         test.compile_check_clean();
         test.assert_elaborated(
+            // FUGU: make casts (and/or unbind?) more specific than "float"?
             module_id,
             r#"
 function intValue(): int32 {
@@ -794,6 +795,146 @@ function intValue(): int32 {
 
 function test(condition): float {
     return condition ? floatValue() : intValue() as float;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_explicit_cast_expression() {
+        // explicit casts stay explicit
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): float {
+    return intValue() as float;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): float {
+    return intValue() as float64;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_using_binding() {
+        // using bindings cast initializers when needed
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): void {
+    using value: float = intValue();
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): void {
+    using value = intValue() as float;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_skip_same_type() {
+        // matching types do not insert casts
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 {
+    let value: int32 = intValue();
+    return value;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 {
+    let value = intValue();
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_skip_numeric_literal() {
+        // scalar literal numeric casts are omitted
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(): float {
+    let value: float = 1;
+    return value;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(): float {
+    let value = 1;
+    return value;
 }
 "#,
         );
