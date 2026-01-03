@@ -5,6 +5,8 @@
 /// - Slicing: `array[1..5]`
 /// - Pattern matching: `match (x) { 1..10 => ... }`
 
+import { Iterable } from "./iterable.ds";
+
 /// A range bound - included, excluded, or unbounded.
 export newtype Bound<T> = { kind: "included", value: T }
     | { kind: "excluded", value: T }
@@ -31,7 +33,7 @@ export newtype interface RangeBounds<T> {
 ///     print(i);  // 0, 1, 2, 3, 4
 /// }
 /// ```
-export struct Range<T> implements RangeBounds<T> {
+export struct Range<T> implements RangeBounds<T>, Iterable<T> {
     start: T,
     end: T,
 }
@@ -43,7 +45,7 @@ export struct Range<T> implements RangeBounds<T> {
 ///     print(i);  // 0, 1, 2, 3, 4, 5
 /// }
 /// ```
-export struct RangeInclusive<T> implements RangeBounds<T> {
+export struct RangeInclusive<T> implements RangeBounds<T>, Iterable<T> {
     start: T,
     end: T,
 }
@@ -56,7 +58,7 @@ export struct RangeInclusive<T> implements RangeBounds<T> {
 ///     print(i);  // 5, 6, 7, 8, 9, 10
 /// }
 /// ```
-export struct RangeFrom<T> implements RangeBounds<T> {
+export struct RangeFrom<T> implements RangeBounds<T>, Iterable<T> {
     start: T,
 }
 
