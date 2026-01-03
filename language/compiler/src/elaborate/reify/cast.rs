@@ -459,8 +459,8 @@ impl Compiler {
         module: &Module,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // read the source type id
-        let value_type_id = types
-            .get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
+        let value_type_id = self
+            .value_type_id_for_expression(module_id, value_id, tree, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: value_id.into_global_any(module_id),
             })?;
@@ -480,6 +480,35 @@ impl Compiler {
             target_type_id,
             module,
         );
+
+        // skip redundant union and nullable upcasts
+        if matches!(
+            operator,
+            CastOperator::UnionUpcast | CastOperator::NullableUpcast
+        ) {
+            let options = self.analyze_context_options_for_module(module_id);
+            let to_target = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_type_id,
+                value_type_id,
+                types,
+                &options,
+            );
+            let to_source = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                value_type_id,
+                target_type_id,
+                types,
+                &options,
+            );
+            if to_target.is_assignable() && to_source.is_assignable() {
+                return Ok(value_id);
+            }
+        }
 
         // skip numeric casts for scalar literals
         let value_type = types.get_type(value_type_id);
@@ -532,6 +561,36 @@ impl Compiler {
         );
 
         Ok(cast_expression_id)
+    }
+
+    /// Resolve the value type id for an expression node.
+    fn value_type_id_for_expression(
+        &self,
+        module_id: ModuleId,
+        value_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // read the expression node
+        let expression = tree.get(value_id);
+
+        // prefer symbol value types when referencing a binding
+        let symbol = match expression {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+            _ => None,
+        };
+
+        // return the symbol value type when available
+        if let Some(symbol) = symbol
+            && let Some(type_id) = types.get_value_type_id(symbol)
+        {
+            return Some(type_id);
+        }
+
+        // fall back to declared or inferred types on the node
+        types.get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
     }
 
     /// Classify the cast operator for two types.

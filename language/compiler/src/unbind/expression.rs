@@ -497,9 +497,29 @@ impl Compiler {
                     ast::Expression::TypeLiteral(value)
                 }
 
-                dir::Expression::Type { .. } => {
-                    // #Incomplete: unbind dir::Expression::Type?
-                    ast::Expression::Error
+                dir::Expression::Type { value } => {
+                    // load the dir for the active profile
+                    let dir = module
+                        .dir_maybe(context.profile)
+                        .unwrap_or_else(|| module.dir_base());
+
+                    // read the type table for the module
+                    let types = dir.types.read();
+                    let ast_expression_id = self.unbind_type_expression(
+                        module,
+                        *value,
+                        tree,
+                        symbols,
+                        &types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
+
+                    // record the node mapping
+                    context.map(expression_id.into_any(), ast_expression_id.into_any());
+
+                    return ast_expression_id;
                 }
 
                 dir::Expression::TemplateExpression { value } => {
@@ -797,7 +817,7 @@ impl Compiler {
     }
 
     /// Unbind a DIR type predicate subject to an AST type predicate subject.
-    fn unbind_type_predicate_subject(
+    pub(super) fn unbind_type_predicate_subject(
         &self,
         subject: dir::TypePredicateSubject,
         module: &Module,
