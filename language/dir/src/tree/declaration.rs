@@ -1,19 +1,8 @@
 use crate::{
     BindingAnchor, DependencyMode, Expression, FunctionSignature, Generics, GlobalSymbolId,
-    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Node, NodeType,
+    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType,
     Parameter, StringId, TypeKind,
 };
-
-/// The kind of a declaration name.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DeclarationNameKind {
-    /// Identifier name (like `Foo`).
-    Identifier,
-    /// String name (like `"foo"`).
-    String,
-    /// Numeric name (like `123`).
-    Number,
-}
 
 /// The kind of declaration.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -43,9 +32,7 @@ pub struct DeclarationDescriptor {
     /// The anchor of the declaration.
     pub anchor: BindingAnchor,
     /// The name of the declaration.
-    pub name: Option<StringId>,
-    /// The kind of declaration name.
-    pub name_kind: Option<DeclarationNameKind>, // FUGU: fold DeclarationNameKind into name (like in AST)
+    pub name: Option<Name>,
     /// The export type of the declaration.
     pub export: Option<DependencyMode>,
     /// The symbol of the declaration.

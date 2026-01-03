@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    DeclarationNameKind, DependencyMode, EnumField, EnumKind, Expression, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeTree, NodeType, ScopeKind,
-    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
+    DependencyMode, EnumField, EnumKind, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
+    SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -56,17 +56,20 @@ impl Compiler {
         symbol_type: SymbolType,
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
-        let (name, name_kind) = if let Some(name) = descriptor.name {
-            let (name_id, name_kind) = match name {
-                ast::Name::Identifier(name_id) => (name_id, DeclarationNameKind::Identifier),
-                ast::Name::String(name_id) => (name_id, DeclarationNameKind::String),
-                ast::Name::Number(name_id) => (name_id, DeclarationNameKind::Number),
+        // bind the name into the dir string pool
+        let name = descriptor.name.map(|name| {
+            let name_id = match &name {
+                ast::Name::Identifier(name_id) => *name_id,
+                ast::Name::String(name_id) => *name_id,
+                ast::Name::Number(name_id) => *name_id,
             };
             let name_id = self.program.strings.intern_from(&ast.strings, name_id);
-            (Some(name_id), Some(name_kind))
-        } else {
-            (None, None)
-        };
+            match name {
+                ast::Name::Identifier(_) => Name::Identifier(name_id),
+                ast::Name::String(_) => Name::String(name_id),
+                ast::Name::Number(_) => Name::Number(name_id),
+            }
+        });
         let export = descriptor
             .export
             .map(|export| self.bind_dependency_mode(export));
@@ -98,7 +101,7 @@ impl Compiler {
             DeclarationKind::Declaration => SymbolBinding::Ambient,
             DeclarationKind::Definition => SymbolBinding::Runtime,
         };
-        let key = name.map(StaticKey::Name);
+        let key = name.map(|name: Name| StaticKey::Name(name.string()));
 
         // check for mergeable symbols in the current scope
         let (merge_symbol, merge_group) = key
@@ -167,7 +170,6 @@ impl Compiler {
             abstraction,
             anchor,
             name,
-            name_kind,
             export,
             symbol: symbol_id,
         };
@@ -216,7 +218,6 @@ impl Compiler {
             abstraction,
             anchor,
             name: None,
-            name_kind: None,
             export,
             symbol: symbol_id,
         }
@@ -318,9 +319,7 @@ impl Compiler {
                     .collect();
 
                 // register module declarations for ambient module resolution
-                if descriptor.name_kind == Some(DeclarationNameKind::String)
-                    && let Some(specifier) = descriptor.name
-                {
+                if let Some(Name::String(specifier)) = descriptor.name {
                     // insert default and export assignment symbols for module declarations
                     let scope_mark = symbols.get_scope_mark(scope_id);
                     let scope = (scope_id, scope_mark);

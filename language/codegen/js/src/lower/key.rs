@@ -14,6 +14,16 @@ impl ModuleLowerer<'_> {
         }
     }
 
+    /// Lower a name from DIR into JS AST.
+    pub fn lower_name(&mut self, name: dir::Name) -> Name {
+        let name_id = self.strings.intern_from(&self.ast.strings, name.string());
+        match name {
+            dir::Name::Identifier(_) => Name::Identifier(name_id),
+            dir::Name::String(_) => Name::String(name_id),
+            dir::Name::Number(_) => Name::String(name_id),
+        }
+    }
+
     /// Lower a key from DIR into JS AST.
     pub fn lower_key(&mut self, key: dir::DynamicKey) -> CodegenJsResult<Key> {
         let key = match key {

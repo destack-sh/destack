@@ -510,4 +510,66 @@ mod tests {
             }
         }
     }
+
+    /// Dump errors from builtin libs for debugging.
+    #[test]
+    #[ignore]
+    fn test_dump_builtin_lib_errors() {
+        use std::collections::HashMap;
+
+        // test with es2015 which has known issues
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_libs(&["es2015", "dom"]);
+
+        test.resolve_builtins();
+        test.resolve_libs();
+        test.compile();
+
+        // analyze modules
+        let builtins = test.program.builtins.as_ref().unwrap();
+        for lib_name in &["es2015", "dom"] {
+            let lib_modules = builtins
+                .load_lib(
+                    lib_name,
+                    test.program.files.clone(),
+                    test.program.modules.clone(),
+                )
+                .unwrap();
+            for module_id in lib_modules {
+                test.analyze_module(module_id);
+            }
+        }
+        test.compile();
+
+        // collect and print diagnostics by file
+        test.compiler.flush_diagnostics();
+        let diagnostics = test.program.diagnostics.collect();
+        let mut by_file: HashMap<String, Vec<String>> = HashMap::new();
+
+        for diagnostic in diagnostics.iter() {
+            let file = test.program.files.get(diagnostic.file_id);
+            let file = file
+                .uri
+                .to_path()
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_else(|| file.uri.to_string());
+            let msg = format!("{}: {}", diagnostic.code, diagnostic.message);
+            by_file.entry(file).or_default().push(msg);
+        }
+
+        eprintln!("\n=== Builtin lib errors ===");
+        let mut files: Vec<_> = by_file.keys().collect();
+        files.sort();
+        for file in files {
+            let errors = &by_file[file];
+            eprintln!("\n{}:", file);
+            for (i, err) in errors.iter().enumerate().take(5) {
+                eprintln!("  {}. {}", i + 1, err);
+            }
+            if errors.len() > 5 {
+                eprintln!("  ... and {} more", errors.len() - 5);
+            }
+        }
+        eprintln!("\nTotal: {} errors", diagnostics.len());
+    }
 }

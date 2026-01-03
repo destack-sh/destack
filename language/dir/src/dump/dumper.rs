@@ -390,6 +390,24 @@ impl Dump for StringId {
     }
 }
 
+/// Dump a Name as a string.
+impl Dump for Name {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            Name::Identifier(id) => id.dump(dumper),
+            Name::String(id) => {
+                dumper.write_char('[', Some(Color::White));
+                id.dump(dumper);
+                dumper.write_char(']', Some(Color::White));
+            }
+            Name::Number(id) => {
+                // numeric keys display without quotes
+                id.dump(dumper);
+            }
+        }
+    }
+}
+
 /// Dump a NodeId<T> as the node it points to.
 impl<T: Node + Clone + Dump> Dump for LocalNodeId<T>
 where
@@ -419,7 +437,6 @@ impl_dump_display! {
     BinaryOperator,
     DeclarationAbstraction,
     DeclarationKind,
-    DeclarationNameKind,
     DeclarationType,
     DependencyKind,
     DependencySource,
@@ -549,7 +566,6 @@ impl Dump for DeclarationDescriptor {
             .field("kind", &self.kind)
             .field("abstraction", &self.abstraction)
             .field_optional("name", &self.name)
-            .field_optional("name_kind", &self.name_kind)
             .field_optional("export", &self.export)
             .field("symbol", &self.symbol)
             .end();

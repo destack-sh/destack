@@ -1,8 +1,8 @@
 use destack_dir::{
     BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    DeclarationNameKind, Declarator, Expression, IfKind, LocalNodeId, LocalSymbolId, MatchCase,
-    MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern, PatternField,
-    ScalarLiteral, StringId, TypeBinaryOperator,
+    Declarator, Expression, IfKind, LocalNodeId, LocalSymbolId, MatchCase, MatchSelector,
+    MatchSource, Mutability, Name, NodeTree, NodeType, Pattern, PatternField, ScalarLiteral,
+    StringId, TypeBinaryOperator,
 };
 
 use crate::{Compiler, ElaborateResult};
@@ -845,8 +845,7 @@ impl Compiler {
                 kind: DeclarationKind::Definition,
                 abstraction: DeclarationAbstraction::Concrete,
                 anchor: BindingAnchor::Instance,
-                name: Some(name),
-                name_kind: Some(DeclarationNameKind::Identifier),
+                name: Some(Name::Identifier(name)),
                 export: None,
                 symbol,
             };

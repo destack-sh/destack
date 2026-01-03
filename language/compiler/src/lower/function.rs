@@ -95,10 +95,14 @@ impl ModuleLowerer<'_> {
             })?;
         };
 
-        let name_id = descriptor.name.ok_or(LowerError::UnsupportedConstruct {
-            node: declaration_id.into_global_any(self.module_id),
-            message: "missing name".to_string(),
-        })?;
+        let name_id =
+            descriptor
+                .name
+                .map(|name| name.string())
+                .ok_or(LowerError::UnsupportedConstruct {
+                    node: declaration_id.into_global_any(self.module_id),
+                    message: "missing name".to_string(),
+                })?;
         let name = self.compiler.program.strings.get(name_id).to_string();
 
         let symbol_id = descriptor.symbol.into_global(self.module_id);

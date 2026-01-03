@@ -35,7 +35,7 @@ pub fn format_declaration_signature(
 
     let name = descriptor
         .name
-        .map(|id| strings.get(id).to_string())
+        .map(|name| strings.get(name.string()).to_string())
         .unwrap_or_else(|| "<anonymous>".to_string());
 
     let export_prefix = if descriptor.export.is_some() {
@@ -259,7 +259,7 @@ pub fn format_symbol_signature(
 
     let name = descriptor
         .name
-        .map(|id| strings.get(id).to_string())
+        .map(|name| strings.get(name.string()).to_string())
         .unwrap_or_else(|| "<anonymous>".to_string());
 
     let export_prefix = if descriptor.export.is_some() {

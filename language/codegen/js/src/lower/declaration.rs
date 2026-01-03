@@ -62,7 +62,7 @@ impl ModuleLowerer<'_> {
         let kind = self.lower_declaration_kind(descriptor.kind);
         let abstraction = self.lower_declaration_abstraction(descriptor.abstraction);
         let anchor = self.lower_binding_anchor(descriptor.anchor);
-        let name = descriptor.name.map(|name| self.lower_string_to_name(name));
+        let name = descriptor.name.map(|name| self.lower_name(name));
         let export = descriptor
             .export
             .map(|export| self.lower_export_type(export));

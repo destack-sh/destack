@@ -71,14 +71,11 @@ impl Compiler {
         let abstraction = self.unbind_declaration_abstraction(context, descriptor.abstraction);
         let anchor = self.unbind_binding_anchor(context, descriptor.anchor);
         let name = descriptor.name.map(|name| {
-            let name_id = ast_strings.intern_from(&self.program.strings, name);
-            let name_kind = descriptor
-                .name_kind
-                .unwrap_or(dir::DeclarationNameKind::Identifier);
-            match name_kind {
-                dir::DeclarationNameKind::Identifier => ast::Name::Identifier(name_id),
-                dir::DeclarationNameKind::String => ast::Name::String(name_id),
-                dir::DeclarationNameKind::Number => ast::Name::Number(name_id),
+            let name_id = ast_strings.intern_from(&self.program.strings, name.string());
+            match name {
+                dir::Name::Identifier(_) => ast::Name::Identifier(name_id),
+                dir::Name::String(_) => ast::Name::String(name_id),
+                dir::Name::Number(_) => ast::Name::Number(name_id),
             }
         });
         let export = descriptor
