@@ -144,14 +144,15 @@ impl Compiler {
 
     /// Bind a float type to a DIR float type.
     pub(super) fn bind_float_type(&self, float_type: &ast::FloatType) -> FloatType {
-        match float_type {
+        let float_type = match float_type {
             ast::FloatType { width: Some(32) } => FloatType::Float32,
             ast::FloatType { width: Some(64) } => FloatType::Float64,
             ast::FloatType { width: None } => FloatType::Arbitrary {
                 width: self.options.default_float_width,
             },
             ast::FloatType { width: Some(width) } => FloatType::Arbitrary { width: *width },
-        }
+        };
+        float_type.simplify()
     }
 
     /// Bind a composite type to a DIR composite type.

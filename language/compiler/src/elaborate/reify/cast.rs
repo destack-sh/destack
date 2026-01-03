@@ -643,8 +643,8 @@ function intValue(): int32 {
     return 1;
 }
 
-function test(): float {
-    let value = intValue() as float;
+function test(): float64 {
+    let value = intValue() as float64;
     return value;
 }
 "#,
@@ -672,17 +672,15 @@ function test(): float {
         test.elaborate_module(module_id);
         test.compile_check_clean();
         test.assert_elaborated(
-            // FUGU: make casts (and/or unbind?) more specific than "float"?
-            // (IIRC we "temporarily" added some unbind expression/type hack around this?)
             module_id,
             r#"
 function intValue(): int32 {
     return 1;
 }
 
-function test(): float {
-    let value = intValue() as float;
-    value = intValue() as float;
+function test(): float64 {
+    let value = intValue() as float64;
+    value = intValue() as float64;
     return value;
 }
 "#,
@@ -714,8 +712,8 @@ function intValue(): int32 {
     return 1;
 }
 
-function test(): float {
-    return intValue() as float;
+function test(): float64 {
+    return intValue() as float64;
 }
 "#,
         );
@@ -750,12 +748,12 @@ function intValue(): int32 {
     return 1;
 }
 
-function takeFloat(value): float {
+function takeFloat(value): float64 {
     return value;
 }
 
-function test(): float {
-    return takeFloat(intValue() as float);
+function test(): float64 {
+    return takeFloat(intValue() as float64);
 }
 "#,
         );
@@ -786,7 +784,7 @@ function test(condition: boolean): float {
         test.assert_elaborated(
             module_id,
             r#"
-function floatValue(): float {
+function floatValue(): float64 {
     return 1;
 }
 
@@ -794,8 +792,8 @@ function intValue(): int32 {
     return 1;
 }
 
-function test(condition): float {
-    return condition ? floatValue() : intValue() as float;
+function test(condition): float64 {
+    return condition ? floatValue() : intValue() as float64;
 }
 "#,
         );
@@ -830,7 +828,7 @@ function intValue(): int32 {
     return 1;
 }
 
-function test(): float {
+function test(): float64 {
     return intValue() as float64;
 }
 "#,
@@ -867,7 +865,7 @@ function intValue(): int32 {
 }
 
 function test(): void {
-    using value = intValue() as float;
+    using value = intValue() as float64;
 }
 "#,
         );
@@ -933,7 +931,7 @@ function test(): float {
         test.assert_elaborated(
             module_id,
             r#"
-function test(): float {
+function test(): float64 {
     let value = 1;
     return value;
 }
