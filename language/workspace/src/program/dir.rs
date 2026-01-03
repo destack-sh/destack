@@ -42,8 +42,12 @@ pub struct ModuleDir {
     pub export_assignment: RwLock<Option<dir::LocalNodeId<dir::DependencyItem>>>,
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
     pub namespace_exports: RwLock<Vec<dir::NamespaceExport>>,
+    /// Module bindings (e.g., `declare module "foo"`).
+    pub module_bindings: RwLock<Vec<dir::ModuleBinding>>,
+    /// Export tables for module bindings.
+    pub module_binding_exports: RwLock<IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>>,
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
-    pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId), ModuleId>>,
+    pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId), dir::ModuleTarget>>,
     /// Exported symbols by key (space, name).
     pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
 }
@@ -104,6 +108,8 @@ impl ModuleDir {
             export_assignment_symbol: export_assignment_symbol_id,
             export_assignment: RwLock::new(None),
             namespace_exports: RwLock::new(Vec::new()),
+            module_bindings: RwLock::new(Vec::new()),
+            module_binding_exports: RwLock::new(IndexMap::new()),
             imported_modules: RwLock::new(IndexMap::new()),
             exported_symbols: RwLock::new(IndexMap::new()),
         }
@@ -130,6 +136,8 @@ impl ModuleDir {
             export_assignment_symbol: base.export_assignment_symbol,
             export_assignment: RwLock::new(base.export_assignment.read().clone()),
             namespace_exports: RwLock::new(base.namespace_exports.read().clone()),
+            module_bindings: RwLock::new(base.module_bindings.read().clone()),
+            module_binding_exports: RwLock::new(base.module_binding_exports.read().clone()),
             imported_modules: RwLock::new(base.imported_modules.read().clone()),
             exported_symbols: RwLock::new(base.exported_symbols.read().clone()),
         }

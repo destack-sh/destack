@@ -27,7 +27,7 @@ impl Compiler {
                 items,
                 arguments,
             } => {
-                let remote_module_id = self.resolve_import(
+                let remote_target = self.resolve_import(
                     module,
                     dir,
                     profile,
@@ -39,7 +39,7 @@ impl Compiler {
                     source: *source,
                     kind: *kind,
                     target: *target,
-                    target_module: remote_module_id,
+                    target_module: remote_target,
                     items: items.clone(),
                     arguments: arguments.clone(),
                 }
@@ -50,7 +50,7 @@ impl Compiler {
                 kind,
                 items,
             } => {
-                let remote_module_id = self.resolve_import(
+                let remote_target = self.resolve_import(
                     module,
                     dir,
                     profile,
@@ -60,7 +60,7 @@ impl Compiler {
                 )?;
                 Expression::ReExport {
                     target: *target,
-                    target_module: remote_module_id,
+                    target_module: remote_target,
                     kind: *kind,
                     items: items.clone(),
                 }

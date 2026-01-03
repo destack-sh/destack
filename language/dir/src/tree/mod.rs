@@ -1,6 +1,7 @@
 mod annotation;
 mod argument;
 mod block;
+mod cast;
 mod declaration;
 mod declarator;
 mod dependency;
@@ -21,6 +22,7 @@ mod walk;
 pub use annotation::*;
 pub use argument::*;
 pub use block::*;
+pub use cast::*;
 pub use declaration::*;
 pub use declarator::*;
 pub use dependency::*;

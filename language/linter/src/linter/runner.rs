@@ -161,11 +161,6 @@ impl LintRunner {
         let imported_modules = dir.imported_modules.read();
         let exported_symbols = dir.exported_symbols.read();
 
-        // map namespace export edges to module ids
-        let namespace_export_ids: Vec<ModuleId> = namespace_exports
-            .iter()
-            .map(|export| export.module_id)
-            .collect();
         let mut ctx = LintModuleDirContext::new(
             program,
             &module,
@@ -179,7 +174,10 @@ impl LintRunner {
             dir.namespace_symbol,
             dir.namespace_scope,
             dir.default_symbol,
-            namespace_export_ids,
+            namespace_exports
+                .iter()
+                .map(|export| export.module_id)
+                .collect(),
             imported_modules.clone(),
             exported_symbols.clone(),
             options,

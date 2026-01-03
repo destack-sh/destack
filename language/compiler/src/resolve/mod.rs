@@ -9,6 +9,7 @@ mod module;
 mod operator;
 mod process;
 mod symbol;
+mod target;
 mod r#type;
 mod warning;
 
@@ -17,4 +18,5 @@ pub use error::*;
 pub(crate) use globals::{GlobalSymbolCache, GlobalSymbolCacheKey};
 pub use operator::*;
 pub use process::*;
+pub(crate) use target::{ModuleBindingCache, ModuleBindingCacheKey};
 pub use warning::*;

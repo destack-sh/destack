@@ -2,8 +2,9 @@ use crate::{BindError, Compiler, ResolveError, ResolveResult, TaskResultCollecto
 use destack_builtin::builtin_lib;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind,
-    ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId,
-    NodeTree, StaticKey, SymbolSpace, SymbolTable,
+    ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
+    LocalSymbolId, ModuleBinding, ModuleBindingExports, NodeTree, StaticKey, SymbolSpace,
+    SymbolTable,
 };
 
 use destack_source::ModuleId;
@@ -63,6 +64,7 @@ impl Compiler {
         let tree = dir.tree.read();
         let mut symbols = dir.symbols.write();
         self.build_module_exports(&module, dir, &tree, &mut symbols);
+        self.build_module_binding_exports(&module, dir, &tree, &mut symbols);
         Ok(())
     }
 
@@ -78,9 +80,9 @@ impl Compiler {
         let dir = module.dir(profile);
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
-        let mut collector = TaskResultCollector::new();
 
         // resolve expressions
+        let mut collector = TaskResultCollector::new();
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             self.collect(
                 &mut collector,
@@ -94,8 +96,12 @@ impl Compiler {
                 ),
             );
         }
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(ResolveError::Yield { dependency });
+        }
 
         // resolve dependencies
+        let mut collector = TaskResultCollector::new();
         for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
             self.collect(
                 &mut collector,
@@ -109,24 +115,390 @@ impl Compiler {
                 ),
             );
         }
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(ResolveError::Yield { dependency });
+        }
 
         // resolve declarations (e.g., extension target_symbol)
+        let mut collector = TaskResultCollector::new();
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
             self.collect(
                 &mut collector,
                 self.resolve_declaration(&module, dir, declaration_id, &mut tree, &mut symbols),
             );
         }
-
-        // yield on any yield
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(ResolveError::Yield { dependency });
         }
 
         // finalize export targets after dependency resolution
         self.finalize_module_exports(dir, &tree, &mut symbols);
+        self.finalize_module_binding_exports(dir, &tree, &mut symbols);
 
         Ok(())
+    }
+
+    /// Build export tables for module bindings in this module.
+    fn build_module_binding_exports(
+        &self,
+        module: &Module,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+    ) {
+        // cache the default export name
+        let default_name = self.program.strings.intern("default");
+
+        // build the binding export table
+        let bindings = dir.module_bindings.read().clone();
+        let mut binding_exports = IndexMap::new();
+        for binding in bindings {
+            // collect the export assignment if present
+            let export_assignment_item =
+                self.collect_binding_export_assignment(module.id, &binding, tree);
+
+            // insert exports declared by symbols
+            let mut exports = IndexMap::new();
+            self.insert_binding_symbol_exports(
+                module.id,
+                &binding,
+                tree,
+                symbols,
+                &mut exports,
+                export_assignment_item,
+                default_name,
+            );
+
+            // insert exports declared by dependency items
+            self.insert_binding_dependency_exports(
+                module.id,
+                &binding,
+                tree,
+                symbols,
+                &mut exports,
+                export_assignment_item,
+                default_name,
+            );
+
+            // insert ambient exports for remaining names
+            self.insert_binding_ambient_exports(&binding, symbols, &mut exports);
+
+            // record the binding exports
+            binding_exports.insert(
+                binding.declaration.into_any(),
+                ModuleBindingExports {
+                    exports,
+                    export_assignment: export_assignment_item,
+                },
+            );
+        }
+
+        // store the binding export table
+        *dir.module_binding_exports.write() = binding_exports;
+    }
+
+    /// Collect the export assignment item for a module binding, if present.
+    fn collect_binding_export_assignment(
+        &self,
+        module_id: ModuleId,
+        binding: &ModuleBinding,
+        tree: &NodeTree,
+    ) -> Option<LocalNodeId<DependencyItem>> {
+        // scan export statements in the binding scope
+        let mut export_assignment_item: Option<LocalNodeId<DependencyItem>> = None;
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // skip items outside the binding scope
+            if !self.dependency_item_in_scope(tree, item_id, binding.scope) {
+                continue;
+            }
+
+            // skip nonexport statements
+            if self.export_statement_parent(tree, item_id).is_none() {
+                continue;
+            }
+
+            // skip nonassignment values
+            let DependencyItem::Value { mode, .. } = tree.get(item_id) else {
+                continue;
+            };
+            if *mode != DependencyMode::Namespace {
+                continue;
+            }
+
+            // report conflicts and keep the first assignment
+            if let Some(existing) = export_assignment_item {
+                self.error(BindError::ConflictingExport {
+                    node: item_id.into_global_any(module_id),
+                    other_node: existing.into_global_any(module_id),
+                    module: module_id,
+                    name: None,
+                });
+                continue;
+            }
+
+            export_assignment_item = Some(item_id);
+        }
+
+        export_assignment_item
+    }
+
+    /// Insert symbol exports for a module binding.
+    fn insert_binding_symbol_exports(
+        &self,
+        module_id: ModuleId,
+        binding: &ModuleBinding,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+        export_assignment_item: Option<LocalNodeId<DependencyItem>>,
+        default_name: destack_base::StringId,
+    ) {
+        // collect symbols declared in the binding scope
+        let scope = symbols.get_scope_by_id(binding.scope);
+        let symbol_ids: Vec<LocalSymbolId> = scope
+            .named_symbols
+            .iter()
+            .map(|(_, symbol_id)| *symbol_id)
+            .chain(
+                scope
+                    .anonymous_symbols
+                    .iter()
+                    .copied()
+                    .filter(|symbol_id| *symbol_id != binding.default_symbol),
+            )
+            .collect();
+
+        for symbol_id in symbol_ids {
+            // read symbol metadata
+            let symbol = symbols.get_symbol(symbol_id);
+            let Some(export_mode) = symbol.export else {
+                continue;
+            };
+
+            // reject exports when export assignment is present
+            if let Some(export_assignment_item) = export_assignment_item {
+                let Some(other_node) = symbol.primary_declaration else {
+                    continue;
+                };
+                self.error(BindError::ConflictingExport {
+                    node: export_assignment_item.into_global_any(module_id),
+                    other_node,
+                    module: module_id,
+                    name: None,
+                });
+                continue;
+            }
+
+            // resolve the export key
+            let key = match export_mode {
+                DependencyMode::Default => StaticKey::Name(default_name),
+                _ => {
+                    let Some(name) = symbol.name() else {
+                        continue;
+                    };
+                    StaticKey::Name(name)
+                }
+            };
+
+            // insert the export entry
+            let export = Export::local(key, symbol.space, symbol_id);
+            self.insert_exports(
+                module_id,
+                tree,
+                symbols,
+                exports,
+                export,
+                symbol.primary_declaration,
+            );
+
+            // align the binding default symbol with default export declarations
+            if export_mode == DependencyMode::Default
+                && symbols
+                    .get_symbol(binding.default_symbol)
+                    .target_symbol
+                    .is_none()
+            {
+                symbols
+                    .get_symbol_mut(binding.default_symbol)
+                    .resolve_to(symbol_id.into_global(module_id));
+            }
+        }
+    }
+
+    /// Insert dependency exports for a module binding.
+    fn insert_binding_dependency_exports(
+        &self,
+        module_id: ModuleId,
+        binding: &ModuleBinding,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+        export_assignment_item: Option<LocalNodeId<DependencyItem>>,
+        default_name: destack_base::StringId,
+    ) {
+        // walk dependency items under export expressions in the binding scope
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // skip dependency items outside the binding scope
+            if !self.dependency_item_in_scope(tree, item_id, binding.scope) {
+                continue;
+            }
+
+            // skip nonexport dependency items
+            if self.export_item_parent(tree, item_id).is_none() {
+                continue;
+            }
+
+            // reject exports when export assignment is present
+            if let Some(export_assignment_item) = export_assignment_item
+                && export_assignment_item != item_id
+            {
+                self.error(BindError::ConflictingExport {
+                    node: item_id.into_global_any(module_id),
+                    other_node: export_assignment_item.into_global_any(module_id),
+                    module: module_id,
+                    name: None,
+                });
+                continue;
+            }
+
+            // extract export metadata from the dependency item
+            let item = tree.get(item_id);
+            let (mode, kind, name, alias) = match item {
+                DependencyItem::Local {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                }
+                | DependencyItem::Remote {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                }
+                | DependencyItem::UnresolvedLocal {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                }
+                | DependencyItem::UnresolvedRemote {
+                    mode,
+                    kind,
+                    name,
+                    alias,
+                    ..
+                } => (*mode, *kind, *name, *alias),
+                DependencyItem::Value { mode, .. } => {
+                    // emit default value exports
+                    if *mode == DependencyMode::Default {
+                        let key = StaticKey::Name(default_name);
+                        let export = Export::local(key, SymbolSpace::Value, binding.default_symbol);
+                        self.insert_exports(
+                            module_id,
+                            tree,
+                            symbols,
+                            exports,
+                            export,
+                            Some(item_id.into_global_any(module_id)),
+                        );
+                    }
+                    continue;
+                }
+            };
+
+            // resolve the export key
+            let export_name = self.export_name_for_dependency(mode, name, alias, default_name);
+            let Some(export_name) = export_name else {
+                continue;
+            };
+            let key = StaticKey::Name(export_name);
+
+            // insert reexport entries
+            let spaces = match kind {
+                DependencyKind::Type => ExportSpaceOrder::TypeOnly,
+                DependencyKind::Value => ExportSpaceOrder::ValueOnly,
+            };
+            for space in spaces.spaces() {
+                let export = Export::reexport(key, *space, item_id);
+                self.insert_exports(
+                    module_id,
+                    tree,
+                    symbols,
+                    exports,
+                    export,
+                    Some(item_id.into_global_any(module_id)),
+                );
+            }
+        }
+    }
+
+    /// Insert ambient exports for a module binding scope.
+    fn insert_binding_ambient_exports(
+        &self,
+        binding: &ModuleBinding,
+        symbols: &SymbolTable,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+    ) {
+        // collect namespace symbols
+        let scope = symbols.get_scope_by_id(binding.scope);
+        let symbol_ids: Vec<LocalSymbolId> = scope
+            .named_symbols
+            .iter()
+            .map(|(_, symbol_id)| *symbol_id)
+            .chain(
+                scope
+                    .anonymous_symbols
+                    .iter()
+                    .copied()
+                    .filter(|symbol_id| *symbol_id != binding.default_symbol),
+            )
+            .collect();
+
+        // insert exports without overriding explicit entries
+        for symbol_id in symbol_ids {
+            // skip synthetic export assignment symbol
+            if symbol_id == binding.export_assignment_symbol {
+                continue;
+            }
+
+            // skip anonymous symbols
+            let symbol = symbols.get_symbol(symbol_id);
+            let Some(name) = symbol.name() else {
+                continue;
+            };
+
+            // expand type value entries into type and value exports
+            let key = StaticKey::Name(name);
+            match symbol.space {
+                SymbolSpace::TypeValue => {
+                    if !exports.contains_key(&(SymbolSpace::Type, key)) {
+                        exports.insert(
+                            (SymbolSpace::Type, key),
+                            Export::local(key, SymbolSpace::Type, symbol_id),
+                        );
+                    }
+                    if !exports.contains_key(&(SymbolSpace::Value, key)) {
+                        exports.insert(
+                            (SymbolSpace::Value, key),
+                            Export::local(key, SymbolSpace::Value, symbol_id),
+                        );
+                    }
+                }
+                SymbolSpace::Type | SymbolSpace::Value => {
+                    if !exports.contains_key(&(symbol.space, key)) {
+                        exports.insert(
+                            (symbol.space, key),
+                            Export::local(key, symbol.space, symbol_id),
+                        );
+                    }
+                }
+                SymbolSpace::Label => {}
+            }
+        }
     }
 
     /// Build the export table for a module.
@@ -456,6 +828,79 @@ impl Compiler {
         }
     }
 
+    /// Finalize export targets for module bindings after dependency resolution.
+    fn finalize_module_binding_exports(
+        &self,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+    ) {
+        // snapshot module bindings for export resolution
+        let bindings = dir.module_bindings.read().clone();
+
+        // finalize exports for each module binding
+        for binding in bindings {
+            // resolve export assignment target symbols
+            if let Some(binding_exports) = dir
+                .module_binding_exports
+                .read()
+                .get(&binding.declaration.into_any())
+                && let Some(item_id) = binding_exports.export_assignment
+            {
+                let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                    continue;
+                };
+                if *mode == DependencyMode::Namespace {
+                    let value_expression = tree.get(*value);
+                    if let Some(target_symbol) = value_expression.target_symbol() {
+                        symbols
+                            .get_symbol_mut(binding.export_assignment_symbol)
+                            .resolve_to(target_symbol);
+                    }
+                }
+            }
+
+            // skip if a default target is already resolved
+            if symbols
+                .get_symbol(binding.default_symbol)
+                .target_symbol
+                .is_some()
+            {
+                continue;
+            }
+
+            // resolve the default export target from value expressions
+            for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+                // skip items outside the binding scope
+                if !self.dependency_item_in_scope(tree, item_id, binding.scope) {
+                    continue;
+                }
+
+                // skip nonexport statements
+                if self.export_statement_parent(tree, item_id).is_none() {
+                    continue;
+                }
+
+                // skip nondefault value exports
+                let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                    continue;
+                };
+                if *mode != DependencyMode::Default {
+                    continue;
+                }
+
+                // resolve the target symbol for the default export
+                let value_expression = tree.get(*value);
+                if let Some(target_symbol) = value_expression.target_symbol() {
+                    symbols
+                        .get_symbol_mut(binding.default_symbol)
+                        .resolve_to(target_symbol);
+                    break;
+                }
+            }
+        }
+    }
+
     /// Get the export statement parent for an item, if any.
     fn export_statement_parent(
         &self,
@@ -469,6 +914,18 @@ impl Compiler {
             Expression::Export { .. } => Some(parent_id),
             _ => None,
         }
+    }
+
+    /// Check if a dependency item is declared in a specific scope.
+    fn dependency_item_in_scope(
+        &self,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+        scope_id: LocalScopeId,
+    ) -> bool {
+        // compare the dependency scope to the target scope
+        let (item_scope_id, _) = tree.get_scope(item_id);
+        item_scope_id == scope_id
     }
 
     /// Get any export parent expression for an item, if any.
