@@ -213,6 +213,7 @@ impl Compiler {
                 Some(left_ty_id),
                 &member_resolution,
                 member_instance_id,
+                None,
                 has_member,
                 types,
             );
@@ -245,6 +246,7 @@ impl Compiler {
                     Some(left_ty_id),
                     &member_resolution,
                     member_instance_id,
+                    None,
                     true,
                     types,
                 );
@@ -265,6 +267,7 @@ impl Compiler {
                     Some(left_ty_id),
                     &member_resolution,
                     member_instance_id,
+                    None,
                     has_member,
                     types,
                 );

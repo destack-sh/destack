@@ -5,27 +5,16 @@ use super::parameter::StaticParameterKind;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Expression, GlobalSymbolId, InferTable, LocalInstanceId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    LocalNodeIdAny, LocalTypeId, NodeTree, ResolvedSignature, StaticArgument, StaticKey,
+    SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
-
-/// Resolved function signature after static argument substitution.
-#[derive(Debug, Clone)]
-pub(super) struct ResolvedFunctionSignature {
-    /// Dynamic parameter types after substitution.
-    pub(super) dynamic_parameters: Vec<LocalTypeId>,
-    /// Return type after substitution.
-    pub(super) return_type: Option<LocalTypeId>,
-    /// Static arguments in declared order.
-    pub(super) static_arguments: Vec<StaticArgument>,
-}
 
 /// Resolved member function for an operator invocation.
 #[derive(Debug)]
 pub(super) struct ResolvedMemberFunction {
     /// The resolved function signature (parameters and return type).
-    pub(super) signature: ResolvedFunctionSignature,
+    pub(super) signature: ResolvedSignature,
     /// The member resolution for dispatch recording.
     pub(super) member_resolution: MemberResolution,
     /// The resolved member symbol (if statically known).
@@ -95,7 +84,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<ResolvedFunctionSignature>> {
+    ) -> AnalyzeResult<Option<ResolvedSignature>> {
         let Type::Function {
             static_parameters,
             dynamic_parameters,
@@ -136,7 +125,7 @@ impl Compiler {
                 self.substitute_this_type(return_type, receiver_ty_id, types, &mut cache)
             });
 
-            return Ok(Some(ResolvedFunctionSignature {
+            return Ok(Some(ResolvedSignature {
                 dynamic_parameters: mapped_parameters,
                 return_type: mapped_return,
                 static_arguments: resolved.static_arguments,
@@ -193,7 +182,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedFunctionSignature)>> {
+    ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedSignature)>> {
         // only attempt selection when overloads exist
         if signature_ids.len() <= 1 {
             return Ok(None);
@@ -435,9 +424,10 @@ impl Compiler {
                 }
             };
 
-            let resolved_dynamic_parameters = resolved.dynamic_parameters;
-            let resolved_return_type = resolved.return_type;
-            let resolved_static_arguments = resolved.static_arguments;
+            let resolved_signature = resolved;
+            let resolved_return_type = resolved_signature.return_type;
+            let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
+            let resolved_static_arguments = &resolved_signature.static_arguments;
 
             // analyze arguments with contextual parameter types
             let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
@@ -515,7 +505,7 @@ impl Compiler {
             if let Some(callee_symbol) = callee_symbol {
                 let instance_arguments = member_instance_arguments.unwrap_or_else(|| {
                     let mut arguments = inherited_static_arguments;
-                    arguments.extend(resolved_static_arguments);
+                    arguments.extend(resolved_static_arguments.iter().cloned());
                     arguments
                 });
 
@@ -531,23 +521,29 @@ impl Compiler {
             }
 
             // record call resolution when possible
-            if let Some(member_resolution) = call_member_resolution {
-                self.record_member_resolution(
-                    expression_id.into_global_any(module.id),
-                    call_receiver_ty_id,
-                    &member_resolution,
-                    call_instance_id,
-                    true,
-                    types,
-                );
-            } else if let Some(callee_symbol) = callee_symbol {
-                self.record_static_resolution(
-                    expression_id.into_global_any(module.id),
-                    call_receiver_ty_id,
-                    callee_symbol,
-                    call_instance_id,
-                    types,
-                );
+            match (call_member_resolution, callee_symbol) {
+                (Some(member_resolution), _) => {
+                    self.record_member_resolution(
+                        expression_id.into_global_any(module.id),
+                        call_receiver_ty_id,
+                        &member_resolution,
+                        call_instance_id,
+                        Some(resolved_signature),
+                        true,
+                        types,
+                    );
+                }
+                (None, Some(callee_symbol)) => {
+                    self.record_static_resolution(
+                        expression_id.into_global_any(module.id),
+                        call_receiver_ty_id,
+                        callee_symbol,
+                        call_instance_id,
+                        Some(resolved_signature),
+                        types,
+                    );
+                }
+                _ => {}
             }
 
             resolved_return_type.unwrap_or_else(|| {
@@ -614,7 +610,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<ResolvedFunctionSignature> {
+    ) -> AnalyzeResult<ResolvedSignature> {
         let resolved = self.resolve_function_static_arguments(
             module,
             node_id,
@@ -635,7 +631,7 @@ impl Compiler {
             return Ok(resolved);
         }
 
-        Ok(ResolvedFunctionSignature {
+        Ok(ResolvedSignature {
             dynamic_parameters: dynamic_parameters.to_vec(),
             return_type,
             static_arguments: Vec::new(),
@@ -658,7 +654,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<ResolvedFunctionSignature>> {
+    ) -> AnalyzeResult<Option<ResolvedSignature>> {
         // handle fast paths when there are no static parameters
         let has_static_arguments = static_argument_ids.is_some_and(|args| !args.is_empty());
 
@@ -675,7 +671,7 @@ impl Compiler {
                 }
             }
 
-            return Ok(Some(ResolvedFunctionSignature {
+            return Ok(Some(ResolvedSignature {
                 dynamic_parameters: dynamic_parameters.to_vec(),
                 return_type,
                 static_arguments: Vec::new(),
@@ -800,7 +796,7 @@ impl Compiler {
             self.substitute_static_parameters(return_type, &substitutions, types, &mut cache)
         });
 
-        Ok(Some(ResolvedFunctionSignature {
+        Ok(Some(ResolvedSignature {
             dynamic_parameters: resolved_dynamic_parameters,
             return_type: resolved_return_type,
             static_arguments: resolved_arguments,
@@ -868,7 +864,7 @@ impl Compiler {
         // bail of we don't know the member type
         let Some(member_ty_id) = member_ty_id else {
             return Ok(Some(ResolvedMemberFunction {
-                signature: ResolvedFunctionSignature {
+                signature: ResolvedSignature {
                     dynamic_parameters: Vec::new(),
                     return_type: None,
                     static_arguments: Vec::new(),
@@ -962,6 +958,7 @@ impl Compiler {
             Some(receiver_ty_id),
             &resolved.member_resolution,
             instance_id,
+            Some(resolved.signature.clone()),
             resolved.has_member,
             types,
         );

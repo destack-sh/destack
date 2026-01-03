@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-
 use destack_dir::{
-    Argument, CastKind, Declaration, Expression, GlobalSymbolId, LocalInstanceId, LocalNodeId,
-    LocalTypeId, Member, NodeTree, NodeType, PrimitiveType, Resolution, ScalarLiteral,
-    StaticArgument, StaticExpression, Type, TypeLiteral, TypeTable,
+    Argument, CastKind, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member,
+    NodeTree, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 
@@ -27,156 +24,29 @@ impl Compiler {
             return Ok(None);
         };
         let resolution = types.get_resolution(resolution_id).clone();
-
-        // extract a single target symbol when available
-        let (target_symbol, instance_id) = match resolution {
-            Resolution::Static { candidate, .. } => (candidate.target_symbol, candidate.instance),
-            _ => return Ok(None),
+        let candidate = match resolution {
+            Resolution::Static { candidate, .. } => candidate,
+            _ => return Ok(None), // #Incomplete: handle dynamic resolution
         };
-
-        // load the callee function signature
-        let Some(function_type_id) = types.get_value_type_id(target_symbol) else {
-            return Ok(None);
-        };
-        let Some((static_parameters, dynamic_parameters)) =
-            self.function_signature_for_type(function_type_id, types)
-        else {
+        let Some(resolved_signature) = candidate.resolved_signature else {
             return Ok(None);
         };
 
-        // apply static substitutions when available
-        let resolved_parameters = self.resolve_call_parameter_types(
-            &static_parameters,
-            &dynamic_parameters,
-            instance_id,
-            types,
-        );
-
-        // NOTE #Incomplete: map named and spread arguments to parameters
+        // #Incomplete: map named and spread arguments to parameters
         // map positional arguments to parameter types
         let mut expected_types = Vec::with_capacity(dynamic_arguments.len());
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             let argument = tree.get(*argument_id);
             let expected_type_id = match argument {
-                Argument::Positional { .. } => resolved_parameters.get(index).copied(),
+                Argument::Positional { .. } => {
+                    resolved_signature.dynamic_parameters.get(index).copied()
+                }
                 _ => None,
             };
             expected_types.push(expected_type_id);
         }
 
         Ok(Some(expected_types))
-    }
-
-    /// Extract a function signature from a type id.
-    pub(super) fn function_signature_for_type(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> Option<(Vec<LocalTypeId>, Vec<LocalTypeId>)> {
-        match types.get_type(type_id) {
-            Type::Function {
-                static_parameters,
-                dynamic_parameters,
-                ..
-            } => Some((static_parameters.clone(), dynamic_parameters.clone())),
-            Type::Value { value } => self.function_signature_for_type(*value, types),
-            _ => None,
-        }
-    }
-
-    // FUGU #Architecture: store substituted call signatures in Resolution to avoid rederiving here
-    // (resolve_call_parameter_types, substitutions_for_static_parameters, type_id_for_static_argument)
-
-    /// Apply static argument substitutions to call parameter types.
-    pub(super) fn resolve_call_parameter_types(
-        &self,
-        static_parameters: &[LocalTypeId],
-        dynamic_parameters: &[LocalTypeId],
-        instance_id: Option<LocalInstanceId>,
-        types: &mut TypeTable,
-    ) -> Vec<LocalTypeId> {
-        // return early when no substitutions are needed
-        let Some(instance_id) = instance_id else {
-            return dynamic_parameters.to_vec();
-        };
-
-        if static_parameters.is_empty() {
-            return dynamic_parameters.to_vec();
-        }
-
-        // map static parameter symbols to argument types
-        let own_arguments = {
-            let instance = types.get_instance(instance_id);
-            let (_, own_arguments) = instance.split_arguments(static_parameters.len());
-            own_arguments.to_vec()
-        };
-        let substitutions =
-            self.substitutions_for_static_parameters(static_parameters, &own_arguments, types);
-
-        if substitutions.is_empty() {
-            return dynamic_parameters.to_vec();
-        }
-
-        // substitute through the parameter types
-        let mut cache = HashMap::new();
-        dynamic_parameters
-            .iter()
-            .map(|parameter| {
-                self.substitute_static_parameters(*parameter, &substitutions, types, &mut cache)
-            })
-            .collect()
-    }
-
-    /// Build substitutions for static parameters from instance arguments.
-    fn substitutions_for_static_parameters(
-        &self,
-        static_parameters: &[LocalTypeId],
-        arguments: &[StaticArgument],
-        types: &mut TypeTable,
-    ) -> HashMap<GlobalSymbolId, LocalTypeId> {
-        // keep substitutions for the static parameters
-        let mut substitutions = HashMap::new();
-
-        // resolve each static parameter by position
-        for (parameter_id, argument) in static_parameters.iter().zip(arguments.iter()) {
-            let parameter_type = types.get_type(*parameter_id).clone();
-            let Type::Reference { symbol, .. } = parameter_type else {
-                continue;
-            };
-
-            let substitution_ty_id = self.type_id_for_static_argument(argument, types);
-            substitutions.insert(symbol, substitution_ty_id);
-        }
-
-        substitutions
-    }
-
-    /// Convert a static argument into a type id for substitution.
-    fn type_id_for_static_argument(
-        &self,
-        argument: &StaticArgument,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        // use resolved type arguments when possible
-        let ty = match argument {
-            StaticArgument::Evaluated { value, .. } => match value {
-                StaticExpression::Type { ty } => return *ty,
-                StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
-                    value: value.clone(),
-                },
-                StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(value.clone()),
-                },
-                _ => Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                },
-            },
-            StaticArgument::Unevaluated { .. } => Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
-        };
-
-        types.insert_type(ty)
     }
 
     /// Find the declared return type for a return expression.
