@@ -1040,6 +1040,7 @@ impl Compiler {
             Some(receiver_ty_id),
             &branch.member_resolution,
             branch.member_instance_id,
+            None,
             branch.has_member,
             types,
         );

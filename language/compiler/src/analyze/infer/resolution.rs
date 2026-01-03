@@ -2,7 +2,7 @@ use super::member::MemberResolution;
 use crate::Compiler;
 use destack_dir::{
     DispatchKey, GlobalNodeIdAny, GlobalSymbolId, LocalInstanceId, LocalTypeId, Resolution,
-    ResolutionCandidate, TypeTable,
+    ResolutionCandidate, ResolvedSignature, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -29,12 +29,14 @@ impl Compiler {
         receiver_ty_id: Option<LocalTypeId>,
         target_symbol: GlobalSymbolId,
         instance_id: Option<LocalInstanceId>,
+        resolved_signature: Option<ResolvedSignature>,
         types: &mut TypeTable,
     ) {
         let candidate = ResolutionCandidate {
             key: None,
             target_symbol,
             instance: instance_id,
+            resolved_signature,
         };
         let resolution = Resolution::Static {
             receiver: receiver_ty_id,
@@ -51,14 +53,18 @@ impl Compiler {
         node_id: GlobalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
         candidate_symbols: Vec<GlobalSymbolId>,
+        resolved_signatures: Option<Vec<ResolvedSignature>>,
         types: &mut TypeTable,
     ) {
+        // align optional signatures with candidates
+        let mut signatures = resolved_signatures.unwrap_or_default().into_iter();
         let candidates = candidate_symbols
             .into_iter()
             .map(|symbol| ResolutionCandidate {
                 key: None,
                 target_symbol: symbol,
                 instance: None,
+                resolved_signature: signatures.next(),
             })
             .collect();
         let resolution = Resolution::Dynamic {
@@ -77,6 +83,7 @@ impl Compiler {
         receiver_ty_id: Option<LocalTypeId>,
         resolution: &MemberResolution,
         instance_id: Option<LocalInstanceId>,
+        resolved_signature: Option<ResolvedSignature>,
         has_member: bool,
         types: &mut TypeTable,
     ) {
@@ -88,11 +95,18 @@ impl Compiler {
                         receiver_ty_id,
                         *symbol,
                         instance_id,
+                        resolved_signature,
                         types,
                     );
                 }
                 MemberResolution::Dynamic { symbols } => {
-                    self.record_dynamic_resolution(node_id, receiver_ty_id, symbols.clone(), types);
+                    self.record_dynamic_resolution(
+                        node_id,
+                        receiver_ty_id,
+                        symbols.clone(),
+                        None,
+                        types,
+                    );
                 }
                 MemberResolution::Unresolved | MemberResolution::None => {}
             }

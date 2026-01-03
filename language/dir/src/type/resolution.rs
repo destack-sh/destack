@@ -1,6 +1,6 @@
 use destack_source::ModuleId;
 
-use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId};
+use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticArgument};
 
 /// Unique identifier for Resolutions.
 #[repr(transparent)]
@@ -156,6 +156,17 @@ impl Resolution {
     }
 }
 
+/// The resolved call signature used at a dispatch site.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedSignature {
+    /// The dynamic parameter types after static substitutions.
+    pub dynamic_parameters: Vec<LocalTypeId>,
+    /// The return type after static substitutions.
+    pub return_type: Option<LocalTypeId>,
+    /// The resolved static arguments in declared order.
+    pub static_arguments: Vec<StaticArgument>,
+}
+
 /// A resolved target symbol, optionally with dispatch information.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolutionCandidate {
@@ -168,4 +179,6 @@ pub struct ResolutionCandidate {
     pub target_symbol: GlobalSymbolId,
     /// The instance of the symbol, if generically instantiated.
     pub instance: Option<LocalInstanceId>,
+    /// The resolved call signature when available.
+    pub resolved_signature: Option<ResolvedSignature>,
 }
