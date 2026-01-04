@@ -25,7 +25,13 @@ const LIB_WORKER_ITERABLE_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!(concat!("../../../lib/worker/iterable.d.ts")),
 );
 
-const WORKER_CANONICAL_EXPORTS: &[&str] = &["Worker", "WorkerGlobalScope"];
+const WORKER_CANONICAL_EXPORTS: &[&str] = &[
+    "Worker",
+    "WorkerGlobalScope",
+    "console",
+    "setInterval",
+    "setTimeout",
+];
 pub const LIB_WORKER: BuiltinLib =
     BuiltinLib::ambient("worker", &[LIB_WORKER_INDEX_D_DS], &["es5"])
         .with_canonical_exports(WORKER_CANONICAL_EXPORTS);
