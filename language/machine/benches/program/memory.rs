@@ -2,7 +2,13 @@ use super::Program;
 use destack_machine::memory::Value;
 
 /// All memory benchmark programs.
-pub(crate) const ALL: &[&Program] = &[&ALLOC_SINGLE, &ALLOC_BURST, &LOAD_STORE, &LINKED_WALK];
+pub(crate) const ALL: &[&Program] = &[
+    &ALLOC_SINGLE,
+    &ALLOC_BURST,
+    &LOAD_STORE,
+    &LINKED_WALK,
+    &FIELD_ACCESS,
+];
 
 /// Single allocation per iteration.
 pub(crate) const ALLOC_SINGLE: Program = Program {
@@ -150,4 +156,37 @@ block0(v0: i64):
     // algorithm is flawed, doesn't actually traverse linked list
     expected: || None,
     default_args: || vec![Value::int64(100)],
+};
+
+/// Field access on composite values (tuples from overflow intrinsics).
+pub(crate) const FIELD_ACCESS: Program = Program {
+    name: "field_access",
+    source: r#"
+function @field_access(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 1i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = intrinsic.add.overflow(v4, v4)
+    v7 = field.get v6, 0
+    v8 = intrinsic.mul.overflow(v7, v4)
+    v9 = field.get v8, 0
+    v10 = intrinsic.sub.overflow(v9, v4)
+    v11 = field.get v10, 0
+    v12 = iconst 255i64
+    v13 = band v11, v12
+    v14 = iconst 1i64
+    v15 = iadd v3, v14
+    jump block1(v15, v13)
+block3(v16: i64):
+    return v16
+}
+"#,
+    entry: "field_access",
+    expected: || None,
+    default_args: || vec![Value::int64(10_000)],
 };
