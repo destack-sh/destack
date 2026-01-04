@@ -35,22 +35,24 @@ pub enum CastOperator {
     StringToEnum,
     /// Upcast into a wider union.
     UnionUpcast,
-    /// Downcast from a union with a runtime check.
+    /// Downcast from a union.
     UnionDowncast,
     /// Upcast into an instance type.
     InstanceUpcast,
-    /// Downcast from an instance type with a runtime check.
+    /// Downcast from an instance type.
     InstanceDowncast,
     /// Upcast into a nullable type.
     NullableUpcast,
-    /// Downcast from a nullable type with a runtime check.
+    /// Downcast from a nullable type.
     NullableDowncast,
-    /// Downcast from unknown with a runtime check.
+    /// Downcast from unknown.
     UnknownDowncast,
     /// Downcast from any.
     AnyDowncast,
     /// Upcast into any.
     AnyUpcast,
+    /// Upcast into unknown.
+    UnknownUpcast,
     /// Upcast into object (from non-primitive).
     ObjectUpcast,
     /// Downcast from object to specific non-primitive.

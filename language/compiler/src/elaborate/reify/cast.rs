@@ -6,8 +6,9 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::r#type::{
-    is_any_type, is_integer_type, is_nullable_union, is_pointer_type, is_scalar_literal_type,
-    is_string_type, is_union_type, is_unknown_type, numeric_cast_operator,
+    are_types_semantically_equal, is_any_type, is_integer_type, is_nullable_union, is_object_type,
+    is_pointer_type, is_scalar_literal_type, is_string_type, is_union_type, is_unknown_type,
+    numeric_cast_operator,
 };
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
@@ -613,18 +614,33 @@ impl Compiler {
         let source = types.get_type(source_id).clone();
         let target = types.get_type(target_id).clone();
 
-        // handle any and unknown casts
+        // semantic equality check (handles Foo→Foo, any→any, int32[]→int32[], etc.)
+        if are_types_semantically_equal(&source, &target, types) {
+            return CastOperator::Identity;
+        }
+
+        // handle any casts
         if is_any_type(&target) {
             return CastOperator::AnyUpcast;
-        }
-        if is_unknown_type(&target) {
-            return CastOperator::Identity;
         }
         if is_any_type(&source) {
             return CastOperator::AnyDowncast;
         }
+
+        // handle unknown casts
+        if is_unknown_type(&target) {
+            return CastOperator::UnknownUpcast;
+        }
         if is_unknown_type(&source) {
             return CastOperator::UnknownDowncast;
+        }
+
+        // handle object casts
+        if is_object_type(&target) {
+            return CastOperator::ObjectUpcast;
+        }
+        if is_object_type(&source) {
+            return CastOperator::ObjectDowncast;
         }
 
         // handle numeric casts first
@@ -1136,6 +1152,86 @@ function test(): float {
 function test(): float64 {
     let value = 1;
     return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_object_upcast() {
+        // non-primitives are implicitly upcast to object
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function getArray(): int32[] {
+    return [1, 2, 3];
+}
+
+function test(): object {
+    let value: object = getArray();
+    return value;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: getArray() → object needs upcast, value → object is identity (skipped)
+        test.assert_elaborated(
+            module_id,
+            r#"
+function getArray(): int32[] {
+    return [1, 2, 3] as int32[];
+}
+
+function test(): object {
+    let value = getArray() as object;
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_explicit_cast_object_downcast() {
+        // object is explicitly downcast to specific types
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+interface Foo { x: int32 }
+
+function getObject(): object {
+    return { x: 1 };
+}
+
+function test(): Foo {
+    return getObject() as Foo;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: object literal → object upcast, explicit Foo downcast preserved
+        test.assert_elaborated(
+            module_id,
+            r#"
+interface Foo {
+    x: int32,
+}
+
+function getObject(): object {
+    return { x: 1 } as object;
+}
+
+function test(): Foo {
+    return getObject() as Foo;
 }
 "#,
         );
