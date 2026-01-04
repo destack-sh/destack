@@ -90,6 +90,8 @@ pub enum TypeLiteral {
     Undefined,
     /// Unknown type.
     Unknown,
+    /// Object type (any non-primitive).
+    Object,
     /// Void type.
     Void,
     /// Null type and value.
@@ -113,12 +115,12 @@ pub enum TypeLiteral {
     /// Unique symbol type.
     UniqueSymbol,
     /// Intrinsic type (TypeScript compiler-provided).
-    Intrinsic(TypeIntrinsic),
+    Intrinsic(IntrinsicType),
 }
 
 /// A TypeIntrinsic is a compiler-provided intrinsic type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypeIntrinsic {
+pub enum IntrinsicType {
     /// Uppercase string intrinsic.
     Uppercase,
     /// Lowercase string intrinsic.
@@ -133,19 +135,19 @@ pub enum TypeIntrinsic {
     BuiltinIteratorReturn,
 }
 
-impl TryFrom<&str> for TypeIntrinsic {
+impl TryFrom<&str> for IntrinsicType {
     /// The error type for intrinsic parsing.
     type Error = ();
 
     /// Parse a TypeIntrinsic from a standard intrinsic name.
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "Uppercase" => Ok(TypeIntrinsic::Uppercase),
-            "Lowercase" => Ok(TypeIntrinsic::Lowercase),
-            "Capitalize" => Ok(TypeIntrinsic::Capitalize),
-            "Uncapitalize" => Ok(TypeIntrinsic::Uncapitalize),
-            "NoInfer" => Ok(TypeIntrinsic::NoInfer),
-            "BuiltinIteratorReturn" => Ok(TypeIntrinsic::BuiltinIteratorReturn),
+            "Uppercase" => Ok(IntrinsicType::Uppercase),
+            "Lowercase" => Ok(IntrinsicType::Lowercase),
+            "Capitalize" => Ok(IntrinsicType::Capitalize),
+            "Uncapitalize" => Ok(IntrinsicType::Uncapitalize),
+            "NoInfer" => Ok(IntrinsicType::NoInfer),
+            "BuiltinIteratorReturn" => Ok(IntrinsicType::BuiltinIteratorReturn),
             _ => Err(()),
         }
     }

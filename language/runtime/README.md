@@ -3,8 +3,6 @@
 Runtime library for WASM and Native Destack binaries.
 Provides memory management, async execution, I/O, and debug support.
 
----
-
 # Scope
 
 The Runtime is **only** for WASM and Native targets.

@@ -30,6 +30,7 @@ impl<'ast> Format<CodegenJsFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Any => write!(f, [token("any")]),
             TypeLiteral::Undefined => write!(f, [token("undefined")]),
             TypeLiteral::Unknown => write!(f, [token("unknown")]),
+            TypeLiteral::Object => write!(f, [token("object")]),
             TypeLiteral::Void => write!(f, [token("void")]),
             TypeLiteral::Null => write!(f, [token("null")]),
             TypeLiteral::Primitive(primitive) => write!(f, [primitive]),

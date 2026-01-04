@@ -19,6 +19,8 @@ impl Compiler {
             "undefined" => Some(TypeLiteral::Undefined),
             // unknown
             "unknown" => Some(TypeLiteral::Unknown),
+            // object
+            "object" => Some(TypeLiteral::Object),
             // void
             "void" => Some(TypeLiteral::Void),
             // null

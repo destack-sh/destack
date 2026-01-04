@@ -51,6 +51,10 @@ pub enum CastOperator {
     AnyDowncast,
     /// Upcast into any.
     AnyUpcast,
+    /// Upcast into object (from non-primitive).
+    ObjectUpcast,
+    /// Downcast from object to specific non-primitive.
+    ObjectDowncast,
 }
 
 /// The source of a cast expression.

@@ -435,6 +435,8 @@ impl_dump_display! {
     BindingOperator,
     BindingAnchor,
     BinaryOperator,
+    CastOperator,
+    CastSource,
     DeclarationAbstraction,
     DeclarationKind,
     DependencyKind,
@@ -522,48 +524,6 @@ impl Dump for TypePredicateSubject {
     }
 }
 
-impl Dump for CastOperator {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let kind = match self {
-            CastOperator::Identity => "identity",
-            CastOperator::IntWiden => "int_widen",
-            CastOperator::IntNarrow => "int_narrow",
-            CastOperator::IntSignChange => "int_sign_change",
-            CastOperator::FloatWiden => "float_widen",
-            CastOperator::FloatNarrow => "float_narrow",
-            CastOperator::IntToFloat => "int_to_float",
-            CastOperator::FloatToInt => "float_to_int",
-            CastOperator::PointerToInt => "ptr_to_int",
-            CastOperator::IntToPointer => "int_to_ptr",
-            CastOperator::PointerCast => "ptr_cast",
-            CastOperator::ArraySizedToSlice => "array_sized_to_slice",
-            CastOperator::EnumToInt => "enum_to_int",
-            CastOperator::IntToEnum => "int_to_enum",
-            CastOperator::EnumToString => "enum_to_string",
-            CastOperator::StringToEnum => "string_to_enum",
-            CastOperator::UnionUpcast => "union_upcast",
-            CastOperator::UnionDowncast => "union_downcast",
-            CastOperator::InstanceUpcast => "instance_upcast",
-            CastOperator::InstanceDowncast => "instance_downcast",
-            CastOperator::NullableUpcast => "nullable_upcast",
-            CastOperator::NullableDowncast => "nullable_downcast",
-            CastOperator::UnknownDowncast => "unknown_downcast",
-            CastOperator::AnyDowncast => "any_downcast",
-            CastOperator::AnyUpcast => "any_upcast",
-        };
-        dumper.object("CastOperator").value(&kind).end();
-    }
-}
-
-impl Dump for CastSource {
-    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let source = match self {
-            CastSource::Explicit => "explicit",
-            CastSource::Implicit => "implicit",
-        };
-        dumper.object("CastSource").value(&source).end();
-    }
-}
 
 /// Dump a DeclarationDescriptor as a structured object.
 impl Dump for DeclarationDescriptor {
@@ -715,25 +675,25 @@ impl Dump for PrimitiveType {
 }
 
 /// Dump a TypeIntrinsic as a structured representation.
-impl Dump for TypeIntrinsic {
+impl Dump for IntrinsicType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
-            TypeIntrinsic::Uppercase => {
+            IntrinsicType::Uppercase => {
                 dumper.object("TypeIntrinsic::Uppercase").end();
             }
-            TypeIntrinsic::Lowercase => {
+            IntrinsicType::Lowercase => {
                 dumper.object("TypeIntrinsic::Lowercase").end();
             }
-            TypeIntrinsic::Capitalize => {
+            IntrinsicType::Capitalize => {
                 dumper.object("TypeIntrinsic::Capitalize").end();
             }
-            TypeIntrinsic::Uncapitalize => {
+            IntrinsicType::Uncapitalize => {
                 dumper.object("TypeIntrinsic::Uncapitalize").end();
             }
-            TypeIntrinsic::NoInfer => {
+            IntrinsicType::NoInfer => {
                 dumper.object("TypeIntrinsic::NoInfer").end();
             }
-            TypeIntrinsic::BuiltinIteratorReturn => {
+            IntrinsicType::BuiltinIteratorReturn => {
                 dumper.object("TypeIntrinsic::BuiltinIteratorReturn").end();
             }
         };
@@ -758,6 +718,9 @@ impl Dump for TypeLiteral {
             }
             TypeLiteral::Unknown => {
                 dumper.object("TypeLiteral::Unknown").end();
+            }
+            TypeLiteral::Object => {
+                dumper.object("TypeLiteral::Object").end();
             }
             TypeLiteral::Void => {
                 dumper.object("TypeLiteral::Void").end();

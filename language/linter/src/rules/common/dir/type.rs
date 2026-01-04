@@ -186,10 +186,10 @@ fn is_string_type_inner(
             dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
                 | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(_))
                 | dir::TypeLiteral::Intrinsic(
-                    dir::TypeIntrinsic::Uppercase
-                        | dir::TypeIntrinsic::Lowercase
-                        | dir::TypeIntrinsic::Capitalize
-                        | dir::TypeIntrinsic::Uncapitalize
+                    dir::IntrinsicType::Uppercase
+                        | dir::IntrinsicType::Lowercase
+                        | dir::IntrinsicType::Capitalize
+                        | dir::IntrinsicType::Uncapitalize
                 )
         ),
         dir::Type::TemplateLiteral { .. } => true,

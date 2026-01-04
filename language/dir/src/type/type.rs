@@ -20,6 +20,8 @@ pub enum TypeLiteral {
     Undefined,
     /// Unknown type.
     Unknown,
+    /// Object type (any non-primitive).
+    Object,
     /// Void type.
     Void,
     /// Null type and value.
@@ -27,14 +29,14 @@ pub enum TypeLiteral {
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Intrinsic type.
-    Intrinsic(TypeIntrinsic),
+    Intrinsic(IntrinsicType),
     /// Scalar literal.
     ScalarLiteral(ScalarLiteral),
 }
 
 /// A TypeIntrinsic is a compiler-provided intrinsic type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TypeIntrinsic {
+pub enum IntrinsicType {
     /// Uppercase string intrinsic.
     Uppercase,
     /// Lowercase string intrinsic.
