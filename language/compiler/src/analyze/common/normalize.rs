@@ -49,7 +49,7 @@ impl Compiler {
 
         // keep the source id for any normalized replacement
         let source_id = types.get_type_source(type_id);
-        // clone to avoid holding a borrow across recursive normalization
+        // #Performance: clone to avoid holding a borrow across recursive normalization
         let ty = types.get_type(type_id).clone();
 
         // normalize based on structural shape
