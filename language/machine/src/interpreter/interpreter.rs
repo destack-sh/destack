@@ -4,10 +4,11 @@ use std::sync::Arc;
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
-use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
+use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
 use crate::memory::{ManagedHeap, RawHeap, Value};
 
-use super::threaded::{thread_function, ThreadedFunction};
+use super::decode::thread_function;
+use super::threaded::ThreadedFunction;
 use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
@@ -213,20 +214,6 @@ impl Interpreter {
         F: Fn(&[Value]) -> Result<Value, Error> + Send + Sync + 'static,
     {
         self.externals.insert(name.to_string(), Box::new(handler));
-    }
-
-    /// Get reference to current frame.
-    pub(super) fn current_frame(&self) -> RuntimeResult<&Frame> {
-        self.call_stack
-            .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))
-    }
-
-    /// Get mutable reference to current frame.
-    pub(super) fn current_frame_mut(&mut self) -> RuntimeResult<&mut Frame> {
-        self.call_stack
-            .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))
     }
 
     /// Create an error with current call stack.

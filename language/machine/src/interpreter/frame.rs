@@ -1,14 +1,13 @@
 use destack_mir as mir;
-use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapCell, HeapHandle, Value};
 
-/// Inline capacity for SSA values.
-const VALUES_INLINE_CAP: usize = 8;
+/// Initial capacity for SSA values.
+const VALUES_INLINE_CAP: usize = 64;
 
-/// Inline capacity for local variables.
-const LOCALS_INLINE_CAP: usize = 4;
+/// Initial capacity for local variables.
+const LOCALS_INLINE_CAP: usize = 16;
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -19,12 +18,14 @@ pub struct Frame {
     pub entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
     pub current_block: mir::LocalNodeId<mir::Block>,
-    /// Current instruction index within the block (for resuming after calls).
-    pub instruction_idx: usize,
+    /// Current threaded block index.
+    pub block_index: usize,
+    /// Program counter within the current threaded block.
+    pub resume_pc: usize,
     /// SSA values in this frame, indexed by value id.
-    pub values: SmallVec<[Option<Value>; VALUES_INLINE_CAP]>,
+    pub values: Vec<Value>,
     /// Local variables (stack slots).
-    pub locals: SmallVec<[(mir::LocalNodeId<mir::Local>, Value); LOCALS_INLINE_CAP]>,
+    pub locals: Vec<Value>,
     /// Stack-allocated cells (freed when frame pops).
     pub stack_cells: Vec<HeapCell>,
     /// Where to store the return value when callee returns (set by caller before pushing a new frame).
@@ -36,14 +37,25 @@ impl Frame {
     pub fn new(
         function: mir::LocalNodeId<mir::Function>,
         entry_block: mir::LocalNodeId<mir::Block>,
+        block_index: usize,
+        value_count: usize,
+        local_count: usize,
     ) -> Self {
+        let value_capacity = value_count.max(VALUES_INLINE_CAP);
+        let local_capacity = local_count.max(LOCALS_INLINE_CAP);
+        let mut values = Vec::with_capacity(value_capacity);
+        let mut locals = Vec::with_capacity(local_capacity);
+        values.resize(value_count, Value::VOID);
+        locals.resize(local_count, Value::VOID);
+
         Self {
             function,
             entry_block,
             current_block: entry_block,
-            instruction_idx: 0,
-            values: SmallVec::new(),
-            locals: SmallVec::new(),
+            block_index,
+            resume_pc: 0,
+            values,
+            locals,
             stack_cells: Vec::new(),
             return_destination: None,
         }
@@ -52,40 +64,53 @@ impl Frame {
     /// Get a value from this frame.
     #[inline]
     pub fn get_value(&self, value: mir::Value) -> RuntimeResult<Value> {
+        self.get_value_or_error(value).map_err(RuntimeError::new)
+    }
+
+    /// Get a value from this frame without call stack context.
+    #[inline]
+    pub fn get_value_or_error(&self, value: mir::Value) -> Result<Value, Error> {
         let index = value.0 as usize;
         self.values
             .get(index)
-            .and_then(|opt| *opt)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedValue { value }))
+            .copied()
+            .ok_or(Error::UndefinedValue { value })
     }
 
     /// Set a value in this frame.
     #[inline]
     pub fn set_value(&mut self, value: mir::Value, val: Value) {
         let index = value.0 as usize;
-        // grow vec if needed
-        if index >= self.values.len() {
-            self.values.resize(index + 1, None);
+        debug_assert!(
+            index < self.values.len(),
+            "ssa value out of bounds: {value:?}"
+        );
+        unsafe {
+            *self.values.get_unchecked_mut(index) = val;
         }
-        self.values[index] = Some(val);
     }
 
     /// Get a local variable.
     pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> RuntimeResult<Value> {
+        self.get_local_or_error(local).map_err(RuntimeError::new)
+    }
+
+    /// Get a local variable without call stack context.
+    #[inline]
+    pub fn get_local_or_error(&self, local: mir::LocalNodeId<mir::Local>) -> Result<Value, Error> {
+        let index = local.id as usize;
         self.locals
-            .iter()
-            .find(|(id, _)| *id == local)
-            .map(|(_, v)| *v)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedLocal { local }))
+            .get(index)
+            .copied()
+            .ok_or(Error::UndefinedLocal { local })
     }
 
     /// Set a local variable.
     pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, value: Value) {
-        // check if local already exists
-        if let Some((_, existing)) = self.locals.iter_mut().find(|(id, _)| *id == local) {
-            *existing = value;
-        } else {
-            self.locals.push((local, value));
+        let index = local.id as usize;
+        debug_assert!(index < self.locals.len(), "local out of bounds: {local:?}");
+        unsafe {
+            *self.locals.get_unchecked_mut(index) = value;
         }
     }
 
@@ -93,7 +118,7 @@ impl Frame {
     #[inline]
     pub fn has_value(&self, value: mir::Value) -> bool {
         let index = value.0 as usize;
-        self.values.get(index).is_some_and(|opt| opt.is_some())
+        self.values.get(index).is_some()
     }
 
     /// Clear all values (but keep locals).
@@ -122,10 +147,10 @@ impl Frame {
 
     /// Collect all heap handles from this frame for GC roots.
     pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
-        for value in self.values.iter().flatten() {
+        for value in &self.values {
             Self::collect_handles_from_value(value, roots);
         }
-        for (_, value) in &self.locals {
+        for value in &self.locals {
             Self::collect_handles_from_value(value, roots);
         }
         for cell in &self.stack_cells {

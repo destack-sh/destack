@@ -43,26 +43,26 @@ We interpret MIR directly rather than JIT-compiling it.
 
 ## Value Representation
 
-Values use NaN-boxing for compact storage and fast type checks (like basically every JS engine).
-A NaN-boxed value fits in 8 bytes and encodes type information in the IEEE 754 NaN space.
-Floats require no encoding overhead; other types use the quiet NaN space for tagging.
+Values currently use a compact 16-byte packed representation (data + tag/width metadata).
+NaN-boxing is the planned target for 8-byte values and fast type checks.
 
-Small aggregates (tuples up to 4 elements, small structs) are stored inline to avoid heap allocation.
-This covers most aggregate usage without touching the heap.
+Aggregates are heap-allocated today with handles in `Value`.
+Small aggregate inlining is planned once the 8-byte representation lands.
 
 ## Dispatch
 
 The interpreter uses direct threading for efficient dispatch.
 Each instruction handler jumps directly to the next without returning to a central loop, which eliminates branch misprediction on the dispatch.
+Threaded decode precomputes handler pointers and compact instruction data, and this is the only execution path.
 
-Common instruction sequences get fused into super-instructions:
+Planned: common instruction sequences get fused into super-instructions:
 - Load field, then load another field (nested access)
 - Compare and branch (conditionals)
 - Load, add constant, store (increment patterns)
 
 ## Caching
 
-Type-dependent operations use inline caches for fast repeated access.
+Planned: type-dependent operations use inline caches for fast repeated access.
 First access populates the cache; subsequent accesses hit the fast path.
 This helps a lot with property access and type reflection.
 
