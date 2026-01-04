@@ -1,31 +1,25 @@
-# mir
+# MIR
 
 Machine-level Intermediate Representation for Destack.
-This is what gets fed to native codegen (Cranelift) and WASM, and what the comptime interpreter executes.
+This is what gets fed to native codegen (Cranelift) and WASM, and what the comptime interpreter (Machine) executes.
 
 ## Overview
 
 MIR is the low-level IR in the Destack pipeline.
-DIR (Destack IR) is high-level, target-independent, and polymorphic; MIR is low-level, target-aware, and monomorphic.
+DIR is high-level, target-independent, and polymorphic; MIR is low-level, target-aware, and monomorphic.
+It knows pointer sizes and calling conventions, but doesn't commit to specific registers or instruction encodings yet.
 
 ```
-DIR (semantic, polymorphic)  →  MIR (machine, monomorphic)  →  native/WASM
-         │                            │
-       Lower                     Generate
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DIR → MIR → NATIVE                             │
+│                                                                             │
+│  Stages:  Lower ───► Verify ───► Optimize ───► Generate                     │
+│  Output:    MIR    checked MIR   optimized MIR   native/WASM                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-By the time code reaches MIR:
-- All generics are ready to be monomorphized (each `Container<int32>` is its own concrete `Instance`)
-- All types have known sizes and layouts
-- All control flow is explicit (basic blocks with terminators)
-- All values are SSA (Static Single Assignment)
-
-MIR is target-independent but target-aware: it knows pointer sizes and calling conventions, but doesn't commit to specific registers or instruction encodings (yet).
-
-### SSA with Block Parameters
-
-MIR uses SSA (Static Single Assignment) with block parameters instead of phi nodes.
-This is the same approach as MLIR, Cranelift, and Swift's SIL.
+MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL.
 
 ```mir
 block0:
@@ -105,8 +99,8 @@ They have no function body: each backend implements them specially.
 | Control | `unreachable`, `abort`, `breakpoint` |
 | SIMD | `shuffle`, `splat`, `reduce.add`, etc. |
 
-Reflection intrinsics (`size_of`, etc.) are comptime-only: they get evaluated during compilation and replaced with constants.
-The interpreter handles these; native codegen never sees them.
+Reflection intrinsics (`size_of`, etc.) are comptime-only—they get evaluated during compilation and replaced with constants.
+The Machine handles these; native codegen never sees them.
 
 ## Types
 
@@ -138,9 +132,9 @@ type @Point = struct { x: f32, y: f32 }
 
 ### Debug Info
 
-MIR preserves enough information to produce high quality native debug info later in codegen.
-Lowering records source spans, names, and lexical scope boundaries so codegen can emit DWARF or platform equivalents.
-Debug metadata is not required for execution, but it is required to provide precise variable scopes, call stacks, and type names in debuggers.
+MIR preserves enough info to produce high-quality native debug symbols later in codegen.
+Lowering records source spans, names, and lexical scope boundaries so codegen can emit DWARF (or platform equivalents).
+Debug metadata isn't required for execution, but it's needed for precise variable scopes, call stacks, and type names in debuggers.
 
 At a minimum, lowering should provide:
 - source spans for every instruction and terminator
@@ -189,7 +183,7 @@ struct Function {
 ```
 
 Imported functions have no body (`entry: None`, empty blocks).
-The `allocation` lets you mark functions as realtime-safe (no GC) or embedded-safe (stack only).
+The `allocation` field lets us mark functions as realtime-safe (no GC) or embedded-safe (stack only).
 
 ### Linkage
 

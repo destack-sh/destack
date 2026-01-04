@@ -13,27 +13,30 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                FRONT-END                                    │
 │                                                                             │
-│  Stages:  Import ──► Bind ──► Resolve ──► Analyze ──► Elaborate              │
-│  Output:    AST    base DIR   Symbols      Types   Canonical DIR            │
+│  Stages:  Import ───► Bind ───► Resolve ───► Analyze ───► Elaborate         │
+│  Output:    AST     base DIR   resolved DIR  typed DIR   canonical DIR      │
 │                                                                             │
-│                (base DIR shared, canonical DIR per profile)                │
+│                    (base DIR shared, canonical DIR per profile)             │
 └─────────────────────────────────────────────────────────────────────────────┘
-                         │ (one canonical DIR per profile)
-                                   ▼
+                                      │
+                        (one canonical DIR per profile)
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                MIDDLE-END                                   │
 │                                                                             │
-│  Stages:  Execute (comptime MIR) ──► Lower ──► Verify ──► Optimize           │
-│  Output:     Patched DIR          MIR      CFG   Canonical MIR              │
+│  Stages:  Execute ───► Lower ───► Verify ───► Optimize                      │
+│  Output: patched DIR     MIR    verified MIR   optimized MIR                │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
-                       │ (one canonical DIR/MIR per target)
-                                   ▼
+                                      │
+                         (one MIR per target)
+                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                 BACK-END                                    │
 │                                                                             │
-│  Stages:  Generate ──► Link ──► Emit                                         │
-│  Output:  Artifacts  Linked  Files                                           │
+│  Stages:  Generate ───► Link ───► Emit                                      │
+│  Output:  artifacts    linked    files (.js, .wasm, .o)                     │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 

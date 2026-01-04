@@ -1,53 +1,78 @@
-# machine
+# Machine
 
-MIR interpreter for comptime execution.
-When you write `comptime { ... }`, the machine is what runs it.
+MIR interpreter for comptime execution, debug mode, and deoptimization.
+The Machine executes MIR directly without compiling to native code.
 
-## Overview
+---
 
-The machine crate provides an `Interpreter` that evaluates MIR directly.
-It's used by the compiler's `Execute` phase to evaluate compile-time code:
-- `comptime` blocks and expressions
-- Static parameter arguments (`Container<comptime 42>`)
-- Constant folding and propagation
-- Compile-time reflection (`sizeOf`, `typeOf`, etc.)
+# Overview
+
+The Machine serves two main roles in Destack:
+
+1. **Comptime**: Evaluate `comptime { }` blocks during compilation.
+2. **Debugging**: Run programs with full introspection for development (even de-opt from native).
 
 ```
-Lower → MIR → Verify → Execute (this crate) → Optimize → Generate
-                          │
-                    comptime results
-                    feed back into MIR
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              COMPTIME EXECUTION                             │
+│                                                                             │
+│  Stages:  Lower ───► Machine ───► Patch                                     │
+│  Output:    MIR      results    patched DIR                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                DEBUG MODE                                   │
+│                                                                             │
+│  Stages:  Lower ───► Machine ───► Debug Session                             │
+│  Output:    MIR    execution    breakpoints, stepping, inspection           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DEOPTIMIZATION                                 │
+│                                                                             │
+│  Stages:  Native ───► Safepoint ───► Machine                                │
+│  Output:   code    reconstructed   continued execution                      │
+│              state               with introspection                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Similar to Zig's comptime or Rust's const evaluation.
-Like Zig, we directly interpret MIR rather than JIT-compiling.
+We interpret MIR directly rather than JIT-compiling it.
 
-## Architecture
+---
 
-The main construct is the `Interpreter` struct:
+# Interpreter
 
-```ds
-struct Interpreter {
-    tree: mir.NodeTree,           // the MIR being executed
-    strings: ImmutableStringPool,
-    managedHeap: ManagedHeap,     // GC-tracked allocations
-    rawHeap: RawHeap,             // manually managed allocations
-    globals: GlobalStorage,
-    externals: Map<string, ExternalFn>,
-    callStack: Frame[],
-    statistics: Statistics,
-}
-```
+## Value Representation
 
-The interpreter walks through MIR instructions, maintaining:
-- Bounded call stack of `Frame`s (one per function invocation)
-- SSA value bindings per frame
-- Local variable storage per frame
-- Heap storage for allocated objects
+Values use NaN-boxing for compact storage and fast type checks (like basically every JS engine).
+A NaN-boxed value fits in 8 bytes and encodes type information in the IEEE 754 NaN space.
+Floats require no encoding overhead; other types use the quiet NaN space for tagging.
 
-### Memory Model
+Small aggregates (tuples up to 4 elements, small structs) are stored inline to avoid heap allocation.
+This covers most aggregate usage without touching the heap.
 
-Three kinds of memory, matching MIR's allocation instructions:
+## Dispatch
+
+The interpreter uses direct threading for efficient dispatch.
+Each instruction handler jumps directly to the next without returning to a central loop, which eliminates branch misprediction on the dispatch.
+
+Common instruction sequences get fused into super-instructions:
+- Load field, then load another field (nested access)
+- Compare and branch (conditionals)
+- Load, add constant, store (increment patterns)
+
+## Caching
+
+Type-dependent operations use inline caches for fast repeated access.
+First access populates the cache; subsequent accesses hit the fast path.
+This helps a lot with property access and type reflection.
+
+# Memory
+
+The Machine manages three kinds of memory, matching MIR's semantics:
 
 | Kind | Instruction | Lifetime | Use Case |
 |------|-------------|----------|----------|
@@ -55,63 +80,98 @@ Three kinds of memory, matching MIR's allocation instructions:
 | Raw | `raw.alloc`/`raw.free` | Manual | Performance-critical, `^T` types |
 | Stack | `stack.alloc` | Frame-scoped | Temporaries, small allocations |
 
-### Values
+The managed heap does garbage collection during interpretation.
+The raw heap tracks allocations for leak detection in debug builds.
+Stack allocations get freed automatically when the frame exits.
 
-Runtime values are represented by the `Value` enum:
+---
+
+# Intrinsics
+
+Intrinsics are primitive operations handled directly by the interpreter:
+
+| Category | Examples |
+|----------|----------|
+| Reflection | `sizeOf`, `alignOf`, `typeOf` |
+| Bit manipulation | `clz`, `ctz`, `popcnt`, `byteSwap` |
+| Checked arithmetic | `add.overflow`, `sub.overflow` |
+| Memory | `memcpy`, `memmove`, `memset` |
+| Float math | `sqrt`, `sin`, `cos`, `pow`, `floor` |
+| Control | `unreachable`, `abort`, `breakpoint` |
+
+**Comptime-only intrinsics** (`sizeOf`, `alignOf`, `typeOf`) get evaluated during compilation and replaced with constants.
+Native codegen never sees them (directly).
+
+**Semantically void intrinsics** (`volatile.load`, `atomic.*`, `prefetch`) execute but don't do anything special in the interpreter.
+This lets comptime code include patterns that use these operations without breaking.
+
+---
+
+# External Functions
+
+Functions that can't be interpreted (FFI, system calls) are registered as external handlers.
+They get called with marshaled arguments and return marshaled results.
+
+In debug mode, external calls can be wrapped with crash protection.
+If an FFI call crashes, the interpreter state is preserved for inspection.
+
+---
+
+# Debug Mode
+
+In debug mode, the Machine provides full introspection:
+
+**Breakpoints**: Pause execution at specific MIR locations.
+
+**Stepping**: Execute one instruction, step over calls, or step out of functions.
+
+**Inspection**: View call stack, local variables, evaluate expressions in context.
+
+**Watches**: Monitor expressions and pause when values change.
+
+Debug mode uses the same interpreter as comptime.
+The only difference is that debug commands can pause and inspect execution.
+
+---
+
+# Deoptimization
+
+Native code can transfer execution to the Machine at safepoints.
+This enables debugging of optimized code by continuing in the interpreter.
+
+## Safepoints
+
+Compiled code includes safepoints where deoptimization can occur:
+- Function calls
+- Loop back-edges
+- Before potentially blocking operations
+
+At each safepoint, metadata describes how to reconstruct interpreter state from native registers and stack.
+
+## Deopt Sequence
+
+When a breakpoint is hit or deopt is requested:
 
 ```ds
-newtype Value =
-    | Void
-    | Bool { value: bool }
-    | Int { value: int64, width: uint8 }
-    | UInt { value: uint64, width: uint8 }
-    | Float32 { value: float32 }
-    | Float64 { value: float64 }
-    | String { value: string }
-    | Char { value: char }
-    | ManagedReference { handle: HeapHandle }
-    | RawPointer { pointer: RawPointer }
-    | StackPointer { pointer: StackPointer }
-    | GlobalPointer { id: LocalNodeId<Global> }
-    | FunctionPointer { id: LocalNodeId<Function> }
-    | Aggregate { values: Value[] }
+// pseudocode: deoptimization sequence
+fn triggerDeopt() {
+    // capture where we are in native code
+    nativeState = captureRegistersAndStack()
+
+    // find the safepoint metadata for this location
+    safepoint = lookupSafepoint(nativeState.pc)
+
+    // reconstruct interpreter state from native state
+    interpreterState = reconstructState(nativeState, safepoint)
+
+    // transfer to interpreter and continue
+    machine.continueFrom(interpreterState)
+}
 ```
 
-Aggregates (structs, tuples, arrays) are boxed slices of values.
-Pointers are handles into the appropriate heap/storage.
-Aggregate instructions (`field.get/set`, `element.get/set`) can operate on aggregate values
-or on managed/raw/stack pointers to aggregates.
+The interpreter receives:
+- Which function/block/instruction to resume at
+- Reconstructed SSA values and locals
+- The call stack (caller frames are also reconstructed)
 
-## Execution
-
-The interpreter is a straightforward instruction walker:
-
-1. Start at the entry block of the target function
-2. Execute instructions in order, updating SSA bindings
-3. When hitting a terminator, jump to the appropriate successor block
-4. On `call`, push a new frame and recurse
-5. On `return`, pop the frame and continue in the caller
-
-### Intrinsics
-
-Most intrinsics are straightforward to implement:
-- `size_of`/`align_of`: look up the type's computed layout
-- Bit operations (`clz`, `popcnt`): use Rust's intrinsics
-- Float math (`sin`, `sqrt`): use Rust's `f64` methods
-- Memory operations: manipulate the heap
-
-Some intrinsics don't make sense in comptime and will abort:
-- `volatile.load`/`volatile.store` (no memory-mapped I/O)
-- `breakpoint` (no debugger attached)
-- Atomics (single-threaded interpreter)
-
-### External Functions
-
-For functions that can't be interpreted (FFI, system calls), we can register external handlers via the `Interpreter`:
-
-```ds
-interpreter.registerExternal("print", (args) => {
-    console.log(args)
-    Ok(Value.Void)
-})
-```
+After deopt, execution continues in the interpreter with full debugging capabilities.
