@@ -21,7 +21,7 @@ block2:
     return v2
 }
 "#;
-    run_mir_expect(mir, "select", &[Value::Bool(true)], Value::int32(1));
+    run_mir_expect(mir, "select", &[Value::bool(true)], Value::int32(1));
 }
 
 /// Branch instruction takes the false path when condition is false.
@@ -39,7 +39,7 @@ block2:
     return v2
 }
 "#;
-    run_mir_expect(mir, "select", &[Value::Bool(false)], Value::int32(0));
+    run_mir_expect(mir, "select", &[Value::bool(false)], Value::int32(0));
 }
 
 /// Jump instruction transfers control to target block.
@@ -163,7 +163,7 @@ block0:
     return
 }
 "#;
-    run_mir_expect(mir, "noop", &[], Value::Void);
+    run_mir_expect(mir, "noop", &[], Value::VOID);
 }
 
 /// Caller's local values are preserved across nested calls.
@@ -241,7 +241,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
     let result = interpreter
         .run_function_by_name(
             "caller",
-            &[Value::FunctionPointer(double_id), Value::int32(21)],
+            &[Value::function_pointer(double_id), Value::int32(21)],
         )
         .expect("execution failed");
 
@@ -301,13 +301,13 @@ block1(v3: i32):
     run_mir_expect(
         mir,
         "branch_params",
-        &[Value::Bool(true)],
+        &[Value::bool(true)],
         Value::int32(100),
     );
     run_mir_expect(
         mir,
         "branch_params",
-        &[Value::Bool(false)],
+        &[Value::bool(false)],
         Value::int32(200),
     );
 }

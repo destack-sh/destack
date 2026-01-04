@@ -137,7 +137,7 @@ block0:
     return v1
 }
 "#;
-    run_mir_expect(mir, "read", &[], Value::Bool(false));
+    run_mir_expect(mir, "read", &[], Value::bool(false));
 }
 
 /// Aggregate global initializer with scalar values.
@@ -228,11 +228,9 @@ block0:
 }
 "#;
     let output = run_mir_ok(mir, "read", &[]);
-    match output.value {
-        #[allow(clippy::approx_constant)]
-        Value::Float64(f) => assert!((f - 3.14159).abs() < 0.0001),
-        _ => panic!("expected Float64"),
-    }
+    let f = output.value.as_float64().expect("expected Float64");
+    #[allow(clippy::approx_constant)]
+    assert!((f - 3.14159).abs() < 0.0001);
 }
 
 /// Global bool with initial value.
@@ -251,5 +249,5 @@ block0:
     return v3
 }
 "#;
-    run_mir_expect(mir, "toggle", &[], Value::Bool(false));
+    run_mir_expect(mir, "toggle", &[], Value::bool(false));
 }

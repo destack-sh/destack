@@ -4,7 +4,7 @@ mod global;
 mod instruction;
 mod interpreter;
 mod intrinsic;
-mod operations;
+mod operation;
 mod options;
 mod statistics;
 

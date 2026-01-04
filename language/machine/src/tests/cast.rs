@@ -43,15 +43,7 @@ block0(v0: u8):
     return v1
 }
 "#;
-    run_mir_expect(
-        mir,
-        "uext",
-        &[Value::UInt {
-            value: 200,
-            width: 8,
-        }],
-        Value::uint32(200),
-    );
+    run_mir_expect(mir, "uext", &[Value::uint(200, 8)], Value::uint32(200));
 }
 
 /// Sign-extend i8 to i32.
@@ -65,35 +57,11 @@ block0(v0: i8):
 }
 "#;
     // positive value
-    run_mir_expect(
-        mir,
-        "sext",
-        &[Value::Int {
-            value: 100,
-            width: 8,
-        }],
-        Value::int32(100),
-    );
+    run_mir_expect(mir, "sext", &[Value::int(100, 8)], Value::int32(100));
     // negative value: -1 as i8 should become -1 as i32
-    run_mir_expect(
-        mir,
-        "sext",
-        &[Value::Int {
-            value: -1,
-            width: 8,
-        }],
-        Value::int32(-1),
-    );
+    run_mir_expect(mir, "sext", &[Value::int(-1, 8)], Value::int32(-1));
     // -100 as i8
-    run_mir_expect(
-        mir,
-        "sext",
-        &[Value::Int {
-            value: -100,
-            width: 8,
-        }],
-        Value::int32(-100),
-    );
+    run_mir_expect(mir, "sext", &[Value::int(-100, 8)], Value::int32(-100));
 }
 
 /// Float64 to signed integer.

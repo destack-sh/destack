@@ -77,7 +77,7 @@ impl Interpreter {
 
         // bind parameters
         for (i, param) in function.parameters.iter().enumerate() {
-            let value = arguments.get(i).copied().unwrap_or(Value::Void);
+            let value = arguments.get(i).copied().unwrap_or(Value::VOID);
             frame.set_value(param.value, value);
         }
 
@@ -267,7 +267,7 @@ impl Interpreter {
                 let return_value = if let Some(v) = value {
                     self.current_frame()?.get_value(v)?
                 } else {
-                    Value::Void
+                    Value::VOID
                 };
 
                 Ok(TerminatorResult::Return(return_value))
@@ -413,7 +413,7 @@ impl Interpreter {
 
         // bind block parameters
         for (i, param_value) in parameters.iter().enumerate() {
-            let value = arguments.get(i).copied().unwrap_or(Value::Void);
+            let value = arguments.get(i).copied().unwrap_or(Value::VOID);
             frame.set_value(*param_value, value);
         }
 
@@ -474,7 +474,7 @@ impl Interpreter {
 
         // bind parameters
         for (i, parameter) in func.parameters.iter().enumerate() {
-            let value = arguments.get(i).copied().unwrap_or(Value::Void);
+            let value = arguments.get(i).copied().unwrap_or(Value::VOID);
             new_frame.set_value(parameter.value, value);
         }
 

@@ -43,8 +43,8 @@ fn test_gc_follows_references() {
 
     // create a chain: root -> child1 -> child2
     let child2 = heap.allocate();
-    let child1 = heap.allocate_with_values(vec![Value::ManagedReference(child2)]);
-    let root = heap.allocate_with_values(vec![Value::ManagedReference(child1)]);
+    let child1 = heap.allocate_with_values(vec![Value::managed_reference(child2)]);
+    let root = heap.allocate_with_values(vec![Value::managed_reference(child1)]);
 
     // also create an unreachable cell
     let _unreachable = heap.allocate();
@@ -73,11 +73,11 @@ fn test_gc_handles_cycles() {
     heap.get_mut(a)
         .unwrap()
         .slots
-        .push(Value::ManagedReference(b));
+        .push(Value::managed_reference(b));
     heap.get_mut(b)
         .unwrap()
         .slots
-        .push(Value::ManagedReference(a));
+        .push(Value::managed_reference(a));
 
     // create unreachable cells
     let _unreachable1 = heap.allocate();
@@ -117,8 +117,8 @@ fn test_gc_multiple_references_to_same_cell() {
     let mut heap = ManagedHeap::new();
 
     let shared = heap.allocate();
-    let holder1 = heap.allocate_with_values(vec![Value::ManagedReference(shared)]);
-    let holder2 = heap.allocate_with_values(vec![Value::ManagedReference(shared)]);
+    let holder1 = heap.allocate_with_values(vec![Value::managed_reference(shared)]);
+    let holder2 = heap.allocate_with_values(vec![Value::managed_reference(shared)]);
 
     assert_eq!(heap.cell_count(), 3);
 
@@ -139,9 +139,9 @@ fn test_gc_handles_aggregates() {
     let child = heap.allocate();
     // create an aggregate value containing a reference
     let inner_agg =
-        heap.allocate_with_values(vec![Value::int32(42), Value::ManagedReference(child)]);
+        heap.allocate_with_values(vec![Value::int32(42), Value::managed_reference(child)]);
     // put the aggregate inside the parent
-    let parent = heap.allocate_with_values(vec![Value::Aggregate(inner_agg)]);
+    let parent = heap.allocate_with_values(vec![Value::aggregate(inner_agg)]);
 
     let _unreachable = heap.allocate();
 
