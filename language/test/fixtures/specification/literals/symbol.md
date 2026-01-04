@@ -19,6 +19,7 @@ const x: symbol = Symbol("id");
 
 > Symbols expose Symbol prototype members.
 
+<!-- FUGU: fix well known member lookup (probably ES lib issues..) -->
 
 ```ds libs=es2015
 const value: symbol = Symbol("id");

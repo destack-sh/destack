@@ -317,6 +317,7 @@ Reify makes this explicit.
 | T → T \| null \| undefined | yes | nullable upcast |
 | subtype → base | yes | instance upcast when assignable |
 | T[N] → T[] | yes | sized array to slice |
+| T → object | yes | non-primitive to object |
 | T → any | yes | widen to any |
 | T → unknown | yes | widen to unknown |
 
@@ -354,6 +355,7 @@ Analyze enforces the requirement and Reify only classifies explicit casts.
 | instance downcast | yes | checked |
 | enum ↔ int | yes | checked |
 | enum ↔ string | yes | checked |
+| object → T | yes | checked |
 | any → T | yes | unchecked |
 | unknown → T | yes | checked |
 
