@@ -217,6 +217,7 @@ block0:
 
 /// Global float with initial value.
 #[test]
+#[allow(clippy::approx_constant)]
 fn test_global_float() {
     let mir = r#"
 global @pi: f64 = 3.14159f64 ; const
@@ -229,7 +230,6 @@ block0:
 "#;
     let output = run_mir_ok(mir, "read", &[]);
     let f = output.value.as_float64().expect("expected Float64");
-    #[allow(clippy::approx_constant)]
     assert!((f - 3.14159).abs() < 0.0001);
 }
 

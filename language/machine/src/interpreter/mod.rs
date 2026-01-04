@@ -1,9 +1,12 @@
+mod bytecode;
 mod call;
+mod decode;
 mod frame;
 mod global;
+mod instruction;
 mod interpreter;
 mod intrinsic;
-mod operation;
+mod operator;
 mod options;
 mod statistics;
 mod threaded;

@@ -24,6 +24,8 @@ declare_lint! {
     "Disallow console usage"
 }
 
+// FUGU: ensure new DIR linter rules still work (after Analyze changes)
+
 impl LintRule for NoConsole {
     /// Return lint metadata.
     fn meta(&self) -> &'static LintMeta {

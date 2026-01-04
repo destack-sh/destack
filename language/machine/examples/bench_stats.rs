@@ -28,7 +28,11 @@ fn main() {
         program::print_stats();
     } else {
         let filter: Vec<&str> = args.filter.iter().map(|s| s.as_str()).collect();
-        let filter = if filter.is_empty() { None } else { Some(&filter[..]) };
+        let filter = if filter.is_empty() {
+            None
+        } else {
+            Some(&filter[..])
+        };
         program::quick_bench(filter);
     }
 }
