@@ -761,26 +761,29 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::Call {
             destination: Some(destination),
             function,
-            arguments: argument_values,
+            arguments,
         });
         Some(destination)
     }
 
     /// Call a function with no return value.
     pub fn call_void(&mut self, function: LocalNodeId<Function>, argument_values: Vec<Value>) {
+        let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::Call {
             destination: None,
             function,
-            arguments: argument_values,
+            arguments,
         });
     }
 
     /// Call through a function pointer.
-    pub fn call_indirect(&mut self, callee: Value, arguments: Vec<Value>) -> Value {
+    pub fn call_indirect(&mut self, callee: Value, args: Vec<Value>) -> Value {
         let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
             callee,
@@ -790,7 +793,8 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Call through a function pointer with no return value.
-    pub fn call_indirect_void(&mut self, callee: Value, arguments: Vec<Value>) {
+    pub fn call_indirect_void(&mut self, callee: Value, args: Vec<Value>) {
+        let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee,
@@ -840,8 +844,9 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: intrinsics
 
     /// Call an intrinsic that returns a value.
-    pub fn intrinsic(&mut self, intrinsic: Intrinsic, arguments: Vec<Value>) -> Value {
+    pub fn intrinsic(&mut self, intrinsic: Intrinsic, args: Vec<Value>) -> Value {
         let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::Intrinsic {
             destination: Some(destination),
             intrinsic,
@@ -852,7 +857,8 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Call an intrinsic with no return value.
-    pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, arguments: Vec<Value>) {
+    pub fn intrinsic_void(&mut self, intrinsic: Intrinsic, args: Vec<Value>) {
+        let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::Intrinsic {
             destination: None,
             intrinsic,
@@ -865,10 +871,11 @@ impl<'a> FunctionBuilder<'a> {
     pub fn atomic_intrinsic(
         &mut self,
         intrinsic: Intrinsic,
-        arguments: Vec<Value>,
+        args: Vec<Value>,
         ordering: MemoryOrdering,
     ) -> Value {
         let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::Intrinsic {
             destination: Some(destination),
             intrinsic,
@@ -882,9 +889,10 @@ impl<'a> FunctionBuilder<'a> {
     pub fn atomic_intrinsic_void(
         &mut self,
         intrinsic: Intrinsic,
-        arguments: Vec<Value>,
+        args: Vec<Value>,
         ordering: MemoryOrdering,
     ) {
+        let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::Intrinsic {
             destination: None,
             intrinsic,

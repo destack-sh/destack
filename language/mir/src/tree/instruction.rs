@@ -10,6 +10,38 @@ use crate::{
     Node, NodeType, Type, UnaryOperator, Value,
 };
 
+/// Compact representation of an argument slice stored in an external buffer.
+///
+/// Used by Call, CallIndirect, and Intrinsic instructions to reference arguments.
+/// This saves 16 bytes per instruction compared to using `Vec<Value>` inline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ArgumentSlice {
+    /// Start index in the arguments buffer.
+    pub start: u32,
+    /// Number of arguments.
+    pub count: u16,
+}
+
+impl ArgumentSlice {
+    /// Create a new argument slice.
+    #[inline]
+    pub const fn new(start: u32, count: u16) -> Self {
+        Self { start, count }
+    }
+
+    /// Check if the slice is empty.
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// Get the length of the slice.
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.count as usize
+    }
+}
+
 /// Instructions produce SSA values and perform "operations".
 /// Each instruction produces at most one value via the `destination` field.
 #[derive(Debug, Clone, PartialEq)]
@@ -161,8 +193,8 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The function to call.
         function: LocalNodeId<Function>,
-        /// The arguments to pass.
-        arguments: Vec<Value>,
+        /// The arguments to pass (stored in NodeTree's argument buffer).
+        arguments: ArgumentSlice,
     },
     /// Call through a function pointer (call.indirect).
     CallIndirect {
@@ -170,8 +202,8 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The function pointer to call.
         callee: Value,
-        /// The arguments to pass.
-        arguments: Vec<Value>,
+        /// The arguments to pass (stored in NodeTree's argument buffer).
+        arguments: ArgumentSlice,
     },
 
     // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
@@ -232,7 +264,7 @@ pub enum Instruction {
         /// The intrinsic to call.
         intrinsic: Intrinsic,
         /// The arguments to pass.
-        arguments: Vec<Value>,
+        arguments: ArgumentSlice,
         /// Memory ordering for atomic operations (None for non-atomic intrinsics).
         ordering: Option<MemoryOrdering>,
     },
@@ -271,7 +303,10 @@ impl Instruction {
         }
     }
 
-    /// Get all values used by this instruction.
+    /// Get inline values used by this instruction (excludes externalized arguments).
+    ///
+    /// For Call, CallIndirect, and Intrinsic, the arguments are stored externally
+    /// in NodeTree's argument buffer and must be fetched via `NodeTree::get_arguments()`.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Const { .. } => smallvec![],
@@ -295,20 +330,29 @@ impl Instruction {
                 value,
                 ..
             } => smallvec![*array, *index, *value],
-            Instruction::Call { arguments, .. } => arguments.iter().copied().collect(),
-            Instruction::CallIndirect {
-                callee, arguments, ..
-            } => {
-                let mut uses = smallvec![*callee];
-                uses.extend(arguments.iter().copied());
-                uses
-            }
+            // Arguments stored externally - return empty
+            Instruction::Call { .. } => smallvec![],
+            Instruction::CallIndirect { callee, .. } => smallvec![*callee],
             Instruction::ManagedAlloc { .. } => smallvec![],
             Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::StackAlloc { .. } => smallvec![],
-            Instruction::Intrinsic { arguments, .. } => arguments.iter().copied().collect(),
+            // Arguments stored externally - return empty
+            Instruction::Intrinsic { .. } => smallvec![],
+        }
+    }
+
+    /// Get the argument slice for instructions that have externalized arguments.
+    ///
+    /// Returns `Some(ArgumentSlice)` for Call, CallIndirect, and Intrinsic.
+    /// Returns `None` for all other instructions.
+    pub fn argument_slice(&self) -> Option<ArgumentSlice> {
+        match self {
+            Instruction::Call { arguments, .. } => Some(*arguments),
+            Instruction::CallIndirect { arguments, .. } => Some(*arguments),
+            Instruction::Intrinsic { arguments, .. } => Some(*arguments),
+            _ => None,
         }
     }
 }

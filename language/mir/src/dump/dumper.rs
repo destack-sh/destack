@@ -411,7 +411,8 @@ impl<'a> Dumper<'a> {
                 self.write("call ");
                 self.write(&self.format_function_id(*function));
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                let args = self.tree.get_arguments(*arguments);
+                for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -432,7 +433,8 @@ impl<'a> Dumper<'a> {
                 self.write("call.indirect ");
                 self.write(&self.format_value(*callee));
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                let args = self.tree.get_arguments(*arguments);
+                for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
@@ -497,14 +499,15 @@ impl<'a> Dumper<'a> {
                 }
                 self.write_colored(&format!("intrinsic.{}", intrinsic.to_str()), Color::Cyan);
                 self.write("(");
-                for (i, arg) in arguments.iter().enumerate() {
+                let args = self.tree.get_arguments(*arguments);
+                for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
                 }
                 if let Some(ord) = ordering {
-                    if !arguments.is_empty() {
+                    if !args.is_empty() {
                         self.write(", ");
                     }
                     self.write_colored(ord.to_str(), Color::Yellow);

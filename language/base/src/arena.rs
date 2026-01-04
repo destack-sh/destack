@@ -13,8 +13,10 @@ const DEFAULT_CHUNK_SIZE: usize = 512;
 pub struct Arena<T> {
     /// The chunks in the arena.
     pub(super) chunks: Vec<Vec<T>>,
-    /// The capacity of each chunk (number of elements).
-    chunk_size: usize,
+    /// Bit shift for chunk size (chunk_size = 1 << chunk_shift).
+    chunk_shift: u32,
+    /// Bit mask for indexing within chunk (chunk_size - 1).
+    chunk_mask: usize,
     /// Remaining capacity in the current chunk (avoids checking len each allocation).
     current_chunk_remaining: usize,
 }
@@ -26,7 +28,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Arena")
             .field("len", &self.len())
-            .field("chunk_size", &self.chunk_size)
+            .field("chunk_size", &(1usize << self.chunk_shift))
             .finish()
     }
 }
@@ -45,11 +47,19 @@ impl<T> Arena<T> {
     }
 
     /// Create a new Arena with the given capacity.
+    ///
+    /// `chunk_size` must be a power of 2.
     #[inline]
     pub fn with(_capacity: usize, chunk_size: usize) -> Self {
+        debug_assert!(
+            chunk_size.is_power_of_two(),
+            "chunk_size must be power of 2"
+        );
+        let chunk_shift = chunk_size.trailing_zeros();
         Self {
             chunks: Vec::new(),
-            chunk_size,
+            chunk_shift,
+            chunk_mask: chunk_size - 1,
             current_chunk_remaining: 0,
         }
     }
@@ -64,18 +74,19 @@ impl<T> Arena<T> {
             let last_chunk = &mut self.chunks[chunk_index];
             let item_index = last_chunk.len();
             last_chunk.push(element);
-            return (chunk_index * self.chunk_size + item_index) as u32;
+            return ((chunk_index << self.chunk_shift) + item_index) as u32;
         }
 
         // slow path: need a new chunk
-        self.chunks.push(Vec::with_capacity(self.chunk_size));
-        self.current_chunk_remaining = self.chunk_size - 1;
+        let chunk_size = self.chunk_mask + 1;
+        self.chunks.push(Vec::with_capacity(chunk_size));
+        self.current_chunk_remaining = self.chunk_mask; // chunk_size - 1
 
         let chunk_index = self.chunks.len() - 1;
         let last_chunk = &mut self.chunks[chunk_index];
         last_chunk.push(element);
 
-        (chunk_index * self.chunk_size) as u32
+        (chunk_index << self.chunk_shift) as u32
     }
 
     /// Get an immutable reference to the element with the given local id.
@@ -95,7 +106,7 @@ impl<T> Arena<T> {
     /// Reserve capacity for at least `n` additional elements.
     #[inline]
     pub fn reserve(&mut self, n: usize) {
-        let needed_chunks = n.div_ceil(self.chunk_size);
+        let needed_chunks = (n + self.chunk_mask) >> self.chunk_shift;
         self.chunks.reserve(needed_chunks);
     }
 
@@ -114,7 +125,7 @@ impl<T> Arena<T> {
         if self.chunks.is_empty() {
             return 0;
         }
-        (self.chunks.len() - 1) * self.chunk_size + self.chunks.last().unwrap().len()
+        ((self.chunks.len() - 1) << self.chunk_shift) + self.chunks.last().unwrap().len()
     }
 
     /// Returns true if the arena is empty.
@@ -126,7 +137,7 @@ impl<T> Arena<T> {
     #[inline]
     fn index_of(&self, local_id: u32) -> (usize, usize) {
         let id = local_id as usize;
-        (id / self.chunk_size, id % self.chunk_size)
+        (id >> self.chunk_shift, id & self.chunk_mask)
     }
 }
 

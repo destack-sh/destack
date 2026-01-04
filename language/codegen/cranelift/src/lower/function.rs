@@ -955,8 +955,8 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
 
                 // gather argument values
-                let argument_values: Vec<cir::Value> =
-                    arguments.iter().map(|v| value_map[v]).collect();
+                let args = self.tree.get_arguments(*arguments);
+                let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
 
                 // make the call
                 let call_instruction = builder.ins().call(*function_ref, &argument_values);
@@ -1010,8 +1010,8 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 let sig_ref = builder.import_signature(signature);
                 let callee_value = value_map[callee];
-                let argument_values: Vec<cir::Value> =
-                    arguments.iter().map(|v| value_map[v]).collect();
+                let args = self.tree.get_arguments(*arguments);
+                let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
 
                 // make the call
                 let call_inst =

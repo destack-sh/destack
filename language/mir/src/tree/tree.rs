@@ -3,8 +3,8 @@ use std::fmt::{Debug, Formatter};
 use destack_base::Arena;
 
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Type,
-    TypeAlias,
+    ArgumentSlice, Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType,
+    Type, TypeAlias, Value,
 };
 
 /// MIR node tree for a single module.
@@ -35,6 +35,11 @@ pub struct NodeTree {
     /// Maps MIR node id → source DIR node id (for diagnostics).
     /// None for synthesized nodes that don't correspond to source.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
+
+    // externalized instruction arguments
+    /// Flat buffer of instruction arguments (for Call, CallIndirect, Intrinsic).
+    /// Instructions reference slices of this buffer via ArgumentSlice.
+    pub(crate) instruction_arguments: Vec<Value>,
 }
 
 impl Debug for NodeTree {
@@ -81,6 +86,7 @@ impl NodeTree {
             globals: Arena::new(),
 
             source_id_by_node_id: Vec::with_capacity(capacity),
+            instruction_arguments: Vec::new(),
         }
     }
 
@@ -178,6 +184,25 @@ impl NodeTree {
                     None
                 }
             })
+    }
+
+    /// Add arguments to the arguments buffer and return an ArgumentSlice.
+    ///
+    /// This is used when creating Call, CallIndirect, or Intrinsic instructions.
+    #[inline]
+    pub fn add_arguments(&mut self, args: &[Value]) -> ArgumentSlice {
+        let start = self.instruction_arguments.len() as u32;
+        let count = args.len() as u16;
+        self.instruction_arguments.extend_from_slice(args);
+        ArgumentSlice::new(start, count)
+    }
+
+    /// Get arguments from the arguments buffer by slice.
+    #[inline]
+    pub fn get_arguments(&self, slice: ArgumentSlice) -> &[Value] {
+        let start = slice.start as usize;
+        let end = start + slice.count as usize;
+        &self.instruction_arguments[start..end]
     }
 }
 

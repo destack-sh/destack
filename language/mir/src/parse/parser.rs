@@ -810,7 +810,8 @@ impl<'a> Parser<'a> {
             // function calls
             "call" => {
                 let function = self.parse_function_reference()?;
-                let arguments = self.parse_call_arguments()?;
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
                 Instruction::Call {
                     destination: Some(destination),
                     function,
@@ -819,7 +820,8 @@ impl<'a> Parser<'a> {
             }
             "call.indirect" => {
                 let callee = self.parse_value()?;
-                let arguments = self.parse_call_arguments()?;
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
                 Instruction::CallIndirect {
                     destination: Some(destination),
                     callee,
@@ -864,7 +866,8 @@ impl<'a> Parser<'a> {
             _ if opcode_text.starts_with("intrinsic.") => {
                 let opcode_start = opcode.start;
                 let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
-                let (arguments, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
+                let (args, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
+                let arguments = self.tree.add_arguments(&args);
                 Instruction::Intrinsic {
                     destination: Some(destination),
                     intrinsic,
@@ -909,7 +912,8 @@ impl<'a> Parser<'a> {
             // void calls
             "call" => {
                 let function = self.parse_function_reference()?;
-                let arguments = self.parse_call_arguments()?;
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
                 Instruction::Call {
                     destination: None,
                     function,
@@ -918,7 +922,8 @@ impl<'a> Parser<'a> {
             }
             "call.indirect" => {
                 let callee = self.parse_value()?;
-                let arguments = self.parse_call_arguments()?;
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
                 Instruction::CallIndirect {
                     destination: None,
                     callee,
@@ -936,7 +941,8 @@ impl<'a> Parser<'a> {
             _ if opcode_text.starts_with("intrinsic.") => {
                 let opcode_start = opcode.start;
                 let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
-                let (arguments, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
+                let (args, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
+                let arguments = self.tree.add_arguments(&args);
                 Instruction::Intrinsic {
                     destination: None,
                     intrinsic,
