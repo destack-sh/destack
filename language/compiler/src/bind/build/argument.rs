@@ -68,6 +68,8 @@ impl Compiler {
         let ast_parameter = ast.tree.get(ast_parameter_id);
         let parameter_id =
             tree.reserve_from_source(NodeType::Parameter, ast_parameter_id.id, scope, parent_id);
+
+        let constraint_scope = (scope.0, LocalScopeMark::end());
         match ast_parameter {
             ast::Parameter::Named {
                 modifiers,
@@ -99,7 +101,6 @@ impl Compiler {
                     None,
                     symbols,
                 );
-                let scope = (scope.0, symbols.get_scope_mark(scope.0));
                 let parameter = Parameter::Named {
                     modifiers,
                     name,
@@ -113,7 +114,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        scope,
+                        constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
                         tree,
@@ -171,7 +172,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        scope,
+                        constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
                         tree,
@@ -199,7 +200,6 @@ impl Compiler {
                     None,
                     symbols,
                 );
-                let scope = (scope.0, symbols.get_scope_mark(scope.0));
                 let parameter = Parameter::Variadic {
                     modifiers,
                     name,
@@ -212,7 +212,7 @@ impl Compiler {
                     let ty = self.bind_expression_to_type(
                         module,
                         ast,
-                        scope,
+                        constraint_scope,
                         *ty,
                         Some(parameter_id.into()),
                         tree,

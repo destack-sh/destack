@@ -524,7 +524,6 @@ impl Dump for TypePredicateSubject {
     }
 }
 
-
 /// Dump a DeclarationDescriptor as a structured object.
 impl Dump for DeclarationDescriptor {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
