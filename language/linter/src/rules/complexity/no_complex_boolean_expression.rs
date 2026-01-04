@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, UnaryOperator};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_equal;
+use crate::rules::common::expression_is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -81,7 +81,7 @@ impl LintRule for NoComplexBooleanExpression {
                 }
 
                 // check if both sides are the same expression (redundant)
-                if is_equal(ctx, *left, *right) {
+                if expression_is_equal(ctx, *left, *right) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         continue;
@@ -151,7 +151,7 @@ fn is_negation_of(
         right: inner_id,
     } = right
     {
-        is_equal(ctx, left_id, *inner_id)
+        expression_is_equal(ctx, left_id, *inner_id)
     } else {
         false
     }

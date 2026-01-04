@@ -20,6 +20,7 @@ mod no_lonely_if;
 mod no_negated_condition;
 mod no_nested_template_literal;
 mod no_nested_ternary;
+mod no_object_constructor;
 mod no_unnecessary_lambda;
 mod no_unneeded_ternary;
 mod no_var;
@@ -35,11 +36,13 @@ mod prefer_implicit_return;
 mod prefer_inclusive_range;
 mod prefer_loop;
 mod prefer_named_extension;
+mod prefer_object_spread;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
 mod prefer_range_contains;
 mod prefer_range_literal;
 mod prefer_self_closing_tree;
+mod prefer_string_replaceall;
 mod prefer_struct;
 mod prefer_struct_literal;
 mod prefer_template;
@@ -76,6 +79,7 @@ pub use no_lonely_if::*;
 pub use no_negated_condition::*;
 pub use no_nested_template_literal::*;
 pub use no_nested_ternary::*;
+pub use no_object_constructor::*;
 pub use no_unnecessary_lambda::*;
 pub use no_unneeded_ternary::*;
 pub use no_var::*;
@@ -91,11 +95,13 @@ pub use prefer_implicit_return::*;
 pub use prefer_inclusive_range::*;
 pub use prefer_loop::*;
 pub use prefer_named_extension::*;
+pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
 pub use prefer_range_contains::*;
 pub use prefer_range_literal::*;
 pub use prefer_self_closing_tree::*;
+pub use prefer_string_replaceall::*;
 pub use prefer_struct::*;
 pub use prefer_struct_literal::*;
 pub use prefer_template::*;
@@ -133,6 +139,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoNegatedCondition),
         boxed(NoNestedTemplateLiteral),
         boxed(NoNestedTernary),
+        boxed(NoObjectConstructor),
         boxed(NoUnnecessaryLambda),
         boxed(NoUnneededTernary),
         boxed(NoVar),
@@ -150,8 +157,10 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferPatternOverGuard),
         boxed(PreferRangeContains),
         boxed(PreferSelfClosingTree),
+        boxed(PreferObjectSpread),
         boxed(PreferStruct),
         boxed(PreferStructLiteral),
+        boxed(PreferStringReplaceAll),
         boxed(PreferTuple),
         boxed(PreferTupleDestructure),
         boxed(PreferTupleSwap),

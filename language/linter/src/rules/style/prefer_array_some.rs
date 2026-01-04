@@ -2,7 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{const_i64, flip_operator, is_array_type};
+use crate::rules::common::{const_i64, flip_binary_operator, is_array_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -155,7 +155,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
         // normalize operators when constants are on the left
         let operator = if flipped {
-            flip_operator(operator)?
+            flip_binary_operator(operator)?
         } else {
             operator
         };

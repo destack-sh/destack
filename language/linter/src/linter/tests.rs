@@ -120,6 +120,22 @@ impl TestProgram {
         self
     }
 
+    /// Update the runtime for the test profile.
+    pub(crate) fn with_runtime(mut self, runtime: Runtime) -> Self {
+        let profile = self.program.profile(self.profile_id);
+        let libs = profile.key.lib.clone();
+        self.profile_id = self.program.profiles.get_or_create(ProfileKey::new(
+            runtime,
+            profile.key.platform,
+            libs,
+            profile.key.debug,
+            profile.key.test,
+            profile.key.env,
+            profile.key.flags,
+        ));
+        self
+    }
+
     /// Load a lib module set.
     pub(crate) fn with_lib(mut self, name: &str) -> Self {
         self.session

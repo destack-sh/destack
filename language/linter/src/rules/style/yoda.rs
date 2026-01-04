@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{is_comparison_operator, is_literal};
+use crate::rules::common::{expression_is_literal, is_comparison_operator};
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -50,7 +50,7 @@ impl LintRule for Yoda {
             // check for yoda condition: literal on left, non-literal on right
             let left_expression = ctx.tree.get(*left);
             let right_expression = ctx.tree.get(*right);
-            if is_literal(left_expression) && !is_literal(right_expression) {
+            if expression_is_literal(left_expression) && !expression_is_literal(right_expression) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;

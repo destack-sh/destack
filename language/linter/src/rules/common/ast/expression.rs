@@ -6,7 +6,7 @@ use crate::LintModuleAstContext;
 ///
 /// Compares expressions by structure, ignoring parentheses.
 /// Handles paths, literals, and recursively compares binary/unary operations.
-pub fn is_equal(
+pub fn expression_is_equal(
     ctx: &LintModuleAstContext<'_>,
     left_id: ast::LocalNodeId<ast::Expression>,
     right_id: ast::LocalNodeId<ast::Expression>,
@@ -15,8 +15,8 @@ pub fn is_equal(
     let right = ctx.tree.get(right_id);
 
     // unwrap parentheses
-    let left = unwrap_parentheses(ctx, left);
-    let right = unwrap_parentheses(ctx, right);
+    let left = expression_unwrap_parentheses(ctx, left);
+    let right = expression_unwrap_parentheses(ctx, right);
     match (left, right) {
         // paths: compare segments
         (
@@ -54,8 +54,8 @@ pub fn is_equal(
             },
         ) => {
             left_operator == right_operator
-                && is_equal(ctx, *left_left, *right_left)
-                && is_equal(ctx, *left_right, *right_right)
+                && expression_is_equal(ctx, *left_left, *right_left)
+                && expression_is_equal(ctx, *left_right, *right_right)
         }
 
         // unary expressions: compare operator and operand recursively
@@ -68,7 +68,7 @@ pub fn is_equal(
                 operator: right_operator,
                 right: right_right,
             },
-        ) => left_operator == right_operator && is_equal(ctx, *left_right, *right_right),
+        ) => left_operator == right_operator && expression_is_equal(ctx, *left_right, *right_right),
 
         // type unary expressions: compare operator and operand
         (
@@ -80,7 +80,7 @@ pub fn is_equal(
                 operator: right_operator,
                 right: right_right,
             },
-        ) => left_operator == right_operator && is_equal(ctx, *left_right, *right_right),
+        ) => left_operator == right_operator && expression_is_equal(ctx, *left_right, *right_right),
 
         // type binary expressions: compare operator and operands
         (
@@ -96,8 +96,8 @@ pub fn is_equal(
             },
         ) => {
             left_operator == right_operator
-                && is_equal(ctx, *left_left, *right_left)
-                && is_equal(ctx, *left_right, *right_right)
+                && expression_is_equal(ctx, *left_left, *right_left)
+                && expression_is_equal(ctx, *left_right, *right_right)
         }
 
         // member access: compare object and member name
@@ -113,7 +113,7 @@ pub fn is_equal(
                 ..
             },
         ) => {
-            is_equal(ctx, *left_object, *right_object)
+            expression_is_equal(ctx, *left_object, *right_object)
                 && string_ids_equal(ctx, *left_name, *right_name)
         }
 
@@ -133,11 +133,11 @@ pub fn is_equal(
             if left_position != right_position {
                 return false;
             }
-            if !is_equal(ctx, *left_object, *right_object) {
+            if !expression_is_equal(ctx, *left_object, *right_object) {
                 return false;
             }
             match (left_index, right_index) {
-                (Some(left), Some(right)) => is_equal(ctx, *left, *right),
+                (Some(left), Some(right)) => expression_is_equal(ctx, *left, *right),
                 (None, None) => true,
                 _ => false,
             }
@@ -157,8 +157,8 @@ pub fn is_equal(
             },
         ) => {
             left_inclusive == right_inclusive
-                && is_equal(ctx, *left_start, *right_start)
-                && is_equal(ctx, *left_end, *right_end)
+                && expression_is_equal(ctx, *left_start, *right_start)
+                && expression_is_equal(ctx, *left_end, *right_end)
         }
 
         // value of: compare mutability, variance, and operand
@@ -176,7 +176,7 @@ pub fn is_equal(
         ) => {
             left_mutability == right_mutability
                 && left_variance == right_variance
-                && is_equal(ctx, *left_right, *right_right)
+                && expression_is_equal(ctx, *left_right, *right_right)
         }
 
         // reference of: compare mutability, variance, and operand
@@ -194,7 +194,7 @@ pub fn is_equal(
         ) => {
             left_mutability == right_mutability
                 && left_variance == right_variance
-                && is_equal(ctx, *left_right, *right_right)
+                && expression_is_equal(ctx, *left_right, *right_right)
         }
 
         // pointer of: compare mutability and operand
@@ -207,7 +207,10 @@ pub fn is_equal(
                 mutability: right_mutability,
                 right: right_right,
             },
-        ) => left_mutability == right_mutability && is_equal(ctx, *left_right, *right_right),
+        ) => {
+            left_mutability == right_mutability
+                && expression_is_equal(ctx, *left_right, *right_right)
+        }
 
         // await expressions: compare inner expression
         (
@@ -217,7 +220,7 @@ pub fn is_equal(
             ast::Expression::Await {
                 expression: right_expression,
             },
-        ) => is_equal(ctx, *left_expression, *right_expression),
+        ) => expression_is_equal(ctx, *left_expression, *right_expression),
 
         // await? expressions: compare inner expression
         (
@@ -227,19 +230,19 @@ pub fn is_equal(
             ast::Expression::AwaitMaybe {
                 expression: right_expression,
             },
-        ) => is_equal(ctx, *left_expression, *right_expression),
+        ) => expression_is_equal(ctx, *left_expression, *right_expression),
 
         // throw expressions: compare value
         (
             ast::Expression::Throw { value: left_value },
             ast::Expression::Throw { value: right_value },
-        ) => is_equal(ctx, *left_value, *right_value),
+        ) => expression_is_equal(ctx, *left_value, *right_value),
 
         // delete expressions: compare value
         (
             ast::Expression::Delete { value: left_value },
             ast::Expression::Delete { value: right_value },
-        ) => is_equal(ctx, *left_value, *right_value),
+        ) => expression_is_equal(ctx, *left_value, *right_value),
 
         // maybe expressions: compare position and operand
         (
@@ -251,7 +254,7 @@ pub fn is_equal(
                 position: right_position,
                 left: right_left,
             },
-        ) => left_position == right_position && is_equal(ctx, *left_left, *right_left),
+        ) => left_position == right_position && expression_is_equal(ctx, *left_left, *right_left),
 
         // must expressions: compare position and operand
         (
@@ -263,7 +266,7 @@ pub fn is_equal(
                 position: right_position,
                 left: right_left,
             },
-        ) => left_position == right_position && is_equal(ctx, *left_left, *right_left),
+        ) => left_position == right_position && expression_is_equal(ctx, *left_left, *right_left),
 
         // assignment: compare operator and operands
         (
@@ -279,8 +282,8 @@ pub fn is_equal(
             },
         ) => {
             left_operator == right_operator
-                && is_equal(ctx, *left_left, *right_left)
-                && is_equal(ctx, *left_right, *right_right)
+                && expression_is_equal(ctx, *left_left, *right_left)
+                && expression_is_equal(ctx, *left_right, *right_right)
         }
 
         // call expressions: compare callee and arguments
@@ -296,7 +299,7 @@ pub fn is_equal(
                 ..
             },
         ) => {
-            if !is_equal(ctx, *left_callee, *right_callee) {
+            if !expression_is_equal(ctx, *left_callee, *right_callee) {
                 return false;
             }
             if left_args.len() != right_args.len() {
@@ -313,7 +316,7 @@ pub fn is_equal(
                         ast::Argument::Positional {
                             value: right_value, ..
                         },
-                    ) => is_equal(ctx, *left_value, *right_value),
+                    ) => expression_is_equal(ctx, *left_value, *right_value),
                     (
                         ast::Argument::Spread {
                             value: left_value, ..
@@ -321,7 +324,7 @@ pub fn is_equal(
                         ast::Argument::Spread {
                             value: right_value, ..
                         },
-                    ) => is_equal(ctx, *left_value, *right_value),
+                    ) => expression_is_equal(ctx, *left_value, *right_value),
                     _ => false,
                 };
                 if !args_equal {
@@ -338,10 +341,14 @@ pub fn is_equal(
 
         // statements: unwrap and compare
         (ast::Expression::Statement(left_inner), ast::Expression::Statement(right_inner)) => {
-            is_equal(ctx, *left_inner, *right_inner)
+            expression_is_equal(ctx, *left_inner, *right_inner)
         }
-        (ast::Expression::Statement(left_inner), _) => is_equal(ctx, *left_inner, right_id),
-        (_, ast::Expression::Statement(right_inner)) => is_equal(ctx, left_id, *right_inner),
+        (ast::Expression::Statement(left_inner), _) => {
+            expression_is_equal(ctx, *left_inner, right_id)
+        }
+        (_, ast::Expression::Statement(right_inner)) => {
+            expression_is_equal(ctx, left_id, *right_inner)
+        }
 
         // for other expression types, don't try to compare
         _ => false,
@@ -360,7 +367,7 @@ pub fn blocks_equal(
         return false;
     }
     for (left_expr, right_expr) in left.expressions.iter().zip(right.expressions.iter()) {
-        if !is_equal(ctx, *left_expr, *right_expr) {
+        if !expression_is_equal(ctx, *left_expr, *right_expr) {
             return false;
         }
     }
@@ -368,7 +375,7 @@ pub fn blocks_equal(
 }
 
 /// Unwrap parenthesized expressions to get the inner expression.
-fn unwrap_parentheses<'a>(
+fn expression_unwrap_parentheses<'a>(
     ctx: &'a LintModuleAstContext<'_>,
     expression: &'a ast::Expression,
 ) -> &'a ast::Expression {
@@ -377,7 +384,7 @@ fn unwrap_parentheses<'a>(
             expression: inner_id,
         } => {
             let inner = ctx.tree.get(*inner_id);
-            unwrap_parentheses(ctx, inner)
+            expression_unwrap_parentheses(ctx, inner)
         }
         _ => expression,
     }
@@ -412,7 +419,7 @@ fn string_ids_equal(
 /// This is useful for lints that want to detect expressions that can be safely removed
 /// or that need to distinguish between pure and impure expressions.
 /// #Cleanup: can expression_has_side_effects use NodeVisitor..?
-pub fn has_side_effects(
+pub fn expression_has_side_effects(
     ctx: &LintModuleAstContext<'_>,
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
@@ -432,28 +439,29 @@ pub fn has_side_effects(
                 ast::Argument::Positional { value, .. }
                 | ast::Argument::Spread { value, .. }
                 | ast::Argument::Named { value, .. }
-                | ast::Argument::Labeled { value, .. } => has_side_effects(ctx, *value),
+                | ast::Argument::Labeled { value, .. } => expression_has_side_effects(ctx, *value),
             }
         }),
 
         // pure: member access (if object is pure)
-        ast::Expression::Member { left, .. } => has_side_effects(ctx, *left),
+        ast::Expression::Member { left, .. } => expression_has_side_effects(ctx, *left),
 
         // pure: index access (if object and index are pure)
         ast::Expression::Index { left, index, .. } => {
-            has_side_effects(ctx, *left) || index.is_some_and(|idx| has_side_effects(ctx, idx))
+            expression_has_side_effects(ctx, *left)
+                || index.is_some_and(|idx| expression_has_side_effects(ctx, idx))
         }
 
         // pure: unary/binary ops on pure expressions
-        ast::Expression::Unary { right, .. } => has_side_effects(ctx, *right),
+        ast::Expression::Unary { right, .. } => expression_has_side_effects(ctx, *right),
         ast::Expression::Binary { left, right, .. } => {
-            has_side_effects(ctx, *left) || has_side_effects(ctx, *right)
+            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
         }
 
         // pure: type operations
-        ast::Expression::TypeUnary { right, .. } => has_side_effects(ctx, *right),
+        ast::Expression::TypeUnary { right, .. } => expression_has_side_effects(ctx, *right),
         ast::Expression::TypeBinary { left, right, .. } => {
-            has_side_effects(ctx, *left) || has_side_effects(ctx, *right)
+            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *right)
         }
         ast::Expression::TypeConditional {
             left,
@@ -461,42 +469,42 @@ pub fn has_side_effects(
             then_type,
             else_type,
         } => {
-            has_side_effects(ctx, *left)
-                || has_side_effects(ctx, *right)
-                || has_side_effects(ctx, *then_type)
-                || has_side_effects(ctx, *else_type)
+            expression_has_side_effects(ctx, *left)
+                || expression_has_side_effects(ctx, *right)
+                || expression_has_side_effects(ctx, *then_type)
+                || expression_has_side_effects(ctx, *else_type)
         }
         ast::Expression::TypeMapped {
             parameter, value, ..
         } => {
-            has_side_effects(ctx, parameter.constraint)
+            expression_has_side_effects(ctx, parameter.constraint)
                 || parameter
                     .key_remap
-                    .is_some_and(|key_remap| has_side_effects(ctx, key_remap))
-                || has_side_effects(ctx, *value)
+                    .is_some_and(|key_remap| expression_has_side_effects(ctx, key_remap))
+                || expression_has_side_effects(ctx, *value)
         }
         ast::Expression::TypeIndex { left, index } => {
-            has_side_effects(ctx, *left) || has_side_effects(ctx, *index)
+            expression_has_side_effects(ctx, *left) || expression_has_side_effects(ctx, *index)
         }
-        ast::Expression::TypeTemplateLiteral { spans, .. } => {
-            spans.iter().any(|span_id| has_side_effects(ctx, *span_id))
-        }
+        ast::Expression::TypeTemplateLiteral { spans, .. } => spans
+            .iter()
+            .any(|span_id| expression_has_side_effects(ctx, *span_id)),
         ast::Expression::TypeImport { .. } => false,
         ast::Expression::TypeInfer { constraint, .. } => {
-            constraint.is_some_and(|constraint| has_side_effects(ctx, constraint))
+            constraint.is_some_and(|constraint| expression_has_side_effects(ctx, constraint))
         }
         ast::Expression::TypePredicate { target, .. } => {
-            target.is_some_and(|target| has_side_effects(ctx, target))
+            target.is_some_and(|target| expression_has_side_effects(ctx, target))
         }
 
         // pure: reference/value of (if operand is pure)
         ast::Expression::ReferenceOf { right, .. }
         | ast::Expression::ValueOf { right, .. }
-        | ast::Expression::PointerOf { right, .. } => has_side_effects(ctx, *right),
+        | ast::Expression::PointerOf { right, .. } => expression_has_side_effects(ctx, *right),
 
         // pure: range (if bounds are pure)
         ast::Expression::RangeExpression { start, end, .. } => {
-            has_side_effects(ctx, *start) || has_side_effects(ctx, *end)
+            expression_has_side_effects(ctx, *start) || expression_has_side_effects(ctx, *end)
         }
 
         // side effects: calls, assignments, new, await, yield, etc.
@@ -535,12 +543,14 @@ pub fn has_side_effects(
         ast::Expression::Debugger | ast::Expression::Error | ast::Expression::Stub => true,
 
         // wrapped expressions: check inner
-        ast::Expression::Parenthesized { expression } => has_side_effects(ctx, *expression),
-        ast::Expression::Statement(inner) => has_side_effects(ctx, *inner),
+        ast::Expression::Parenthesized { expression } => {
+            expression_has_side_effects(ctx, *expression)
+        }
+        ast::Expression::Statement(inner) => expression_has_side_effects(ctx, *inner),
 
         // maybe/must propagation: check inner for side effect
         ast::Expression::Maybe { left, .. } | ast::Expression::Must { left, .. } => {
-            has_side_effects(ctx, *left)
+            expression_has_side_effects(ctx, *left)
         }
 
         // templates: conservatively assume side effects (could have interpolations with calls)
@@ -553,7 +563,7 @@ pub fn has_side_effects(
         | ast::Expression::SequenceExpression { .. } => true,
 
         // comptime: check if body has side effects
-        ast::Expression::Comptime { body } => has_side_effects(ctx, *body),
+        ast::Expression::Comptime { body } => expression_has_side_effects(ctx, *body),
     }
 }
 
@@ -573,7 +583,7 @@ pub fn is_comparison_operator(operator: &ast::BinaryOperator) -> bool {
 }
 
 /// Check if an expression is a literal value (scalar or type literal).
-pub fn is_literal(expression: &ast::Expression) -> bool {
+pub fn expression_is_literal(expression: &ast::Expression) -> bool {
     matches!(
         expression,
         ast::Expression::ScalarLiteral(_) | ast::Expression::TypeLiteral(_)
@@ -581,13 +591,18 @@ pub fn is_literal(expression: &ast::Expression) -> bool {
 }
 
 /// Check if an expression is a constant expression (evaluates to a fixed value at compile time).
-pub fn is_constant_expression(ctx: &LintModuleAstContext<'_>, expr: &ast::Expression) -> bool {
+pub fn expression_is_constant_expression(
+    ctx: &LintModuleAstContext<'_>,
+    expr: &ast::Expression,
+) -> bool {
     match expr {
         ast::Expression::ScalarLiteral(_) => true,
         ast::Expression::Parenthesized { expression } => {
-            is_constant_expression(ctx, ctx.tree.get(*expression))
+            expression_is_constant_expression(ctx, ctx.tree.get(*expression))
         }
-        ast::Expression::Unary { right, .. } => is_constant_expression(ctx, ctx.tree.get(*right)),
+        ast::Expression::Unary { right, .. } => {
+            expression_is_constant_expression(ctx, ctx.tree.get(*right))
+        }
         _ => false,
     }
 }
@@ -596,7 +611,10 @@ pub fn is_constant_expression(ctx: &LintModuleAstContext<'_>, expr: &ast::Expres
 ///
 /// Returns Some(true) for truthy constants, Some(false) for falsy constants, None otherwise.
 /// Handles booleans, integers, floats, null/undefined, parenthesized expressions, and unary not.
-pub fn constant_to_bool(ctx: &LintModuleAstContext<'_>, expr: &ast::Expression) -> Option<bool> {
+pub fn expression_constant_to_bool(
+    ctx: &LintModuleAstContext<'_>,
+    expr: &ast::Expression,
+) -> Option<bool> {
     match expr {
         ast::Expression::ScalarLiteral(lit) => match lit {
             ast::ScalarLiteral::Boolean(b) => Some(*b),
@@ -609,11 +627,11 @@ pub fn constant_to_bool(ctx: &LintModuleAstContext<'_>, expr: &ast::Expression) 
             Some(false)
         }
         ast::Expression::Parenthesized { expression } => {
-            constant_to_bool(ctx, ctx.tree.get(*expression))
+            expression_constant_to_bool(ctx, ctx.tree.get(*expression))
         }
         ast::Expression::Unary { operator, right } => {
             if *operator == ast::UnaryOperator::Not {
-                constant_to_bool(ctx, ctx.tree.get(*right)).map(|b| !b)
+                expression_constant_to_bool(ctx, ctx.tree.get(*right)).map(|b| !b)
             } else {
                 None
             }

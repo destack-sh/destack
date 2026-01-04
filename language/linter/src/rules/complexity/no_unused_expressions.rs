@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::has_side_effects;
+use crate::rules::common::expression_has_side_effects;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -67,7 +67,7 @@ fn check_expression_statement(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) {
     // skip expressions that have side effects or are useful
-    if !has_side_effects(ctx, expr_id) {
+    if !expression_has_side_effects(ctx, expr_id) {
         let severity = ctx.get_effective_severity(meta, expr_id);
         if !severity.is_enabled() {
             return;
