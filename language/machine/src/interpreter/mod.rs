@@ -1,12 +1,12 @@
 mod call;
 mod frame;
 mod global;
-mod instruction;
 mod interpreter;
 mod intrinsic;
 mod operation;
 mod options;
 mod statistics;
+mod threaded;
 
 pub use frame::Frame;
 pub use global::GlobalStorage;

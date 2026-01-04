@@ -1,24 +1,48 @@
 use destack_mir as mir;
-use smallvec::SmallVec;
 
-use crate::diagnostic::{DiagnosticAnchor, Error, RuntimeResult};
+use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
-use super::{ExecutionOutput, Frame, Interpreter};
+use super::threaded::{ControlFlow, ThreadedState};
+use super::{ExecutionOutput, Interpreter};
 
-/// Inline capacity for terminator arguments.
-const TERM_ARGS_INLINE_CAP: usize = 4;
+/// Execution frame for the threaded interpreter.
+///
+/// Tracks the state of a single function invocation including SSA values,
+/// local variables, and return destination.
+struct ExecutionFrame {
+    /// Function being executed.
+    function: mir::LocalNodeId<mir::Function>,
+    /// Current block index within the threaded function.
+    block: usize,
+    /// PC to resume at within current block (for continuing after calls).
+    resume_pc: usize,
+    /// SSA values in this frame, indexed by mir::Value id.
+    values: Vec<Value>,
+    /// Local variables (stack slots).
+    locals: Vec<Value>,
+    /// Where to store the return value when callee returns.
+    return_dest: Option<mir::Value>,
+}
 
-/// Result of executing a terminator.
-enum TerminatorResult {
-    /// Continue execution in the next block.
-    Continue,
-    /// Return from the current function with a value.
-    Return(Value),
+impl ExecutionFrame {
+    /// Create a new frame for executing a function.
+    fn new(func_id: mir::LocalNodeId<mir::Function>, entry_block: usize) -> Self {
+        Self {
+            function: func_id,
+            block: entry_block,
+            resume_pc: 0,
+            values: Vec::with_capacity(64),
+            locals: Vec::with_capacity(16),
+            return_dest: None,
+        }
+    }
 }
 
 impl Interpreter {
     /// Execute a function by name.
+    ///
+    /// Looks up a function in the MIR tree by name and executes it.
     pub fn run_function_by_name(
         &mut self,
         name: &str,
@@ -39,6 +63,9 @@ impl Interpreter {
     }
 
     /// Execute a function by id.
+    ///
+    /// Uses direct-threaded dispatch for maximum performance. Functions are
+    /// pre-compiled to threaded form when the interpreter is created.
     pub fn run_function(
         &mut self,
         func_id: mir::LocalNodeId<mir::Function>,
@@ -49,7 +76,7 @@ impl Interpreter {
 
         let function = self.tree.get(func_id);
 
-        // check for imported function
+        // handle imported/external functions
         if function.is_import() {
             let name = self.strings.get(function.name).to_string();
             let handler = self
@@ -58,6 +85,7 @@ impl Interpreter {
                 .ok_or_else(|| self.make_error(Error::ExternalFunctionNotFound { name }))?;
 
             let value = handler(arguments).map_err(|e| self.make_error(e))?;
+
             return Ok(ExecutionOutput {
                 value,
                 statistics: self.statistics.clone(),
@@ -66,423 +94,197 @@ impl Interpreter {
             });
         }
 
-        // get entry block
-        let entry_block = function.entry.ok_or_else(|| {
-            self.make_error(Error::UndefinedFunction { function: func_id })
-                .with_anchor(DiagnosticAnchor::Function(func_id))
-        })?;
+        // execute using threaded dispatch
+        let value = self.execute_threaded(func_id, arguments)?;
+
+        Ok(ExecutionOutput {
+            value,
+            statistics: self.statistics.clone(),
+            heap_cells: self.managed_heap.cell_count(),
+            raw_heap_cells: self.raw_heap.cell_count(),
+        })
+    }
+
+    /// Execute a function using direct-threaded dispatch.
+    ///
+    /// This is the core execution loop. Each iteration executes one basic block,
+    /// with instruction handlers chaining via tail calls within blocks.
+    fn execute_threaded(
+        &mut self,
+        func_id: mir::LocalNodeId<mir::Function>,
+        arguments: &[Value],
+    ) -> RuntimeResult<Value> {
+        // get pre-threaded function
+        let threaded = self
+            .threaded_functions
+            .get(&func_id)
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?
+            .clone();
 
         // create initial frame
-        let mut frame = Frame::new(func_id, entry_block);
+        let mut frame = ExecutionFrame::new(func_id, threaded.entry);
 
-        // bind parameters
-        for (i, param) in function.parameters.iter().enumerate() {
+        // bind function parameters to SSA values
+        for (i, param) in threaded.parameters.iter().enumerate() {
             let value = arguments.get(i).copied().unwrap_or(Value::VOID);
-            frame.set_value(param.value, value);
+            let idx = param.0 as usize;
+            if idx >= frame.values.len() {
+                frame.values.resize(idx + 1, Value::VOID);
+            }
+            frame.values[idx] = value;
         }
 
-        // push frame onto call stack
-        self.call_stack.push(frame);
-        self.statistics.calls_made += 1;
-        self.update_max_stack_depth();
+        // call stack for nested function calls
+        let mut call_stack: Vec<ExecutionFrame> = vec![frame];
 
-        // execute until we get a return value
-        let result = self.run();
-
-        // pop frame
-        self.call_stack.pop();
-
-        result
-    }
-
-    /// Update max stack depth statistic.
-    #[inline]
-    fn update_max_stack_depth(&mut self) {
-        let depth = self.call_stack.len();
-        if depth > self.statistics.max_stack_depth {
-            self.statistics.max_stack_depth = depth;
-        }
-    }
-
-    /// Run the interpreter until the top frame returns.
-    fn run(&mut self) -> RuntimeResult<ExecutionOutput> {
-        // check if step limit is enabled: use slow path if so
-        if self.options.max_instructions.is_some() {
-            return self.run_with_step_limit();
-        }
-
+        // main execution loop (trampoline pattern)
         loop {
-            let stack_depth_before = self.call_stack.len();
-
-            // current block and instruction index
-            let (current_block, start_index) = {
-                let frame = self
-                    .call_stack
-                    .last()
-                    .ok_or_else(|| self.make_error(Error::InvalidInstruction))?;
-                (frame.current_block, frame.instruction_idx)
-            };
-
-            // get instruction count
-            let instruction_count = self.tree.get(current_block).instructions.len();
-
-            // fast path: execute all instructions without step limit checks
-            let mut did_call = false;
-            for idx in start_index..instruction_count {
-                self.statistics.instructions_executed += 1;
-
-                // fetch instruction ID (tree lookup is cheap, just an index)
-                let inst_id = self.tree.get(current_block).instructions[idx];
-                self.execute_instruction(inst_id)?;
-
-                // check if a call pushed a new frame
-                if self.call_stack.len() > stack_depth_before {
-                    if let Some(caller_frame) = self.call_stack.get_mut(stack_depth_before - 1) {
-                        caller_frame.instruction_idx = idx + 1;
-                    }
-                    did_call = true;
-                    break;
-                }
-            }
-
-            if did_call {
-                continue;
-            }
-
-            // execute terminator
-            self.statistics.instructions_executed += 1;
-            match self.execute_terminator_inline(current_block)? {
-                TerminatorResult::Continue => {
-                    if let Some(frame) = self.call_stack.last_mut() {
-                        frame.instruction_idx = 0;
-                    }
-                }
-                TerminatorResult::Return(value) => {
-                    if self.call_stack.len() == 1 {
-                        return Ok(ExecutionOutput {
-                            value,
-                            statistics: self.statistics.clone(),
-                            heap_cells: self.managed_heap.cell_count(),
-                            raw_heap_cells: self.raw_heap.cell_count(),
-                        });
-                    } else {
-                        self.call_stack.pop();
-                        if let Some(caller_frame) = self.call_stack.last_mut()
-                            && let Some(dest) = caller_frame.return_destination.take()
-                        {
-                            caller_frame.set_value(dest, value);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Slow path with per-instruction step limit checking.
-    fn run_with_step_limit(&mut self) -> RuntimeResult<ExecutionOutput> {
-        let max = self.options.max_instructions.unwrap();
-
-        loop {
-            let stack_depth_before = self.call_stack.len();
-
-            let (current_block, start_index) = {
-                let frame = self
-                    .call_stack
-                    .last()
-                    .ok_or_else(|| self.make_error(Error::InvalidInstruction))?;
-                (frame.current_block, frame.instruction_idx)
-            };
-
-            let instruction_count = self.tree.get(current_block).instructions.len();
-
-            let mut did_call = false;
-            for idx in start_index..instruction_count {
+            // check step limit
+            if let Some(max) = self.options.max_instructions {
                 if self.statistics.instructions_executed >= max {
-                    return Err(self.make_error(Error::StepLimitExceeded));
-                }
-                self.statistics.instructions_executed += 1;
-
-                let inst_id = self.tree.get(current_block).instructions[idx];
-                self.execute_instruction(inst_id)?;
-
-                if self.call_stack.len() > stack_depth_before {
-                    if let Some(caller_frame) = self.call_stack.get_mut(stack_depth_before - 1) {
-                        caller_frame.instruction_idx = idx + 1;
-                    }
-                    did_call = true;
-                    break;
+                    return Err(RuntimeError::new(Error::StepLimitExceeded));
                 }
             }
 
-            if did_call {
-                continue;
-            }
+            // get current frame info
+            let (current_func_id, block_idx, start_pc) = {
+                let frame = call_stack.last_mut().unwrap();
+                let pc = frame.resume_pc;
+                frame.resume_pc = 0;
+                (frame.function, frame.block, pc)
+            };
 
-            // terminator
-            if self.statistics.instructions_executed >= max {
-                return Err(self.make_error(Error::StepLimitExceeded));
-            }
-            self.statistics.instructions_executed += 1;
+            // get threaded function (clone to avoid holding borrow)
+            let current_func = self
+                .threaded_functions
+                .get(&current_func_id)
+                .ok_or_else(|| {
+                    RuntimeError::new(Error::UndefinedFunction { function: current_func_id })
+                })?
+                .clone();
 
-            match self.execute_terminator_inline(current_block)? {
-                TerminatorResult::Continue => {
-                    if let Some(frame) = self.call_stack.last_mut() {
-                        frame.instruction_idx = 0;
-                    }
-                }
-                TerminatorResult::Return(value) => {
-                    if self.call_stack.len() == 1 {
-                        return Ok(ExecutionOutput {
-                            value,
-                            statistics: self.statistics.clone(),
-                            heap_cells: self.managed_heap.cell_count(),
-                            raw_heap_cells: self.raw_heap.cell_count(),
-                        });
-                    } else {
-                        self.call_stack.pop();
-                        if let Some(caller_frame) = self.call_stack.last_mut()
-                            && let Some(dest) = caller_frame.return_destination.take()
-                        {
-                            caller_frame.set_value(dest, value);
+            // get current block
+            let block = &current_func.blocks[block_idx];
+            let block_len = block.instructions.len();
+
+            // create execution state for handlers
+            let frame = call_stack.last_mut().unwrap();
+            let mut state = ThreadedState {
+                values: &mut frame.values,
+                locals: &mut frame.locals,
+                interp: self,
+            };
+
+            // execute block starting from resume_pc
+            let control =
+                (block.instructions[start_pc].handler)(&mut state, &block.instructions, start_pc);
+
+            // update statistics
+            self.statistics.instructions_executed += (block_len - start_pc) as u64;
+
+            // handle control flow
+            match control {
+                ControlFlow::Jump { block: target, arguments } => {
+                    // bind block parameters for target block
+                    let target_block = &current_func.blocks[target];
+                    for (i, param) in target_block.parameters.iter().enumerate() {
+                        let value = arguments.get(i).copied().unwrap_or(Value::VOID);
+                        let idx = param.0 as usize;
+                        let frame = call_stack.last_mut().unwrap();
+                        if idx >= frame.values.len() {
+                            frame.values.resize(idx + 1, Value::VOID);
                         }
+                        frame.values[idx] = value;
                     }
+
+                    // update current block
+                    let frame = call_stack.last_mut().unwrap();
+                    frame.block = target;
+                }
+
+                ControlFlow::Call { function, destination, arguments, resume_pc } => {
+                    // check for external/imported function
+                    let func = self.tree.get(function);
+                    if func.is_import() {
+                        let name = self.strings.get(func.name).to_string();
+                        let handler = self.externals.get(&name).ok_or_else(|| {
+                            RuntimeError::new(Error::ExternalFunctionNotFound {
+                                name: name.clone(),
+                            })
+                        })?;
+
+                        let result = handler(&arguments).map_err(RuntimeError::new)?;
+
+                        // store result and continue from resume_pc
+                        let frame = call_stack.last_mut().unwrap();
+                        if let Some(dest) = destination {
+                            let idx = dest.0 as usize;
+                            if idx >= frame.values.len() {
+                                frame.values.resize(idx + 1, Value::VOID);
+                            }
+                            frame.values[idx] = result;
+                        }
+                        frame.resume_pc = resume_pc;
+                        continue;
+                    }
+
+                    // get callee's threaded function
+                    let callee = self
+                        .threaded_functions
+                        .get(&function)
+                        .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function }))?;
+
+                    // store return destination and resume_pc in caller frame
+                    let frame = call_stack.last_mut().unwrap();
+                    frame.return_dest = destination;
+                    frame.resume_pc = resume_pc;
+
+                    // create new frame for callee
+                    let mut new_frame = ExecutionFrame::new(function, callee.entry);
+
+                    // bind callee's parameters
+                    for (i, param) in callee.parameters.iter().enumerate() {
+                        let value = arguments.get(i).copied().unwrap_or(Value::VOID);
+                        let idx = param.0 as usize;
+                        if idx >= new_frame.values.len() {
+                            new_frame.values.resize(idx + 1, Value::VOID);
+                        }
+                        new_frame.values[idx] = value;
+                    }
+
+                    // check stack overflow
+                    if call_stack.len() >= self.options.max_stack_depth {
+                        return Err(RuntimeError::new(Error::StackOverflow));
+                    }
+
+                    call_stack.push(new_frame);
+                    self.statistics.calls_made += 1;
+                }
+
+                ControlFlow::Return(value) => {
+                    // pop completed frame
+                    call_stack.pop();
+
+                    // if stack is empty, execution is complete
+                    if call_stack.is_empty() {
+                        return Ok(value);
+                    }
+
+                    // store return value in caller's frame
+                    let caller = call_stack.last_mut().unwrap();
+                    if let Some(dest) = caller.return_dest.take() {
+                        let idx = dest.0 as usize;
+                        if idx >= caller.values.len() {
+                            caller.values.resize(idx + 1, Value::VOID);
+                        }
+                        caller.values[idx] = value;
+                    }
+                }
+
+                ControlFlow::Error(e) => {
+                    return Err(RuntimeError::new(e));
                 }
             }
         }
-    }
-
-    /// Execute a terminator without cloning.
-    ///
-    /// Uses a two-phase borrow pattern: extract scalar values first, do mutable
-    /// work, then re-borrow to get only the arguments needed.
-    fn execute_terminator_inline(
-        &mut self,
-        block: mir::LocalNodeId<mir::Block>,
-    ) -> RuntimeResult<TerminatorResult> {
-        let term = &self.tree.get(block).terminator;
-        match term {
-            mir::Terminator::Return { value } => {
-                let value = *value;
-
-                let return_value = if let Some(v) = value {
-                    self.current_frame()?.get_value(v)?
-                } else {
-                    Value::VOID
-                };
-
-                Ok(TerminatorResult::Return(return_value))
-            }
-
-            mir::Terminator::Jump { target, .. } => {
-                let target = *target;
-
-                // resolve arguments
-                let arguments = self.resolve_terminator_args(block, |t| match t {
-                    mir::Terminator::Jump { arguments, .. } => arguments,
-                    _ => unreachable!(),
-                })?;
-
-                self.jump_to_block(target, &arguments)?;
-                Ok(TerminatorResult::Continue)
-            }
-
-            mir::Terminator::Branch {
-                condition,
-                then_target,
-                else_target,
-                ..
-            } => {
-                let condition = *condition;
-                let then_target = *then_target;
-                let else_target = *else_target;
-
-                self.statistics.branches += 1;
-
-                // evaluate condition
-                let is_truthy = self.current_frame()?.get_value(condition)?.is_truthy();
-
-                // resolve only the taken branch's arguments
-                let arguments = self.resolve_terminator_args(block, |t| match t {
-                    mir::Terminator::Branch {
-                        then_arguments,
-                        else_arguments,
-                        ..
-                    } => {
-                        if is_truthy {
-                            then_arguments
-                        } else {
-                            else_arguments
-                        }
-                    }
-                    _ => unreachable!(),
-                })?;
-
-                let target = if is_truthy { then_target } else { else_target };
-                self.jump_to_block(target, &arguments)?;
-                Ok(TerminatorResult::Continue)
-            }
-
-            mir::Terminator::Switch { value, default, .. } => {
-                let switch_value = *value;
-                let default_target = *default;
-
-                self.statistics.branches += 1;
-
-                // evaluate switch value
-                let int_val = self
-                    .current_frame()?
-                    .get_value(switch_value)?
-                    .as_int()
-                    .unwrap_or(0);
-
-                // find matching case and resolve its arguments
-                let (target, arguments) = {
-                    let term = &self.tree.get(block).terminator;
-                    let mir::Terminator::Switch {
-                        cases,
-                        default_arguments,
-                        ..
-                    } = term
-                    else {
-                        unreachable!()
-                    };
-
-                    let (target, args) = cases
-                        .iter()
-                        .find(|c| c.value == int_val)
-                        .map(|c| (c.target, &c.arguments))
-                        .unwrap_or((default_target, default_arguments));
-
-                    let resolved = {
-                        let frame = self.current_frame()?;
-                        args.iter()
-                            .map(|v| frame.get_value(*v))
-                            .collect::<RuntimeResult<Vec<_>>>()?
-                    };
-                    (target, resolved)
-                };
-
-                self.jump_to_block(target, &arguments)?;
-                Ok(TerminatorResult::Continue)
-            }
-
-            mir::Terminator::Unreachable => Err(self.make_error(Error::Unreachable)),
-
-            mir::Terminator::Yield { .. } => Err(self.make_error(Error::UnsupportedInstruction {
-                name: "yield".to_string(),
-            })),
-        }
-    }
-
-    /// Resolve terminator arguments using a selector function.
-    ///
-    /// Re-borrows the terminator and extracts arguments via the selector, then
-    /// resolves them to runtime values.
-    fn resolve_terminator_args<F>(
-        &mut self,
-        block: mir::LocalNodeId<mir::Block>,
-        selector: F,
-    ) -> RuntimeResult<Vec<Value>>
-    where
-        F: FnOnce(&mir::Terminator) -> &[mir::Value],
-    {
-        let args: SmallVec<[mir::Value; TERM_ARGS_INLINE_CAP]> = {
-            let term = &self.tree.get(block).terminator;
-            selector(term).iter().copied().collect()
-        };
-
-        let frame = self.current_frame()?;
-        args.iter()
-            .map(|v| frame.get_value(*v))
-            .collect::<RuntimeResult<Vec<_>>>()
-    }
-
-    /// Jump to a block with arguments.
-    fn jump_to_block(
-        &mut self,
-        target: mir::LocalNodeId<mir::Block>,
-        arguments: &[Value],
-    ) -> RuntimeResult<()> {
-        let block = self.tree.get(target);
-        let parameters: Vec<_> = block.parameters.iter().map(|p| p.value).collect();
-
-        let frame = match self.call_stack.last_mut() {
-            Some(f) => f,
-            None => return Err(self.make_error(Error::InvalidInstruction)),
-        };
-
-        // bind block parameters
-        for (i, param_value) in parameters.iter().enumerate() {
-            let value = arguments.get(i).copied().unwrap_or(Value::VOID);
-            frame.set_value(*param_value, value);
-        }
-
-        frame.current_block = target;
-        Ok(())
-    }
-
-    /// Execute a function call instruction.
-    pub(super) fn execute_call(
-        &mut self,
-        destination: Option<mir::Value>,
-        function: mir::LocalNodeId<mir::Function>,
-        arguments: &[mir::Value],
-    ) -> RuntimeResult<()> {
-        let func = self.tree.get(function);
-
-        // collect arguments from current frame
-        let arguments = {
-            let frame = self.current_frame()?;
-            arguments
-                .iter()
-                .map(|v| frame.get_value(*v))
-                .collect::<Result<Vec<_>, _>>()?
-        };
-
-        // execute imported function
-        if func.is_import() {
-            let name = self.strings.get(func.name).to_string();
-            let external_handler = self.externals.get(&name).ok_or_else(|| {
-                self.make_error(Error::ExternalFunctionNotFound { name: name.clone() })
-            })?;
-            let result = external_handler(&arguments).map_err(|e| self.make_error(e))?;
-
-            if let Some(destination) = destination {
-                let frame = self.current_frame_mut()?;
-                frame.set_value(destination, result);
-            }
-            return Ok(());
-        }
-
-        // check stack depth
-        if self.call_stack.len() >= self.options.max_stack_depth {
-            return Err(self.make_error(Error::StackOverflow));
-        }
-
-        // get entry block
-        let entry_block = func
-            .entry
-            .ok_or_else(|| self.make_error(Error::UndefinedFunction { function }))?;
-
-        // store where to put the return value on the *caller*'s frame
-        if let Some(caller_frame) = self.call_stack.last_mut() {
-            caller_frame.return_destination = destination;
-        }
-
-        // create new frame
-        let mut new_frame = Frame::new(function, entry_block);
-
-        // bind parameters
-        for (i, parameter) in func.parameters.iter().enumerate() {
-            let value = arguments.get(i).copied().unwrap_or(Value::VOID);
-            new_frame.set_value(parameter.value, value);
-        }
-
-        // push new frame and update statistics
-        self.call_stack.push(new_frame);
-        self.statistics.calls_made += 1;
-        self.update_max_stack_depth();
-
-        Ok(())
     }
 }

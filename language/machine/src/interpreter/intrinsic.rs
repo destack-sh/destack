@@ -207,6 +207,170 @@ impl Interpreter {
         }
     }
 
+    /// Execute an intrinsic with already-resolved argument values.
+    ///
+    /// Used by threaded interpreter where values are pre-resolved.
+    pub(super) fn execute_intrinsic_resolved(
+        &mut self,
+        intrinsic: mir::Intrinsic,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        match intrinsic {
+            // bit manipulation
+            mir::Intrinsic::Clz => self.execute_clz(args),
+            mir::Intrinsic::Ctz => self.execute_ctz(args),
+            mir::Intrinsic::Popcnt => self.execute_popcnt(args),
+            mir::Intrinsic::ByteSwap => self.execute_byte_swap(args),
+            mir::Intrinsic::BitReverse => self.execute_bit_reverse(args),
+            mir::Intrinsic::RotateLeft => self.execute_rotate_left(args),
+            mir::Intrinsic::RotateRight => self.execute_rotate_right(args),
+
+            // checked arithmetic
+            mir::Intrinsic::AddOverflow => self.execute_add_overflow(args),
+            mir::Intrinsic::SubOverflow => self.execute_sub_overflow(args),
+            mir::Intrinsic::MulOverflow => self.execute_mul_overflow(args),
+
+            // unchecked arithmetic
+            mir::Intrinsic::AddUnchecked => self.execute_add_unchecked(args),
+            mir::Intrinsic::SubUnchecked => self.execute_sub_unchecked(args),
+            mir::Intrinsic::MulUnchecked => self.execute_mul_unchecked(args),
+            mir::Intrinsic::DivUnchecked => self.execute_div_unchecked(args),
+            mir::Intrinsic::RemUnchecked => self.execute_rem_unchecked(args),
+            mir::Intrinsic::ShlUnchecked => self.execute_shl_unchecked(args),
+            mir::Intrinsic::ShrUnchecked => self.execute_shr_unchecked(args),
+
+            // saturating arithmetic
+            mir::Intrinsic::SatAdd => self.execute_sat_add(args),
+            mir::Intrinsic::SatSub => self.execute_sat_sub(args),
+
+            // float math (unary)
+            mir::Intrinsic::Sqrt => self.execute_float_unary(args, f64::sqrt, f32::sqrt),
+            mir::Intrinsic::Abs => self.execute_float_unary(args, f64::abs, f32::abs),
+            mir::Intrinsic::Sin => self.execute_float_unary(args, f64::sin, f32::sin),
+            mir::Intrinsic::Cos => self.execute_float_unary(args, f64::cos, f32::cos),
+            mir::Intrinsic::Tan => self.execute_float_unary(args, f64::tan, f32::tan),
+            mir::Intrinsic::Asin => self.execute_float_unary(args, f64::asin, f32::asin),
+            mir::Intrinsic::Acos => self.execute_float_unary(args, f64::acos, f32::acos),
+            mir::Intrinsic::Atan => self.execute_float_unary(args, f64::atan, f32::atan),
+            mir::Intrinsic::Exp => self.execute_float_unary(args, f64::exp, f32::exp),
+            mir::Intrinsic::Exp2 => self.execute_float_unary(args, f64::exp2, f32::exp2),
+            mir::Intrinsic::Log => self.execute_float_unary(args, f64::ln, f32::ln),
+            mir::Intrinsic::Log2 => self.execute_float_unary(args, f64::log2, f32::log2),
+            mir::Intrinsic::Log10 => self.execute_float_unary(args, f64::log10, f32::log10),
+            mir::Intrinsic::Floor => self.execute_float_unary(args, f64::floor, f32::floor),
+            mir::Intrinsic::Ceil => self.execute_float_unary(args, f64::ceil, f32::ceil),
+            mir::Intrinsic::Trunc => self.execute_float_unary(args, f64::trunc, f32::trunc),
+            mir::Intrinsic::Round => self.execute_float_unary(args, f64::round, f32::round),
+
+            // float math (binary)
+            mir::Intrinsic::Min => self.execute_float_binary(args, f64::min, f32::min),
+            mir::Intrinsic::Max => self.execute_float_binary(args, f64::max, f32::max),
+            mir::Intrinsic::Copysign => self.execute_float_binary(args, f64::copysign, f32::copysign),
+            mir::Intrinsic::Atan2 => self.execute_float_binary(args, f64::atan2, f32::atan2),
+            mir::Intrinsic::Pow => self.execute_float_binary(args, f64::powf, f32::powf),
+
+            // float math (ternary)
+            mir::Intrinsic::Fma => self.execute_fma(args),
+
+            // branch hints (passthrough)
+            mir::Intrinsic::Likely | mir::Intrinsic::Unlikely => args.first().copied().ok_or_else(|| {
+                self.make_error(Error::InvalidIntrinsicArguments {
+                    intrinsic: intrinsic.to_str().to_string(),
+                })
+            }),
+            mir::Intrinsic::Expect => args.first().copied().ok_or_else(|| {
+                self.make_error(Error::InvalidIntrinsicArguments {
+                    intrinsic: intrinsic.to_str().to_string(),
+                })
+            }),
+            mir::Intrinsic::BlackBox => args.first().copied().ok_or_else(|| {
+                self.make_error(Error::InvalidIntrinsicArguments {
+                    intrinsic: intrinsic.to_str().to_string(),
+                })
+            }),
+
+            // comparison
+            mir::Intrinsic::RawEq => self.execute_raw_eq(args),
+
+            // transmute
+            mir::Intrinsic::Transmute => args.first().copied().ok_or_else(|| {
+                self.make_error(Error::InvalidIntrinsicArguments {
+                    intrinsic: intrinsic.to_str().to_string(),
+                })
+            }),
+
+            // pointer operations
+            mir::Intrinsic::PtrOffsetFrom => self.execute_ptr_offset_from(args),
+
+            // memory operations
+            mir::Intrinsic::Memcpy => self.execute_memcpy(args),
+            mir::Intrinsic::Memmove => self.execute_memmove(args),
+            mir::Intrinsic::Memset => self.execute_memset(args),
+            mir::Intrinsic::Memcmp => self.execute_memcmp(args),
+
+            // control flow
+            mir::Intrinsic::Unreachable => Err(self.make_error(Error::Unreachable)),
+            mir::Intrinsic::Breakpoint => Ok(Value::VOID),
+            mir::Intrinsic::Abort => Err(self.make_error(Error::Abort)),
+            mir::Intrinsic::Assume => Ok(Value::VOID),
+
+            // reflection (should be resolved at compile time)
+            mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
+                Err(self.make_error(Error::UnsupportedInstruction {
+                    name: format!(
+                        "intrinsic.{} (should be resolved at compile time)",
+                        intrinsic.to_str()
+                    ),
+                }))
+            }
+
+            // volatile operations
+            mir::Intrinsic::VolatileLoad => self.execute_volatile_load(args),
+            mir::Intrinsic::VolatileStore => {
+                self.execute_volatile_store(args)?;
+                Ok(Value::VOID)
+            }
+
+            // prefetch (no-ops in interpreter)
+            mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Value::VOID),
+
+            // gc barriers (no-ops in interpreter)
+            mir::Intrinsic::GcWriteBarrier | mir::Intrinsic::GcReadBarrier => Ok(Value::VOID),
+
+            // atomics (single-threaded interpreter)
+            mir::Intrinsic::AtomicLoad => self.execute_atomic_load(args),
+            mir::Intrinsic::AtomicStore => {
+                self.execute_atomic_store(args)?;
+                Ok(Value::VOID)
+            }
+            mir::Intrinsic::AtomicCas => self.execute_atomic_cas(args),
+            mir::Intrinsic::AtomicFetchAdd => self.execute_atomic_fetch_add(args),
+            mir::Intrinsic::AtomicFetchSub => self.execute_atomic_fetch_sub(args),
+            mir::Intrinsic::AtomicFetchAnd => self.execute_atomic_fetch_and(args),
+            mir::Intrinsic::AtomicFetchOr => self.execute_atomic_fetch_or(args),
+            mir::Intrinsic::AtomicFetchXor => self.execute_atomic_fetch_xor(args),
+            mir::Intrinsic::AtomicFetchMin => self.execute_atomic_fetch_min(args),
+            mir::Intrinsic::AtomicFetchMax => self.execute_atomic_fetch_max(args),
+            mir::Intrinsic::AtomicFence => Ok(Value::VOID),
+
+            // runtime introspection (return placeholder values in threaded mode)
+            mir::Intrinsic::ReturnAddress => Ok(Value::uint(0, 64)),
+            mir::Intrinsic::FrameAddress => Ok(Value::uint(0, 64)),
+
+            // simd (emulated with aggregates)
+            mir::Intrinsic::Splat => self.execute_splat(args),
+            mir::Intrinsic::Shuffle => self.execute_shuffle(args),
+            mir::Intrinsic::Select => self.execute_select(args),
+            mir::Intrinsic::ReduceAdd => self.execute_reduce(ReduceOp::Add, args),
+            mir::Intrinsic::ReduceMul => self.execute_reduce(ReduceOp::Mul, args),
+            mir::Intrinsic::ReduceMin => self.execute_reduce(ReduceOp::Min, args),
+            mir::Intrinsic::ReduceMax => self.execute_reduce(ReduceOp::Max, args),
+            mir::Intrinsic::ReduceAnd => self.execute_reduce(ReduceOp::And, args),
+            mir::Intrinsic::ReduceOr => self.execute_reduce(ReduceOp::Or, args),
+            mir::Intrinsic::ReduceXor => self.execute_reduce(ReduceOp::Xor, args),
+        }
+    }
+
     // bit manipulation
 
     /// Count leading zeros.
