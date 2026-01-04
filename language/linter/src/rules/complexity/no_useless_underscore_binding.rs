@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Pattern};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::has_side_effects;
+use crate::rules::common::expression_has_side_effects;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -70,7 +70,7 @@ impl LintRule for NoUselessUnderscoreBinding {
                 }
 
                 // check if value has side effects
-                if has_side_effects(ctx, value_id) {
+                if expression_has_side_effects(ctx, value_id) {
                     continue;
                 }
 

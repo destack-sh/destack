@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::is_equal;
+use crate::rules::common::expression_is_equal;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -55,7 +55,7 @@ impl LintRule for NoDupeElseIf {
             // check for duplicates using structural comparison
             for i in 0..conditions.len() {
                 for j in (i + 1)..conditions.len() {
-                    if is_equal(ctx, conditions[i], conditions[j]) {
+                    if expression_is_equal(ctx, conditions[i], conditions[j]) {
                         let severity = ctx.get_effective_severity(meta, conditions[j]);
                         if !severity.is_enabled() {
                             continue;

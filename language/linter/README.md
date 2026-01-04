@@ -192,7 +192,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU040` | `no-shadow-restricted-names` | ESLint | AST | ✓ | ✅ | None | Disallow shadowing of restricted or builtin names |
 | `LU041` | `no-single-element-tuple` | Destack | AST | ✓ | ✅ | Safe | Warn on single-element tuples that may be accidental |
 | `LU042` | `no-template-curly-in-string` | ESLint | AST | ✓ | ✅ | Safe | Disallow template literal placeholder syntax in regular strings |
-| `LU043` | `no-throw-literal` | ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow throwing literals instead of Error objects |
+| `LU043` | `no-throw-literal` | ESLint | DIR | ✓ | ✅ | Suggestion | Disallow throwing literals instead of Error objects |
 | `LU044` | `no-unnecessary-clone` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Warn on cloning values that are not used afterward |
 | `LU045` | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type assertions that do not change the type |
 | `LU046` | `no-unsafe-declaration-merging` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow unsafe declaration merging |
@@ -226,8 +226,8 @@ Patterns that may expose the application to attacks.
 |------|------|--------|-------|-------|--------|------------|-------------|
 | `LS001` | `no-blank-target` | Biome | AST | ✓ | ✅ | Safe | Disallow `target="_blank"` without `rel="noopener"` |
 | `LS002` | `no-hardcoded-ip` | SonarQube | AST | ✓ | ✅ | None | Disallow hardcoded IP addresses |
-| `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow `setTimeout` and `setInterval` with string arguments |
-| `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | 🔶 | None | Disallow insecure random number generators |
+| `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | ✅ | Safe | Disallow `setTimeout` and `setInterval` with string arguments |
+| `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | ✅ | None | Disallow insecure random number generators |
 | `LS005` | `no-open-redirect` | Semgrep | DIR | ✗ | 🔶 | None | Disallow redirects using user-controlled URLs |
 | `LS006` | `no-path-traversal` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in file system paths |
 | `LS007` | `no-prototype-pollution` | Semgrep | DIR | ✗ | 🔶 | Suggestion | Disallow patterns that may pollute Object.prototype |
@@ -255,21 +255,21 @@ Correct code that could be faster or use less memory.
 | `LP005` | `no-await-in-loop` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow await inside of loops |
 | `LP006` | `no-barrel-file` | Biome | AST | ✓ | ✅ | None | Disallow barrel files that re-export everything |
 | `LP007` | `no-intermediate-collect` | Clippy | DIR | ✓ | 🔶 | Suggestion | Disallow collecting only to immediately iterate once |
-| `LP008` | `no-json-clone` | Destack | AST | ✓ | 🔶 | Unsafe | Disallow `JSON.parse(JSON.stringify())` for cloning |
+| `LP008` | `no-json-clone` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `JSON.parse(JSON.stringify())` for cloning |
 | `LP009` | `no-nested-array-includes` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow `includes`/`indexOf` inside loops over another array |
 | `LP010` | `no-object-spread-in-reduce` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow object spread in reduce accumulators |
 | `LP011` | `no-regex-in-loop` | Destack | DIR | ✓ | 🔶 | Safe | Disallow `new RegExp()` inside loops |
 | `LP012` | `no-sequential-independent-await` | Destack | DIR | ✗ | 🔶 | Safe | Suggest `Promise.all` for independent sequential awaits |
-| `LP013` | `no-string-concat-in-loop` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow `+=` string concatenation in loops |
+| `LP013` | `no-string-concat-in-loop` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `+=` and `x = x + y` string concatenation in loops |
 | `LP014` | `no-super-linear-regex` | Destack | AST | ✓ | ✅ | None | Disallow regular expressions with catastrophic backtracking |
-| `LP015` | `prefer-array-every` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.every()` over `.filter().length === .length` |
+| `LP015` | `prefer-array-every` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.every()` over `.filter().length === .length` |
 | `LP016` | `prefer-array-literal` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest using array literal instead of empty array followed by extend |
 | `LP017` | `prefer-array-some` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.some()` over `.find() !== undefined` |
 | `LP018` | `prefer-for-of` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer for-of loops over index-based for loops |
-| `LP019` | `prefer-includes` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer `.includes()` over `.indexOf() !== -1` | 
+| `LP019` | `prefer-includes` | TS-ESLint | DIR | ✓ | ✅ | Safe | Prefer `.includes()` over `.indexOf() !== -1` | 
 | `LP020` | `prefer-reserve` | Clippy | DIR | ✗ | 🔶 | Suggestion | Prefer reserving capacity when the size is known |
-| `LP021` | `prefer-string-endswith` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.endsWith()` over `.slice(-n) === suffix` |
-| `LP022` | `prefer-string-startswith` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.startsWith()` over `.indexOf() === 0` |
+| `LP021` | `prefer-string-endswith` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.endsWith()` over `.slice(-n) === suffix` |
+| `LP022` | `prefer-string-startswith` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.startsWith()` over `.indexOf() === 0` |
 | `LP023` | `prefer-typed-array` | Destack | DIR | ✗ | 🔶 | Unsafe | Suggest `TypedArray` for numeric buffers |
 | `LP024` | `require-unicode-regexp` | ESLint | AST | ✓ | ✅ | Safe | Require `u` or `v` flag on regular expressions |
 
@@ -311,7 +311,7 @@ Subjective preferences for consistent coding style.
 | `LY028` | `no-nested-template-literal` | SonarQube | AST | ✓ | ✅ | None | Disallow template literals nested inside template literals |
 | `LY029` | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow nested ternary expressions |
 | `LY030` | `no-switch` | Destack | AST | ✓ | 🔶 | Safe | Disallow switch statements (in favor of match) |
-| `LY031` | `no-object-constructor` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow `new Object()` |
+| `LY031` | `no-object-constructor` | ESLint | DIR | ✓ | ✅ | Safe | Disallow `new Object()` |
 | `LY032` | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | Safe | Disallow ternary operators when simpler alternatives exist |
 | `LY033` | `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow unnecessary template literal expressions |
 | `LY034` | `no-unnecessary-type-arguments` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type arguments that equal the default |
@@ -336,7 +336,7 @@ Subjective preferences for consistent coding style.
 | `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer `??` over `\|\|` for default values |
 | `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer numeric literals over `parseInt()` |
 | `LY054` | `prefer-object-has-own` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
-| `LY055` | `prefer-object-spread` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer spread operator over `Object.assign()` |
+| `LY055` | `prefer-object-spread` | ESLint | DIR | ✓ | ✅ | Safe | Prefer spread operator over `Object.assign()` |
 | `LY056` | `prefer-pattern-over-guard` | Destack | AST | ✓ | ✅ | Safe | Suggest moving match guards into the pattern |
 | `LY057` | `prefer-precise-numeric` | Destack | AST | ✓ | ✅ | Suggestion | Prefer precise numeric types over `number` |
 | `LY058` | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require Error objects in Promise rejections |
@@ -348,7 +348,7 @@ Subjective preferences for consistent coding style.
 | `LY064` | `prefer-self-closing-tree` | Destack | AST | ✓ | ✅ | Safe | Prefer self-closing tree elements when possible |
 | `LY065` | `prefer-set-over-empty-map` | Destack | DIR | ✓ | 🔶 | Safe | Suggest `Set<K>` over `Map<K, void>` |
 | `LY066` | `prefer-struct` | Destack | AST | ✓ | ✅ | Unsafe | Prefer struct for data-only classes |
-| `LY067` | `prefer-string-replaceall` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.replaceAll()` over `.replace()` with global regex |
+| `LY067` | `prefer-string-replaceall` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.replaceAll()` over `.replace()` with global regex |
 | `LY068` | `prefer-struct-literal` | Destack | AST | ✓ | ✅ | Safe | Prefer struct literal syntax over constructor calls |
 | `LY069` | `prefer-template` | ESLint | AST | ✓ | ✅ | Safe | Prefer template literals over string concatenation |
 | `LY070` | `prefer-tuple` | Destack | AST | ✓ | ✅ | Safe | Suggest tuple type for fixed-length heterogeneous arrays |
@@ -408,14 +408,13 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 
 | Code | Rule | Source | Level | Ready | Status | Fixability | Description |
 |------|------|--------|-------|-------|--------|------------|-------------|
-| `LR001` | `no-alert` | ESLint | DIR | ✓ | 🔶 | None | Disallow the use of `alert`, `confirm`, and `prompt` |
+| `LR001` | `no-alert` | ESLint | DIR | ✓ | ✅ | None | Disallow the use of `alert`, `confirm`, and `prompt` |
 | `LR002` | `no-anonymous-default-export` | Unicorn | AST | ✓ | ✅ | Suggestion | Disallow anonymous default exports |
-| `LR003` | `no-arguments` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow use of the `arguments` object |
 | `LR004` | `no-banned-import` | ESLint | DIR | ✓ | 🔶 | None | Disallow imports from specified modules |
 | `LR005` | `no-bitwise` | ESLint | AST | ✓ | ✅ | None | Disallow bitwise operators |
 | `LR006` | `no-circular-dependency` | Import | DIR | ✗ | 🔶 | None | Disallow circular module dependencies |
 | `LR007` | `no-class` | Destack | AST | ✓ | ✅ | Unsafe | Disallow class declarations (prefer structs) |
-| `LR008` | `no-console` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow the use of `console` |
+| `LR008` | `no-console` | ESLint | DIR | ✓ | ✅ | Safe | Disallow the use of `console` |
 | `LR009` | `no-continue` | ESLint | AST | ✓ | ✅ | None | Disallow `continue` statements |
 | `LR010` | `no-cross-target-import` | Destack | DIR | ✓ | 🔶 | None | Disallow imports across target boundaries |
 | `LR011` | `no-default-export` | Import | AST | ✓ | ✅ | Unsafe | Disallow default exports |
@@ -432,7 +431,7 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR022` | `no-parameter-reassignment` | SonarQube | DIR | ✓ | 🔶 | None | Disallow reassigning function parameters |
 | `LR023` | `no-placeholder-implementation` | ESLint | AST | ✓ | ✅ | None | Disallow placeholder implementations (throw "not implemented", etc.) |
 | `LR024` | `no-plusplus` | ESLint | AST | ✓ | ✅ | Safe | Disallow `++` and `--` operators |
-| `LR025` | `no-process-exit` | Unicorn | DIR | ✓ | 🔶 | None | Disallow `process.exit()` |
+| `LR025` | `no-process-exit` | Unicorn | DIR | ✓ | ✅ | None | Disallow `process.exit()` |
 | `LR026` | `no-require-imports` | TS-ESLint | DIR | ✓ | 🟡 | Safe | Disallow `require()` imports |
 | `LR027` | `no-runtime-reflection` | Destack | DIR | ✗ | 🔶 | None | Disallow runtime reflection (ban RTTI) |
 | `LR028` | `no-sequences` | ESLint | AST | ✓ | ✅ | None | Disallow comma operators |

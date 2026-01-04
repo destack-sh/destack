@@ -25,6 +25,7 @@ mod no_self_assign;
 mod no_shadow_restricted_names;
 mod no_single_element_tuple;
 mod no_template_curly_in_string;
+mod no_throw_literal;
 mod no_useless_backreference;
 mod no_useless_catch;
 mod no_useless_computed_key;
@@ -67,6 +68,7 @@ pub use no_self_assign::*;
 pub use no_shadow_restricted_names::*;
 pub use no_single_element_tuple::*;
 pub use no_template_curly_in_string::*;
+pub use no_throw_literal::*;
 pub use no_useless_backreference::*;
 pub use no_useless_catch::*;
 pub use no_useless_computed_key::*;
@@ -110,6 +112,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoShadowRestrictedNames),
         boxed(NoSingleElementTuple),
         boxed(NoTemplateCurlyInString),
+        boxed(NoThrowLiteral),
         boxed(NoUselessBackreference),
         boxed(NoUselessCatch),
         boxed(NoUselessComputedKey),
