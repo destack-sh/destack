@@ -3,9 +3,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    BinaryOperator, Block, CastOperator, Constant, Field, Function, Global, GlobalInitializer,
-    Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
-    Ownership, SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
+    AllocationMode, BinaryOperator, Block, CastOperator, Constant, Field, Function, Global,
+    GlobalInitializer, Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering,
+    Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type, TypeAlias, TypedValue,
+    UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -153,6 +154,10 @@ impl<'a> Parser<'a> {
 
     /// Parse a module (list of type aliases, globals, and functions).
     fn parse_module(&mut self) -> ParseResult<()> {
+        // first pass: register all function names for forward references
+        self.register_all_functions();
+
+        // second pass: parse everything
         while !self.peek_token(TokenType::End) {
             // parse optional linkage prefix: extern or export
             let linkage = if self.peek_token(TokenType::Extern) {
@@ -185,6 +190,58 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Pre-register all function names to allow forward references.
+    ///
+    /// This scans for `function @name` patterns without parsing anything else.
+    fn register_all_functions(&mut self) {
+        let saved_pos = self.pos;
+
+        // scan token by token looking for function declarations
+        while !self.peek_token(TokenType::End) {
+            // skip optional linkage prefix
+            if self.peek_token(TokenType::Extern) || self.peek_token(TokenType::Export) {
+                self.bump();
+            }
+
+            // look for: function @name
+            if self.peek_token(TokenType::Function) {
+                self.bump();
+                if self.peek_token(TokenType::At) {
+                    self.bump();
+                    if let Some(token) = self.peek()
+                        && token.ty == TokenType::Identifier
+                    {
+                        let name = token.text.to_string();
+
+                        // register placeholder if not already known
+                        if !self.function_map.contains_key(&name) {
+                            let name_id = self.strings.intern(&name);
+                            let void_ty = self.tree.insert(Type::Void);
+                            let placeholder = Function {
+                                name: name_id,
+                                parameters: Vec::new(),
+                                return_type: void_ty,
+                                linkage: Linkage::Local,
+                                allocation: AllocationMode::Any,
+                                coroutine: None,
+                                locals: Vec::new(),
+                                blocks: Vec::new(),
+                                entry: None,
+                                next_value_id: 0,
+                            };
+                            let id = self.tree.insert(placeholder);
+                            self.function_map.insert(name, id);
+                        }
+                    }
+                }
+            }
+
+            self.bump();
+        }
+
+        self.pos = saved_pos;
     }
 
     /// Parse a type alias.
@@ -341,34 +398,34 @@ impl<'a> Parser<'a> {
                 parameters,
                 return_type,
                 linkage,
-                allocation: crate::AllocationMode::Any,
+                allocation: AllocationMode::Any, // #Incomplete: set proper MIR allocation mode?
                 coroutine: None,
                 locals: Vec::new(),
                 blocks: Vec::new(),
                 entry: None,
                 next_value_id: 0,
             };
-            let id = self.tree.insert(function);
-            self.function_map.insert(name, id);
-            return Ok(id);
+
+            let existing_id = *self
+                .function_map
+                .get(&name)
+                .unwrap_or_else(|| panic!("function @{name} should be pre-registered"));
+            *self.tree.get_mut(existing_id) = function;
+            return Ok(existing_id);
         }
 
-        // pre-register the function so it can reference itself (recursion)
+        // update the pre-registered placeholder with actual signature
         let name_id = self.strings.intern(&name);
-        let placeholder = Function {
-            name: name_id,
-            parameters: parameters.clone(),
-            return_type,
-            linkage,
-            allocation: crate::AllocationMode::Any,
-            coroutine: None,
-            locals: Vec::new(),
-            blocks: Vec::new(),
-            entry: None,
-            next_value_id: 0,
-        };
-        let id = self.tree.insert(placeholder);
-        self.function_map.insert(name, id);
+        let id = *self
+            .function_map
+            .get(&name)
+            .unwrap_or_else(|| panic!("function @{name} should be pre-registered"));
+
+        let function = self.tree.get_mut(id);
+        function.name = name_id;
+        function.parameters = parameters.clone();
+        function.return_type = return_type;
+        function.linkage = linkage;
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
