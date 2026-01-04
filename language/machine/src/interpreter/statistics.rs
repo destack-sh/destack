@@ -11,6 +11,12 @@ pub struct Statistics {
     pub max_stack_depth: usize,
     /// Number of heap allocations performed.
     pub heap_allocations: u64,
+    /// Number of branch and switch instructions executed.
+    pub branches: u64,
+    /// Number of load instructions executed.
+    pub loads: u64,
+    /// Number of store instructions executed.
+    pub stores: u64,
 }
 
 impl Statistics {

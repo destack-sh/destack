@@ -3,8 +3,6 @@
 MIR interpreter for comptime execution, debug mode, and deoptimization.
 The Machine executes MIR directly without compiling to native code.
 
----
-
 # Overview
 
 The Machine serves two main roles in Destack:
@@ -40,8 +38,6 @@ The Machine serves two main roles in Destack:
 ```
 
 We interpret MIR directly rather than JIT-compiling it.
-
----
 
 # Interpreter
 
@@ -84,8 +80,6 @@ The managed heap does garbage collection during interpretation.
 The raw heap tracks allocations for leak detection in debug builds.
 Stack allocations get freed automatically when the frame exits.
 
----
-
 # Intrinsics
 
 Intrinsics are primitive operations handled directly by the interpreter:
@@ -105,8 +99,6 @@ Native codegen never sees them (directly).
 **Semantically void intrinsics** (`volatile.load`, `atomic.*`, `prefetch`) execute but don't do anything special in the interpreter.
 This lets comptime code include patterns that use these operations without breaking.
 
----
-
 # External Functions
 
 Functions that can't be interpreted (FFI, system calls) are registered as external handlers.
@@ -114,8 +106,6 @@ They get called with marshaled arguments and return marshaled results.
 
 In debug mode, external calls can be wrapped with crash protection.
 If an FFI call crashes, the interpreter state is preserved for inspection.
-
----
 
 # Debug Mode
 
@@ -131,8 +121,6 @@ In debug mode, the Machine provides full introspection:
 
 Debug mode uses the same interpreter as comptime.
 The only difference is that debug commands can pause and inspect execution.
-
----
 
 # Deoptimization
 

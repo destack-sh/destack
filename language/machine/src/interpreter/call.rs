@@ -227,6 +227,7 @@ impl Interpreter {
                 else_target,
                 else_arguments,
             } => {
+                self.statistics.branches += 1;
                 let (is_truthy, then_arguments, else_arguments) = {
                     let frame = self.current_frame()?;
                     let cond = frame.get_value(*condition)?;
@@ -255,6 +256,7 @@ impl Interpreter {
                 default_arguments,
                 cases,
             } => {
+                self.statistics.branches += 1;
                 let (target, arguments) = {
                     let frame = self.current_frame()?;
                     let value = frame.get_value(*value)?;
