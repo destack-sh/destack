@@ -688,7 +688,12 @@ impl Compiler {
                 let element_ty_id = if element_type_ids.is_empty() {
                     self.expected_array_element_type(ctx.expected_type, types)
                 } else {
-                    Some(self.union_type_from_list(element_type_ids, types))
+                    let source_type_id = element_type_ids[0];
+                    Some(self.union_type_from_list(
+                        element_type_ids,
+                        source_type_id,
+                        types,
+                    ))
                 };
 
                 let ty = Type::Array {
@@ -1192,11 +1197,19 @@ impl Compiler {
                     if let Some(catch_pat) = catch_pattern {
                         // infer the catch error type from try branches
                         let catch_error_type_id = if try_error_types.is_empty() {
-                            types.insert_type(Type::TypeLiteral {
-                                value: TypeLiteral::Unknown,
-                            })
+                            types.insert_type_from_any(
+                                Type::TypeLiteral {
+                                    value: TypeLiteral::Unknown,
+                                },
+                                expression_id.into_any(),
+                            )
                         } else {
-                            self.union_type_from_list(try_error_types, types)
+                            let source_type_id = try_error_types[0];
+                            self.union_type_from_list(
+                                try_error_types,
+                                source_type_id,
+                                types,
+                            )
                         };
 
                         // bind the catch pattern to the error type
@@ -1276,9 +1289,12 @@ impl Compiler {
                         });
                     }
                 } else if let Some(return_ty_id) = ctx.return_type {
-                    let void_ty_id = types.insert_type(Type::TypeLiteral {
-                        value: TypeLiteral::Void,
-                    });
+                    let void_ty_id = types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void,
+                        },
+                        expression_id.into_any(),
+                    );
                     infer.push_constraint(Constraint::Subtype {
                         sub_type: void_ty_id,
                         super_type: return_ty_id,
@@ -1376,7 +1392,8 @@ impl Compiler {
                     self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
 
                 // require await operand to be promise assignable
-                if let Some(promise_ty_id) = self.promise_type(ctx.profile, None, types)
+                if let Some(promise_ty_id) =
+                    self.promise_type(ctx.profile, None, expression_id.into_any(), types)
                     && self.is_type_assignable(
                         module,
                         ctx.profile,
@@ -1761,7 +1778,7 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type(ty)
+                    types.insert_type_from_any(ty, property_id.into_any())
                 };
 
                 // infer default with the same expected type

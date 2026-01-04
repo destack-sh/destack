@@ -23,7 +23,7 @@ impl Compiler {
         if elements.len() == 1 {
             elements[0]
         } else {
-            types.insert_type(Type::Union { elements })
+            types.insert_type_from_type(Type::Union { elements }, left_ty_id)
         }
     }
 
@@ -31,6 +31,7 @@ impl Compiler {
     pub(crate) fn union_type_from_list(
         &self,
         type_ids: Vec<LocalTypeId>,
+        source_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         // collect union elements
@@ -43,7 +44,7 @@ impl Compiler {
         if elements.len() == 1 {
             elements[0]
         } else {
-            types.insert_type(Type::Union { elements })
+            types.insert_type_from_type(Type::Union { elements }, source_type_id)
         }
     }
 

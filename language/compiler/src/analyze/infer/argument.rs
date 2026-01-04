@@ -160,6 +160,7 @@ impl Compiler {
             module,
             profile,
             symbol,
+            receiver_id,
             &resolved_arguments,
             tree,
             symbols,
@@ -268,7 +269,11 @@ impl Compiler {
                         name,
                         value: value.clone(),
                     };
-                    let ty_id = self.convert_static_argument_type(&argument, types);
+                    let ty_id = self.convert_static_argument_type(
+                        &argument,
+                        types.get_type_source(static_parameter.declared_type_id),
+                        types,
+                    );
 
                     StaticArgument::Evaluated {
                         name,
@@ -313,8 +318,11 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // validate type arguments against the declared bound
         if static_parameter.kind == StaticParameterKind::Type {
-            let substitution_ty_id =
-                self.convert_static_argument_type(resolved_static_argument, types);
+            let substitution_ty_id = self.convert_static_argument_type(
+                resolved_static_argument,
+                error_node.local_id,
+                types,
+            );
 
             if let Some(infer) = infer {
                 infer.push_constraint(Constraint::Subtype {
@@ -342,7 +350,7 @@ impl Compiler {
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
                     actual_ty: substitution_ty_id.into_global(module.id),
                 });
-                return Some(types.insert_type(Type::Error));
+                return Some(types.insert_type_from_any(Type::Error, error_node.local_id));
             }
 
             return Some(substitution_ty_id);
@@ -361,7 +369,7 @@ impl Compiler {
                     value: TypeLiteral::Unknown,
                 },
             };
-            let value_ty_id = types.insert_type(ty);
+            let value_ty_id = types.insert_type_from_any(ty, error_node.local_id);
             if !self.is_infer_var_type(static_parameter.declared_type_id, types)
                 && self.is_type_assignable(
                     module,
@@ -450,7 +458,7 @@ impl Compiler {
                     StaticParameterKind::Value
                 };
                 self.collect_static_parameter(
-                    module, *symbol_id, kind, profile, tree, symbols, types,
+                    module, *symbol_id, kind, node_id, profile, tree, symbols, types,
                 )
             })
             .collect();
@@ -498,9 +506,12 @@ impl Compiler {
                     // fallback for type references: unknown type
                     let fallback_value = match static_parameter.kind {
                         StaticParameterKind::Type => {
-                            let unknown_ty_id = types.insert_type(Type::TypeLiteral {
-                                value: TypeLiteral::Unknown,
-                            });
+                            let unknown_ty_id = types.insert_type_from_any(
+                                Type::TypeLiteral {
+                                    value: TypeLiteral::Unknown,
+                                },
+                                error_node.local_id,
+                            );
                             StaticExpression::Type { ty: unknown_ty_id }
                         }
                         StaticParameterKind::Value => node_id
@@ -559,6 +570,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
         resolved_arguments: &[StaticArgument],
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -596,7 +608,7 @@ impl Compiler {
                     StaticParameterKind::Value
                 };
                 self.collect_static_parameter(
-                    module, *symbol_id, kind, profile, tree, symbols, types,
+                    module, *symbol_id, kind, source_id, profile, tree, symbols, types,
                 )
             })
             .collect();
@@ -606,7 +618,11 @@ impl Compiler {
         for (static_parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter())
         {
             if static_parameter.kind == StaticParameterKind::Type {
-                let ty_id = self.convert_static_argument_type(argument, types);
+                let ty_id = self.convert_static_argument_type(
+                    argument,
+                    types.get_type_source(static_parameter.declared_type_id),
+                    types,
+                );
                 substitutions.insert(static_parameter.symbol, ty_id);
             }
         }
@@ -675,6 +691,7 @@ impl Compiler {
     pub(super) fn convert_static_argument_type(
         &self,
         argument: &StaticArgument,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         let ty = match argument {
@@ -695,7 +712,7 @@ impl Compiler {
             },
         };
 
-        types.insert_type(ty)
+        types.insert_type_from_any(ty, source_id)
     }
 
     /// Create a fallback static argument for function instantiation.
@@ -718,7 +735,8 @@ impl Compiler {
 
                     let infer_var_id =
                         infer.new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
-                    let infer_ty_id = types.insert_type(Type::InferVar { id: infer_var_id });
+                    let infer_ty_id =
+                        types.insert_type_from_any(Type::InferVar { id: infer_var_id }, node_id);
                     infer.bind_type(infer_var_id, infer_ty_id);
 
                     infer_ty_id
@@ -726,9 +744,12 @@ impl Compiler {
                     self.error(AnalyzeError::MissingType {
                         node: node_id.into_global(module.id),
                     });
-                    types.insert_type(Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    })
+                    types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        },
+                        node_id,
+                    )
                 };
 
                 Ok(StaticArgument::Evaluated {
@@ -854,10 +875,13 @@ impl Compiler {
                             );
                         }
 
-                        types.insert_type(Type::Reference {
-                            symbol,
-                            static_arguments: Some(mapped_arguments),
-                        })
+                        types.insert_type_from_type(
+                            Type::Reference {
+                                symbol,
+                                static_arguments: Some(mapped_arguments),
+                            },
+                            ty_id,
+                        )
                     } else {
                         ty_id
                     }
@@ -872,9 +896,12 @@ impl Compiler {
                 if mapped_value == value {
                     ty_id
                 } else {
-                    types.insert_type(Type::Value {
-                        value: mapped_value,
-                    })
+                    types.insert_type_from_type(
+                        Type::Value {
+                            value: mapped_value,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Unary { operator, right } => {
@@ -883,10 +910,13 @@ impl Compiler {
                 if mapped_right == right {
                     ty_id
                 } else {
-                    types.insert_type(Type::Unary {
-                        operator,
-                        right: mapped_right,
-                    })
+                    types.insert_type_from_type(
+                        Type::Unary {
+                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Binary {
@@ -901,11 +931,14 @@ impl Compiler {
                 if mapped_left == left && mapped_right == right {
                     ty_id
                 } else {
-                    types.insert_type(Type::Binary {
-                        left: mapped_left,
-                        operator,
-                        right: mapped_right,
-                    })
+                    types.insert_type_from_type(
+                        Type::Binary {
+                            left: mapped_left,
+                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Conditional {
@@ -929,12 +962,15 @@ impl Compiler {
                 {
                     ty_id
                 } else {
-                    types.insert_type(Type::Conditional {
-                        left: mapped_left,
-                        right: mapped_right,
-                        then_type: mapped_then,
-                        else_type: mapped_else,
-                    })
+                    types.insert_type_from_type(
+                        Type::Conditional {
+                            left: mapped_left,
+                            right: mapped_right,
+                            then_type: mapped_then,
+                            else_type: mapped_else,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Mapped {
@@ -964,11 +1000,14 @@ impl Compiler {
                         constraint: mapped_constraint,
                         key_remap: mapped_key_remap,
                     };
-                    types.insert_type(Type::Mapped {
-                        parameter,
-                        modifiers,
-                        value: mapped_value,
-                    })
+                    types.insert_type_from_type(
+                        Type::Mapped {
+                            parameter,
+                            modifiers,
+                            value: mapped_value,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Index { left, index } => {
@@ -979,10 +1018,13 @@ impl Compiler {
                 if mapped_left == left && mapped_index == index {
                     ty_id
                 } else {
-                    types.insert_type(Type::Index {
-                        left: mapped_left,
-                        index: mapped_index,
-                    })
+                    types.insert_type_from_type(
+                        Type::Index {
+                            left: mapped_left,
+                            index: mapped_index,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::TemplateLiteral { strings, spans } => {
@@ -999,10 +1041,13 @@ impl Compiler {
                     })
                     .collect::<Vec<_>>();
                 if changed {
-                    types.insert_type(Type::TemplateLiteral {
-                        strings,
-                        spans: mapped_spans,
-                    })
+                    types.insert_type_from_type(
+                        Type::TemplateLiteral {
+                            strings,
+                            spans: mapped_spans,
+                        },
+                        ty_id,
+                    )
                 } else {
                     ty_id
                 }
@@ -1015,10 +1060,13 @@ impl Compiler {
                 if mapped_constraint == constraint {
                     ty_id
                 } else {
-                    types.insert_type(Type::Infer {
-                        name,
-                        constraint: mapped_constraint,
-                    })
+                    types.insert_type_from_type(
+                        Type::Infer {
+                            name,
+                            constraint: mapped_constraint,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Predicate {
@@ -1032,11 +1080,14 @@ impl Compiler {
                 if mapped_target == target {
                     ty_id
                 } else {
-                    types.insert_type(Type::Predicate {
-                        asserts,
-                        subject,
-                        target: mapped_target,
-                    })
+                    types.insert_type_from_type(
+                        Type::Predicate {
+                            asserts,
+                            subject,
+                            target: mapped_target,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Mutable { mutability, right } => {
@@ -1045,10 +1096,13 @@ impl Compiler {
                 if mapped_right == right {
                     ty_id
                 } else {
-                    types.insert_type(Type::Mutable {
-                        mutability,
-                        right: mapped_right,
-                    })
+                    types.insert_type_from_type(
+                        Type::Mutable {
+                            mutability,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::ValueOf {
@@ -1061,11 +1115,14 @@ impl Compiler {
                 if mapped_right == right {
                     ty_id
                 } else {
-                    types.insert_type(Type::ValueOf {
-                        mutability,
-                        variance,
-                        right: mapped_right,
-                    })
+                    types.insert_type_from_type(
+                        Type::ValueOf {
+                            mutability,
+                            variance,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::ReferenceOf {
@@ -1078,11 +1135,14 @@ impl Compiler {
                 if mapped_right == right {
                     ty_id
                 } else {
-                    types.insert_type(Type::ReferenceOf {
-                        mutability,
-                        variance,
-                        right: mapped_right,
-                    })
+                    types.insert_type_from_type(
+                        Type::ReferenceOf {
+                            mutability,
+                            variance,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::PointerOf { mutability, right } => {
@@ -1091,10 +1151,13 @@ impl Compiler {
                 if mapped_right == right {
                     ty_id
                 } else {
-                    types.insert_type(Type::PointerOf {
-                        mutability,
-                        right: mapped_right,
-                    })
+                    types.insert_type_from_type(
+                        Type::PointerOf {
+                            mutability,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::ArraySized { element, count } => {
@@ -1103,10 +1166,13 @@ impl Compiler {
                 if mapped_element == element {
                     ty_id
                 } else {
-                    types.insert_type(Type::ArraySized {
-                        element: mapped_element,
-                        count,
-                    })
+                    types.insert_type_from_type(
+                        Type::ArraySized {
+                            element: mapped_element,
+                            count,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Array { element } => {
@@ -1116,9 +1182,12 @@ impl Compiler {
                 if mapped_element == element {
                     ty_id
                 } else {
-                    types.insert_type(Type::Array {
-                        element: mapped_element,
-                    })
+                    types.insert_type_from_type(
+                        Type::Array {
+                            element: mapped_element,
+                        },
+                        ty_id,
+                    )
                 }
             }
             Type::Tuple { elements } => {
@@ -1141,9 +1210,12 @@ impl Compiler {
                     })
                     .collect::<Vec<_>>();
                 if changed {
-                    types.insert_type(Type::Tuple {
-                        elements: mapped_elements,
-                    })
+                    types.insert_type_from_type(
+                        Type::Tuple {
+                            elements: mapped_elements,
+                        },
+                        ty_id,
+                    )
                 } else {
                     ty_id
                 }
@@ -1231,12 +1303,15 @@ impl Compiler {
                     })
                     .collect::<Vec<_>>();
                 if changed {
-                    types.insert_type(Type::Object {
-                        fields: mapped_fields,
-                        call_signatures: mapped_call_signatures,
-                        construct_signatures: mapped_construct_signatures,
-                        index_signatures: mapped_index_signatures,
-                    })
+                    types.insert_type_from_type(
+                        Type::Object {
+                            fields: mapped_fields,
+                            call_signatures: mapped_call_signatures,
+                            construct_signatures: mapped_construct_signatures,
+                            index_signatures: mapped_index_signatures,
+                        },
+                        ty_id,
+                    )
                 } else {
                     ty_id
                 }
@@ -1286,14 +1361,17 @@ impl Compiler {
                     mapped
                 });
                 if changed {
-                    types.insert_type(Type::Function {
-                        asynchrony,
-                        cardinality,
-                        static_parameters,
-                        this_parameter: mapped_this,
-                        dynamic_parameters: mapped_parameters,
-                        return_type: mapped_return,
-                    })
+                    types.insert_type_from_type(
+                        Type::Function {
+                            asynchrony,
+                            cardinality,
+                            static_parameters,
+                            this_parameter: mapped_this,
+                            dynamic_parameters: mapped_parameters,
+                            return_type: mapped_return,
+                        },
+                        ty_id,
+                    )
                 } else {
                     ty_id
                 }
@@ -1316,9 +1394,12 @@ impl Compiler {
                     })
                     .collect::<Vec<_>>();
                 if changed {
-                    types.insert_type(Type::Union {
-                        elements: mapped_elements,
-                    })
+                    types.insert_type_from_type(
+                        Type::Union {
+                            elements: mapped_elements,
+                        },
+                        ty_id,
+                    )
                 } else {
                     ty_id
                 }
@@ -1341,9 +1422,12 @@ impl Compiler {
                     })
                     .collect::<Vec<_>>();
                 if changed {
-                    types.insert_type(Type::Intersection {
-                        elements: mapped_elements,
-                    })
+                    types.insert_type_from_type(
+                        Type::Intersection {
+                            elements: mapped_elements,
+                        },
+                        ty_id,
+                    )
                 } else {
                     ty_id
                 }

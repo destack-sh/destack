@@ -1,7 +1,7 @@
 use crate::Compiler;
 use destack_dir::{
-    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalTypeId, Type,
-    TypeTable,
+    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeIdAny,
+    LocalTypeId, Type, TypeTable,
 };
 
 impl Compiler {
@@ -11,20 +11,20 @@ impl Compiler {
         infer: &mut InferTable,
         types: &mut TypeTable,
         symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
         origin: InferOrigin,
         scope: InferScope,
     ) -> LocalTypeId {
         // reuse existing inference variable when available
         if let Some(var_id) = infer.var_by_symbol_id.get(&symbol).copied()
             && let Some(ty_id) = infer.type_for_var(var_id)
-            && ty_id.0 != u32::MAX
         {
             return ty_id;
         }
 
         // allocate and bind a new inference variable
         let var_id = infer.new_var(origin, scope);
-        let ty_id = types.insert_type(Type::InferVar { id: var_id });
+        let ty_id = types.insert_type_from_any(Type::InferVar { id: var_id }, source_id);
         infer.bind_type(var_id, ty_id);
         infer.var_by_symbol_id.insert(symbol, var_id);
         ty_id
@@ -42,14 +42,13 @@ impl Compiler {
         // reuse existing inference variable when available
         if let Some(var_id) = infer.var_by_node_id.get(&node_id).copied()
             && let Some(ty_id) = infer.type_for_var(var_id)
-            && ty_id.0 != u32::MAX
         {
             return ty_id;
         }
 
         // allocate and bind a new inference variable
         let var_id = infer.new_var(origin, scope);
-        let ty_id = types.insert_type(Type::InferVar { id: var_id });
+        let ty_id = types.insert_type_from_any(Type::InferVar { id: var_id }, node_id.local_id);
         infer.bind_type(var_id, ty_id);
         infer.var_by_node_id.insert(node_id, var_id);
         ty_id

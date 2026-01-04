@@ -659,6 +659,7 @@ impl Compiler {
                     module,
                     symbols,
                     profile,
+                    expression_id.into_any(),
                     target_symbol,
                     static_arguments.as_deref(),
                     types,
@@ -691,7 +692,8 @@ impl Compiler {
                 let element_ty_id = if element_type_ids.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_from_list(element_type_ids, types))
+                    let source_type_id = element_type_ids[0];
+                    Some(self.union_type_from_list(element_type_ids, source_type_id, types))
                 };
 
                 Type::Array {

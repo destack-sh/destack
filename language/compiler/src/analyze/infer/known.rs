@@ -94,7 +94,9 @@ impl Compiler {
                     None
                 } else {
                     let element_types = elements.iter().map(|element| element.ty).collect();
-                    let element_ty_id = self.union_type_from_list(element_types, types);
+                    let source_type_id = elements[0].ty;
+                    let element_ty_id =
+                        self.union_type_from_list(element_types, source_type_id, types);
                     Some(vec![StaticArgument::value(StaticExpression::Type {
                         ty: element_ty_id,
                     })])

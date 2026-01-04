@@ -107,9 +107,12 @@ impl InferredShape {
                 let merged_type = if existing.ty == field.ty {
                     existing.ty
                 } else {
-                    types.insert_type(Type::Intersection {
-                        elements: vec![existing.ty, field.ty],
-                    })
+                    types.insert_type_from_type(
+                        Type::Intersection {
+                            elements: vec![existing.ty, field.ty],
+                        },
+                        existing.ty,
+                    )
                 };
                 existing.ty = merged_type;
                 existing.is_optional = existing.is_optional && field.is_optional;
@@ -173,7 +176,7 @@ impl Compiler {
                         spread_type,
                         symbols,
                         types,
-                        NormalizationMode::Assignability,
+                        NormalizationMode::Assign,
                     );
 
                     // short circuit on any or unknown spreads
@@ -320,7 +323,7 @@ impl Compiler {
             type_id,
             symbols,
             types,
-            NormalizationMode::Assignability,
+            NormalizationMode::Assign,
         );
 
         // derive shapes based on the normalized type

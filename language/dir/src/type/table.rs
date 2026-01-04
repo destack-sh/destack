@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NormalizationMode {
     /// Normalize for assignability and constraint solving.
-    Assignability,
+    Assign,
     /// Normalize for flow narrowing and guard checks.
     Flow,
 }
@@ -130,20 +130,8 @@ impl TypeTable {
         self.next_type_id += 1;
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id.into_any());
-        self.grow_normalization_cache();
-        type_id
-    }
-
-    /// Insert a type without a source node (for synthetic types).
-    pub fn insert_type(&mut self, ty: Type) -> LocalTypeId {
-        use crate::NodeType;
-        let type_id = LocalTypeId::new(self.next_type_id);
-        self.next_type_id += 1;
-        self.types.allocate(ty);
-        // use a sentinel value for synthetic types
-        self.source_id_by_type_id
-            .push(LocalNodeIdAny::new(u32::MAX, NodeType::Expression));
-        self.grow_normalization_cache();
+        self.normalized_assignability_type_by_id.push(None);
+        self.normalized_flow_type_by_id.push(None);
         type_id
     }
 
@@ -153,8 +141,15 @@ impl TypeTable {
         self.next_type_id += 1;
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id);
-        self.grow_normalization_cache();
+        self.normalized_assignability_type_by_id.push(None);
+        self.normalized_flow_type_by_id.push(None);
         type_id
+    }
+
+    /// Insert a type derived from another type id.
+    pub fn insert_type_from_type(&mut self, ty: Type, source_type_id: LocalTypeId) -> LocalTypeId {
+        let source_id = self.get_type_source(source_type_id);
+        self.insert_type_from_any(ty, source_id)
     }
 
     /// Get a type by its id.
@@ -180,7 +175,7 @@ impl TypeTable {
     ) -> Option<LocalTypeId> {
         let cache_index = type_id.0 as usize;
         match mode {
-            NormalizationMode::Assignability => self
+            NormalizationMode::Assign => self
                 .normalized_assignability_type_by_id
                 .get(cache_index)
                 .copied()
@@ -202,7 +197,7 @@ impl TypeTable {
     ) {
         let cache_index = type_id.0 as usize;
         match mode {
-            NormalizationMode::Assignability => {
+            NormalizationMode::Assign => {
                 if self.normalized_assignability_type_by_id.len() <= cache_index {
                     self.normalized_assignability_type_by_id
                         .resize(cache_index + 1, None);
@@ -437,12 +432,6 @@ impl TypeTable {
         lineage_id: LocalLineageId,
     ) {
         self.lineage_by_symbol_id.insert(symbol_id, lineage_id);
-    }
-
-    /// Grow normalization caches to cover the next type id.
-    fn grow_normalization_cache(&mut self) {
-        self.normalized_assignability_type_by_id.push(None);
-        self.normalized_flow_type_by_id.push(None);
     }
 
     /// Get the lineage id for a symbol.

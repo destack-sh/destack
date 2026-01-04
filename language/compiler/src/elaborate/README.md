@@ -284,8 +284,8 @@ The output remains DIR and feeds Execute and Lower.
 ### Insert explicit and implicit casts
 
 All `as T` expressions are real casts and must be preserved.
-When a cast can fail at runtime, it is checked.
-(Unchecked casts use the transmute intrinsic and do not use CastOperator.)
+When a cast can fail at runtime, it must be checked.
+(Unchecked casts use the transmute intrinsic and bypass the `CastOperator`.)
 Reify replaces type-cast expressions with `Expression::Cast`.
 Explicit casts use `CastSource::Explicit` and inserted casts use `CastSource::Implicit`.
 
@@ -415,25 +415,12 @@ Calls that Analyze resolves as nominal constructors become tagged expressions in
 This preserves newtype and nominal struct intent for Lower and codegen.
 
 ```ds
-// source
 newtype UserId = int64;
 newtype Point = (float32, float32);
 
 function build(): (UserId, Point) {
-    let id = UserId(42);
-    let point = Point(1.0, 2.0);
-    return (id, point);
-}
-```
-
-```ds
-// after reify (DIR)
-newtype UserId = int64;
-newtype Point = (float32, float32);
-
-function build(): (UserId, Point) {
-    let id = TaggedScalarExpression { ty: UserId, value: 42 };
-    let point = TaggedTupleExpression { ty: Point, elements: [1.0, 2.0] };
+    let id = UserId(42); // code looks the same
+    let point = Point(1.0, 2.0); // code looks the same
     return (id, point);
 }
 ```
@@ -444,7 +431,7 @@ Overload resolution is reified in all profiles.
 This uses the same resolution machinery as operator overloading.
 If no overload exists, explicit control flow is inserted.
 Coalesce uses Try semantics when the left side implements Try and nullish semantics otherwise.
-Profiles with native nullish operators may keep them instead of rewriting.
+Profiles with native nullish operators may keep them instead of rewriting (TBD).
 
 ```ds
 // source
@@ -459,15 +446,19 @@ function loadCount(): Result<int32, Error> {
 // after reify
 function loadCount(): Result<int32, Error> {
     let __try0 = readCount();
-    let value = match (__try0.branch()) {
-        Ok { value } => value
-        Err { error } => return Result.fromError(error)
+    let value;
+    if (__try0.isOk()) {
+        value = __try0.value
+    } else {
+        return Result.fromError(__try0.error)
     };
 
     let __try1 = readCount();
-    let fallback = match (__try1.branch()) {
-        Ok { value } => value
-        Err { error: _ } => 0
+    let fallback;
+    if (__try1.isOk()) {
+        fallback = __try1.value
+    } else {
+        0
     };
 
     return Result.ok(value + fallback);
@@ -513,7 +504,7 @@ function requireName(name: string | null): string {
 
 Tree literals are realized via a renderer protocol chosen by tag type.
 Renderer selection is static when possible and dynamic when needed.
-NOTE #Incomplete: the renderer protocol and routing rules are still evolving.
+NOTE #Incomplete: define renderer protocol and routing rules
 
 ```ds
 // source
@@ -538,7 +529,9 @@ The core library defines RangeBounds and concrete Range types.
 // source
 function sumRange(): int32 {
     let sum = 0;
-    for (const i of 0..=5) { sum += i }
+    for (const i of 0..=5) { 
+        sum += i;
+    }
     return sum;
 }
 ```
@@ -547,7 +540,9 @@ function sumRange(): int32 {
 // after reify
 function sumRange(): int32 {
     let sum = 0;
-    for (const i of RangeInclusive { start: 0, end: 5 }) { sum += i }
+    for (const i of RangeInclusive { start: 0, end: 5 }) {
+        sum += i;
+    }
     return sum;
 }
 ```

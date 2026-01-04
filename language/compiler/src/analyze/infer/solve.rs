@@ -84,9 +84,18 @@ impl Compiler {
                 if solution.resolved[index].is_some() {
                     continue;
                 }
-                if let Some(resolved) =
-                    self.resolve_bounds(module, profile, symbols, bound, &solution, types, options)
-                {
+                let var_id = InferVarId::new(index as u32);
+                let fallback_source_type_id = infer.type_for_var(var_id);
+                if let Some(resolved) = self.resolve_bounds(
+                    module,
+                    profile,
+                    symbols,
+                    bound,
+                    fallback_source_type_id,
+                    &solution,
+                    types,
+                    options,
+                ) {
                     solution.resolved[index] = Some(resolved);
                     did_resolve = true;
                 }
@@ -166,6 +175,7 @@ impl Compiler {
         profile: ProfileId,
         symbols: &SymbolTable,
         bound: &Bounds,
+        fallback_source_type_id: Option<LocalTypeId>,
         solution: &InferSolution,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
@@ -188,7 +198,10 @@ impl Compiler {
             }
             (Some(lower), None) => Some(lower),
             (None, Some(upper)) => Some(upper),
-            (None, None) => bound.default.or_else(|| Some(self.unknown_type(types))),
+            (None, None) => bound.default.or_else(|| {
+                fallback_source_type_id
+                    .map(|source_type_id| self.unknown_type(source_type_id, types))
+            }),
         }
     }
 
@@ -255,18 +268,22 @@ impl Compiler {
             return elements[0];
         }
 
+        let source_type_id = elements[0];
         let ty = match kind {
             JoinKind::Union => Type::Union { elements },
             JoinKind::Intersection => Type::Intersection { elements },
         };
-        types.insert_type(ty)
+        types.insert_type_from_type(ty, source_type_id)
     }
 
     /// Insert an unknown type.
-    fn unknown_type(&self, types: &mut TypeTable) -> LocalTypeId {
-        types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
-        })
+    fn unknown_type(&self, source_type_id: LocalTypeId, types: &mut TypeTable) -> LocalTypeId {
+        types.insert_type_from_type(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_type_id,
+        )
     }
 
     /// Extract an inference variable id for a type.
