@@ -198,13 +198,8 @@ impl ManagedHeap {
     /// Collect heap handles from a value (recursively for aggregates).
     fn collect_handles_from_value(value: &Value, worklist: &mut Vec<HeapHandle>) {
         match value {
-            Value::ManagedReference(handle) => {
+            Value::ManagedReference(handle) | Value::Aggregate(handle) => {
                 worklist.push(*handle);
-            }
-            Value::Aggregate(fields) => {
-                for field in fields {
-                    Self::collect_handles_from_value(field, worklist);
-                }
             }
             _ => {}
         }

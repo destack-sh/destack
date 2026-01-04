@@ -1,5 +1,3 @@
-//! Binary, unary, and cast operation implementations.
-
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};

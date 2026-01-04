@@ -1,5 +1,3 @@
-//! Interpreter execution statistics.
-
 /// Statistics collected during interpreter execution.
 #[derive(Debug, Clone, Default)]
 pub struct Statistics {

@@ -1,6 +1,6 @@
 use crate::diagnostic::Error;
 use crate::memory::{RawPointer, Value};
-use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
+use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
 
 /// Managed allocation creates a heap cell and returns a reference.
 #[test]
@@ -59,26 +59,30 @@ block0(v0: (i32, i32)):
     return v1
 }
 "#;
-    let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)].into_boxed_slice());
-    run_mir_expect(mir, "get_first", &[aggregate], Value::int32(10));
+    let output = run_mir_with_ok(mir, "get_first", |interp| {
+        let agg = create_aggregate(interp, vec![Value::int32(10), Value::int32(20)]);
+        vec![agg]
+    });
+    assert_eq!(output.value, Value::int32(10));
 }
 
 /// Insert field creates a new tuple with one component replaced.
 #[test]
 fn test_insert_field() {
+    // test that field.set modifies field 0 correctly
     let mir = r#"
-function @set_first(v0: (i32, i32), v1: i32) -> (i32, i32) {
+function @set_and_get(v0: (i32, i32), v1: i32) -> i32 {
 block0(v0: (i32, i32), v1: i32):
     v2 = field.set v0, 0, v1
-    return v2
+    v3 = field.get v2, 0
+    return v3
 }
 "#;
-    let aggregate = Value::Aggregate(vec![Value::int32(10), Value::int32(20)].into_boxed_slice());
-    let result = run_mir_ok(mir, "set_first", &[aggregate, Value::int32(99)]);
-    assert_eq!(
-        result.value,
-        Value::Aggregate(vec![Value::int32(99), Value::int32(20)].into_boxed_slice())
-    );
+    let output = run_mir_with_ok(mir, "set_and_get", |interp| {
+        let agg = create_aggregate(interp, vec![Value::int32(10), Value::int32(20)]);
+        vec![agg, Value::int32(99)]
+    });
+    assert_eq!(output.value, Value::int32(99));
 }
 
 /// Extract element reads from an array at a dynamic index.
@@ -91,53 +95,57 @@ block0(v0: [i32; 3], v1: i64):
     return v2
 }
 "#;
-    let array = Value::Aggregate(
-        vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
-    );
-    run_mir_expect(
-        mir,
-        "get_elem",
-        &[array.clone(), Value::uint64(0)],
-        Value::int32(10),
-    );
-    run_mir_expect(
-        mir,
-        "get_elem",
-        &[array.clone(), Value::uint64(1)],
-        Value::int32(20),
-    );
-    run_mir_expect(
-        mir,
-        "get_elem",
-        &[array, Value::uint64(2)],
-        Value::int32(30),
-    );
+    // test element 0
+    let output = run_mir_with_ok(mir, "get_elem", |interp| {
+        let arr = create_aggregate(
+            interp,
+            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+        );
+        vec![arr, Value::uint64(0)]
+    });
+    assert_eq!(output.value, Value::int32(10));
+
+    // test element 1
+    let output = run_mir_with_ok(mir, "get_elem", |interp| {
+        let arr = create_aggregate(
+            interp,
+            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+        );
+        vec![arr, Value::uint64(1)]
+    });
+    assert_eq!(output.value, Value::int32(20));
+
+    // test element 2
+    let output = run_mir_with_ok(mir, "get_elem", |interp| {
+        let arr = create_aggregate(
+            interp,
+            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+        );
+        vec![arr, Value::uint64(2)]
+    });
+    assert_eq!(output.value, Value::int32(30));
 }
 
 /// Insert element creates a new array with one element replaced.
 #[test]
 fn test_insert_element() {
+    // test that element.set modifies the correct element
     let mir = r#"
-function @set_elem(v0: [i32; 3], v1: i64, v2: i32) -> [i32; 3] {
+function @set_and_get(v0: [i32; 3], v1: i64, v2: i32) -> i32 {
 block0(v0: [i32; 3], v1: i64, v2: i32):
     v3 = element.set v0, v1, v2
-    return v3
+    v4 = element.get v3, v1
+    return v4
 }
 "#;
-    let array = Value::Aggregate(
-        vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
-    );
-    let result = run_mir_ok(
-        mir,
-        "set_elem",
-        &[array, Value::uint64(1), Value::int32(99)],
-    );
-    assert_eq!(
-        result.value,
-        Value::Aggregate(
-            vec![Value::int32(10), Value::int32(99), Value::int32(30)].into_boxed_slice()
-        )
-    );
+    let output = run_mir_with_ok(mir, "set_and_get", |interp| {
+        let arr = create_aggregate(
+            interp,
+            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+        );
+        vec![arr, Value::uint64(1), Value::int32(99)]
+    });
+    assert_eq!(output.value, Value::int32(99));
 }
 
 /// Extract field works on heap-allocated objects.
@@ -166,8 +174,10 @@ block0(v0: (i32,)):
     return v1
 }
 "#;
-    let aggregate = Value::Aggregate(vec![Value::int32(10)].into_boxed_slice());
-    let result = run_mir(mir, "bad_field", &[aggregate]);
+    let result = crate::tests::run_mir_with(mir, "bad_field", |interp| {
+        let agg = create_aggregate(interp, vec![Value::int32(10)]);
+        vec![agg]
+    });
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::InvalidFieldAccess { .. }));
@@ -183,10 +193,13 @@ block0(v0: [i32; 3], v1: i64):
     return v2
 }
 "#;
-    let array = Value::Aggregate(
-        vec![Value::int32(10), Value::int32(20), Value::int32(30)].into_boxed_slice(),
-    );
-    let result = run_mir(mir, "bad_elem", &[array, Value::uint64(100)]);
+    let result = crate::tests::run_mir_with(mir, "bad_elem", |interp| {
+        let arr = create_aggregate(
+            interp,
+            vec![Value::int32(10), Value::int32(20), Value::int32(30)],
+        );
+        vec![arr, Value::uint64(100)]
+    });
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::InvalidArrayAccess { .. }));

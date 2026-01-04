@@ -1,7 +1,7 @@
 //! Tests for intrinsic execution.
 
 use crate::memory::Value;
-use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
+use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
 
 // bit manipulation
 
@@ -102,65 +102,67 @@ block0(v0: u32, v1: u32):
 
 #[test]
 fn test_intrinsic_add_overflow_no_overflow() {
-    // 10 + 20 = 30, no overflow
+    // 10 + 20 = 30, no overflow - test result value
     let mir = r#"
-function @test(v0: i32, v1: i32) -> (i32, bool) {
+function @test_result(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.add.overflow(v0, v1)
-    return v2
+    v3 = field.get v2, 0
+    return v3
 }
 "#;
-    let output = run_mir_ok(mir, "test", &[Value::int32(10), Value::int32(20)]);
-    if let Value::Aggregate(fields) = &output.value {
-        assert_eq!(fields[0], Value::int32(30));
-        assert_eq!(fields[1], Value::Bool(false));
-    } else {
-        panic!("expected aggregate, got {:?}", output.value);
-    }
+    let output = run_mir_ok(mir, "test_result", &[Value::int32(10), Value::int32(20)]);
+    assert_eq!(output.value, Value::int32(30));
+
+    // test no overflow flag
+    let mir = r#"
+function @test_flag(v0: i32, v1: i32) -> bool {
+block0(v0: i32, v1: i32):
+    v2 = intrinsic.add.overflow(v0, v1)
+    v3 = field.get v2, 1
+    return v3
+}
+"#;
+    let output = run_mir_ok(mir, "test_flag", &[Value::int32(10), Value::int32(20)]);
+    assert_eq!(output.value, Value::Bool(false));
 }
 
 #[test]
 fn test_intrinsic_add_overflow_with_overflow() {
-    // i32::MAX + 1 overflows
+    // i32::MAX + 1 overflows - test overflow flag
     let mir = r#"
-function @test(v0: i32, v1: i32) -> (i32, bool) {
+function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.add.overflow(v0, v1)
-    return v2
+    v3 = field.get v2, 1
+    return v3
 }
 "#;
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
-    if let Value::Aggregate(fields) = &output.value {
-        assert_eq!(
-            fields[1],
-            Value::Bool(true),
-            "expected overflow flag to be true"
-        );
-    } else {
-        panic!("expected aggregate, got {:?}", output.value);
-    }
+    assert_eq!(
+        output.value,
+        Value::Bool(true),
+        "expected overflow flag to be true"
+    );
 }
 
 #[test]
 fn test_intrinsic_sub_overflow() {
-    // 0 - 1 for unsigned overflows
+    // 0 - 1 for unsigned overflows - test overflow flag
     let mir = r#"
-function @test(v0: u32, v1: u32) -> (u32, bool) {
+function @test(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
     v2 = intrinsic.sub.overflow(v0, v1)
-    return v2
+    v3 = field.get v2, 1
+    return v3
 }
 "#;
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
-    if let Value::Aggregate(fields) = &output.value {
-        assert_eq!(
-            fields[1],
-            Value::Bool(true),
-            "expected overflow flag to be true"
-        );
-    } else {
-        panic!("expected aggregate, got {:?}", output.value);
-    }
+    assert_eq!(
+        output.value,
+        Value::Bool(true),
+        "expected overflow flag to be true"
+    );
 }
 
 // saturating arithmetic
@@ -619,16 +621,19 @@ block0(v0: (i32, i32, i32, i32)):
     return v1
 }
 "#;
-    let input = Value::Aggregate(
-        vec![
-            Value::int32(1),
-            Value::int32(2),
-            Value::int32(3),
-            Value::int32(4),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::int32(10));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::int32(1),
+                Value::int32(2),
+                Value::int32(3),
+                Value::int32(4),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::int32(10));
 }
 
 #[test]
@@ -640,16 +645,19 @@ block0(v0: (i32, i32, i32, i32)):
     return v1
 }
 "#;
-    let input = Value::Aggregate(
-        vec![
-            Value::int32(2),
-            Value::int32(3),
-            Value::int32(4),
-            Value::int32(5),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::int32(120));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::int32(2),
+                Value::int32(3),
+                Value::int32(4),
+                Value::int32(5),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::int32(120));
 }
 
 #[test]
@@ -661,16 +669,19 @@ block0(v0: (i32, i32, i32, i32)):
     return v1
 }
 "#;
-    let input = Value::Aggregate(
-        vec![
-            Value::int32(5),
-            Value::int32(2),
-            Value::int32(8),
-            Value::int32(1),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::int32(1));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::int32(5),
+                Value::int32(2),
+                Value::int32(8),
+                Value::int32(1),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::int32(1));
 }
 
 #[test]
@@ -682,16 +693,19 @@ block0(v0: (i32, i32, i32, i32)):
     return v1
 }
 "#;
-    let input = Value::Aggregate(
-        vec![
-            Value::int32(5),
-            Value::int32(2),
-            Value::int32(8),
-            Value::int32(1),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::int32(8));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::int32(5),
+                Value::int32(2),
+                Value::int32(8),
+                Value::int32(1),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::int32(8));
 }
 
 #[test]
@@ -703,16 +717,19 @@ block0(v0: (u32, u32, u32, u32)):
     return v1
 }
 "#;
-    let input = Value::Aggregate(
-        vec![
-            Value::uint32(0b1111),
-            Value::uint32(0b1110),
-            Value::uint32(0b1100),
-            Value::uint32(0b1000),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::uint32(0b1000));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::uint32(0b1111),
+                Value::uint32(0b1110),
+                Value::uint32(0b1100),
+                Value::uint32(0b1000),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::uint32(0b1000));
 }
 
 #[test]
@@ -724,16 +741,19 @@ block0(v0: (u32, u32, u32, u32)):
     return v1
 }
 "#;
-    let input = Value::Aggregate(
-        vec![
-            Value::uint32(0b0001),
-            Value::uint32(0b0010),
-            Value::uint32(0b0100),
-            Value::uint32(0b1000),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::uint32(0b1111));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::uint32(0b0001),
+                Value::uint32(0b0010),
+                Value::uint32(0b0100),
+                Value::uint32(0b1000),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::uint32(0b1111));
 }
 
 #[test]
@@ -746,14 +766,17 @@ block0(v0: (u32, u32, u32, u32)):
 }
 "#;
     // 1 ^ 2 ^ 3 ^ 4 = 4
-    let input = Value::Aggregate(
-        vec![
-            Value::uint32(1),
-            Value::uint32(2),
-            Value::uint32(3),
-            Value::uint32(4),
-        ]
-        .into(),
-    );
-    run_mir_expect(mir, "test", &[input], Value::uint32(4));
+    let output = run_mir_with_ok(mir, "test", |interp| {
+        let input = create_aggregate(
+            interp,
+            vec![
+                Value::uint32(1),
+                Value::uint32(2),
+                Value::uint32(3),
+                Value::uint32(4),
+            ],
+        );
+        vec![input]
+    });
+    assert_eq!(output.value, Value::uint32(4));
 }

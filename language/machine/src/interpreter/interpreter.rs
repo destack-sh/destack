@@ -1,5 +1,3 @@
-//! Core interpreter structure and management.
-
 use std::collections::HashMap;
 
 use destack_base::ImmutableStringPool;
@@ -74,11 +72,12 @@ impl Interpreter {
         strings: ImmutableStringPool,
         options: MachineOptions,
     ) -> Self {
-        let globals = Self::initialize_globals(&tree);
+        let mut managed_heap = ManagedHeap::new();
+        let globals = Self::initialize_globals(&tree, &mut managed_heap);
         Self {
             tree,
             strings,
-            managed_heap: ManagedHeap::new(),
+            managed_heap,
             raw_heap: RawHeap::new(),
             globals,
             externals: HashMap::new(),
@@ -89,7 +88,7 @@ impl Interpreter {
     }
 
     /// Initialize global variables from the MIR tree.
-    fn initialize_globals(tree: &mir::NodeTree) -> GlobalStorage {
+    fn initialize_globals(tree: &mir::NodeTree, heap: &mut ManagedHeap) -> GlobalStorage {
         let mut globals = GlobalStorage::new();
 
         for (id, global) in tree.iter_nodes::<mir::Global>() {
@@ -99,7 +98,7 @@ impl Interpreter {
             }
 
             let value = match &global.initializer {
-                Some(init) => Self::convert_initializer(tree, init, global.ty),
+                Some(init) => Self::convert_initializer(tree, heap, init, global.ty),
                 None => Value::Void,
             };
             globals.set(id, value);
@@ -111,11 +110,12 @@ impl Interpreter {
     /// Convert a global initializer to a runtime value.
     fn convert_initializer(
         tree: &mir::NodeTree,
+        heap: &mut ManagedHeap,
         init: &mir::GlobalInitializer,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Value {
         match init {
-            mir::GlobalInitializer::Zero => Self::zero_value(tree, ty),
+            mir::GlobalInitializer::Zero => Self::zero_value(tree, heap, ty),
             mir::GlobalInitializer::Scalar(constant) => constant.into(),
             mir::GlobalInitializer::Bytes(bytes) => {
                 // convert bytes to an aggregate of u8 values
@@ -126,21 +126,27 @@ impl Interpreter {
                         width: 8,
                     })
                     .collect();
-                Value::Aggregate(values.into_boxed_slice())
+                let handle = heap.allocate_with_values(values);
+                Value::Aggregate(handle)
             }
             mir::GlobalInitializer::Aggregate(elements) => {
                 // recursively convert each element
                 let values: Vec<Value> = elements
                     .iter()
-                    .map(|e| Self::convert_initializer(tree, e, ty))
+                    .map(|e| Self::convert_initializer(tree, heap, e, ty))
                     .collect();
-                Value::Aggregate(values.into_boxed_slice())
+                let handle = heap.allocate_with_values(values);
+                Value::Aggregate(handle)
             }
         }
     }
 
     /// Create a zero value for a given type.
-    fn zero_value(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Value {
+    fn zero_value(
+        tree: &mir::NodeTree,
+        heap: &mut ManagedHeap,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Value {
         let ty_node = tree.get(ty);
         match ty_node {
             mir::Type::Int { width, signed } => {
@@ -167,14 +173,16 @@ impl Interpreter {
             mir::Type::Tuple { elements } => {
                 let values: Vec<Value> = elements
                     .iter()
-                    .map(|e| Self::zero_value(tree, *e))
+                    .map(|e| Self::zero_value(tree, heap, *e))
                     .collect();
-                Value::Aggregate(values.into_boxed_slice())
+                let handle = heap.allocate_with_values(values);
+                Value::Aggregate(handle)
             }
             mir::Type::Array { element, length } => {
-                let elem_zero = Self::zero_value(tree, *element);
-                let values: Vec<Value> = (0..*length).map(|_| elem_zero.clone()).collect();
-                Value::Aggregate(values.into_boxed_slice())
+                let elem_zero = Self::zero_value(tree, heap, *element);
+                let values: Vec<Value> = (0..*length).map(|_| elem_zero).collect();
+                let handle = heap.allocate_with_values(values);
+                Value::Aggregate(handle)
             }
             // for other types (pointers, functions, void, etc.), just use Void
             _ => Value::Void,
@@ -206,6 +214,23 @@ impl Interpreter {
     /// Create an error with current call stack.
     pub(super) fn make_error(&self, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(self.get_call_stack_info())
+    }
+
+    /// Allocate an aggregate on the heap and return it as a Value.
+    pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
+        let handle = self.managed_heap.allocate_with_values(values);
+        Value::Aggregate(handle)
+    }
+
+    /// Get the slots of an aggregate value (looking up from heap if needed).
+    pub(super) fn get_aggregate_slots(&self, value: &Value) -> Option<&[Value]> {
+        match value {
+            Value::Aggregate(handle) | Value::ManagedReference(handle) => self
+                .managed_heap
+                .get(*handle)
+                .map(|cell| cell.slots.as_slice()),
+            _ => None,
+        }
     }
 
     /// Create an error with instruction anchor.
