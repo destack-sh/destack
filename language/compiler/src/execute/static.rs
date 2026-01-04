@@ -12,21 +12,13 @@ impl Compiler {
     ) -> Option<machine::Value> {
         match value {
             dir::StaticExpression::ScalarLiteral { value } => match value {
-                dir::ScalarLiteral::Boolean(value) => Some(machine::Value::Bool(*value)),
-                dir::ScalarLiteral::Integer(value) => Some(machine::Value::Int {
-                    value: *value,
-                    width: 64,
-                }),
-                dir::ScalarLiteral::Bigint(value) => Some(machine::Value::Int {
-                    value: *value,
-                    width: 64,
-                }),
-                dir::ScalarLiteral::Float(value) => Some(machine::Value::Float64(*value)),
-                dir::ScalarLiteral::Character(value) => Some(machine::Value::Char(*value)),
-                dir::ScalarLiteral::String(value) => {
-                    let value = self.program.strings.get(*value).to_string();
-                    Some(machine::Value::String(value.into_boxed_str()))
-                }
+                dir::ScalarLiteral::Boolean(value) => Some(machine::Value::bool(*value)),
+                dir::ScalarLiteral::Integer(value) => Some(machine::Value::int64(*value)),
+                dir::ScalarLiteral::Bigint(value) => Some(machine::Value::int64(*value)),
+                dir::ScalarLiteral::Float(value) => Some(machine::Value::float64(*value)),
+                dir::ScalarLiteral::Character(value) => Some(machine::Value::char(*value)),
+                // #Incomplete: support more complex static values in comptime
+                dir::ScalarLiteral::String(_) => None,
                 dir::ScalarLiteral::RegexString { .. } => None,
             },
             _ => None,
@@ -38,20 +30,16 @@ impl Compiler {
         &self,
         value: &machine::Value,
     ) -> Option<dir::StaticExpression> {
-        let scalar = match value {
-            machine::Value::Bool(value) => dir::ScalarLiteral::Boolean(*value),
-            machine::Value::Int { value, .. } => dir::ScalarLiteral::Integer(*value),
-            machine::Value::UInt { value, .. } => {
-                dir::ScalarLiteral::Integer((*value).try_into().ok()?)
-            }
-            machine::Value::Float32(value) => dir::ScalarLiteral::Float(*value as f64),
-            machine::Value::Float64(value) => dir::ScalarLiteral::Float(*value),
-            machine::Value::String(value) => {
-                let id = self.program.strings.intern(value.as_ref());
-                dir::ScalarLiteral::String(id)
-            }
-            machine::Value::Char(value) => dir::ScalarLiteral::Character(*value),
-            _ => return None,
+        use machine::ValueTag;
+
+        let scalar = match value.tag() {
+            ValueTag::Bool => dir::ScalarLiteral::Boolean(value.as_bool()?),
+            ValueTag::Int => dir::ScalarLiteral::Integer(value.as_int()?),
+            ValueTag::UInt => dir::ScalarLiteral::Integer(value.as_uint()?.try_into().ok()?),
+            ValueTag::Float32 => dir::ScalarLiteral::Float(value.as_float32()? as f64),
+            ValueTag::Float64 => dir::ScalarLiteral::Float(value.as_float64()?),
+            ValueTag::Char => dir::ScalarLiteral::Character(value.as_char()?),
+            _ => return None, // #Incomplete: support more complex static values in comptime
         };
 
         Some(dir::StaticExpression::ScalarLiteral { value: scalar })

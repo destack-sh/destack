@@ -70,8 +70,8 @@ impl Interpreter {
                 function,
                 arguments,
             } => {
-                let (dest, func) = (*destination, *function);
-                let args: Vec<_> = arguments.to_vec();
+                let (dest, func, arg_slice) = (*destination, *function, *arguments);
+                let args: Vec<_> = self.tree.get_arguments(arg_slice).to_vec();
                 self.execute_call(dest, func, &args)?;
             }
 
@@ -81,9 +81,8 @@ impl Interpreter {
                 callee,
                 arguments,
             } => {
-                let (dest, callee_id) = (*destination, *callee);
-                let args: Vec<_> = arguments.to_vec();
-                // get the function pointer value
+                let (dest, callee_id, arg_slice) = (*destination, *callee, *arguments);
+                let args: Vec<_> = self.tree.get_arguments(arg_slice).to_vec();
                 let callee_val = self.current_frame()?.get_value(callee_id)?;
 
                 // find function
@@ -627,8 +626,9 @@ impl Interpreter {
                 arguments,
                 ordering,
             } => {
-                let (dest, intr, ord) = (*destination, *intrinsic, *ordering);
-                let args: Vec<_> = arguments.to_vec();
+                let (dest, intr, ord, arg_slice) =
+                    (*destination, *intrinsic, *ordering, *arguments);
+                let args: Vec<_> = self.tree.get_arguments(arg_slice).to_vec();
                 let result = self.execute_intrinsic(intr, &args, ord)?;
                 if let Some(d) = dest {
                     let frame = self.current_frame_mut()?;

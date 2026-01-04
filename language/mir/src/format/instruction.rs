@@ -294,7 +294,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 }
                 write!(f, [token("call"), space()])?;
                 format_function_reference(*function, f)?;
-                format_value_list(arguments, f)
+                let args = f.context().tree.get_arguments(*arguments);
+                format_value_list(args, f)
             }
 
             Instruction::CallIndirect {
@@ -306,7 +307,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     write!(f, [dst, space(), token("="), space()])?;
                 }
                 write!(f, [token("call.indirect"), space(), callee])?;
-                format_value_list(arguments, f)
+                let args = f.context().tree.get_arguments(*arguments);
+                format_value_list(args, f)
             }
 
             Instruction::ManagedAlloc {
@@ -399,7 +401,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     write!(f, [dst, space(), token("="), space()])?;
                 }
                 write!(f, [token("intrinsic."), token(intrinsic.to_str())])?;
-                format_intrinsic_args(arguments, *ordering, f)
+                let args = f.context().tree.get_arguments(*arguments);
+                format_intrinsic_args(args, *ordering, f)
             }
         }
     }
