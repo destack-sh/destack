@@ -22,6 +22,13 @@ smallvec = { workspace = true }
 
 
 [dev-dependencies]
+clap = { version = "4.5", features = ["derive"] }
+criterion = { workspace = true }
+pprof = { workspace = true }
+
+[[bench]]
+name = "machine_execute"
+harness = false
 
 [lints]
 workspace = true

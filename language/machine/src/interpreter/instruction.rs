@@ -154,6 +154,7 @@ impl Interpreter {
                 destination,
                 pointer,
             } => {
+                self.statistics.loads += 1;
                 let ptr = {
                     let frame = self.current_frame()?;
                     frame.get_value(*pointer)?
@@ -199,6 +200,7 @@ impl Interpreter {
 
             // *pointer = value
             mir::Instruction::Store { pointer, value } => {
+                self.statistics.stores += 1;
                 let (ptr, val) = {
                     let frame = self.current_frame()?;
                     let ptr = frame.get_value(*pointer)?;
