@@ -114,6 +114,8 @@ impl Compiler {
                     })
                     .collect()
             });
+
+        let scope = (scope.0, symbols.get_scope_mark(scope.0));
         let where_clauses = generics.where_clauses.as_ref().map(|where_clauses| {
             where_clauses
                 .iter()
@@ -131,6 +133,7 @@ impl Compiler {
                 })
                 .collect()
         });
+
         Generics {
             static_parameters,
             where_clauses,
@@ -166,6 +169,7 @@ impl Compiler {
                 })
                 .collect()
         });
+
         let implements_types = heritage.implements_types.as_ref().map(|implements_types| {
             implements_types
                 .iter()
@@ -183,6 +187,7 @@ impl Compiler {
                 })
                 .collect()
         });
+
         Heritage {
             extends_types,
             implements_types,

@@ -1,8 +1,8 @@
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, DeclarationDescriptor, Expression, FloatType, IntType, Keyword, LocalNodeId,
-    Mutability, Name, TokenType, TypeBinaryOperator, IntrinsicType, TypeKind, TypeLiteral,
+    Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType, Keyword,
+    LocalNodeId, Mutability, Name, TokenType, TypeBinaryOperator, TypeKind, TypeLiteral,
     TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
@@ -719,9 +719,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
-        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Mutability, Parameter,
-        Property, ScalarLiteral, TypeBinaryOperator, IntrinsicType, TypeLiteral,
-        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
+        Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeMappedModifiers,
+        TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
 

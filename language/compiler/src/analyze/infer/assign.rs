@@ -3778,7 +3778,13 @@ class Document implements Printable, Saveable {
 
         assert_eq!(
             test.compiler.is_type_assignable(
-                &module, profile, &symbols, object_ty, object_literal_ty, &mut types, &options
+                &module,
+                profile,
+                &symbols,
+                object_ty,
+                object_literal_ty,
+                &mut types,
+                &options
             ),
             Assignability::Assignable
         );
@@ -3881,7 +3887,13 @@ class Document implements Printable, Saveable {
 
         assert_eq!(
             test.compiler.is_type_assignable(
-                &module, profile, &symbols, object_ty, function_ty, &mut types, &options
+                &module,
+                profile,
+                &symbols,
+                object_ty,
+                function_ty,
+                &mut types,
+                &options
             ),
             Assignability::Assignable
         );
@@ -4004,7 +4016,13 @@ class Document implements Printable, Saveable {
 
         assert_eq!(
             test.compiler.is_type_assignable(
-                &module, profile, &symbols, object_ty, undefined_ty, &mut types, &options
+                &module,
+                profile,
+                &symbols,
+                object_ty,
+                undefined_ty,
+                &mut types,
+                &options
             ),
             Assignability::NotAssignable
         );
