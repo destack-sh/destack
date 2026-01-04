@@ -81,6 +81,7 @@ impl ModuleLowerer<'_> {
             dir::TypeLiteral::Any => TypeLiteral::Any,
             dir::TypeLiteral::Undefined => TypeLiteral::Undefined,
             dir::TypeLiteral::Unknown => TypeLiteral::Unknown,
+            dir::TypeLiteral::Object => TypeLiteral::Object,
             dir::TypeLiteral::Void => TypeLiteral::Void,
             dir::TypeLiteral::Null => TypeLiteral::Null,
             dir::TypeLiteral::Primitive(primitive) => {

@@ -31,6 +31,8 @@ pub enum TypeLiteral {
     Undefined,
     /// Unknown type.
     Unknown,
+    /// Object type (any non-primitive).
+    Object,
     /// Void type.
     Void,
     /// Null type and value.

@@ -569,6 +569,9 @@ impl Dump for TypeLiteral {
             TypeLiteral::Unknown => {
                 dumper.object("TypeLiteral::Unknown").end();
             }
+            TypeLiteral::Object => {
+                dumper.object("TypeLiteral::Object").end();
+            }
             TypeLiteral::Void => {
                 dumper.object("TypeLiteral::Void").end();
             }

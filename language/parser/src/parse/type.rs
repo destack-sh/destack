@@ -2,7 +2,7 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, Expression, FloatType, IntType, Keyword, LocalNodeId,
-    Mutability, Name, TokenType, TypeBinaryOperator, TypeIntrinsic, TypeKind, TypeLiteral,
+    Mutability, Name, TokenType, TypeBinaryOperator, IntrinsicType, TypeKind, TypeLiteral,
     TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
@@ -68,6 +68,8 @@ impl Parser {
             "undefined" => Some(TypeLiteral::Undefined),
             // unknown
             "unknown" => Some(TypeLiteral::Unknown),
+            // object
+            "object" => Some(TypeLiteral::Object),
             // void
             "void" => Some(TypeLiteral::Void),
             // null
@@ -328,7 +330,7 @@ impl Parser {
     }
 
     /// Get the type intrinsic for a name.
-    fn type_intrinsic_for_name(&self, name: &Name) -> Option<TypeIntrinsic> {
+    fn type_intrinsic_for_name(&self, name: &Name) -> Option<IntrinsicType> {
         // only identifiers can be intrinsic aliases
         let Name::Identifier(name_id) = name else {
             return None;
@@ -336,7 +338,7 @@ impl Parser {
 
         // map identifier to intrinsic
         let name_str = self.strings.get(*name_id);
-        TypeIntrinsic::try_from(name_str).ok()
+        IntrinsicType::try_from(name_str).ok()
     }
 
     /// Eat a type infer expression.
@@ -718,7 +720,7 @@ mod tests {
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
         FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Mutability, Parameter,
-        Property, ScalarLiteral, TypeBinaryOperator, TypeIntrinsic, TypeLiteral,
+        Property, ScalarLiteral, TypeBinaryOperator, IntrinsicType, TypeLiteral,
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
@@ -1930,7 +1932,7 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Intrinsic(intrinsic)) => {
-                    assert_eq!(*intrinsic, TypeIntrinsic::Uppercase);
+                    assert_eq!(*intrinsic, IntrinsicType::Uppercase);
                 });
             });
         });

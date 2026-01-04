@@ -1,8 +1,8 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    FloatType, IntType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, PrimitiveType,
-    ScalarLiteral, SymbolTable, TemplateLiteral, TypeIntrinsic, TypeLiteral, TypeTable,
+    FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
+    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -162,6 +162,7 @@ impl Compiler {
             ast::TypeLiteral::Infer => TypeLiteral::Infer,
             ast::TypeLiteral::Undefined => TypeLiteral::Undefined,
             ast::TypeLiteral::Unknown => TypeLiteral::Unknown,
+            ast::TypeLiteral::Object => TypeLiteral::Object,
             ast::TypeLiteral::Void => TypeLiteral::Void,
             ast::TypeLiteral::Null => TypeLiteral::Null,
             ast::TypeLiteral::Boolean => TypeLiteral::Primitive(PrimitiveType::Boolean),
@@ -184,14 +185,14 @@ impl Compiler {
     }
 
     /// Bind a type intrinsic to a DIR type intrinsic.
-    pub(super) fn bind_type_intrinsic(&self, intrinsic: &ast::TypeIntrinsic) -> TypeIntrinsic {
+    pub(super) fn bind_type_intrinsic(&self, intrinsic: &ast::IntrinsicType) -> IntrinsicType {
         match intrinsic {
-            ast::TypeIntrinsic::Uppercase => TypeIntrinsic::Uppercase,
-            ast::TypeIntrinsic::Lowercase => TypeIntrinsic::Lowercase,
-            ast::TypeIntrinsic::Capitalize => TypeIntrinsic::Capitalize,
-            ast::TypeIntrinsic::Uncapitalize => TypeIntrinsic::Uncapitalize,
-            ast::TypeIntrinsic::NoInfer => TypeIntrinsic::NoInfer,
-            ast::TypeIntrinsic::BuiltinIteratorReturn => TypeIntrinsic::BuiltinIteratorReturn,
+            ast::IntrinsicType::Uppercase => IntrinsicType::Uppercase,
+            ast::IntrinsicType::Lowercase => IntrinsicType::Lowercase,
+            ast::IntrinsicType::Capitalize => IntrinsicType::Capitalize,
+            ast::IntrinsicType::Uncapitalize => IntrinsicType::Uncapitalize,
+            ast::IntrinsicType::NoInfer => IntrinsicType::NoInfer,
+            ast::IntrinsicType::BuiltinIteratorReturn => IntrinsicType::BuiltinIteratorReturn,
         }
     }
 }

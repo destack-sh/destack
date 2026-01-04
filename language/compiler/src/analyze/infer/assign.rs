@@ -106,6 +106,35 @@ impl Compiler {
                 value: TypeLiteral::Never,
             } => return Assignability::NotAssignable,
 
+            // object accepts any non-primitive type
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            } => {
+                return match &source {
+                    // non-primitives are assignable to object
+                    Type::Object { .. }
+                    | Type::Array { .. }
+                    | Type::ArraySized { .. }
+                    | Type::Tuple { .. }
+                    | Type::Function { .. } => Assignability::Assignable,
+                    // references to classes/interfaces are assignable to object
+                    Type::Reference { symbol, .. }
+                        if matches!(
+                            symbol.ty(),
+                            SymbolType::Class | SymbolType::Interface | SymbolType::Struct
+                        ) =>
+                    {
+                        Assignability::Assignable
+                    }
+                    // object literal to object
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Object,
+                    } => Assignability::Assignable,
+                    // primitives, null, undefined, etc. are NOT assignable to object
+                    _ => Assignability::NotAssignable,
+                };
+            }
+
             _ => {}
         }
 
@@ -767,6 +796,9 @@ impl Compiler {
 
             // null is only assignable to null (or any/unknown)
             (TypeLiteral::Null, TypeLiteral::Null) => Assignability::Assignable,
+
+            // object is assignable to object
+            (TypeLiteral::Object, TypeLiteral::Object) => Assignability::Assignable,
 
             // undefined is only assignable to undefined or void
             (TypeLiteral::Void, TypeLiteral::Undefined) => Assignability::Assignable,
@@ -3659,6 +3691,322 @@ class Document implements Printable, Saveable {
         assert!(
             doc_lineage.implements.contains(&saveable_id),
             "Document should implement Saveable"
+        );
+    }
+
+    /// Object is assignable to object.
+    #[test]
+    fn test_analyze_assignability_object_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, object_ty, &mut types, &options
+            ),
+            Assignability::Assignable
+        );
+    }
+
+    /// Object literal { a: number } is assignable to object.
+    #[test]
+    fn test_analyze_assignability_object_literal_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+
+        let object_literal_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![TypeField {
+                    key: StaticKey::Name(test.program.strings.intern("a")),
+                    ty: number_ty,
+                    is_optional: false,
+                    is_readonly: false,
+                }],
+                call_signatures: vec![],
+                construct_signatures: vec![],
+                index_signatures: vec![],
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, object_literal_ty, &mut types, &options
+            ),
+            Assignability::Assignable
+        );
+    }
+
+    /// Array is assignable to object.
+    #[test]
+    fn test_analyze_assignability_array_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+
+        let array_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Array {
+                element: Some(number_ty),
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, array_ty, &mut types, &options
+            ),
+            Assignability::Assignable
+        );
+    }
+
+    /// Function is assignable to object.
+    #[test]
+    fn test_analyze_assignability_function_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        let void_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            },
+        );
+
+        let function_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: vec![],
+                this_parameter: None,
+                dynamic_parameters: vec![],
+                return_type: Some(void_ty),
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, function_ty, &mut types, &options
+            ),
+            Assignability::Assignable
+        );
+    }
+
+    /// Primitive number is NOT assignable to object.
+    #[test]
+    fn test_analyze_assignability_primitive_not_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, number_ty, &mut types, &options
+            ),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// Null is NOT assignable to object.
+    #[test]
+    fn test_analyze_assignability_null_not_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        let null_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Null,
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, null_ty, &mut types, &options
+            ),
+            Assignability::NotAssignable
+        );
+    }
+
+    /// Undefined is NOT assignable to object.
+    #[test]
+    fn test_analyze_assignability_undefined_not_to_object() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ds", "42");
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        let object_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Object,
+            },
+        );
+
+        let undefined_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            },
+        );
+
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module, profile, &symbols, object_ty, undefined_ty, &mut types, &options
+            ),
+            Assignability::NotAssignable
         );
     }
 }

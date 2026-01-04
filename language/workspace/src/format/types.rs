@@ -352,6 +352,7 @@ pub fn format_type_literal(lit: &dir::TypeLiteral, strings: &StringPool) -> Stri
         dir::TypeLiteral::Infer => "_".to_string(),
         dir::TypeLiteral::Undefined => "undefined".to_string(),
         dir::TypeLiteral::Unknown => "unknown".to_string(),
+        dir::TypeLiteral::Object => "object".to_string(),
         dir::TypeLiteral::Void => "void".to_string(),
         dir::TypeLiteral::Null => "null".to_string(),
         dir::TypeLiteral::Primitive(p) => format_primitive_type(p),
@@ -545,14 +546,14 @@ fn format_type_unary(
     }
 }
 
-fn format_type_intrinsic(intrinsic: &dir::TypeIntrinsic) -> String {
+fn format_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
     match intrinsic {
-        dir::TypeIntrinsic::Uppercase => "Uppercase".to_string(),
-        dir::TypeIntrinsic::Lowercase => "Lowercase".to_string(),
-        dir::TypeIntrinsic::Capitalize => "Capitalize".to_string(),
-        dir::TypeIntrinsic::Uncapitalize => "Uncapitalize".to_string(),
-        dir::TypeIntrinsic::NoInfer => "NoInfer".to_string(),
-        dir::TypeIntrinsic::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
+        dir::IntrinsicType::Uppercase => "Uppercase".to_string(),
+        dir::IntrinsicType::Lowercase => "Lowercase".to_string(),
+        dir::IntrinsicType::Capitalize => "Capitalize".to_string(),
+        dir::IntrinsicType::Uncapitalize => "Uncapitalize".to_string(),
+        dir::IntrinsicType::NoInfer => "NoInfer".to_string(),
+        dir::IntrinsicType::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
     }
 }
 

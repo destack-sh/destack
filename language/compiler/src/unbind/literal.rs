@@ -45,6 +45,7 @@ impl Compiler {
             dir::TypeLiteral::Infer => ast::TypeLiteral::Infer,
             dir::TypeLiteral::Undefined => ast::TypeLiteral::Undefined,
             dir::TypeLiteral::Unknown => ast::TypeLiteral::Unknown,
+            dir::TypeLiteral::Object => ast::TypeLiteral::Object,
             dir::TypeLiteral::Void => ast::TypeLiteral::Void,
             dir::TypeLiteral::Null => ast::TypeLiteral::Null,
             dir::TypeLiteral::Primitive(primitive) => match primitive {
@@ -85,16 +86,16 @@ impl Compiler {
     /// Unbind a DIR type intrinsic to an AST type intrinsic.
     fn unbind_type_intrinsic(
         &self,
-        intrinsic: &dir::TypeIntrinsic,
+        intrinsic: &dir::IntrinsicType,
         _context: &mut UnbindContext,
-    ) -> ast::TypeIntrinsic {
+    ) -> ast::IntrinsicType {
         match intrinsic {
-            dir::TypeIntrinsic::Uppercase => ast::TypeIntrinsic::Uppercase,
-            dir::TypeIntrinsic::Lowercase => ast::TypeIntrinsic::Lowercase,
-            dir::TypeIntrinsic::Capitalize => ast::TypeIntrinsic::Capitalize,
-            dir::TypeIntrinsic::Uncapitalize => ast::TypeIntrinsic::Uncapitalize,
-            dir::TypeIntrinsic::NoInfer => ast::TypeIntrinsic::NoInfer,
-            dir::TypeIntrinsic::BuiltinIteratorReturn => ast::TypeIntrinsic::BuiltinIteratorReturn,
+            dir::IntrinsicType::Uppercase => ast::IntrinsicType::Uppercase,
+            dir::IntrinsicType::Lowercase => ast::IntrinsicType::Lowercase,
+            dir::IntrinsicType::Capitalize => ast::IntrinsicType::Capitalize,
+            dir::IntrinsicType::Uncapitalize => ast::IntrinsicType::Uncapitalize,
+            dir::IntrinsicType::NoInfer => ast::IntrinsicType::NoInfer,
+            dir::IntrinsicType::BuiltinIteratorReturn => ast::IntrinsicType::BuiltinIteratorReturn,
         }
     }
 
