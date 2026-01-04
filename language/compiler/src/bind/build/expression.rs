@@ -728,12 +728,15 @@ impl Compiler {
                         types,
                     )
                 });
+                let infer_scope = self
+                    .find_nearest_scope_of_kind(symbols, scope, ScopeKind::Type)
+                    .unwrap_or(scope);
                 let _ = self.bind_named_local(
                     module,
                     ast,
                     SymbolSpace::Type,
                     StaticKey::Name(name),
-                    scope,
+                    infer_scope,
                     symbols,
                 );
                 Expression::TypeInfer { name, constraint }
@@ -1882,5 +1885,41 @@ impl Compiler {
             value,
         };
         tree.insert(declarator_id, declarator)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestProgram;
+
+    // Test that infer type variables are visible in the then-branch of conditional types.
+    #[test]
+    fn test_bind_infer_type_variable_in_conditional_type() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+type ThisParameterType<T> = T extends (this: infer U, ...args: never) => any ? U : unknown;
+type OmitThisParameter<T> = unknown extends ThisParameterType<T> ? T : T extends (...args: infer A) => infer R ? (...args: A) => R : T;
+"#,
+        );
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    // Test that infer in nested positions (object types, function types) works correctly.
+    #[test]
+    fn test_bind_infer_type_variable_nested_in_object_type() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+type ExtractCallback<T> = T extends { callback: (x: infer U) => void } ? U : never;
+"#,
+        );
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
     }
 }

@@ -10,6 +10,26 @@ use destack_workspace::{Module, ModuleAst};
 #[allow(clippy::too_many_arguments)]
 #[allow(dead_code)]
 impl Compiler {
+    /// Find the nearest ancestor scope of a given kind, starting from the given scope.
+    pub(super) fn find_nearest_scope_of_kind(
+        &self,
+        symbols: &SymbolTable,
+        scope: (LocalScopeId, LocalScopeMark),
+        kind: ScopeKind,
+    ) -> Option<(LocalScopeId, LocalScopeMark)> {
+        let mut current_scope_id = scope.0;
+        loop {
+            let current_scope = symbols.get_scope_by_id(current_scope_id);
+            if current_scope.kind == kind {
+                return Some((current_scope_id, LocalScopeMark::end()));
+            }
+            match current_scope.parent {
+                Some((parent_id, _)) => current_scope_id = parent_id,
+                None => return None,
+            }
+        }
+    }
+
     /// Bind a new named item.
     #[inline]
     pub(super) fn bind_named_item(
