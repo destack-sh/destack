@@ -39,10 +39,8 @@ impl Compiler {
                 continue;
             };
 
-            // skip synthetic types and non expression or annotation nodes
-            if source_id.id == u32::MAX
-                || !matches!(source_id.ty, NodeType::Expression | NodeType::Annotation)
-            {
+            // skip non expression or annotation nodes
+            if !matches!(source_id.ty, NodeType::Expression | NodeType::Annotation) {
                 continue;
             }
             if !self.is_instantiable_symbol(symbol) {

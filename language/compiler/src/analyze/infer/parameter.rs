@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use crate::Compiler;
 use destack_dir::{
-    Declaration, Expression, GlobalNodeId, GlobalSymbolId, LocalTypeId, NodeTree, Parameter,
-    StaticArgument, StaticExpression, StaticProperty, StringId, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    Declaration, Expression, GlobalNodeId, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    Parameter, StaticArgument, StaticExpression, StaticProperty, StringId, SymbolTable, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -115,6 +115,7 @@ impl Compiler {
         module: &Module,
         symbol_id: GlobalSymbolId,
         kind: StaticParameterKind,
+        fallback_source_id: LocalNodeIdAny,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -122,7 +123,13 @@ impl Compiler {
     ) -> StaticParameter {
         let parameter = if symbol_id.module_id == module.id {
             self.collect_static_parameter_in_module(
-                module.id, symbol_id, kind, tree, symbols, types,
+                module.id,
+                symbol_id,
+                kind,
+                fallback_source_id,
+                tree,
+                symbols,
+                types,
             )
         } else {
             let remote_module = self.program.modules.get(symbol_id.module_id);
@@ -134,13 +141,16 @@ impl Compiler {
                 remote_module.id,
                 symbol_id,
                 kind,
+                fallback_source_id,
                 &remote_tree,
                 &remote_symbols,
                 types,
             )
         };
 
-        parameter.unwrap_or_else(|| self.fallback_static_parameter(symbol_id, kind, types))
+        parameter.unwrap_or_else(|| {
+            self.fallback_static_parameter(symbol_id, kind, fallback_source_id, types)
+        })
     }
 
     /// Collect placeholder types for static parameters on a signature.
@@ -180,11 +190,15 @@ impl Compiler {
         &self,
         symbol: GlobalSymbolId,
         kind: StaticParameterKind,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> StaticParameter {
-        let unknown_ty_id = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
-        });
+        let unknown_ty_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_id,
+        );
 
         StaticParameter {
             symbol,
@@ -201,6 +215,7 @@ impl Compiler {
         module_id: ModuleId,
         symbol_id: GlobalSymbolId,
         kind: StaticParameterKind,
+        fallback_source_id: LocalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -221,13 +236,13 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type(ty)
+                    types.insert_type_from_any(ty, parameter_id.into_any())
                 })
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            types.insert_type(ty)
+            types.insert_type_from_any(ty, fallback_source_id)
         };
 
         // derive the parameter name for mapping

@@ -268,7 +268,7 @@ impl Compiler {
 
         // emit literal key types
         for key in key_set.literal_keys() {
-            let key_type_id = self.key_type_id_for_static_key(key, types);
+            let key_type_id = self.key_type_id_for_static_key(key, source_id, types);
             if !key_types.contains(&key_type_id) {
                 key_types.push(key_type_id);
             }
@@ -276,13 +276,25 @@ impl Compiler {
 
         // emit index key types
         if key_set.has_string {
-            key_types.push(self.key_type_id_for_index_kind(MappedIndexKind::String, types));
+            key_types.push(self.key_type_id_for_index_kind(
+                MappedIndexKind::String,
+                source_id,
+                types,
+            ));
         }
         if key_set.has_number {
-            key_types.push(self.key_type_id_for_index_kind(MappedIndexKind::Number, types));
+            key_types.push(self.key_type_id_for_index_kind(
+                MappedIndexKind::Number,
+                source_id,
+                types,
+            ));
         }
         if key_set.has_symbol {
-            key_types.push(self.key_type_id_for_index_kind(MappedIndexKind::Symbol, types));
+            key_types.push(self.key_type_id_for_index_kind(
+                MappedIndexKind::Symbol,
+                source_id,
+                types,
+            ));
         }
 
         // collapse to a single type when possible
@@ -304,7 +316,12 @@ impl Compiler {
     }
 
     /// Convert a static key into a literal key type.
-    fn key_type_id_for_static_key(&self, key: StaticKey, types: &mut TypeTable) -> LocalTypeId {
+    fn key_type_id_for_static_key(
+        &self,
+        key: StaticKey,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
         let ty = match key {
             StaticKey::Name(name) | StaticKey::Number(name) => Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(name)),
@@ -318,13 +335,14 @@ impl Compiler {
                 value: TypeLiteral::Primitive(PrimitiveType::Symbol),
             },
         };
-        types.insert_type(ty)
+        types.insert_type_from_any(ty, source_id)
     }
 
     /// Convert an index kind into a primitive key type.
     fn key_type_id_for_index_kind(
         &self,
         kind: MappedIndexKind,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         let primitive = match kind {
@@ -332,9 +350,12 @@ impl Compiler {
             MappedIndexKind::Number => PrimitiveType::Number,
             MappedIndexKind::Symbol => PrimitiveType::Symbol,
         };
-        types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(primitive),
-        })
+        types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(primitive),
+            },
+            source_id,
+        )
     }
 
     /// Map a key type into a mapped index kind.
@@ -456,7 +477,8 @@ impl Compiler {
 
         // compute the accessed type for each key
         for key_type_id in index_types {
-            let value_type = self.index_access_type_for_key_type(left, key_type_id, types);
+            let value_type =
+                self.index_access_type_for_key_type(left, key_type_id, source_id, types);
             if let Some(value_type) = value_type {
                 value_types.push(value_type);
             } else {
@@ -493,6 +515,7 @@ impl Compiler {
         &self,
         left: LocalTypeId,
         key_type_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // handle literal key access first
@@ -508,9 +531,12 @@ impl Compiler {
         match types.get_type(key_type_id) {
             Type::TypeLiteral {
                 value: TypeLiteral::Any | TypeLiteral::Unknown,
-            } => Some(types.insert_type(Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            })),
+            } => Some(types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                source_id,
+            )),
             _ => None,
         }
     }
@@ -522,6 +548,8 @@ impl Compiler {
         key: StaticKey,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
+        // use the receiver type as the source for synthesized unions
+        let source_id = types.get_type_source(type_id);
         let ty = types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
@@ -533,7 +561,7 @@ impl Compiler {
                     value_types.push(value_type);
                 }
 
-                Some(self.union_type_ids_from_list(value_types, types))
+                Some(self.union_type_ids_from_list(value_types, source_id, types))
             }
             Type::Intersection { elements } => {
                 let mut value_types = Vec::new();
@@ -544,7 +572,7 @@ impl Compiler {
                     value_types.push(value_type);
                 }
 
-                Some(self.intersection_type_ids_from_list(value_types, types))
+                Some(self.intersection_type_ids_from_list(value_types, source_id, types))
             }
             _ => {
                 let mut value_types = Vec::new();
@@ -564,7 +592,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_ids_from_list(value_types, types))
+                    Some(self.union_type_ids_from_list(value_types, source_id, types))
                 }
             }
         }
@@ -577,6 +605,8 @@ impl Compiler {
         kind: MappedIndexKind,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
+        // use the receiver type as the source for synthesized unions
+        let source_id = types.get_type_source(type_id);
         let ty = types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
@@ -588,7 +618,7 @@ impl Compiler {
                     value_types.push(value_type);
                 }
 
-                Some(self.union_type_ids_from_list(value_types, types))
+                Some(self.union_type_ids_from_list(value_types, source_id, types))
             }
             Type::Intersection { elements } => {
                 let mut value_types = Vec::new();
@@ -599,7 +629,7 @@ impl Compiler {
                     value_types.push(value_type);
                 }
 
-                Some(self.intersection_type_ids_from_list(value_types, types))
+                Some(self.intersection_type_ids_from_list(value_types, source_id, types))
             }
             _ => {
                 let mut value_types = Vec::new();
@@ -615,7 +645,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_ids_from_list(value_types, types))
+                    Some(self.union_type_ids_from_list(value_types, source_id, types))
                 }
             }
         }
@@ -701,9 +731,12 @@ impl Compiler {
         match field_types.len() {
             0 => None,
             1 => Some(field_types[0]),
-            _ => Some(types.insert_type(Type::Intersection {
-                elements: field_types,
-            })),
+            _ => Some(types.insert_type_from_type(
+                Type::Intersection {
+                    elements: field_types,
+                },
+                type_id,
+            )),
         }
     }
 
@@ -829,13 +862,17 @@ impl Compiler {
     fn union_type_ids_from_list(
         &self,
         mut type_ids: Vec<LocalTypeId>,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         // drop empty unions early
         if type_ids.is_empty() {
-            return types.insert_type(Type::TypeLiteral {
-                value: TypeLiteral::Never,
-            });
+            return types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                },
+                source_id,
+            );
         }
 
         // collapse single element unions
@@ -846,20 +883,24 @@ impl Compiler {
         // keep union elements unique
         type_ids.sort_by_key(|id| id.0);
         type_ids.dedup();
-        types.insert_type(Type::Union { elements: type_ids })
+        types.insert_type_from_any(Type::Union { elements: type_ids }, source_id)
     }
 
     /// Combine type ids into an intersection.
     fn intersection_type_ids_from_list(
         &self,
         mut type_ids: Vec<LocalTypeId>,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         // drop empty intersections early
         if type_ids.is_empty() {
-            return types.insert_type(Type::TypeLiteral {
-                value: TypeLiteral::Never,
-            });
+            return types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                },
+                source_id,
+            );
         }
 
         // collapse single element intersections
@@ -870,7 +911,7 @@ impl Compiler {
         // keep intersection elements unique
         type_ids.sort_by_key(|id| id.0);
         type_ids.dedup();
-        types.insert_type(Type::Intersection { elements: type_ids })
+        types.insert_type_from_any(Type::Intersection { elements: type_ids }, source_id)
     }
 
     /// Normalize mapped types into object shapes.
@@ -999,9 +1040,12 @@ impl Compiler {
                             fields.iter_mut().find(|field| field.key.matches(&key))
                         {
                             if existing.ty != normalized_value {
-                                existing.ty = types.insert_type(Type::Union {
-                                    elements: vec![existing.ty, normalized_value],
-                                });
+                                existing.ty = types.insert_type_from_type(
+                                    Type::Union {
+                                        elements: vec![existing.ty, normalized_value],
+                                    },
+                                    existing.ty,
+                                );
                             }
                             existing.is_optional = existing.is_optional && is_optional;
                             existing.is_readonly = existing.is_readonly && is_readonly;
@@ -1024,8 +1068,8 @@ impl Compiler {
         // build index signatures for mapped index keys
         let mut index_signatures = Vec::new();
         for (kind, values) in index_values {
-            let value_type_id = self.union_type_ids_from_list(values, types);
-            let key_type_id = self.key_type_id_for_index_kind(kind, types);
+            let value_type_id = self.union_type_ids_from_list(values, source_id, types);
+            let key_type_id = self.key_type_id_for_index_kind(kind, source_id, types);
             let base_readonly = source_type_id
                 .and_then(|source| {
                     self.resolve_index_signature_readonly_for_kind(source, kind, types)
@@ -1335,6 +1379,8 @@ impl Compiler {
         types: &mut TypeTable,
         keys: &mut Vec<MappedKey>,
     ) {
+        // reuse the current type source for synthesized key types
+        let source_id = types.get_type_source(type_id);
         let ty = types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
@@ -1349,15 +1395,27 @@ impl Compiler {
                 // include all index kinds for any
                 keys.push(MappedKey::Index {
                     kind: MappedIndexKind::String,
-                    key_type: self.key_type_id_for_index_kind(MappedIndexKind::String, types),
+                    key_type: self.key_type_id_for_index_kind(
+                        MappedIndexKind::String,
+                        source_id,
+                        types,
+                    ),
                 });
                 keys.push(MappedKey::Index {
                     kind: MappedIndexKind::Number,
-                    key_type: self.key_type_id_for_index_kind(MappedIndexKind::Number, types),
+                    key_type: self.key_type_id_for_index_kind(
+                        MappedIndexKind::Number,
+                        source_id,
+                        types,
+                    ),
                 });
                 keys.push(MappedKey::Index {
                     kind: MappedIndexKind::Symbol,
-                    key_type: self.key_type_id_for_index_kind(MappedIndexKind::Symbol, types),
+                    key_type: self.key_type_id_for_index_kind(
+                        MappedIndexKind::Symbol,
+                        source_id,
+                        types,
+                    ),
                 });
             }
             Type::TypeLiteral {

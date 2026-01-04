@@ -151,7 +151,7 @@ pub struct InferTable {
     /// Inference variables associated with type parameters.
     pub var_by_type_parameter: IndexMap<GlobalSymbolId, InferVarId>,
     /// Types that wrap inference variables by id.
-    pub type_by_var_id: Vec<LocalTypeId>,
+    pub type_by_var_id: Vec<Option<LocalTypeId>>,
 }
 
 impl InferTable {
@@ -159,7 +159,7 @@ impl InferTable {
     pub fn new_var(&mut self, origin: InferOrigin, scope: InferScope) -> InferVarId {
         let id = InferVarId::new(self.vars.len() as u32);
         self.vars.push(InferVar::new(origin, scope));
-        self.type_by_var_id.push(LocalTypeId::new(u32::MAX));
+        self.type_by_var_id.push(None);
         id
     }
 
@@ -173,14 +173,13 @@ impl InferTable {
     pub fn bind_type(&mut self, id: InferVarId, ty_id: LocalTypeId) {
         let index = id.0 as usize;
         if self.type_by_var_id.len() <= index {
-            self.type_by_var_id
-                .resize(index + 1, LocalTypeId::new(u32::MAX));
+            self.type_by_var_id.resize(index + 1, None);
         }
-        self.type_by_var_id[index] = ty_id;
+        self.type_by_var_id[index] = Some(ty_id);
     }
 
     /// Get the type that wraps an inference variable.
     pub fn type_for_var(&self, id: InferVarId) -> Option<LocalTypeId> {
-        self.type_by_var_id.get(id.0 as usize).copied()
+        self.type_by_var_id.get(id.0 as usize).copied().flatten()
     }
 }

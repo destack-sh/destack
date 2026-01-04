@@ -1,11 +1,12 @@
 use destack_dir::{
-    GlobalSymbolId, LocalTypeId, StaticArgument, StaticExpression, SymbolTable, Type, TypeLiteral,
-    TypeTable, WellKnownSymbol,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, StaticArgument, StaticExpression, SymbolTable,
+    Type, TypeLiteral, TypeTable, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve the canonical symbol for a reference.
     pub(crate) fn canonical_symbol_id(
@@ -54,6 +55,7 @@ impl Compiler {
         module: &Module,
         symbols: &SymbolTable,
         profile: ProfileId,
+        source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
         types: &mut TypeTable,
@@ -66,7 +68,7 @@ impl Compiler {
         {
             let element = static_arguments
                 .and_then(|arguments| arguments.first())
-                .map(|argument| self.static_argument_type(argument, types));
+                .map(|argument| self.static_argument_type(argument, source_id, types));
             return Some(Type::Array { element });
         }
 
@@ -77,6 +79,7 @@ impl Compiler {
     fn static_argument_type(
         &self,
         argument: &StaticArgument,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         let ty = match argument {
@@ -97,6 +100,6 @@ impl Compiler {
             },
         };
 
-        types.insert_type(ty)
+        types.insert_type_from_any(ty, source_id)
     }
 }

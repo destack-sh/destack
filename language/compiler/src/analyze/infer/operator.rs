@@ -544,6 +544,7 @@ impl Compiler {
 
         let builtin_ty_id = self.infer_builtin_index_access(
             &receiver_ty,
+            receiver_ty_id,
             index_ty_id,
             types,
             options.no_unchecked_indexed_access,
@@ -696,8 +697,13 @@ impl Compiler {
         };
 
         // handle builtin index assignment
-        let builtin_value_ty_id =
-            self.infer_builtin_index_access(&receiver_ty, index_ty_id, types, false);
+        let builtin_value_ty_id = self.infer_builtin_index_access(
+            &receiver_ty,
+            receiver_ty_id,
+            index_ty_id,
+            types,
+            false,
+        );
         if let Some(builtin_value_ty_id) = builtin_value_ty_id {
             let mut value_ctx = ctx.fork().with_expected_type(Some(builtin_value_ty_id));
             let value_ty_id = self.infer_expression(
@@ -1050,15 +1056,19 @@ impl Compiler {
     fn infer_builtin_index_access(
         &self,
         receiver_ty: &Type,
+        receiver_ty_id: LocalTypeId,
         index_ty_id: Option<LocalTypeId>,
         types: &mut TypeTable,
         include_undefined: bool,
     ) -> Option<LocalTypeId> {
         let add_unchecked_undefined = |ty_id: LocalTypeId, types: &mut TypeTable| {
             if include_undefined {
-                let undefined_ty_id = types.insert_type(Type::TypeLiteral {
-                    value: TypeLiteral::Undefined,
-                });
+                let undefined_ty_id = types.insert_type_from_type(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Undefined,
+                    },
+                    receiver_ty_id,
+                );
                 self.union_type(ty_id, undefined_ty_id, types)
             } else {
                 ty_id
@@ -1068,9 +1078,12 @@ impl Compiler {
         match receiver_ty {
             Type::Array { element } => {
                 let element_ty_id = element.unwrap_or_else(|| {
-                    types.insert_type(Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    })
+                    types.insert_type_from_type(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        },
+                        receiver_ty_id,
+                    )
                 });
                 Some(add_unchecked_undefined(element_ty_id, types))
             }
@@ -1093,7 +1106,7 @@ impl Compiler {
                 }
 
                 let elements = elements.iter().map(|element| element.ty).collect();
-                let union_ty_id = self.union_type_from_list(elements, types);
+                let union_ty_id = self.union_type_from_list(elements, receiver_ty_id, types);
                 Some(add_unchecked_undefined(union_ty_id, types))
             }
             Type::Object {
@@ -1140,7 +1153,10 @@ impl Compiler {
         match value_types.len() {
             0 => None,
             1 => Some(value_types[0]),
-            _ => Some(self.union_type_from_list(value_types, types)),
+            _ => {
+                let source_type_id = value_types[0];
+                Some(self.union_type_from_list(value_types, source_type_id, types))
+            }
         }
     }
 
@@ -1151,13 +1167,14 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let return_ty = types.get_type(return_ty_id).clone();
-        self.try_extract_branch_value_type_from_type(&return_ty, types)
+        self.try_extract_branch_value_type_from_type(&return_ty, return_ty_id, types)
     }
 
     /// Extract the ok value type from a Try branch return type.
     fn try_extract_branch_value_type_from_type(
         &self,
         ty: &Type,
+        source_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         match ty {
@@ -1166,9 +1183,11 @@ impl Compiler {
 
                 for element_id in elements {
                     let element_ty = types.get_type(*element_id).clone();
-                    if let Some(value_ty_id) =
-                        self.try_extract_branch_value_type_from_type(&element_ty, types)
-                    {
+                    if let Some(value_ty_id) = self.try_extract_branch_value_type_from_type(
+                        &element_ty,
+                        *element_id,
+                        types,
+                    ) {
                         value_types.push(value_ty_id);
                     }
                 }
@@ -1176,7 +1195,8 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_from_list(value_types, types))
+                    let source_type_id = value_types[0];
+                    Some(self.union_type_from_list(value_types, source_type_id, types))
                 }
             }
             Type::Object { fields, .. } => {
@@ -1192,7 +1212,11 @@ impl Compiler {
                 }
                 let arguments = static_arguments.as_ref()?;
                 let first_argument = arguments.first()?;
-                Some(self.convert_static_argument_type(first_argument, types))
+                Some(self.convert_static_argument_type(
+                    first_argument,
+                    types.get_type_source(source_type_id),
+                    types,
+                ))
             }
             _ => None,
         }

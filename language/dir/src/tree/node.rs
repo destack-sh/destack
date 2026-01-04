@@ -67,6 +67,12 @@ impl LocalNodeIdAny {
     /// Turn into a typed local node id.
     #[inline]
     pub fn try_into_typed<T: Node>(self) -> Result<LocalNodeId<T>, String> {
+        // reject sentinel node ids
+        if self.id == u32::MAX {
+            return Err(format!("invalid {} node id {}", T::TYPE.name(), self.id));
+        }
+
+        // reject mismatched node types
         if self.ty != T::TYPE {
             return Err(format!(
                 "expected {}, got {} for {}",

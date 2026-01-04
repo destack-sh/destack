@@ -50,7 +50,7 @@ impl Compiler {
             target_id,
             symbols,
             types,
-            NormalizationMode::Assignability,
+            NormalizationMode::Assign,
         );
         let source_id = self.normalize_type(
             module,
@@ -58,7 +58,7 @@ impl Compiler {
             source_id,
             symbols,
             types,
-            NormalizationMode::Assignability,
+            NormalizationMode::Assign,
         );
 
         if target_id == source_id {
@@ -1115,12 +1115,14 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        let undefined_ty_id = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Undefined,
-        });
-
         // for each target field, find matching source field
         for target_field in target_fields {
+            let undefined_ty_id = types.insert_type_from_type(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Undefined,
+                },
+                target_field.ty,
+            );
             let source_field = source_fields
                 .iter()
                 .find(|field| field.key.matches(&target_field.key));
@@ -1448,9 +1450,12 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
-        let undefined_ty_id = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Undefined,
-        });
+        let undefined_ty_id = types.insert_type_from_type(
+            Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            },
+            value_type,
+        );
 
         let mut is_assignable = self
             .is_type_assignable_inner(
@@ -1656,12 +1661,26 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Asynchrony, FloatType, FunctionCardinality, IntType, PrimitiveType, ScalarLiteral,
-        StaticKey, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+        Asynchrony, FloatType, FunctionCardinality, IntType, LocalNodeIdAny, LocalTypeId,
+        PrimitiveType, ScalarLiteral, StaticKey, Type, TypeElement, TypeField, TypeIndexSignature,
+        TypeLiteral, TypeTable,
     };
     use destack_source::{FileContent, Span};
+    use destack_workspace::ModuleDir;
 
     use crate::{Assignability, TestProgram};
+
+    /// Return a stable source id for test types.
+    fn test_source_id(dir: &ModuleDir) -> LocalNodeIdAny {
+        // use the first root as a stable source id
+        dir.roots[0].into_any()
+    }
+
+    /// Insert a type with a shared source id.
+    fn insert_test_type(types: &mut TypeTable, source_id: LocalNodeIdAny, ty: Type) -> LocalTypeId {
+        // keep type sources consistent in tests
+        types.insert_type_from_any(ty, source_id)
+    }
 
     /// Number is assignable to number.
     #[test]
@@ -1677,11 +1696,16 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1705,14 +1729,23 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1736,14 +1769,23 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let literal_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let literal_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1767,14 +1809,23 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let any_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Any,
-        });
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let any_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Any,
+            },
+        );
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1798,14 +1849,23 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let never_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Never,
-        });
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let never_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Never,
+            },
+        );
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1829,14 +1889,23 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let never_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Never,
-        });
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let never_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Never,
+            },
+        );
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1860,17 +1929,30 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let tuple_ty = types.insert_type(Type::Tuple {
-            elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let tuple_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Tuple {
+                elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1894,20 +1976,37 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let tuple_short = types.insert_type(Type::Tuple {
-            elements: vec![TypeElement::new(number_ty)],
-        });
-        let tuple_long = types.insert_type(Type::Tuple {
-            elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let tuple_short = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Tuple {
+                elements: vec![TypeElement::new(number_ty)],
+            },
+        );
+        let tuple_long = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Tuple {
+                elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1937,14 +2036,23 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let array_ty = types.insert_type(Type::Array {
-            element: Some(number_ty),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let array_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Array {
+                element: Some(number_ty),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -1968,17 +2076,30 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let tuple_ty = types.insert_type(Type::Tuple {
-            elements: vec![TypeElement::new(number_ty), TypeElement::new(number_ty)],
-        });
-        let array_ty = types.insert_type(Type::Array {
-            element: Some(number_ty),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let tuple_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Tuple {
+                elements: vec![TypeElement::new(number_ty), TypeElement::new(number_ty)],
+            },
+        );
+        let array_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Array {
+                element: Some(number_ty),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2002,49 +2123,66 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
 
         let key_a = destack_dir::StaticKey::Name(strings.intern("a"));
         let key_b = destack_dir::StaticKey::Name(strings.intern("b"));
 
-        let obj_small = types.insert_type(Type::Object {
-            fields: vec![TypeField {
-                key: key_a,
-                ty: number_ty,
-                is_optional: false,
-                is_readonly: false,
-            }],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let obj_large = types.insert_type(Type::Object {
-            fields: vec![
-                TypeField {
+        let obj_small = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![TypeField {
                     key: key_a,
                     ty: number_ty,
                     is_optional: false,
                     is_readonly: false,
-                },
-                TypeField {
-                    key: key_b,
-                    ty: string_ty,
-                    is_optional: false,
-                    is_readonly: false,
-                },
-            ],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+                }],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let obj_large = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![
+                    TypeField {
+                        key: key_a,
+                        ty: number_ty,
+                        is_optional: false,
+                        is_readonly: false,
+                    },
+                    TypeField {
+                        key: key_b,
+                        ty: string_ty,
+                        is_optional: false,
+                        is_readonly: false,
+                    },
+                ],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
         // larger object assignable to smaller (has all required fields)
         assert_eq!(
@@ -2077,12 +2215,17 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
         let required_field = TypeField {
             key: StaticKey::Name(strings.intern("a")),
             ty: number_ty,
@@ -2096,18 +2239,26 @@ mod tests {
             is_readonly: false,
         };
 
-        let required_obj = types.insert_type(Type::Object {
-            fields: vec![required_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let optional_obj = types.insert_type(Type::Object {
-            fields: vec![optional_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+        let required_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![required_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let optional_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![optional_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2149,41 +2300,66 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let signature_ty = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: None,
-            dynamic_parameters: vec![number_ty],
-            return_type: Some(string_ty),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let signature_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: None,
+                dynamic_parameters: vec![number_ty],
+                return_type: Some(string_ty),
+            },
+        );
 
-        let target_obj = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: vec![signature_ty],
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let source_obj = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: vec![signature_ty],
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let missing_call = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+        let target_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: vec![signature_ty],
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let source_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: vec![signature_ty],
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let missing_call = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2219,39 +2395,60 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
 
-        let target_fn = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: None,
-            dynamic_parameters: vec![number_ty, string_ty],
-            return_type: Some(number_ty),
-        });
-        let source_fn_fewer = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: None,
-            dynamic_parameters: vec![number_ty],
-            return_type: Some(number_ty),
-        });
-        let source_fn_more = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: None,
-            dynamic_parameters: vec![number_ty, string_ty, number_ty],
-            return_type: Some(number_ty),
-        });
+        let target_fn = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: None,
+                dynamic_parameters: vec![number_ty, string_ty],
+                return_type: Some(number_ty),
+            },
+        );
+        let source_fn_fewer = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: None,
+                dynamic_parameters: vec![number_ty],
+                return_type: Some(number_ty),
+            },
+        );
+        let source_fn_more = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: None,
+                dynamic_parameters: vec![number_ty, string_ty, number_ty],
+                return_type: Some(number_ty),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2293,71 +2490,96 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
 
         let key_a = StaticKey::Name(strings.intern("a"));
         let key_b = StaticKey::Name(strings.intern("b"));
 
-        let this_small = types.insert_type(Type::Object {
-            fields: vec![TypeField {
-                key: key_a,
-                ty: number_ty,
-                is_optional: false,
-                is_readonly: false,
-            }],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let this_large = types.insert_type(Type::Object {
-            fields: vec![
-                TypeField {
+        let this_small = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![TypeField {
                     key: key_a,
                     ty: number_ty,
                     is_optional: false,
                     is_readonly: false,
-                },
-                TypeField {
-                    key: key_b,
-                    ty: number_ty,
-                    is_optional: false,
-                    is_readonly: false,
-                },
-            ],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+                }],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let this_large = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![
+                    TypeField {
+                        key: key_a,
+                        ty: number_ty,
+                        is_optional: false,
+                        is_readonly: false,
+                    },
+                    TypeField {
+                        key: key_b,
+                        ty: number_ty,
+                        is_optional: false,
+                        is_readonly: false,
+                    },
+                ],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
-        let target_fn = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: Some(this_small),
-            dynamic_parameters: Vec::new(),
-            return_type: None,
-        });
-        let source_fn_wider_this = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: Some(this_large),
-            dynamic_parameters: Vec::new(),
-            return_type: None,
-        });
-        let source_fn_narrow_this = types.insert_type(Type::Function {
-            asynchrony: Asynchrony::Sync,
-            cardinality: FunctionCardinality::Scalar,
-            static_parameters: Vec::new(),
-            this_parameter: Some(this_small),
-            dynamic_parameters: Vec::new(),
-            return_type: None,
-        });
+        let target_fn = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: Some(this_small),
+                dynamic_parameters: Vec::new(),
+                return_type: None,
+            },
+        );
+        let source_fn_wider_this = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: Some(this_large),
+                dynamic_parameters: Vec::new(),
+                return_type: None,
+            },
+        );
+        let source_fn_narrow_this = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Function {
+                asynchrony: Asynchrony::Sync,
+                cardinality: FunctionCardinality::Scalar,
+                static_parameters: Vec::new(),
+                this_parameter: Some(this_small),
+                dynamic_parameters: Vec::new(),
+                return_type: None,
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2399,15 +2621,24 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
         let index_signature = TypeIndexSignature {
             name: strings.intern("k"),
             key_type: string_ty,
@@ -2427,36 +2658,56 @@ mod tests {
             is_readonly: false,
         };
 
-        let target_obj = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![index_signature.clone()],
-        });
-        let source_obj = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![index_signature.clone()],
-        });
-        let compatible_fields = types.insert_type(Type::Object {
-            fields: vec![matching_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let incompatible_fields = types.insert_type(Type::Object {
-            fields: vec![mismatched_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let missing_index = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+        let target_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![index_signature.clone()],
+            },
+        );
+        let source_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![index_signature.clone()],
+            },
+        );
+        let compatible_fields = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![matching_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let incompatible_fields = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![mismatched_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let missing_index = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2516,15 +2767,24 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
         let number_index = TypeIndexSignature {
             name: strings.intern("k"),
             key_type: number_ty,
@@ -2538,30 +2798,46 @@ mod tests {
             is_readonly: false,
         };
 
-        let target_number = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![number_index.clone()],
-        });
-        let source_string = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![string_index.clone()],
-        });
-        let target_string = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![string_index],
-        });
-        let source_number = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![number_index],
-        });
+        let target_number = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![number_index.clone()],
+            },
+        );
+        let source_string = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![string_index.clone()],
+            },
+        );
+        let target_string = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![string_index],
+            },
+        );
+        let source_number = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![number_index],
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2603,12 +2879,17 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
         let key = strings.intern("1");
         let target_field = TypeField {
             key: StaticKey::Name(key),
@@ -2623,18 +2904,26 @@ mod tests {
             is_readonly: false,
         };
 
-        let target_obj = types.insert_type(Type::Object {
-            fields: vec![target_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let source_obj = types.insert_type(Type::Object {
-            fields: vec![source_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+        let target_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![target_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let source_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![source_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2658,18 +2947,31 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
         let strings = test.program.strings.clone();
 
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let undefined_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Undefined,
-        });
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let undefined_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            },
+        );
         let target_index = TypeIndexSignature {
             name: strings.intern("k"),
             key_type: string_ty,
@@ -2689,24 +2991,36 @@ mod tests {
             is_readonly: false,
         };
 
-        let target_obj = types.insert_type(Type::Object {
-            fields: Vec::new(),
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: vec![target_index],
-        });
-        let source_optional_number = types.insert_type(Type::Object {
-            fields: vec![optional_number_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
-        let source_optional_undefined = types.insert_type(Type::Object {
-            fields: vec![optional_undefined_field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        });
+        let target_obj = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: Vec::new(),
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: vec![target_index],
+            },
+        );
+        let source_optional_number = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![optional_number_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
+        let source_optional_undefined = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Object {
+                fields: vec![optional_undefined_field],
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -2748,17 +3062,30 @@ mod tests {
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let number_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
-        });
-        let string_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String),
-        });
-        let union_ty = types.insert_type(Type::Union {
-            elements: vec![number_ty, string_ty],
-        });
+        let number_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        );
+        let string_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        );
+        let union_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Union {
+                elements: vec![number_ty, string_ty],
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -3049,14 +3376,23 @@ let x: number = getNumber();
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let int_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
-        });
-        let literal_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
-        });
+        let int_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+            },
+        );
+        let literal_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42)),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -3080,15 +3416,24 @@ let x: number = getNumber();
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let float_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
-        });
-        let literal_ty = types.insert_type(Type::TypeLiteral {
-            #[allow(clippy::approx_constant)]
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Float(3.14f64)),
-        });
+        let float_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
+            },
+        );
+        let literal_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                #[allow(clippy::approx_constant)]
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Float(3.14f64)),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -3112,14 +3457,23 @@ let x: number = getNumber();
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let int8_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
-        });
-        let literal_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1000)),
-        });
+        let int8_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
+            },
+        );
+        let literal_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1000)),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(
@@ -3143,14 +3497,23 @@ let x: number = getNumber();
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let int8_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
-        });
-        let int16_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int16)),
-        });
+        let int8_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
+            },
+        );
+        let int16_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int16)),
+            },
+        );
 
         // widening allowed
         assert_eq!(
@@ -3182,14 +3545,23 @@ let x: number = getNumber();
         let dir = module.dir(profile);
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
         let options = test.compiler.analyze_context_options_for_module(module.id);
 
-        let int8_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
-        });
-        let uint8_ty = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
-        });
+        let int8_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int8)),
+            },
+        );
+        let uint8_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
+            },
+        );
 
         assert_eq!(
             test.compiler.is_type_assignable(

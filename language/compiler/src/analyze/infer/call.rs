@@ -709,7 +709,7 @@ impl Compiler {
                     StaticParameterKind::Value
                 };
                 self.collect_static_parameter(
-                    module, *symbol_id, kind, profile, tree, symbols, types,
+                    module, *symbol_id, kind, node_id, profile, tree, symbols, types,
                 )
             })
             .collect();

@@ -375,7 +375,8 @@ impl Compiler {
         if elements.len() == 1 {
             elements[0]
         } else {
-            types.insert_type(Type::Union { elements })
+            let source_type_id = elements[0];
+            types.insert_type_from_type(Type::Union { elements }, source_type_id)
         }
     }
 
@@ -762,7 +763,9 @@ impl Compiler {
         };
 
         // resolve the typeof guard target
-        let Some(target) = self.type_guard_target_for_typeof_string(literal_id, types) else {
+        let Some(target) =
+            self.type_guard_target_for_typeof_string(literal_id, typeof_id.into_any(), types)
+        else {
             return Ok(None);
         };
 
@@ -1175,9 +1178,12 @@ impl Compiler {
                 match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: matching_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: matching_elements,
+                        },
+                        base_type_id,
+                    )),
                 }
             }
             _ => {
@@ -1210,9 +1216,12 @@ impl Compiler {
                 } else if target_is_assignable {
                     Some(target_type_id)
                 } else {
-                    Some(types.insert_type(Type::Intersection {
-                        elements: vec![base_type_id, target_type_id],
-                    }))
+                    Some(types.insert_type_from_type(
+                        Type::Intersection {
+                            elements: vec![base_type_id, target_type_id],
+                        },
+                        base_type_id,
+                    ))
                 }
             }
         };
@@ -1286,9 +1295,12 @@ impl Compiler {
 
         // build a literal type for assignability checks
         let literal_type = self.infer_scalar_literal(&literal);
-        let literal_type_id = types.insert_type(Type::TypeLiteral {
-            value: literal_type.clone(),
-        });
+        let literal_type_id = types.insert_type_from_type(
+            Type::TypeLiteral {
+                value: literal_type.clone(),
+            },
+            base_type_id,
+        );
 
         // split union and non union targets
         let base_type = types.get_type(base_type_id).clone();
@@ -1347,16 +1359,22 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: matching_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: matching_elements,
+                        },
+                        base_type_id,
+                    )),
                 };
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: remaining_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: remaining_elements,
+                        },
+                        base_type_id,
+                    )),
                 };
 
                 Ok((true_type_id, false_type_id))
@@ -1443,16 +1461,22 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: matching_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: matching_elements,
+                        },
+                        base_type_id,
+                    )),
                 };
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: remaining_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: remaining_elements,
+                        },
+                        base_type_id,
+                    )),
                 };
 
                 (true_type_id, false_type_id)
@@ -1493,16 +1517,22 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: matching_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: matching_elements,
+                        },
+                        base_type_id,
+                    )),
                 };
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: remaining_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: remaining_elements,
+                        },
+                        base_type_id,
+                    )),
                 };
 
                 (true_type_id, false_type_id)
@@ -1565,9 +1595,12 @@ impl Compiler {
                 let filtered_type_id = match filtered_elements.len() {
                     0 => None,
                     1 => Some(filtered_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: filtered_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: filtered_elements,
+                        },
+                        type_id,
+                    )),
                 };
 
                 (filtered_type_id, true)
@@ -1682,19 +1715,28 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // materialize nullish literal types once
-        let null_type_id = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Null,
-        });
-        let undefined_type_id = types.insert_type(Type::TypeLiteral {
-            value: TypeLiteral::Undefined,
-        });
+        let null_type_id = types.insert_type_from_type(
+            Type::TypeLiteral {
+                value: TypeLiteral::Null,
+            },
+            base_type_id,
+        );
+        let undefined_type_id = types.insert_type_from_type(
+            Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            },
+            base_type_id,
+        );
 
         // build branch types based on the guard kind
         match guard_kind {
             NullishGuardKind::Nullish => {
-                let nullish_type_id = types.insert_type(Type::Union {
-                    elements: vec![null_type_id, undefined_type_id],
-                });
+                let nullish_type_id = types.insert_type_from_type(
+                    Type::Union {
+                        elements: vec![null_type_id, undefined_type_id],
+                    },
+                    base_type_id,
+                );
                 let (non_nullish_type_id, _) = self.strip_nullish_from_union(base_type_id, types);
                 (Some(nullish_type_id), non_nullish_type_id)
             }
@@ -1747,9 +1789,12 @@ impl Compiler {
                 let filtered_type_id = match filtered_elements.len() {
                     0 => None,
                     1 => Some(filtered_elements[0]),
-                    _ => Some(types.insert_type(Type::Union {
-                        elements: filtered_elements,
-                    })),
+                    _ => Some(types.insert_type_from_type(
+                        Type::Union {
+                            elements: filtered_elements,
+                        },
+                        type_id,
+                    )),
                 };
 
                 (filtered_type_id, true)

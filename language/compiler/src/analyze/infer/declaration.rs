@@ -681,7 +681,7 @@ impl Compiler {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
                         };
-                        types.insert_type(ty)
+                        types.insert_type_from_any(ty, member_id.into_any())
                     };
                     let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
                         modifiers.mutability == Some(destack_dir::Mutability::Immutable)
@@ -722,7 +722,7 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type(ty)
+                    types.insert_type_from_any(ty, member_id.into_any())
                 };
 
                 // analyze default if present
@@ -1092,6 +1092,7 @@ impl Compiler {
                     infer,
                     types,
                     param_symbol,
+                    this_parameter_id.into_any(),
                     InferOrigin::Parameter(this_parameter_id.into_global_any(module.id)),
                     scope,
                 )
@@ -1127,6 +1128,7 @@ impl Compiler {
                     infer,
                     types,
                     param_symbol,
+                    parameter_id.into_any(),
                     InferOrigin::Parameter(parameter_id.into_global_any(module.id)),
                     scope,
                 )
