@@ -29,6 +29,11 @@ const WORKER_CANONICAL_EXPORTS: &[&str] = &[
     "Worker",
     "WorkerGlobalScope",
     "console",
+    "clearInterval",
+    "clearTimeout",
+    "fetch",
+    "queueMicrotask",
+    "self",
     "setInterval",
     "setTimeout",
 ];

@@ -45,6 +45,7 @@ pub(crate) const ES_CANONICAL_EXPORTS: &[&str] = &[
     "EvalError",
     "Function",
     "Generator",
+    "globalThis",
     "Iterable",
     "AsyncIterable",
     "AsyncIterator",

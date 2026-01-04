@@ -26,8 +26,15 @@ const LIB_NODE_V24_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
 );
 
 const NODE_CANONICAL_EXPORTS: &[&str] = &[
+    "Buffer",
     "console",
+    "clearImmediate",
+    "clearInterval",
+    "clearTimeout",
+    "global",
+    "globalThis",
     "process",
+    "queueMicrotask",
     "setImmediate",
     "setInterval",
     "setTimeout",
