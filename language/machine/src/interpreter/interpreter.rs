@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
@@ -6,6 +7,7 @@ use destack_mir as mir;
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::memory::{ManagedHeap, RawHeap, Value};
 
+use super::threaded::{thread_function, ThreadedFunction};
 use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
@@ -24,12 +26,16 @@ pub struct ExecutionOutput {
     pub raw_heap_cells: usize,
 }
 
-/// MIR interpreter.
+/// MIR interpreter using direct-threaded dispatch for fast execution.
+///
+/// The interpreter pre-compiles all MIR functions into a threaded form at
+/// construction time, enabling efficient dispatch via tail calls between
+/// instruction handlers.
 pub struct Interpreter {
     /// The MIR tree being executed.
-    pub(super) tree: mir::NodeTree,
+    pub tree: mir::NodeTree,
     /// String pool for names.
-    pub(super) strings: ImmutableStringPool,
+    pub strings: ImmutableStringPool,
     /// The managed heap (GC-tracked allocations).
     pub(super) managed_heap: ManagedHeap,
     /// The raw heap (manually managed allocations).
@@ -40,10 +46,12 @@ pub struct Interpreter {
     pub(super) externals: HashMap<String, ExternalFn>,
     /// Configuration options.
     pub(super) options: MachineOptions,
-    /// Explicit call stack.
+    /// Pre-threaded functions for fast dispatch (Arc for cheap cloning).
+    pub(super) threaded_functions: HashMap<mir::LocalNodeId<mir::Function>, Arc<ThreadedFunction>>,
+    /// Explicit call stack (used for GC roots and error reporting).
     pub(super) call_stack: Vec<Frame>,
     /// Execution statistics.
-    pub(super) statistics: Statistics,
+    pub statistics: Statistics,
 }
 
 impl std::fmt::Debug for Interpreter {
@@ -67,6 +75,8 @@ impl Interpreter {
     }
 
     /// Create a new interpreter with custom options.
+    ///
+    /// This pre-compiles all MIR functions into threaded form for fast execution.
     pub fn with_options(
         tree: mir::NodeTree,
         strings: ImmutableStringPool,
@@ -74,6 +84,10 @@ impl Interpreter {
     ) -> Self {
         let mut managed_heap = ManagedHeap::new();
         let globals = Self::initialize_globals(&tree, &mut managed_heap);
+
+        // Pre-thread all functions for fast dispatch
+        let threaded_functions = Self::thread_all_functions(&tree);
+
         Self {
             tree,
             strings,
@@ -82,9 +96,25 @@ impl Interpreter {
             globals,
             externals: HashMap::new(),
             options,
+            threaded_functions,
             call_stack: Vec::new(),
             statistics: Statistics::new(),
         }
+    }
+
+    /// Thread all functions in the MIR tree for fast dispatch.
+    fn thread_all_functions(
+        tree: &mir::NodeTree,
+    ) -> HashMap<mir::LocalNodeId<mir::Function>, Arc<ThreadedFunction>> {
+        let mut threaded = HashMap::new();
+
+        for (func_id, _) in tree.iter_nodes::<mir::Function>() {
+            if let Some(tf) = thread_function(tree, func_id) {
+                threaded.insert(func_id, Arc::new(tf));
+            }
+        }
+
+        threaded
     }
 
     /// Initialize global variables from the MIR tree.
