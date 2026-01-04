@@ -13,7 +13,7 @@ block0:
 }
 "#;
     let output = run_mir_ok(mir, "alloc", &[]);
-    assert!(matches!(output.value, Value::ManagedReference(_)));
+    assert!(output.value.is_managed_reference());
     assert_eq!(output.heap_cells, 1);
 }
 
@@ -45,7 +45,7 @@ block0:
 }
 "#;
     let output = run_mir_ok(mir, "alloc_array", &[]);
-    assert!(matches!(output.value, Value::ManagedReference(_)));
+    assert!(output.value.is_managed_reference());
     assert_eq!(output.heap_cells, 1);
 }
 
@@ -241,7 +241,7 @@ block0:
 }
 "#;
     let output = run_mir_ok(mir, "raw_alloc", &[]);
-    assert!(matches!(output.value, Value::RawPointer(_)));
+    assert!(output.value.as_raw_pointer().is_some());
     assert_eq!(output.raw_heap_cells, 1);
 }
 
@@ -326,7 +326,7 @@ block0(v0: rawptr<i32>):
     return v1
 }
 "#;
-    let result = run_mir(mir, "null_load", &[Value::RawPointer(RawPointer::NULL)]);
+    let result = run_mir(mir, "null_load", &[Value::raw_pointer(RawPointer::NULL)]);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::NullPointerDereference));
@@ -345,7 +345,7 @@ block0(v0: rawptr<i32>, v1: i32):
     let result = run_mir(
         mir,
         "null_store",
-        &[Value::RawPointer(RawPointer::NULL), Value::int32(42)],
+        &[Value::raw_pointer(RawPointer::NULL), Value::int32(42)],
     );
     assert!(result.is_err());
     let err = result.unwrap_err();

@@ -44,7 +44,7 @@ impl HeapCell {
     /// Create a cell with the given number of slots (initialized to Void).
     pub fn with_slots(count: usize) -> Self {
         Self {
-            slots: vec![Value::Void; count],
+            slots: vec![Value::VOID; count],
             marked: false,
         }
     }
@@ -71,7 +71,7 @@ impl ManagedHeap {
     /// Allocate a cell with a given number of slots (initialized to Void).
     pub fn allocate_with_slots(&mut self, slot_count: usize) -> HeapHandle {
         self.allocate_cell(HeapCell {
-            slots: vec![Value::Void; slot_count],
+            slots: vec![Value::VOID; slot_count],
             marked: false,
         })
     }
@@ -139,7 +139,6 @@ impl ManagedHeap {
     /// Get the number of allocated cells.
     #[inline]
     pub fn cell_count(&self) -> usize {
-        // Count non-None cells (excluding reserved slot 0)
         self.cells.iter().skip(1).filter(|c| c.is_some()).count()
     }
 
@@ -177,7 +176,7 @@ impl ManagedHeap {
                 }
                 cell.marked = true;
 
-                // Add any managed references in slots to worklist
+                // add any managed references in slots to worklist
                 for slot in &cell.slots {
                     Self::collect_handles_from_value(slot, &mut worklist);
                 }
@@ -197,11 +196,8 @@ impl ManagedHeap {
 
     /// Collect heap handles from a value (recursively for aggregates).
     fn collect_handles_from_value(value: &Value, worklist: &mut Vec<HeapHandle>) {
-        match value {
-            Value::ManagedReference(handle) | Value::Aggregate(handle) => {
-                worklist.push(*handle);
-            }
-            _ => {}
+        if let Some(handle) = value.as_heap_handle() {
+            worklist.push(handle);
         }
     }
 }
@@ -226,7 +222,7 @@ impl RawHeap {
     /// Allocate a cell with a given number of slots (initialized to Void).
     pub fn allocate_with_slots(&mut self, slot_count: usize) -> RawPointer {
         self.allocate_cell(HeapCell {
-            slots: vec![Value::Void; slot_count],
+            slots: vec![Value::VOID; slot_count],
             marked: false,
         })
     }

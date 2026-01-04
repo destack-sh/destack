@@ -101,13 +101,13 @@ block0(v0: i32, v1: i32):
         mir,
         "eq",
         &[Value::int32(5), Value::int32(5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "eq",
         &[Value::int32(5), Value::int32(3)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -125,13 +125,13 @@ block0(v0: i32, v1: i32):
         mir,
         "lt",
         &[Value::int32(3), Value::int32(5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "lt",
         &[Value::int32(5), Value::int32(3)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -158,7 +158,7 @@ block0:
     return v0
 }
 "#;
-    run_mir_expect(mir, "const_true", &[], Value::Bool(true));
+    run_mir_expect(mir, "const_true", &[], Value::bool(true));
 }
 
 /// Boolean false constant is loaded correctly.
@@ -171,7 +171,7 @@ block0:
     return v0
 }
 "#;
-    run_mir_expect(mir, "const_false", &[], Value::Bool(false));
+    run_mir_expect(mir, "const_false", &[], Value::bool(false));
 }
 
 /// Bitwise AND on booleans produces logical AND.
@@ -187,14 +187,14 @@ block0(v0: bool, v1: bool):
     run_mir_expect(
         mir,
         "and",
-        &[Value::Bool(true), Value::Bool(true)],
-        Value::Bool(true),
+        &[Value::bool(true), Value::bool(true)],
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "and",
-        &[Value::Bool(true), Value::Bool(false)],
-        Value::Bool(false),
+        &[Value::bool(true), Value::bool(false)],
+        Value::bool(false),
     );
 }
 
@@ -211,14 +211,14 @@ block0(v0: bool, v1: bool):
     run_mir_expect(
         mir,
         "or",
-        &[Value::Bool(false), Value::Bool(true)],
-        Value::Bool(true),
+        &[Value::bool(false), Value::bool(true)],
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "or",
-        &[Value::Bool(false), Value::Bool(false)],
-        Value::Bool(false),
+        &[Value::bool(false), Value::bool(false)],
+        Value::bool(false),
     );
 }
 
@@ -232,8 +232,8 @@ block0(v0: bool):
     return v1
 }
 "#;
-    run_mir_expect(mir, "not", &[Value::Bool(true)], Value::Bool(false));
-    run_mir_expect(mir, "not", &[Value::Bool(false)], Value::Bool(true));
+    run_mir_expect(mir, "not", &[Value::bool(true)], Value::bool(false));
+    run_mir_expect(mir, "not", &[Value::bool(false)], Value::bool(true));
 }
 
 /// Floating point addition produces the sum of two f64 values.
@@ -345,13 +345,13 @@ block0(v0: i32, v1: i32):
         mir,
         "ne",
         &[Value::int32(5), Value::int32(3)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "ne",
         &[Value::int32(5), Value::int32(5)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -369,20 +369,20 @@ block0(v0: i32, v1: i32):
         mir,
         "sgt",
         &[Value::int32(5), Value::int32(3)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "sgt",
         &[Value::int32(3), Value::int32(5)],
-        Value::Bool(false),
+        Value::bool(false),
     );
     // negative numbers
     run_mir_expect(
         mir,
         "sgt",
         &[Value::int32(-1), Value::int32(-5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
 }
 
@@ -400,19 +400,19 @@ block0(v0: i32, v1: i32):
         mir,
         "sge",
         &[Value::int32(5), Value::int32(5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "sge",
         &[Value::int32(5), Value::int32(3)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "sge",
         &[Value::int32(3), Value::int32(5)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -430,19 +430,19 @@ block0(v0: i32, v1: i32):
         mir,
         "sle",
         &[Value::int32(3), Value::int32(5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "sle",
         &[Value::int32(5), Value::int32(5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "sle",
         &[Value::int32(5), Value::int32(3)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -460,13 +460,13 @@ block0(v0: u32, v1: u32):
         mir,
         "ult",
         &[Value::uint32(3), Value::uint32(5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "ult",
         &[Value::uint32(5), Value::uint32(3)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -484,13 +484,13 @@ block0(v0: u32, v1: u32):
         mir,
         "ugt",
         &[Value::uint32(5), Value::uint32(3)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "ugt",
         &[Value::uint32(3), Value::uint32(5)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -655,13 +655,13 @@ block0(v0: f64, v1: f64):
         mir,
         "fcmp_eq",
         &[Value::float64(3.5), Value::float64(3.5)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "fcmp_eq",
         &[Value::float64(3.5), Value::float64(4.5)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -679,13 +679,13 @@ block0(v0: f64, v1: f64):
         mir,
         "fcmp_lt",
         &[Value::float64(3.0), Value::float64(4.0)],
-        Value::Bool(true),
+        Value::bool(true),
     );
     run_mir_expect(
         mir,
         "fcmp_lt",
         &[Value::float64(4.0), Value::float64(3.0)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -721,7 +721,7 @@ block0(v0: f32, v1: f32):
         mir,
         "f32_lt",
         &[Value::float32(1.0), Value::float32(2.0)],
-        Value::Bool(true),
+        Value::bool(true),
     );
 }
 

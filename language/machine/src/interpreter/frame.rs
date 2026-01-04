@@ -137,11 +137,8 @@ impl Frame {
 
     /// Collect heap handle from a value if applicable.
     fn collect_handles_from_value(value: &Value, roots: &mut Vec<HeapHandle>) {
-        match value {
-            Value::ManagedReference(handle) | Value::Aggregate(handle) => {
-                roots.push(*handle);
-            }
-            _ => {}
+        if let Some(handle) = value.as_heap_handle() {
+            roots.push(handle);
         }
     }
 }

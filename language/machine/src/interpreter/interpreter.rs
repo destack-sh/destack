@@ -99,7 +99,7 @@ impl Interpreter {
 
             let value = match &global.initializer {
                 Some(init) => Self::convert_initializer(tree, heap, init, global.ty),
-                None => Value::Void,
+                None => Value::VOID,
             };
             globals.set(id, value);
         }
@@ -119,15 +119,9 @@ impl Interpreter {
             mir::GlobalInitializer::Scalar(constant) => constant.into(),
             mir::GlobalInitializer::Bytes(bytes) => {
                 // convert bytes to an aggregate of u8 values
-                let values: Vec<Value> = bytes
-                    .iter()
-                    .map(|&b| Value::UInt {
-                        value: b as u64,
-                        width: 8,
-                    })
-                    .collect();
+                let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
                 let handle = heap.allocate_with_values(values);
-                Value::Aggregate(handle)
+                Value::aggregate(handle)
             }
             mir::GlobalInitializer::Aggregate(elements) => {
                 // recursively convert each element
@@ -136,7 +130,7 @@ impl Interpreter {
                     .map(|e| Self::convert_initializer(tree, heap, e, ty))
                     .collect();
                 let handle = heap.allocate_with_values(values);
-                Value::Aggregate(handle)
+                Value::aggregate(handle)
             }
         }
     }
@@ -151,41 +145,35 @@ impl Interpreter {
         match ty_node {
             mir::Type::Int { width, signed } => {
                 if *signed {
-                    Value::Int {
-                        value: 0,
-                        width: *width as u8,
-                    }
+                    Value::int(0, *width as u8)
                 } else {
-                    Value::UInt {
-                        value: 0,
-                        width: *width as u8,
-                    }
+                    Value::uint(0, *width as u8)
                 }
             }
             mir::Type::Float { width } => {
                 if *width == 32 {
-                    Value::Float32(0.0)
+                    Value::float32(0.0)
                 } else {
-                    Value::Float64(0.0)
+                    Value::float64(0.0)
                 }
             }
-            mir::Type::Boolean => Value::Bool(false),
+            mir::Type::Boolean => Value::bool(false),
             mir::Type::Tuple { elements } => {
                 let values: Vec<Value> = elements
                     .iter()
                     .map(|e| Self::zero_value(tree, heap, *e))
                     .collect();
                 let handle = heap.allocate_with_values(values);
-                Value::Aggregate(handle)
+                Value::aggregate(handle)
             }
             mir::Type::Array { element, length } => {
                 let elem_zero = Self::zero_value(tree, heap, *element);
                 let values: Vec<Value> = (0..*length).map(|_| elem_zero).collect();
                 let handle = heap.allocate_with_values(values);
-                Value::Aggregate(handle)
+                Value::aggregate(handle)
             }
             // for other types (pointers, functions, void, etc.), just use Void
-            _ => Value::Void,
+            _ => Value::VOID,
         }
     }
 
@@ -219,18 +207,15 @@ impl Interpreter {
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
         let handle = self.managed_heap.allocate_with_values(values);
-        Value::Aggregate(handle)
+        Value::aggregate(handle)
     }
 
     /// Get the slots of an aggregate value (looking up from heap if needed).
     pub(super) fn get_aggregate_slots(&self, value: &Value) -> Option<&[Value]> {
-        match value {
-            Value::Aggregate(handle) | Value::ManagedReference(handle) => self
-                .managed_heap
-                .get(*handle)
-                .map(|cell| cell.slots.as_slice()),
-            _ => None,
-        }
+        value
+            .as_heap_handle()
+            .and_then(|handle| self.managed_heap.get(handle))
+            .map(|cell| cell.slots.as_slice())
     }
 
     /// Create an error with instruction anchor.

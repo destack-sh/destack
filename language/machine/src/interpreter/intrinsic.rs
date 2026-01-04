@@ -1,19 +1,26 @@
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::memory::Value;
+use crate::memory::{Value, ValueTag};
 
 use super::Interpreter;
 
 /// Reduction operation for SIMD horizontal reductions.
 #[derive(Debug, Clone, Copy)]
 enum ReduceOp {
+    /// Addition reduction.
     Add,
+    /// Multiplication reduction.
     Mul,
+    /// Minimum value reduction.
     Min,
+    /// Maximum value reduction.
     Max,
+    /// Bitwise AND reduction.
     And,
+    /// Bitwise OR reduction.
     Or,
+    /// Bitwise XOR reduction.
     Xor,
 }
 
@@ -46,7 +53,7 @@ impl Interpreter {
             mir::Intrinsic::SubOverflow => self.execute_sub_overflow(&args()?),
             mir::Intrinsic::MulOverflow => self.execute_mul_overflow(&args()?),
 
-            // unchecked arithmetic (execute normally, panic on overflow at comptime)
+            // unchecked arithmetic
             mir::Intrinsic::AddUnchecked => self.execute_add_unchecked(&args()?),
             mir::Intrinsic::SubUnchecked => self.execute_sub_unchecked(&args()?),
             mir::Intrinsic::MulUnchecked => self.execute_mul_unchecked(&args()?),
@@ -140,11 +147,11 @@ impl Interpreter {
 
             // control flow
             mir::Intrinsic::Unreachable => Err(self.make_error(Error::Unreachable)),
-            mir::Intrinsic::Breakpoint => Ok(Value::Void),
+            mir::Intrinsic::Breakpoint => Ok(Value::VOID),
             mir::Intrinsic::Abort => Err(self.make_error(Error::Abort)),
-            mir::Intrinsic::Assume => Ok(Value::Void),
+            mir::Intrinsic::Assume => Ok(Value::VOID),
 
-            // reflection (should be resolved at compile time, but we can't do that here)
+            // reflection (should be resolved at compile time)
             mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self
                 .make_error(Error::UnsupportedInstruction {
                     name: format!(
@@ -153,24 +160,24 @@ impl Interpreter {
                     ),
                 })),
 
-            // volatile operations (behave like regular load/store in interpreter)
+            // volatile operations
             mir::Intrinsic::VolatileLoad => self.execute_volatile_load(&args()?),
             mir::Intrinsic::VolatileStore => {
                 self.execute_volatile_store(&args()?)?;
-                Ok(Value::Void)
+                Ok(Value::VOID)
             }
 
-            // prefetch (pure hints, no-ops in interpreter)
-            mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Value::Void),
+            // prefetch (no-ops in interpreter)
+            mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Value::VOID),
 
             // gc barriers (no-ops in interpreter)
-            mir::Intrinsic::GcWriteBarrier | mir::Intrinsic::GcReadBarrier => Ok(Value::Void),
+            mir::Intrinsic::GcWriteBarrier | mir::Intrinsic::GcReadBarrier => Ok(Value::VOID),
 
-            // atomics (single-threaded interpreter, behave like regular ops)
+            // atomics (single-threaded interpreter)
             mir::Intrinsic::AtomicLoad => self.execute_atomic_load(&args()?),
             mir::Intrinsic::AtomicStore => {
                 self.execute_atomic_store(&args()?)?;
-                Ok(Value::Void)
+                Ok(Value::VOID)
             }
             mir::Intrinsic::AtomicCas => self.execute_atomic_cas(&args()?),
             mir::Intrinsic::AtomicFetchAdd => self.execute_atomic_fetch_add(&args()?),
@@ -180,9 +187,9 @@ impl Interpreter {
             mir::Intrinsic::AtomicFetchXor => self.execute_atomic_fetch_xor(&args()?),
             mir::Intrinsic::AtomicFetchMin => self.execute_atomic_fetch_min(&args()?),
             mir::Intrinsic::AtomicFetchMax => self.execute_atomic_fetch_max(&args()?),
-            mir::Intrinsic::AtomicFence => Ok(Value::Void),
+            mir::Intrinsic::AtomicFence => Ok(Value::VOID),
 
-            // runtime introspection (synthetic values based on call stack)
+            // runtime introspection
             mir::Intrinsic::ReturnAddress => self.execute_return_address(),
             mir::Intrinsic::FrameAddress => self.execute_frame_address(),
 
@@ -202,6 +209,7 @@ impl Interpreter {
 
     // bit manipulation
 
+    /// Count leading zeros.
     fn execute_clz(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -209,32 +217,28 @@ impl Interpreter {
             })
         })?;
 
-        match arg {
-            Value::Int { value, width } => {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                let width = arg.width();
                 let count = match width {
-                    8 => (*value as i8).leading_zeros(),
-                    16 => (*value as i16).leading_zeros(),
-                    32 => (*value as i32).leading_zeros(),
-                    64 => value.leading_zeros(),
+                    8 => (value as i8).leading_zeros(),
+                    16 => (value as i16).leading_zeros(),
+                    32 => (value as i32).leading_zeros(),
                     _ => value.leading_zeros(),
                 };
-                Ok(Value::UInt {
-                    value: count as u64,
-                    width: *width,
-                })
+                Ok(Value::uint(count as u64, width))
             }
-            Value::UInt { value, width } => {
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                let width = arg.width();
                 let count = match width {
-                    8 => (*value as u8).leading_zeros(),
-                    16 => (*value as u16).leading_zeros(),
-                    32 => (*value as u32).leading_zeros(),
-                    64 => value.leading_zeros(),
+                    8 => (value as u8).leading_zeros(),
+                    16 => (value as u16).leading_zeros(),
+                    32 => (value as u32).leading_zeros(),
                     _ => value.leading_zeros(),
                 };
-                Ok(Value::UInt {
-                    value: count as u64,
-                    width: *width,
-                })
+                Ok(Value::uint(count as u64, width))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
@@ -243,6 +247,7 @@ impl Interpreter {
         }
     }
 
+    /// Count trailing zeros.
     fn execute_ctz(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -250,32 +255,28 @@ impl Interpreter {
             })
         })?;
 
-        match arg {
-            Value::Int { value, width } => {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                let width = arg.width();
                 let count = match width {
-                    8 => (*value as i8).trailing_zeros(),
-                    16 => (*value as i16).trailing_zeros(),
-                    32 => (*value as i32).trailing_zeros(),
-                    64 => value.trailing_zeros(),
+                    8 => (value as i8).trailing_zeros(),
+                    16 => (value as i16).trailing_zeros(),
+                    32 => (value as i32).trailing_zeros(),
                     _ => value.trailing_zeros(),
                 };
-                Ok(Value::UInt {
-                    value: count as u64,
-                    width: *width,
-                })
+                Ok(Value::uint(count as u64, width))
             }
-            Value::UInt { value, width } => {
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                let width = arg.width();
                 let count = match width {
-                    8 => (*value as u8).trailing_zeros(),
-                    16 => (*value as u16).trailing_zeros(),
-                    32 => (*value as u32).trailing_zeros(),
-                    64 => value.trailing_zeros(),
+                    8 => (value as u8).trailing_zeros(),
+                    16 => (value as u16).trailing_zeros(),
+                    32 => (value as u32).trailing_zeros(),
                     _ => value.trailing_zeros(),
                 };
-                Ok(Value::UInt {
-                    value: count as u64,
-                    width: *width,
-                })
+                Ok(Value::uint(count as u64, width))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
@@ -284,6 +285,7 @@ impl Interpreter {
         }
     }
 
+    /// Count set bits (population count).
     fn execute_popcnt(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -291,15 +293,15 @@ impl Interpreter {
             })
         })?;
 
-        match arg {
-            Value::Int { value, width } => Ok(Value::UInt {
-                value: value.count_ones() as u64,
-                width: *width,
-            }),
-            Value::UInt { value, width } => Ok(Value::UInt {
-                value: value.count_ones() as u64,
-                width: *width,
-            }),
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                Ok(Value::uint(value.count_ones() as u64, arg.width()))
+            }
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                Ok(Value::uint(value.count_ones() as u64, arg.width()))
+            }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
                 actual: format!("{arg:?}"),
@@ -307,6 +309,7 @@ impl Interpreter {
         }
     }
 
+    /// Reverse byte order (endianness swap).
     fn execute_byte_swap(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -314,30 +317,28 @@ impl Interpreter {
             })
         })?;
 
-        match arg {
-            Value::Int { value, width } => {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                let width = arg.width();
                 let swapped = match width {
-                    16 => (*value as i16).swap_bytes() as i64,
-                    32 => (*value as i32).swap_bytes() as i64,
+                    16 => (value as i16).swap_bytes() as i64,
+                    32 => (value as i32).swap_bytes() as i64,
                     64 => value.swap_bytes(),
-                    _ => *value,
+                    _ => value,
                 };
-                Ok(Value::Int {
-                    value: swapped,
-                    width: *width,
-                })
+                Ok(Value::int(swapped, width))
             }
-            Value::UInt { value, width } => {
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                let width = arg.width();
                 let swapped = match width {
-                    16 => (*value as u16).swap_bytes() as u64,
-                    32 => (*value as u32).swap_bytes() as u64,
+                    16 => (value as u16).swap_bytes() as u64,
+                    32 => (value as u32).swap_bytes() as u64,
                     64 => value.swap_bytes(),
-                    _ => *value,
+                    _ => value,
                 };
-                Ok(Value::UInt {
-                    value: swapped,
-                    width: *width,
-                })
+                Ok(Value::uint(swapped, width))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
@@ -346,6 +347,7 @@ impl Interpreter {
         }
     }
 
+    /// Reverse all bits in an integer.
     fn execute_bit_reverse(&self, args: &[Value]) -> RuntimeResult<Value> {
         let arg = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -353,32 +355,30 @@ impl Interpreter {
             })
         })?;
 
-        match arg {
-            Value::Int { value, width } => {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                let width = arg.width();
                 let reversed = match width {
-                    8 => (*value as i8).reverse_bits() as i64,
-                    16 => (*value as i16).reverse_bits() as i64,
-                    32 => (*value as i32).reverse_bits() as i64,
+                    8 => (value as i8).reverse_bits() as i64,
+                    16 => (value as i16).reverse_bits() as i64,
+                    32 => (value as i32).reverse_bits() as i64,
                     64 => value.reverse_bits(),
-                    _ => *value,
+                    _ => value,
                 };
-                Ok(Value::Int {
-                    value: reversed,
-                    width: *width,
-                })
+                Ok(Value::int(reversed, width))
             }
-            Value::UInt { value, width } => {
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                let width = arg.width();
                 let reversed = match width {
-                    8 => (*value as u8).reverse_bits() as u64,
-                    16 => (*value as u16).reverse_bits() as u64,
-                    32 => (*value as u32).reverse_bits() as u64,
+                    8 => (value as u8).reverse_bits() as u64,
+                    16 => (value as u16).reverse_bits() as u64,
+                    32 => (value as u32).reverse_bits() as u64,
                     64 => value.reverse_bits(),
-                    _ => *value,
+                    _ => value,
                 };
-                Ok(Value::UInt {
-                    value: reversed,
-                    width: *width,
-                })
+                Ok(Value::uint(reversed, width))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
@@ -387,6 +387,7 @@ impl Interpreter {
         }
     }
 
+    /// Rotate bits left.
     fn execute_rotate_left(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -395,41 +396,41 @@ impl Interpreter {
         }
 
         let amount = args[1].as_uint().unwrap_or(0) as u32;
+        let arg = &args[0];
 
-        match &args[0] {
-            Value::Int { value, width } => {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                let width = arg.width();
                 let rotated = match width {
-                    8 => (*value as u8).rotate_left(amount) as i64,
-                    16 => (*value as u16).rotate_left(amount) as i64,
-                    32 => (*value as u32).rotate_left(amount) as i64,
-                    64 => (*value as u64).rotate_left(amount) as i64,
-                    _ => *value,
+                    8 => (value as u8).rotate_left(amount) as i64,
+                    16 => (value as u16).rotate_left(amount) as i64,
+                    32 => (value as u32).rotate_left(amount) as i64,
+                    64 => (value as u64).rotate_left(amount) as i64,
+                    _ => value,
                 };
-                Ok(Value::Int {
-                    value: rotated,
-                    width: *width,
-                })
+                Ok(Value::int(rotated, width))
             }
-            Value::UInt { value, width } => {
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                let width = arg.width();
                 let rotated = match width {
-                    8 => (*value as u8).rotate_left(amount) as u64,
-                    16 => (*value as u16).rotate_left(amount) as u64,
-                    32 => (*value as u32).rotate_left(amount) as u64,
+                    8 => (value as u8).rotate_left(amount) as u64,
+                    16 => (value as u16).rotate_left(amount) as u64,
+                    32 => (value as u32).rotate_left(amount) as u64,
                     64 => value.rotate_left(amount),
-                    _ => *value,
+                    _ => value,
                 };
-                Ok(Value::UInt {
-                    value: rotated,
-                    width: *width,
-                })
+                Ok(Value::uint(rotated, width))
             }
-            other => Err(self.make_error(Error::TypeMismatch {
+            _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
-                actual: format!("{other:?}"),
+                actual: format!("{arg:?}"),
             })),
         }
     }
 
+    /// Rotate bits right.
     fn execute_rotate_right(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -438,43 +439,43 @@ impl Interpreter {
         }
 
         let amount = args[1].as_uint().unwrap_or(0) as u32;
+        let arg = &args[0];
 
-        match &args[0] {
-            Value::Int { value, width } => {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                let width = arg.width();
                 let rotated = match width {
-                    8 => (*value as u8).rotate_right(amount) as i64,
-                    16 => (*value as u16).rotate_right(amount) as i64,
-                    32 => (*value as u32).rotate_right(amount) as i64,
-                    64 => (*value as u64).rotate_right(amount) as i64,
-                    _ => *value,
+                    8 => (value as u8).rotate_right(amount) as i64,
+                    16 => (value as u16).rotate_right(amount) as i64,
+                    32 => (value as u32).rotate_right(amount) as i64,
+                    64 => (value as u64).rotate_right(amount) as i64,
+                    _ => value,
                 };
-                Ok(Value::Int {
-                    value: rotated,
-                    width: *width,
-                })
+                Ok(Value::int(rotated, width))
             }
-            Value::UInt { value, width } => {
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                let width = arg.width();
                 let rotated = match width {
-                    8 => (*value as u8).rotate_right(amount) as u64,
-                    16 => (*value as u16).rotate_right(amount) as u64,
-                    32 => (*value as u32).rotate_right(amount) as u64,
+                    8 => (value as u8).rotate_right(amount) as u64,
+                    16 => (value as u16).rotate_right(amount) as u64,
+                    32 => (value as u32).rotate_right(amount) as u64,
                     64 => value.rotate_right(amount),
-                    _ => *value,
+                    _ => value,
                 };
-                Ok(Value::UInt {
-                    value: rotated,
-                    width: *width,
-                })
+                Ok(Value::uint(rotated, width))
             }
-            other => Err(self.make_error(Error::TypeMismatch {
+            _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
-                actual: format!("{other:?}"),
+                actual: format!("{arg:?}"),
             })),
         }
     }
 
     // checked arithmetic
 
+    /// Add with overflow detection.
     fn execute_add_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -482,58 +483,54 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                let width = args[0].width();
                 let (result, overflow) = match width {
                     8 => {
-                        let (r, o) = (*a as i8).overflowing_add(*b as i8);
+                        let (r, o) = (a as i8).overflowing_add(b as i8);
                         (r as i64, o)
                     }
                     16 => {
-                        let (r, o) = (*a as i16).overflowing_add(*b as i16);
+                        let (r, o) = (a as i16).overflowing_add(b as i16);
                         (r as i64, o)
                     }
                     32 => {
-                        let (r, o) = (*a as i32).overflowing_add(*b as i32);
+                        let (r, o) = (a as i32).overflowing_add(b as i32);
                         (r as i64, o)
                     }
-                    64 => a.overflowing_add(*b),
-                    _ => a.overflowing_add(*b),
+                    _ => a.overflowing_add(b),
                 };
-                let width = *width;
-                Ok(self.allocate_aggregate(vec![
-                    Value::Int {
-                        value: result,
-                        width,
-                    },
-                    Value::Bool(overflow),
-                ]))
+                Ok(self.allocate_aggregate(vec![Value::int(result, width), Value::bool(overflow)]))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                let width = args[0].width();
                 let (result, overflow) = match width {
                     8 => {
-                        let (r, o) = (*a as u8).overflowing_add(*b as u8);
+                        let (r, o) = (a as u8).overflowing_add(b as u8);
                         (r as u64, o)
                     }
                     16 => {
-                        let (r, o) = (*a as u16).overflowing_add(*b as u16);
+                        let (r, o) = (a as u16).overflowing_add(b as u16);
                         (r as u64, o)
                     }
                     32 => {
-                        let (r, o) = (*a as u32).overflowing_add(*b as u32);
+                        let (r, o) = (a as u32).overflowing_add(b as u32);
                         (r as u64, o)
                     }
-                    64 => a.overflowing_add(*b),
-                    _ => a.overflowing_add(*b),
+                    _ => a.overflowing_add(b),
                 };
-                let width = *width;
-                Ok(self.allocate_aggregate(vec![
-                    Value::UInt {
-                        value: result,
-                        width,
-                    },
-                    Value::Bool(overflow),
-                ]))
+                Ok(
+                    self.allocate_aggregate(vec![
+                        Value::uint(result, width),
+                        Value::bool(overflow),
+                    ]),
+                )
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -542,6 +539,7 @@ impl Interpreter {
         }
     }
 
+    /// Subtract with overflow detection.
     fn execute_sub_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -549,58 +547,54 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                let width = args[0].width();
                 let (result, overflow) = match width {
                     8 => {
-                        let (r, o) = (*a as i8).overflowing_sub(*b as i8);
+                        let (r, o) = (a as i8).overflowing_sub(b as i8);
                         (r as i64, o)
                     }
                     16 => {
-                        let (r, o) = (*a as i16).overflowing_sub(*b as i16);
+                        let (r, o) = (a as i16).overflowing_sub(b as i16);
                         (r as i64, o)
                     }
                     32 => {
-                        let (r, o) = (*a as i32).overflowing_sub(*b as i32);
+                        let (r, o) = (a as i32).overflowing_sub(b as i32);
                         (r as i64, o)
                     }
-                    64 => a.overflowing_sub(*b),
-                    _ => a.overflowing_sub(*b),
+                    _ => a.overflowing_sub(b),
                 };
-                let width = *width;
-                Ok(self.allocate_aggregate(vec![
-                    Value::Int {
-                        value: result,
-                        width,
-                    },
-                    Value::Bool(overflow),
-                ]))
+                Ok(self.allocate_aggregate(vec![Value::int(result, width), Value::bool(overflow)]))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                let width = args[0].width();
                 let (result, overflow) = match width {
                     8 => {
-                        let (r, o) = (*a as u8).overflowing_sub(*b as u8);
+                        let (r, o) = (a as u8).overflowing_sub(b as u8);
                         (r as u64, o)
                     }
                     16 => {
-                        let (r, o) = (*a as u16).overflowing_sub(*b as u16);
+                        let (r, o) = (a as u16).overflowing_sub(b as u16);
                         (r as u64, o)
                     }
                     32 => {
-                        let (r, o) = (*a as u32).overflowing_sub(*b as u32);
+                        let (r, o) = (a as u32).overflowing_sub(b as u32);
                         (r as u64, o)
                     }
-                    64 => a.overflowing_sub(*b),
-                    _ => a.overflowing_sub(*b),
+                    _ => a.overflowing_sub(b),
                 };
-                let width = *width;
-                Ok(self.allocate_aggregate(vec![
-                    Value::UInt {
-                        value: result,
-                        width,
-                    },
-                    Value::Bool(overflow),
-                ]))
+                Ok(
+                    self.allocate_aggregate(vec![
+                        Value::uint(result, width),
+                        Value::bool(overflow),
+                    ]),
+                )
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -609,6 +603,7 @@ impl Interpreter {
         }
     }
 
+    /// Multiply with overflow detection.
     fn execute_mul_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -616,58 +611,54 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                let width = args[0].width();
                 let (result, overflow) = match width {
                     8 => {
-                        let (r, o) = (*a as i8).overflowing_mul(*b as i8);
+                        let (r, o) = (a as i8).overflowing_mul(b as i8);
                         (r as i64, o)
                     }
                     16 => {
-                        let (r, o) = (*a as i16).overflowing_mul(*b as i16);
+                        let (r, o) = (a as i16).overflowing_mul(b as i16);
                         (r as i64, o)
                     }
                     32 => {
-                        let (r, o) = (*a as i32).overflowing_mul(*b as i32);
+                        let (r, o) = (a as i32).overflowing_mul(b as i32);
                         (r as i64, o)
                     }
-                    64 => a.overflowing_mul(*b),
-                    _ => a.overflowing_mul(*b),
+                    _ => a.overflowing_mul(b),
                 };
-                let width = *width;
-                Ok(self.allocate_aggregate(vec![
-                    Value::Int {
-                        value: result,
-                        width,
-                    },
-                    Value::Bool(overflow),
-                ]))
+                Ok(self.allocate_aggregate(vec![Value::int(result, width), Value::bool(overflow)]))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                let width = args[0].width();
                 let (result, overflow) = match width {
                     8 => {
-                        let (r, o) = (*a as u8).overflowing_mul(*b as u8);
+                        let (r, o) = (a as u8).overflowing_mul(b as u8);
                         (r as u64, o)
                     }
                     16 => {
-                        let (r, o) = (*a as u16).overflowing_mul(*b as u16);
+                        let (r, o) = (a as u16).overflowing_mul(b as u16);
                         (r as u64, o)
                     }
                     32 => {
-                        let (r, o) = (*a as u32).overflowing_mul(*b as u32);
+                        let (r, o) = (a as u32).overflowing_mul(b as u32);
                         (r as u64, o)
                     }
-                    64 => a.overflowing_mul(*b),
-                    _ => a.overflowing_mul(*b),
+                    _ => a.overflowing_mul(b),
                 };
-                let width = *width;
-                Ok(self.allocate_aggregate(vec![
-                    Value::UInt {
-                        value: result,
-                        width,
-                    },
-                    Value::Bool(overflow),
-                ]))
+                Ok(
+                    self.allocate_aggregate(vec![
+                        Value::uint(result, width),
+                        Value::bool(overflow),
+                    ]),
+                )
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -676,8 +667,9 @@ impl Interpreter {
         }
     }
 
-    // unchecked arithmetic (at comptime, we execute normally)
+    // unchecked arithmetic
 
+    /// Add without overflow checking (wrapping).
     fn execute_add_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -685,15 +677,18 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => Ok(Value::Int {
-                value: a.wrapping_add(*b),
-                width: *width,
-            }),
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => Ok(Value::UInt {
-                value: a.wrapping_add(*b),
-                width: *width,
-            }),
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                Ok(Value::int(a.wrapping_add(b), args[0].width()))
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                Ok(Value::uint(a.wrapping_add(b), args[0].width()))
+            }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
                 actual: format!("{:?}, {:?}", args[0], args[1]),
@@ -701,6 +696,7 @@ impl Interpreter {
         }
     }
 
+    /// Subtract without overflow checking (wrapping).
     fn execute_sub_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -708,15 +704,18 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => Ok(Value::Int {
-                value: a.wrapping_sub(*b),
-                width: *width,
-            }),
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => Ok(Value::UInt {
-                value: a.wrapping_sub(*b),
-                width: *width,
-            }),
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                Ok(Value::int(a.wrapping_sub(b), args[0].width()))
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                Ok(Value::uint(a.wrapping_sub(b), args[0].width()))
+            }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
                 actual: format!("{:?}, {:?}", args[0], args[1]),
@@ -724,6 +723,7 @@ impl Interpreter {
         }
     }
 
+    /// Multiply without overflow checking (wrapping).
     fn execute_mul_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -731,15 +731,18 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => Ok(Value::Int {
-                value: a.wrapping_mul(*b),
-                width: *width,
-            }),
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => Ok(Value::UInt {
-                value: a.wrapping_mul(*b),
-                width: *width,
-            }),
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                Ok(Value::int(a.wrapping_mul(b), args[0].width()))
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                Ok(Value::uint(a.wrapping_mul(b), args[0].width()))
+            }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
                 actual: format!("{:?}, {:?}", args[0], args[1]),
@@ -747,6 +750,7 @@ impl Interpreter {
         }
     }
 
+    /// Divide without overflow checking.
     fn execute_div_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -754,24 +758,23 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
-                if *b == 0 {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                if b == 0 {
                     return Err(self.make_error(Error::DivisionByZero));
                 }
-                Ok(Value::Int {
-                    value: a.wrapping_div(*b),
-                    width: *width,
-                })
+                Ok(Value::int(a.wrapping_div(b), args[0].width()))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
-                if *b == 0 {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                if b == 0 {
                     return Err(self.make_error(Error::DivisionByZero));
                 }
-                Ok(Value::UInt {
-                    value: a.wrapping_div(*b),
-                    width: *width,
-                })
+                Ok(Value::uint(a.wrapping_div(b), args[0].width()))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -780,6 +783,7 @@ impl Interpreter {
         }
     }
 
+    /// Remainder without overflow checking.
     fn execute_rem_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -787,24 +791,23 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
-                if *b == 0 {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                if b == 0 {
                     return Err(self.make_error(Error::DivisionByZero));
                 }
-                Ok(Value::Int {
-                    value: a.wrapping_rem(*b),
-                    width: *width,
-                })
+                Ok(Value::int(a.wrapping_rem(b), args[0].width()))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
-                if *b == 0 {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                if b == 0 {
                     return Err(self.make_error(Error::DivisionByZero));
                 }
-                Ok(Value::UInt {
-                    value: a.wrapping_rem(*b),
-                    width: *width,
-                })
+                Ok(Value::uint(a.wrapping_rem(b), args[0].width()))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -813,6 +816,7 @@ impl Interpreter {
         }
     }
 
+    /// Shift left without overflow checking.
     fn execute_shl_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -821,23 +825,25 @@ impl Interpreter {
         }
 
         let amount = args[1].as_uint().unwrap_or(0) as u32;
+        let arg = &args[0];
 
-        match &args[0] {
-            Value::Int { value, width } => Ok(Value::Int {
-                value: value.wrapping_shl(amount),
-                width: *width,
-            }),
-            Value::UInt { value, width } => Ok(Value::UInt {
-                value: value.wrapping_shl(amount),
-                width: *width,
-            }),
-            other => Err(self.make_error(Error::TypeMismatch {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                Ok(Value::int(value.wrapping_shl(amount), arg.width()))
+            }
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                Ok(Value::uint(value.wrapping_shl(amount), arg.width()))
+            }
+            _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
-                actual: format!("{other:?}"),
+                actual: format!("{arg:?}"),
             })),
         }
     }
 
+    /// Shift right without overflow checking.
     fn execute_shr_unchecked(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -846,25 +852,27 @@ impl Interpreter {
         }
 
         let amount = args[1].as_uint().unwrap_or(0) as u32;
+        let arg = &args[0];
 
-        match &args[0] {
-            Value::Int { value, width } => Ok(Value::Int {
-                value: value.wrapping_shr(amount),
-                width: *width,
-            }),
-            Value::UInt { value, width } => Ok(Value::UInt {
-                value: value.wrapping_shr(amount),
-                width: *width,
-            }),
-            other => Err(self.make_error(Error::TypeMismatch {
+        match arg.tag() {
+            ValueTag::Int => {
+                let value = arg.raw_data() as i64;
+                Ok(Value::int(value.wrapping_shr(amount), arg.width()))
+            }
+            ValueTag::UInt => {
+                let value = arg.raw_data();
+                Ok(Value::uint(value.wrapping_shr(amount), arg.width()))
+            }
+            _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "integer".to_string(),
-                actual: format!("{other:?}"),
+                actual: format!("{arg:?}"),
             })),
         }
     }
 
     // saturating arithmetic
 
+    /// Saturating addition.
     fn execute_sat_add(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -872,32 +880,31 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                let width = args[0].width();
                 let result = match width {
-                    8 => (*a as i8).saturating_add(*b as i8) as i64,
-                    16 => (*a as i16).saturating_add(*b as i16) as i64,
-                    32 => (*a as i32).saturating_add(*b as i32) as i64,
-                    64 => a.saturating_add(*b),
-                    _ => a.saturating_add(*b),
+                    8 => (a as i8).saturating_add(b as i8) as i64,
+                    16 => (a as i16).saturating_add(b as i16) as i64,
+                    32 => (a as i32).saturating_add(b as i32) as i64,
+                    _ => a.saturating_add(b),
                 };
-                Ok(Value::Int {
-                    value: result,
-                    width: *width,
-                })
+                Ok(Value::int(result, width))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                let width = args[0].width();
                 let result = match width {
-                    8 => (*a as u8).saturating_add(*b as u8) as u64,
-                    16 => (*a as u16).saturating_add(*b as u16) as u64,
-                    32 => (*a as u32).saturating_add(*b as u32) as u64,
-                    64 => a.saturating_add(*b),
-                    _ => a.saturating_add(*b),
+                    8 => (a as u8).saturating_add(b as u8) as u64,
+                    16 => (a as u16).saturating_add(b as u16) as u64,
+                    32 => (a as u32).saturating_add(b as u32) as u64,
+                    _ => a.saturating_add(b),
                 };
-                Ok(Value::UInt {
-                    value: result,
-                    width: *width,
-                })
+                Ok(Value::uint(result, width))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -906,6 +913,7 @@ impl Interpreter {
         }
     }
 
+    /// Saturating subtraction.
     fn execute_sat_sub(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -913,32 +921,31 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                let width = args[0].width();
                 let result = match width {
-                    8 => (*a as i8).saturating_sub(*b as i8) as i64,
-                    16 => (*a as i16).saturating_sub(*b as i16) as i64,
-                    32 => (*a as i32).saturating_sub(*b as i32) as i64,
-                    64 => a.saturating_sub(*b),
-                    _ => a.saturating_sub(*b),
+                    8 => (a as i8).saturating_sub(b as i8) as i64,
+                    16 => (a as i16).saturating_sub(b as i16) as i64,
+                    32 => (a as i32).saturating_sub(b as i32) as i64,
+                    _ => a.saturating_sub(b),
                 };
-                Ok(Value::Int {
-                    value: result,
-                    width: *width,
-                })
+                Ok(Value::int(result, width))
             }
-            (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let a = args[0].raw_data();
+                let b = args[1].raw_data();
+                let width = args[0].width();
                 let result = match width {
-                    8 => (*a as u8).saturating_sub(*b as u8) as u64,
-                    16 => (*a as u16).saturating_sub(*b as u16) as u64,
-                    32 => (*a as u32).saturating_sub(*b as u32) as u64,
-                    64 => a.saturating_sub(*b),
-                    _ => a.saturating_sub(*b),
+                    8 => (a as u8).saturating_sub(b as u8) as u64,
+                    16 => (a as u16).saturating_sub(b as u16) as u64,
+                    32 => (a as u32).saturating_sub(b as u32) as u64,
+                    _ => a.saturating_sub(b),
                 };
-                Ok(Value::UInt {
-                    value: result,
-                    width: *width,
-                })
+                Ok(Value::uint(result, width))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -949,6 +956,7 @@ impl Interpreter {
 
     // float math helpers
 
+    /// Execute a unary float operation.
     fn execute_float_unary(
         &self,
         args: &[Value],
@@ -961,14 +969,20 @@ impl Interpreter {
             })
         })?;
 
-        match arg {
-            Value::Float64(f) => Ok(Value::Float64(f64_op(*f))),
-            Value::Float32(f) => Ok(Value::Float32(f32_op(*f))),
-            // also handle abs for integers
-            Value::Int { value, width } => Ok(Value::Int {
-                value: value.abs(),
-                width: *width,
-            }),
+        match arg.tag() {
+            ValueTag::Float64 => {
+                let f = f64::from_bits(arg.raw_data());
+                Ok(Value::float64(f64_op(f)))
+            }
+            ValueTag::Float32 => {
+                let f = f32::from_bits(arg.raw_data() as u32);
+                Ok(Value::float32(f32_op(f)))
+            }
+            ValueTag::Int => {
+                // also handle abs for integers
+                let value = arg.raw_data() as i64;
+                Ok(Value::int(value.abs(), arg.width()))
+            }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "float".to_string(),
                 actual: format!("{arg:?}"),
@@ -976,6 +990,7 @@ impl Interpreter {
         }
     }
 
+    /// Execute a binary float operation.
     fn execute_float_binary(
         &self,
         args: &[Value],
@@ -988,16 +1003,23 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1]) {
-            (Value::Float64(a), Value::Float64(b)) => Ok(Value::Float64(f64_op(*a, *b))),
-            (Value::Float32(a), Value::Float32(b)) => Ok(Value::Float32(f32_op(*a, *b))),
-            // also handle min/max for integers
-            (Value::Int { value: a, width }, Value::Int { value: b, .. }) => {
-                // use the operation name to determine behavior
-                Ok(Value::Int {
-                    value: (*a).min(*b).max((*a).max(*b)), // this is just passthrough for now
-                    width: *width,
-                })
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        match (a_tag, b_tag) {
+            (ValueTag::Float64, ValueTag::Float64) => {
+                let a = f64::from_bits(args[0].raw_data());
+                let b = f64::from_bits(args[1].raw_data());
+                Ok(Value::float64(f64_op(a, b)))
+            }
+            (ValueTag::Float32, ValueTag::Float32) => {
+                let a = f32::from_bits(args[0].raw_data() as u32);
+                let b = f32::from_bits(args[1].raw_data() as u32);
+                Ok(Value::float32(f32_op(a, b)))
+            }
+            (ValueTag::Int, ValueTag::Int) => {
+                // also handle min/max for integers (passthrough for now)
+                let a = args[0].raw_data() as i64;
+                let b = args[1].raw_data() as i64;
+                Ok(Value::int(a.min(b).max(a.max(b)), args[0].width()))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching float types".to_string(),
@@ -1006,6 +1028,7 @@ impl Interpreter {
         }
     }
 
+    /// Fused multiply-add.
     fn execute_fma(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1013,12 +1036,19 @@ impl Interpreter {
             }));
         }
 
-        match (&args[0], &args[1], &args[2]) {
-            (Value::Float64(a), Value::Float64(b), Value::Float64(c)) => {
-                Ok(Value::Float64(a.mul_add(*b, *c)))
+        let (a_tag, b_tag, c_tag) = (args[0].tag(), args[1].tag(), args[2].tag());
+        match (a_tag, b_tag, c_tag) {
+            (ValueTag::Float64, ValueTag::Float64, ValueTag::Float64) => {
+                let a = f64::from_bits(args[0].raw_data());
+                let b = f64::from_bits(args[1].raw_data());
+                let c = f64::from_bits(args[2].raw_data());
+                Ok(Value::float64(a.mul_add(b, c)))
             }
-            (Value::Float32(a), Value::Float32(b), Value::Float32(c)) => {
-                Ok(Value::Float32(a.mul_add(*b, *c)))
+            (ValueTag::Float32, ValueTag::Float32, ValueTag::Float32) => {
+                let a = f32::from_bits(args[0].raw_data() as u32);
+                let b = f32::from_bits(args[1].raw_data() as u32);
+                let c = f32::from_bits(args[2].raw_data() as u32);
+                Ok(Value::float32(a.mul_add(b, c)))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching float types".to_string(),
@@ -1029,6 +1059,7 @@ impl Interpreter {
 
     // comparison
 
+    /// Bitwise equality comparison.
     fn execute_raw_eq(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1037,21 +1068,24 @@ impl Interpreter {
         }
 
         // bitwise equality comparison
-        let equal = match (&args[0], &args[1]) {
-            (Value::Int { value: a, .. }, Value::Int { value: b, .. }) => a == b,
-            (Value::UInt { value: a, .. }, Value::UInt { value: b, .. }) => a == b,
-            (Value::Float64(a), Value::Float64(b)) => a.to_bits() == b.to_bits(),
-            (Value::Float32(a), Value::Float32(b)) => a.to_bits() == b.to_bits(),
-            (Value::Bool(a), Value::Bool(b)) => a == b,
-            (Value::Char(a), Value::Char(b)) => a == b,
+        let equal = match (args[0].tag(), args[1].tag()) {
+            (ValueTag::Int, ValueTag::Int) | (ValueTag::UInt, ValueTag::UInt) => {
+                args[0].raw_data() == args[1].raw_data()
+            }
+            (ValueTag::Float64, ValueTag::Float64) | (ValueTag::Float32, ValueTag::Float32) => {
+                args[0].raw_data() == args[1].raw_data()
+            }
+            (ValueTag::Bool, ValueTag::Bool) => args[0].raw_data() == args[1].raw_data(),
+            (ValueTag::Char, ValueTag::Char) => args[0].raw_data() == args[1].raw_data(),
             _ => false,
         };
 
-        Ok(Value::Bool(equal))
+        Ok(Value::bool(equal))
     }
 
     // pointer operations
 
+    /// Compute pointer difference.
     fn execute_ptr_offset_from(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1059,10 +1093,11 @@ impl Interpreter {
             }));
         }
 
-        let (a, b) = match (&args[0], &args[1]) {
-            (Value::RawPointer(a), Value::RawPointer(b)) => (a.id() as i64, b.id() as i64),
-            (Value::ManagedReference(a), Value::ManagedReference(b)) => {
-                (a.id() as i64, b.id() as i64)
+        let (a_tag, b_tag) = (args[0].tag(), args[1].tag());
+        let (a, b) = match (a_tag, b_tag) {
+            (ValueTag::RawPointer, ValueTag::RawPointer)
+            | (ValueTag::ManagedReference, ValueTag::ManagedReference) => {
+                (args[0].raw_data() as i64, args[1].raw_data() as i64)
             }
             _ => {
                 return Err(self.make_error(Error::TypeMismatch {
@@ -1072,14 +1107,12 @@ impl Interpreter {
             }
         };
 
-        Ok(Value::Int {
-            value: a - b,
-            width: 64,
-        })
+        Ok(Value::int(a - b, 64))
     }
 
     // memory operations
 
+    /// Copy memory between locations.
     fn execute_memcpy(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1089,19 +1122,20 @@ impl Interpreter {
 
         let len = args[2].as_uint().unwrap_or(0) as usize;
         if len == 0 {
-            return Ok(Value::Void);
+            return Ok(Value::VOID);
         }
 
         // copy slots from source to destination
         self.copy_memory(&args[0], &args[1], len)?;
-        Ok(Value::Void)
+        Ok(Value::VOID)
     }
 
+    /// Move memory (handles overlapping regions).
     fn execute_memmove(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        // memmove handles overlapping, but our abstract model doesn't have overlap
         self.execute_memcpy(args)
     }
 
+    /// Fill memory with a byte value.
     fn execute_memset(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1112,14 +1146,14 @@ impl Interpreter {
         let byte_val = args[1].as_uint().unwrap_or(0) as u8;
         let len = args[2].as_uint().unwrap_or(0) as usize;
         if len == 0 {
-            return Ok(Value::Void);
+            return Ok(Value::VOID);
         }
 
-        // set slots to byte value
         self.set_memory(&args[0], byte_val, len)?;
-        Ok(Value::Void)
+        Ok(Value::VOID)
     }
 
+    /// Compare memory regions.
     fn execute_memcmp(&self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1129,29 +1163,21 @@ impl Interpreter {
 
         let len = args[2].as_uint().unwrap_or(0) as usize;
         if len == 0 {
-            return Ok(Value::Int {
-                value: 0,
-                width: 32,
-            });
+            return Ok(Value::int(0, 32));
         }
 
-        // compare slots
         let result = self.compare_memory(&args[0], &args[1], len)?;
-        Ok(Value::Int {
-            value: result as i64,
-            width: 32,
-        })
+        Ok(Value::int(result as i64, 32))
     }
 
     // memory operation helpers
 
+    /// Copy len slots from source to destination.
     fn copy_memory(&mut self, dst: &Value, src: &Value, len: usize) -> RuntimeResult<()> {
-        // read source values first
         let values: Vec<Value> = (0..len)
             .map(|i| self.read_memory_slot(src, i))
             .collect::<RuntimeResult<_>>()?;
 
-        // write to destination
         for (i, value) in values.into_iter().enumerate() {
             self.write_memory_slot(dst, i, value)?;
         }
@@ -1159,11 +1185,9 @@ impl Interpreter {
         Ok(())
     }
 
+    /// Set len slots to a byte value.
     fn set_memory(&mut self, dst: &Value, byte_val: u8, len: usize) -> RuntimeResult<()> {
-        let value = Value::UInt {
-            value: byte_val as u64,
-            width: 8,
-        };
+        let value = Value::uint(byte_val as u64, 8);
 
         for i in 0..len {
             self.write_memory_slot(dst, i, value)?;
@@ -1172,6 +1196,7 @@ impl Interpreter {
         Ok(())
     }
 
+    /// Compare len slots of two memory regions.
     fn compare_memory(&self, a: &Value, b: &Value, len: usize) -> RuntimeResult<i32> {
         for i in 0..len {
             let va = self.read_memory_slot(a, i)?;
@@ -1190,13 +1215,15 @@ impl Interpreter {
         Ok(0)
     }
 
+    /// Read a value from a memory slot at offset.
     fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
-        match ptr {
-            Value::ManagedReference(handle) | Value::Aggregate(handle) => {
+        match ptr.tag() {
+            ValueTag::ManagedReference | ValueTag::Aggregate => {
+                let handle = ptr.as_heap_handle().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                if let Some(cell) = self.managed_heap.get(*handle) {
+                if let Some(cell) = self.managed_heap.get(handle) {
                     cell.slots
                         .get(offset)
                         .copied()
@@ -1205,11 +1232,12 @@ impl Interpreter {
                     Err(self.make_error(Error::InvalidHeapHandle))
                 }
             }
-            Value::RawPointer(ptr) => {
-                if ptr.is_null() {
+            ValueTag::RawPointer => {
+                let raw_ptr = ptr.as_raw_pointer().unwrap();
+                if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                if let Some(cell) = self.raw_heap.get(*ptr) {
+                if let Some(cell) = self.raw_heap.get(raw_ptr) {
                     cell.slots
                         .get(offset)
                         .copied()
@@ -1224,15 +1252,17 @@ impl Interpreter {
         }
     }
 
+    /// Write a value to a memory slot at offset.
     fn write_memory_slot(&mut self, ptr: &Value, offset: usize, value: Value) -> RuntimeResult<()> {
-        match ptr {
-            Value::ManagedReference(handle) => {
+        match ptr.tag() {
+            ValueTag::ManagedReference => {
+                let handle = ptr.as_heap_handle().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                if let Some(cell) = self.managed_heap.get_mut(*handle) {
+                if let Some(cell) = self.managed_heap.get_mut(handle) {
                     while cell.slots.len() <= offset {
-                        cell.slots.push(Value::Void);
+                        cell.slots.push(Value::VOID);
                     }
                     cell.slots[offset] = value;
                     Ok(())
@@ -1240,13 +1270,14 @@ impl Interpreter {
                     Err(self.make_error(Error::InvalidHeapHandle))
                 }
             }
-            Value::RawPointer(ptr) => {
-                if ptr.is_null() {
+            ValueTag::RawPointer => {
+                let raw_ptr = ptr.as_raw_pointer().unwrap();
+                if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
-                if let Some(cell) = self.raw_heap.get_mut(*ptr) {
+                if let Some(cell) = self.raw_heap.get_mut(raw_ptr) {
                     while cell.slots.len() <= offset {
-                        cell.slots.push(Value::Void);
+                        cell.slots.push(Value::VOID);
                     }
                     cell.slots[offset] = value;
                     Ok(())
@@ -1260,8 +1291,9 @@ impl Interpreter {
         }
     }
 
-    // volatile operations (behave like regular load/store)
+    // volatile operations
 
+    /// Load a value with volatile semantics.
     fn execute_volatile_load(&self, args: &[Value]) -> RuntimeResult<Value> {
         let ptr = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -1271,6 +1303,7 @@ impl Interpreter {
         self.read_memory_slot(ptr, 0)
     }
 
+    /// Store a value with volatile semantics.
     fn execute_volatile_store(&mut self, args: &[Value]) -> RuntimeResult<()> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1282,8 +1315,9 @@ impl Interpreter {
         self.write_memory_slot(&ptr, 0, value)
     }
 
-    // atomic operations (single-threaded, behave like regular ops)
+    // atomic operations
 
+    /// Atomic load (single-threaded: same as regular load).
     fn execute_atomic_load(&self, args: &[Value]) -> RuntimeResult<Value> {
         let ptr = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
@@ -1293,6 +1327,7 @@ impl Interpreter {
         self.read_memory_slot(ptr, 0)
     }
 
+    /// Atomic store (single-threaded: same as regular store).
     fn execute_atomic_store(&mut self, args: &[Value]) -> RuntimeResult<()> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1304,8 +1339,8 @@ impl Interpreter {
         self.write_memory_slot(&ptr, 0, value)
     }
 
+    /// Atomic compare-and-swap.
     fn execute_atomic_cas(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        // cas(ptr, expected, desired) -> (old_value, success)
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "atomic.cas".to_string(),
@@ -1323,107 +1358,129 @@ impl Interpreter {
             self.write_memory_slot(&ptr, 0, desired)?;
         }
 
-        Ok(self.allocate_aggregate(vec![current, Value::Bool(success)]))
+        Ok(self.allocate_aggregate(vec![current, Value::bool(success)]))
     }
 
+    /// Atomic fetch-and-add.
     fn execute_atomic_fetch_add(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.add", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: av.wrapping_add(*bv),
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: av.wrapping_add(*bv),
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.add", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av.wrapping_add(bv), a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av.wrapping_add(bv), a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Atomic fetch-and-subtract.
     fn execute_atomic_fetch_sub(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.sub", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: av.wrapping_sub(*bv),
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: av.wrapping_sub(*bv),
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.sub", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av.wrapping_sub(bv), a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av.wrapping_sub(bv), a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Atomic fetch-and-and.
     fn execute_atomic_fetch_and(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.and", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: av & bv,
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: av & bv,
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.and", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av & bv, a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av & bv, a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Atomic fetch-and-or.
     fn execute_atomic_fetch_or(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.or", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: av | bv,
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: av | bv,
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.or", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av | bv, a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av | bv, a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Atomic fetch-and-xor.
     fn execute_atomic_fetch_xor(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.xor", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: av ^ bv,
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: av ^ bv,
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.xor", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av ^ bv, a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av ^ bv, a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Atomic fetch-and-min.
     fn execute_atomic_fetch_min(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.min", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: (*av).min(*bv),
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: (*av).min(*bv),
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.min", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av.min(bv), a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av.min(bv), a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Atomic fetch-and-max.
     fn execute_atomic_fetch_max(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.max", |a, b| match (a, b) {
-            (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                value: (*av).max(*bv),
-                width: *width,
-            },
-            (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                value: (*av).max(*bv),
-                width: *width,
-            },
+        self.execute_atomic_rmw(args, "atomic.fetch.max", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Int, ValueTag::Int) => {
+                let av = a.raw_data() as i64;
+                let bv = b.raw_data() as i64;
+                Value::int(av.max(bv), a.width())
+            }
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av.max(bv), a.width())
+            }
             _ => *a,
         })
     }
 
+    /// Execute an atomic read-modify-write operation.
     fn execute_atomic_rmw<F>(&mut self, args: &[Value], name: &str, op: F) -> RuntimeResult<Value>
     where
         F: FnOnce(&Value, &Value) -> Value,
@@ -1444,57 +1501,41 @@ impl Interpreter {
         Ok(old_value)
     }
 
+    /// Check if two values are equal by tag and raw data.
     fn values_equal(&self, a: &Value, b: &Value) -> bool {
-        match (a, b) {
-            (Value::Int { value: av, .. }, Value::Int { value: bv, .. }) => av == bv,
-            (Value::UInt { value: av, .. }, Value::UInt { value: bv, .. }) => av == bv,
-            (Value::Float32(av), Value::Float32(bv)) => av.to_bits() == bv.to_bits(),
-            (Value::Float64(av), Value::Float64(bv)) => av.to_bits() == bv.to_bits(),
-            (Value::Bool(av), Value::Bool(bv)) => av == bv,
-            (Value::Char(av), Value::Char(bv)) => av == bv,
-            _ => false,
+        if a.tag() != b.tag() {
+            return false;
         }
+        a.raw_data() == b.raw_data()
     }
 
     // runtime introspection
 
+    /// Get the return address (synthetic).
     fn execute_return_address(&self) -> RuntimeResult<Value> {
-        // return synthetic address encoding (function_id, block_id) of caller
         if self.call_stack.len() < 2 {
-            // no caller, return null
-            return Ok(Value::UInt {
-                value: 0,
-                width: 64,
-            });
+            return Ok(Value::uint(0, 64));
         }
 
         let caller_frame = &self.call_stack[self.call_stack.len() - 2];
         let func_id = caller_frame.function.id as u64;
         let block_id = caller_frame.current_block.id as u64;
 
-        // encode as (func_id << 32) | block_id
         let synthetic_addr = (func_id << 32) | block_id;
-        Ok(Value::UInt {
-            value: synthetic_addr,
-            width: 64,
-        })
+        Ok(Value::uint(synthetic_addr, 64))
     }
 
+    /// Get the frame address (synthetic).
     fn execute_frame_address(&self) -> RuntimeResult<Value> {
-        // return synthetic address based on frame index
         let frame_idx = self.call_stack.len() as u64;
-        // use a recognizable base address + frame index
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
-        Ok(Value::UInt {
-            value: synthetic_addr,
-            width: 64,
-        })
+        Ok(Value::uint(synthetic_addr, 64))
     }
 
-    // simd operations (emulated)
+    // simd operations
 
+    /// Create a vector with all lanes set to the same value.
     fn execute_splat(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        // splat(value, lane_count) -> vector with all lanes set to value
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "splat".to_string(),
@@ -1508,16 +1549,14 @@ impl Interpreter {
         Ok(self.allocate_aggregate(lanes))
     }
 
+    /// Shuffle vector lanes according to a mask.
     fn execute_shuffle(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        // shuffle(a, b, mask) -> rearranged vector
-        // mask[i] selects from a (0..n) or b (n..2n)
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "shuffle".to_string(),
             }));
         }
 
-        // collect slots into owned vectors to avoid borrow conflicts
         let a: Vec<Value> = self
             .get_aggregate_slots(&args[0])
             .ok_or_else(|| {
@@ -1554,9 +1593,9 @@ impl Interpreter {
             .map(|idx| {
                 let i = idx.as_uint().unwrap_or(0) as usize;
                 if i < n {
-                    a.get(i).copied().unwrap_or(Value::Void)
+                    a.get(i).copied().unwrap_or(Value::VOID)
                 } else {
-                    b.get(i - n).copied().unwrap_or(Value::Void)
+                    b.get(i - n).copied().unwrap_or(Value::VOID)
                 }
             })
             .collect();
@@ -1564,15 +1603,14 @@ impl Interpreter {
         Ok(self.allocate_aggregate(result))
     }
 
+    /// Select lanes from two vectors based on a mask.
     fn execute_select(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        // select(mask, a, b) -> element-wise mask[i] ? a[i] : b[i]
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "select".to_string(),
             }));
         }
 
-        // collect slots into owned vectors to avoid borrow conflicts
         let mask: Vec<Value> = self
             .get_aggregate_slots(&args[0])
             .ok_or_else(|| {
@@ -1607,11 +1645,10 @@ impl Interpreter {
             .iter()
             .enumerate()
             .map(|(i, m)| {
-                let is_true = m.is_truthy();
-                if is_true {
-                    a.get(i).copied().unwrap_or(Value::Void)
+                if m.is_truthy() {
+                    a.get(i).copied().unwrap_or(Value::VOID)
                 } else {
-                    b.get(i).copied().unwrap_or(Value::Void)
+                    b.get(i).copied().unwrap_or(Value::VOID)
                 }
             })
             .collect();
@@ -1619,8 +1656,8 @@ impl Interpreter {
         Ok(self.allocate_aggregate(result))
     }
 
+    /// Reduce a vector to a scalar using a reduction operation.
     fn execute_reduce(&self, op: ReduceOp, args: &[Value]) -> RuntimeResult<Value> {
-        // reduce.{op}(vector) -> scalar
         if args.is_empty() {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "reduce".to_string(),
@@ -1638,7 +1675,7 @@ impl Interpreter {
             .to_vec();
 
         if vector.is_empty() {
-            return Ok(Value::Void);
+            return Ok(Value::VOID);
         }
 
         let mut result = vector[0];
@@ -1649,99 +1686,154 @@ impl Interpreter {
         Ok(result)
     }
 
+    /// Apply a reduction operation to two values.
     fn reduce_op(&self, op: ReduceOp, a: &Value, b: &Value) -> Value {
+        let (a_tag, b_tag) = (a.tag(), b.tag());
         match op {
-            ReduceOp::Add => {
-                // add
-                match (a, b) {
-                    (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                        value: av.wrapping_add(*bv),
-                        width: *width,
-                    },
-                    (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => {
-                        Value::UInt {
-                            value: av.wrapping_add(*bv),
-                            width: *width,
-                        }
-                    }
-                    (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av + bv),
-                    (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av + bv),
-                    _ => *a,
+            ReduceOp::Add => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.wrapping_add(bv), a.width())
                 }
-            }
-            ReduceOp::Mul => match (a, b) {
-                (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                    value: av.wrapping_mul(*bv),
-                    width: *width,
-                },
-                (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                    value: av.wrapping_mul(*bv),
-                    width: *width,
-                },
-                (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av * bv),
-                (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av * bv),
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.wrapping_add(bv), a.width())
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av + bv)
+                }
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av + bv)
+                }
                 _ => *a,
             },
-            ReduceOp::Min => match (a, b) {
-                (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                    value: (*av).min(*bv),
-                    width: *width,
-                },
-                (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                    value: (*av).min(*bv),
-                    width: *width,
-                },
-                (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av.min(*bv)),
-                (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av.min(*bv)),
+            ReduceOp::Mul => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.wrapping_mul(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.wrapping_mul(bv), a.width())
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av * bv)
+                }
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av * bv)
+                }
                 _ => *a,
             },
-            ReduceOp::Max => match (a, b) {
-                (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                    value: (*av).max(*bv),
-                    width: *width,
-                },
-                (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                    value: (*av).max(*bv),
-                    width: *width,
-                },
-                (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av.max(*bv)),
-                (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av.max(*bv)),
+            ReduceOp::Min => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.min(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.min(bv), a.width())
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av.min(bv))
+                }
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av.min(bv))
+                }
                 _ => *a,
             },
-            ReduceOp::And => match (a, b) {
-                (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                    value: av & bv,
-                    width: *width,
-                },
-                (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                    value: av & bv,
-                    width: *width,
-                },
-                (Value::Bool(av), Value::Bool(bv)) => Value::Bool(*av && *bv),
+            ReduceOp::Max => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.max(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.max(bv), a.width())
+                }
+                (ValueTag::Float32, ValueTag::Float32) => {
+                    let av = f32::from_bits(a.raw_data() as u32);
+                    let bv = f32::from_bits(b.raw_data() as u32);
+                    Value::float32(av.max(bv))
+                }
+                (ValueTag::Float64, ValueTag::Float64) => {
+                    let av = f64::from_bits(a.raw_data());
+                    let bv = f64::from_bits(b.raw_data());
+                    Value::float64(av.max(bv))
+                }
                 _ => *a,
             },
-            ReduceOp::Or => match (a, b) {
-                (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                    value: av | bv,
-                    width: *width,
-                },
-                (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                    value: av | bv,
-                    width: *width,
-                },
-                (Value::Bool(av), Value::Bool(bv)) => Value::Bool(*av || *bv),
+            ReduceOp::And => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av & bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av & bv, a.width())
+                }
+                (ValueTag::Bool, ValueTag::Bool) => {
+                    let av = a.raw_data() != 0;
+                    let bv = b.raw_data() != 0;
+                    Value::bool(av && bv)
+                }
                 _ => *a,
             },
-            ReduceOp::Xor => match (a, b) {
-                (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
-                    value: av ^ bv,
-                    width: *width,
-                },
-                (Value::UInt { value: av, width }, Value::UInt { value: bv, .. }) => Value::UInt {
-                    value: av ^ bv,
-                    width: *width,
-                },
-                (Value::Bool(av), Value::Bool(bv)) => Value::Bool(*av ^ *bv),
+            ReduceOp::Or => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av | bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av | bv, a.width())
+                }
+                (ValueTag::Bool, ValueTag::Bool) => {
+                    let av = a.raw_data() != 0;
+                    let bv = b.raw_data() != 0;
+                    Value::bool(av || bv)
+                }
+                _ => *a,
+            },
+            ReduceOp::Xor => match (a_tag, b_tag) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av ^ bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av ^ bv, a.width())
+                }
+                (ValueTag::Bool, ValueTag::Bool) => {
+                    let av = a.raw_data() != 0;
+                    let bv = b.raw_data() != 0;
+                    Value::bool(av ^ bv)
+                }
                 _ => *a,
             },
         }

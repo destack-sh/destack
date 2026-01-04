@@ -124,7 +124,7 @@ block0(v0: i32, v1: i32):
 }
 "#;
     let output = run_mir_ok(mir, "test_flag", &[Value::int32(10), Value::int32(20)]);
-    assert_eq!(output.value, Value::Bool(false));
+    assert_eq!(output.value, Value::bool(false));
 }
 
 #[test]
@@ -141,7 +141,7 @@ block0(v0: i32, v1: i32):
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
     assert_eq!(
         output.value,
-        Value::Bool(true),
+        Value::bool(true),
         "expected overflow flag to be true"
     );
 }
@@ -160,7 +160,7 @@ block0(v0: u32, v1: u32):
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
     assert_eq!(
         output.value,
-        Value::Bool(true),
+        Value::bool(true),
         "expected overflow flag to be true"
     );
 }
@@ -415,7 +415,7 @@ block0(v0: bool):
     return v1
 }
 "#;
-    run_mir_expect(mir, "test", &[Value::Bool(true)], Value::Bool(true));
+    run_mir_expect(mir, "test", &[Value::bool(true)], Value::bool(true));
 }
 
 #[test]
@@ -427,7 +427,7 @@ block0(v0: bool):
     return v1
 }
 "#;
-    run_mir_expect(mir, "test", &[Value::Bool(false)], Value::Bool(false));
+    run_mir_expect(mir, "test", &[Value::bool(false)], Value::bool(false));
 }
 
 #[test]
@@ -457,7 +457,7 @@ block0(v0: i32, v1: i32):
         mir,
         "test",
         &[Value::int32(42), Value::int32(42)],
-        Value::Bool(true),
+        Value::bool(true),
     );
 }
 
@@ -474,7 +474,7 @@ block0(v0: i32, v1: i32):
         mir,
         "test",
         &[Value::int32(42), Value::int32(43)],
-        Value::Bool(false),
+        Value::bool(false),
     );
 }
 
@@ -554,11 +554,9 @@ block0:
 "#;
     // should return non-zero since there's a caller
     let output = run_mir_ok(mir, "test", &[]);
-    if let Value::UInt { value, width: 64 } = output.value {
-        assert!(value != 0, "expected non-zero return address");
-    } else {
-        panic!("expected u64, got {:?}", output.value);
-    }
+    let (value, width) = output.value.as_uint_with_width().expect("expected UInt");
+    assert_eq!(width, 64);
+    assert!(value != 0, "expected non-zero return address");
 }
 
 #[test]
@@ -571,15 +569,7 @@ block0:
     return v0
 }
 "#;
-    run_mir_expect(
-        mir,
-        "test",
-        &[],
-        Value::UInt {
-            value: 0,
-            width: 64,
-        },
-    );
+    run_mir_expect(mir, "test", &[], Value::uint64(0));
 }
 
 #[test]
@@ -599,15 +589,13 @@ block0:
 }
 "#;
     let output = run_mir_ok(mir, "test", &[]);
-    if let Value::UInt { value, width: 64 } = output.value {
-        // should have high bits set (0x7FFF_0000_0000_0000) plus frame index
-        assert!(
-            value > 0x7FFF_0000_0000_0000u64,
-            "expected synthetic frame address"
-        );
-    } else {
-        panic!("expected u64, got {:?}", output.value);
-    }
+    let (value, width) = output.value.as_uint_with_width().expect("expected UInt");
+    assert_eq!(width, 64);
+    // should have high bits set (0x7FFF_0000_0000_0000) plus frame index
+    assert!(
+        value > 0x7FFF_0000_0000_0000u64,
+        "expected synthetic frame address"
+    );
 }
 
 // SIMD horizontal reductions

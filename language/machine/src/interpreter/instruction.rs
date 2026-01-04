@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::memory::{StackPointer, Value};
+use crate::memory::{StackPointer, Value, ValueTag};
 
 use super::Interpreter;
 
@@ -87,15 +87,12 @@ impl Interpreter {
                 let callee_val = self.current_frame()?.get_value(callee_id)?;
 
                 // find function
-                let function = match callee_val {
-                    Value::FunctionPointer(func_id) => func_id,
-                    _ => {
-                        return Err(self.make_error(Error::TypeMismatch {
-                            expected: "function_pointer".to_string(),
-                            actual: format!("{callee_val:?}"),
-                        }));
-                    }
-                };
+                let function = callee_val.as_function_pointer().ok_or_else(|| {
+                    self.make_error(Error::TypeMismatch {
+                        expected: "function_pointer".to_string(),
+                        actual: format!("{callee_val:?}"),
+                    })
+                })?;
 
                 self.execute_call(dest, function, &args)?;
             }
@@ -123,7 +120,7 @@ impl Interpreter {
             } => {
                 let (dest, global_id) = (*destination, *global);
                 let frame = self.current_frame_mut()?;
-                frame.set_value(dest, Value::GlobalPointer(global_id));
+                frame.set_value(dest, Value::global_pointer(global_id));
             }
 
             // dest = global constant value (load immutable global directly)
@@ -149,32 +146,40 @@ impl Interpreter {
                 self.statistics.loads += 1;
                 let ptr = self.current_frame()?.get_value(ptr_id)?;
 
-                let value = match ptr {
-                    Value::ManagedReference(handle) | Value::Aggregate(handle) => {
+                let value = match ptr.tag() {
+                    ValueTag::ManagedReference | ValueTag::Aggregate => {
+                        let handle = ptr.as_heap_handle().unwrap();
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.managed_heap.get(handle) {
-                            cell.slots.first().copied().unwrap_or(Value::Void)
+                            cell.slots.first().copied().unwrap_or(Value::VOID)
                         } else {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::RawPointer(ptr) => {
-                        if ptr.is_null() {
+                    ValueTag::RawPointer => {
+                        let rp = ptr.as_raw_pointer().unwrap();
+                        if rp.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
-                        if let Some(cell) = self.raw_heap.get(ptr) {
-                            cell.slots.first().copied().unwrap_or(Value::Void)
+                        if let Some(cell) = self.raw_heap.get(rp) {
+                            cell.slots.first().copied().unwrap_or(Value::VOID)
                         } else {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::StackPointer(sp) => self.load_stack_slot(sp, 0)?,
-                    Value::GlobalPointer(global) => *self
-                        .globals
-                        .get(global)
-                        .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global }))?,
+                    ValueTag::StackPointer => {
+                        let sp = ptr.as_stack_pointer().unwrap();
+                        self.load_stack_slot(sp, 0)?
+                    }
+                    ValueTag::GlobalPointer => {
+                        let global = ptr.as_global_pointer().unwrap();
+                        *self
+                            .globals
+                            .get(global)
+                            .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global }))?
+                    }
                     _ => {
                         return Err(self.make_error(Error::InvalidPointerType {
                             actual: format!("{ptr:?}"),
@@ -193,8 +198,9 @@ impl Interpreter {
                 let frame = self.current_frame()?;
                 let (ptr, val) = (frame.get_value(ptr_id)?, frame.get_value(val_id)?);
 
-                match ptr {
-                    Value::ManagedReference(handle) => {
+                match ptr.tag() {
+                    ValueTag::ManagedReference => {
+                        let handle = ptr.as_heap_handle().unwrap();
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
@@ -208,11 +214,12 @@ impl Interpreter {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::RawPointer(ptr) => {
-                        if ptr.is_null() {
+                    ValueTag::RawPointer => {
+                        let rp = ptr.as_raw_pointer().unwrap();
+                        if rp.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
-                        if let Some(cell) = self.raw_heap.get_mut(ptr) {
+                        if let Some(cell) = self.raw_heap.get_mut(rp) {
                             if cell.slots.is_empty() {
                                 cell.slots.push(val);
                             } else {
@@ -222,10 +229,12 @@ impl Interpreter {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::StackPointer(sp) => {
+                    ValueTag::StackPointer => {
+                        let sp = ptr.as_stack_pointer().unwrap();
                         self.store_stack_slot(sp, 0, val)?;
                     }
-                    Value::GlobalPointer(global) => {
+                    ValueTag::GlobalPointer => {
+                        let global = ptr.as_global_pointer().unwrap();
                         // check mutability
                         let global_def = self.tree.get(global);
                         if !global_def.is_mutable() {
@@ -251,8 +260,9 @@ impl Interpreter {
                 let agg = self.current_frame()?.get_value(agg_id)?;
 
                 // extract field from aggregate or heap cell
-                let value = match agg {
-                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
+                let value = match agg.tag() {
+                    ValueTag::Aggregate | ValueTag::ManagedReference => {
+                        let handle = agg.as_heap_handle().unwrap();
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
@@ -267,11 +277,12 @@ impl Interpreter {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::RawPointer(ptr) => {
-                        if ptr.is_null() {
+                    ValueTag::RawPointer => {
+                        let rp = agg.as_raw_pointer().unwrap();
+                        if rp.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
-                        if let Some(cell) = self.raw_heap.get(ptr) {
+                        if let Some(cell) = self.raw_heap.get(rp) {
                             cell.slots.get(idx as usize).copied().ok_or_else(|| {
                                 self.make_error(Error::InvalidFieldAccess {
                                     index: idx,
@@ -282,7 +293,10 @@ impl Interpreter {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::StackPointer(sp) => self.load_stack_slot(sp, idx as usize)?,
+                    ValueTag::StackPointer => {
+                        let sp = agg.as_stack_pointer().unwrap();
+                        self.load_stack_slot(sp, idx as usize)?
+                    }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
                             expected: "aggregate".to_string(),
@@ -307,9 +321,10 @@ impl Interpreter {
                 let (agg, val) = (frame.get_value(agg_id)?, frame.get_value(val_id)?);
 
                 // create new aggregate or update referenced storage
-                let result = match agg {
+                let result = match agg.tag() {
                     // set field on aggregate or managed reference (both use heap)
-                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
+                    ValueTag::Aggregate | ValueTag::ManagedReference => {
+                        let handle = agg.as_heap_handle().unwrap();
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
@@ -333,12 +348,13 @@ impl Interpreter {
                         agg
                     }
                     // set field indirectly on raw pointer
-                    Value::RawPointer(ptr) => {
-                        if ptr.is_null() {
+                    ValueTag::RawPointer => {
+                        let rp = agg.as_raw_pointer().unwrap();
+                        if rp.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         let mut invalid_field_count = None;
-                        if let Some(cell) = self.raw_heap.get_mut(ptr) {
+                        if let Some(cell) = self.raw_heap.get_mut(rp) {
                             if (idx as usize) < cell.slots.len() {
                                 cell.slots[idx as usize] = val;
                             } else {
@@ -353,12 +369,13 @@ impl Interpreter {
                                 field_count,
                             }));
                         }
-                        Value::RawPointer(ptr)
+                        Value::raw_pointer(rp)
                     }
                     // set field indirectly on stack pointer
-                    Value::StackPointer(sp) => {
+                    ValueTag::StackPointer => {
+                        let sp = agg.as_stack_pointer().unwrap();
                         self.store_stack_slot(sp, idx as usize, val)?;
-                        Value::StackPointer(sp)
+                        Value::stack_pointer(sp)
                     }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
@@ -384,9 +401,10 @@ impl Interpreter {
                 let idx_val = idx.as_uint().unwrap_or(0);
 
                 // extract element at dynamic index
-                let value = match arr {
+                let value = match arr.tag() {
                     // extract element from aggregate or managed reference (both use heap)
-                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
+                    ValueTag::Aggregate | ValueTag::ManagedReference => {
+                        let handle = arr.as_heap_handle().unwrap();
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
@@ -402,11 +420,12 @@ impl Interpreter {
                         }
                     }
                     // extract element indirectly from raw pointer
-                    Value::RawPointer(ptr) => {
-                        if ptr.is_null() {
+                    ValueTag::RawPointer => {
+                        let rp = arr.as_raw_pointer().unwrap();
+                        if rp.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
-                        if let Some(cell) = self.raw_heap.get(ptr) {
+                        if let Some(cell) = self.raw_heap.get(rp) {
                             cell.slots.get(idx_val as usize).copied().ok_or_else(|| {
                                 self.make_error(Error::InvalidArrayAccess {
                                     index: idx_val,
@@ -418,7 +437,10 @@ impl Interpreter {
                         }
                     }
                     // extract element directly from aggregate
-                    Value::StackPointer(sp) => self.load_stack_slot(sp, idx_val as usize)?,
+                    ValueTag::StackPointer => {
+                        let sp = arr.as_stack_pointer().unwrap();
+                        self.load_stack_slot(sp, idx_val as usize)?
+                    }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
                             expected: "array".to_string(),
@@ -448,9 +470,10 @@ impl Interpreter {
                 let idx_val = idx.as_uint().unwrap_or(0);
 
                 // create new array or update referenced storage
-                let result = match arr {
+                let result = match arr.tag() {
                     // set element on aggregate or managed reference (both use heap)
-                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
+                    ValueTag::Aggregate | ValueTag::ManagedReference => {
+                        let handle = arr.as_heap_handle().unwrap();
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
@@ -474,12 +497,13 @@ impl Interpreter {
                         arr
                     }
                     // set element indirectly on raw pointer
-                    Value::RawPointer(ptr) => {
-                        if ptr.is_null() {
+                    ValueTag::RawPointer => {
+                        let rp = arr.as_raw_pointer().unwrap();
+                        if rp.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         let mut invalid_length = None;
-                        if let Some(cell) = self.raw_heap.get_mut(ptr) {
+                        if let Some(cell) = self.raw_heap.get_mut(rp) {
                             if (idx_val as usize) < cell.slots.len() {
                                 cell.slots[idx_val as usize] = val;
                             } else {
@@ -494,12 +518,13 @@ impl Interpreter {
                                 length,
                             }));
                         }
-                        Value::RawPointer(ptr)
+                        Value::raw_pointer(rp)
                     }
                     // set element indirectly on stack pointer
-                    Value::StackPointer(sp) => {
+                    ValueTag::StackPointer => {
+                        let sp = arr.as_stack_pointer().unwrap();
                         self.store_stack_slot(sp, idx_val as usize, val)?;
-                        Value::StackPointer(sp)
+                        Value::stack_pointer(sp)
                     }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
@@ -526,7 +551,7 @@ impl Interpreter {
                 let handle = self.managed_heap.allocate();
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(dest, Value::ManagedReference(handle));
+                frame.set_value(dest, Value::managed_reference(handle));
             }
 
             // dest = new gc-managed array with length slots
@@ -546,7 +571,7 @@ impl Interpreter {
                 let handle = self.managed_heap.allocate_with_slots(length);
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(dest, Value::ManagedReference(handle));
+                frame.set_value(dest, Value::managed_reference(handle));
             }
 
             // dest = new manually-managed heap cell (raw pointer)
@@ -562,7 +587,7 @@ impl Interpreter {
                 let ptr = self.raw_heap.allocate();
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(dest, Value::RawPointer(ptr));
+                frame.set_value(dest, Value::raw_pointer(ptr));
             }
 
             // deallocate raw pointer
@@ -570,7 +595,7 @@ impl Interpreter {
                 let ptr_id = *pointer;
                 let ptr = self.current_frame()?.get_value(ptr_id)?;
 
-                if let Value::RawPointer(p) = ptr {
+                if let Some(p) = ptr.as_raw_pointer() {
                     if !self.raw_heap.free(p) {
                         return Err(self.make_error(Error::InvalidHeapHandle));
                     }
@@ -592,7 +617,7 @@ impl Interpreter {
                 let slot = self.current_frame_mut()?.allocate_stack_cell();
                 let sp = StackPointer::new(frame_depth, slot);
                 let frame = self.current_frame_mut()?;
-                frame.set_value(dest, Value::StackPointer(sp));
+                frame.set_value(dest, Value::stack_pointer(sp));
             }
 
             // intrinsic call
@@ -638,7 +663,7 @@ impl Interpreter {
             .or_else(|_| {
                 // if no slots yet, return Void (lazy initialization)
                 if cell.slots.is_empty() && slot_index == 0 {
-                    Ok(Value::Void)
+                    Ok(Value::VOID)
                 } else {
                     Err(self.make_error(Error::InvalidFieldAccess {
                         index: slot_index as u32,
@@ -666,7 +691,7 @@ impl Interpreter {
 
         // grow slots if needed (lazy initialization)
         while cell.slots.len() <= slot_index {
-            cell.slots.push(Value::Void);
+            cell.slots.push(Value::VOID);
         }
         cell.slots[slot_index] = value;
         Ok(())
