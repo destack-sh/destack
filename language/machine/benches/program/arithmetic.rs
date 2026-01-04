@@ -9,6 +9,7 @@ pub(crate) const ALL: &[&Program] = &[
     &BINARY_INT_MIX,
     &BINARY_FLOAT,
     &COLLATZ,
+    &UNARY_OPS,
 ];
 
 /// Recursive fibonacci with exponential call tree.
@@ -243,4 +244,37 @@ block3(v10: i64):
     entry: "collatz_sum",
     expected: || Some(Value::int64(3142)),
     default_args: || vec![Value::int64(100)],
+};
+
+/// Unary operations: negation and bitwise not.
+pub(crate) const UNARY_OPS: Program = Program {
+    name: "unary_ops",
+    source: r#"
+function @unary_ops(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 12345i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = ineg v4
+    v7 = bnot v6
+    v8 = ineg v7
+    v9 = bnot v8
+    v10 = ineg v9
+    v11 = bnot v10
+    v12 = ineg v11
+    v13 = bnot v12
+    v14 = iconst 1i64
+    v15 = iadd v3, v14
+    jump block1(v15, v13)
+block3(v16: i64):
+    return v16
+}
+"#,
+    entry: "unary_ops",
+    expected: || None,
+    default_args: || vec![Value::int64(10_000)],
 };

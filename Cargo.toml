@@ -108,6 +108,7 @@ url = "2.5.7"
 
 # dev
 arbitrary = { version = "1.4.2", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 pretty_assertions = "1.4.1"
 quickcheck = "1.0.3"

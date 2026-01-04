@@ -91,7 +91,7 @@ const RESET: &str = "\x1b[0m";
 const GREEN: &str = "\x1b[32m";
 const YELLOW: &str = "\x1b[33m";
 const CYAN: &str = "\x1b[36m";
-const MAGENTA: &str = "\x1b[35m";
+const RED: &str = "\x1b[31m";
 
 /// Run quick benchmarks with ~2s total time budget.
 #[allow(dead_code)]
@@ -111,10 +111,10 @@ pub(crate) fn quick_bench(filter: Option<&[&str]>) {
     // header
     println!();
     println!(
-        "{BOLD}{:<24} {:>7} {:>5} {:>9} {:>5} {:>5} {:>5} {:>5} {:>5}{RESET}",
+        "{BOLD}{:<28} {:>7} {:>5} {:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}",
         "Program", "Mops/s", "Iter", "Instrs", "Calls", "Stk", "Alloc", "Br", "Ld/St"
     );
-    println!("{DIM}{}{RESET}", "─".repeat(80));
+    println!("{DIM}{}{RESET}", "─".repeat(86));
 
     let bench_start = Instant::now();
     let mut total_mops = 0.0;
@@ -156,17 +156,17 @@ pub(crate) fn quick_bench(filter: Option<&[&str]>) {
             let mops = total_instructions as f64 / elapsed.as_secs_f64() / 1_000_000.0;
 
             // color based on performance
-            let mops_color = if mops >= 10.0 {
+            let mops_color = if mops >= 100.0 {
                 GREEN
             } else if mops >= 50.0 {
                 YELLOW
             } else {
-                MAGENTA
+                RED
             };
 
             let ld_st = stats.loads + stats.stores;
             println!(
-                "{CYAN}{full_name:<24}{RESET} {mops_color}{mops:>7.1}{RESET} {:>5} {DIM}{:>9} {:>5} {:>5} {:>5} {:>5} {:>5}{RESET}",
+                "{CYAN}{full_name:<28}{RESET} {mops_color}{mops:>7.1}{RESET} {:>5} {DIM}{:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}",
                 iterations,
                 stats.instructions_executed,
                 stats.calls_made,
@@ -183,10 +183,10 @@ pub(crate) fn quick_bench(filter: Option<&[&str]>) {
 
     // summary
     let total_elapsed = bench_start.elapsed();
-    println!("{DIM}{}{RESET}", "─".repeat(80));
+    println!("{DIM}{}{RESET}", "─".repeat(86));
     if count > 0 {
         println!(
-            "{BOLD}{:<24} {:>7.1}{RESET}                                       {DIM}in {:.2}s{RESET}",
+            "{BOLD}{:<28} {:>7.1}{RESET}                                           {DIM}in {:.2}s{RESET}",
             "Average",
             total_mops / count as f64,
             total_elapsed.as_secs_f64()

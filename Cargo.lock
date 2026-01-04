@@ -882,9 +882,12 @@ dependencies = [
 name = "destack_machine"
 version = "0.51.6"
 dependencies = [
+ "clap",
+ "criterion",
  "destack_base",
  "destack_mir",
  "destack_source",
+ "pprof",
  "smallvec",
 ]
 
