@@ -2,8 +2,9 @@ use destack_mir as mir;
 
 /// A runtime value in the machine.
 ///
-/// Optimized for size: heap-allocated types use `Box` to keep the enum small.
-#[derive(Debug, Clone, PartialEq, Default)]
+/// Compact Copy-able representation. Strings and aggregates use heap handles
+/// instead of Box to enable Copy semantics.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Value {
     /// No value (void/unit).
     #[default]
@@ -24,9 +25,6 @@ pub enum Value {
     /// 64-bit floating point.
     Float64(f64),
 
-    /// String value (UTF-8 encoded, immutable).
-    String(Box<str>),
-
     /// Character value (Unicode codepoint).
     Char(char),
 
@@ -45,8 +43,11 @@ pub enum Value {
     /// Function pointer (for indirect calls).
     FunctionPointer(mir::LocalNodeId<mir::Function>),
 
-    /// Aggregate value (struct, tuple, array).
-    Aggregate(Box<[Value]>),
+    /// Heap-allocated aggregate (struct, tuple, array).
+    Aggregate(HeapHandle),
+
+    /// Heap-allocated string.
+    String(HeapHandle),
 }
 
 impl From<&mir::Constant> for Value {
@@ -77,16 +78,19 @@ impl From<&mir::Constant> for Value {
                 Value::Float32(f32::from_bits(*bits as u32))
             }
             mir::Constant::Float { bits, width: _ } => Value::Float64(f64::from_bits(*bits)),
-            mir::Constant::String { value } => Value::String(value.clone().into_boxed_str()),
+            // strings from constants need heap allocation
+            mir::Constant::String { .. } => {
+                // TODO: allocate string on heap
+                Value::Void
+            }
             mir::Constant::Char { value } => Value::Char(*value),
         }
     }
 }
 
 impl Value {
-    // constructors for testing convenience
-
     /// Create a signed 32-bit integer value.
+    #[inline]
     pub fn int32(value: i32) -> Self {
         Self::Int {
             value: value as i64,
@@ -95,11 +99,13 @@ impl Value {
     }
 
     /// Create a signed 64-bit integer value.
+    #[inline]
     pub fn int64(value: i64) -> Self {
         Self::Int { value, width: 64 }
     }
 
     /// Create an unsigned 32-bit integer value.
+    #[inline]
     pub fn uint32(value: u32) -> Self {
         Self::UInt {
             value: value as u64,
@@ -108,21 +114,25 @@ impl Value {
     }
 
     /// Create an unsigned 64-bit integer value.
+    #[inline]
     pub fn uint64(value: u64) -> Self {
         Self::UInt { value, width: 64 }
     }
 
     /// Create a 64-bit float value.
+    #[inline]
     pub fn float64(value: f64) -> Self {
         Self::Float64(value)
     }
 
     /// Create a 32-bit float value.
+    #[inline]
     pub fn float32(value: f32) -> Self {
         Self::Float32(value)
     }
 
     /// Check if this value is truthy (for branch conditions).
+    #[inline]
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Void => false,
@@ -131,18 +141,19 @@ impl Value {
             Value::UInt { value, .. } => *value != 0,
             Value::Float32(f) => *f != 0.0,
             Value::Float64(f) => *f != 0.0,
-            Value::String(s) => !s.is_empty(),
             Value::Char(_) => true,
             Value::ManagedReference(h) => !h.is_null(),
             Value::RawPointer(p) => !p.is_null(),
             Value::StackPointer(_) => true,
             Value::GlobalPointer(_) => true,
             Value::FunctionPointer(_) => true,
-            Value::Aggregate(_) => true,
+            Value::Aggregate(h) => !h.is_null(),
+            Value::String(h) => !h.is_null(),
         }
     }
 
     /// Get this value as a boolean, if applicable.
+    #[inline]
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             Value::Bool(b) => Some(*b),
@@ -151,6 +162,7 @@ impl Value {
     }
 
     /// Get this value as a signed integer, if applicable.
+    #[inline]
     pub fn as_int(&self) -> Option<i64> {
         match self {
             Value::Int { value, .. } => Some(*value),
@@ -160,6 +172,7 @@ impl Value {
     }
 
     /// Get this value as an unsigned integer, if applicable.
+    #[inline]
     pub fn as_uint(&self) -> Option<u64> {
         match self {
             Value::UInt { value, .. } => Some(*value),
@@ -168,37 +181,11 @@ impl Value {
         }
     }
 
-    /// Get this value as a string, if applicable.
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            Value::String(s) => Some(s),
-            _ => None,
-        }
-    }
-
     /// Get this value as a char, if applicable.
+    #[inline]
     pub fn as_char(&self) -> Option<char> {
         match self {
             Value::Char(c) => Some(*c),
-            _ => None,
-        }
-    }
-
-    /// Get the JS-compatible string length (UTF-16 code units).
-    /// In JavaScript, `"😀".length` is 2 (surrogate pair), not 1.
-    pub fn js_string_length(&self) -> Option<usize> {
-        match self {
-            Value::String(s) => Some(s.encode_utf16().count()),
-            _ => None,
-        }
-    }
-
-    /// Get a character at a JS-compatible index (UTF-16 code unit index).
-    ///
-    /// Returns the UTF-16 code unit as a u16, or None if out of bounds.
-    pub fn js_char_code_at(&self, index: usize) -> Option<u16> {
-        match self {
-            Value::String(s) => s.encode_utf16().nth(index),
             _ => None,
         }
     }
@@ -213,16 +200,19 @@ impl HeapHandle {
     pub const NULL: Self = HeapHandle(0);
 
     /// Create a new heap handle from a raw id.
+    #[inline]
     pub fn new(id: u64) -> Self {
         HeapHandle(id)
     }
 
     /// Check if this handle is null.
+    #[inline]
     pub fn is_null(&self) -> bool {
         self.0 == 0
     }
 
     /// Get the raw id of this handle.
+    #[inline]
     pub fn id(&self) -> u64 {
         self.0
     }
@@ -237,16 +227,19 @@ impl RawPointer {
     pub const NULL: Self = RawPointer(0);
 
     /// Create a new raw pointer from an id.
+    #[inline]
     pub fn new(id: u64) -> Self {
         RawPointer(id)
     }
 
     /// Check if this pointer is null.
+    #[inline]
     pub fn is_null(&self) -> bool {
         self.0 == 0
     }
 
     /// Get the raw id of this pointer.
+    #[inline]
     pub fn id(&self) -> u64 {
         self.0
     }
@@ -263,6 +256,7 @@ pub struct StackPointer {
 
 impl StackPointer {
     /// Create a new stack pointer.
+    #[inline]
     pub fn new(frame_idx: usize, slot: usize) -> Self {
         Self { frame_idx, slot }
     }

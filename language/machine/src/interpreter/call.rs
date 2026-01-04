@@ -1,11 +1,13 @@
-//! Function call and execution logic.
-
 use destack_mir as mir;
+use smallvec::SmallVec;
 
 use crate::diagnostic::{DiagnosticAnchor, Error, RuntimeResult};
 use crate::memory::Value;
 
 use super::{ExecutionOutput, Frame, Interpreter};
+
+/// Inline capacity for terminator arguments.
+const TERM_ARGS_INLINE_CAP: usize = 4;
 
 /// Result of executing a terminator.
 enum TerminatorResult {
@@ -75,7 +77,7 @@ impl Interpreter {
 
         // bind parameters
         for (i, param) in function.parameters.iter().enumerate() {
-            let value = arguments.get(i).cloned().unwrap_or(Value::Void);
+            let value = arguments.get(i).copied().unwrap_or(Value::Void);
             frame.set_value(param.value, value);
         }
 
@@ -104,48 +106,37 @@ impl Interpreter {
 
     /// Run the interpreter until the top frame returns.
     fn run(&mut self) -> RuntimeResult<ExecutionOutput> {
-        loop {
-            // check step limit
-            if let Some(max) = self.options.max_instructions
-                && self.statistics.instructions_executed >= max
-            {
-                return Err(self.make_error(Error::StepLimitExceeded));
-            }
+        // check if step limit is enabled: use slow path if so
+        if self.options.max_instructions.is_some() {
+            return self.run_with_step_limit();
+        }
 
+        loop {
             let stack_depth_before = self.call_stack.len();
 
-            // get current block info
-            let (instruction_ids, terminator, start_index) = {
+            // current block and instruction index
+            let (current_block, start_index) = {
                 let frame = self
                     .call_stack
                     .last()
                     .ok_or_else(|| self.make_error(Error::InvalidInstruction))?;
-                let block = self.tree.get(frame.current_block);
-                (
-                    block.instructions.clone(),
-                    block.terminator.clone(),
-                    frame.instruction_idx,
-                )
+                (frame.current_block, frame.instruction_idx)
             };
 
-            // execute instructions starting from where we left off
+            // get instruction count
+            let instruction_count = self.tree.get(current_block).instructions.len();
+
+            // fast path: execute all instructions without step limit checks
             let mut did_call = false;
-            for (idx, inst_id) in instruction_ids.iter().enumerate().skip(start_index) {
+            for idx in start_index..instruction_count {
                 self.statistics.instructions_executed += 1;
 
-                // check step limit
-                if let Some(max) = self.options.max_instructions
-                    && self.statistics.instructions_executed >= max
-                {
-                    return Err(self.make_error(Error::StepLimitExceeded));
-                }
-
-                let instruction = self.tree.get(*inst_id).clone();
-                self.execute_instruction(*inst_id, &instruction)?;
+                // fetch instruction ID (tree lookup is cheap, just an index)
+                let inst_id = self.tree.get(current_block).instructions[idx];
+                self.execute_instruction(inst_id)?;
 
                 // check if a call pushed a new frame
                 if self.call_stack.len() > stack_depth_before {
-                    // save where to resume when we return
                     if let Some(caller_frame) = self.call_stack.get_mut(stack_depth_before - 1) {
                         caller_frame.instruction_idx = idx + 1;
                     }
@@ -154,22 +145,19 @@ impl Interpreter {
                 }
             }
 
-            // if a call happened, restart the loop to execute the new frame
             if did_call {
                 continue;
             }
 
             // execute terminator
             self.statistics.instructions_executed += 1;
-            match self.execute_terminator(&terminator)? {
+            match self.execute_terminator_inline(current_block)? {
                 TerminatorResult::Continue => {
-                    // continue to next block (reset instruction index)
                     if let Some(frame) = self.call_stack.last_mut() {
                         frame.instruction_idx = 0;
                     }
                 }
                 TerminatorResult::Return(value) => {
-                    // check if this is the last frame
                     if self.call_stack.len() == 1 {
                         return Ok(ExecutionOutput {
                             value,
@@ -178,9 +166,7 @@ impl Interpreter {
                             raw_heap_cells: self.raw_heap.cell_count(),
                         });
                     } else {
-                        // pop the returning frame and push value to caller
                         self.call_stack.pop();
-                        // the caller should handle storing the return value
                         if let Some(caller_frame) = self.call_stack.last_mut()
                             && let Some(dest) = caller_frame.return_destination.take()
                         {
@@ -192,107 +178,223 @@ impl Interpreter {
         }
     }
 
-    /// Execute a terminator, returning what to do next.
-    fn execute_terminator(
+    /// Slow path with per-instruction step limit checking.
+    fn run_with_step_limit(&mut self) -> RuntimeResult<ExecutionOutput> {
+        let max = self.options.max_instructions.unwrap();
+
+        loop {
+            let stack_depth_before = self.call_stack.len();
+
+            let (current_block, start_index) = {
+                let frame = self
+                    .call_stack
+                    .last()
+                    .ok_or_else(|| self.make_error(Error::InvalidInstruction))?;
+                (frame.current_block, frame.instruction_idx)
+            };
+
+            let instruction_count = self.tree.get(current_block).instructions.len();
+
+            let mut did_call = false;
+            for idx in start_index..instruction_count {
+                if self.statistics.instructions_executed >= max {
+                    return Err(self.make_error(Error::StepLimitExceeded));
+                }
+                self.statistics.instructions_executed += 1;
+
+                let inst_id = self.tree.get(current_block).instructions[idx];
+                self.execute_instruction(inst_id)?;
+
+                if self.call_stack.len() > stack_depth_before {
+                    if let Some(caller_frame) = self.call_stack.get_mut(stack_depth_before - 1) {
+                        caller_frame.instruction_idx = idx + 1;
+                    }
+                    did_call = true;
+                    break;
+                }
+            }
+
+            if did_call {
+                continue;
+            }
+
+            // terminator
+            if self.statistics.instructions_executed >= max {
+                return Err(self.make_error(Error::StepLimitExceeded));
+            }
+            self.statistics.instructions_executed += 1;
+
+            match self.execute_terminator_inline(current_block)? {
+                TerminatorResult::Continue => {
+                    if let Some(frame) = self.call_stack.last_mut() {
+                        frame.instruction_idx = 0;
+                    }
+                }
+                TerminatorResult::Return(value) => {
+                    if self.call_stack.len() == 1 {
+                        return Ok(ExecutionOutput {
+                            value,
+                            statistics: self.statistics.clone(),
+                            heap_cells: self.managed_heap.cell_count(),
+                            raw_heap_cells: self.raw_heap.cell_count(),
+                        });
+                    } else {
+                        self.call_stack.pop();
+                        if let Some(caller_frame) = self.call_stack.last_mut()
+                            && let Some(dest) = caller_frame.return_destination.take()
+                        {
+                            caller_frame.set_value(dest, value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Execute a terminator without cloning.
+    ///
+    /// Uses a two-phase borrow pattern: extract scalar values first, do mutable
+    /// work, then re-borrow to get only the arguments needed.
+    fn execute_terminator_inline(
         &mut self,
-        terminator: &mir::Terminator,
+        block: mir::LocalNodeId<mir::Block>,
     ) -> RuntimeResult<TerminatorResult> {
-        match terminator {
+        let term = &self.tree.get(block).terminator;
+        match term {
             mir::Terminator::Return { value } => {
+                let value = *value;
+
                 let return_value = if let Some(v) = value {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*v)?
+                    self.current_frame()?.get_value(v)?
                 } else {
                     Value::Void
                 };
+
                 Ok(TerminatorResult::Return(return_value))
             }
 
-            mir::Terminator::Jump { target, arguments } => {
-                let arguments = {
-                    let frame = self.current_frame()?;
-                    arguments
-                        .iter()
-                        .map(|v| frame.get_value(*v))
-                        .collect::<Result<Vec<_>, _>>()?
-                };
-                self.jump_to_block(*target, &arguments)?;
+            mir::Terminator::Jump { target, .. } => {
+                let target = *target;
+
+                // resolve arguments
+                let arguments = self.resolve_terminator_args(block, |t| match t {
+                    mir::Terminator::Jump { arguments, .. } => arguments,
+                    _ => unreachable!(),
+                })?;
+
+                self.jump_to_block(target, &arguments)?;
                 Ok(TerminatorResult::Continue)
             }
 
             mir::Terminator::Branch {
                 condition,
                 then_target,
-                then_arguments,
                 else_target,
-                else_arguments,
+                ..
             } => {
-                self.statistics.branches += 1;
-                let (is_truthy, then_arguments, else_arguments) = {
-                    let frame = self.current_frame()?;
-                    let cond = frame.get_value(*condition)?;
-                    let then_arguments: Vec<Value> = then_arguments
-                        .iter()
-                        .map(|v| frame.get_value(*v))
-                        .collect::<Result<_, _>>()?;
-                    let else_arguments: Vec<Value> = else_arguments
-                        .iter()
-                        .map(|v| frame.get_value(*v))
-                        .collect::<Result<_, _>>()?;
-                    (cond.is_truthy(), then_arguments, else_arguments)
-                };
+                let condition = *condition;
+                let then_target = *then_target;
+                let else_target = *else_target;
 
-                if is_truthy {
-                    self.jump_to_block(*then_target, &then_arguments)?;
-                } else {
-                    self.jump_to_block(*else_target, &else_arguments)?;
-                }
+                self.statistics.branches += 1;
+
+                // evaluate condition
+                let is_truthy = self.current_frame()?.get_value(condition)?.is_truthy();
+
+                // resolve only the taken branch's arguments
+                let arguments = self.resolve_terminator_args(block, |t| match t {
+                    mir::Terminator::Branch {
+                        then_arguments,
+                        else_arguments,
+                        ..
+                    } => {
+                        if is_truthy {
+                            then_arguments
+                        } else {
+                            else_arguments
+                        }
+                    }
+                    _ => unreachable!(),
+                })?;
+
+                let target = if is_truthy { then_target } else { else_target };
+                self.jump_to_block(target, &arguments)?;
                 Ok(TerminatorResult::Continue)
             }
 
-            mir::Terminator::Switch {
-                value,
-                default,
-                default_arguments,
-                cases,
-            } => {
-                self.statistics.branches += 1;
-                let (target, arguments) = {
-                    let frame = self.current_frame()?;
-                    let value = frame.get_value(*value)?;
-                    let int_val = value.as_int().unwrap_or(0);
+            mir::Terminator::Switch { value, default, .. } => {
+                let switch_value = *value;
+                let default_target = *default;
 
-                    cases
+                self.statistics.branches += 1;
+
+                // evaluate switch value
+                let int_val = self
+                    .current_frame()?
+                    .get_value(switch_value)?
+                    .as_int()
+                    .unwrap_or(0);
+
+                // find matching case and resolve its arguments
+                let (target, arguments) = {
+                    let term = &self.tree.get(block).terminator;
+                    let mir::Terminator::Switch {
+                        cases,
+                        default_arguments,
+                        ..
+                    } = term
+                    else {
+                        unreachable!()
+                    };
+
+                    let (target, args) = cases
                         .iter()
                         .find(|c| c.value == int_val)
-                        .map(|c| {
-                            let arguments: RuntimeResult<Vec<Value>> =
-                                c.arguments.iter().map(|v| frame.get_value(*v)).collect();
-                            (c.target, arguments)
-                        })
-                        .unwrap_or_else(|| {
-                            let arguments: RuntimeResult<Vec<Value>> = default_arguments
-                                .iter()
-                                .map(|v| frame.get_value(*v))
-                                .collect();
-                            (*default, arguments)
-                        })
+                        .map(|c| (c.target, &c.arguments))
+                        .unwrap_or((default_target, default_arguments));
+
+                    let resolved = {
+                        let frame = self.current_frame()?;
+                        args.iter()
+                            .map(|v| frame.get_value(*v))
+                            .collect::<RuntimeResult<Vec<_>>>()?
+                    };
+                    (target, resolved)
                 };
 
-                let arguments = arguments?;
                 self.jump_to_block(target, &arguments)?;
                 Ok(TerminatorResult::Continue)
             }
 
             mir::Terminator::Unreachable => Err(self.make_error(Error::Unreachable)),
 
-            mir::Terminator::Yield { .. } => {
-                // TODO: implement coroutine yield
-                Err(self.make_error(Error::UnsupportedInstruction {
-                    name: "yield".to_string(),
-                }))
-            }
+            mir::Terminator::Yield { .. } => Err(self.make_error(Error::UnsupportedInstruction {
+                name: "yield".to_string(),
+            })),
         }
+    }
+
+    /// Resolve terminator arguments using a selector function.
+    ///
+    /// Re-borrows the terminator and extracts arguments via the selector, then
+    /// resolves them to runtime values.
+    fn resolve_terminator_args<F>(
+        &mut self,
+        block: mir::LocalNodeId<mir::Block>,
+        selector: F,
+    ) -> RuntimeResult<Vec<Value>>
+    where
+        F: FnOnce(&mir::Terminator) -> &[mir::Value],
+    {
+        let args: SmallVec<[mir::Value; TERM_ARGS_INLINE_CAP]> = {
+            let term = &self.tree.get(block).terminator;
+            selector(term).iter().copied().collect()
+        };
+
+        let frame = self.current_frame()?;
+        args.iter()
+            .map(|v| frame.get_value(*v))
+            .collect::<RuntimeResult<Vec<_>>>()
     }
 
     /// Jump to a block with arguments.
@@ -311,7 +413,7 @@ impl Interpreter {
 
         // bind block parameters
         for (i, param_value) in parameters.iter().enumerate() {
-            let value = arguments.get(i).cloned().unwrap_or(Value::Void);
+            let value = arguments.get(i).copied().unwrap_or(Value::Void);
             frame.set_value(*param_value, value);
         }
 
@@ -372,7 +474,7 @@ impl Interpreter {
 
         // bind parameters
         for (i, parameter) in func.parameters.iter().enumerate() {
-            let value = arguments.get(i).cloned().unwrap_or(Value::Void);
+            let value = arguments.get(i).copied().unwrap_or(Value::Void);
             new_frame.set_value(parameter.value, value);
         }
 

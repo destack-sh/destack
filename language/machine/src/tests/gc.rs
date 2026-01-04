@@ -137,20 +137,22 @@ fn test_gc_handles_aggregates() {
     let mut heap = ManagedHeap::new();
 
     let child = heap.allocate();
-    // put a reference inside an aggregate value
-    let parent = heap.allocate_with_values(vec![Value::Aggregate(
-        vec![Value::int32(42), Value::ManagedReference(child)].into_boxed_slice(),
-    )]);
+    // create an aggregate value containing a reference
+    let inner_agg =
+        heap.allocate_with_values(vec![Value::int32(42), Value::ManagedReference(child)]);
+    // put the aggregate inside the parent
+    let parent = heap.allocate_with_values(vec![Value::Aggregate(inner_agg)]);
 
     let _unreachable = heap.allocate();
 
-    assert_eq!(heap.cell_count(), 3);
+    assert_eq!(heap.cell_count(), 4);
 
     heap.collect(&[parent]);
 
-    // parent and child should be preserved
-    assert_eq!(heap.cell_count(), 2);
+    // parent, inner_agg, and child should be preserved
+    assert_eq!(heap.cell_count(), 3);
     assert!(heap.get(parent).is_some());
+    assert!(heap.get(inner_agg).is_some());
     assert!(heap.get(child).is_some());
 }
 

@@ -104,7 +104,10 @@ block3:
     default_args: || vec![Value::int64(10_000)],
 };
 
-/// Walk a linked list simulated via recursive calls.
+/// Walk a linked list with proper node structure.
+///
+/// Each node has two slots: [value, next_pointer].
+/// Builds list n -> (n-1) -> ... -> 1 -> sentinel(0), then traverses it.
 pub(crate) const LINKED_WALK: Program = Program {
     name: "linked_walk",
     source: r#"
@@ -114,12 +117,14 @@ block0(v0: i64, v1: ref<i64>):
     v3 = icmp_eq v0, v2
     branch v3, block2, block1
 block1:
-    v4 = managed.alloc i64
-    store v4, v0
-    v5 = iconst 1i64
-    v6 = isub v0, v5
-    v7 = call @build_list(v6, v4)
-    return v7
+    v4 = iconst 2i64
+    v5 = managed.alloc_array i64, v4
+    store v5, v0
+    v6 = field.set v5, 1, v1
+    v7 = iconst 1i64
+    v8 = isub v0, v7
+    v9 = call @build_list(v8, v6)
+    return v9
 block2:
     return v1
 }
@@ -132,29 +137,27 @@ block0(v0: ref<i64>, v1: i64):
     branch v4, block2, block1
 block1:
     v5 = iadd v1, v2
-    v6 = iconst 1i64
-    v7 = isub v2, v6
-    v8 = managed.alloc i64
-    store v8, v7
-    v9 = call @walk_list(v8, v5)
-    return v9
+    v6 = field.get v0, 1
+    v7 = call @walk_list(v6, v5)
+    return v7
 block2:
     return v1
 }
 
 function @linked_walk(v0: i64) -> i64 {
 block0(v0: i64):
-    v1 = managed.alloc i64
-    v2 = iconst 0i64
-    store v1, v2
-    v3 = call @build_list(v0, v1)
-    v4 = call @walk_list(v3, v2)
-    return v4
+    v1 = iconst 2i64
+    v2 = managed.alloc_array i64, v1
+    v3 = iconst 0i64
+    store v2, v3
+    v4 = call @build_list(v0, v2)
+    v5 = call @walk_list(v4, v3)
+    return v5
 }
 "#,
     entry: "linked_walk",
-    // algorithm is flawed, doesn't actually traverse linked list
-    expected: || None,
+    // sum of 1..100 = 100*101/2 = 5050
+    expected: || Some(Value::int64(5050)),
     default_args: || vec![Value::int64(100)],
 };
 

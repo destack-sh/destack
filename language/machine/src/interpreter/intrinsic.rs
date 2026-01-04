@@ -1,5 +1,3 @@
-//! Intrinsic execution implementation.
-
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};
@@ -95,7 +93,7 @@ impl Interpreter {
             // branch hints (passthrough)
             mir::Intrinsic::Likely | mir::Intrinsic::Unlikely => {
                 let args = args()?;
-                args.first().cloned().ok_or_else(|| {
+                args.first().copied().ok_or_else(|| {
                     self.make_error(Error::InvalidIntrinsicArguments {
                         intrinsic: intrinsic.to_str().to_string(),
                     })
@@ -103,7 +101,7 @@ impl Interpreter {
             }
             mir::Intrinsic::Expect => {
                 let args = args()?;
-                args.first().cloned().ok_or_else(|| {
+                args.first().copied().ok_or_else(|| {
                     self.make_error(Error::InvalidIntrinsicArguments {
                         intrinsic: intrinsic.to_str().to_string(),
                     })
@@ -111,7 +109,7 @@ impl Interpreter {
             }
             mir::Intrinsic::BlackBox => {
                 let args = args()?;
-                args.first().cloned().ok_or_else(|| {
+                args.first().copied().ok_or_else(|| {
                     self.make_error(Error::InvalidIntrinsicArguments {
                         intrinsic: intrinsic.to_str().to_string(),
                     })
@@ -124,7 +122,7 @@ impl Interpreter {
             // transmute
             mir::Intrinsic::Transmute => {
                 let args = args()?;
-                args.first().cloned().ok_or_else(|| {
+                args.first().copied().ok_or_else(|| {
                     self.make_error(Error::InvalidIntrinsicArguments {
                         intrinsic: intrinsic.to_str().to_string(),
                     })
@@ -477,7 +475,7 @@ impl Interpreter {
 
     // checked arithmetic
 
-    fn execute_add_overflow(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_add_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "add.overflow".to_string(),
@@ -502,13 +500,14 @@ impl Interpreter {
                     64 => a.overflowing_add(*b),
                     _ => a.overflowing_add(*b),
                 };
-                Ok(Value::Aggregate(Box::new([
+                let width = *width;
+                Ok(self.allocate_aggregate(vec![
                     Value::Int {
                         value: result,
-                        width: *width,
+                        width,
                     },
                     Value::Bool(overflow),
-                ])))
+                ]))
             }
             (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
                 let (result, overflow) = match width {
@@ -527,13 +526,14 @@ impl Interpreter {
                     64 => a.overflowing_add(*b),
                     _ => a.overflowing_add(*b),
                 };
-                Ok(Value::Aggregate(Box::new([
+                let width = *width;
+                Ok(self.allocate_aggregate(vec![
                     Value::UInt {
                         value: result,
-                        width: *width,
+                        width,
                     },
                     Value::Bool(overflow),
-                ])))
+                ]))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -542,7 +542,7 @@ impl Interpreter {
         }
     }
 
-    fn execute_sub_overflow(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_sub_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "sub.overflow".to_string(),
@@ -567,13 +567,14 @@ impl Interpreter {
                     64 => a.overflowing_sub(*b),
                     _ => a.overflowing_sub(*b),
                 };
-                Ok(Value::Aggregate(Box::new([
+                let width = *width;
+                Ok(self.allocate_aggregate(vec![
                     Value::Int {
                         value: result,
-                        width: *width,
+                        width,
                     },
                     Value::Bool(overflow),
-                ])))
+                ]))
             }
             (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
                 let (result, overflow) = match width {
@@ -592,13 +593,14 @@ impl Interpreter {
                     64 => a.overflowing_sub(*b),
                     _ => a.overflowing_sub(*b),
                 };
-                Ok(Value::Aggregate(Box::new([
+                let width = *width;
+                Ok(self.allocate_aggregate(vec![
                     Value::UInt {
                         value: result,
-                        width: *width,
+                        width,
                     },
                     Value::Bool(overflow),
-                ])))
+                ]))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -607,7 +609,7 @@ impl Interpreter {
         }
     }
 
-    fn execute_mul_overflow(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_mul_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "mul.overflow".to_string(),
@@ -632,13 +634,14 @@ impl Interpreter {
                     64 => a.overflowing_mul(*b),
                     _ => a.overflowing_mul(*b),
                 };
-                Ok(Value::Aggregate(Box::new([
+                let width = *width;
+                Ok(self.allocate_aggregate(vec![
                     Value::Int {
                         value: result,
-                        width: *width,
+                        width,
                     },
                     Value::Bool(overflow),
-                ])))
+                ]))
             }
             (Value::UInt { value: a, width }, Value::UInt { value: b, .. }) => {
                 let (result, overflow) = match width {
@@ -657,13 +660,14 @@ impl Interpreter {
                     64 => a.overflowing_mul(*b),
                     _ => a.overflowing_mul(*b),
                 };
-                Ok(Value::Aggregate(Box::new([
+                let width = *width;
+                Ok(self.allocate_aggregate(vec![
                     Value::UInt {
                         value: result,
-                        width: *width,
+                        width,
                     },
                     Value::Bool(overflow),
-                ])))
+                ]))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -1162,7 +1166,7 @@ impl Interpreter {
         };
 
         for i in 0..len {
-            self.write_memory_slot(dst, i, value.clone())?;
+            self.write_memory_slot(dst, i, value)?;
         }
 
         Ok(())
@@ -1188,14 +1192,14 @@ impl Interpreter {
 
     fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
         match ptr {
-            Value::ManagedReference(handle) => {
+            Value::ManagedReference(handle) | Value::Aggregate(handle) => {
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
                 if let Some(cell) = self.managed_heap.get(*handle) {
                     cell.slots
                         .get(offset)
-                        .cloned()
+                        .copied()
                         .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))
                 } else {
                     Err(self.make_error(Error::InvalidHeapHandle))
@@ -1208,16 +1212,12 @@ impl Interpreter {
                 if let Some(cell) = self.raw_heap.get(*ptr) {
                     cell.slots
                         .get(offset)
-                        .cloned()
+                        .copied()
                         .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))
                 } else {
                     Err(self.make_error(Error::InvalidHeapHandle))
                 }
             }
-            Value::Aggregate(slots) => slots
-                .get(offset)
-                .cloned()
-                .ok_or_else(|| self.make_error(Error::InvalidHeapHandle)),
             _ => Err(self.make_error(Error::InvalidPointerType {
                 actual: format!("{ptr:?}"),
             })),
@@ -1277,8 +1277,8 @@ impl Interpreter {
                 intrinsic: "volatile.store".to_string(),
             }));
         }
-        let ptr = args[0].clone();
-        let value = args[1].clone();
+        let ptr = args[0];
+        let value = args[1];
         self.write_memory_slot(&ptr, 0, value)
     }
 
@@ -1299,8 +1299,8 @@ impl Interpreter {
                 intrinsic: "atomic.store".to_string(),
             }));
         }
-        let ptr = args[0].clone();
-        let value = args[1].clone();
+        let ptr = args[0];
+        let value = args[1];
         self.write_memory_slot(&ptr, 0, value)
     }
 
@@ -1312,9 +1312,9 @@ impl Interpreter {
             }));
         }
 
-        let ptr = args[0].clone();
+        let ptr = args[0];
         let expected = &args[1];
-        let desired = args[2].clone();
+        let desired = args[2];
 
         let current = self.read_memory_slot(&ptr, 0)?;
         let success = self.values_equal(&current, expected);
@@ -1323,7 +1323,7 @@ impl Interpreter {
             self.write_memory_slot(&ptr, 0, desired)?;
         }
 
-        Ok(Value::Aggregate(Box::new([current, Value::Bool(success)])))
+        Ok(self.allocate_aggregate(vec![current, Value::Bool(success)]))
     }
 
     fn execute_atomic_fetch_add(&mut self, args: &[Value]) -> RuntimeResult<Value> {
@@ -1336,7 +1336,7 @@ impl Interpreter {
                 value: av.wrapping_add(*bv),
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1350,7 +1350,7 @@ impl Interpreter {
                 value: av.wrapping_sub(*bv),
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1364,7 +1364,7 @@ impl Interpreter {
                 value: av & bv,
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1378,7 +1378,7 @@ impl Interpreter {
                 value: av | bv,
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1392,7 +1392,7 @@ impl Interpreter {
                 value: av ^ bv,
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1406,7 +1406,7 @@ impl Interpreter {
                 value: (*av).min(*bv),
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1420,7 +1420,7 @@ impl Interpreter {
                 value: (*av).max(*bv),
                 width: *width,
             },
-            _ => a.clone(),
+            _ => *a,
         })
     }
 
@@ -1434,7 +1434,7 @@ impl Interpreter {
             }));
         }
 
-        let ptr = args[0].clone();
+        let ptr = args[0];
         let operand = &args[1];
 
         let old_value = self.read_memory_slot(&ptr, 0)?;
@@ -1493,7 +1493,7 @@ impl Interpreter {
 
     // simd operations (emulated)
 
-    fn execute_splat(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_splat(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         // splat(value, lane_count) -> vector with all lanes set to value
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1501,14 +1501,14 @@ impl Interpreter {
             }));
         }
 
-        let value = args[0].clone();
+        let value = args[0];
         let lane_count = args[1].as_uint().unwrap_or(4) as usize;
 
-        let lanes: Vec<Value> = (0..lane_count).map(|_| value.clone()).collect();
-        Ok(Value::Aggregate(lanes.into_boxed_slice()))
+        let lanes: Vec<Value> = (0..lane_count).map(|_| value).collect();
+        Ok(self.allocate_aggregate(lanes))
     }
 
-    fn execute_shuffle(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_shuffle(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         // shuffle(a, b, mask) -> rearranged vector
         // mask[i] selects from a (0..n) or b (n..2n)
         if args.len() < 3 {
@@ -1517,35 +1517,36 @@ impl Interpreter {
             }));
         }
 
-        let a = match &args[0] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        // collect slots into owned vectors to avoid borrow conflicts
+        let a: Vec<Value> = self
+            .get_aggregate_slots(&args[0])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "vector".to_string(),
                     actual: format!("{:?}", args[0]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
-        let b = match &args[1] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        let b: Vec<Value> = self
+            .get_aggregate_slots(&args[1])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "vector".to_string(),
                     actual: format!("{:?}", args[1]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
-        let mask = match &args[2] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        let mask: Vec<Value> = self
+            .get_aggregate_slots(&args[2])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "mask vector".to_string(),
                     actual: format!("{:?}", args[2]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
         let n = a.len();
         let result: Vec<Value> = mask
@@ -1553,17 +1554,17 @@ impl Interpreter {
             .map(|idx| {
                 let i = idx.as_uint().unwrap_or(0) as usize;
                 if i < n {
-                    a.get(i).cloned().unwrap_or(Value::Void)
+                    a.get(i).copied().unwrap_or(Value::Void)
                 } else {
-                    b.get(i - n).cloned().unwrap_or(Value::Void)
+                    b.get(i - n).copied().unwrap_or(Value::Void)
                 }
             })
             .collect();
 
-        Ok(Value::Aggregate(result.into_boxed_slice()))
+        Ok(self.allocate_aggregate(result))
     }
 
-    fn execute_select(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_select(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         // select(mask, a, b) -> element-wise mask[i] ? a[i] : b[i]
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -1571,35 +1572,36 @@ impl Interpreter {
             }));
         }
 
-        let mask = match &args[0] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        // collect slots into owned vectors to avoid borrow conflicts
+        let mask: Vec<Value> = self
+            .get_aggregate_slots(&args[0])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "mask vector".to_string(),
                     actual: format!("{:?}", args[0]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
-        let a = match &args[1] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        let a: Vec<Value> = self
+            .get_aggregate_slots(&args[1])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "vector".to_string(),
                     actual: format!("{:?}", args[1]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
-        let b = match &args[2] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        let b: Vec<Value> = self
+            .get_aggregate_slots(&args[2])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "vector".to_string(),
                     actual: format!("{:?}", args[2]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
         let result: Vec<Value> = mask
             .iter()
@@ -1607,14 +1609,14 @@ impl Interpreter {
             .map(|(i, m)| {
                 let is_true = m.is_truthy();
                 if is_true {
-                    a.get(i).cloned().unwrap_or(Value::Void)
+                    a.get(i).copied().unwrap_or(Value::Void)
                 } else {
-                    b.get(i).cloned().unwrap_or(Value::Void)
+                    b.get(i).copied().unwrap_or(Value::Void)
                 }
             })
             .collect();
 
-        Ok(Value::Aggregate(result.into_boxed_slice()))
+        Ok(self.allocate_aggregate(result))
     }
 
     fn execute_reduce(&self, op: ReduceOp, args: &[Value]) -> RuntimeResult<Value> {
@@ -1625,21 +1627,21 @@ impl Interpreter {
             }));
         }
 
-        let vector = match &args[0] {
-            Value::Aggregate(v) => v.as_ref(),
-            _ => {
-                return Err(self.make_error(Error::TypeMismatch {
+        let vector: Vec<Value> = self
+            .get_aggregate_slots(&args[0])
+            .ok_or_else(|| {
+                self.make_error(Error::TypeMismatch {
                     expected: "vector".to_string(),
                     actual: format!("{:?}", args[0]),
-                }));
-            }
-        };
+                })
+            })?
+            .to_vec();
 
         if vector.is_empty() {
             return Ok(Value::Void);
         }
 
-        let mut result = vector[0].clone();
+        let mut result = vector[0];
         for elem in &vector[1..] {
             result = self.reduce_op(op, &result, elem);
         }
@@ -1664,7 +1666,7 @@ impl Interpreter {
                     }
                     (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av + bv),
                     (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av + bv),
-                    _ => a.clone(),
+                    _ => *a,
                 }
             }
             ReduceOp::Mul => match (a, b) {
@@ -1678,7 +1680,7 @@ impl Interpreter {
                 },
                 (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av * bv),
                 (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av * bv),
-                _ => a.clone(),
+                _ => *a,
             },
             ReduceOp::Min => match (a, b) {
                 (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
@@ -1691,7 +1693,7 @@ impl Interpreter {
                 },
                 (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av.min(*bv)),
                 (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av.min(*bv)),
-                _ => a.clone(),
+                _ => *a,
             },
             ReduceOp::Max => match (a, b) {
                 (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
@@ -1704,7 +1706,7 @@ impl Interpreter {
                 },
                 (Value::Float32(av), Value::Float32(bv)) => Value::Float32(av.max(*bv)),
                 (Value::Float64(av), Value::Float64(bv)) => Value::Float64(av.max(*bv)),
-                _ => a.clone(),
+                _ => *a,
             },
             ReduceOp::And => match (a, b) {
                 (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
@@ -1716,7 +1718,7 @@ impl Interpreter {
                     width: *width,
                 },
                 (Value::Bool(av), Value::Bool(bv)) => Value::Bool(*av && *bv),
-                _ => a.clone(),
+                _ => *a,
             },
             ReduceOp::Or => match (a, b) {
                 (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
@@ -1728,7 +1730,7 @@ impl Interpreter {
                     width: *width,
                 },
                 (Value::Bool(av), Value::Bool(bv)) => Value::Bool(*av || *bv),
-                _ => a.clone(),
+                _ => *a,
             },
             ReduceOp::Xor => match (a, b) {
                 (Value::Int { value: av, width }, Value::Int { value: bv, .. }) => Value::Int {
@@ -1740,7 +1742,7 @@ impl Interpreter {
                     width: *width,
                 },
                 (Value::Bool(av), Value::Bool(bv)) => Value::Bool(*av ^ *bv),
-                _ => a.clone(),
+                _ => *a,
             },
         }
     }

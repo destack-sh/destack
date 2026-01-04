@@ -1,5 +1,3 @@
-//! Instruction execution implementation.
-
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
@@ -11,14 +9,15 @@ impl Interpreter {
     /// Execute a single instruction.
     pub(super) fn execute_instruction(
         &mut self,
-        _inst_id: mir::LocalNodeId<mir::Instruction>,
-        instruction: &mir::Instruction,
+        inst_id: mir::LocalNodeId<mir::Instruction>,
     ) -> RuntimeResult<()> {
-        match instruction {
+        // we use a match on a reference, extracting scalar data before mutation
+        match self.tree.get(inst_id) {
             // dest = constant value
             mir::Instruction::Const { destination, value } => {
+                let (dest, val) = (*destination, Value::from(value));
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, value.into());
+                frame.set_value(dest, val);
             }
 
             // dest = left op right
@@ -28,15 +27,14 @@ impl Interpreter {
                 left,
                 right,
             } => {
+                let (dest, op, l, r) = (*destination, *operator, *left, *right);
                 let (lhs, rhs) = {
                     let frame = self.current_frame()?;
-                    let lhs = frame.get_value(*left)?;
-                    let rhs = frame.get_value(*right)?;
-                    (lhs, rhs)
+                    (frame.get_value(l)?, frame.get_value(r)?)
                 };
-                let result = self.execute_binary(*operator, lhs, rhs)?;
+                let result = self.execute_binary(op, lhs, rhs)?;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, result);
+                frame.set_value(dest, result);
             }
 
             // dest = op argument
@@ -45,13 +43,11 @@ impl Interpreter {
                 operator,
                 argument,
             } => {
-                let arg = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*argument)?
-                };
-                let result = self.execute_unary(*operator, arg)?;
+                let (dest, op, arg_id) = (*destination, *operator, *argument);
+                let arg = self.current_frame()?.get_value(arg_id)?;
+                let result = self.execute_unary(op, arg)?;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, result);
+                frame.set_value(dest, result);
             }
 
             // dest = argument as to_type
@@ -61,13 +57,11 @@ impl Interpreter {
                 argument,
                 to_type,
             } => {
-                let arg = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*argument)?
-                };
-                let result = self.execute_cast(*operator, arg, *to_type)?;
+                let (dest, op, arg_id, ty) = (*destination, *operator, *argument, *to_type);
+                let arg = self.current_frame()?.get_value(arg_id)?;
+                let result = self.execute_cast(op, arg, ty)?;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, result);
+                frame.set_value(dest, result);
             }
 
             // dest = function(arguments...)
@@ -76,7 +70,9 @@ impl Interpreter {
                 function,
                 arguments,
             } => {
-                self.execute_call(*destination, *function, arguments)?;
+                let (dest, func) = (*destination, *function);
+                let args: Vec<_> = arguments.to_vec();
+                self.execute_call(dest, func, &args)?;
             }
 
             // dest = callee(arguments...) where callee is a function pointer
@@ -85,11 +81,10 @@ impl Interpreter {
                 callee,
                 arguments,
             } => {
+                let (dest, callee_id) = (*destination, *callee);
+                let args: Vec<_> = arguments.to_vec();
                 // get the function pointer value
-                let callee_val = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*callee)?
-                };
+                let callee_val = self.current_frame()?.get_value(callee_id)?;
 
                 // find function
                 let function = match callee_val {
@@ -102,28 +97,23 @@ impl Interpreter {
                     }
                 };
 
-                // direct call
-                self.execute_call(*destination, function, arguments)?;
+                self.execute_call(dest, function, &args)?;
             }
 
             // dest = local variable
             mir::Instruction::LocalGet { destination, local } => {
-                let value = {
-                    let frame = self.current_frame()?;
-                    frame.get_local(*local)?
-                };
+                let (dest, local_id) = (*destination, *local);
+                let value = self.current_frame()?.get_local(local_id)?;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, value);
+                frame.set_value(dest, value);
             }
 
             // local variable = value
             mir::Instruction::LocalSet { local, value } => {
-                let val = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*value)?
-                };
+                let (local_id, val_id) = (*local, *value);
+                let val = self.current_frame()?.get_value(val_id)?;
                 let frame = self.current_frame_mut()?;
-                frame.set_local(*local, val);
+                frame.set_local(local_id, val);
             }
 
             // dest = &global (get pointer to mutable global)
@@ -131,9 +121,9 @@ impl Interpreter {
                 destination,
                 global,
             } => {
-                // return a global pointer that can be used with load/store
+                let (dest, global_id) = (*destination, *global);
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, Value::GlobalPointer(*global));
+                frame.set_value(dest, Value::GlobalPointer(global_id));
             }
 
             // dest = global constant value (load immutable global directly)
@@ -141,12 +131,13 @@ impl Interpreter {
                 destination,
                 global,
             } => {
+                let (dest, global_id) = (*destination, *global);
                 let value =
-                    self.globals.get(*global).cloned().ok_or_else(|| {
-                        self.make_error(Error::UndefinedGlobal { global: *global })
+                    self.globals.get(global_id).copied().ok_or_else(|| {
+                        self.make_error(Error::UndefinedGlobal { global: global_id })
                     })?;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, value);
+                frame.set_value(dest, value);
             }
 
             // dest = *pointer
@@ -154,19 +145,17 @@ impl Interpreter {
                 destination,
                 pointer,
             } => {
+                let (dest, ptr_id) = (*destination, *pointer);
                 self.statistics.loads += 1;
-                let ptr = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*pointer)?
-                };
+                let ptr = self.current_frame()?.get_value(ptr_id)?;
 
                 let value = match ptr {
-                    Value::ManagedReference(handle) => {
+                    Value::ManagedReference(handle) | Value::Aggregate(handle) => {
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.managed_heap.get(handle) {
-                            cell.slots.first().cloned().unwrap_or(Value::Void)
+                            cell.slots.first().copied().unwrap_or(Value::Void)
                         } else {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
@@ -176,16 +165,15 @@ impl Interpreter {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.raw_heap.get(ptr) {
-                            cell.slots.first().cloned().unwrap_or(Value::Void)
+                            cell.slots.first().copied().unwrap_or(Value::Void)
                         } else {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
                     Value::StackPointer(sp) => self.load_stack_slot(sp, 0)?,
-                    Value::GlobalPointer(global) => self
+                    Value::GlobalPointer(global) => *self
                         .globals
                         .get(global)
-                        .cloned()
                         .ok_or_else(|| self.make_error(Error::UndefinedGlobal { global }))?,
                     _ => {
                         return Err(self.make_error(Error::InvalidPointerType {
@@ -195,18 +183,15 @@ impl Interpreter {
                 };
 
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, value);
+                frame.set_value(dest, value);
             }
 
             // *pointer = value
             mir::Instruction::Store { pointer, value } => {
+                let (ptr_id, val_id) = (*pointer, *value);
                 self.statistics.stores += 1;
-                let (ptr, val) = {
-                    let frame = self.current_frame()?;
-                    let ptr = frame.get_value(*pointer)?;
-                    let val = frame.get_value(*value)?;
-                    (ptr, val)
-                };
+                let frame = self.current_frame()?;
+                let (ptr, val) = (frame.get_value(ptr_id)?, frame.get_value(val_id)?);
 
                 match ptr {
                     Value::ManagedReference(handle) => {
@@ -262,29 +247,19 @@ impl Interpreter {
                 aggregate,
                 index,
             } => {
-                let aggregate = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*aggregate)?
-                };
+                let (dest, agg_id, idx) = (*destination, *aggregate, *index);
+                let agg = self.current_frame()?.get_value(agg_id)?;
 
                 // extract field from aggregate or heap cell
-                let value = match aggregate {
-                    Value::Aggregate(fields) => {
-                        fields.get(*index as usize).cloned().ok_or_else(|| {
-                            self.make_error(Error::InvalidFieldAccess {
-                                index: *index,
-                                field_count: fields.len(),
-                            })
-                        })?
-                    }
-                    Value::ManagedReference(handle) => {
+                let value = match agg {
+                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.managed_heap.get(handle) {
-                            cell.slots.get(*index as usize).cloned().ok_or_else(|| {
+                            cell.slots.get(idx as usize).copied().ok_or_else(|| {
                                 self.make_error(Error::InvalidFieldAccess {
-                                    index: *index,
+                                    index: idx,
                                     field_count: cell.slots.len(),
                                 })
                             })?
@@ -297,9 +272,9 @@ impl Interpreter {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.raw_heap.get(ptr) {
-                            cell.slots.get(*index as usize).cloned().ok_or_else(|| {
+                            cell.slots.get(idx as usize).copied().ok_or_else(|| {
                                 self.make_error(Error::InvalidFieldAccess {
-                                    index: *index,
+                                    index: idx,
                                     field_count: cell.slots.len(),
                                 })
                             })?
@@ -307,17 +282,17 @@ impl Interpreter {
                             return Err(self.make_error(Error::InvalidHeapHandle));
                         }
                     }
-                    Value::StackPointer(sp) => self.load_stack_slot(sp, *index as usize)?,
+                    Value::StackPointer(sp) => self.load_stack_slot(sp, idx as usize)?,
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
                             expected: "aggregate".to_string(),
-                            actual: format!("{aggregate:?}"),
+                            actual: format!("{agg:?}"),
                         }));
                     }
                 };
 
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, value);
+                frame.set_value(dest, value);
             }
 
             // dest = aggregate with field[index] = value
@@ -327,36 +302,21 @@ impl Interpreter {
                 index,
                 value,
             } => {
-                let (aggregate, value) = {
-                    let frame = self.current_frame()?;
-                    let agg = frame.get_value(*aggregate)?;
-                    let val = frame.get_value(*value)?;
-                    (agg, val)
-                };
+                let (dest, agg_id, idx, val_id) = (*destination, *aggregate, *index, *value);
+                let frame = self.current_frame()?;
+                let (agg, val) = (frame.get_value(agg_id)?, frame.get_value(val_id)?);
 
                 // create new aggregate or update referenced storage
-                let result = match aggregate {
-                    // set field directly in aggregate
-                    Value::Aggregate(mut fields) => {
-                        if (*index as usize) < fields.len() {
-                            fields[*index as usize] = value;
-                        } else {
-                            return Err(self.make_error(Error::InvalidFieldAccess {
-                                index: *index,
-                                field_count: fields.len(),
-                            }));
-                        }
-                        Value::Aggregate(fields)
-                    }
-                    // set field indirectly on managed reference
-                    Value::ManagedReference(handle) => {
+                let result = match agg {
+                    // set field on aggregate or managed reference (both use heap)
+                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         let mut invalid_field_count = None;
                         if let Some(cell) = self.managed_heap.get_mut(handle) {
-                            if (*index as usize) < cell.slots.len() {
-                                cell.slots[*index as usize] = value;
+                            if (idx as usize) < cell.slots.len() {
+                                cell.slots[idx as usize] = val;
                             } else {
                                 invalid_field_count = Some(cell.slots.len());
                             }
@@ -365,11 +325,12 @@ impl Interpreter {
                         }
                         if let Some(field_count) = invalid_field_count {
                             return Err(self.make_error(Error::InvalidFieldAccess {
-                                index: *index,
+                                index: idx,
                                 field_count,
                             }));
                         }
-                        Value::ManagedReference(handle)
+                        // return the same aggregate/reference (in-place mutation)
+                        agg
                     }
                     // set field indirectly on raw pointer
                     Value::RawPointer(ptr) => {
@@ -378,8 +339,8 @@ impl Interpreter {
                         }
                         let mut invalid_field_count = None;
                         if let Some(cell) = self.raw_heap.get_mut(ptr) {
-                            if (*index as usize) < cell.slots.len() {
-                                cell.slots[*index as usize] = value;
+                            if (idx as usize) < cell.slots.len() {
+                                cell.slots[idx as usize] = val;
                             } else {
                                 invalid_field_count = Some(cell.slots.len());
                             }
@@ -388,7 +349,7 @@ impl Interpreter {
                         }
                         if let Some(field_count) = invalid_field_count {
                             return Err(self.make_error(Error::InvalidFieldAccess {
-                                index: *index,
+                                index: idx,
                                 field_count,
                             }));
                         }
@@ -396,19 +357,19 @@ impl Interpreter {
                     }
                     // set field indirectly on stack pointer
                     Value::StackPointer(sp) => {
-                        self.store_stack_slot(sp, *index as usize, value)?;
+                        self.store_stack_slot(sp, idx as usize, val)?;
                         Value::StackPointer(sp)
                     }
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
                             expected: "aggregate".to_string(),
-                            actual: format!("{aggregate:?}"),
+                            actual: format!("{agg:?}"),
                         }));
                     }
                 };
 
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, result);
+                frame.set_value(dest, result);
             }
 
             // dest = array[index]
@@ -417,32 +378,20 @@ impl Interpreter {
                 array,
                 index,
             } => {
-                let (arr, idx) = {
-                    let frame = self.current_frame()?;
-                    let arr = frame.get_value(*array)?;
-                    let idx = frame.get_value(*index)?;
-                    (arr, idx)
-                };
+                let (dest, arr_id, idx_id) = (*destination, *array, *index);
+                let frame = self.current_frame()?;
+                let (arr, idx) = (frame.get_value(arr_id)?, frame.get_value(idx_id)?);
                 let idx_val = idx.as_uint().unwrap_or(0);
 
                 // extract element at dynamic index
                 let value = match arr {
-                    // extract element directly from aggregate
-                    Value::Aggregate(elements) => {
-                        elements.get(idx_val as usize).cloned().ok_or_else(|| {
-                            self.make_error(Error::InvalidArrayAccess {
-                                index: idx_val,
-                                length: elements.len() as u64,
-                            })
-                        })?
-                    }
-                    // extract element indirectly from managed reference
-                    Value::ManagedReference(handle) => {
+                    // extract element from aggregate or managed reference (both use heap)
+                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.managed_heap.get(handle) {
-                            cell.slots.get(idx_val as usize).cloned().ok_or_else(|| {
+                            cell.slots.get(idx_val as usize).copied().ok_or_else(|| {
                                 self.make_error(Error::InvalidArrayAccess {
                                     index: idx_val,
                                     length: cell.slots.len() as u64,
@@ -458,7 +407,7 @@ impl Interpreter {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
                         if let Some(cell) = self.raw_heap.get(ptr) {
-                            cell.slots.get(idx_val as usize).cloned().ok_or_else(|| {
+                            cell.slots.get(idx_val as usize).copied().ok_or_else(|| {
                                 self.make_error(Error::InvalidArrayAccess {
                                     index: idx_val,
                                     length: cell.slots.len() as u64,
@@ -479,7 +428,7 @@ impl Interpreter {
                 };
 
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, value);
+                frame.set_value(dest, value);
             }
 
             // dest = array with [index] = value
@@ -489,31 +438,19 @@ impl Interpreter {
                 index,
                 value,
             } => {
-                let (array, idx, val) = {
-                    let frame = self.current_frame()?;
-                    let array = frame.get_value(*array)?;
-                    let idx = frame.get_value(*index)?;
-                    let value = frame.get_value(*value)?;
-                    (array, idx, value)
-                };
+                let (dest, arr_id, idx_id, val_id) = (*destination, *array, *index, *value);
+                let frame = self.current_frame()?;
+                let (arr, idx, val) = (
+                    frame.get_value(arr_id)?,
+                    frame.get_value(idx_id)?,
+                    frame.get_value(val_id)?,
+                );
                 let idx_val = idx.as_uint().unwrap_or(0);
 
                 // create new array or update referenced storage
-                let result = match array {
-                    // set element directly in aggregate
-                    Value::Aggregate(mut elements) => {
-                        if (idx_val as usize) < elements.len() {
-                            elements[idx_val as usize] = val;
-                        } else {
-                            return Err(self.make_error(Error::InvalidArrayAccess {
-                                index: idx_val,
-                                length: elements.len() as u64,
-                            }));
-                        }
-                        Value::Aggregate(elements)
-                    }
-                    // set element indirectly on managed reference
-                    Value::ManagedReference(handle) => {
+                let result = match arr {
+                    // set element on aggregate or managed reference (both use heap)
+                    Value::Aggregate(handle) | Value::ManagedReference(handle) => {
                         if handle.is_null() {
                             return Err(self.make_error(Error::NullPointerDereference));
                         }
@@ -533,7 +470,8 @@ impl Interpreter {
                                 length,
                             }));
                         }
-                        Value::ManagedReference(handle)
+                        // return the same array/reference (in-place mutation)
+                        arr
                     }
                     // set element indirectly on raw pointer
                     Value::RawPointer(ptr) => {
@@ -566,13 +504,13 @@ impl Interpreter {
                     _ => {
                         return Err(self.make_error(Error::TypeMismatch {
                             expected: "array".to_string(),
-                            actual: format!("{array:?}"),
+                            actual: format!("{arr:?}"),
                         }));
                     }
                 };
 
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, result);
+                frame.set_value(dest, result);
             }
 
             // dest = new gc-managed heap cell
@@ -580,6 +518,7 @@ impl Interpreter {
                 destination,
                 layout: _,
             } => {
+                let dest = *destination;
                 if self.managed_heap.cell_count() >= self.options.max_heap_cells {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
@@ -587,7 +526,7 @@ impl Interpreter {
                 let handle = self.managed_heap.allocate();
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, Value::ManagedReference(handle));
+                frame.set_value(dest, Value::ManagedReference(handle));
             }
 
             // dest = new gc-managed array with length slots
@@ -596,20 +535,18 @@ impl Interpreter {
                 element: _,
                 length,
             } => {
+                let (dest, len_id) = (*destination, *length);
                 if self.managed_heap.cell_count() >= self.options.max_heap_cells {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
 
-                let length = {
-                    let frame = self.current_frame()?;
-                    let len = frame.get_value(*length)?;
-                    len.as_uint().unwrap_or(0) as usize
-                };
+                let len_val = self.current_frame()?.get_value(len_id)?;
+                let length = len_val.as_uint().unwrap_or(0) as usize;
 
                 let handle = self.managed_heap.allocate_with_slots(length);
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, Value::ManagedReference(handle));
+                frame.set_value(dest, Value::ManagedReference(handle));
             }
 
             // dest = new manually-managed heap cell (raw pointer)
@@ -617,6 +554,7 @@ impl Interpreter {
                 destination,
                 layout: _,
             } => {
+                let dest = *destination;
                 if self.raw_heap.cell_count() >= self.options.max_heap_cells {
                     return Err(self.make_error(Error::AllocationFailed));
                 }
@@ -624,15 +562,13 @@ impl Interpreter {
                 let ptr = self.raw_heap.allocate();
                 self.statistics.heap_allocations += 1;
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, Value::RawPointer(ptr));
+                frame.set_value(dest, Value::RawPointer(ptr));
             }
 
             // deallocate raw pointer
             mir::Instruction::RawFree { pointer } => {
-                let ptr = {
-                    let frame = self.current_frame()?;
-                    frame.get_value(*pointer)?
-                };
+                let ptr_id = *pointer;
+                let ptr = self.current_frame()?.get_value(ptr_id)?;
 
                 if let Value::RawPointer(p) = ptr {
                     if !self.raw_heap.free(p) {
@@ -651,14 +587,12 @@ impl Interpreter {
                 destination,
                 layout: _,
             } => {
+                let dest = *destination;
                 let frame_depth = self.call_stack.len() - 1;
-                let slot = {
-                    let frame = self.current_frame_mut()?;
-                    frame.allocate_stack_cell()
-                };
+                let slot = self.current_frame_mut()?.allocate_stack_cell();
                 let sp = StackPointer::new(frame_depth, slot);
                 let frame = self.current_frame_mut()?;
-                frame.set_value(*destination, Value::StackPointer(sp));
+                frame.set_value(dest, Value::StackPointer(sp));
             }
 
             // intrinsic call
@@ -668,10 +602,12 @@ impl Interpreter {
                 arguments,
                 ordering,
             } => {
-                let result = self.execute_intrinsic(*intrinsic, arguments, *ordering)?;
-                if let Some(dest) = destination {
+                let (dest, intr, ord) = (*destination, *intrinsic, *ordering);
+                let args: Vec<_> = arguments.to_vec();
+                let result = self.execute_intrinsic(intr, &args, ord)?;
+                if let Some(d) = dest {
                     let frame = self.current_frame_mut()?;
-                    frame.set_value(*dest, result);
+                    frame.set_value(d, result);
                 }
             }
         }
@@ -692,7 +628,7 @@ impl Interpreter {
 
         cell.slots
             .get(slot_index)
-            .cloned()
+            .copied()
             .ok_or_else(|| {
                 self.make_error(Error::InvalidFieldAccess {
                     index: slot_index as u32,

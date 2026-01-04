@@ -55,7 +55,7 @@ impl Frame {
         let index = value.0 as usize;
         self.values
             .get(index)
-            .and_then(|opt| opt.clone())
+            .and_then(|opt| *opt)
             .ok_or_else(|| RuntimeError::new(Error::UndefinedValue { value }))
     }
 
@@ -75,7 +75,7 @@ impl Frame {
         self.locals
             .iter()
             .find(|(id, _)| *id == local)
-            .map(|(_, v)| v.clone())
+            .map(|(_, v)| *v)
             .ok_or_else(|| RuntimeError::new(Error::UndefinedLocal { local }))
     }
 
@@ -135,16 +135,11 @@ impl Frame {
         }
     }
 
-    /// Recursively collect heap handles from a value.
+    /// Collect heap handle from a value if applicable.
     fn collect_handles_from_value(value: &Value, roots: &mut Vec<HeapHandle>) {
         match value {
-            Value::ManagedReference(handle) => {
+            Value::ManagedReference(handle) | Value::Aggregate(handle) => {
                 roots.push(*handle);
-            }
-            Value::Aggregate(fields) => {
-                for field in fields {
-                    Self::collect_handles_from_value(field, roots);
-                }
             }
             _ => {}
         }

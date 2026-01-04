@@ -1,5 +1,3 @@
-//! Global variable storage.
-
 use std::collections::HashMap;
 
 use destack_mir as mir;
