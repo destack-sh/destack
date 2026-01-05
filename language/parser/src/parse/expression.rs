@@ -9,6 +9,7 @@ use destack_ast::{
     InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
     TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
 };
+use destack_source::LanguageType;
 
 pub static DECLARATION_KEYWORDS: [Keyword; 23] = [
     Keyword::Declare,
@@ -96,6 +97,8 @@ fn to_infix_operator(
     next_token: &TokenSpan,
     next_next_token: &TokenSpan,
     options: ParserOptions,
+    language: LanguageType,
+    has_newline: bool,
 ) -> ParseResult<(InfixOperator, u8)> {
     // special case for shift right (`>>`) and unsigned shift right (`>>>`) to avoid ungluing ambiguity
     if !options.in_static
@@ -119,11 +122,12 @@ fn to_infix_operator(
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
     // regular type binary operator
-    // (forbidden in super type clauses)
+    // (forbidden in super type clauses, `is` cannot glue across newlines in TS)
     else if !options.in_super_type
         && let Some(type_binary_operator) =
             TypeBinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_type_mapped_constraint || type_binary_operator != TypeBinaryOperator::Cast)
+        && (language.is_destack() || !has_newline || type_binary_operator != TypeBinaryOperator::Is)
     {
         Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
     }
@@ -215,7 +219,15 @@ impl Parser {
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next()?;
         let next_next_token = self.peek_next_next()?;
-        to_infix_operator(token_str, token, next_token, next_next_token, self.options)
+        to_infix_operator(
+            token_str,
+            token,
+            next_token,
+            next_next_token,
+            self.options,
+            self.language,
+            false,
+        )
     }
 
     /// Peek a next infix operator.
@@ -225,7 +237,15 @@ impl Parser {
         let token_str = self.get_span_str(token.span);
         let next_token = self.peek_next_next()?;
         let next_next_token = self.peek_next_next_next()?;
-        to_infix_operator(token_str, token, next_token, next_next_token, self.options)
+        to_infix_operator(
+            token_str,
+            token,
+            next_token,
+            next_next_token,
+            self.options,
+            self.language,
+            true,
+        )
     }
 
     /// Peek an infix operator after any newlines.
@@ -244,7 +264,15 @@ impl Parser {
         let token_str = self.get_span_str(token.span);
         let next_token = self.tokens.get(pos + 2).unwrap_or(&self.eof_token);
         let next_next_token = self.tokens.get(pos + 3).unwrap_or(&self.eof_token);
-        to_infix_operator(token_str, token, next_token, next_next_token, self.options)
+        to_infix_operator(
+            token_str,
+            token,
+            next_token,
+            next_next_token,
+            self.options,
+            self.language,
+            true,
+        )
     }
 
     /// Make an expression from an infix operator.

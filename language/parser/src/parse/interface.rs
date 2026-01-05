@@ -566,4 +566,60 @@ interface Add<T, R = Self> {
             });
         });
     }
+
+    /// 'is' can be used as a property name in TypeScript declaration files.
+    #[test]
+    fn test_parse_interface_with_is_property_name_in_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"interface Webidl {
+    is: WebidlIs
+}"#,
+            destack_source::LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, members, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "Webidl");
+            assert_eq!(members.len(), 1);
+
+            // is: WebidlIs
+            assert_node!(parser.tree, members[0], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
+                assert_string!(parser, *name, "is");
+                assert_expression_path!(parser, parser.tree.get(*ty), "WebidlIs");
+            });
+        });
+    }
+
+    /// 'is' as property name works in multi-member interfaces.
+    #[test]
+    fn test_parse_interface_with_is_and_other_members() {
+        let mut test = TestParser::new_with_options(
+            r#"export interface Webidl {
+    errors: WebidlErrors
+    util: WebidlUtil
+    converters: WebidlConverters
+    is: WebidlIs
+    attributes: WebIDLExtendedAttributes
+}"#,
+            destack_source::LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+
+        // parse the export declaration wrapper
+        let expressions = parser.parse();
+        assert!(
+            parser.diagnostics.is_empty(),
+            "expected no parser errors, got: {:?}",
+            parser.diagnostics
+        );
+        assert_eq!(expressions.len(), 1);
+    }
 }
