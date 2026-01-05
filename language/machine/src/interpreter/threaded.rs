@@ -1,5 +1,7 @@
 #![allow(elided_lifetimes_in_paths)]
 
+use std::fmt;
+
 use destack_mir as mir;
 use smallvec::SmallVec;
 
@@ -11,17 +13,17 @@ use crate::{Frame, Interpreter};
 ///
 /// Takes state, current block's instructions, and program counter.
 /// Uses `become` to tail-call next handler, or returns `ControlFlow` for special cases.
-pub(super) type ThreadedHandler =
-    fn(&mut ThreadedState, &[ThreadedInstruction], usize) -> ControlFlow;
+pub type ThreadedHandler = fn(&mut ThreadedState, &[ThreadedInstruction], usize) -> ControlFlow;
 
 /// Control flow actions that exit the tail-call chain.
-pub(super) enum ControlFlow {
+#[derive(Debug)]
+pub enum ControlFlow {
     /// Jump to another block.
     Jump {
         /// Target block index.
         block: usize,
-        /// Arguments for block parameters.
-        arguments: SmallVec<[Value; 4]>,
+        /// Arguments for block parameters (SSA value ids).
+        arguments: SmallVec<[mir::Value; 8]>,
     },
     /// Call another function.
     Call {
@@ -29,8 +31,8 @@ pub(super) enum ControlFlow {
         function: mir::LocalNodeId<mir::Function>,
         /// Destination for return value.
         destination: Option<mir::Value>,
-        /// Arguments to pass.
-        arguments: SmallVec<[Value; 4]>,
+        /// Arguments to pass (SSA value ids).
+        arguments: SmallVec<[mir::Value; 8]>,
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
@@ -42,7 +44,7 @@ pub(super) enum ControlFlow {
 
 /// Pre-decoded instruction with handler pointer.
 #[derive(Clone)]
-pub(super) struct ThreadedInstruction {
+pub struct ThreadedInstruction {
     /// Handler function.
     pub handler: ThreadedHandler,
     /// Decoded data.
@@ -50,8 +52,8 @@ pub(super) struct ThreadedInstruction {
 }
 
 /// Decoded instruction data.
-#[derive(Clone)]
-pub(super) enum ThreadedInstructionData {
+#[derive(Clone, Debug)]
+pub enum ThreadedInstructionData {
     /// Load constant.
     Const { dest: mir::Value, value: Value },
 
@@ -82,14 +84,14 @@ pub(super) enum ThreadedInstructionData {
     Call {
         dest: Option<mir::Value>,
         function: mir::LocalNodeId<mir::Function>,
-        arguments: SmallVec<[mir::Value; 4]>,
+        arguments: SmallVec<[mir::Value; 8]>,
     },
 
     /// Indirect function call.
     CallIndirect {
         dest: Option<mir::Value>,
         callee: mir::Value,
-        arguments: SmallVec<[mir::Value; 4]>,
+        arguments: SmallVec<[mir::Value; 8]>,
     },
 
     /// Load local variable.
@@ -180,7 +182,7 @@ pub(super) enum ThreadedInstructionData {
     Intrinsic {
         dest: Option<mir::Value>,
         intrinsic: mir::Intrinsic,
-        arguments: SmallVec<[mir::Value; 4]>,
+        arguments: SmallVec<[mir::Value; 8]>,
         ordering: Option<mir::MemoryOrdering>,
     },
 
@@ -190,16 +192,16 @@ pub(super) enum ThreadedInstructionData {
     /// Unconditional jump.
     Jump {
         target: usize,
-        arguments: SmallVec<[mir::Value; 4]>,
+        arguments: SmallVec<[mir::Value; 8]>,
     },
 
     /// Conditional branch.
     Branch {
         condition: mir::Value,
         then_target: usize,
-        then_arguments: SmallVec<[mir::Value; 4]>,
+        then_arguments: SmallVec<[mir::Value; 8]>,
         else_target: usize,
-        else_arguments: SmallVec<[mir::Value; 4]>,
+        else_arguments: SmallVec<[mir::Value; 8]>,
     },
 
     /// Switch on integer.
@@ -207,7 +209,7 @@ pub(super) enum ThreadedInstructionData {
         value: mir::Value,
         cases: Vec<SwitchCase>,
         default_target: usize,
-        default_arguments: SmallVec<[mir::Value; 4]>,
+        default_arguments: SmallVec<[mir::Value; 8]>,
     },
 
     /// Unreachable code.
@@ -218,32 +220,32 @@ pub(super) enum ThreadedInstructionData {
 }
 
 /// Switch case.
-#[derive(Clone)]
-pub(super) struct SwitchCase {
+#[derive(Clone, Debug)]
+pub struct SwitchCase {
     /// Match value.
     pub value: i64,
     /// Target block.
     pub target: usize,
     /// Block arguments.
-    pub arguments: SmallVec<[mir::Value; 4]>,
+    pub arguments: SmallVec<[mir::Value; 8]>,
 }
 
 /// Threaded basic block.
-#[derive(Clone)]
-pub(super) struct ThreadedBlock {
+#[derive(Clone, Debug)]
+pub struct ThreadedBlock {
     /// Original MIR block id.
     pub mir_block: mir::LocalNodeId<mir::Block>,
     /// Block parameters.
-    pub parameters: SmallVec<[mir::Value; 4]>,
+    pub parameters: SmallVec<[mir::Value; 8]>,
     /// Instructions including terminator.
     pub instructions: Vec<ThreadedInstruction>,
 }
 
 /// Threaded function with optimized dispatch.
-#[derive(Clone)]
-pub(super) struct ThreadedFunction {
+#[derive(Clone, Debug)]
+pub struct ThreadedFunction {
     /// Function parameters.
-    pub parameters: SmallVec<[mir::Value; 4]>,
+    pub parameters: SmallVec<[mir::Value; 8]>,
     /// Entry block index.
     pub entry: usize,
     /// All blocks.
@@ -255,40 +257,84 @@ pub(super) struct ThreadedFunction {
 }
 
 /// Execution state for threaded interpreter.
-pub(super) struct ThreadedState<'a> {
+pub struct ThreadedState<'a> {
     /// Index of the current frame in the call stack.
     pub frame_index: usize,
     /// Interpreter reference for heap and globals.
     pub interpreter: &'a mut Interpreter,
     /// Pointer to the current frame for fast access.
     frame: *mut Frame,
-    /// Pointer to SSA value storage.
-    values: *mut Vec<Value>,
-    /// Pointer to local variable storage.
-    locals: *mut Vec<Value>,
+    /// Pointer to SSA value storage for this frame.
+    values: *mut Value,
+    /// Count of SSA values in this frame.
+    value_count: usize,
+    /// Pointer to local variable storage for this frame.
+    locals: *mut Value,
+    /// Count of local variables in this frame.
+    local_count: usize,
+}
+
+impl fmt::Debug for ThreadedInstruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ThreadedInstruction")
+            .field("data", &self.data)
+            .finish()
+    }
+}
+
+impl fmt::Debug for ThreadedState<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ThreadedState")
+            .field("frame_index", &self.frame_index)
+            .field("value_count", &self.value_count)
+            .field("local_count", &self.local_count)
+            .finish()
+    }
 }
 
 impl<'a> ThreadedState<'a> {
     /// Create state for the current frame.
-    pub(super) fn new(interpreter: &'a mut Interpreter, frame_index: usize) -> Self {
+    pub fn new(interpreter: &'a mut Interpreter, frame_index: usize) -> Self {
         // get frame pointer
         // safety: frame_index always points at the current frame
         let frame =
             unsafe { interpreter.call_stack.get_unchecked_mut(frame_index) as *mut super::Frame };
+
+        // load frame bounds
+        let value_base = unsafe { (*frame).value_base };
+        let value_count = unsafe { (*frame).value_count };
+        let local_base = unsafe { (*frame).local_base };
+        let local_count = unsafe { (*frame).local_count };
+
+        // validate stack bounds in debug builds
+        debug_assert!(
+            value_base + value_count <= interpreter.value_stack.len(),
+            "value stack out of bounds for frame"
+        );
+        debug_assert!(
+            local_base + local_count <= interpreter.local_stack.len(),
+            "local stack out of bounds for frame"
+        );
+
+        // cache stack pointers
+        let values_ptr = interpreter.value_stack.as_mut_ptr();
+        let locals_ptr = interpreter.local_stack.as_mut_ptr();
 
         // assemble state
         Self {
             frame_index,
             interpreter,
             frame,
-            values: unsafe { &mut (*frame).values },
-            locals: unsafe { &mut (*frame).locals },
+            values: unsafe { values_ptr.add(value_base) },
+            value_count,
+            locals: unsafe { locals_ptr.add(local_base) },
+            local_count,
         }
     }
 
     /// Get the current frame mutably.
     #[inline(always)]
-    pub(super) fn current_frame_mut(&mut self) -> &mut super::Frame {
+    pub fn current_frame_mut(&mut self) -> &mut super::Frame {
         // return current frame
         // safety: frame pointer is valid for current block execution
         unsafe { &mut *self.frame }
@@ -296,7 +342,7 @@ impl<'a> ThreadedState<'a> {
 
     /// Get a frame by index.
     #[inline(always)]
-    pub(super) fn frame_by_index(&self, frame_index: usize) -> Result<&super::Frame, Error> {
+    pub fn frame_by_index(&self, frame_index: usize) -> Result<&super::Frame, Error> {
         // look up frame by index
         self.interpreter
             .call_stack
@@ -306,10 +352,7 @@ impl<'a> ThreadedState<'a> {
 
     /// Get a frame by index mutably.
     #[inline(always)]
-    pub(super) fn frame_by_index_mut(
-        &mut self,
-        frame_index: usize,
-    ) -> Result<&mut super::Frame, Error> {
+    pub fn frame_by_index_mut(&mut self, frame_index: usize) -> Result<&mut super::Frame, Error> {
         // look up frame by index
         self.interpreter
             .call_stack
@@ -319,61 +362,57 @@ impl<'a> ThreadedState<'a> {
 
     /// Get value by SSA id.
     #[inline(always)]
-    pub(super) fn get(&self, v: mir::Value) -> Value {
+    pub fn get(&self, v: mir::Value) -> Value {
         // compute value index
         let index = v.0 as usize;
-        let values = unsafe { &*self.values };
 
         // validate bounds in debug builds
-        debug_assert!(index < values.len(), "ssa value out of bounds: {v:?}");
+        debug_assert!(index < self.value_count, "ssa value out of bounds: {v:?}");
 
         // read value
-        unsafe { *values.get_unchecked(index) }
+        unsafe { *self.values.add(index) }
     }
 
     /// Set value by SSA id.
     #[inline(always)]
-    pub(super) fn set(&mut self, v: mir::Value, val: Value) {
+    pub fn set(&mut self, v: mir::Value, val: Value) {
         // compute value index
         let index = v.0 as usize;
-        let values = unsafe { &mut *self.values };
 
         // validate bounds in debug builds
-        debug_assert!(index < values.len(), "ssa value out of bounds: {v:?}");
+        debug_assert!(index < self.value_count, "ssa value out of bounds: {v:?}");
 
         // write value
         unsafe {
-            *values.get_unchecked_mut(index) = val;
+            *self.values.add(index) = val;
         }
     }
 
     /// Get local variable.
     #[inline(always)]
-    pub(super) fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> Value {
+    pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> Value {
         // compute local index
         let index = local.id as usize;
-        let locals = unsafe { &*self.locals };
 
         // validate bounds in debug builds
-        debug_assert!(index < locals.len(), "local out of bounds: {local:?}");
+        debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
 
         // read local value
-        unsafe { *locals.get_unchecked(index) }
+        unsafe { *self.locals.add(index) }
     }
 
     /// Set local variable.
     #[inline(always)]
-    pub(super) fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, val: Value) {
+    pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, val: Value) {
         // compute local index
         let index = local.id as usize;
-        let locals = unsafe { &mut *self.locals };
 
         // validate bounds in debug builds
-        debug_assert!(index < locals.len(), "local out of bounds: {local:?}");
+        debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
 
         // write local value
         unsafe {
-            *locals.get_unchecked_mut(index) = val;
+            *self.locals.add(index) = val;
         }
     }
 }

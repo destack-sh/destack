@@ -218,7 +218,7 @@ pub(super) fn thread_function(
     }
 
     // gather function parameters
-    let parameters: SmallVec<[mir::Value; 4]> = func.parameters.iter().map(|p| p.value).collect();
+    let parameters: SmallVec<[mir::Value; 8]> = func.parameters.iter().map(|p| p.value).collect();
 
     // compute storage sizes
     let local_count = func.locals.len();
@@ -256,7 +256,7 @@ fn thread_block(
     instructions.push(terminator);
 
     // gather block parameters
-    let parameters: SmallVec<[mir::Value; 4]> = block.parameters.iter().map(|p| p.value).collect();
+    let parameters: SmallVec<[mir::Value; 8]> = block.parameters.iter().map(|p| p.value).collect();
 
     // assemble block
     ThreadedBlock {
@@ -330,7 +330,7 @@ fn thread_instruction(
             function,
             arguments,
         } => {
-            let args: SmallVec<[mir::Value; 4]> =
+            let args: SmallVec<[mir::Value; 8]> =
                 tree.get_arguments(*arguments).iter().copied().collect();
             ThreadedInstruction {
                 handler: bytecode::handle_call,
@@ -347,7 +347,7 @@ fn thread_instruction(
             callee,
             arguments,
         } => {
-            let args: SmallVec<[mir::Value; 4]> =
+            let args: SmallVec<[mir::Value; 8]> =
                 tree.get_arguments(*arguments).iter().copied().collect();
             ThreadedInstruction {
                 handler: bytecode::handle_call_indirect,
@@ -510,7 +510,7 @@ fn thread_instruction(
             arguments,
             ordering,
         } => {
-            let args: SmallVec<[mir::Value; 4]> =
+            let args: SmallVec<[mir::Value; 8]> =
                 tree.get_arguments(*arguments).iter().copied().collect();
             ThreadedInstruction {
                 handler: bytecode::handle_intrinsic,

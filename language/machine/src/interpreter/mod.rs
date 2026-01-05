@@ -16,3 +16,7 @@ pub use global::GlobalStorage;
 pub use interpreter::{ExecutionOutput, ExternalFn, Interpreter};
 pub use options::MachineOptions;
 pub use statistics::Statistics;
+pub use threaded::{
+    ControlFlow, SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedHandler, ThreadedInstruction,
+    ThreadedInstructionData, ThreadedState,
+};

@@ -3,12 +3,6 @@ use destack_mir as mir;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapCell, HeapHandle, Value};
 
-/// Initial capacity for SSA values.
-const VALUES_INLINE_CAP: usize = 64;
-
-/// Initial capacity for local variables.
-const LOCALS_INLINE_CAP: usize = 16;
-
 /// Call frame in the interpreter.
 #[derive(Debug)]
 pub struct Frame {
@@ -22,10 +16,14 @@ pub struct Frame {
     pub block_index: usize,
     /// Program counter within the current threaded block.
     pub resume_pc: usize,
-    /// SSA values in this frame, indexed by value id.
-    pub values: Vec<Value>,
-    /// Local variables (stack slots).
-    pub locals: Vec<Value>,
+    /// Base offset into the interpreter value stack.
+    pub value_base: usize,
+    /// Count of SSA values in this frame.
+    pub value_count: usize,
+    /// Base offset into the interpreter local stack.
+    pub local_base: usize,
+    /// Count of local variables in this frame.
+    pub local_count: usize,
     /// Stack-allocated cells (freed when frame pops).
     pub stack_cells: Vec<HeapCell>,
     /// Where to store the return value when callee returns (set by caller before pushing a new frame).
@@ -38,24 +36,22 @@ impl Frame {
         function: mir::LocalNodeId<mir::Function>,
         entry_block: mir::LocalNodeId<mir::Block>,
         block_index: usize,
+        value_base: usize,
         value_count: usize,
+        local_base: usize,
         local_count: usize,
     ) -> Self {
-        let value_capacity = value_count.max(VALUES_INLINE_CAP);
-        let local_capacity = local_count.max(LOCALS_INLINE_CAP);
-        let mut values = Vec::with_capacity(value_capacity);
-        let mut locals = Vec::with_capacity(local_capacity);
-        values.resize(value_count, Value::VOID);
-        locals.resize(local_count, Value::VOID);
-
+        // assemble frame state
         Self {
             function,
             entry_block,
             current_block: entry_block,
             block_index,
             resume_pc: 0,
-            values,
-            locals,
+            value_base,
+            value_count,
+            local_base,
+            local_count,
             stack_cells: Vec::new(),
             return_destination: None,
         }
@@ -63,67 +59,116 @@ impl Frame {
 
     /// Get a value from this frame.
     #[inline]
-    pub fn get_value(&self, value: mir::Value) -> RuntimeResult<Value> {
-        self.get_value_or_error(value).map_err(RuntimeError::new)
+    pub fn get_value(&self, values: &[Value], value: mir::Value) -> RuntimeResult<Value> {
+        // forward to value lookup
+        self.get_value_or_error(values, value)
+            .map_err(RuntimeError::new)
     }
 
     /// Get a value from this frame without call stack context.
     #[inline]
-    pub fn get_value_or_error(&self, value: mir::Value) -> Result<Value, Error> {
+    pub fn get_value_or_error(&self, values: &[Value], value: mir::Value) -> Result<Value, Error> {
+        // compute value index
         let index = value.0 as usize;
-        self.values
-            .get(index)
+
+        // reject out of bounds values
+        if index >= self.value_count {
+            return Err(Error::UndefinedValue { value });
+        }
+
+        // read value slot
+        let slot = self.value_base + index;
+        values
+            .get(slot)
             .copied()
             .ok_or(Error::UndefinedValue { value })
     }
 
     /// Set a value in this frame.
     #[inline]
-    pub fn set_value(&mut self, value: mir::Value, val: Value) {
+    pub fn set_value(&self, values: &mut [Value], value: mir::Value, val: Value) {
+        // compute value index
         let index = value.0 as usize;
+
+        // validate bounds in debug builds
         debug_assert!(
-            index < self.values.len(),
+            index < self.value_count,
             "ssa value out of bounds: {value:?}"
         );
-        unsafe {
-            *self.values.get_unchecked_mut(index) = val;
-        }
+
+        // write value slot
+        let slot = self.value_base + index;
+        values[slot] = val;
     }
 
     /// Get a local variable.
-    pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> RuntimeResult<Value> {
-        self.get_local_or_error(local).map_err(RuntimeError::new)
+    pub fn get_local(
+        &self,
+        locals: &[Value],
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> RuntimeResult<Value> {
+        // forward to local lookup
+        self.get_local_or_error(locals, local)
+            .map_err(RuntimeError::new)
     }
 
     /// Get a local variable without call stack context.
     #[inline]
-    pub fn get_local_or_error(&self, local: mir::LocalNodeId<mir::Local>) -> Result<Value, Error> {
+    pub fn get_local_or_error(
+        &self,
+        locals: &[Value],
+        local: mir::LocalNodeId<mir::Local>,
+    ) -> Result<Value, Error> {
+        // compute local index
         let index = local.id as usize;
-        self.locals
-            .get(index)
+
+        // reject out of bounds locals
+        if index >= self.local_count {
+            return Err(Error::UndefinedLocal { local });
+        }
+
+        // read local slot
+        let slot = self.local_base + index;
+        locals
+            .get(slot)
             .copied()
             .ok_or(Error::UndefinedLocal { local })
     }
 
     /// Set a local variable.
-    pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, value: Value) {
+    pub fn set_local(
+        &self,
+        locals: &mut [Value],
+        local: mir::LocalNodeId<mir::Local>,
+        value: Value,
+    ) {
+        // compute local index
         let index = local.id as usize;
-        debug_assert!(index < self.locals.len(), "local out of bounds: {local:?}");
-        unsafe {
-            *self.locals.get_unchecked_mut(index) = value;
-        }
+
+        // validate bounds in debug builds
+        debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
+
+        // write local slot
+        let slot = self.local_base + index;
+        locals[slot] = value;
     }
 
     /// Check if a value is defined in this frame.
     #[inline]
     pub fn has_value(&self, value: mir::Value) -> bool {
+        // check value bounds
         let index = value.0 as usize;
-        self.values.get(index).is_some()
+        index < self.value_count
     }
 
     /// Clear all values (but keep locals).
-    pub fn clear_values(&mut self) {
-        self.values.clear();
+    pub fn clear_values(&self, values: &mut [Value]) {
+        // compute value range
+        let start = self.value_base;
+        let end = self.value_base + self.value_count;
+
+        // clear value slots
+        values[start..end].fill(Value::VOID);
     }
 
     /// Allocate a new stack cell, returning its slot index.
@@ -146,13 +191,32 @@ impl Frame {
     }
 
     /// Collect all heap handles from this frame for GC roots.
-    pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
-        for value in &self.values {
+    pub fn collect_roots(&self, values: &[Value], locals: &[Value], roots: &mut Vec<HeapHandle>) {
+        // validate stack bounds in debug builds
+        debug_assert!(
+            self.value_base + self.value_count <= values.len(),
+            "value stack out of bounds for frame"
+        );
+        debug_assert!(
+            self.local_base + self.local_count <= locals.len(),
+            "local stack out of bounds for frame"
+        );
+
+        // slice value and local ranges
+        let value_slice = &values[self.value_base..self.value_base + self.value_count];
+        let local_slice = &locals[self.local_base..self.local_base + self.local_count];
+
+        // collect handles from values
+        for value in value_slice {
             Self::collect_handles_from_value(value, roots);
         }
-        for value in &self.locals {
+
+        // collect handles from locals
+        for value in local_slice {
             Self::collect_handles_from_value(value, roots);
         }
+
+        // collect handles from stack cells
         for cell in &self.stack_cells {
             for value in &cell.slots {
                 Self::collect_handles_from_value(value, roots);

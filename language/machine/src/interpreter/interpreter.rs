@@ -51,6 +51,10 @@ pub struct Interpreter {
     pub(super) threaded_functions: HashMap<mir::LocalNodeId<mir::Function>, Arc<ThreadedFunction>>,
     /// Explicit call stack (used for GC roots and error reporting).
     pub(super) call_stack: Vec<Frame>,
+    /// SSA value stack for all active frames.
+    pub(super) value_stack: Vec<Value>,
+    /// Local variable stack for all active frames.
+    pub(super) local_stack: Vec<Value>,
     /// Execution statistics.
     pub statistics: Statistics,
 }
@@ -99,6 +103,8 @@ impl Interpreter {
             options,
             threaded_functions,
             call_stack: Vec::new(),
+            value_stack: Vec::new(),
+            local_stack: Vec::new(),
             statistics: Statistics::new(),
         }
     }
@@ -299,7 +305,7 @@ impl Interpreter {
         // collect roots from all frames
         let mut roots = Vec::new();
         for frame in &self.call_stack {
-            frame.collect_roots(&mut roots);
+            frame.collect_roots(&self.value_stack, &self.local_stack, &mut roots);
         }
 
         self.managed_heap.collect(&roots);
