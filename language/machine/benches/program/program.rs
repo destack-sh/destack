@@ -98,7 +98,7 @@ const RED: &str = "\x1b[31m";
 pub(crate) fn quick_bench(filter: Option<&[&str]>) {
     use std::time::Duration;
 
-    const TIME_PER_PROGRAM: Duration = Duration::from_millis(80);
+    const TIME_PER_PROGRAM: Duration = Duration::from_millis(100);
 
     let all_programs: Vec<(&str, &[&Program])> = vec![
         ("dispatch", dispatch::ALL),

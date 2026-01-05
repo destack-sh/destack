@@ -19,17 +19,12 @@ macro_rules! next {
 
 /// Collect argument values into a smallvec.
 #[inline]
-fn collect_args(state: &mut ThreadedState, arguments: &[mir::Value]) -> SmallVec<[Value; 4]> {
-    // allocate argument buffer
+fn collect_values(state: &mut ThreadedState, arguments: &[mir::Value]) -> SmallVec<[Value; 8]> {
     let mut args = SmallVec::with_capacity(arguments.len());
-
-    // resolve argument values
     for arg in arguments {
         let value = state.get(*arg);
         args.push(value);
     }
-
-    // return arguments
     args
 }
 
@@ -452,7 +447,7 @@ pub(super) fn handle_cast(
 
 /// Handle function call (returns to trampoline).
 pub(super) fn handle_call(
-    state: &mut ThreadedState,
+    _state: &mut ThreadedState,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -466,14 +461,11 @@ pub(super) fn handle_call(
         unreachable!()
     };
 
-    // resolve arguments
-    let args = collect_args(state, arguments);
-
     // return control to trampoline
     ControlFlow::Call {
         function: *function,
         destination: *dest,
-        arguments: args,
+        arguments: arguments.clone(),
         resume_pc: pc + 1,
     }
 }
@@ -508,14 +500,11 @@ pub(super) fn handle_call_indirect(
         }
     };
 
-    // resolve arguments
-    let args = collect_args(state, arguments);
-
     // return control to trampoline
     ControlFlow::Call {
         function,
         destination: *dest,
-        arguments: args,
+        arguments: arguments.clone(),
         resume_pc: pc + 1,
     }
 }
@@ -937,7 +926,7 @@ pub(super) fn handle_intrinsic(
     };
 
     // resolve arguments
-    let args = collect_args(state, arguments);
+    let args = collect_values(state, arguments);
 
     // execute intrinsic
     match state
@@ -979,7 +968,7 @@ pub(super) fn handle_return(
 
 /// Handle unconditional jump (exits tail-call chain).
 pub(super) fn handle_jump(
-    state: &mut ThreadedState,
+    _state: &mut ThreadedState,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -988,13 +977,10 @@ pub(super) fn handle_jump(
         unreachable!()
     };
 
-    // resolve arguments
-    let args = collect_args(state, arguments);
-
     // return jump control
     ControlFlow::Jump {
         block: *target,
-        arguments: args,
+        arguments: arguments.clone(),
     }
 }
 
@@ -1025,20 +1011,18 @@ pub(super) fn handle_branch(
 
     // handle truthy branch
     if is_truthy {
-        // resolve then arguments
-        let args = collect_args(state, then_arguments);
+        // forward then arguments
         ControlFlow::Jump {
             block: *then_target,
-            arguments: args,
+            arguments: then_arguments.clone(),
         }
     }
     // otherwise jump to else target
     else {
-        // resolve else arguments
-        let args = collect_args(state, else_arguments);
+        // forward else arguments
         ControlFlow::Jump {
             block: *else_target,
-            arguments: args,
+            arguments: else_arguments.clone(),
         }
     }
 }
@@ -1070,20 +1054,18 @@ pub(super) fn handle_branch_bool(
 
     // handle truthy branch
     if is_truthy {
-        // resolve then arguments
-        let args = collect_args(state, then_arguments);
+        // forward then arguments
         ControlFlow::Jump {
             block: *then_target,
-            arguments: args,
+            arguments: then_arguments.clone(),
         }
     }
     // otherwise jump to else target
     else {
-        // resolve else arguments
-        let args = collect_args(state, else_arguments);
+        // forward else arguments
         ControlFlow::Jump {
             block: *else_target,
-            arguments: args,
+            arguments: else_arguments.clone(),
         }
     }
 }
@@ -1115,22 +1097,19 @@ pub(super) fn handle_switch(
     // find matching case
     for case in cases {
         if case.value == int_val {
-            // resolve case arguments
-            let args = collect_args(state, &case.arguments);
+            // forward case arguments
             return ControlFlow::Jump {
                 block: case.target,
-                arguments: args,
+                arguments: case.arguments.clone(),
             };
         }
     }
 
-    // resolve default arguments
-    let args = collect_args(state, default_arguments);
-
+    // forward default arguments
     // return default jump
     ControlFlow::Jump {
         block: *default_target,
-        arguments: args,
+        arguments: default_arguments.clone(),
     }
 }
 
@@ -1161,22 +1140,19 @@ pub(super) fn handle_switch_int(
     // find matching case
     for case in cases {
         if case.value == int_val {
-            // resolve case arguments
-            let args = collect_args(state, &case.arguments);
+            // forward case arguments
             return ControlFlow::Jump {
                 block: case.target,
-                arguments: args,
+                arguments: case.arguments.clone(),
             };
         }
     }
 
-    // resolve default arguments
-    let args = collect_args(state, default_arguments);
-
+    // forward default arguments
     // return default jump
     ControlFlow::Jump {
         block: *default_target,
-        arguments: args,
+        arguments: default_arguments.clone(),
     }
 }
 
