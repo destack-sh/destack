@@ -6,8 +6,9 @@ use crate::memory::Value;
 
 use super::dispatch;
 use super::threaded::{
-    ArgumentRange, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase, SwitchRange, ThreadedBlock,
-    ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, pack_optional_value,
+    ArgumentRange, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, SwitchCase,
+    SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction, ThreadedInstructionData,
+    pack_optional_value,
 };
 
 /// Scalar and aggregate kinds used for typed dispatch selection.
@@ -145,6 +146,7 @@ fn select_switch_handler(
 pub(super) fn thread_function(
     tree: &mir::NodeTree,
     func_id: mir::LocalNodeId<mir::Function>,
+    function_indices: &[u32],
 ) -> Option<ThreadedFunction> {
     // load function
     let func = tree.get(func_id);
@@ -242,6 +244,7 @@ pub(super) fn thread_function(
             block,
             &block_index_map,
             &block_parameters,
+            function_indices,
             &value_kinds,
             &mut argument_pool,
             &mut switch_case_pool,
@@ -274,6 +277,7 @@ fn thread_block(
     block: &mir::Block,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
+    function_indices: &[u32],
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
@@ -292,7 +296,14 @@ fn thread_block(
     // convert regular instructions
     for &inst_id in &block.instructions {
         let inst = tree.get(inst_id);
-        let threaded = thread_instruction(tree, inst, value_kinds, argument_pool, copy_pool);
+        let threaded = thread_instruction(
+            tree,
+            inst,
+            value_kinds,
+            argument_pool,
+            copy_pool,
+            function_indices,
+        );
         instructions.push(threaded);
     }
 
@@ -325,6 +336,7 @@ fn thread_instruction(
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
     copy_pool: &mut Vec<CopyPair>,
+    function_indices: &[u32],
 ) -> ThreadedInstruction {
     // map instruction opcode to threaded form
     match inst {
@@ -389,6 +401,8 @@ fn thread_instruction(
             let args_range = push_argument_range(argument_pool, args);
             let callee = tree.get(*function);
             let copies = push_copy_range_from_params(copy_pool, &callee.parameters, args);
+            let callee_index = lookup_function_index(function_indices, *function)
+                .unwrap_or(INVALID_FUNCTION_INDEX);
 
             // assemble threaded call
             ThreadedInstruction {
@@ -396,6 +410,7 @@ fn thread_instruction(
                 data: ThreadedInstructionData::Call {
                     dest: pack_optional_value(*destination),
                     function: function.id,
+                    callee_index,
                     arguments: args_range,
                     copies,
                 },
@@ -1056,6 +1071,23 @@ fn push_copy_range_from_params(
         start: start as u32,
         len: parameters.len() as u32,
     }
+}
+
+/// Resolve a threaded function index for the given function id.
+fn lookup_function_index(
+    function_indices: &[u32],
+    function: mir::LocalNodeId<mir::Function>,
+) -> Option<u32> {
+    // look up raw index
+    let index = function_indices.get(function.id as usize).copied()?;
+
+    // reject invalid entries
+    if index == INVALID_FUNCTION_INDEX {
+        return None;
+    }
+
+    // return valid index
+    Some(index)
 }
 
 /// Append switch cases to the pool and return their range.

@@ -113,6 +113,9 @@ impl CopyRange {
 /// Sentinel value id used for optional destinations.
 pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
 
+/// Sentinel function index used for missing threaded entries.
+pub(crate) const INVALID_FUNCTION_INDEX: u32 = u32::MAX;
+
 /// Pack an optional SSA value into a sentinel encoding.
 pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
     value.unwrap_or(mir::Value(INVALID_VALUE_ID))
@@ -137,6 +140,8 @@ pub enum ControlFlow {
     Call {
         /// Function to call.
         function: u32,
+        /// Threaded function index when available.
+        callee_index: u32,
         /// Destination for return value.
         destination: mir::Value,
         /// Arguments to pass.
@@ -194,6 +199,7 @@ pub enum ThreadedInstructionData {
     Call {
         dest: mir::Value,
         function: u32,
+        callee_index: u32,
         arguments: ArgumentRange,
         copies: CopyRange,
     },
@@ -422,7 +428,7 @@ impl<'a> ThreadedState<'a> {
         switch_case_pool: &[SwitchCase],
     ) -> Self {
         // get frame pointer
-        // safety: frame_index always points at the current frame
+        // #Safety: frame_index always points at the current frame
         let frame =
             unsafe { interpreter.call_stack.get_unchecked_mut(frame_index) as *mut super::Frame };
 
@@ -466,7 +472,7 @@ impl<'a> ThreadedState<'a> {
     #[inline(always)]
     pub fn current_frame_mut(&mut self) -> &mut super::Frame {
         // return current frame
-        // safety: frame pointer is valid for current block execution
+        // #Safety: frame pointer is valid for current block execution
         unsafe { &mut *self.frame }
     }
 

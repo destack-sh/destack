@@ -7,8 +7,8 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
 use super::threaded::{
-    ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_VALUE_ID, ThreadedState,
-    is_invalid_value,
+    ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
+    ThreadedState, is_invalid_value,
 };
 use super::{ExecutionOutput, Frame, Interpreter};
 
@@ -211,14 +211,20 @@ impl Interpreter {
         arguments: &[Value],
     ) -> RuntimeResult<Value> {
         // get pre threaded function
+        let threaded_index = self
+            .threaded_functions
+            .index_for(func_id)
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?;
         let threaded = self
             .threaded_functions
-            .get(&func_id)
+            .get_by_index(threaded_index)
             .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?
             .clone();
 
         // create initial frame
-        let entry_block = threaded.blocks[threaded.entry as usize].mir_block;
+        let entry_block = &threaded.blocks[threaded.entry as usize];
+        let entry_block_id = entry_block.mir_block;
+        let entry_block_ptr = NonNull::from(entry_block);
         let value_base = self.value_stack.len();
         let local_base = self.local_stack.len();
         self.value_stack
@@ -229,7 +235,8 @@ impl Interpreter {
         let frame = Frame::new(
             func_id,
             threaded_ptr,
-            entry_block,
+            entry_block_ptr,
+            entry_block_id,
             threaded.entry as usize,
             value_base,
             threaded.value_count,
@@ -260,22 +267,23 @@ impl Interpreter {
             }
 
             // get current frame info
-            let (threaded_ptr, block_idx, start_pc) = {
+            let (threaded_ptr, block_ptr, start_pc) = {
                 let frame = self
                     .call_stack
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                 let pc = frame.resume_pc;
                 frame.resume_pc = 0;
-                (frame.threaded, frame.block_index, pc)
+                (frame.threaded, frame.block_ptr, pc)
             };
 
             // resolve threaded function
-            // safety: threaded pointer is valid for interpreter lifetime
+            // #Safety: threaded pointer is valid for interpreter lifetime
             let current_func = unsafe { threaded_ptr.as_ref() };
 
             // get current block
-            let block = &current_func.blocks[block_idx];
+            // #Safety: block pointer is valid for interpreter lifetime
+            let block = unsafe { block_ptr.as_ref() };
             let block_len = block.instructions.len();
 
             // execute block starting from resume_pc
@@ -314,11 +322,13 @@ impl Interpreter {
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     frame.block_index = target as usize;
+                    frame.block_ptr = NonNull::from(target_block);
                     frame.current_block = target_block.mir_block;
                 }
 
                 ControlFlow::Call {
                     function,
+                    callee_index,
                     destination,
                     arguments,
                     copies,
@@ -361,12 +371,27 @@ impl Interpreter {
                         continue;
                     }
 
+                    // resolve callee index
+                    let callee_index = if callee_index == INVALID_FUNCTION_INDEX {
+                        self.threaded_functions.index_for(function_id)
+                    } else {
+                        Some(callee_index)
+                    };
+
                     // get callee's threaded function
-                    let callee = self.threaded_functions.get(&function_id).ok_or_else(|| {
+                    let callee_index = callee_index.ok_or_else(|| {
                         RuntimeError::new(Error::UndefinedFunction {
                             function: function_id,
                         })
                     })?;
+                    let callee = self
+                        .threaded_functions
+                        .get_by_index(callee_index)
+                        .ok_or_else(|| {
+                            RuntimeError::new(Error::UndefinedFunction {
+                                function: function_id,
+                            })
+                        })?;
 
                     // resolve argument values if needed
                     let argument_values = if copies.is_some() {
@@ -400,12 +425,15 @@ impl Interpreter {
                         .resize(value_base + callee.value_count, Value::VOID);
                     self.local_stack
                         .resize(local_base + callee.local_count, Value::VOID);
-                    let entry_block = callee.blocks[callee.entry as usize].mir_block;
+                    let entry_block = &callee.blocks[callee.entry as usize];
+                    let entry_block_id = entry_block.mir_block;
+                    let entry_block_ptr = NonNull::from(entry_block);
                     let callee_ptr = NonNull::from(callee.as_ref());
                     let new_frame = Frame::new(
                         function_id,
                         callee_ptr,
-                        entry_block,
+                        entry_block_ptr,
+                        entry_block_id,
                         callee.entry as usize,
                         value_base,
                         callee.value_count,
