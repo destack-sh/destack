@@ -54,8 +54,8 @@ Each instruction defines at most one `Value`.
 | Type conversion | `cast` (trunc, extend, bitcast, float↔int, etc.) |
 | Local variables | `local.get`, `local.set` |
 | Globals | `global.addr`, `global.const` |
-| Memory | `load`, `store` |
-| Aggregates | `field.get`, `field.set`, `element.get`, `element.set` |
+| Memory | `load`, `store`, `drop` |
+| Aggregates | `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
 | Calls | `call`, `call.indirect` |
 | Allocation | `managed.alloc`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
@@ -65,6 +65,12 @@ to aggregates (managed, raw, or stack pointers).
 `Local`s are stack slots for mutable bindings.
 SSA values are immutable.
 To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new value).
+
+`field.addr` and `element.addr` produce a reference to a field or element.
+They are helpful for explicit borrowing and aliasing rules.
+
+`drop` invokes the type-specific drop glue for owned values.
+Drop glue calls `Symbol.dispose` when the type implements the `Drop` marker.
 
 ### Terminators
 
@@ -112,8 +118,7 @@ newtype Type =
     | Boolean
     | Int { width: uint16, signed: bool }
     | Float { width: uint16 }
-    | RawPointer { pointee: Type }
-    | ManagedReference { pointee: Type, isNullable: bool }
+    | Reference { kind: ReferenceKind, mutability: Mutability, pointee: Type, isNullable: bool }
     | Array { element: Type, length: uint64 }
     | Tuple { elements: Type[] }
     | Struct { fields: Field[] }
@@ -123,6 +128,26 @@ newtype Type =
 Structs include byte offsets for each field.
 Layout is fully computed.
 This is what makes MIR "machine-level": no abstract sizes, everything is concrete.
+
+References carry a kind _and_ mutability:
+- `managed` for auto-managed references
+- `owned` for explicit ownership (`^T`)
+- `borrowed` for `&T` and `&mut T`
+- `raw` for "unsafe" pointers
+
+Reference syntax spells out the kind and mutability.
+
+| Kind | Mutability | Example | Meaning |
+| --- | --- | --- | --- |
+| managed | none | `ref<managed @T>` | GC-managed reference |
+| owned | none | `ref<owned @T>` | owned reference for `^T` |
+| borrowed | shared | `ref<borrowed @T>` | shared borrow (`&T`) |
+| borrowed | mutable | `ref<borrowed mut @T>` | mutable borrow (`&mut T`) |
+| raw | shared | `ref<raw @T>` | raw pointer (immutable) |
+| raw | mutable | `ref<raw mut @T>` | raw pointer (mutable) |
+
+Nullable references use `ref?<...>` with the same kind and mutability rules.
+Mutability can be encoded for any reference kind, but is only relevant semantically for borrowed and raw references.
 
 Field names are optional in MIR types and are for readability only:
 
@@ -152,10 +177,10 @@ Aliases are purely syntactic sugar over concrete layouts.
 
 ```mir
 type @Point = struct { i32, i32 }
-type @PointRef = ref<@Point>
+type @PointRef = ref<managed @Point>
 
-function @use_point(v0: ref<@Point>) -> ref<@Point> {
-block0(v0: ref<@Point>):
+function @use_point(v0: ref<managed @Point>) -> ref<managed @Point> {
+block0(v0: ref<managed @Point>):
     return v0
 }
 ```

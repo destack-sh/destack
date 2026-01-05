@@ -6,6 +6,9 @@
 // reflection
 export { Type, typeOf } from "./reflect/type.ds";
 
+// ownership
+export { Drop, Copy, Clone, Send, Sync } from "./ownership.ds";
+
 // control flow
 export { Try } from "./control/try.ds";
 export { Error } from "./control/error.ds";

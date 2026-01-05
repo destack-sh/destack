@@ -733,7 +733,7 @@ Arrays are heap-allocated, dynamically-sized collections (like Rust's `Vec<T>`).
 | Pattern | MIR Type | Notes |
 |---------|----------|-------|
 | `T[N]` | `Type::Array { element, length: N }` | Inline, value semantics |
-| `T[]` | `Type::ManagedReference` to array | Heap, reference semantics |
+| `T[]` | `ref<managed @Array<T>>` | Heap, reference semantics |
 | `TypedArray` | `Type::RawPointer` to buffer | Direct memory access |
 
 **Important:** `T[]` is NOT `Array<unknown>`. After monomorphization, we know T.
@@ -758,6 +758,12 @@ The policy is configured per target (`boundsChecks` in `dsconfig.json`):
 - `always`: checks in all builds
 - `debug`: checks only when `target.debug` is true (default)
 - `never`: no checks (unsafe, fastest)
+
+**Slices:**
+Slices are explicit view types with a pointer and length (`Slice<T>`).
+They are distinct from borrowing the array object itself.
+Functions that accept a slice can take `Slice<T>` or `&Slice<T>`.
+Borrowing an array object does not imply a slice view.
 
 ### Structs and Classes
 
@@ -1584,8 +1590,9 @@ function process() {
 }
 ```
 
-Types can implement `Drop` to customize cleanup. This enables RAII patterns.
-Lowering inserts drops at last-use points (non-lexical), including before
+`Drop` is a marker interface that opts a type into last-use cleanup.
+Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
+Verify inserts drops at last-use points (non-lexical) after lowering, including before
 control-flow merges and before coroutine suspension when the value is not
 used after resume.
 
@@ -1613,7 +1620,7 @@ async function example(flag: bool) {
 Ownership modifiers on fields are allowed but follow strict rules to keep semantics explicit:
 
 - `^T` inside **managed** objects is allowed, but drop is **nondeterministic**.
-  If `T: Drop`, the compiler registers a GC finalizer that calls `Drop` on owned fields.
+  If `T: Drop`, the compiler registers a GC finalizer that calls `Symbol.dispose` on owned fields.
   This is correct but not deterministic; a warning is emitted in strict modes.
 - `^T` inside **stack** or **raw** objects is deterministic. Drop order is field order.
 - `&T` fields are **disallowed** in managed heap objects by default (no lifetime tracking).
@@ -1629,20 +1636,22 @@ function process(data: &Point) { ... }   // read-only reference
 function mutate(data: &mut Point) { ... } // mutable reference
 ```
 
-Lowers to:
+Lowers to (conceptual):
 ```mir
 type @Point = struct { f32, f32 }
 
-function @process(v0: ref<@Point>) -> void { ... }
-function @mutate(v0: ref<@Point>) -> void { ... }  ; mutability tracked separately
+function @process(v0: ref<borrowed @Point>) -> void { ... }
+function @mutate(v0: ref<borrowed mut @Point>) -> void { ... }
 ```
+
+Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
 
 **When to use explicit references:**
 - Avoid copying large values when you don't need ownership
 - Share read access (`&T`) across multiple callers
 - In-place modification (`&mut T`) when the caller retains ownership
 
-For native targets, both `T` and `&T` lower to `ref<T>` in MIR. The difference is source-level semantics and compiler hints.
+In MIR, references carry a kind (managed, owned, borrowed, raw) and mutability.
 Borrowing a managed object is allowed because the GC is non moving and stack maps treat borrows as roots.
 
 ### Borrow Modes

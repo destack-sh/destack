@@ -688,11 +688,38 @@ function process() {
 ```
 
 This enables RAII patterns (files close, locks release, resources clean up).
-Types can implement `Drop` to customize cleanup behavior.
+`Drop` is a marker interface that opts a type into last-use cleanup.
+Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
+`using` always calls `Symbol.dispose`, even without `Drop`.
+Owned values are dropped at their last proven use unless `using` is specified.
+`using` bindings drop at scope end and cannot be moved.
+`^T` controls ownership transfer and move semantics.
+`using` controls drop timing and does not imply ownership.
+Combine `using` with `^T` for deterministic cleanup of owned values.
 The builtin `Error` interface is the conventional error shape for `Result<T, E>`, but any type can be used as `E`.
 
 Strings follow the same ownership spectrum: `string` is GC-managed by default,
 `&string` is a borrowed view, and `^string` is explicitly owned.
+`Slice` is an explicit view type with a pointer and length.
+Borrowing an array object does not imply a slice view.
+
+### Ownership Conversions
+
+Ownership conversions are explicit, except for borrows inserted at reference boundaries.
+Implicit ownership conversions only create borrows and never transfer ownership.
+
+Implicit conversions:
+- `T` → `&T` or `&mut T` when a reference type is required and the value is addressable
+- `^T` → `&T` to borrow from an owned value
+- `&mut T` → `&T` to reborrow as shared
+
+Explicit conversions:
+- `T` ↔ `^T` require explicit ownership operators or helper calls
+- `&T` → `T` requires `Copy` or an explicit clone
+- `&T` → `^T` requires an explicit clone and ownership transfer
+- `*T` conversions require explicit unsafe operations
+
+Elaborate inserts implicit borrows before other implicit casts.
 
 ### Returning References
 

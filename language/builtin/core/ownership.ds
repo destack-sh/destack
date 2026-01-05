@@ -1,0 +1,23 @@
+/// Mark a type as eligible for last use cleanup.
+///
+/// Types that implement Drop must also implement Symbol.dispose.
+/// The drop glue calls Symbol.dispose when a ^T value is dropped.
+export newtype interface Drop {
+    // FUGU #Incomplete: define (some?) well-known symbols in builtin/core
+    // [Symbol.dispose](): void;
+}
+
+/// Mark a type as copyable without ownership transfer.
+export newtype interface Copy {}
+
+/// Clone the value into a new owned value.
+export interface Clone {
+    /// Clone the value.
+    clone(): Self
+}
+
+/// Mark a type as safe to send across threads.
+export newtype interface Send {}
+
+/// Mark a type as safe to share across threads.
+export newtype interface Sync {}
