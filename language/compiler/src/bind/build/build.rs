@@ -1,4 +1,4 @@
-use destack_dir::{Expression, LocalNodeId};
+use destack_dir::{Expression, LocalNodeId, LocalScopeMark};
 
 use destack_workspace::{Module, ModuleAst};
 
@@ -15,16 +15,14 @@ impl Compiler {
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
+        let scope = (dir.namespace_scope, LocalScopeMark::end());
         ast.roots
             .iter()
             .map(|expression| {
                 self.bind_expression(
                     module,
                     ast,
-                    (
-                        dir.namespace_scope,
-                        symbols.get_scope_mark(dir.namespace_scope),
-                    ),
+                    scope,
                     *expression,
                     None,
                     &mut tree,
