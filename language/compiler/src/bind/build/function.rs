@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolSpace,
-    SymbolTable, TypeTable,
+    SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -132,6 +132,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                SymbolSpaceOrder::TypeThenValue,
             )
         });
         FunctionSignature {

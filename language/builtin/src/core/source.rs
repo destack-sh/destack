@@ -97,7 +97,7 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     OPERATOR_SUBSCRIPT,
     OPERATOR_FORMAT,
     OPERATOR_INDEX,
-    // control 
+    // control
     CONTROL_TRY,
     CONTROL_ERROR,
     CONTROL_RANGE,

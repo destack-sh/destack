@@ -2,7 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
-    Pattern, PatternField, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, TypeTable,
+    Pattern, PatternField, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -125,6 +126,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 Pattern::Expression { value }
             }
@@ -197,6 +199,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::TypeThenValue,
                 );
                 let fields = fields
                     .iter()
@@ -267,6 +270,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::TypeThenValue,
                 );
                 let fields = fields
                     .iter()
@@ -378,6 +382,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let (symbol, _) = self.bind_named_symbol_with_binding(
@@ -420,6 +425,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let (symbol, _) = self.bind_named_symbol_with_binding(

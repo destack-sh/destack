@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use destack_base::StringId;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
-    Path, StaticKey, SymbolKind, SymbolSpace, SymbolTable,
+    Path, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::{ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{Module, ProfileId, Target, TargetDiscovery, TargetId};
@@ -113,6 +113,7 @@ impl Compiler {
         profile_id: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<Expression>> {
         // load the cached table for this module
@@ -123,8 +124,31 @@ impl Compiler {
 
         // resolve the first path segment against global symbols
         let first_segment = path.first_segment().expect("path is empty");
-        let key = StaticKey::Name(first_segment);
-        let Some(target_symbol) = index.symbols.get(&key).copied() else {
+        let symbol_key = StaticKey::Name(first_segment);
+        let preferred_spaces = space_order.spaces();
+        let mut target_symbol = None;
+        for space in preferred_spaces {
+            let group_key = GlobalSymbolGroupKey {
+                key: symbol_key,
+                space: *space,
+            };
+            if let Some(symbol) = index.symbols_by_space.get(&group_key).copied() {
+                target_symbol = Some(symbol);
+                break;
+            }
+            if *space == SymbolSpace::Type || *space == SymbolSpace::Value {
+                let type_value_key = GlobalSymbolGroupKey {
+                    key: symbol_key,
+                    space: SymbolSpace::TypeValue,
+                };
+                if let Some(symbol) = index.symbols_by_space.get(&type_value_key).copied() {
+                    target_symbol = Some(symbol);
+                    break;
+                }
+            }
+        }
+        let target_symbol = target_symbol.or_else(|| index.symbols.get(&symbol_key).copied());
+        let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
 
@@ -166,6 +190,7 @@ impl Compiler {
                 node,
                 local_symbol_id,
                 &remaining_path,
+                space_order,
                 &symbols,
             ) {
                 Ok((resolved_id, None)) => {

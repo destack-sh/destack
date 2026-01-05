@@ -1,7 +1,7 @@
 use destack_dir::{
-    Argument, ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind,
-    StaticKey, StringId, SymbolKind, SymbolSpace, SymbolTable,
+    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
+    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -65,6 +65,64 @@ impl Compiler {
         unreachable!("remaining_path is not empty")
     }
 
+    /// Find the best matching symbol for a key within a single scope.
+    fn find_symbol_in_scope(
+        &self,
+        scope: &Scope,
+        key: StaticKey,
+        space_order: SymbolSpaceOrder,
+        symbols: &SymbolTable,
+        limit: Option<usize>,
+    ) -> (Option<LocalSymbolId>, Option<LocalSymbolId>) {
+        // limit to the visible symbol range
+        let limit = limit.unwrap_or(scope.named_symbols.len());
+        let limit = limit.min(scope.named_symbols.len());
+        let named_symbols = &scope.named_symbols[..limit];
+
+        // collect the nearest symbol per space
+        let mut type_symbol = None;
+        let mut value_symbol = None;
+        let mut type_value_symbol = None;
+        let mut fallback = None;
+        for (candidate_key, symbol_id) in named_symbols.iter().rev() {
+            if *candidate_key != key {
+                continue;
+            }
+            let symbol = symbols.get_symbol(*symbol_id);
+            match symbol.space {
+                SymbolSpace::Type => {
+                    if type_symbol.is_none() {
+                        type_symbol = Some(*symbol_id);
+                    }
+                }
+                SymbolSpace::Value => {
+                    if value_symbol.is_none() {
+                        value_symbol = Some(*symbol_id);
+                    }
+                }
+                SymbolSpace::TypeValue => {
+                    if type_value_symbol.is_none() {
+                        type_value_symbol = Some(*symbol_id);
+                    }
+                }
+                SymbolSpace::Label => {}
+            }
+            if fallback.is_none() {
+                fallback = Some(*symbol_id);
+            }
+        }
+
+        // choose the preferred symbol from the space order
+        let preferred = space_order.spaces().iter().find_map(|space| match space {
+            SymbolSpace::Type => type_symbol.or(type_value_symbol),
+            SymbolSpace::Value => value_symbol.or(type_value_symbol),
+            SymbolSpace::TypeValue => type_value_symbol,
+            SymbolSpace::Label => None,
+        });
+
+        (preferred, fallback)
+    }
+
     /// Resolve an absolute symbol key within local scopes only.
     /// Walks up the scope chain looking for the symbol.
     /// Does NOT check prelude - use resolve_absolute_path for that.
@@ -74,28 +132,48 @@ impl Compiler {
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         key: StaticKey,
+        space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
     ) -> ResolveResult<LocalSymbolId> {
+        // track the nearest fallback symbol
         let mut scope = scope;
+        let mut fallback = None;
+
+        // walk scopes from inner to outer
         loop {
-            // find symbol in local scope
-            if let Some(symbol_id) = scope.1.find_up_to(key, scope.2) {
+            // scan the current scope for a preferred match
+            let limit = scope.2.0 as usize;
+            let (preferred, scope_fallback) =
+                self.find_symbol_in_scope(scope.1, key, space_order, symbols, Some(limit));
+
+            // return the preferred match when found
+            if let Some(symbol_id) = preferred {
                 return Ok(symbol_id);
             }
-            // go to parent scope
-            else if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
+
+            // remember the nearest fallback symbol
+            if fallback.is_none() {
+                fallback = scope_fallback;
+            }
+
+            // move to the parent scope when available
+            if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
                 scope = (
                     parent_scope_id,
                     symbols.get_scope_by_id(parent_scope_id),
                     parent_mark,
                 );
-            }
-            // no more local scopes
-            else {
+            } else {
                 break;
             }
         }
 
+        // fall back to the nearest match when no preferred match exists
+        if let Some(fallback) = fallback {
+            return Ok(fallback);
+        }
+
+        // report missing symbol after walking all scopes
         Err(ResolveError::MissingSymbol {
             node,
             scope: scope.0.into_global(module.id),
@@ -131,7 +209,7 @@ impl Compiler {
 
         // look up symbol by name in prelude's export table
         let key = StaticKey::Name(name);
-        let export_spaces = ExportSpaceOrder::ValueThenType;
+        let export_spaces = SymbolSpaceOrder::ValueThenType;
         let exports = prelude_dir.exported_symbols.read();
         let tree = prelude_dir.tree.read();
         let Some(symbol_id) =
@@ -154,6 +232,7 @@ impl Compiler {
         profile: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
         let remaining_segments = &path.segments[1..];
@@ -184,6 +263,7 @@ impl Compiler {
                 node,
                 local_symbol_id,
                 &remaining_path,
+                space_order,
                 &prelude_symbols,
             ) {
                 Ok((resolved_id, None)) => {
@@ -242,6 +322,7 @@ impl Compiler {
         profile: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<Expression>> {
         let Some(builtins) = self.program.builtins.as_ref() else {
@@ -269,8 +350,21 @@ impl Compiler {
 
             // find symbol in ambient lib namespace scope
             let namespace_scope = symbols.get_scope_by_id(ambient_dir.namespace_scope);
-            let Some(symbol_id) = namespace_scope.find(key) else {
-                continue;
+            let symbol_id = self.resolve_absolute_symbol(
+                &ambient_module,
+                node,
+                (
+                    ambient_dir.namespace_scope,
+                    namespace_scope,
+                    LocalScopeMark::end(),
+                ),
+                key,
+                space_order,
+                &symbols,
+            );
+            let symbol_id = match symbol_id {
+                Ok(symbol_id) => symbol_id,
+                Err(_) => continue,
             };
 
             // single-segment path: just return the GlobalReference
@@ -291,6 +385,7 @@ impl Compiler {
                     node,
                     symbol_id,
                     &remaining_path,
+                    space_order,
                     &symbols,
                 ) {
                     Ok((resolved_id, None)) => {
@@ -350,32 +445,42 @@ impl Compiler {
         node: GlobalNodeIdAny,
         symbol_id: LocalSymbolId,
         path: &Path,
+        space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
+        // track the current symbol as we walk segments
         let mut current_symbol_id = symbol_id;
         let segments = &path.segments;
 
+        // walk the path segments
         for (i, &segment) in segments.iter().enumerate() {
             let symbol = symbols.get_symbol(current_symbol_id);
 
-            // stop traversing when we hit a non-namespace symbol
+            // stop traversing when the symbol is not a namespace
             if symbol.kind != SymbolKind::Namespace {
                 let remaining = path.slice(i..);
                 return Ok((current_symbol_id, Some(remaining)));
             }
 
+            // resolve the next segment in the namespace scope
             let key = StaticKey::Name(segment);
             let scope = symbols.get_scope_by_id(symbol.scope.0);
-            if let Some(found_symbol_id) = scope.find(key) {
-                current_symbol_id = found_symbol_id;
-            } else {
-                return Err(ResolveError::MissingSymbol {
-                    node,
-                    scope: symbol.scope.0.into_global(module.id),
-                    via_module: None,
-                    key,
-                });
+            let (preferred, fallback) =
+                self.find_symbol_in_scope(scope, key, space_order, symbols, None);
+
+            // advance to the next symbol when possible
+            if let Some(symbol_id) = preferred.or(fallback) {
+                current_symbol_id = symbol_id;
+                continue;
             }
+
+            // report a missing symbol in the namespace scope
+            return Err(ResolveError::MissingSymbol {
+                node,
+                scope: symbol.scope.0.into_global(module.id),
+                via_module: None,
+                key,
+            });
         }
 
         Ok((current_symbol_id, None))
@@ -393,6 +498,7 @@ impl Compiler {
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
         tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
@@ -439,6 +545,7 @@ impl Compiler {
             node,
             scope,
             StaticKey::Name(first_segment),
+            space_order,
             symbols,
         );
 
@@ -451,6 +558,7 @@ impl Compiler {
                 local_id,
                 path,
                 static_arguments,
+                space_order,
                 symbols,
                 tree,
             );
@@ -484,6 +592,7 @@ impl Compiler {
                 profile,
                 path,
                 static_arguments,
+                space_order,
                 tree,
             );
         }
@@ -496,6 +605,7 @@ impl Compiler {
             profile,
             path,
             static_arguments.clone(),
+            space_order,
             tree,
         )? {
             return Ok(expr);
@@ -509,6 +619,7 @@ impl Compiler {
             profile,
             path,
             static_arguments,
+            space_order,
             tree,
         )? {
             return Ok(expr);
@@ -527,6 +638,7 @@ impl Compiler {
         local_id: LocalSymbolId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
         tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
@@ -548,7 +660,14 @@ impl Compiler {
         let symbol = symbols.get_symbol(local_id);
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol(module, node, local_id, &remaining_path, symbols) {
+            match self.resolve_relative_symbol(
+                module,
+                node,
+                local_id,
+                &remaining_path,
+                space_order,
+                symbols,
+            ) {
                 Ok((resolved_id, None)) => {
                     return Ok(self.resolve_symbol_to_expression(
                         module,

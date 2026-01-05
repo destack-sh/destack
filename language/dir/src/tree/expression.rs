@@ -5,9 +5,9 @@ use crate::{
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
     DependencySource, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
     MatchCase, MatchSource, ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property,
-    ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    ScalarLiteral, StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator,
+    UnaryOperator, VarianceBound,
 };
 
 /// A mapped type parameter for expressions.
@@ -235,6 +235,7 @@ pub enum Expression {
     UnresolvedPath {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
     },
     /// Local reference.
     LocalReference {

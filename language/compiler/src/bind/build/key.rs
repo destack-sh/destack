@@ -2,7 +2,8 @@ use super::literal::evaluate_numeric_literal;
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable, TypeTable,
+    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolSpaceOrder,
+    SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -37,14 +38,31 @@ impl Compiler {
             }
             ast::Key::Expression(expression) => {
                 let expression = self.bind_expression(
-                    module, ast, scope, expression, parent_id, tree, symbols, types,
+                    module,
+                    ast,
+                    scope,
+                    expression,
+                    parent_id,
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 DynamicKey::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
                 let name = self.program.strings.intern_from(&ast.strings, name);
-                let key =
-                    self.bind_expression(module, ast, scope, key, parent_id, tree, symbols, types);
+                let key = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    key,
+                    parent_id,
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::TypeThenValue,
+                );
                 DynamicKey::NamedExpression { name, key }
             }
         }

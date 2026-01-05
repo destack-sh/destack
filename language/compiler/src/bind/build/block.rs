@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     Block, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
-    ScopeKind, SymbolTable, TypeTable,
+    ScopeKind, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -49,6 +49,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 )
             })
             .collect();

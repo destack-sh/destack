@@ -3,9 +3,9 @@ use std::collections::VecDeque;
 use destack_ast::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Export,
-    ExportKind, ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleTarget, NodeTree, StaticKey, SymbolSpace,
-    SymbolTable,
+    ExportKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, ModuleTarget, NodeTree, StaticKey, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleDir, ProfileId};
@@ -16,14 +16,14 @@ use crate::{BindError, Compiler, ResolveError, ResolveResult};
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Select the export spaces to consider for a dependency kind.
-    fn export_spaces_for_kind(&self, kind: DependencyKind) -> ExportSpaceOrder {
+    fn export_spaces_for_kind(&self, kind: DependencyKind) -> SymbolSpaceOrder {
         // prefer type space for type lookups
         if kind == DependencyKind::Type {
-            return ExportSpaceOrder::TypeThenValue;
+            return SymbolSpaceOrder::TypeThenValue;
         }
 
         // prefer value space for value lookups
-        ExportSpaceOrder::ValueThenType
+        SymbolSpaceOrder::ValueThenType
     }
 
     /// Resolve a symbol from a module export table.
@@ -32,7 +32,7 @@ impl Compiler {
         module_id: ModuleId,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         tree: &NodeTree,
-        order: ExportSpaceOrder,
+        order: SymbolSpaceOrder,
         key: StaticKey,
     ) -> Option<GlobalSymbolId> {
         // walk export spaces in priority order
@@ -483,18 +483,20 @@ impl Compiler {
         match item {
             DependencyItem::Local { target_symbol, .. }
             | DependencyItem::Remote { target_symbol, .. } => Ok(Some(target_symbol)),
-            DependencyItem::UnresolvedLocal { name, .. } => {
+            DependencyItem::UnresolvedLocal { kind, name, .. } => {
                 // resolve the name from the module namespace scope
                 let Some(name_id) = name else {
                     return Ok(None);
                 };
                 let symbols = dir.symbols.read();
                 let scope = symbols.get_scope_by_id(scope_id);
+                let space_order = self.export_spaces_for_kind(kind);
                 let symbol_id = self.resolve_absolute_symbol(
                     module,
                     item_node,
                     (scope_id, scope, LocalScopeMark::end()),
                     StaticKey::Name(name_id),
+                    space_order,
                     &symbols,
                 )?;
                 Ok(Some(symbol_id.into_global(module.id)))
@@ -1110,11 +1112,13 @@ impl Compiler {
 
                 // resolve the local symbol in scope
                 let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
+                let space_order = self.export_spaces_for_kind(*kind);
                 let target_symbol_id = self.resolve_absolute_symbol(
                     module,
                     item_id.into_global_any(module.id),
                     (scope_id, scope, mark),
                     StaticKey::Name(*name_id),
+                    space_order,
                     symbols,
                 )?;
                 DependencyItem::Local {

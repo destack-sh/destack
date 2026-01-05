@@ -169,7 +169,11 @@ impl Compiler {
                         visited_keys,
                     );
                 }
-                KeySet::default()
+                let mut keys = KeySet::default();
+                keys.insert_index_kind(MappedIndexKind::String);
+                keys.insert_index_kind(MappedIndexKind::Number);
+                keys.insert_index_kind(MappedIndexKind::Symbol);
+                keys
             }
             Type::Union { elements } => {
                 // seed the intersection with the first union member

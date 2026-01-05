@@ -2,7 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
-    PrimitiveType, ScalarLiteral, SymbolTable, TemplateLiteral, TypeLiteral, TypeTable,
+    PrimitiveType, ScalarLiteral, SymbolSpaceOrder, SymbolTable, TemplateLiteral, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -59,7 +60,15 @@ impl Compiler {
                     .iter()
                     .map(|argument| {
                         self.bind_argument(
-                            module, ast, scope, *argument, parent_id, tree, symbols, types,
+                            module,
+                            ast,
+                            scope,
+                            *argument,
+                            parent_id,
+                            tree,
+                            symbols,
+                            types,
+                            SymbolSpaceOrder::ValueThenType,
                         )
                     })
                     .collect();

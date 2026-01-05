@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, NodeTree, NodeType,
-    Property, ScopeKind, StaticKey, SymbolSpace, SymbolTable, TypeTable,
+    Property, ScopeKind, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -58,6 +58,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let default = default.map(|default| {
@@ -70,6 +71,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let (symbol_id, _) =
@@ -148,6 +150,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let property = Property::Method {
@@ -179,6 +182,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -225,6 +229,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::TypeThenValue,
                 );
                 let ty = ty.map(|ty| {
                     self.bind_expression(
@@ -236,6 +241,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::TypeThenValue,
                     )
                 });
                 let value = value.map(|value| {
@@ -248,6 +254,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::TypeThenValue,
                     )
                 });
                 // Type members are in Type space
@@ -297,6 +304,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let default = default.map(|default| {
@@ -309,6 +317,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 let (symbol_id, _) =
@@ -390,6 +399,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 tree.insert(
@@ -419,6 +429,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::TypeThenValue,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -446,6 +457,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
@@ -472,6 +484,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);

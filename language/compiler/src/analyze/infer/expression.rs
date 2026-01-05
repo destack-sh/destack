@@ -548,6 +548,7 @@ impl Compiler {
             Expression::UnresolvedPath {
                 path: _,
                 static_arguments: _,
+                space_order: _,
             } => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,

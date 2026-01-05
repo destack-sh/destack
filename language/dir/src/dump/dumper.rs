@@ -1103,6 +1103,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::UnresolvedPath {
                 path,
                 static_arguments: _,
+                space_order: _,
             } => {
                 self.node("Expression::UnresolvedPath", id.id)
                     .field("path", path)

@@ -450,6 +450,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::UnresolvedPath {
             path: _,
             static_arguments,
+            space_order: _,
         } => {
             if let Some(static_arguments) = static_arguments {
                 for argument_id in static_arguments {

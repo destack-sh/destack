@@ -160,6 +160,12 @@ impl Compiler {
             (Type::TypeLiteral { value: target_lit }, Type::TypeLiteral { value: source_lit }) => {
                 self.is_type_literal_assignable(&target_lit, &source_lit)
             }
+            (
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                },
+                Type::TemplateLiteral { .. }, // #Incomplete: is template string to string always assignable?
+            ) => Assignability::Assignable,
 
             // arrays: covariant in element type
             (
