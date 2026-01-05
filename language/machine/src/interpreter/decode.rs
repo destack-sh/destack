@@ -6,8 +6,8 @@ use crate::memory::Value;
 
 use super::dispatch;
 use super::threaded::{
-    ArgumentRange, SwitchCase, SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
-    ThreadedInstructionData, pack_optional_value,
+    ArgumentRange, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase, SwitchRange, ThreadedBlock,
+    ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, pack_optional_value,
 };
 
 /// Scalar and aggregate kinds used for typed dispatch selection.
@@ -213,9 +213,18 @@ pub(super) fn thread_function(
         "too many blocks for threaded indices"
     );
 
-    // allocate argument pools
+    // collect block parameters
+    let mut block_parameters = Vec::with_capacity(mir_blocks.len());
+    for block_id in &mir_blocks {
+        let block = tree.get(*block_id);
+        let params: Vec<mir::Value> = block.parameters.iter().map(|p| p.value).collect();
+        block_parameters.push(params);
+    }
+
+    // allocate pools
     let mut argument_pool = Vec::new();
     let mut switch_case_pool = Vec::new();
+    let mut copy_pool = Vec::new();
 
     // gather function parameters
     let parameter_values: Vec<mir::Value> = func.parameters.iter().map(|p| p.value).collect();
@@ -232,9 +241,11 @@ pub(super) fn thread_function(
             *mir_block_id,
             block,
             &block_index_map,
+            &block_parameters,
             &value_kinds,
             &mut argument_pool,
             &mut switch_case_pool,
+            &mut copy_pool,
         );
         threaded_blocks.push(threaded);
     }
@@ -249,28 +260,39 @@ pub(super) fn thread_function(
         blocks: threaded_blocks,
         argument_pool,
         switch_case_pool,
+        copy_pool,
         value_count,
         local_count,
     })
 }
 
 /// Convert a MIR block to threaded form.
+#[allow(clippy::too_many_arguments)]
 fn thread_block(
     tree: &mir::NodeTree,
     mir_block: mir::LocalNodeId<mir::Block>,
     block: &mir::Block,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    block_parameters: &[Vec<mir::Value>],
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
+    copy_pool: &mut Vec<CopyPair>,
 ) -> ThreadedBlock {
+    // resolve block parameter values
+    let block_index = block_index_map[&mir_block];
+    let parameter_values = block_parameters
+        .get(block_index)
+        .map(|params| params.as_slice())
+        .unwrap_or_default();
+
     // preallocate instruction list
     let mut instructions = Vec::with_capacity(block.instructions.len() + 1);
 
     // convert regular instructions
     for &inst_id in &block.instructions {
         let inst = tree.get(inst_id);
-        let threaded = thread_instruction(tree, inst, value_kinds, argument_pool);
+        let threaded = thread_instruction(tree, inst, value_kinds, argument_pool, copy_pool);
         instructions.push(threaded);
     }
 
@@ -278,15 +300,15 @@ fn thread_block(
     let terminator = thread_terminator(
         &block.terminator,
         block_index_map,
+        block_parameters,
         value_kinds,
-        argument_pool,
         switch_case_pool,
+        copy_pool,
     );
     instructions.push(terminator);
 
     // gather block parameters
-    let parameter_values: Vec<mir::Value> = block.parameters.iter().map(|p| p.value).collect();
-    let parameters = push_argument_range(argument_pool, &parameter_values);
+    let parameters = push_argument_range(argument_pool, parameter_values);
 
     // assemble block
     ThreadedBlock {
@@ -302,6 +324,7 @@ fn thread_instruction(
     inst: &mir::Instruction,
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
+    copy_pool: &mut Vec<CopyPair>,
 ) -> ThreadedInstruction {
     // map instruction opcode to threaded form
     match inst {
@@ -361,13 +384,20 @@ fn thread_instruction(
             function,
             arguments,
         } => {
-            let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
+            // resolve call arguments and copy plan
+            let args = tree.get_arguments(*arguments);
+            let args_range = push_argument_range(argument_pool, args);
+            let callee = tree.get(*function);
+            let copies = push_copy_range_from_params(copy_pool, &callee.parameters, args);
+
+            // assemble threaded call
             ThreadedInstruction {
                 handler: dispatch::handle_call,
                 data: ThreadedInstructionData::Call {
                     dest: pack_optional_value(*destination),
                     function: function.id,
-                    arguments: args,
+                    arguments: args_range,
+                    copies,
                 },
             }
         }
@@ -953,11 +983,87 @@ fn push_argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> 
     }
 }
 
+/// Append parameter copies to the pool and return their range.
+fn push_copy_range(
+    pool: &mut Vec<CopyPair>,
+    parameters: &[mir::Value],
+    arguments: &[mir::Value],
+) -> CopyRange {
+    // fast path: no parameters
+    if parameters.is_empty() {
+        return CopyRange::empty();
+    }
+
+    // compute range start
+    let start = pool.len();
+
+    // validate bounds in debug builds
+    debug_assert!(
+        start + parameters.len() <= u32::MAX as usize,
+        "copy pool overflow"
+    );
+
+    // append copy pairs
+    for (index, param) in parameters.iter().enumerate() {
+        let src = arguments
+            .get(index)
+            .map(|value| value.0)
+            .unwrap_or(INVALID_VALUE_ID);
+        pool.push(CopyPair { dest: param.0, src });
+    }
+
+    // return range
+    CopyRange {
+        start: start as u32,
+        len: parameters.len() as u32,
+    }
+}
+
+/// Append parameter copies to the pool and return their range.
+fn push_copy_range_from_params(
+    pool: &mut Vec<CopyPair>,
+    parameters: &[mir::TypedValue],
+    arguments: &[mir::Value],
+) -> CopyRange {
+    // fast path: no parameters
+    if parameters.is_empty() {
+        return CopyRange::empty();
+    }
+
+    // compute range start
+    let start = pool.len();
+
+    // validate bounds in debug builds
+    debug_assert!(
+        start + parameters.len() <= u32::MAX as usize,
+        "copy pool overflow"
+    );
+
+    // append copy pairs
+    for (index, param) in parameters.iter().enumerate() {
+        let src = arguments
+            .get(index)
+            .map(|value| value.0)
+            .unwrap_or(INVALID_VALUE_ID);
+        pool.push(CopyPair {
+            dest: param.value.0,
+            src,
+        });
+    }
+
+    // return range
+    CopyRange {
+        start: start as u32,
+        len: parameters.len() as u32,
+    }
+}
+
 /// Append switch cases to the pool and return their range.
 fn push_switch_case_range(
     switch_case_pool: &mut Vec<SwitchCase>,
-    argument_pool: &mut Vec<mir::Value>,
+    copy_pool: &mut Vec<CopyPair>,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
 ) -> SwitchRange {
     // fast path: no cases
@@ -976,11 +1082,16 @@ fn push_switch_case_range(
 
     // append cases
     for case in cases {
-        let arguments = push_argument_range(argument_pool, &case.arguments);
+        let target_index = block_index_map[&case.target];
+        let target_parameters = block_parameters
+            .get(target_index)
+            .map(|params| params.as_slice())
+            .unwrap_or_default();
+        let copies = push_copy_range(copy_pool, target_parameters, &case.arguments);
         switch_case_pool.push(SwitchCase {
             value: case.value,
-            target: block_index_map[&case.target] as u32,
-            arguments,
+            target: target_index as u32,
+            copies,
         });
     }
 
@@ -995,9 +1106,10 @@ fn push_switch_case_range(
 fn thread_terminator(
     term: &mir::Terminator,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    block_parameters: &[Vec<mir::Value>],
     value_kinds: &ValueKinds,
-    argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
+    copy_pool: &mut Vec<CopyPair>,
 ) -> ThreadedInstruction {
     // map terminator opcode to threaded form
     match term {
@@ -1008,13 +1120,24 @@ fn thread_terminator(
             },
         },
 
-        mir::Terminator::Jump { target, arguments } => ThreadedInstruction {
-            handler: dispatch::handle_jump,
-            data: ThreadedInstructionData::Jump {
-                target: block_index_map[target] as u32,
-                arguments: push_argument_range(argument_pool, arguments),
-            },
-        },
+        mir::Terminator::Jump { target, arguments } => {
+            // resolve target parameter copies
+            let target_index = block_index_map[target];
+            let target_parameters = block_parameters
+                .get(target_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            let copies = push_copy_range(copy_pool, target_parameters, arguments);
+
+            // assemble threaded jump
+            ThreadedInstruction {
+                handler: dispatch::handle_jump,
+                data: ThreadedInstructionData::Jump {
+                    target: target_index as u32,
+                    copies,
+                },
+            }
+        }
 
         mir::Terminator::Branch {
             condition,
@@ -1022,16 +1145,33 @@ fn thread_terminator(
             then_arguments,
             else_target,
             else_arguments,
-        } => ThreadedInstruction {
-            handler: select_branch_handler(value_kinds, *condition),
-            data: ThreadedInstructionData::Branch {
-                condition: *condition,
-                then_target: block_index_map[then_target] as u32,
-                then_arguments: push_argument_range(argument_pool, then_arguments),
-                else_target: block_index_map[else_target] as u32,
-                else_arguments: push_argument_range(argument_pool, else_arguments),
-            },
-        },
+        } => {
+            // resolve branch target parameters
+            let then_index = block_index_map[then_target];
+            let else_index = block_index_map[else_target];
+            let then_parameters = block_parameters
+                .get(then_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            let else_parameters = block_parameters
+                .get(else_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            let then_copies = push_copy_range(copy_pool, then_parameters, then_arguments);
+            let else_copies = push_copy_range(copy_pool, else_parameters, else_arguments);
+
+            // assemble threaded branch
+            ThreadedInstruction {
+                handler: select_branch_handler(value_kinds, *condition),
+                data: ThreadedInstructionData::Branch {
+                    condition: *condition,
+                    then_target: then_index as u32,
+                    then_copies,
+                    else_target: else_index as u32,
+                    else_copies,
+                },
+            }
+        }
 
         mir::Terminator::Switch {
             value,
@@ -1039,16 +1179,29 @@ fn thread_terminator(
             default,
             default_arguments,
         } => {
-            let cases =
-                push_switch_case_range(switch_case_pool, argument_pool, block_index_map, cases);
+            // resolve switch case copies
+            let cases = push_switch_case_range(
+                switch_case_pool,
+                copy_pool,
+                block_index_map,
+                block_parameters,
+                cases,
+            );
+            let default_index = block_index_map[default];
+            let default_parameters = block_parameters
+                .get(default_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            let default_copies = push_copy_range(copy_pool, default_parameters, default_arguments);
 
+            // assemble threaded switch
             ThreadedInstruction {
                 handler: select_switch_handler(value_kinds, *value),
                 data: ThreadedInstructionData::Switch {
                     value: *value,
                     cases,
-                    default_target: block_index_map[default] as u32,
-                    default_arguments: push_argument_range(argument_pool, default_arguments),
+                    default_target: default_index as u32,
+                    default_copies,
                 },
             }
         }

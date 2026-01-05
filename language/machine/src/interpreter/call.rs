@@ -1,10 +1,15 @@
+use std::ptr::NonNull;
+
 use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
-use super::threaded::{ArgumentRange, ControlFlow, ThreadedState, is_invalid_value};
+use super::threaded::{
+    ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_VALUE_ID, ThreadedState,
+    is_invalid_value,
+};
 use super::{ExecutionOutput, Frame, Interpreter};
 
 /// Copy argument values from one frame into another.
@@ -44,6 +49,48 @@ fn copy_values_between_frames(
     }
 }
 
+/// Copy values between frames using a precomputed plan.
+fn copy_values_with_plan(
+    values: &mut [Value],
+    source_frame: &Frame,
+    dest_frame: &Frame,
+    pairs: &[CopyPair],
+) {
+    // use raw pointer to avoid repeated bounds checks
+    let values_ptr = values.as_mut_ptr();
+
+    // move values into destination parameters
+    for pair in pairs {
+        // compute destination index
+        let dest_index = dest_frame.value_base + pair.dest as usize;
+
+        // validate bounds in debug builds
+        debug_assert!(
+            (pair.dest as usize) < dest_frame.value_count,
+            "ssa value out of bounds: {}",
+            pair.dest
+        );
+
+        // load source value
+        let value = if pair.src == INVALID_VALUE_ID {
+            Value::VOID
+        } else {
+            let src_index = source_frame.value_base + pair.src as usize;
+            debug_assert!(
+                (pair.src as usize) < source_frame.value_count,
+                "ssa value out of bounds: {}",
+                pair.src
+            );
+            unsafe { *values_ptr.add(src_index) }
+        };
+
+        // write parameter value
+        unsafe {
+            *values_ptr.add(dest_index) = value;
+        }
+    }
+}
+
 /// Collect argument values from a frame into a smallvec.
 fn collect_argument_values(
     values: &[Value],
@@ -71,6 +118,11 @@ fn collect_argument_values(
 /// Resolve an argument range into a slice.
 fn argument_slice(argument_pool: &[mir::Value], arguments: ArgumentRange) -> &[mir::Value] {
     arguments.slice(argument_pool)
+}
+
+/// Resolve a copy range into a slice.
+fn copy_pairs(copy_pool: &[CopyPair], copies: CopyRange) -> &[CopyPair] {
+    copies.slice(copy_pool)
 }
 
 impl Interpreter {
@@ -173,8 +225,10 @@ impl Interpreter {
             .resize(value_base + threaded.value_count, Value::VOID);
         self.local_stack
             .resize(local_base + threaded.local_count, Value::VOID);
+        let threaded_ptr = NonNull::from(threaded.as_ref());
         let frame = Frame::new(
             func_id,
+            threaded_ptr,
             entry_block,
             threaded.entry as usize,
             value_base,
@@ -206,26 +260,19 @@ impl Interpreter {
             }
 
             // get current frame info
-            let (current_func_id, block_idx, start_pc) = {
+            let (threaded_ptr, block_idx, start_pc) = {
                 let frame = self
                     .call_stack
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                 let pc = frame.resume_pc;
                 frame.resume_pc = 0;
-                (frame.function, frame.block_index, pc)
+                (frame.threaded, frame.block_index, pc)
             };
 
-            // get threaded function (clone to avoid holding borrow)
-            let current_func = self
-                .threaded_functions
-                .get(&current_func_id)
-                .ok_or_else(|| {
-                    RuntimeError::new(Error::UndefinedFunction {
-                        function: current_func_id,
-                    })
-                })?
-                .clone();
+            // resolve threaded function
+            // safety: threaded pointer is valid for interpreter lifetime
+            let current_func = unsafe { threaded_ptr.as_ref() };
 
             // get current block
             let block = &current_func.blocks[block_idx];
@@ -250,27 +297,16 @@ impl Interpreter {
             match control {
                 ControlFlow::Jump {
                     block: target,
-                    arguments,
+                    copies,
                 } => {
                     // bind block parameters for target block
                     let target_block = &current_func.blocks[target as usize];
-                    let argument_values =
-                        argument_slice(current_func.argument_pool.as_slice(), arguments);
-                    let parameter_slice = argument_slice(
-                        current_func.argument_pool.as_slice(),
-                        target_block.parameters,
-                    );
+                    let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
                     let frame = self
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    copy_values_between_frames(
-                        &mut self.value_stack,
-                        frame,
-                        frame,
-                        parameter_slice,
-                        argument_values,
-                    );
+                    copy_values_with_plan(&mut self.value_stack, frame, frame, copy_pairs);
 
                     // update current block
                     let frame = self
@@ -285,16 +321,18 @@ impl Interpreter {
                     function,
                     destination,
                     arguments,
+                    copies,
                     resume_pc,
                 } => {
-                    let argument_values =
-                        argument_slice(current_func.argument_pool.as_slice(), arguments);
+                    // resolve target function id
                     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
                     // check for external or imported function
                     let func: &mir::Function = self.tree.get(function_id);
                     if func.is_import() {
                         // resolve arguments from caller
+                        let argument_values =
+                            argument_slice(current_func.argument_pool.as_slice(), arguments);
                         let caller = self
                             .call_stack
                             .last()
@@ -330,6 +368,13 @@ impl Interpreter {
                         })
                     })?;
 
+                    // resolve argument values if needed
+                    let argument_values = if copies.is_some() {
+                        &[]
+                    } else {
+                        argument_slice(current_func.argument_pool.as_slice(), arguments)
+                    };
+
                     // check stack overflow
                     if self.call_stack.len() >= self.options.max_stack_depth {
                         return Err(self.make_error(Error::StackOverflow));
@@ -356,8 +401,10 @@ impl Interpreter {
                     self.local_stack
                         .resize(local_base + callee.local_count, Value::VOID);
                     let entry_block = callee.blocks[callee.entry as usize].mir_block;
+                    let callee_ptr = NonNull::from(callee.as_ref());
                     let new_frame = Frame::new(
                         function_id,
+                        callee_ptr,
                         entry_block,
                         callee.entry as usize,
                         value_base,
@@ -367,8 +414,6 @@ impl Interpreter {
                     );
 
                     // bind callee's parameters
-                    let parameter_slice =
-                        argument_slice(callee.argument_pool.as_slice(), callee.parameters);
                     let caller = self
                         .call_stack
                         .last()
@@ -377,13 +422,27 @@ impl Interpreter {
                         caller.value_base == caller_info.0 && caller.value_count == caller_info.1,
                         "caller frame moved while binding arguments"
                     );
-                    copy_values_between_frames(
-                        &mut self.value_stack,
-                        caller,
-                        &new_frame,
-                        parameter_slice,
-                        argument_values,
-                    );
+                    if let Some(copies) = copies {
+                        // copy with precomputed plan
+                        let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
+                        copy_values_with_plan(
+                            &mut self.value_stack,
+                            caller,
+                            &new_frame,
+                            copy_pairs,
+                        );
+                    } else {
+                        // copy with parameter slices
+                        let parameter_slice =
+                            argument_slice(callee.argument_pool.as_slice(), callee.parameters);
+                        copy_values_between_frames(
+                            &mut self.value_stack,
+                            caller,
+                            &new_frame,
+                            parameter_slice,
+                            argument_values,
+                        );
+                    }
 
                     // push callee frame
                     self.call_stack.push(new_frame);

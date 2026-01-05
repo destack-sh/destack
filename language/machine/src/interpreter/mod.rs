@@ -17,6 +17,6 @@ pub use interpreter::{ExecutionOutput, ExternalFn, Interpreter};
 pub use options::MachineOptions;
 pub use statistics::Statistics;
 pub use threaded::{
-    ArgumentRange, ControlFlow, SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedHandler,
-    ThreadedInstruction, ThreadedInstructionData, ThreadedState,
+    ArgumentRange, ControlFlow, CopyPair, CopyRange, SwitchCase, SwitchRange, ThreadedBlock,
+    ThreadedFunction, ThreadedHandler, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
 };

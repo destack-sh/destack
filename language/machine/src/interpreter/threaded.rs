@@ -78,6 +78,38 @@ impl SwitchRange {
     }
 }
 
+/// Copy range within the threaded function copy pool.
+#[derive(Clone, Copy, Debug)]
+pub struct CopyRange {
+    /// Start offset into the copy pool.
+    pub start: u32,
+    /// Number of pairs in the range.
+    pub len: u32,
+}
+
+impl CopyRange {
+    /// Create an empty copy range.
+    pub const fn empty() -> Self {
+        Self { start: 0, len: 0 }
+    }
+
+    /// Slice pairs from the pool for this range.
+    pub fn slice<'a>(&self, pool: &'a [CopyPair]) -> &'a [CopyPair] {
+        // compute range bounds
+        let start = self.start as usize;
+        let len = self.len as usize;
+
+        // validate bounds in debug builds
+        debug_assert!(
+            start + len <= pool.len(),
+            "copy pool out of bounds for range"
+        );
+
+        // return copy slice
+        &pool[start..start + len]
+    }
+}
+
 /// Sentinel value id used for optional destinations.
 pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
 
@@ -98,8 +130,8 @@ pub enum ControlFlow {
     Jump {
         /// Target block index.
         block: u32,
-        /// Arguments for block parameters.
-        arguments: ArgumentRange,
+        /// Copy plan for block parameters.
+        copies: CopyRange,
     },
     /// Call another function.
     Call {
@@ -109,6 +141,8 @@ pub enum ControlFlow {
         destination: mir::Value,
         /// Arguments to pass.
         arguments: ArgumentRange,
+        /// Copy plan for callee parameters.
+        copies: Option<CopyRange>,
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
@@ -161,6 +195,7 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         function: u32,
         arguments: ArgumentRange,
+        copies: CopyRange,
     },
 
     /// Indirect function call.
@@ -254,18 +289,15 @@ pub enum ThreadedInstructionData {
     Return { value: mir::Value },
 
     /// Unconditional jump.
-    Jump {
-        target: u32,
-        arguments: ArgumentRange,
-    },
+    Jump { target: u32, copies: CopyRange },
 
     /// Conditional branch.
     Branch {
         condition: mir::Value,
         then_target: u32,
-        then_arguments: ArgumentRange,
+        then_copies: CopyRange,
         else_target: u32,
-        else_arguments: ArgumentRange,
+        else_copies: CopyRange,
     },
 
     /// Switch on integer.
@@ -273,7 +305,7 @@ pub enum ThreadedInstructionData {
         value: mir::Value,
         cases: SwitchRange,
         default_target: u32,
-        default_arguments: ArgumentRange,
+        default_copies: CopyRange,
     },
 
     /// Unreachable code.
@@ -290,8 +322,8 @@ pub struct SwitchCase {
     pub value: i64,
     /// Target block.
     pub target: u32,
-    /// Block arguments.
-    pub arguments: ArgumentRange,
+    /// Block parameter copies.
+    pub copies: CopyRange,
 }
 
 /// Threaded basic block.
@@ -318,10 +350,21 @@ pub struct ThreadedFunction {
     pub argument_pool: Vec<mir::Value>,
     /// Pool of switch cases referenced by ranges.
     pub switch_case_pool: Vec<SwitchCase>,
+    /// Pool of value copy pairs referenced by ranges.
+    pub copy_pool: Vec<CopyPair>,
     /// Count of SSA values used by the function.
     pub value_count: usize,
     /// Count of local variables used by the function.
     pub local_count: usize,
+}
+
+/// Copy pair for parameter binding.
+#[derive(Clone, Copy, Debug)]
+pub struct CopyPair {
+    /// Destination SSA value id.
+    pub dest: u32,
+    /// Source SSA value id (sentinel for missing).
+    pub src: u32,
 }
 
 /// Execution state for threaded interpreter.
