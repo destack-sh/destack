@@ -49,10 +49,15 @@ macro_rules! builtin_source {
 builtin_source!(CORE_INDEX, "index.ds");
 builtin_source!(CORE_PRELUDE, "prelude.ds");
 
+// memory
+builtin_source!(MEMORY_INDEX, "memory", "index.ds");
+builtin_source!(MEMORY_DROP, "memory", "drop.ds");
+builtin_source!(MEMORY_COPY, "memory", "copy.ds");
+builtin_source!(MEMORY_THREAD, "memory", "thread.ds");
+
 // operator
 builtin_source!(OPERATOR_ARITHMETIC, "operator", "arithmetic.ds");
 builtin_source!(OPERATOR_COMPARISON, "operator", "comparison.ds");
-builtin_source!(OPERATOR_DROP, "operator", "drop.ds");
 builtin_source!(OPERATOR_INDEX, "operator", "index.ds");
 builtin_source!(OPERATOR_FORMAT, "operator", "format.ds");
 builtin_source!(OPERATOR_SUBSCRIPT, "operator", "subscript.ds");
@@ -81,33 +86,36 @@ builtin_source!(INTRINSIC_DECORATOR, "intrinsic", "decorator.ds");
 ///
 /// Dependencies should be loaded before dependents.
 pub const CORE_SOURCES: &[BuiltinSource] = &[
-    // operator (no deps)
+    // memory
+    MEMORY_DROP,
+    MEMORY_COPY,
+    MEMORY_THREAD,
+    MEMORY_INDEX,
+    // operator
     OPERATOR_ARITHMETIC,
     OPERATOR_COMPARISON,
-    OPERATOR_DROP,
     OPERATOR_SUBSCRIPT,
     OPERATOR_FORMAT,
     OPERATOR_INDEX,
-    // control (Try has no deps, Result depends on Try, Range has no deps)
+    // control 
     CONTROL_TRY,
     CONTROL_ERROR,
     CONTROL_RANGE,
     CONTROL_ITERABLE,
     CONTROL_RESULT,
     CONTROL_INDEX,
-    // intrinsic (decorator newtypes have no deps, needed by reflect/type.ds)
+    // intrinsic
     INTRINSIC_DECORATOR,
     INTRINSIC_IMPORT_META,
     INTRINSIC_INDEX,
-    // reflect (depends on operator, control, and intrinsic/decorator)
+    // reflect
     REFLECT_PROPERTY,
     REFLECT_REFINEMENT,
     REFLECT_DECORATOR,
     REFLECT_TYPE,
     REFLECT_INDEX,
-    // top level
+    // core
     CORE_INDEX,
-    // prelude
     CORE_PRELUDE,
 ];
 
