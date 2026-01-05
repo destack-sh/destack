@@ -40,35 +40,35 @@ const NODE_CANONICAL_EXPORTS: &[&str] = &[
     "setTimeout",
 ];
 
-pub const LIB_NODE: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_NODE: BuiltinLib = BuiltinLib::ambient_lib(
     "node",
     &[LIB_NODE_V22_INDEX_D_DS],
     &["esnext", "undici-types.v6"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v6")])
 .with_canonical_exports(NODE_CANONICAL_EXPORTS);
-pub const LIB_NODE_V18: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_NODE_V18: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v18",
     &[LIB_NODE_V18_INDEX_D_DS],
     &["esnext", "undici-types.v5"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v5")])
 .with_canonical_exports(NODE_CANONICAL_EXPORTS);
-pub const LIB_NODE_V20: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_NODE_V20: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v20",
     &[LIB_NODE_V20_INDEX_D_DS],
     &["esnext", "undici-types.v6"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v6")])
 .with_canonical_exports(NODE_CANONICAL_EXPORTS);
-pub const LIB_NODE_V22: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_NODE_V22: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v22",
     &[LIB_NODE_V22_INDEX_D_DS],
     &["esnext", "undici-types.v6"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v6")])
 .with_canonical_exports(NODE_CANONICAL_EXPORTS);
-pub const LIB_NODE_V24: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_NODE_V24: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v24",
     &[LIB_NODE_V24_INDEX_D_DS],
     &["esnext", "undici-types.v7"],

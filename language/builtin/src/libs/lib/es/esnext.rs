@@ -24,7 +24,7 @@ lib_source!(LIB_ES_ESNEXT_ITERATOR_D_DS, "iterator.d.ts");
 lib_source!(LIB_ES_ESNEXT_PROMISE_D_DS, "promise.d.ts");
 lib_source!(LIB_ES_ESNEXT_SHAREDMEMORY_D_DS, "sharedmemory.d.ts");
 
-pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext",
     &[
         LIB_ES_ESNEXT_ARRAY_D_DS,
@@ -43,24 +43,24 @@ pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::ambient(
 );
 
 pub const LIB_ESNEXT_ARRAY: BuiltinLib =
-    BuiltinLib::ambient("esnext.array", &[LIB_ES_ESNEXT_ARRAY_D_DS], &[]);
+    BuiltinLib::ambient_lib("esnext.array", &[LIB_ES_ESNEXT_ARRAY_D_DS], &[]);
 pub const LIB_ESNEXT_COLLECTION: BuiltinLib =
-    BuiltinLib::ambient("esnext.collection", &[LIB_ES_ESNEXT_COLLECTION_D_DS], &[]);
-pub const LIB_ESNEXT_DECORATORS: BuiltinLib = BuiltinLib::ambient(
+    BuiltinLib::ambient_lib("esnext.collection", &[LIB_ES_ESNEXT_COLLECTION_D_DS], &[]);
+pub const LIB_ESNEXT_DECORATORS: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.decorators",
     &[LIB_ES_ESNEXT_DECORATORS_D_DS],
     &["decorators", "es2015.symbol"],
 );
 pub const LIB_ESNEXT_DISPOSABLE: BuiltinLib =
-    BuiltinLib::ambient("esnext.disposable", &[LIB_ES_ESNEXT_DISPOSABLE_D_DS], &[]);
+    BuiltinLib::ambient_lib("esnext.disposable", &[LIB_ES_ESNEXT_DISPOSABLE_D_DS], &[]);
 pub const LIB_ESNEXT_ERROR: BuiltinLib =
-    BuiltinLib::ambient("esnext.error", &[LIB_ES_ESNEXT_ERROR_D_DS], &[]);
-pub const LIB_ESNEXT_FLOAT16: BuiltinLib = BuiltinLib::ambient(
+    BuiltinLib::ambient_lib("esnext.error", &[LIB_ES_ESNEXT_ERROR_D_DS], &[]);
+pub const LIB_ESNEXT_FLOAT16: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.float16",
     &[LIB_ES_ESNEXT_FLOAT16_D_DS],
     &["es2015.symbol", "es2015.iterable"],
 );
-pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.full",
     &[LIB_ES_ESNEXT_FULL_D_DS],
     &[
@@ -73,12 +73,12 @@ pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::ambient(
     ],
 );
 pub const LIB_ESNEXT_INTL: BuiltinLib =
-    BuiltinLib::ambient("esnext.intl", &[LIB_ES_ESNEXT_INTL_D_DS], &[]);
+    BuiltinLib::ambient_lib("esnext.intl", &[LIB_ES_ESNEXT_INTL_D_DS], &[]);
 pub const LIB_ESNEXT_ITERATOR: BuiltinLib =
-    BuiltinLib::ambient("esnext.iterator", &[LIB_ES_ESNEXT_ITERATOR_D_DS], &[]);
+    BuiltinLib::ambient_lib("esnext.iterator", &[LIB_ES_ESNEXT_ITERATOR_D_DS], &[]);
 pub const LIB_ESNEXT_PROMISE: BuiltinLib =
-    BuiltinLib::ambient("esnext.promise", &[LIB_ES_ESNEXT_PROMISE_D_DS], &[]);
-pub const LIB_ESNEXT_SHAREDMEMORY: BuiltinLib = BuiltinLib::ambient(
+    BuiltinLib::ambient_lib("esnext.promise", &[LIB_ES_ESNEXT_PROMISE_D_DS], &[]);
+pub const LIB_ESNEXT_SHAREDMEMORY: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.sharedmemory",
     &[LIB_ES_ESNEXT_SHAREDMEMORY_D_DS],
     &[],

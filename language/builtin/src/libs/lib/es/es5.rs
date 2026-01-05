@@ -8,5 +8,5 @@ const LIB_ES_ES5_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!(concat!("../../../../lib/es/es5/index.d.ts")),
 );
 
-pub const LIB_ES5: BuiltinLib = BuiltinLib::ambient("es5", &[LIB_ES_ES5_INDEX_D_DS], &[])
+pub const LIB_ES5: BuiltinLib = BuiltinLib::ambient_lib("es5", &[LIB_ES_ES5_INDEX_D_DS], &[])
     .with_canonical_exports(ES_CANONICAL_EXPORTS);

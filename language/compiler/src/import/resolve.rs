@@ -10,7 +10,7 @@ use destack_base::StringId;
 use destack_builtin::builtin_lib;
 use destack_resolver::Resolver;
 use destack_source::{File, FileType, FileVersion, LanguageType, ModuleId, PackageId, Uri};
-use destack_workspace::{Module, ModuleType, Package, PackageKind};
+use destack_workspace::{Module, ModuleSource, ModuleType, Package, PackageKind};
 
 use crate::{Compiler, ImportError, ImportResult};
 
@@ -223,6 +223,7 @@ impl Compiler {
             tsconfig_id,
             module_type,
             language_type,
+            ModuleSource::User,
         );
         self.program.modules.insert(module);
 

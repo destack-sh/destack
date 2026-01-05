@@ -3,12 +3,17 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_base::{StringId, StringPool};
-use destack_builtin::{BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, builtin_lib};
+use destack_builtin::{
+    BuiltinLibKind, BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, builtin_lib,
+};
 use destack_dir::{GlobalSymbolId, WellKnownSymbol, WellKnownSymbolKey};
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 use indexmap::IndexMap;
 
-use crate::{Module, ModuleRegistry, ModuleType, Package, PackageKind, PackageRegistry, ProfileId};
+use crate::{
+    Module, ModuleRegistry, ModuleSource, ModuleType, Package, PackageKind, PackageRegistry,
+    ProfileId,
+};
 
 /// Resolve a file type for a builtin source name.
 fn file_type_for_builtin_name(name: &str) -> FileType {
@@ -201,6 +206,7 @@ impl LanguageBuiltins {
                 None,
                 ModuleType::Module,
                 language_type,
+                ModuleSource::Builtin(BuiltinLibKind::Core),
             );
             modules.insert(module);
             core_modules.insert(module_path, module_id);
@@ -278,7 +284,8 @@ impl LanguageBuiltins {
         // register lib sources
         let mut module_ids = Vec::with_capacity(lib.sources.len());
         for source in lib.sources {
-            let module_id = self.register_lib_source(source, files.clone(), modules.clone());
+            let module_id =
+                self.register_lib_source(source, lib.kind, files.clone(), modules.clone());
             module_ids.push(module_id);
         }
 
@@ -342,6 +349,7 @@ impl LanguageBuiltins {
     fn register_lib_source(
         &self,
         source: &BuiltinLibSource,
+        kind: BuiltinLibKind,
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
     ) -> ModuleId {
@@ -383,6 +391,7 @@ impl LanguageBuiltins {
             None,
             ModuleType::Module,
             language_type,
+            ModuleSource::Builtin(kind),
         );
         modules.insert(module);
 

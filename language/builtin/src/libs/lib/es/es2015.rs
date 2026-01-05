@@ -23,7 +23,7 @@ lib_source!(LIB_ES_ES2015_REFLECT_D_DS, "reflect.d.ts");
 lib_source!(LIB_ES_ES2015_SYMBOL_D_DS, "symbol.d.ts");
 lib_source!(LIB_ES_ES2015_SYMBOL_WELLKNOWN_D_DS, "symbol.wellknown.d.ts");
 
-pub const LIB_ES2015: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ES2015: BuiltinLib = BuiltinLib::ambient_lib(
     "es2015",
     &[
         LIB_ES_ES2015_COLLECTION_D_DS,
@@ -42,30 +42,30 @@ pub const LIB_ES2015: BuiltinLib = BuiltinLib::ambient(
 .with_canonical_exports(ES_CANONICAL_EXPORTS);
 
 pub const LIB_ES2015_COLLECTION: BuiltinLib =
-    BuiltinLib::ambient("es2015.collection", &[LIB_ES_ES2015_COLLECTION_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.collection", &[LIB_ES_ES2015_COLLECTION_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_CORE: BuiltinLib =
-    BuiltinLib::ambient("es2015.core", &[LIB_ES_ES2015_CORE_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.core", &[LIB_ES_ES2015_CORE_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_GENERATOR: BuiltinLib =
-    BuiltinLib::ambient("es2015.generator", &[LIB_ES_ES2015_GENERATOR_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.generator", &[LIB_ES_ES2015_GENERATOR_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_ITERABLE: BuiltinLib =
-    BuiltinLib::ambient("es2015.iterable", &[LIB_ES_ES2015_ITERABLE_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.iterable", &[LIB_ES_ES2015_ITERABLE_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_PROMISE: BuiltinLib =
-    BuiltinLib::ambient("es2015.promise", &[LIB_ES_ES2015_PROMISE_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.promise", &[LIB_ES_ES2015_PROMISE_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_PROXY: BuiltinLib =
-    BuiltinLib::ambient("es2015.proxy", &[LIB_ES_ES2015_PROXY_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.proxy", &[LIB_ES_ES2015_PROXY_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_REFLECT: BuiltinLib =
-    BuiltinLib::ambient("es2015.reflect", &[LIB_ES_ES2015_REFLECT_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.reflect", &[LIB_ES_ES2015_REFLECT_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2015_SYMBOL: BuiltinLib =
-    BuiltinLib::ambient("es2015.symbol", &[LIB_ES_ES2015_SYMBOL_D_DS], &[])
+    BuiltinLib::ambient_lib("es2015.symbol", &[LIB_ES_ES2015_SYMBOL_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
-pub const LIB_ES2015_SYMBOL_WELLKNOWN: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ES2015_SYMBOL_WELLKNOWN: BuiltinLib = BuiltinLib::ambient_lib(
     "es2015.symbol.wellknown",
     &[LIB_ES_ES2015_SYMBOL_WELLKNOWN_D_DS],
     &[],

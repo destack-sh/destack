@@ -38,19 +38,19 @@ const WORKER_CANONICAL_EXPORTS: &[&str] = &[
     "setTimeout",
 ];
 pub const LIB_WORKER: BuiltinLib =
-    BuiltinLib::ambient("worker", &[LIB_WORKER_INDEX_D_DS], &["es5"])
+    BuiltinLib::ambient_lib("worker", &[LIB_WORKER_INDEX_D_DS], &["es5"])
         .with_canonical_exports(WORKER_CANONICAL_EXPORTS);
-pub const LIB_WORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_WORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.asynciterable",
     &[LIB_WORKER_ASYNCITERABLE_D_DS],
     &["worker", "es2018.asynciterable"],
 );
-pub const LIB_WORKER_IMPORTSCRIPTS: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_WORKER_IMPORTSCRIPTS: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.importscripts",
     &[LIB_WORKER_IMPORTSCRIPTS_D_DS],
     &["worker"],
 );
-pub const LIB_WORKER_ITERABLE: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_WORKER_ITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.iterable",
     &[LIB_WORKER_ITERABLE_D_DS],
     &["worker", "es2015.iterable"],

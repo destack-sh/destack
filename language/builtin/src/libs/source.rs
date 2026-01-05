@@ -1,5 +1,16 @@
 use std::fmt;
 
+/// The kind of builtin library, corresponding to the three layers:
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuiltinLibKind {
+    /// Language primitives (operator traits, Result, etc.)
+    Core,
+    /// Universal Destack extensions (array, async, collections, io, string, time).
+    Std,
+    /// Target-specific type definitions (ES, DOM, Node, etc.).
+    Lib,
+}
+
 /// A builtin library source file.
 #[derive(Clone, Copy)]
 pub struct BuiltinLibSource {
@@ -60,6 +71,8 @@ impl BuiltinLibSource {
 /// Definition for a builtin library.
 #[derive(Clone, Copy, Debug)]
 pub struct BuiltinLib {
+    /// The kind of builtin library (Core, Std, or Lib).
+    pub kind: BuiltinLibKind,
     /// Library name (e.g., "es2024", "dom").
     pub name: &'static str,
     /// Source files for this library.
@@ -74,14 +87,16 @@ pub struct BuiltinLib {
     pub is_ambient: bool,
 }
 
+#[allow(dead_code)]
 impl BuiltinLib {
-    /// Create a new ambient builtin library.
-    pub(crate) const fn ambient(
+    /// Create a new ambient core builtin library.
+    pub(crate) const fn ambient_core(
         name: &'static str,
         sources: &'static [BuiltinLibSource],
         dependencies: &'static [&'static str],
     ) -> Self {
         Self {
+            kind: BuiltinLibKind::Core,
             name,
             sources,
             dependencies,
@@ -91,13 +106,65 @@ impl BuiltinLib {
         }
     }
 
-    /// Create a new explicit builtin library.
-    pub(crate) const fn explicit(
+    /// Create a new ambient std builtin library.
+    pub(crate) const fn ambient_std(
         name: &'static str,
         sources: &'static [BuiltinLibSource],
         dependencies: &'static [&'static str],
     ) -> Self {
         Self {
+            kind: BuiltinLibKind::Std,
+            name,
+            sources,
+            dependencies,
+            is_ambient: true,
+            specifier_aliases: &[],
+            canonical_exports: &[],
+        }
+    }
+
+    /// Create a new ambient lib builtin library.
+    pub(crate) const fn ambient_lib(
+        name: &'static str,
+        sources: &'static [BuiltinLibSource],
+        dependencies: &'static [&'static str],
+    ) -> Self {
+        Self {
+            kind: BuiltinLibKind::Lib,
+            name,
+            sources,
+            dependencies,
+            is_ambient: true,
+            specifier_aliases: &[],
+            canonical_exports: &[],
+        }
+    }
+
+    /// Create a new explicit std builtin library.
+    pub(crate) const fn explicit_std(
+        name: &'static str,
+        sources: &'static [BuiltinLibSource],
+        dependencies: &'static [&'static str],
+    ) -> Self {
+        Self {
+            kind: BuiltinLibKind::Std,
+            name,
+            sources,
+            dependencies,
+            is_ambient: false,
+            specifier_aliases: &[],
+            canonical_exports: &[],
+        }
+    }
+
+    /// Create a new explicit lib builtin library.
+    pub(crate) const fn explicit_lib(
+        name: &'static str,
+        sources: &'static [BuiltinLibSource],
+        dependencies: &'static [&'static str],
+    ) -> Self {
+        Self {
+            kind: BuiltinLibKind::Lib,
             name,
             sources,
             dependencies,

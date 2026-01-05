@@ -27,7 +27,7 @@ pub const STD_SOURCES: &[BuiltinLibSource] = &[
     STD_TIME_INDEX_DS,
 ];
 
-pub const STD_LIB: BuiltinLib = BuiltinLib::explicit(
+pub const STD_LIB: BuiltinLib = BuiltinLib::explicit_std(
     "std",
     &[
         STD_ARRAY_INDEX_DS,
