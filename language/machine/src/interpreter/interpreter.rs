@@ -8,7 +8,7 @@ use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
 use crate::memory::{ManagedHeap, RawHeap, Value};
 
 use super::decode::thread_function;
-use super::threaded::ThreadedFunction;
+use super::threaded::{INVALID_FUNCTION_INDEX, ThreadedFunction};
 use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
@@ -47,8 +47,8 @@ pub struct Interpreter {
     pub(super) externals: HashMap<String, ExternalFn>,
     /// Configuration options.
     pub(super) options: MachineOptions,
-    /// Pre-threaded functions for fast dispatch (Arc for cheap cloning).
-    pub(super) threaded_functions: HashMap<mir::LocalNodeId<mir::Function>, Arc<ThreadedFunction>>,
+    /// Pre-threaded functions for fast dispatch.
+    pub(super) threaded_functions: ThreadedFunctionTable,
     /// Explicit call stack (used for GC roots and error reporting).
     pub(super) call_stack: Vec<Frame>,
     /// SSA value stack for all active frames.
@@ -57,6 +57,70 @@ pub struct Interpreter {
     pub(super) local_stack: Vec<Value>,
     /// Execution statistics.
     pub statistics: Statistics,
+}
+
+/// Threaded function registry for fast lookup.
+pub(super) struct ThreadedFunctionTable {
+    /// Threaded functions by dense index.
+    functions: Vec<Arc<ThreadedFunction>>,
+    /// Mapping from function id to threaded index (INVALID_FUNCTION_INDEX if missing).
+    index_by_id: Vec<u32>,
+}
+
+impl ThreadedFunctionTable {
+    /// Build a threaded function table for the MIR tree.
+    pub(super) fn new(tree: &mir::NodeTree) -> Self {
+        // collect threadable function ids
+        let mut function_ids = Vec::new();
+        let mut max_id = 0usize;
+        for (func_id, func) in tree.iter_nodes::<mir::Function>() {
+            // skip imports and declarations without entry blocks
+            if func.is_import() || func.entry.is_none() {
+                continue;
+            }
+            function_ids.push(func_id);
+            max_id = max_id.max(func_id.id as usize);
+        }
+
+        // build id to index mapping
+        let mut index_by_id = vec![INVALID_FUNCTION_INDEX; max_id + 1];
+        for (index, func_id) in function_ids.iter().enumerate() {
+            index_by_id[func_id.id as usize] = index as u32;
+        }
+
+        // thread all functions
+        let mut functions = Vec::with_capacity(function_ids.len());
+        for func_id in &function_ids {
+            let threaded = thread_function(tree, *func_id, &index_by_id)
+                .unwrap_or_else(|| panic!("failed to thread function: {func_id:?}"));
+            functions.push(Arc::new(threaded));
+        }
+
+        // assemble table
+        Self {
+            functions,
+            index_by_id,
+        }
+    }
+
+    /// Resolve a threaded function index for the given id.
+    pub(super) fn index_for(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
+        // look up raw index
+        let index = self.index_by_id.get(func_id.id as usize).copied()?;
+
+        // reject invalid entries
+        if index == INVALID_FUNCTION_INDEX {
+            return None;
+        }
+
+        // return valid index
+        Some(index)
+    }
+
+    /// Get a threaded function by index.
+    pub(super) fn get_by_index(&self, index: u32) -> Option<&Arc<ThreadedFunction>> {
+        self.functions.get(index as usize)
+    }
 }
 
 impl std::fmt::Debug for Interpreter {
@@ -90,8 +154,8 @@ impl Interpreter {
         let mut managed_heap = ManagedHeap::new();
         let globals = Self::initialize_globals(&tree, &mut managed_heap);
 
-        // Pre-thread all functions for fast dispatch
-        let threaded_functions = Self::thread_all_functions(&tree);
+        // pre-thread all functions for fast dispatch
+        let threaded_functions = ThreadedFunctionTable::new(&tree);
 
         Self {
             tree,
@@ -107,21 +171,6 @@ impl Interpreter {
             local_stack: Vec::new(),
             statistics: Statistics::new(),
         }
-    }
-
-    /// Thread all functions in the MIR tree for fast dispatch.
-    fn thread_all_functions(
-        tree: &mir::NodeTree,
-    ) -> HashMap<mir::LocalNodeId<mir::Function>, Arc<ThreadedFunction>> {
-        let mut threaded = HashMap::new();
-
-        for (func_id, _) in tree.iter_nodes::<mir::Function>() {
-            if let Some(tf) = thread_function(tree, func_id) {
-                threaded.insert(func_id, Arc::new(tf));
-            }
-        }
-
-        threaded
     }
 
     /// Initialize global variables from the MIR tree.

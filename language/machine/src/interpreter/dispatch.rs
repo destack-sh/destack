@@ -7,8 +7,8 @@ use crate::diagnostic::Error;
 use crate::memory::Value;
 
 use super::threaded::{
-    ArgumentRange, ControlFlow, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
-    is_invalid_value,
+    ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, ThreadedInstruction,
+    ThreadedInstructionData, ThreadedState, is_invalid_value,
 };
 use super::{instruction, operator};
 
@@ -483,6 +483,7 @@ pub(super) fn handle_call(
     let ThreadedInstructionData::Call {
         dest,
         function,
+        callee_index,
         arguments,
         copies,
     } = &block[pc].data
@@ -493,6 +494,7 @@ pub(super) fn handle_call(
     // return control to trampoline
     ControlFlow::Call {
         function: *function,
+        callee_index: *callee_index,
         destination: *dest,
         arguments: *arguments,
         copies: Some(*copies),
@@ -533,6 +535,7 @@ pub(super) fn handle_call_indirect(
     // return control to trampoline
     ControlFlow::Call {
         function,
+        callee_index: INVALID_FUNCTION_INDEX,
         destination: *dest,
         arguments: *arguments,
         copies: None,

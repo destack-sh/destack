@@ -2,7 +2,7 @@ use std::ptr::NonNull;
 
 use destack_mir as mir;
 
-use super::threaded::ThreadedFunction;
+use super::threaded::{ThreadedBlock, ThreadedFunction};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapCell, HeapHandle, Value};
 
@@ -13,6 +13,8 @@ pub struct Frame {
     pub function: mir::LocalNodeId<mir::Function>,
     /// Pointer to the threaded function for fast dispatch.
     pub threaded: NonNull<ThreadedFunction>,
+    /// Pointer to the current threaded block.
+    pub block_ptr: NonNull<ThreadedBlock>,
     /// The entry block of the function.
     pub entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
@@ -41,6 +43,7 @@ impl Frame {
     pub fn new(
         function: mir::LocalNodeId<mir::Function>,
         threaded: NonNull<ThreadedFunction>,
+        block_ptr: NonNull<ThreadedBlock>,
         entry_block: mir::LocalNodeId<mir::Block>,
         block_index: usize,
         value_base: usize,
@@ -52,6 +55,7 @@ impl Frame {
         Self {
             function,
             threaded,
+            block_ptr,
             entry_block,
             current_block: entry_block,
             block_index,
@@ -69,7 +73,7 @@ impl Frame {
     #[inline]
     pub fn threaded(&self) -> &ThreadedFunction {
         // return threaded function
-        // safety: threaded pointer is valid for interpreter lifetime
+        // #Safety: threaded pointer is valid for interpreter lifetime
         unsafe { self.threaded.as_ref() }
     }
 

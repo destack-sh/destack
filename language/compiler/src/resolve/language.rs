@@ -481,13 +481,11 @@ mod tests {
     #[test]
     #[ignore] // FUGU: compile_check_clean on test_analyze_all_builtin_libs
     fn test_analyze_all_builtin_libs() {
-        // collect all lib names
+        // collect all libs into one test program
         let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
             .chain(LIBS.iter())
             .map(|lib| lib.name)
             .collect();
-
-        // create single TestProgram with all libs
         let test =
             TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&lib_names);
 
