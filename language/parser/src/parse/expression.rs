@@ -122,12 +122,12 @@ fn to_infix_operator(
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
     // regular type binary operator
-    // (forbidden in super type clauses, `is` cannot glue across newlines in TS)
+    // (forbidden in super type clauses, cannot glue across newlines in non-destack)
     else if !options.in_super_type
         && let Some(type_binary_operator) =
             TypeBinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_type_mapped_constraint || type_binary_operator != TypeBinaryOperator::Cast)
-        && (language.is_destack() || !has_newline || type_binary_operator != TypeBinaryOperator::Is)
+        && (language.is_destack() || !has_newline)
     {
         Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
     }
