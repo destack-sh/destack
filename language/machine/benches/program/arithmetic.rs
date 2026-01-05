@@ -10,6 +10,7 @@ pub(crate) const ALL: &[&Program] = &[
     &BINARY_FLOAT,
     &COLLATZ,
     &UNARY_OPS,
+    &CAST_MIX,
 ];
 
 /// Recursive fibonacci with exponential call tree.
@@ -276,5 +277,34 @@ block3(v16: i64):
 "#,
     entry: "unary_ops",
     expected: || None,
+    default_args: || vec![Value::int64(10_000)],
+};
+
+/// Cast mix covering integer truncation and float conversions.
+pub(crate) const CAST_MIX: Program = Program {
+    name: "cast_mix",
+    source: r#"
+function @cast_mix(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 1i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = trunc v4 -> i32
+    v7 = uextend v6 -> i64
+    v8 = scvt_to_float v7 -> f64
+    v9 = fcvt_to_sint v8 -> i64
+    v10 = iadd v9, v2
+    v11 = iadd v3, v2
+    jump block1(v11, v10)
+block3(v12: i64):
+    return v12
+}
+"#,
+    entry: "cast_mix",
+    expected: || Some(Value::int64(10_001)),
     default_args: || vec![Value::int64(10_000)],
 };

@@ -230,10 +230,11 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
     };
 
     // header
+    let table_width = 98;
     println!();
     println!(
-        "{BOLD}{:<28} {:>7} {:>5} {:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}",
-        "Program", "Mops/s", "Iter", "Instrs", "Calls", "Stk", "Alloc", "Br", "Ld/St"
+        "{BOLD}{:<28} {:>7} {:>5} {:>9} {:>6} {:>5} {:>5} {:>6} {:>5} {:>13}{RESET}",
+        "Program", "Mops/s", "Iter", "Instrs", "Calls", "Stk", "Alloc", "Br", "Ld/St", "Range"
     );
     if repeat > 1 {
         println!(
@@ -242,7 +243,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             options.warmup.as_secs_f64() * 1000.0
         );
     }
-    println!("{DIM}{}{RESET}", "─".repeat(86));
+    println!("{DIM}{}{RESET}", "─".repeat(table_width));
 
     // track summary stats
     let bench_start = Instant::now();
@@ -305,12 +306,9 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             // summarize samples
             let summary = summarize_samples(&mut samples);
             let range_label = if repeat > 1 {
-                format!(
-                    "{DIM} ({:.1}-{:.1}){RESET}",
-                    summary.min_mops, summary.max_mops
-                )
+                format!("{:.1}-{:.1}", summary.min_mops, summary.max_mops)
             } else {
-                String::new()
+                "-".to_string()
             };
 
             // color based on performance
@@ -325,7 +323,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             // print benchmark row
             let ld_st = stats.loads + stats.stores;
             println!(
-                "{CYAN}{full_name:<28}{RESET} {mops_color}{:>7.1}{RESET} {:>5} {DIM}{:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}{range_label}",
+                "{CYAN}{full_name:<28}{RESET} {mops_color}{:>7.1}{RESET} {:>5} {DIM}{:>9} {:>6} {:>5} {:>5} {:>6} {:>5} {:>13}{RESET}",
                 summary.median_mops,
                 summary.median_iterations,
                 stats.instructions_executed,
@@ -334,6 +332,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                 stats.heap_allocations,
                 stats.branches,
                 ld_st,
+                range_label,
             );
 
             // update summary totals
@@ -344,7 +343,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
 
     // summary
     let total_elapsed = bench_start.elapsed();
-    println!("{DIM}{}{RESET}", "─".repeat(86));
+    println!("{DIM}{}{RESET}", "─".repeat(table_width));
     if count > 0 {
         println!(
             "{BOLD}{:<28} {:>7.1}{RESET}                                           {DIM}in {:.2}s{RESET}",
