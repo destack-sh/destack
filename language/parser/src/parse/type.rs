@@ -1937,4 +1937,22 @@ mod tests {
             });
         });
     }
+
+    /// Generic arrow function types work in TypeScript declaration files.
+    #[test]
+    fn test_parse_generic_arrow_function_type_in_typescript() {
+        let mut test = TestParser::new_with_options(
+            "type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "ClassDecorator");
+            });
+        });
+    }
 }

@@ -1162,8 +1162,7 @@ impl Parser {
             else if token_type == TokenType::LessThan
                 && self.peek_next_token(TokenType::Identifier).is_ok()
                 && (self.peek_next_next_token(TokenType::Comma).is_ok()
-                    || !self.options.in_type
-                        && !self.language.supports_jsx()
+                    || (self.options.in_type || !self.language.supports_jsx())
                         && self
                             .find_matching_close(None, TokenType::LessThan, TokenType::GreaterThan)
                             .ok()
