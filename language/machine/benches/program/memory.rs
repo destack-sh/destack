@@ -8,6 +8,7 @@ pub(crate) const ALL: &[&Program] = &[
     &LOAD_STORE,
     &LINKED_WALK,
     &FIELD_ACCESS,
+    &ARRAY_WALK,
 ];
 
 /// Single allocation per iteration.
@@ -192,4 +193,43 @@ block3(v16: i64):
     entry: "field_access",
     expected: || None,
     default_args: || vec![Value::int64(10_000)],
+};
+
+/// Element get/set on a managed array with sequential access.
+pub(crate) const ARRAY_WALK: Program = Program {
+    name: "array_walk",
+    source: r#"
+function @array_walk(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = managed.alloc_array i64, v0
+    v2 = iconst 0i64
+    jump block1(v2, v1)
+block1(v3: i64, v4: ref<i64>):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = element.set v4, v3, v3
+    v7 = iconst 1i64
+    v8 = iadd v3, v7
+    jump block1(v8, v6)
+block3(v9: ref<i64>):
+    v10 = iconst 0i64
+    v11 = iconst 0i64
+    jump block4(v10, v9, v11)
+block4(v12: i64, v13: ref<i64>, v14: i64):
+    v15 = icmp_sge v12, v0
+    branch v15, block6(v14), block5
+block5:
+    v16 = element.get v13, v12
+    v17 = iadd v14, v16
+    v18 = iconst 1i64
+    v19 = iadd v12, v18
+    jump block4(v19, v13, v17)
+block6(v20: i64):
+    return v20
+}
+"#,
+    entry: "array_walk",
+    expected: || Some(Value::int64(499_500)),
+    default_args: || vec![Value::int64(1000)],
 };

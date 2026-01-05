@@ -6,6 +6,7 @@ pub(crate) const ALL: &[&Program] = &[
     &CALL_DIRECT_SHALLOW,
     &CALL_DIRECT_DEEP,
     &CALL_MANY_ARGS,
+    &CALL_MANY_ARGS_16,
     &CALL_RECURSIVE_TAIL,
     &CALL_MUTUAL,
 ];
@@ -154,6 +155,74 @@ block3(v16: i64):
 "#,
     entry: "call_many_args",
     expected: || Some(Value::int64(36000)),
+    default_args: || vec![Value::int64(1000)],
+};
+
+/// Sixteen argument function call stressing argument passing and copying.
+pub(crate) const CALL_MANY_ARGS_16: Program = Program {
+    name: "call_many_args_16",
+    source: r#"
+function @sum16(
+    v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64, v6: i64, v7: i64,
+    v8: i64, v9: i64, v10: i64, v11: i64, v12: i64, v13: i64, v14: i64, v15: i64
+) -> i64 {
+block0(
+    v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64, v6: i64, v7: i64,
+    v8: i64, v9: i64, v10: i64, v11: i64, v12: i64, v13: i64, v14: i64, v15: i64
+):
+    v16 = iadd v0, v1
+    v17 = iadd v16, v2
+    v18 = iadd v17, v3
+    v19 = iadd v18, v4
+    v20 = iadd v19, v5
+    v21 = iadd v20, v6
+    v22 = iadd v21, v7
+    v23 = iadd v22, v8
+    v24 = iadd v23, v9
+    v25 = iadd v24, v10
+    v26 = iadd v25, v11
+    v27 = iadd v26, v12
+    v28 = iadd v27, v13
+    v29 = iadd v28, v14
+    v30 = iadd v29, v15
+    return v30
+}
+
+function @call_many_args_16(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    jump block1(v1, v1)
+block1(v2: i64, v3: i64):
+    v4 = icmp_sge v2, v0
+    branch v4, block3(v3), block2
+block2:
+    v5 = iconst 1i64
+    v6 = iconst 2i64
+    v7 = iconst 3i64
+    v8 = iconst 4i64
+    v9 = iconst 5i64
+    v10 = iconst 6i64
+    v11 = iconst 7i64
+    v12 = iconst 8i64
+    v13 = iconst 9i64
+    v14 = iconst 10i64
+    v15 = iconst 11i64
+    v16 = iconst 12i64
+    v17 = iconst 13i64
+    v18 = iconst 14i64
+    v19 = iconst 15i64
+    v20 = iconst 16i64
+    v21 = call @sum16(v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20)
+    v22 = iadd v3, v21
+    v23 = iconst 1i64
+    v24 = iadd v2, v23
+    jump block1(v24, v22)
+block3(v25: i64):
+    return v25
+}
+"#,
+    entry: "call_many_args_16",
+    expected: || Some(Value::int64(136_000)),
     default_args: || vec![Value::int64(1000)],
 };
 
