@@ -209,6 +209,97 @@ impl Compiler {
         }
     }
 
+    /// Resolve a static parameter constraint into the local type table.
+    pub(crate) fn static_parameter_constraint_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // fallback to unknown when constraints are missing or unavailable
+        let unknown_type = Type::TypeLiteral {
+            value: TypeLiteral::Unknown,
+        };
+
+        // reuse cached constraints when available
+        if let Some(cached) = types.get_static_parameter_constraint_type(symbol) {
+            return Some(cached);
+        }
+
+        // avoid recursive constraint resolution
+        if types.is_static_parameter_constraint_in_progress(symbol) {
+            return Some(types.insert_type_from_any(unknown_type.clone(), source_id));
+        }
+
+        // mark constraint resolution as in progress
+        types.mark_static_parameter_constraint_in_progress(symbol);
+
+        // resolve local static parameter constraints from declared types
+        let resolved = if symbol.module_id == module.id {
+            // read the local symbol entry
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            if !symbol_entry.is_static_parameter() {
+                None
+            } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
+                // read the declared constraint type or fall back to unknown
+                let declared_type_id = types
+                    .get_declared_type_id(primary_declaration)
+                    .unwrap_or_else(|| types.insert_type_from_any(unknown_type.clone(), source_id));
+                Some(declared_type_id)
+            } else {
+                Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+            }
+        } else {
+            // resolve remote static parameter constraints by importing the declared type
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_dir = remote_module.dir(profile);
+            let remote_symbols = remote_dir.symbols.read();
+        
+            // read the remote symbol
+            let remote_symbol = remote_symbols.get_symbol(symbol.local_id);
+            if !remote_symbol.is_static_parameter() {
+                None
+            } else if let Some(primary_declaration) = remote_symbol.primary_declaration {
+                // read and import the declared constraint type
+                let remote_types = remote_dir.types.read();
+                if let Some(remote_declared_type_id) =
+                    remote_types.get_declared_type_id(primary_declaration)
+                {
+                    let remote_declared_type = remote_types.get_type(remote_declared_type_id);
+                    // fall back when the declared type is unevaluated
+                    if matches!(remote_declared_type, Type::Unevaluated(_)) {
+                        Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                    } else {
+                        Some(self.import_type_from_remote_for_node(
+                            source_id,
+                            remote_declared_type,
+                            &remote_types,
+                            symbol,
+                            types,
+                        ))
+                    }
+                } else {
+                    Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                }
+            } else {
+                Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+            }
+        };
+
+        // clear the in progress marker
+        types.clear_static_parameter_constraint_in_progress(symbol);
+        if let Some(resolved) = resolved {
+            // cache the resolved constraint type id
+            types.set_static_parameter_constraint_type(symbol, resolved);
+        }
+
+        resolved
+    }
+
     /// Collect static parameter metadata from a module.
     fn collect_static_parameter_in_module(
         &self,

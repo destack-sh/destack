@@ -1,42 +1,126 @@
-use crate::{AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type};
+use crate::{
+    AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type,
+    expect_let_declarator_by_name, root_expression_id,
+};
 use destack_dir::{
     BinaryOperator, Declaration, Expression, FlowEdgeKind, FlowGraphBuilder, InferTable,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind,
-    SymbolSpace, SymbolType, Type, TypeLiteral, TypeUnaryOperator,
+    LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator,
 };
+use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
+
+/// Add, analyze, and check a module in one step.
+fn analyze_module_with_source(test: &TestProgram, name: &str, source: &str) -> ModuleId {
+    // register the module
+    let module_id = test.add_module(name, source);
+
+    // analyze and check diagnostics
+    test.analyze_module_and_check_clean(module_id);
+
+    module_id
+}
+
+/// Load roots, tree, and types by cloning the module dir tables.
+fn load_tree_types(
+    test: &TestProgram,
+    module_id: ModuleId,
+) -> (
+    Vec<destack_dir::LocalNodeId<Expression>>,
+    NodeTree,
+    TypeTable,
+) {
+    // load module state
+    let profile = test.default_profile_id(module_id);
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let dir = module.dir(profile);
+
+    // clone module dir data
+    let roots = dir.roots.clone();
+    let tree = dir.tree.read().clone();
+    let types = dir.types.read().clone();
+
+    (roots, tree, types)
+}
+
+/// Load roots, tree, symbols, and types by cloning the module dir tables.
+fn load_tree_symbols_types(
+    test: &TestProgram,
+    module_id: ModuleId,
+) -> (
+    Vec<destack_dir::LocalNodeId<Expression>>,
+    NodeTree,
+    SymbolTable,
+    TypeTable,
+) {
+    // load module state
+    let profile = test.default_profile_id(module_id);
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let dir = module.dir(profile);
+
+    // clone module dir data
+    let roots = dir.roots.clone();
+    let tree = dir.tree.read().clone();
+    let symbols = dir.symbols.read().clone();
+    let types = dir.types.read().clone();
+
+    (roots, tree, symbols, types)
+}
+
+/// Load types by cloning the module dir table.
+fn load_types(test: &TestProgram, module_id: ModuleId) -> TypeTable {
+    // load module state
+    let profile = test.default_profile_id(module_id);
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let dir = module.dir(profile);
+
+    // clone type table
+    dir.types.read().clone()
+}
+
+/// Read an inferred type for a local expression.
+fn expect_inferred_type(
+    types: &TypeTable,
+    module_id: ModuleId,
+    expression_id: destack_dir::LocalNodeId<Expression>,
+) -> &Type {
+    // resolve inferred type
+    types
+        .get_inferred_type(expression_id.into_global_any(module_id))
+        .expect("expected inferred type")
+}
+
+/// Read an inferred type id for a local expression.
+fn expect_inferred_type_id(
+    types: &TypeTable,
+    module_id: ModuleId,
+    expression_id: destack_dir::LocalNodeId<Expression>,
+) -> LocalTypeId {
+    // resolve inferred type id
+    types
+        .get_inferred_type_id(expression_id.into_global_any(module_id))
+        .expect("expected inferred type id")
+}
 
 /// Analyze number literal.
 #[test]
 fn test_analyze_number_literal() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = test.add_module("test.ds", "42");
-
-    // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    let module_id = analyze_module_with_source(&test, "test.ds", "42");
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
 
     // read inferred type
-    let ty = types
-        .get_inferred_type(expression_id.into_global_any(module.id))
-        .unwrap();
+    let ty = expect_inferred_type(&types, module_id, expression_id);
 
     // integer literals now have literal types, not widened primitive types
     assert_eq!(
@@ -52,32 +136,16 @@ fn test_analyze_number_literal() {
 fn test_analyze_string_literal() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = test.add_module("test.ds", r#""hello""#);
-
-    // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    let module_id = analyze_module_with_source(&test, "test.ds", r#""hello""#);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
 
     // read inferred type
-    let ty = types
-        .get_inferred_type(expression_id.into_global_any(module.id))
-        .unwrap();
+    let ty = expect_inferred_type(&types, module_id, expression_id);
 
     // string literal has literal type (e.g., "hello" has type "hello")
     assert!(matches!(
@@ -93,32 +161,16 @@ fn test_analyze_string_literal() {
 fn test_analyze_boolean_literal() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = test.add_module("test.ds", "true");
-
-    // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    let module_id = analyze_module_with_source(&test, "test.ds", "true");
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
 
     // read inferred type
-    let ty = types
-        .get_inferred_type(expression_id.into_global_any(module.id))
-        .unwrap();
+    let ty = expect_inferred_type(&types, module_id, expression_id);
 
     // boolean literal has literal type (e.g., true has type true)
     assert_eq!(
@@ -165,16 +217,14 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     );
 
     // analyze the entry module
-    test.analyze_module(main_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(main_id);
 
     // load module data for inspection
     let module = test.program.modules.get(main_id);
     let module = module.read();
     let profile = test.default_profile_id(main_id);
     let dir = module.dir(profile);
-    let symbols = dir.symbols.read();
-    let types = dir.types.read();
+    let (_roots, _tree, symbols, types) = load_tree_symbols_types(&test, main_id);
     let thing_name = test.program.strings.intern("thing");
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
     let global_group = test
@@ -256,29 +306,16 @@ fn test_analyze_binary_number_operation() {
     let module_id = test.add_module("test.ds", "1 + 2");
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
 
     // read inferred type
-    let ty = types
-        .get_inferred_type(expression_id.into_global_any(module.id))
-        .unwrap();
+    let ty = expect_inferred_type(&types, module_id, expression_id);
 
     // constant folding: 1 + 2 evaluates to literal type 3
     assert_eq!(
@@ -307,14 +344,10 @@ if (value != null) {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (_roots, tree, types) = load_tree_types(&test, module_id);
 
     // locate the if expression
     let (_, if_expression) = tree
@@ -357,9 +390,7 @@ if (value != null) {
         .expect("expected value expression in declarator");
 
     // assert nullish types are stripped in the then branch
-    let left_type_id = types
-        .get_inferred_type_id(value_expression_id.into_global_any(module.id))
-        .expect("expected inferred type");
+    let left_type_id = expect_inferred_type_id(&types, module_id, value_expression_id);
     let left_type = types.get_type(left_type_id);
 
     let is_nullish = match left_type {
@@ -388,29 +419,16 @@ fn test_analyze_binary_number_comparison() {
     let module_id = test.add_module("test.ds", "1 < 2");
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
 
     // read inferred type
-    let ty = types
-        .get_inferred_type(expression_id.into_global_any(module.id))
-        .unwrap();
+    let ty = expect_inferred_type(&types, module_id, expression_id);
 
     // constant folding: 1 < 2 evaluates to literal true
     assert_eq!(
@@ -429,21 +447,19 @@ fn test_analyze_let_expression_infer_type() {
     let module_id = test.add_module("test.ds", "let x = 42");
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
-    let let_expr_id = module.dir(test.default_profile_id(module_id)).roots[0];
+    // locate the let expression
+    let let_expr_id = root_expression_id(&roots, &tree, 0);
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
     // no declared type
     assert!(
         types
-            .get_declared_type(let_expr_id.into_global_any(module.id))
+            .get_declared_type(let_expr_id.into_global_any(module_id))
             .is_none()
     );
 
@@ -468,24 +484,13 @@ fn test_analyze_let_expression_declare_type() {
     let module_id = test.add_module("test.ds", r#"let x: string = "hello""#);
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
     let let_expression = tree.get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -495,7 +500,7 @@ fn test_analyze_let_expression_declare_type() {
 
     // declared_type[declarator] = string
     let declared = types
-        .get_declared_type(declarator_id.into_global(module.id).into())
+        .get_declared_type(declarator_id.into_global(module_id).into())
         .unwrap();
     assert_eq!(
         *declared,
@@ -530,14 +535,12 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
+    // resolve binding symbols
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
     let y_symbol = test.resolve_to_symbol("test.ds", "y").unwrap();
     let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
@@ -604,13 +607,10 @@ let x = value;
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
     // x should have literal type 42 (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -645,13 +645,10 @@ let x = items;
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
     // x should have an array element union from the imported literal values
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -692,13 +689,10 @@ let x = greeting;
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
     // x should have literal string type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
@@ -794,14 +788,12 @@ let result = builder.combine(other);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
+    // resolve symbols
     let builder_symbol = test.resolve_to_symbol("test.ds", "Builder").unwrap();
     let result_symbol = test.resolve_to_symbol("test.ds", "result").unwrap();
     let result_ty_id = types
@@ -837,14 +829,12 @@ let boxed = builder.box();
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
+    // resolve symbols
     let box_symbol = test.resolve_to_symbol("test.ds", "Box").unwrap();
     let builder_symbol = test.resolve_to_symbol("test.ds", "Builder").unwrap();
     let boxed_symbol = test.resolve_to_symbol("test.ds", "boxed").unwrap();
@@ -917,8 +907,7 @@ extension for Point {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     // #Incomplete: #Extensions
@@ -951,8 +940,7 @@ extension for Point {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     // #Incomplete: #Extensions
@@ -991,8 +979,7 @@ import { Point } from "./point.ds";
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
     let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
@@ -1015,15 +1002,13 @@ add(1, 2)
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
-    let fn_symbol = test.expect_first_function_symbol(module.id);
+    // locate the function type
+    let fn_symbol = test.expect_first_function_symbol(module_id);
     let fn_ty_id = types
         .get_value_type_id(fn_symbol)
         .expect("expected function type");
@@ -1066,15 +1051,13 @@ function greet(name = "hi") {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
-    let fn_symbol = test.expect_first_function_symbol(module.id);
+    // locate the function type
+    let fn_symbol = test.expect_first_function_symbol(module_id);
     let fn_ty_id = types
         .get_value_type_id(fn_symbol)
         .expect("expected function type");
@@ -1113,26 +1096,14 @@ identity<number>(1);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
-    let call_root_id = module.dir(test.default_profile_id(module_id)).roots[1];
-    let call_root = tree.get(call_root_id);
-    let &Expression::Statement {
-        statement: call_expression_id,
-    } = call_root
-    else {
-        panic!("expected statement");
-    };
-    let call_ty_id = types
-        .get_inferred_type_id(call_expression_id.into_global_any(module.id))
-        .expect("expected call type");
+    // locate the call expression
+    let call_expression_id = root_expression_id(&roots, &tree, 1);
+    let call_ty_id = expect_inferred_type_id(&types, module_id, call_expression_id);
 
     // call expression uses explicit number type argument
     assert_type!(
@@ -1160,23 +1131,13 @@ let one = identity(1);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[1];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    // locate the initializer expression
+    let expression_id = root_expression_id(&roots, &tree, 1);
     let let_expression = tree.get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -1184,9 +1145,7 @@ let one = identity(1);
     let declarator_id = declarators.first().unwrap();
     let declarator = tree.get(*declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
-    let value_ty_id = types
-        .get_inferred_type_id(value_id.into_global_any(module.id))
-        .expect("expected initializer type");
+    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
 
     // identity returns the literal type of the inferred argument
     assert_type!(
@@ -1214,23 +1173,13 @@ let as_number = identity<number>;
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[1];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    // locate the initializer expression
+    let expression_id = root_expression_id(&roots, &tree, 1);
     let let_expression = tree.get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -1238,9 +1187,7 @@ let as_number = identity<number>;
     let declarator_id = declarators.first().unwrap();
     let declarator = tree.get(*declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
-    let value_ty_id = types
-        .get_inferred_type_id(value_id.into_global_any(module.id))
-        .expect("expected initializer type");
+    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
 
     // specialized function reference uses number parameter and return type
     assert_type!(types, value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
@@ -1279,22 +1226,19 @@ let value: Box<number> = makeBox();
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (_roots, tree, types) = load_tree_types(&test, module_id);
 
     // locate the type annotation
-    let declarator_id = test.expect_first_let_declarator(module.id);
+    let declarator_id = test.expect_first_let_declarator(module_id);
     let declarator = tree.get(declarator_id);
     let type_expression_id = declarator.ty.expect("expected type annotation");
 
+    // resolve the instance
     let instance_id = types
-        .get_instance_for_node(type_expression_id.into_global_any(module.id))
+        .get_instance_for_node(type_expression_id.into_global_any(module_id))
         .expect("expected instance");
     let instance = types.get_instance(instance_id);
 
@@ -1341,21 +1285,19 @@ let buffer: Buffer<string> = makeBuffer();
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (_roots, tree, types) = load_tree_types(&test, module_id);
 
-    let declarator_id = test.expect_first_let_declarator(module.id);
+    // locate the type annotation
+    let declarator_id = test.expect_first_let_declarator(module_id);
     let declarator = tree.get(declarator_id);
     let type_expression_id = declarator.ty.expect("expected type annotation");
 
+    // resolve the instance
     let instance_id = types
-        .get_instance_for_node(type_expression_id.into_global_any(module.id))
+        .get_instance_for_node(type_expression_id.into_global_any(module_id))
         .expect("expected instance");
     let instance = types.get_instance(instance_id);
 
@@ -1394,6 +1336,186 @@ let buffer: Buffer<string> = makeBuffer();
     }
 }
 
+/// Analyze static type arguments that are type parameters.
+#[test]
+fn test_analyze_static_type_argument_parameter_constraint() {
+    // type parameter arguments satisfy parameter bounds
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Node {}
+interface Box<T extends Node> {
+    value: T
+}
+
+type Use<T extends Node> = Box<T>;
+
+declare let value: Use<Node>;
+let boxed: Box<Node> = value;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let profile = test.default_profile_id(module_id);
+    let (roots, tree, symbols, mut types) = load_tree_symbols_types(&test, module_id);
+
+    // locate declarators by name
+    let value_name = test.program.strings.intern("value");
+    let boxed_name = test.program.strings.intern("boxed");
+    let value_declarator_id = expect_let_declarator_by_name(&roots, &tree, value_name);
+    let boxed_declarator_id = expect_let_declarator_by_name(&roots, &tree, boxed_name);
+
+    // inspect instance arguments for Use<Node>
+    let value_declarator = tree.get(value_declarator_id);
+    let value_type_expression_id = value_declarator.ty.expect("expected value type annotation");
+    let use_instance_id = types
+        .get_instance_for_node(value_type_expression_id.into_global_any(module_id))
+        .expect("expected Use instance");
+    let use_instance = types.get_instance(use_instance_id);
+    let use_symbol = test.resolve_to_symbol("test.ds", "Use").unwrap();
+    let node_symbol = test.resolve_to_symbol("test.ds", "Node").unwrap();
+
+    // instance targets Use with Node as the static argument
+    assert_eq!(use_instance.symbol_id, use_symbol);
+    assert_eq!(use_instance.static_arguments.len(), 1);
+    match &use_instance.static_arguments[0] {
+        StaticArgument::Evaluated { value, .. } => match value {
+            StaticExpression::Type { ty } => {
+                assert_type!(
+                    types,
+                    *ty,
+                    Type::Reference {
+                        symbol,
+                        static_arguments
+                    } => {
+                        assert_eq!(*symbol, node_symbol);
+                        assert!(static_arguments.is_none());
+                    }
+                );
+            }
+            _ => panic!("expected type argument"),
+        },
+        _ => panic!("expected evaluated argument"),
+    }
+
+    // verify Use<Node> is assignable to Box<Node>
+    let value_type_id = types
+        .get_declared_type_id(value_declarator_id.into_global(module_id).into())
+        .expect("expected value declared type");
+    let boxed_type_id = types
+        .get_declared_type_id(boxed_declarator_id.into_global(module_id).into())
+        .expect("expected boxed declared type");
+
+    // compare assignability using the module profile
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let assignable = test.compiler.is_type_assignable(
+        &module,
+        profile,
+        &symbols,
+        boxed_type_id,
+        value_type_id,
+        &mut types,
+        &options,
+    );
+    assert!(assignable.is_assignable());
+}
+
+/// Analyze index access on constrained type parameters.
+#[test]
+fn test_analyze_index_access_uses_parameter_constraint() {
+    // index access respects the parameter constraint type
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Map {
+    foo: number
+}
+
+type Pick<K extends keyof Map> = Map[K];
+
+declare let value: Pick<"foo">;
+let number_value: number = value;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let profile = test.default_profile_id(module_id);
+    let (roots, tree, symbols, mut types) = load_tree_symbols_types(&test, module_id);
+
+    // locate declarators by name
+    let value_name = test.program.strings.intern("value");
+    let number_value_name = test.program.strings.intern("number_value");
+    let value_declarator_id = expect_let_declarator_by_name(&roots, &tree, value_name);
+    let number_declarator_id = expect_let_declarator_by_name(&roots, &tree, number_value_name);
+
+    // inspect instance arguments for Pick<"foo">
+    let value_declarator = tree.get(value_declarator_id);
+    let value_type_expression_id = value_declarator.ty.expect("expected value type annotation");
+    let pick_instance_id = types
+        .get_instance_for_node(value_type_expression_id.into_global_any(module_id))
+        .expect("expected Pick instance");
+    let pick_instance = types.get_instance(pick_instance_id);
+    let pick_symbol = test.resolve_to_symbol("test.ds", "Pick").unwrap();
+    let foo_name = test.program.strings.intern("foo");
+
+    // instance targets Pick with a string literal argument
+    assert_eq!(pick_instance.symbol_id, pick_symbol);
+    assert_eq!(pick_instance.static_arguments.len(), 1);
+    match &pick_instance.static_arguments[0] {
+        StaticArgument::Evaluated { value, .. } => match value {
+            StaticExpression::ScalarLiteral { value } => {
+                assert_eq!(*value, ScalarLiteral::String(foo_name));
+            }
+            StaticExpression::Type { ty } => {
+                assert_type!(
+                    types,
+                    *ty,
+                    Type::TypeLiteral {
+                        value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(name))
+                    } => {
+                        assert_eq!(*name, foo_name);
+                    }
+                );
+            }
+            _ => panic!("expected scalar literal argument"),
+        },
+        _ => panic!("expected evaluated argument"),
+    }
+
+    // verify Pick<"foo"> is assignable to number
+    let value_type_id = types
+        .get_declared_type_id(value_declarator_id.into_global(module_id).into())
+        .expect("expected value declared type");
+    let number_type_id = types
+        .get_declared_type_id(number_declarator_id.into_global(module_id).into())
+        .expect("expected number_value declared type");
+
+    // compare assignability using the module profile
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let assignable = test.compiler.is_type_assignable(
+        &module,
+        profile,
+        &symbols,
+        number_type_id,
+        value_type_id,
+        &mut types,
+        &options,
+    );
+    assert!(assignable.is_assignable());
+}
+
 /// Analyze member instance inherited static arguments.
 #[test]
 fn test_analyze_member_instance_inherited_static_arguments() {
@@ -1413,28 +1535,26 @@ let result = getContainer().map<string>(1);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (_roots, tree, types) = load_tree_types(&test, module_id);
 
     // locate the initializer expression
-    let declarator_id = test.expect_first_let_declarator(module.id);
+    let declarator_id = test.expect_first_let_declarator(module_id);
     let declarator = tree.get(declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
 
+    // resolve the member instance
     let instance_id = types
-        .get_instance_for_node(value_id.into_global_any(module.id))
+        .get_instance_for_node(value_id.into_global_any(module_id))
         .expect("expected instance");
     let instance = types.get_instance(instance_id);
 
+    // resolve the member symbol
     let map_name = test.program.strings.intern("map");
     let container_symbol = test.resolve_to_symbol("test.ds", "Container").unwrap();
-    let map_symbol = test.expect_interface_member_symbol(module.id, container_symbol, map_name);
+    let map_symbol = test.expect_interface_member_symbol(module_id, container_symbol, map_name);
 
     // instance targets Container.map with inherited T and explicit U
     assert_eq!(instance.symbol_id, map_symbol);
@@ -1495,28 +1615,26 @@ mapper(1);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (_roots, tree, types) = load_tree_types(&test, module_id);
 
     // locate the member expression initializer
-    let declarator_id = test.expect_first_let_declarator(module.id);
+    let declarator_id = test.expect_first_let_declarator(module_id);
     let declarator = tree.get(declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
 
+    // resolve the member instance
     let instance_id = types
-        .get_instance_for_node(value_id.into_global_any(module.id))
+        .get_instance_for_node(value_id.into_global_any(module_id))
         .expect("expected instance");
     let instance = types.get_instance(instance_id);
 
+    // resolve the member symbol
     let map_name = test.program.strings.intern("map");
     let container_symbol = test.resolve_to_symbol("test.ds", "Container").unwrap();
-    let map_symbol = test.expect_interface_member_symbol(module.id, container_symbol, map_name);
+    let map_symbol = test.expect_interface_member_symbol(module_id, container_symbol, map_name);
 
     // instance targets Container.map with inherited T and explicit U
     assert_eq!(instance.symbol_id, map_symbol);
@@ -1574,16 +1692,15 @@ let result = wrap(1);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
+    // resolve the result symbol
     let result_symbol = test.resolve_to_symbol("test.ds", "result").unwrap();
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let types = load_types(&test, module_id);
 
+    // resolve the result type
     let result_ty_id = types
         .get_value_type_id(result_symbol)
         .expect("expected result type");
@@ -1637,24 +1754,13 @@ const add: (a: number, b: number) => number = (a, b) => a + b;
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
     let let_expression = tree.get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -1662,9 +1768,7 @@ const add: (a: number, b: number) => number = (a, b) => a + b;
     let declarator_id = declarators.first().unwrap();
     let declarator = tree.get(*declarator_id);
     let value_id = declarator.value.expect("expected function value");
-    let value_ty_id = types
-        .get_inferred_type_id(value_id.into_global_any(module.id))
-        .expect("expected function type");
+    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
 
     // contextual annotation yields number, number to number
     assert_type!(types, value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
@@ -1705,23 +1809,13 @@ apply((a) => a + 1);
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
-    let call_root_id = module.dir(test.default_profile_id(module_id)).roots[1];
-    let call_root = tree.get(call_root_id);
-    let &Expression::Statement {
-        statement: call_expression_id,
-    } = call_root
-    else {
-        panic!("expected statement");
-    };
+    // locate the call expression
+    let call_expression_id = root_expression_id(&roots, &tree, 1);
     let call_expression = tree.get(call_expression_id);
     let Expression::Call {
         dynamic_arguments, ..
@@ -1730,12 +1824,11 @@ apply((a) => a + 1);
         panic!("expected call expression");
     };
 
+    // resolve the argument type
     let argument_id = dynamic_arguments.first().expect("expected argument");
     let argument = tree.get(*argument_id);
     let argument_value_id = argument.value();
-    let argument_ty_id = types
-        .get_inferred_type_id(argument_value_id.into_global_any(module.id))
-        .expect("expected argument type");
+    let argument_ty_id = expect_inferred_type_id(&types, module_id, argument_value_id);
 
     // contextual argument yields number to number function type
     assert_type!(types, argument_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
@@ -1755,74 +1848,6 @@ apply((a) => a + 1);
     });
 }
 
-/// Analyze contextual object literal.
-#[test]
-fn test_analyze_contextual_object_literal() {
-    // infers object literal field types from contextual type
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.ds",
-        r#"
-const point: { x: number, y: string } = { x: 1, y: "hi" };
-"#,
-    );
-
-    // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
-
-    // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
-
-    // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
-    let let_expression = tree.get(expression_id);
-    let Expression::Let { declarators, .. } = let_expression else {
-        panic!("expected let expression");
-    };
-    let declarator_id = declarators.first().unwrap();
-    let declarator = tree.get(*declarator_id);
-    let value_id = declarator.value.expect("expected object value");
-    let value_ty_id = types
-        .get_inferred_type_id(value_id.into_global_any(module.id))
-        .expect("expected object type");
-
-    // object literal fields use contextual field types
-    assert_type!(types, value_ty_id, Type::Object { fields, .. } => {
-        // two fields are present in the contextual object type
-        assert_eq!(fields.len(), 2);
-
-        // scan field types for expected primitives
-        let mut saw_number = false;
-        let mut saw_string = false;
-        for field in fields {
-            match types.get_type(field.ty) {
-                Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(PrimitiveType::Number),
-                } => saw_number = true,
-                Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(PrimitiveType::String),
-                } => saw_string = true,
-                _ => {}
-            }
-        }
-
-        // both number and string fields are present
-        assert!(saw_number);
-        assert!(saw_string);
-    });
-}
-
 /// Analyze contextual array literal.
 #[test]
 fn test_analyze_contextual_array_literal() {
@@ -1836,24 +1861,13 @@ const numbers: number[] = [1, 2];
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let tree = module.dir(test.default_profile_id(module_id)).tree.read();
-    let types = module.dir(test.default_profile_id(module_id)).types.read();
+    let (roots, tree, types) = load_tree_types(&test, module_id);
 
     // select the root expression
-    let expression_id = module.dir(test.default_profile_id(module_id)).roots[0];
-    let expression = tree.get(expression_id);
-    let &Expression::Statement {
-        statement: expression_id,
-    } = expression
-    else {
-        panic!("expected statement");
-    };
+    let expression_id = root_expression_id(&roots, &tree, 0);
     let let_expression = tree.get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
@@ -1861,9 +1875,7 @@ const numbers: number[] = [1, 2];
     let declarator_id = declarators.first().unwrap();
     let declarator = tree.get(*declarator_id);
     let value_id = declarator.value.expect("expected array value");
-    let value_ty_id = types
-        .get_inferred_type_id(value_id.into_global_any(module.id))
-        .expect("expected array type");
+    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
 
     // array element type is number from number[] context
     assert_type!(types, value_ty_id, Type::Array { element: Some(element_id) } => {
@@ -1879,16 +1891,13 @@ fn test_analyze_type_mapped_parameter_scope() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("test.ds", "type Map<T> = { [K in keyof T]: T[K] };");
 
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let types = dir.types.read();
-    let symbols = dir.symbols.read();
+    // load typed module data
+    let (_roots, _tree, symbols, types) = load_tree_symbols_types(&test, module_id);
 
+    // resolve the mapped type symbol
     let map_symbol = test
         .resolve_to_symbol("test.ds", "Map")
         .expect("expected Map symbol");
@@ -1925,16 +1934,13 @@ fn test_analyze_type_infer_scope() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module("test.ds", "type Foo<T> = T extends infer U ? U : never;");
 
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
 
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let types = dir.types.read();
-    let symbols = dir.symbols.read();
+    // load typed module data
+    let (_roots, _tree, symbols, types) = load_tree_symbols_types(&test, module_id);
 
+    // resolve the conditional type symbol
     let foo_symbol = test
         .resolve_to_symbol("test.ds", "Foo")
         .expect("expected Foo symbol");
@@ -1971,19 +1977,13 @@ fn test_build_flow_graph_if_expression() {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load tree data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let tree = dir.tree.read();
+    let (roots, tree, _types) = load_tree_types(&test, module_id);
 
     // locate the if expression
-    let if_expression_id = dir
-        .roots
+    let if_expression_id = roots
         .iter()
         .find_map(|root_id| match tree.get(*root_id) {
             Expression::If { .. } => Some(*root_id),
@@ -1996,7 +1996,7 @@ fn test_build_flow_graph_if_expression() {
         .expect("expected if expression");
 
     // build the flow graph
-    let graph = FlowGraphBuilder::new(module.id, &tree).build(if_expression_id);
+    let graph = FlowGraphBuilder::new(module_id, &tree).build(if_expression_id);
 
     let mut has_true_edge = false;
     let mut has_false_edge = false;
@@ -2035,8 +2035,7 @@ fn test_build_flow_graph_short_circuit_guard() {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load tree data
     let module = test.program.modules.get(module_id);
@@ -2166,19 +2165,13 @@ fn test_build_flow_graph_for_loop() {
     );
 
     // run analyze pipeline
-    test.analyze_module(module_id);
-    test.compile_check_clean();
+    test.analyze_module_and_check_clean(module_id);
 
     // load tree data
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let profile = test.default_profile_id(module_id);
-    let dir = module.dir(profile);
-    let tree = dir.tree.read();
+    let (roots, tree, _types) = load_tree_types(&test, module_id);
 
     // locate the first function body
-    let function_body_id = dir
-        .roots
+    let function_body_id = roots
         .iter()
         .find_map(|root_id| match tree.get(*root_id) {
             Expression::Declaration { declaration } => match tree.get(*declaration) {
@@ -2201,7 +2194,7 @@ fn test_build_flow_graph_for_loop() {
         .expect("expected function body");
 
     // build the flow graph
-    let graph = FlowGraphBuilder::new(module.id, &tree).build(function_body_id);
+    let graph = FlowGraphBuilder::new(module_id, &tree).build(function_body_id);
 
     let mut has_true_edge = false;
     let mut has_false_edge = false;

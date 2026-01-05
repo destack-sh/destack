@@ -44,6 +44,7 @@ impl Compiler {
             return Assignability::Assignable;
         }
 
+        // normalize target and source types for assignability
         let target_id = self.normalize_type(
             module,
             profile,
@@ -61,6 +62,11 @@ impl Compiler {
             NormalizationMode::Assign,
         );
 
+        // resolve apparent types after normalization
+        let target_id = self.apparent_type(module, profile, target_id, symbols, types);
+        let source_id = self.apparent_type(module, profile, source_id, symbols, types);
+
+        // recheck equality after normalization
         if target_id == source_id {
             return Assignability::Assignable;
         }

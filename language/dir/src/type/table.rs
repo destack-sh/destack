@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use indexmap::IndexMap;
 
 use destack_source::ModuleId;
@@ -34,6 +36,12 @@ pub struct TypeTable {
     pub(crate) normalized_assignability_type_by_id: Vec<Option<LocalTypeId>>,
     /// Cached normalization results for flow.
     pub(crate) normalized_flow_type_by_id: Vec<Option<LocalTypeId>>,
+
+    // static parameter constraints
+    /// Cached constraint types by static parameter symbol.
+    pub(crate) static_parameter_constraint_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    /// Static parameter constraint resolution in progress.
+    pub(crate) static_parameter_constraint_in_progress: HashSet<GlobalSymbolId>,
 
     // node types
     /// The declared type by node id.
@@ -96,6 +104,10 @@ impl TypeTable {
             source_id_by_type_id: Vec::new(),
             normalized_assignability_type_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
+
+            // static parameter constraints
+            static_parameter_constraint_by_symbol_id: IndexMap::new(),
+            static_parameter_constraint_in_progress: HashSet::new(),
 
             // node types
             declared_type_by_node_id: IndexMap::new(),
@@ -294,6 +306,49 @@ impl TypeTable {
     /// Get the instance type id for a symbol.
     pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.instance_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Cache the constraint type for a static parameter symbol.
+    pub fn set_static_parameter_constraint_type(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        ty: LocalTypeId,
+    ) {
+        // cache the constraint type id
+        self.static_parameter_constraint_by_symbol_id
+            .insert(symbol_id, ty);
+    }
+
+    /// Get the cached constraint type for a static parameter symbol.
+    pub fn get_static_parameter_constraint_type(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<LocalTypeId> {
+        // fetch the cached constraint type id
+        self.static_parameter_constraint_by_symbol_id
+            .get(&symbol_id)
+            .copied()
+    }
+
+    /// Mark a static parameter constraint as in progress.
+    pub fn mark_static_parameter_constraint_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+        // record constraint resolution as in progress
+        self.static_parameter_constraint_in_progress
+            .insert(symbol_id);
+    }
+
+    /// Clear the in progress marker for a static parameter constraint.
+    pub fn clear_static_parameter_constraint_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+        // clear the in progress marker
+        self.static_parameter_constraint_in_progress
+            .remove(&symbol_id);
+    }
+
+    /// Check whether a static parameter constraint is in progress.
+    pub fn is_static_parameter_constraint_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
+        // check whether resolution is in progress
+        self.static_parameter_constraint_in_progress
+            .contains(&symbol_id)
     }
 
     /// Set the value type for a symbol (what type this symbol has when used as a value).

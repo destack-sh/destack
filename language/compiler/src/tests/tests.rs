@@ -9,7 +9,7 @@ use std::time::Duration;
 use destack_ast::NodeParentIndex;
 use destack_dir::{
     Declaration, Declarator, DumperOptions, DynamicKey, Expression, GlobalSymbolId, LocalNodeId,
-    StringId, Symbol,
+    NodeTree, Pattern, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_machine::{Interpreter, MachineOptions, Value};
@@ -84,6 +84,70 @@ pub struct TestProgram {
     pub dumper_options: DumperOptions,
     /// Optional override for the default profile in tests.
     pub default_profile_override: Option<ProfileId>,
+}
+
+/// Resolve a root expression id, unwrapping statement wrappers.
+pub fn root_expression_id(
+    roots: &[LocalNodeId<Expression>],
+    tree: &NodeTree,
+    index: usize,
+) -> LocalNodeId<Expression> {
+    // select the requested root
+    let root_id = roots
+        .get(index)
+        .copied()
+        .unwrap_or_else(|| panic!("missing root at index {index}"));
+
+    // unwrap statement roots
+    let expression = tree.get(root_id);
+    match expression {
+        Expression::Statement { statement } => *statement,
+        _ => root_id,
+    }
+}
+
+/// Find a let declarator by binding name.
+pub fn expect_let_declarator_by_name(
+    roots: &[LocalNodeId<Expression>],
+    tree: &NodeTree,
+    name: StringId,
+) -> LocalNodeId<Declarator> {
+    // scan for a matching let declarator
+    for root_id in roots {
+        let let_expression_id = match tree.get(*root_id) {
+            Expression::Let { .. } => Some(*root_id),
+            Expression::Statement { statement } => match tree.get(*statement) {
+                Expression::Let { .. } => Some(*statement),
+                _ => None,
+            },
+            _ => None,
+        };
+
+        // skip non let roots
+        let Some(let_expression_id) = let_expression_id else {
+            continue;
+        };
+        let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
+            continue;
+        };
+
+        for declarator_id in declarators {
+            let declarator = tree.get(*declarator_id);
+            let pattern = tree.get(declarator.pattern);
+            let Pattern::Binding {
+                name: binding_name, ..
+            } = pattern
+            else {
+                continue;
+            };
+
+            if *binding_name == name {
+                return *declarator_id;
+            }
+        }
+    }
+
+    panic!("expected let declarator");
 }
 
 impl TestProgram {
@@ -307,6 +371,15 @@ impl TestProgram {
         self.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
     }
 
+    /// Analyze a module and check no diagnostics.
+    pub fn analyze_module_and_check_clean(&self, module: ModuleId) {
+        // enqueue the analyze task
+        self.analyze_module(module);
+
+        // run compilation and diagnostics
+        self.compile_check_clean();
+    }
+
     /// Enqueue Lint task for a module.
     pub fn lint_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
@@ -409,6 +482,73 @@ impl TestProgram {
     pub fn file(&self, module: ModuleId) -> Arc<File> {
         let module = self.program.modules.get(module);
         self.program.files.get(module.read().file_id)
+    }
+
+    /// Get the root expression ids for a module.
+    pub fn module_dir_roots(&self, module_id: ModuleId) -> Vec<LocalNodeId<Expression>> {
+        // load module state
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+
+        // return cloned roots
+        module.dir(profile).roots.clone()
+    }
+
+    /// Run a closure with read access to a module's DIR.
+    pub fn with_dir_read<T>(
+        &self,
+        module_id: ModuleId,
+        f: impl FnOnce(
+            &Module,
+            ProfileId,
+            &destack_workspace::ModuleDir,
+            &NodeTree,
+            &SymbolTable,
+            &TypeTable,
+        ) -> T,
+    ) -> T {
+        // load module state
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+
+        // lock dir tables
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
+
+        // run the callback
+        f(&module, profile, dir, &tree, &symbols, &types)
+    }
+
+    /// Run a closure with mutable access to a module's type table.
+    pub fn with_dir_types_mut<T>(
+        &self,
+        module_id: ModuleId,
+        f: impl FnOnce(
+            &Module,
+            ProfileId,
+            &destack_workspace::ModuleDir,
+            &NodeTree,
+            &SymbolTable,
+            &mut TypeTable,
+        ) -> T,
+    ) -> T {
+        // load module state
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+
+        // lock dir tables
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+
+        // run the callback
+        f(&module, profile, dir, &tree, &symbols, &mut types)
     }
 
     /// Get a module by URI.

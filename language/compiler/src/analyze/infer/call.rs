@@ -195,7 +195,7 @@ impl Compiler {
         };
 
         // select the matching overload
-        // FUGU #Overloads: implement full overload selection (instead of literal heuristic)
+        // FUGU #Broken #Overloads: implement full overload selection (instead of literal heuristic)
         for signature_ty_id in signature_ids {
             let Some(resolved) = self.resolve_call_signature(
                 module,
