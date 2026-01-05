@@ -193,9 +193,7 @@ impl<'a> FunctionLowerer<'a> {
             type_map.insert(param.value, param.ty);
             // if param is a pointer type, record its pointee
             let ty = self.tree.get(param.ty);
-            if let mir::Type::RawPointer { pointee } | mir::Type::ManagedReference { pointee, .. } =
-                ty
-            {
+            if let mir::Type::Reference { pointee, .. } = ty {
                 pointer_pointee_map.insert(param.value, *pointee);
             }
         }
@@ -207,9 +205,7 @@ impl<'a> FunctionLowerer<'a> {
                 type_map.insert(param.value, param.ty);
                 // If param is a pointer type, record its pointee
                 let ty = self.tree.get(param.ty);
-                if let mir::Type::RawPointer { pointee }
-                | mir::Type::ManagedReference { pointee, .. } = ty
-                {
+                if let mir::Type::Reference { pointee, .. } = ty {
                     pointer_pointee_map.insert(param.value, *pointee);
                 }
             }
@@ -239,14 +235,14 @@ impl<'a> FunctionLowerer<'a> {
         pointer_pointee_map: &mut HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) {
         match instruction {
-            // stack_allocate -> rawptr<layout>
+            // stack_allocate -> ref<raw layout>
             mir::Instruction::StackAlloc {
                 destination,
                 layout,
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
-            // raw_allocate -> rawptr<layout>
+            // raw_allocate -> ref<raw layout>
             mir::Instruction::RawAlloc {
                 destination,
                 layout,
@@ -270,7 +266,7 @@ impl<'a> FunctionLowerer<'a> {
                 // array pointer -> element type
                 pointer_pointee_map.insert(*destination, *element);
             }
-            // global_addr -> rawptr<global's type>
+            // global_addr -> ref<raw global type>
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
@@ -358,9 +354,7 @@ impl<'a> FunctionLowerer<'a> {
                 // fallback to extracting from pointer type
                 if let Some(ptr_type_id) = type_map.get(pointer) {
                     let ptr_type = self.tree.get(*ptr_type_id);
-                    if let mir::Type::RawPointer { pointee } = ptr_type {
-                        return Some((*destination, *pointee));
-                    } else if let mir::Type::ManagedReference { pointee, .. } = ptr_type {
+                    if let mir::Type::Reference { pointee, .. } = ptr_type {
                         return Some((*destination, *pointee));
                     }
                 }
@@ -369,6 +363,9 @@ impl<'a> FunctionLowerer<'a> {
 
             // store: no result
             mir::Instruction::Store { .. } => None,
+
+            // drop: no result
+            mir::Instruction::Drop { .. } => None,
 
             // extract_field: type is the field's type
             mir::Instruction::FieldGet {
@@ -379,8 +376,7 @@ impl<'a> FunctionLowerer<'a> {
                 if let Some(aggregate_type_id) = type_map.get(aggregate) {
                     let aggregate_type = self.tree.get(*aggregate_type_id);
                     let aggregate_type = match aggregate_type {
-                        mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
-                        mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                        mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                         _ => aggregate_type,
                     };
                     match aggregate_type {
@@ -408,6 +404,9 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => type_map.get(aggregate).map(|ty| (*destination, *ty)),
 
+            // field_addr: no result in codegen type map
+            mir::Instruction::FieldAddr { .. } => None,
+
             // extract_element: type is array element type
             mir::Instruction::ElementGet {
                 destination, array, ..
@@ -415,8 +414,7 @@ impl<'a> FunctionLowerer<'a> {
                 if let Some(array_type_id) = type_map.get(array) {
                     let array_type = self.tree.get(*array_type_id);
                     let array_type = match array_type {
-                        mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
-                        mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                        mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                         _ => array_type,
                     };
                     if let mir::Type::Array { element, .. } = array_type {
@@ -430,6 +428,9 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::ElementSet {
                 destination, array, ..
             } => type_map.get(array).map(|ty| (*destination, *ty)),
+
+            // element_addr: no result in codegen type map
+            mir::Instruction::ElementAddr { .. } => None,
 
             // call: look up the callee's return type
             mir::Instruction::Call {
@@ -462,14 +463,14 @@ impl<'a> FunctionLowerer<'a> {
                 None
             }
 
-            // stack_allocate: result type is rawptr<layout>
+            // stack_allocate: result type is ref<raw layout>
             mir::Instruction::StackAlloc { .. } => None,
 
             // managed_allocate: result type is managed reference
             mir::Instruction::ManagedAlloc { .. } => None,
             mir::Instruction::ManagedAllocArray { .. } => None,
 
-            // raw_allocate: result type is rawptr
+            // raw_allocate: result type is ref<raw>
             mir::Instruction::RawAlloc { .. } => None,
 
             // these don't produce values
@@ -721,6 +722,14 @@ impl<'a> FunctionLowerer<'a> {
                     .store(cir::MemFlags::new(), store_value, ptr_value, 0);
             }
 
+            // drop: requires ownership support, not lowered yet
+            mir::Instruction::Drop { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "drop",
+                    instruction_id.into_any(),
+                ));
+            }
+
             // extract_field -> load at computed offset (struct/tuple field read)
             mir::Instruction::FieldGet {
                 destination,
@@ -737,8 +746,7 @@ impl<'a> FunctionLowerer<'a> {
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
                 let aggregate_type = match aggregate_type {
-                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
-                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                     _ => aggregate_type,
                 };
 
@@ -790,6 +798,14 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(*destination, result);
             }
 
+            // field_addr: requires ownership support, not lowered yet
+            mir::Instruction::FieldAddr { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "field.addr",
+                    instruction_id.into_any(),
+                ));
+            }
+
             // insert_field -> store at computed offset (struct/tuple field write)
             mir::Instruction::FieldSet {
                 destination,
@@ -807,8 +823,7 @@ impl<'a> FunctionLowerer<'a> {
                         })?;
                 let aggregate_type = self.tree.get(*aggregate_type_id);
                 let aggregate_type = match aggregate_type {
-                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
-                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                     _ => aggregate_type,
                 };
 
@@ -867,8 +882,7 @@ impl<'a> FunctionLowerer<'a> {
                         })?;
                 let array_type = self.tree.get(*array_type_id);
                 let array_type = match array_type {
-                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
-                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                     _ => array_type,
                 };
 
@@ -895,6 +909,14 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(*destination, result);
             }
 
+            // element_addr: requires ownership support, not lowered yet
+            mir::Instruction::ElementAddr { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "element.addr",
+                    instruction_id.into_any(),
+                ));
+            }
+
             // insert_element -> store at ptr + index * elem_size (array element write)
             mir::Instruction::ElementSet {
                 destination,
@@ -912,8 +934,7 @@ impl<'a> FunctionLowerer<'a> {
                         })?;
                 let array_type = self.tree.get(*array_type_id);
                 let array_type = match array_type {
-                    mir::Type::ManagedReference { pointee, .. } => self.tree.get(*pointee),
-                    mir::Type::RawPointer { pointee } => self.tree.get(*pointee),
+                    mir::Type::Reference { pointee, .. } => self.tree.get(*pointee),
                     _ => array_type,
                 };
 

@@ -703,7 +703,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: allocation
 
     /// Allocate a managed (runtime-tracked) struct.
-    /// Returns a `ManagedReference<T>`.
+    /// Returns a `ref<managed T>`.
     pub fn managed_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ManagedAlloc {
@@ -714,7 +714,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate a managed array.
-    /// Returns a `ManagedReference<[T]>`.
+    /// Returns a `ref<managed [T]>`.
     pub fn managed_alloc_array(&mut self, element: LocalNodeId<Type>, length: Value) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ManagedAllocArray {
@@ -726,7 +726,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate raw memory on the heap.
-    /// Returns a `RawPointer<T>`. Caller must free with `raw.free`.
+    /// Returns a `ref<raw T>`. Caller must free with `raw.free`.
     pub fn raw_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::RawAlloc {
@@ -742,7 +742,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate on the stack (lives until function returns).
-    /// Returns a `RawPointer<T>`.
+    /// Returns a `ref<raw T>`.
     pub fn stack_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::StackAlloc {

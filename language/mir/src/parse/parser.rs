@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use crate::{
     AllocationMode, BinaryOperator, Block, CastOperator, Constant, Field, Function, Global,
     GlobalInitializer, Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering,
-    Mutability, NodeTree, Ownership, SwitchCase, Terminator, Type, TypeAlias, TypedValue,
-    UnaryOperator, Value,
+    Mutability, NodeTree, Ownership, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias,
+    TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -770,6 +770,16 @@ impl<'a> Parser<'a> {
                     index,
                 }
             }
+            "field.addr" => {
+                let aggregate = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let index = self.parse_int_literal()? as u32;
+                Instruction::FieldAddr {
+                    destination,
+                    aggregate,
+                    index,
+                }
+            }
             "field.set" => {
                 let aggregate = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
@@ -788,6 +798,16 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_value()?;
                 Instruction::ElementGet {
+                    destination,
+                    array,
+                    index,
+                }
+            }
+            "element.addr" => {
+                let array = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let index = self.parse_value()?;
+                Instruction::ElementAddr {
                     destination,
                     array,
                     index,
@@ -907,6 +927,10 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value()?;
                 Instruction::Store { pointer, value }
+            }
+            "drop" => {
+                let value = self.parse_value()?;
+                Instruction::Drop { value }
             }
 
             // void calls
@@ -1105,31 +1129,51 @@ impl<'a> Parser<'a> {
                     ParseError::invalid(&format!("type '{token_text}'"), token_start)
                 })?
             }
-            TokenType::RawPtr => {
+            TokenType::Ref | TokenType::RefNullable => {
+                let is_nullable = token.ty == TokenType::RefNullable;
                 self.bump();
                 self.eat_token(TokenType::LessThan)?;
-                let pointee = self.parse_type()?;
-                self.eat_token(TokenType::GreaterThan)?;
-                Type::RawPointer { pointee }
-            }
-            TokenType::Ref => {
+
+                let kind_token = self
+                    .peek()
+                    .ok_or_else(|| ParseError::unexpected_end("reference kind", self.pos()))?;
+                let kind_text = kind_token.text;
+                let kind = match kind_token.ty {
+                    TokenType::Ownership | TokenType::Identifier => match kind_text {
+                        "managed" => ReferenceKind::Managed,
+                        "owned" => ReferenceKind::Owned,
+                        "borrowed" => ReferenceKind::Borrowed,
+                        "raw" => ReferenceKind::Raw,
+                        _ => {
+                            return Err(ParseError::invalid(
+                                &format!("reference kind '{kind_text}'"),
+                                kind_token.start,
+                            ));
+                        }
+                    },
+                    _ => {
+                        return Err(ParseError::unexpected(
+                            "reference kind",
+                            kind_token.ty,
+                            kind_token.start,
+                        ));
+                    }
+                };
                 self.bump();
-                self.eat_token(TokenType::LessThan)?;
+
+                let mutability = if self.eat_token_maybe(TokenType::Mut) {
+                    Mutability::Mutable
+                } else {
+                    Mutability::Immutable
+                };
+
                 let pointee = self.parse_type()?;
                 self.eat_token(TokenType::GreaterThan)?;
-                Type::ManagedReference {
+                Type::Reference {
+                    kind,
+                    mutability,
                     pointee,
-                    is_nullable: false,
-                }
-            }
-            TokenType::RefNullable => {
-                self.bump();
-                self.eat_token(TokenType::LessThan)?;
-                let pointee = self.parse_type()?;
-                self.eat_token(TokenType::GreaterThan)?;
-                Type::ManagedReference {
-                    pointee,
-                    is_nullable: true,
+                    is_nullable,
                 }
             }
             TokenType::OpenBracket => {

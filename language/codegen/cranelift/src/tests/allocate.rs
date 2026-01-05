@@ -4,7 +4,7 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_stack_allocate_i32() {
     let mir = r#"
-function @alloc_i32() -> rawptr<i32> {
+function @alloc_i32() -> ref<raw i32> {
 block0:
     v0 = stack.alloc i32
     return v0
@@ -29,7 +29,7 @@ block0:
 #[test]
 fn test_stack_allocate_i64() {
     let mir = r#"
-function @alloc_i64() -> rawptr<i64> {
+function @alloc_i64() -> ref<raw i64> {
 block0:
     v0 = stack.alloc i64
     return v0

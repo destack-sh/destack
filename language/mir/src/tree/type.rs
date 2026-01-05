@@ -2,6 +2,28 @@ use destack_base::StringId;
 
 use crate::{LocalNodeId, Node, NodeType};
 
+/// Mutability of a reference or binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Mutability {
+    /// Immutable (const).
+    Immutable,
+    /// Mutable (var).
+    Mutable,
+}
+
+/// Kind of reference in MIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ReferenceKind {
+    /// GC-managed reference.
+    Managed,
+    /// Explicit ownership reference.
+    Owned,
+    /// Borrowed reference.
+    Borrowed,
+    /// Raw pointer reference.
+    Raw,
+}
+
 /// Concrete type in MIR (post-monomorphization).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -14,13 +36,13 @@ pub enum Type {
     /// Floating point with explicit width (32 or 64).
     Float { width: u16 },
 
-    /// Raw pointer (manual memory management).
-    /// The caller is responsible for allocation and deallocation.
-    RawPointer { pointee: LocalNodeId<Type> },
-
-    /// Managed reference (runtime-tracked lifetime).
-    /// The runtime (GC, refcount, arena, etc.) manages the memory.
-    ManagedReference {
+    /// Reference with explicit kind and mutability.
+    Reference {
+        /// The reference kind (managed, owned, borrowed, raw).
+        kind: ReferenceKind,
+        /// The reference mutability.
+        mutability: Mutability,
+        /// The referenced type.
         pointee: LocalNodeId<Type>,
         /// Whether the reference can be null.
         is_nullable: bool,
@@ -116,27 +138,35 @@ impl Type {
                 | Type::Boolean
                 | Type::Int { .. }
                 | Type::Float { .. }
-                | Type::RawPointer { .. }
-                | Type::ManagedReference { .. }
+                | Type::Reference { .. }
         )
     }
 
     /// Whether this type is a raw pointer.
     pub fn is_raw_pointer(&self) -> bool {
-        matches!(self, Type::RawPointer { .. })
+        matches!(
+            self,
+            Type::Reference {
+                kind: ReferenceKind::Raw,
+                ..
+            }
+        )
     }
 
     /// Whether this type is a managed reference.
     pub fn is_managed_reference(&self) -> bool {
-        matches!(self, Type::ManagedReference { .. })
+        matches!(
+            self,
+            Type::Reference {
+                kind: ReferenceKind::Managed,
+                ..
+            }
+        )
     }
 
     /// Whether this type is any kind of pointer or reference.
     pub fn is_pointer_like(&self) -> bool {
-        matches!(
-            self,
-            Type::RawPointer { .. } | Type::ManagedReference { .. }
-        )
+        matches!(self, Type::Reference { .. })
     }
 }
 

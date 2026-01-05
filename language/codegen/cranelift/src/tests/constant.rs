@@ -4,7 +4,7 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_string_global() {
     let mir = r#"
-global @hello: rawptr<i8> = "hello" ; const
+global @hello: ref<raw i8> = "hello" ; const
 
 function @get_hello() -> i64 {
 block0:
@@ -25,7 +25,7 @@ block0:
 #[test]
 fn test_empty_string_global() {
     let mir = r#"
-global @empty: rawptr<i8> = "" ; const
+global @empty: ref<raw i8> = "" ; const
 
 function @get_empty() -> i64 {
 block0:

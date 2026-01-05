@@ -3,7 +3,7 @@
 use crate::{
     BinaryOperator, Block, CastOperator, Constant, Function, Global, GlobalInitializer,
     Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions,
-    Ownership, SwitchCase, Terminator, Type, UnaryOperator, Value,
+    Ownership, ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator, Value,
 };
 use destack_base::{Color, StringPool};
 
@@ -143,13 +143,25 @@ impl<'a> Dumper<'a> {
                 }
             }
             Type::Float { width } => format!("f{width}"),
-            Type::RawPointer { .. } => "rawptr".to_string(),
-            Type::ManagedReference {
-                is_nullable: false, ..
-            } => "ref".to_string(),
-            Type::ManagedReference {
-                is_nullable: true, ..
-            } => "ref?".to_string(),
+            Type::Reference {
+                kind,
+                mutability,
+                is_nullable,
+                ..
+            } => {
+                let ref_prefix = if *is_nullable { "ref?" } else { "ref" };
+                let kind_label = match kind {
+                    ReferenceKind::Managed => "managed",
+                    ReferenceKind::Owned => "owned",
+                    ReferenceKind::Borrowed => "borrowed",
+                    ReferenceKind::Raw => "raw",
+                };
+                let mutability_label = match mutability {
+                    Mutability::Mutable => " mut",
+                    Mutability::Immutable => "",
+                };
+                format!("{ref_prefix}<{kind_label}{mutability_label}>")
+            }
             Type::Array { length, .. } => format!("[_; {length}]"),
             Type::Tuple { elements } => format!("({})", elements.len()),
             Type::Struct { fields } => format!("struct{{{}}}", fields.len()),
@@ -348,6 +360,11 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
+            Instruction::Drop { value } => {
+                self.write("drop ");
+                self.write(&self.format_value(*value));
+            }
+
             Instruction::FieldGet {
                 destination,
                 aggregate,
@@ -355,6 +372,17 @@ impl<'a> Dumper<'a> {
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = field.get ");
+                self.write(&self.format_value(*aggregate));
+                self.write(&format!(", {index}"));
+            }
+
+            Instruction::FieldAddr {
+                destination,
+                aggregate,
+                index,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = field.addr ");
                 self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}"));
             }
@@ -379,6 +407,18 @@ impl<'a> Dumper<'a> {
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = element.get ");
+                self.write(&self.format_value(*array));
+                self.write(", ");
+                self.write(&self.format_value(*index));
+            }
+
+            Instruction::ElementAddr {
+                destination,
+                array,
+                index,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = element.addr ");
                 self.write(&self.format_value(*array));
                 self.write(", ");
                 self.write(&self.format_value(*index));

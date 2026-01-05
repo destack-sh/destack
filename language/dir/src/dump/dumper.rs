@@ -453,6 +453,8 @@ impl_dump_display! {
     MatchSource,
     Mutability,
     ReferenceType,
+    OwnershipCastOperator,
+    OwnershipCastSource,
     Runtime,
     TypeBinaryOperator,
     TypeUnaryOperator,
@@ -1047,6 +1049,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target_type: _,
             } => {
                 self.node("Expression::Cast", id.id)
+                    .field("operator", operator)
+                    .field("source", source)
+                    .end();
+            }
+            Expression::OwnershipCast {
+                operator,
+                source,
+                value: _,
+            } => {
+                self.node("Expression::OwnershipCast", id.id)
                     .field("operator", operator)
                     .field("source", source)
                     .end();

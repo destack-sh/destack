@@ -1,4 +1,4 @@
-use crate::{MirFormatOptions, Mutability, format_mir};
+use crate::{MirFormatOptions, Mutability, ReferenceKind, format_mir};
 
 use super::ModuleBuilder;
 
@@ -478,7 +478,13 @@ fn test_type_construction() {
     ));
     assert!(matches!(tree.get(f32_type), Type::Float { width: 32 }));
     assert!(matches!(tree.get(f64_type), Type::Float { width: 64 }));
-    assert!(matches!(tree.get(pointer_type), Type::RawPointer { .. }));
+    assert!(matches!(
+        tree.get(pointer_type),
+        Type::Reference {
+            kind: ReferenceKind::Raw,
+            ..
+        }
+    ));
     assert!(matches!(
         tree.get(array_type),
         Type::Array { length: 10, .. }
@@ -530,7 +536,7 @@ block2:
     assert_eq!(output, expected);
 }
 
-/// ManagedReference type construction.
+/// Managed reference type construction.
 #[test]
 fn test_managed_reference_types() {
     use crate::Type;
@@ -547,14 +553,16 @@ fn test_managed_reference_types() {
     let (tree, _strings) = module.finish_immutable();
     assert!(matches!(
         tree.get(ref_type),
-        Type::ManagedReference {
+        Type::Reference {
+            kind: ReferenceKind::Managed,
             is_nullable: false,
             ..
         }
     ));
     assert!(matches!(
         tree.get(ref_nullable_type),
-        Type::ManagedReference {
+        Type::Reference {
+            kind: ReferenceKind::Managed,
             is_nullable: true,
             ..
         }
@@ -582,7 +590,7 @@ fn test_build_managed_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @alloc_test() -> ref<i32> {
+function @alloc_test() -> ref<managed i32> {
 block0:
     v0 = managed.alloc i32
     return v0
@@ -613,7 +621,7 @@ fn test_build_managed_alloc_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @alloc_array_test(v0: i64) -> ref<i32> {
+function @alloc_array_test(v0: i64) -> ref<managed i32> {
 block0:
     v1 = managed.alloc_array i32, v0
     return v1
@@ -628,7 +636,7 @@ fn test_build_raw_alloc_and_free() {
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let void_type = module.type_void();
-    let rawptr_type = module.type_raw_pointer(i32_type);
+    let raw_ref_type = module.type_raw_pointer(i32_type);
 
     // build function with raw.alloc and raw.free
     let mut builder = module.function("raw_alloc_test", &[], void_type);
@@ -656,8 +664,8 @@ block0:
     raw.free v0
     return
 }";
-    // rawptr_type was created but not used in output
-    let _ = rawptr_type;
+    // raw_ref_type was created but not used in output
+    let _ = raw_ref_type;
     assert_eq!(output, expected);
 }
 
@@ -667,10 +675,10 @@ fn test_build_stack_alloc() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let rawptr_type = module.type_raw_pointer(i32_type);
+    let raw_ref_type = module.type_raw_pointer(i32_type);
 
     // build function with stack.alloc
-    let mut builder = module.function("stack_alloc_test", &[], rawptr_type);
+    let mut builder = module.function("stack_alloc_test", &[], raw_ref_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.stack_alloc(i32_type);
@@ -682,7 +690,7 @@ fn test_build_stack_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @stack_alloc_test() -> rawptr<i32> {
+function @stack_alloc_test() -> ref<raw i32> {
 block0:
     v0 = stack.alloc i32
     return v0

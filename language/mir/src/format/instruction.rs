@@ -188,6 +188,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
+
             Instruction::FieldGet {
                 destination,
                 aggregate,
@@ -201,6 +203,28 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token("="),
                         space(),
                         token("field.get"),
+                        space(),
+                        aggregate,
+                        token(","),
+                        space(),
+                        text(&index.to_string())
+                    ]
+                )
+            }
+
+            Instruction::FieldAddr {
+                destination,
+                aggregate,
+                index,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("field.addr"),
                         space(),
                         aggregate,
                         token(","),
@@ -249,6 +273,28 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token("="),
                         space(),
                         token("element.get"),
+                        space(),
+                        array,
+                        token(","),
+                        space(),
+                        index
+                    ]
+                )
+            }
+
+            Instruction::ElementAddr {
+                destination,
+                array,
+                index,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("element.addr"),
                         space(),
                         array,
                         token(","),

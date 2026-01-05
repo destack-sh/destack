@@ -334,6 +334,23 @@ impl Compiler {
                     }
                 }
 
+                dir::Expression::OwnershipCast {
+                    operator: _,
+                    source: _,
+                    value,
+                } => {
+                    // ownership casts are internal, preserve the underlying expression
+                    return self.unbind_expression(
+                        module,
+                        *value,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
+                }
+
                 dir::Expression::Unary { operator, right } => {
                     let operator = self.unbind_unary_operator(context, *operator);
                     let right = self.unbind_expression(module, *right, tree, symbols, ast_tree, ast_strings, context);

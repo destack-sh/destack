@@ -6,7 +6,7 @@ use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mi
 #[test]
 fn test_managed_allocate() {
     let mir = r#"
-function @alloc() -> ref<i32> {
+function @alloc() -> ref<managed i32> {
 block0:
     v0 = managed.alloc i32
     return v0
@@ -37,7 +37,7 @@ block0:
 #[test]
 fn test_managed_allocate_array() {
     let mir = r#"
-function @alloc_array() -> ref<i32> {
+function @alloc_array() -> ref<managed i32> {
 block0:
     v0 = iconst 10i64
     v1 = managed.alloc_array i32, v0
@@ -234,7 +234,7 @@ block2:
 #[test]
 fn test_raw_allocate() {
     let mir = r#"
-function @raw_alloc() -> rawptr<i32> {
+function @raw_alloc() -> ref<raw i32> {
 block0:
     v0 = raw.alloc i32
     return v0
@@ -320,8 +320,8 @@ block0:
 #[test]
 fn test_null_pointer_load() {
     let mir = r#"
-function @null_load(v0: rawptr<i32>) -> i32 {
-block0(v0: rawptr<i32>):
+function @null_load(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
     v1 = load v0
     return v1
 }
@@ -336,8 +336,8 @@ block0(v0: rawptr<i32>):
 #[test]
 fn test_null_pointer_store() {
     let mir = r#"
-function @null_store(v0: rawptr<i32>, v1: i32) -> void {
-block0(v0: rawptr<i32>, v1: i32):
+function @null_store(v0: ref<raw i32>, v1: i32) -> void {
+block0(v0: ref<raw i32>, v1: i32):
     store v0, v1
     return
 }
