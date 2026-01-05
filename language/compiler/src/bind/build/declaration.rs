@@ -4,7 +4,7 @@ use destack_dir::{
     BindingAnchor, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
     DependencyMode, EnumField, EnumKind, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
-    SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeTable,
+    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -268,6 +268,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            SymbolSpaceOrder::ValueThenType,
                         )
                     })
                     .collect();
@@ -314,6 +315,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            SymbolSpaceOrder::ValueThenType,
                         )
                     })
                     .collect();
@@ -414,6 +416,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::TypeThenValue,
                 );
                 Declaration::Type {
                     descriptor,
@@ -717,6 +720,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::TypeThenValue,
                 );
                 let heritage = self.bind_heritage(
                     module,
@@ -788,6 +792,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 Declaration::Function {
@@ -859,6 +864,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                SymbolSpaceOrder::ValueThenType,
             )
         });
         let (symbol_id, _) = self.bind_named_item(

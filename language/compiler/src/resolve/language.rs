@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_base::StringId;
 use destack_builtin::{LanguageItem, builtin_lib};
 use destack_dir::{
-    DependencyItem, Export, ExportSpaceOrder, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace,
+    DependencyItem, Export, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
     WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
@@ -117,7 +117,7 @@ impl Compiler {
         // match exports across modules in lib precedence order
         let mut lib_symbols = IndexMap::new();
         let mut pending_dependencies = HashSet::new();
-        let export_spaces = ExportSpaceOrder::ValueThenType;
+        let export_spaces = SymbolSpaceOrder::ValueThenType;
 
         for module_id in all_modules {
             let module = self.program.modules.get(module_id);
@@ -174,7 +174,7 @@ impl Compiler {
         &self,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         tree: &NodeTree,
-        export_spaces: ExportSpaceOrder,
+        export_spaces: SymbolSpaceOrder,
         key: StaticKey,
     ) -> bool {
         export_spaces.spaces().iter().any(|space| {
@@ -266,7 +266,7 @@ impl Compiler {
         let key = StaticKey::Name(name_id);
         let exports = dir.exported_symbols.read();
         let tree = dir.tree.read();
-        let export_spaces = ExportSpaceOrder::ValueThenType;
+        let export_spaces = SymbolSpaceOrder::ValueThenType;
         let Some(symbol_id) =
             self.resolve_exported_symbol(module_id, &exports, &tree, export_spaces, key)
         else {
@@ -507,5 +507,6 @@ mod tests {
                 test.analyze_module(module_id);
             }
         }
+        test.compile_check_clean();
     }
 }

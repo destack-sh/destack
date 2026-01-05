@@ -3,7 +3,8 @@ use destack_ast as ast;
 use destack_dir::{
     AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
-    Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Timing, TypeTable, Visibility,
+    Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing,
+    TypeTable, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -70,6 +71,14 @@ impl Compiler {
         let parameter_id =
             tree.reserve_from_source(NodeType::Parameter, ast_parameter_id.id, scope, parent_id);
 
+        // prefer type space for defaults on type parameters
+        let default_space_order = match symbol_space {
+            SymbolSpace::Type => SymbolSpaceOrder::TypeThenValue,
+            SymbolSpace::Value | SymbolSpace::TypeValue | SymbolSpace::Label => {
+                SymbolSpaceOrder::ValueThenType
+            }
+        };
+
         let constraint_scope = (scope.0, LocalScopeMark::end());
         match ast_parameter {
             ast::Parameter::Named {
@@ -91,6 +100,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        default_space_order,
                     )
                 });
                 let (symbol_id, _) = self.bind_named_item(
@@ -156,6 +166,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        default_space_order,
                     )
                 });
                 let (symbol_id, _) =
@@ -238,6 +249,7 @@ impl Compiler {
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
+        space_order: SymbolSpaceOrder,
     ) -> LocalNodeId<Argument> {
         let ast_argument = ast.tree.get(ast_argument_id);
         let argument_id =
@@ -257,6 +269,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    space_order,
                 );
                 tree.insert(argument_id, Argument::Named { name, value })
             }
@@ -270,6 +283,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    space_order,
                 );
                 tree.insert(argument_id, Argument::Positional { value })
             }
@@ -285,6 +299,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    space_order,
                 );
                 tree.insert(argument_id, Argument::Spread { label, value })
             }
@@ -299,9 +314,80 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    space_order,
                 );
                 tree.insert(argument_id, Argument::Labeled { label, value })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestProgram;
+    use crate::{assert_node, assert_path};
+    use destack_dir::{Declaration, Expression, Parameter, SymbolSpaceOrder};
+
+    /// Check static parameter defaults use type space order.
+    #[test]
+    fn test_bind_static_parameter_default_space_order() {
+        // setup module
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+type Wrapper<T = Foo> = T;
+"#,
+        );
+
+        // bind and compile
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+
+        // load bound tree
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir_base();
+        let tree = dir.tree.read();
+
+        // select the root expression
+        let root_id = test.expect_root_expression(module_id);
+
+        // assert default path space order
+        assert_node!(
+            tree,
+            root_id,
+            Expression::Declaration { declaration } => {
+                assert_node!(
+                    tree,
+                    *declaration,
+                    Declaration::Type {
+                        static_parameters: Some(static_parameters),
+                        ..
+                    } => {
+                        let parameter_id = static_parameters.first().copied().expect("expected parameter");
+                        assert_node!(
+                            tree,
+                            parameter_id,
+                            Parameter::Named { default: Some(default), .. } => {
+                                assert_node!(
+                                    tree,
+                                    *default,
+                                    Expression::UnresolvedPath {
+                                        path,
+                                        static_arguments: _,
+                                        space_order,
+                                    } => {
+                                        assert_path!(test.program, path, "Foo");
+                                        assert_eq!(*space_order, SymbolSpaceOrder::TypeThenValue);
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
     }
 }

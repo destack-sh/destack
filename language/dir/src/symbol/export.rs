@@ -48,9 +48,9 @@ impl Export {
     }
 }
 
-/// The export space lookup order for a dependency kind.
-#[derive(Debug, Clone, Copy)]
-pub enum ExportSpaceOrder {
+/// The symbol space lookup order for a dependency kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolSpaceOrder {
     /// Do not consider any spaces.
     None,
     /// Consider only type exports.
@@ -63,7 +63,7 @@ pub enum ExportSpaceOrder {
     ValueThenType,
 }
 
-impl ExportSpaceOrder {
+impl SymbolSpaceOrder {
     /// Return the spaces to check for this order (in order).
     pub fn spaces(self) -> &'static [SymbolSpace] {
         const NONE: [SymbolSpace; 0] = [];
@@ -73,11 +73,11 @@ impl ExportSpaceOrder {
         const VALUE_THEN_TYPE: [SymbolSpace; 2] = [SymbolSpace::Value, SymbolSpace::Type];
 
         match self {
-            ExportSpaceOrder::None => &NONE,
-            ExportSpaceOrder::TypeOnly => &TYPE_ONLY,
-            ExportSpaceOrder::ValueOnly => &VALUE_ONLY,
-            ExportSpaceOrder::TypeThenValue => &TYPE_THEN_VALUE,
-            ExportSpaceOrder::ValueThenType => &VALUE_THEN_TYPE,
+            SymbolSpaceOrder::None => &NONE,
+            SymbolSpaceOrder::TypeOnly => &TYPE_ONLY,
+            SymbolSpaceOrder::ValueOnly => &VALUE_ONLY,
+            SymbolSpaceOrder::TypeThenValue => &TYPE_THEN_VALUE,
+            SymbolSpaceOrder::ValueThenType => &VALUE_THEN_TYPE,
         }
     }
 }

@@ -1,4 +1,4 @@
-use destack_dir::{Expression, LocalNodeId, LocalScopeMark};
+use destack_dir::{Expression, LocalNodeId, LocalScopeMark, SymbolSpaceOrder};
 
 use destack_workspace::{Module, ModuleAst};
 
@@ -28,6 +28,7 @@ impl Compiler {
                     &mut tree,
                     &mut symbols,
                     &mut types,
+                    SymbolSpaceOrder::ValueThenType,
                 )
             })
             .collect()

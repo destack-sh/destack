@@ -4,5 +4,5 @@ export newtype interface Copy {}
 /// Clone the value into a new owned value.
 export interface Clone {
     /// Clone the value.
-    clone(): Self
+    // clone(): this
 }

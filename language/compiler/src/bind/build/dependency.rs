@@ -2,8 +2,8 @@ use destack_ast::{self as ast};
 use destack_base::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolTable,
-    TypeTable,
+    LocalScopeId, LocalScopeMark, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolSpaceOrder,
+    SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -106,6 +106,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 let item = DependencyItem::Value {
                     mode,

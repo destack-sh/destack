@@ -248,6 +248,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::UnresolvedPath {
                 path,
                 static_arguments,
+                ..
             }
             | dir::Expression::LocalReference {
                 path,

@@ -273,122 +273,6 @@ impl TestProgram {
         })
     }
 
-    /// Get the first function symbol declared in a module.
-    pub fn expect_first_function_symbol(&self, module_id: ModuleId) -> GlobalSymbolId {
-        // load the module tree and roots
-        let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let roots = &dir.roots;
-
-        // scan for the first function declaration
-        for root_id in roots {
-            let expression = tree.get(*root_id);
-            let declaration_id = match expression {
-                Expression::Declaration { declaration } => Some(*declaration),
-                Expression::Statement { statement } => match tree.get(*statement) {
-                    Expression::Declaration { declaration } => Some(*declaration),
-                    _ => None,
-                },
-                _ => None,
-            };
-
-            if let Some(declaration_id) = declaration_id {
-                let declaration = tree.get(declaration_id);
-                if let Declaration::Function { descriptor, .. } = declaration {
-                    return descriptor.symbol.into_global(module_id);
-                }
-            }
-        }
-
-        panic!("expected function declaration");
-    }
-
-    /// Get the first let declarator declared in a module.
-    pub fn expect_first_let_declarator(&self, module_id: ModuleId) -> LocalNodeId<Declarator> {
-        // load the module tree and roots
-        let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let roots = &dir.roots;
-
-        // scan for the first let expression
-        for root_id in roots {
-            let expression = tree.get(*root_id);
-            let let_expression_id = match expression {
-                Expression::Let { .. } => Some(*root_id),
-                Expression::Statement { statement } => match tree.get(*statement) {
-                    Expression::Let { .. } => Some(*statement),
-                    _ => None,
-                },
-                _ => None,
-            };
-
-            let Some(let_expression_id) = let_expression_id else {
-                continue;
-            };
-
-            let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
-                continue;
-            };
-
-            let declarator_id = declarators.first().copied();
-
-            if let Some(declarator_id) = declarator_id {
-                return declarator_id;
-            }
-        }
-
-        panic!("expected let expression");
-    }
-
-    /// Get the symbol for a named interface member in a module.
-    pub fn expect_interface_member_symbol(
-        &self,
-        module_id: ModuleId,
-        interface_symbol: GlobalSymbolId,
-        member_name: StringId,
-    ) -> GlobalSymbolId {
-        // load the module tree and symbol table
-        let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-
-        // resolve the interface declaration and scan members
-        let interface_entry = symbols.get_symbol(interface_symbol.local_id);
-        let interface_declaration_id = interface_entry
-            .primary_declaration
-            .expect("expected interface declaration")
-            .into_local_typed::<Declaration>();
-        let declaration = tree.get(interface_declaration_id);
-        let members = match declaration {
-            Declaration::Interface { members, .. } => members,
-            _ => panic!("expected interface declaration"),
-        };
-
-        for member_id in members {
-            let member = tree.get(*member_id);
-            let member_name_id = member.key().and_then(|key| match key {
-                DynamicKey::Name(name) => Some(name),
-                DynamicKey::Number(name) => Some(name),
-                DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-            });
-
-            if member_name_id.is_some_and(|name| *name == member_name) {
-                return member.symbol().into_global(module_id);
-            }
-        }
-
-        panic!("expected member symbol");
-    }
-
     /// Enqueue Import task for a module.
     pub fn import_module(&self, module: ModuleId) {
         self.enqueue(ImportTask::ImportModule { module });
@@ -541,15 +425,6 @@ impl TestProgram {
             .modules
             .get_by_uri(&file.uri)
             .unwrap_or_else(|| panic!("module not found for file: '{}'", file.uri))
-    }
-
-    /// Get a symbol by id.
-    pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
-        let profile = self.default_profile_id(symbol_id.module_id);
-        let module = self.program.modules.get(symbol_id.module_id);
-        let module = module.read();
-        let symbols = module.dir(profile).symbols.read();
-        symbols.get_symbol(symbol_id.into_local()).clone()
     }
 
     /// Check no diagnostics of at least the given severity.
@@ -766,5 +641,163 @@ impl TestProgram {
             print_diff(expected, unbound, &DiffOptions::new());
             panic!("executed code mismatch");
         }
+    }
+
+    /// Get a symbol by id.
+    pub fn symbol_by_id(&self, symbol_id: GlobalSymbolId) -> Symbol {
+        // load module state
+        let profile = self.default_profile_id(symbol_id.module_id);
+        let module = self.program.modules.get(symbol_id.module_id);
+        let module = module.read();
+        let symbols = module.dir(profile).symbols.read();
+
+        // return the symbol
+        symbols.get_symbol(symbol_id.into_local()).clone()
+    }
+
+    /// Get the root expression for a bound module.
+    pub fn expect_root_expression(&self, module_id: ModuleId) -> LocalNodeId<Expression> {
+        // load bound module state
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir_base();
+        let tree = dir.tree.read();
+
+        // require a single root expression
+        let roots = &dir.roots;
+        if roots.len() != 1 {
+            panic!("expected single root expression");
+        }
+
+        // unwrap statement roots to their inner expression
+        let root_id = roots[0];
+        let expression = tree.get(root_id);
+        match expression {
+            Expression::Statement { statement } => *statement,
+            _ => root_id,
+        }
+    }
+
+    /// Get the first function symbol declared in a module.
+    pub fn expect_first_function_symbol(&self, module_id: ModuleId) -> GlobalSymbolId {
+        // load the module tree and roots
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let roots = &dir.roots;
+
+        // scan for the first function declaration
+        for root_id in roots {
+            let expression = tree.get(*root_id);
+
+            // select the declaration expression if present
+            let declaration_id = match expression {
+                Expression::Declaration { declaration } => Some(*declaration),
+                Expression::Statement { statement } => match tree.get(*statement) {
+                    Expression::Declaration { declaration } => Some(*declaration),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            // return the first matching function declaration
+            if let Some(declaration_id) = declaration_id {
+                let declaration = tree.get(declaration_id);
+                if let Declaration::Function { descriptor, .. } = declaration {
+                    return descriptor.symbol.into_global(module_id);
+                }
+            }
+        }
+
+        panic!("expected function declaration");
+    }
+
+    /// Get the first let declarator declared in a module.
+    pub fn expect_first_let_declarator(&self, module_id: ModuleId) -> LocalNodeId<Declarator> {
+        // load the module tree and roots
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let roots = &dir.roots;
+
+        // scan for the first let expression
+        for root_id in roots {
+            let expression = tree.get(*root_id);
+
+            // select the let expression if present
+            let let_expression_id = match expression {
+                Expression::Let { .. } => Some(*root_id),
+                Expression::Statement { statement } => match tree.get(*statement) {
+                    Expression::Let { .. } => Some(*statement),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            let Some(let_expression_id) = let_expression_id else {
+                continue;
+            };
+
+            let Expression::Let { declarators, .. } = tree.get(let_expression_id) else {
+                continue;
+            };
+
+            let declarator_id = declarators.first().copied();
+
+            // return the first declarator
+            if let Some(declarator_id) = declarator_id {
+                return declarator_id;
+            }
+        }
+
+        panic!("expected let expression");
+    }
+
+    /// Get the symbol for a named interface member in a module.
+    pub fn expect_interface_member_symbol(
+        &self,
+        module_id: ModuleId,
+        interface_symbol: GlobalSymbolId,
+        member_name: StringId,
+    ) -> GlobalSymbolId {
+        // load the module tree and symbol table
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+
+        // resolve the interface declaration and scan members
+        let interface_entry = symbols.get_symbol(interface_symbol.local_id);
+        let interface_declaration_id = interface_entry
+            .primary_declaration
+            .expect("expected interface declaration")
+            .into_local_typed::<Declaration>();
+        let declaration = tree.get(interface_declaration_id);
+        let members = match declaration {
+            Declaration::Interface { members, .. } => members,
+            _ => panic!("expected interface declaration"),
+        };
+
+        // find the first matching member name
+        for member_id in members {
+            let member = tree.get(*member_id);
+            let member_name_id = member.key().and_then(|key| match key {
+                DynamicKey::Name(name) => Some(name),
+                DynamicKey::Number(name) => Some(name),
+                DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
+            });
+
+            if member_name_id.is_some_and(|name| *name == member_name) {
+                return member.symbol().into_global(module_id);
+            }
+        }
+
+        panic!("expected member symbol");
     }
 }

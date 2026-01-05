@@ -1,10 +1,9 @@
 use crate::{BindError, Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use destack_builtin::builtin_lib;
 use destack_dir::{
-    Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind,
-    ExportSpaceOrder, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalSymbolId, ModuleBinding, ModuleBindingExports, NodeTree, StaticKey, SymbolSpace,
-    SymbolTable,
+    Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
+    GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
+    ModuleBindingExports, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 
 use destack_source::ModuleId;
@@ -481,8 +480,8 @@ impl Compiler {
 
             // insert reexport entries
             let spaces = match kind {
-                DependencyKind::Type => ExportSpaceOrder::TypeOnly,
-                DependencyKind::Value => ExportSpaceOrder::ValueOnly,
+                DependencyKind::Type => SymbolSpaceOrder::TypeOnly,
+                DependencyKind::Value => SymbolSpaceOrder::ValueOnly,
             };
             for space in spaces.spaces() {
                 let export = Export::reexport(key, *space, item_id);
@@ -833,8 +832,8 @@ impl Compiler {
 
             // insert reexport entries
             let spaces = match kind {
-                DependencyKind::Type => ExportSpaceOrder::TypeOnly,
-                DependencyKind::Value => ExportSpaceOrder::ValueOnly,
+                DependencyKind::Type => SymbolSpaceOrder::TypeOnly,
+                DependencyKind::Value => SymbolSpaceOrder::ValueOnly,
             };
             for space in spaces.spaces() {
                 let export = Export::reexport(key, *space, item_id);

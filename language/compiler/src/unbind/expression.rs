@@ -452,7 +452,11 @@ impl Compiler {
                     ast::Expression::Delete { value }
                 }
 
-                dir::Expression::UnresolvedPath { path, static_arguments }
+                dir::Expression::UnresolvedPath {
+                    path,
+                    static_arguments,
+                    space_order: _,
+                }
                 | dir::Expression::LocalReference { path, static_arguments, .. }
                 | dir::Expression::ModuleReference { path, static_arguments, .. }
                 | dir::Expression::GlobalReference { path, static_arguments, .. } => {

@@ -69,6 +69,7 @@ impl Compiler {
             Expression::UnresolvedPath {
                 path,
                 static_arguments,
+                space_order,
             } => {
                 let path = path.clone(); // (clone to release borrow on tree)
                 let static_arguments = static_arguments.clone();
@@ -80,6 +81,7 @@ impl Compiler {
                     scope,
                     &path,
                     static_arguments,
+                    *space_order,
                     symbols,
                     tree,
                 )?

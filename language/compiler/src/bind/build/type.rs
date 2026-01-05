@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, Mutability,
-    NodeTree, SymbolSpace, SymbolTable, Type, TypeKind, TypeMappedModifiers, TypeModifier,
-    TypeTable, VarianceBound,
+    NodeTree, SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeKind, TypeMappedModifiers,
+    TypeModifier, TypeTable, VarianceBound,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -30,6 +30,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            SymbolSpaceOrder::TypeThenValue,
         );
         types.insert_type_from(Type::Unevaluated(expression_id), expression_id)
     }
@@ -166,6 +167,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::TypeThenValue,
                     )
                 })
                 .collect()
@@ -184,6 +186,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::TypeThenValue,
                     )
                 })
                 .collect()

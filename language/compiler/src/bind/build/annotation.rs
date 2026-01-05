@@ -2,7 +2,7 @@ use crate::Compiler;
 use destack_ast::{self as ast};
 use destack_dir::{
     Annotation, AnnotationPosition, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, NodeTree, NodeType, SymbolTable, TypeTable,
+    LocalScopeMark, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -120,6 +120,7 @@ impl Compiler {
                     Expression::UnresolvedPath {
                         path,
                         static_arguments: None,
+                        space_order: SymbolSpaceOrder::ValueThenType,
                     },
                 );
                 let left = LocalNodeId::new(left_id.id);
@@ -137,6 +138,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
+                                SymbolSpaceOrder::ValueThenType,
                             )
                         })
                         .collect()

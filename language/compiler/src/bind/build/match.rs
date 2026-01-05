@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, MatchSelector, NodeTree,
-    NodeType, ScopeKind, SymbolBinding, SymbolTable, TypeTable,
+    NodeType, ScopeKind, SymbolBinding, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -49,6 +49,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        SymbolSpaceOrder::ValueThenType,
                     )
                 });
                 MatchSelector::Pattern { pattern, guard }
@@ -98,6 +99,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
                 MatchCase::Expression {
                     selector,
