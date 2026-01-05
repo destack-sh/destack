@@ -5,9 +5,10 @@ use smallvec::SmallVec;
 
 use crate::memory::Value;
 
-use super::bytecode;
+use super::dispatch;
 use super::threaded::{
-    SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedInstruction, ThreadedInstructionData,
+    ArgumentRange, SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
+    ThreadedInstructionData, pack_optional_value,
 };
 
 /// Scalar and aggregate kinds used for typed dispatch selection.
@@ -77,19 +78,19 @@ fn select_binary_handler(
 
     // select handler by kind
     match kind {
-        Some(ValueKind::Int { signed: true, .. }) => bytecode::handle_binary_int,
-        Some(ValueKind::Int { signed: false, .. }) => bytecode::handle_binary_uint,
-        Some(ValueKind::Float { width: 32 }) => bytecode::handle_binary_float32,
-        Some(ValueKind::Float { width: 64 }) => bytecode::handle_binary_float64,
+        Some(ValueKind::Int { signed: true, .. }) => dispatch::handle_binary_int,
+        Some(ValueKind::Int { signed: false, .. }) => dispatch::handle_binary_uint,
+        Some(ValueKind::Float { width: 32 }) => dispatch::handle_binary_float32,
+        Some(ValueKind::Float { width: 64 }) => dispatch::handle_binary_float64,
         Some(ValueKind::Bool)
             if matches!(
                 operator,
                 mir::BinaryOperator::And | mir::BinaryOperator::Or | mir::BinaryOperator::Xor
             ) =>
         {
-            bytecode::handle_binary_bool
+            dispatch::handle_binary_bool
         }
-        _ => bytecode::handle_binary,
+        _ => dispatch::handle_binary,
     }
 }
 
@@ -104,16 +105,16 @@ fn select_unary_handler(
 
     // select handler by kind
     match (kind, operator) {
-        (Some(ValueKind::Int { signed: true, .. }), _) => bytecode::handle_unary_int,
-        (Some(ValueKind::Int { signed: false, .. }), _) => bytecode::handle_unary_uint,
+        (Some(ValueKind::Int { signed: true, .. }), _) => dispatch::handle_unary_int,
+        (Some(ValueKind::Int { signed: false, .. }), _) => dispatch::handle_unary_uint,
         (Some(ValueKind::Float { width: 32 }), mir::UnaryOperator::FloatNegate) => {
-            bytecode::handle_unary_float32
+            dispatch::handle_unary_float32
         }
         (Some(ValueKind::Float { width: 64 }), mir::UnaryOperator::FloatNegate) => {
-            bytecode::handle_unary_float64
+            dispatch::handle_unary_float64
         }
-        (Some(ValueKind::Bool), mir::UnaryOperator::Not) => bytecode::handle_unary_bool,
-        _ => bytecode::handle_unary,
+        (Some(ValueKind::Bool), mir::UnaryOperator::Not) => dispatch::handle_unary_bool,
+        _ => dispatch::handle_unary,
     }
 }
 
@@ -124,8 +125,8 @@ fn select_branch_handler(
 ) -> super::threaded::ThreadedHandler {
     // resolve condition kind
     match value_kinds.get(condition) {
-        Some(ValueKind::Bool) => bytecode::handle_branch_bool,
-        _ => bytecode::handle_branch,
+        Some(ValueKind::Bool) => dispatch::handle_branch_bool,
+        _ => dispatch::handle_branch,
     }
 }
 
@@ -136,8 +137,8 @@ fn select_switch_handler(
 ) -> super::threaded::ThreadedHandler {
     // resolve switch value kind
     match value_kinds.get(value) {
-        Some(ValueKind::Int { .. }) => bytecode::handle_switch_int,
-        _ => bytecode::handle_switch,
+        Some(ValueKind::Int { .. }) => dispatch::handle_switch_int,
+        _ => dispatch::handle_switch,
     }
 }
 
@@ -207,13 +208,29 @@ pub(super) fn thread_function(
     let value_count = compute_value_count_from_mir(tree, func, &mir_blocks);
     let value_kinds = build_value_kinds(tree, func, &mir_blocks, value_count);
 
+    // validate threaded indices
+    debug_assert!(
+        mir_blocks.len() <= u32::MAX as usize,
+        "too many blocks for threaded indices"
+    );
+
+    // allocate argument pool
+    let mut argument_pool = Vec::new();
+
     // allocate threaded blocks
     let mut threaded_blocks = Vec::with_capacity(mir_blocks.len());
 
     // thread each mir block
     for mir_block_id in &mir_blocks {
         let block = tree.get(*mir_block_id);
-        let threaded = thread_block(tree, *mir_block_id, block, &block_index_map, &value_kinds);
+        let threaded = thread_block(
+            tree,
+            *mir_block_id,
+            block,
+            &block_index_map,
+            &value_kinds,
+            &mut argument_pool,
+        );
         threaded_blocks.push(threaded);
     }
 
@@ -226,8 +243,9 @@ pub(super) fn thread_function(
     // assemble threaded function
     Some(ThreadedFunction {
         parameters,
-        entry: block_index_map[&entry_block],
+        entry: block_index_map[&entry_block] as u32,
         blocks: threaded_blocks,
+        argument_pool,
         value_count,
         local_count,
     })
@@ -240,6 +258,7 @@ fn thread_block(
     block: &mir::Block,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     value_kinds: &ValueKinds,
+    argument_pool: &mut Vec<mir::Value>,
 ) -> ThreadedBlock {
     // preallocate instruction list
     let mut instructions = Vec::with_capacity(block.instructions.len() + 1);
@@ -247,12 +266,17 @@ fn thread_block(
     // convert regular instructions
     for &inst_id in &block.instructions {
         let inst = tree.get(inst_id);
-        let threaded = thread_instruction(tree, inst, value_kinds);
+        let threaded = thread_instruction(tree, inst, value_kinds, argument_pool);
         instructions.push(threaded);
     }
 
     // append threaded terminator
-    let terminator = thread_terminator(&block.terminator, block_index_map, value_kinds);
+    let terminator = thread_terminator(
+        &block.terminator,
+        block_index_map,
+        value_kinds,
+        argument_pool,
+    );
     instructions.push(terminator);
 
     // gather block parameters
@@ -271,11 +295,12 @@ fn thread_instruction(
     tree: &mir::NodeTree,
     inst: &mir::Instruction,
     value_kinds: &ValueKinds,
+    argument_pool: &mut Vec<mir::Value>,
 ) -> ThreadedInstruction {
     // map instruction opcode to threaded form
     match inst {
         mir::Instruction::Const { destination, value } => ThreadedInstruction {
-            handler: bytecode::handle_const,
+            handler: dispatch::handle_const,
             data: ThreadedInstructionData::Const {
                 dest: *destination,
                 value: Value::from(value),
@@ -316,7 +341,7 @@ fn thread_instruction(
             argument,
             to_type,
         } => ThreadedInstruction {
-            handler: bytecode::handle_cast,
+            handler: dispatch::handle_cast,
             data: ThreadedInstructionData::Cast {
                 dest: *destination,
                 op: *operator,
@@ -330,12 +355,11 @@ fn thread_instruction(
             function,
             arguments,
         } => {
-            let args: SmallVec<[mir::Value; 8]> =
-                tree.get_arguments(*arguments).iter().copied().collect();
+            let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             ThreadedInstruction {
-                handler: bytecode::handle_call,
+                handler: dispatch::handle_call,
                 data: ThreadedInstructionData::Call {
-                    dest: *destination,
+                    dest: pack_optional_value(*destination),
                     function: *function,
                     arguments: args,
                 },
@@ -347,12 +371,11 @@ fn thread_instruction(
             callee,
             arguments,
         } => {
-            let args: SmallVec<[mir::Value; 8]> =
-                tree.get_arguments(*arguments).iter().copied().collect();
+            let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             ThreadedInstruction {
-                handler: bytecode::handle_call_indirect,
+                handler: dispatch::handle_call_indirect,
                 data: ThreadedInstructionData::CallIndirect {
-                    dest: *destination,
+                    dest: pack_optional_value(*destination),
                     callee: *callee,
                     arguments: args,
                 },
@@ -360,7 +383,7 @@ fn thread_instruction(
         }
 
         mir::Instruction::LocalGet { destination, local } => ThreadedInstruction {
-            handler: bytecode::handle_local_get,
+            handler: dispatch::handle_local_get,
             data: ThreadedInstructionData::LocalGet {
                 dest: *destination,
                 local: *local,
@@ -368,7 +391,7 @@ fn thread_instruction(
         },
 
         mir::Instruction::LocalSet { local, value } => ThreadedInstruction {
-            handler: bytecode::handle_local_set,
+            handler: dispatch::handle_local_set,
             data: ThreadedInstructionData::LocalSet {
                 local: *local,
                 value: *value,
@@ -379,7 +402,7 @@ fn thread_instruction(
             destination,
             global,
         } => ThreadedInstruction {
-            handler: bytecode::handle_global_addr,
+            handler: dispatch::handle_global_addr,
             data: ThreadedInstructionData::GlobalAddr {
                 dest: *destination,
                 global: *global,
@@ -390,7 +413,7 @@ fn thread_instruction(
             destination,
             global,
         } => ThreadedInstruction {
-            handler: bytecode::handle_global_const,
+            handler: dispatch::handle_global_const,
             data: ThreadedInstructionData::GlobalConst {
                 dest: *destination,
                 global: *global,
@@ -401,7 +424,7 @@ fn thread_instruction(
             destination,
             pointer,
         } => ThreadedInstruction {
-            handler: bytecode::handle_load,
+            handler: dispatch::handle_load,
             data: ThreadedInstructionData::Load {
                 dest: *destination,
                 pointer: *pointer,
@@ -409,7 +432,7 @@ fn thread_instruction(
         },
 
         mir::Instruction::Store { pointer, value } => ThreadedInstruction {
-            handler: bytecode::handle_store,
+            handler: dispatch::handle_store,
             data: ThreadedInstructionData::Store {
                 pointer: *pointer,
                 value: *value,
@@ -421,7 +444,7 @@ fn thread_instruction(
             aggregate,
             index,
         } => ThreadedInstruction {
-            handler: bytecode::handle_field_get,
+            handler: dispatch::handle_field_get,
             data: ThreadedInstructionData::FieldGet {
                 dest: *destination,
                 aggregate: *aggregate,
@@ -435,7 +458,7 @@ fn thread_instruction(
             index,
             value,
         } => ThreadedInstruction {
-            handler: bytecode::handle_field_set,
+            handler: dispatch::handle_field_set,
             data: ThreadedInstructionData::FieldSet {
                 dest: *destination,
                 aggregate: *aggregate,
@@ -449,7 +472,7 @@ fn thread_instruction(
             array,
             index,
         } => ThreadedInstruction {
-            handler: bytecode::handle_element_get,
+            handler: dispatch::handle_element_get,
             data: ThreadedInstructionData::ElementGet {
                 dest: *destination,
                 array: *array,
@@ -463,7 +486,7 @@ fn thread_instruction(
             index,
             value,
         } => ThreadedInstruction {
-            handler: bytecode::handle_element_set,
+            handler: dispatch::handle_element_set,
             data: ThreadedInstructionData::ElementSet {
                 dest: *destination,
                 array: *array,
@@ -473,7 +496,7 @@ fn thread_instruction(
         },
 
         mir::Instruction::ManagedAlloc { destination, .. } => ThreadedInstruction {
-            handler: bytecode::handle_managed_alloc,
+            handler: dispatch::handle_managed_alloc,
             data: ThreadedInstructionData::ManagedAlloc { dest: *destination },
         },
 
@@ -482,7 +505,7 @@ fn thread_instruction(
             length,
             ..
         } => ThreadedInstruction {
-            handler: bytecode::handle_managed_alloc_array,
+            handler: dispatch::handle_managed_alloc_array,
             data: ThreadedInstructionData::ManagedAllocArray {
                 dest: *destination,
                 length: *length,
@@ -490,17 +513,17 @@ fn thread_instruction(
         },
 
         mir::Instruction::RawAlloc { destination, .. } => ThreadedInstruction {
-            handler: bytecode::handle_raw_alloc,
+            handler: dispatch::handle_raw_alloc,
             data: ThreadedInstructionData::RawAlloc { dest: *destination },
         },
 
         mir::Instruction::RawFree { pointer } => ThreadedInstruction {
-            handler: bytecode::handle_raw_free,
+            handler: dispatch::handle_raw_free,
             data: ThreadedInstructionData::RawFree { pointer: *pointer },
         },
 
         mir::Instruction::StackAlloc { destination, .. } => ThreadedInstruction {
-            handler: bytecode::handle_stack_alloc,
+            handler: dispatch::handle_stack_alloc,
             data: ThreadedInstructionData::StackAlloc { dest: *destination },
         },
 
@@ -510,12 +533,11 @@ fn thread_instruction(
             arguments,
             ordering,
         } => {
-            let args: SmallVec<[mir::Value; 8]> =
-                tree.get_arguments(*arguments).iter().copied().collect();
+            let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             ThreadedInstruction {
-                handler: bytecode::handle_intrinsic,
+                handler: dispatch::handle_intrinsic,
                 data: ThreadedInstructionData::Intrinsic {
-                    dest: *destination,
+                    dest: pack_optional_value(*destination),
                     intrinsic: *intrinsic,
                     arguments: args,
                     ordering: *ordering,
@@ -899,24 +921,46 @@ fn update_max_value(max_value: &mut Option<u32>, value: mir::Value) {
     }
 }
 
+/// Append arguments to the pool and return their range.
+fn push_argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> ArgumentRange {
+    if arguments.is_empty() {
+        return ArgumentRange::empty();
+    }
+
+    let start = pool.len();
+    debug_assert!(
+        start + arguments.len() <= u32::MAX as usize,
+        "argument pool overflow"
+    );
+    pool.extend_from_slice(arguments);
+
+    ArgumentRange {
+        start: start as u32,
+        len: arguments.len() as u32,
+    }
+}
+
 /// Convert a MIR terminator to threaded form.
 fn thread_terminator(
     term: &mir::Terminator,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     value_kinds: &ValueKinds,
+    argument_pool: &mut Vec<mir::Value>,
 ) -> ThreadedInstruction {
     // map terminator opcode to threaded form
     match term {
         mir::Terminator::Return { value } => ThreadedInstruction {
-            handler: bytecode::handle_return,
-            data: ThreadedInstructionData::Return { value: *value },
+            handler: dispatch::handle_return,
+            data: ThreadedInstructionData::Return {
+                value: pack_optional_value(*value),
+            },
         },
 
         mir::Terminator::Jump { target, arguments } => ThreadedInstruction {
-            handler: bytecode::handle_jump,
+            handler: dispatch::handle_jump,
             data: ThreadedInstructionData::Jump {
-                target: block_index_map[target],
-                arguments: arguments.iter().copied().collect(),
+                target: block_index_map[target] as u32,
+                arguments: push_argument_range(argument_pool, arguments),
             },
         },
 
@@ -930,10 +974,10 @@ fn thread_terminator(
             handler: select_branch_handler(value_kinds, *condition),
             data: ThreadedInstructionData::Branch {
                 condition: *condition,
-                then_target: block_index_map[then_target],
-                then_arguments: then_arguments.iter().copied().collect(),
-                else_target: block_index_map[else_target],
-                else_arguments: else_arguments.iter().copied().collect(),
+                then_target: block_index_map[then_target] as u32,
+                then_arguments: push_argument_range(argument_pool, then_arguments),
+                else_target: block_index_map[else_target] as u32,
+                else_arguments: push_argument_range(argument_pool, else_arguments),
             },
         },
 
@@ -947,8 +991,8 @@ fn thread_terminator(
                 .iter()
                 .map(|c| SwitchCase {
                     value: c.value,
-                    target: block_index_map[&c.target],
-                    arguments: c.arguments.iter().copied().collect(),
+                    target: block_index_map[&c.target] as u32,
+                    arguments: push_argument_range(argument_pool, &c.arguments),
                 })
                 .collect();
 
@@ -957,19 +1001,19 @@ fn thread_terminator(
                 data: ThreadedInstructionData::Switch {
                     value: *value,
                     cases: threaded_cases,
-                    default_target: block_index_map[default],
-                    default_arguments: default_arguments.iter().copied().collect(),
+                    default_target: block_index_map[default] as u32,
+                    default_arguments: push_argument_range(argument_pool, default_arguments),
                 },
             }
         }
 
         mir::Terminator::Unreachable => ThreadedInstruction {
-            handler: bytecode::handle_unreachable,
+            handler: dispatch::handle_unreachable,
             data: ThreadedInstructionData::Unreachable,
         },
 
         mir::Terminator::Yield { .. } => ThreadedInstruction {
-            handler: bytecode::handle_unsupported,
+            handler: dispatch::handle_unsupported,
             data: ThreadedInstructionData::Unsupported { name: "yield" },
         },
     }

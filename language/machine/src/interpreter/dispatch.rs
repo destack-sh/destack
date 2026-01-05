@@ -1,12 +1,14 @@
 #![allow(elided_lifetimes_in_paths)]
 
-use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
 use crate::memory::Value;
 
-use super::threaded::{ControlFlow, ThreadedInstruction, ThreadedInstructionData, ThreadedState};
+use super::threaded::{
+    ArgumentRange, ControlFlow, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
+    is_invalid_value,
+};
 use super::{instruction, operator};
 
 // helper macro: do work, then become next handler
@@ -19,12 +21,18 @@ macro_rules! next {
 
 /// Collect argument values into a smallvec.
 #[inline]
-fn collect_values(state: &mut ThreadedState, arguments: &[mir::Value]) -> SmallVec<[Value; 8]> {
-    let mut args = SmallVec::with_capacity(arguments.len());
-    for arg in arguments {
+fn collect_values(state: &mut ThreadedState, arguments: ArgumentRange) -> SmallVec<[Value; 8]> {
+    // load argument slice
+    let argument_slice = state.argument_slice(arguments);
+    let mut args = SmallVec::with_capacity(argument_slice.len());
+
+    // resolve argument values
+    for arg in argument_slice {
         let value = state.get(*arg);
         args.push(value);
     }
+
+    // return argument values
     args
 }
 
@@ -465,7 +473,7 @@ pub(super) fn handle_call(
     ControlFlow::Call {
         function: *function,
         destination: *dest,
-        arguments: arguments.clone(),
+        arguments: *arguments,
         resume_pc: pc + 1,
     }
 }
@@ -504,7 +512,7 @@ pub(super) fn handle_call_indirect(
     ControlFlow::Call {
         function,
         destination: *dest,
-        arguments: arguments.clone(),
+        arguments: *arguments,
         resume_pc: pc + 1,
     }
 }
@@ -926,7 +934,7 @@ pub(super) fn handle_intrinsic(
     };
 
     // resolve arguments
-    let args = collect_values(state, arguments);
+    let args = collect_values(state, *arguments);
 
     // execute intrinsic
     match state
@@ -935,8 +943,8 @@ pub(super) fn handle_intrinsic(
     {
         // store result and continue
         Ok(result) => {
-            if let Some(d) = dest {
-                state.set(*d, result);
+            if !is_invalid_value(*dest) {
+                state.set(*dest, result);
             }
             next!(state, block, pc)
         }
@@ -957,9 +965,10 @@ pub(super) fn handle_return(
     };
 
     // resolve return value
-    let return_value = match value {
-        Some(v) => state.get(*v),
-        None => Value::VOID,
+    let return_value = if is_invalid_value(*value) {
+        Value::VOID
+    } else {
+        state.get(*value)
     };
 
     // return to caller
@@ -980,7 +989,7 @@ pub(super) fn handle_jump(
     // return jump control
     ControlFlow::Jump {
         block: *target,
-        arguments: arguments.clone(),
+        arguments: *arguments,
     }
 }
 
@@ -1014,7 +1023,7 @@ pub(super) fn handle_branch(
         // forward then arguments
         ControlFlow::Jump {
             block: *then_target,
-            arguments: then_arguments.clone(),
+            arguments: *then_arguments,
         }
     }
     // otherwise jump to else target
@@ -1022,7 +1031,7 @@ pub(super) fn handle_branch(
         // forward else arguments
         ControlFlow::Jump {
             block: *else_target,
-            arguments: else_arguments.clone(),
+            arguments: *else_arguments,
         }
     }
 }
@@ -1057,7 +1066,7 @@ pub(super) fn handle_branch_bool(
         // forward then arguments
         ControlFlow::Jump {
             block: *then_target,
-            arguments: then_arguments.clone(),
+            arguments: *then_arguments,
         }
     }
     // otherwise jump to else target
@@ -1065,7 +1074,7 @@ pub(super) fn handle_branch_bool(
         // forward else arguments
         ControlFlow::Jump {
             block: *else_target,
-            arguments: else_arguments.clone(),
+            arguments: *else_arguments,
         }
     }
 }
@@ -1100,7 +1109,7 @@ pub(super) fn handle_switch(
             // forward case arguments
             return ControlFlow::Jump {
                 block: case.target,
-                arguments: case.arguments.clone(),
+                arguments: case.arguments,
             };
         }
     }
@@ -1109,7 +1118,7 @@ pub(super) fn handle_switch(
     // return default jump
     ControlFlow::Jump {
         block: *default_target,
-        arguments: default_arguments.clone(),
+        arguments: *default_arguments,
     }
 }
 
@@ -1143,7 +1152,7 @@ pub(super) fn handle_switch_int(
             // forward case arguments
             return ControlFlow::Jump {
                 block: case.target,
-                arguments: case.arguments.clone(),
+                arguments: case.arguments,
             };
         }
     }
@@ -1152,7 +1161,7 @@ pub(super) fn handle_switch_int(
     // return default jump
     ControlFlow::Jump {
         block: *default_target,
-        arguments: default_arguments.clone(),
+        arguments: *default_arguments,
     }
 }
 

@@ -15,24 +15,64 @@ use crate::{Frame, Interpreter};
 /// Uses `become` to tail-call next handler, or returns `ControlFlow` for special cases.
 pub type ThreadedHandler = fn(&mut ThreadedState, &[ThreadedInstruction], usize) -> ControlFlow;
 
+/// Argument range within the threaded function argument pool.
+#[derive(Clone, Copy, Debug)]
+pub struct ArgumentRange {
+    /// Start offset into the argument pool.
+    pub start: u32,
+    /// Number of arguments in the range.
+    pub len: u32,
+}
+
+impl ArgumentRange {
+    /// Create an empty argument range.
+    pub const fn empty() -> Self {
+        Self { start: 0, len: 0 }
+    }
+
+    /// Slice arguments from the pool for this range.
+    pub fn slice<'a>(&self, pool: &'a [mir::Value]) -> &'a [mir::Value] {
+        let start = self.start as usize;
+        let len = self.len as usize;
+        debug_assert!(
+            start + len <= pool.len(),
+            "argument pool out of bounds for range"
+        );
+        &pool[start..start + len]
+    }
+}
+
+/// Sentinel value id used for optional destinations.
+pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
+
+/// Pack an optional SSA value into a sentinel encoding.
+pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
+    value.unwrap_or(mir::Value(INVALID_VALUE_ID))
+}
+
+/// Check if a packed SSA value is the sentinel.
+pub(crate) fn is_invalid_value(value: mir::Value) -> bool {
+    value.0 == INVALID_VALUE_ID
+}
+
 /// Control flow actions that exit the tail-call chain.
 #[derive(Debug)]
 pub enum ControlFlow {
     /// Jump to another block.
     Jump {
         /// Target block index.
-        block: usize,
-        /// Arguments for block parameters (SSA value ids).
-        arguments: SmallVec<[mir::Value; 8]>,
+        block: u32,
+        /// Arguments for block parameters.
+        arguments: ArgumentRange,
     },
     /// Call another function.
     Call {
         /// Function to call.
         function: mir::LocalNodeId<mir::Function>,
         /// Destination for return value.
-        destination: Option<mir::Value>,
-        /// Arguments to pass (SSA value ids).
-        arguments: SmallVec<[mir::Value; 8]>,
+        destination: mir::Value,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
@@ -82,16 +122,16 @@ pub enum ThreadedInstructionData {
 
     /// Function call.
     Call {
-        dest: Option<mir::Value>,
+        dest: mir::Value,
         function: mir::LocalNodeId<mir::Function>,
-        arguments: SmallVec<[mir::Value; 8]>,
+        arguments: ArgumentRange,
     },
 
     /// Indirect function call.
     CallIndirect {
-        dest: Option<mir::Value>,
+        dest: mir::Value,
         callee: mir::Value,
-        arguments: SmallVec<[mir::Value; 8]>,
+        arguments: ArgumentRange,
     },
 
     /// Load local variable.
@@ -180,36 +220,36 @@ pub enum ThreadedInstructionData {
 
     /// Intrinsic call.
     Intrinsic {
-        dest: Option<mir::Value>,
+        dest: mir::Value,
         intrinsic: mir::Intrinsic,
-        arguments: SmallVec<[mir::Value; 8]>,
+        arguments: ArgumentRange,
         ordering: Option<mir::MemoryOrdering>,
     },
 
     /// Return from function.
-    Return { value: Option<mir::Value> },
+    Return { value: mir::Value },
 
     /// Unconditional jump.
     Jump {
-        target: usize,
-        arguments: SmallVec<[mir::Value; 8]>,
+        target: u32,
+        arguments: ArgumentRange,
     },
 
     /// Conditional branch.
     Branch {
         condition: mir::Value,
-        then_target: usize,
-        then_arguments: SmallVec<[mir::Value; 8]>,
-        else_target: usize,
-        else_arguments: SmallVec<[mir::Value; 8]>,
+        then_target: u32,
+        then_arguments: ArgumentRange,
+        else_target: u32,
+        else_arguments: ArgumentRange,
     },
 
     /// Switch on integer.
     Switch {
         value: mir::Value,
         cases: Vec<SwitchCase>,
-        default_target: usize,
-        default_arguments: SmallVec<[mir::Value; 8]>,
+        default_target: u32,
+        default_arguments: ArgumentRange,
     },
 
     /// Unreachable code.
@@ -225,9 +265,9 @@ pub struct SwitchCase {
     /// Match value.
     pub value: i64,
     /// Target block.
-    pub target: usize,
+    pub target: u32,
     /// Block arguments.
-    pub arguments: SmallVec<[mir::Value; 8]>,
+    pub arguments: ArgumentRange,
 }
 
 /// Threaded basic block.
@@ -247,9 +287,11 @@ pub struct ThreadedFunction {
     /// Function parameters.
     pub parameters: SmallVec<[mir::Value; 8]>,
     /// Entry block index.
-    pub entry: usize,
+    pub entry: u32,
     /// All blocks.
     pub blocks: Vec<ThreadedBlock>,
+    /// Pool of argument values referenced by ranges.
+    pub argument_pool: Vec<mir::Value>,
     /// Count of SSA values used by the function.
     pub value_count: usize,
     /// Count of local variables used by the function.
@@ -272,6 +314,10 @@ pub struct ThreadedState<'a> {
     locals: *mut Value,
     /// Count of local variables in this frame.
     local_count: usize,
+    /// Argument pool for the current function.
+    argument_pool: *const mir::Value,
+    /// Argument pool length.
+    argument_pool_len: usize,
 }
 
 impl fmt::Debug for ThreadedInstruction {
@@ -288,13 +334,18 @@ impl fmt::Debug for ThreadedState<'_> {
             .field("frame_index", &self.frame_index)
             .field("value_count", &self.value_count)
             .field("local_count", &self.local_count)
+            .field("argument_pool_len", &self.argument_pool_len)
             .finish()
     }
 }
 
 impl<'a> ThreadedState<'a> {
     /// Create state for the current frame.
-    pub fn new(interpreter: &'a mut Interpreter, frame_index: usize) -> Self {
+    pub fn new(
+        interpreter: &'a mut Interpreter,
+        frame_index: usize,
+        argument_pool: &[mir::Value],
+    ) -> Self {
         // get frame pointer
         // safety: frame_index always points at the current frame
         let frame =
@@ -329,6 +380,8 @@ impl<'a> ThreadedState<'a> {
             value_count,
             locals: unsafe { locals_ptr.add(local_base) },
             local_count,
+            argument_pool: argument_pool.as_ptr(),
+            argument_pool_len: argument_pool.len(),
         }
     }
 
@@ -414,5 +467,22 @@ impl<'a> ThreadedState<'a> {
         unsafe {
             *self.locals.add(index) = val;
         }
+    }
+
+    /// Get the argument slice for the given range.
+    #[inline(always)]
+    pub fn argument_slice(&self, range: ArgumentRange) -> &[mir::Value] {
+        // compute argument range
+        let start = range.start as usize;
+        let len = range.len as usize;
+
+        // validate bounds in debug builds
+        debug_assert!(
+            start + len <= self.argument_pool_len,
+            "argument pool out of bounds for range"
+        );
+
+        // read argument slice
+        unsafe { std::slice::from_raw_parts(self.argument_pool.add(start), len) }
     }
 }
