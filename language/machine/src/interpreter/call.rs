@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
-use super::threaded::{ControlFlow, ThreadedState};
+use super::threaded::{ArgumentRange, ControlFlow, ThreadedState, is_invalid_value};
 use super::{ExecutionOutput, Frame, Interpreter};
 
 /// Copy argument values from one frame into another.
@@ -66,6 +66,11 @@ fn collect_argument_values(
 
     // return arguments
     args
+}
+
+/// Resolve an argument range into a slice.
+fn argument_slice(argument_pool: &[mir::Value], arguments: ArgumentRange) -> &[mir::Value] {
+    arguments.slice(argument_pool)
 }
 
 impl Interpreter {
@@ -161,7 +166,7 @@ impl Interpreter {
             .clone();
 
         // create initial frame
-        let entry_block = threaded.blocks[threaded.entry].mir_block;
+        let entry_block = threaded.blocks[threaded.entry as usize].mir_block;
         let value_base = self.value_stack.len();
         let local_base = self.local_stack.len();
         self.value_stack
@@ -171,7 +176,7 @@ impl Interpreter {
         let frame = Frame::new(
             func_id,
             entry_block,
-            threaded.entry,
+            threaded.entry as usize,
             value_base,
             threaded.value_count,
             local_base,
@@ -227,7 +232,8 @@ impl Interpreter {
             // execute block starting from resume_pc
             let control = {
                 let frame_index = self.call_stack.len() - 1;
-                let mut state = ThreadedState::new(self, frame_index);
+                let mut state =
+                    ThreadedState::new(self, frame_index, current_func.argument_pool.as_slice());
                 (block.instructions[start_pc].handler)(&mut state, &block.instructions, start_pc)
             };
 
@@ -241,7 +247,9 @@ impl Interpreter {
                     arguments,
                 } => {
                     // bind block parameters for target block
-                    let target_block = &current_func.blocks[target];
+                    let target_block = &current_func.blocks[target as usize];
+                    let argument_slice =
+                        argument_slice(current_func.argument_pool.as_slice(), arguments);
                     let frame = self
                         .call_stack
                         .last()
@@ -251,7 +259,7 @@ impl Interpreter {
                         frame,
                         frame,
                         &target_block.parameters,
-                        &arguments,
+                        argument_slice,
                     );
 
                     // update current block
@@ -259,7 +267,7 @@ impl Interpreter {
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    frame.block_index = target;
+                    frame.block_index = target as usize;
                     frame.current_block = target_block.mir_block;
                 }
 
@@ -269,6 +277,9 @@ impl Interpreter {
                     arguments,
                     resume_pc,
                 } => {
+                    let argument_slice =
+                        argument_slice(current_func.argument_pool.as_slice(), arguments);
+
                     // check for external or imported function
                     let func: &mir::Function = self.tree.get(function);
                     if func.is_import() {
@@ -277,7 +288,8 @@ impl Interpreter {
                             .call_stack
                             .last()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        let args = collect_argument_values(&self.value_stack, caller, &arguments);
+                        let args =
+                            collect_argument_values(&self.value_stack, caller, argument_slice);
 
                         // resolve external handler
                         let name = self.strings.get(func.name).to_string();
@@ -293,8 +305,8 @@ impl Interpreter {
                             .call_stack
                             .last_mut()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        if let Some(dest) = destination {
-                            frame.set_value(&mut self.value_stack, dest, result);
+                        if !is_invalid_value(destination) {
+                            frame.set_value(&mut self.value_stack, destination, result);
                         }
                         frame.resume_pc = resume_pc;
                         continue;
@@ -317,7 +329,11 @@ impl Interpreter {
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     let caller_info = (caller_frame.value_base, caller_frame.value_count);
-                    caller_frame.return_destination = destination;
+                    caller_frame.return_destination = if is_invalid_value(destination) {
+                        None
+                    } else {
+                        Some(destination)
+                    };
                     caller_frame.resume_pc = resume_pc;
 
                     // create new frame for callee
@@ -327,11 +343,11 @@ impl Interpreter {
                         .resize(value_base + callee.value_count, Value::VOID);
                     self.local_stack
                         .resize(local_base + callee.local_count, Value::VOID);
-                    let entry_block = callee.blocks[callee.entry].mir_block;
+                    let entry_block = callee.blocks[callee.entry as usize].mir_block;
                     let new_frame = Frame::new(
                         function,
                         entry_block,
-                        callee.entry,
+                        callee.entry as usize,
                         value_base,
                         callee.value_count,
                         local_base,
@@ -352,7 +368,7 @@ impl Interpreter {
                         caller,
                         &new_frame,
                         &callee.parameters,
-                        &arguments,
+                        argument_slice,
                     );
 
                     // push callee frame

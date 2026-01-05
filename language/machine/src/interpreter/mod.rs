@@ -1,6 +1,6 @@
-mod bytecode;
 mod call;
 mod decode;
+mod dispatch;
 mod frame;
 mod global;
 mod instruction;
@@ -17,6 +17,6 @@ pub use interpreter::{ExecutionOutput, ExternalFn, Interpreter};
 pub use options::MachineOptions;
 pub use statistics::Statistics;
 pub use threaded::{
-    ControlFlow, SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedHandler, ThreadedInstruction,
-    ThreadedInstructionData, ThreadedState,
+    ArgumentRange, ControlFlow, SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedHandler,
+    ThreadedInstruction, ThreadedInstructionData, ThreadedState,
 };
