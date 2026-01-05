@@ -3,7 +3,6 @@
 use std::fmt;
 
 use destack_mir as mir;
-use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
 use crate::memory::Value;
@@ -32,12 +31,49 @@ impl ArgumentRange {
 
     /// Slice arguments from the pool for this range.
     pub fn slice<'a>(&self, pool: &'a [mir::Value]) -> &'a [mir::Value] {
+        // compute range bounds
         let start = self.start as usize;
         let len = self.len as usize;
+
+        // validate bounds in debug builds
         debug_assert!(
             start + len <= pool.len(),
             "argument pool out of bounds for range"
         );
+
+        // return argument slice
+        &pool[start..start + len]
+    }
+}
+
+/// Switch case range within the threaded function switch pool.
+#[derive(Clone, Copy, Debug)]
+pub struct SwitchRange {
+    /// Start offset into the switch case pool.
+    pub start: u32,
+    /// Number of cases in the range.
+    pub len: u32,
+}
+
+impl SwitchRange {
+    /// Create an empty switch range.
+    pub const fn empty() -> Self {
+        Self { start: 0, len: 0 }
+    }
+
+    /// Slice cases from the pool for this range.
+    pub fn slice<'a>(&self, pool: &'a [SwitchCase]) -> &'a [SwitchCase] {
+        // compute range bounds
+        let start = self.start as usize;
+        let len = self.len as usize;
+
+        // validate bounds in debug builds
+        debug_assert!(
+            start + len <= pool.len(),
+            "switch case pool out of bounds for range"
+        );
+
+        // return case slice
         &pool[start..start + len]
     }
 }
@@ -68,7 +104,7 @@ pub enum ControlFlow {
     /// Call another function.
     Call {
         /// Function to call.
-        function: mir::LocalNodeId<mir::Function>,
+        function: u32,
         /// Destination for return value.
         destination: mir::Value,
         /// Arguments to pass.
@@ -117,13 +153,13 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         op: mir::CastOperator,
         arg: mir::Value,
-        to_type: mir::LocalNodeId<mir::Type>,
+        to_type: u32,
     },
 
     /// Function call.
     Call {
         dest: mir::Value,
-        function: mir::LocalNodeId<mir::Function>,
+        function: u32,
         arguments: ArgumentRange,
     },
 
@@ -135,28 +171,16 @@ pub enum ThreadedInstructionData {
     },
 
     /// Load local variable.
-    LocalGet {
-        dest: mir::Value,
-        local: mir::LocalNodeId<mir::Local>,
-    },
+    LocalGet { dest: mir::Value, local: u32 },
 
     /// Store local variable.
-    LocalSet {
-        local: mir::LocalNodeId<mir::Local>,
-        value: mir::Value,
-    },
+    LocalSet { local: u32, value: mir::Value },
 
     /// Get global address.
-    GlobalAddr {
-        dest: mir::Value,
-        global: mir::LocalNodeId<mir::Global>,
-    },
+    GlobalAddr { dest: mir::Value, global: u32 },
 
     /// Load global constant.
-    GlobalConst {
-        dest: mir::Value,
-        global: mir::LocalNodeId<mir::Global>,
-    },
+    GlobalConst { dest: mir::Value, global: u32 },
 
     /// Load from pointer.
     Load {
@@ -247,7 +271,7 @@ pub enum ThreadedInstructionData {
     /// Switch on integer.
     Switch {
         value: mir::Value,
-        cases: Vec<SwitchCase>,
+        cases: SwitchRange,
         default_target: u32,
         default_arguments: ArgumentRange,
     },
@@ -276,7 +300,7 @@ pub struct ThreadedBlock {
     /// Original MIR block id.
     pub mir_block: mir::LocalNodeId<mir::Block>,
     /// Block parameters.
-    pub parameters: SmallVec<[mir::Value; 8]>,
+    pub parameters: ArgumentRange,
     /// Instructions including terminator.
     pub instructions: Vec<ThreadedInstruction>,
 }
@@ -285,13 +309,15 @@ pub struct ThreadedBlock {
 #[derive(Clone, Debug)]
 pub struct ThreadedFunction {
     /// Function parameters.
-    pub parameters: SmallVec<[mir::Value; 8]>,
+    pub parameters: ArgumentRange,
     /// Entry block index.
     pub entry: u32,
     /// All blocks.
     pub blocks: Vec<ThreadedBlock>,
     /// Pool of argument values referenced by ranges.
     pub argument_pool: Vec<mir::Value>,
+    /// Pool of switch cases referenced by ranges.
+    pub switch_case_pool: Vec<SwitchCase>,
     /// Count of SSA values used by the function.
     pub value_count: usize,
     /// Count of local variables used by the function.
@@ -318,6 +344,10 @@ pub struct ThreadedState<'a> {
     argument_pool: *const mir::Value,
     /// Argument pool length.
     argument_pool_len: usize,
+    /// Switch case pool for the current function.
+    switch_case_pool: *const SwitchCase,
+    /// Switch case pool length.
+    switch_case_pool_len: usize,
 }
 
 impl fmt::Debug for ThreadedInstruction {
@@ -335,6 +365,7 @@ impl fmt::Debug for ThreadedState<'_> {
             .field("value_count", &self.value_count)
             .field("local_count", &self.local_count)
             .field("argument_pool_len", &self.argument_pool_len)
+            .field("switch_case_pool_len", &self.switch_case_pool_len)
             .finish()
     }
 }
@@ -345,6 +376,7 @@ impl<'a> ThreadedState<'a> {
         interpreter: &'a mut Interpreter,
         frame_index: usize,
         argument_pool: &[mir::Value],
+        switch_case_pool: &[SwitchCase],
     ) -> Self {
         // get frame pointer
         // safety: frame_index always points at the current frame
@@ -382,6 +414,8 @@ impl<'a> ThreadedState<'a> {
             local_count,
             argument_pool: argument_pool.as_ptr(),
             argument_pool_len: argument_pool.len(),
+            switch_case_pool: switch_case_pool.as_ptr(),
+            switch_case_pool_len: switch_case_pool.len(),
         }
     }
 
@@ -484,5 +518,22 @@ impl<'a> ThreadedState<'a> {
 
         // read argument slice
         unsafe { std::slice::from_raw_parts(self.argument_pool.add(start), len) }
+    }
+
+    /// Get the switch case slice for the given range.
+    #[inline(always)]
+    pub fn switch_cases(&self, range: SwitchRange) -> &[SwitchCase] {
+        // compute switch case range
+        let start = range.start as usize;
+        let len = range.len as usize;
+
+        // validate bounds in debug builds
+        debug_assert!(
+            start + len <= self.switch_case_pool_len,
+            "switch case pool out of bounds for range"
+        );
+
+        // read switch case slice
+        unsafe { std::slice::from_raw_parts(self.switch_case_pool.add(start), len) }
     }
 }

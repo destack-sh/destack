@@ -1,5 +1,6 @@
 #![allow(elided_lifetimes_in_paths)]
 
+use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
@@ -17,6 +18,24 @@ macro_rules! next {
         let next_pc = $pc + 1;
         become ($block[next_pc].handler)($state, $block, next_pc)
     }};
+}
+
+/// Build a local id from a raw value.
+#[inline]
+fn local_id(raw: u32) -> mir::LocalNodeId<mir::Local> {
+    mir::LocalNodeId::new(raw)
+}
+
+/// Build a global id from a raw value.
+#[inline]
+fn global_id(raw: u32) -> mir::LocalNodeId<mir::Global> {
+    mir::LocalNodeId::new(raw)
+}
+
+/// Build a type id from a raw value.
+#[inline]
+fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
+    mir::LocalNodeId::new(raw)
 }
 
 /// Collect argument values into a smallvec.
@@ -441,7 +460,8 @@ pub(super) fn handle_cast(
     let argument = state.get(*arg);
 
     // execute cast
-    let result = match operator::execute_cast(&state.interpreter.tree, *op, argument, *to_type) {
+    let cast_type = type_id(*to_type);
+    let result = match operator::execute_cast(&state.interpreter.tree, *op, argument, cast_type) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -499,7 +519,7 @@ pub(super) fn handle_call_indirect(
 
     // extract function pointer
     let function = match callee_val.as_function_pointer() {
-        Some(f) => f,
+        Some(f) => f.id,
         None => {
             return ControlFlow::Error(Error::TypeMismatch {
                 expected: "function_pointer".to_string(),
@@ -529,7 +549,7 @@ pub(super) fn handle_local_get(
     };
 
     // load local value
-    let value = state.get_local(*local);
+    let value = state.get_local(local_id(*local));
 
     // store value
     state.set(*dest, value);
@@ -553,7 +573,7 @@ pub(super) fn handle_local_set(
     let val = state.get(*value);
 
     // store local value
-    state.set_local(*local, val);
+    state.set_local(local_id(*local), val);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -571,7 +591,7 @@ pub(super) fn handle_global_addr(
     };
 
     // write global pointer
-    state.set(*dest, Value::global_pointer(*global));
+    state.set(*dest, Value::global_pointer(global_id(*global)));
 
     // continue to next instruction
     next!(state, block, pc)
@@ -589,9 +609,10 @@ pub(super) fn handle_global_const(
     };
 
     // load global value
-    let value = match state.interpreter.globals.get(*global).copied() {
+    let global_id = global_id(*global);
+    let value = match state.interpreter.globals.get(global_id).copied() {
         Some(v) => v,
-        None => return ControlFlow::Error(Error::UndefinedGlobal { global: *global }),
+        None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
     };
 
     // store value
@@ -1104,7 +1125,8 @@ pub(super) fn handle_switch(
     state.interpreter.statistics.branches += 1;
 
     // find matching case
-    for case in cases {
+    let case_slice = state.switch_cases(*cases);
+    for case in case_slice {
         if case.value == int_val {
             // forward case arguments
             return ControlFlow::Jump {
@@ -1147,7 +1169,8 @@ pub(super) fn handle_switch_int(
     state.interpreter.statistics.branches += 1;
 
     // find matching case
-    for case in cases {
+    let case_slice = state.switch_cases(*cases);
+    for case in case_slice {
         if case.value == int_val {
             // forward case arguments
             return ControlFlow::Jump {
