@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolTable,
-    TypeTable,
+    FunctionSignature, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolSpace,
+    SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -96,6 +96,7 @@ impl Compiler {
                 module,
                 ast,
                 scope,
+                SymbolSpace::Value,
                 this_parameter,
                 parent_id,
                 tree,
@@ -108,7 +109,15 @@ impl Compiler {
             .iter()
             .map(|parameter| {
                 self.bind_parameter(
-                    module, ast, scope, *parameter, parent_id, tree, symbols, types,
+                    module,
+                    ast,
+                    scope,
+                    SymbolSpace::Value,
+                    *parameter,
+                    parent_id,
+                    tree,
+                    symbols,
+                    types,
                 )
             })
             .collect();

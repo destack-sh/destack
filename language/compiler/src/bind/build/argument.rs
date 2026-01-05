@@ -59,6 +59,7 @@ impl Compiler {
         module: &Module,
         ast: &ModuleAst,
         scope: (LocalScopeId, LocalScopeMark),
+        symbol_space: SymbolSpace,
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -95,7 +96,7 @@ impl Compiler {
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     ast,
-                    SymbolSpace::Value,
+                    symbol_space,
                     StaticKey::Name(name),
                     scope,
                     None,
@@ -158,7 +159,7 @@ impl Compiler {
                     )
                 });
                 let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+                    self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
                 let parameter = Parameter::Pattern {
                     modifiers,
                     pattern,
@@ -194,7 +195,7 @@ impl Compiler {
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     ast,
-                    SymbolSpace::Value,
+                    symbol_space,
                     StaticKey::Name(name),
                     scope,
                     None,
