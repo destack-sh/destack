@@ -711,6 +711,38 @@ pub(super) fn handle_field_get(
     next!(state, block, pc)
 }
 
+/// Handle field addr.
+pub(super) fn handle_field_addr(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldAddr {
+        dest,
+        aggregate,
+        index,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+
+    // compute field address
+    let value = match instruction::field_addr(state, agg, *index) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle field set.
 pub(super) fn handle_field_set(
     state: &mut ThreadedState,
@@ -765,6 +797,35 @@ pub(super) fn handle_element_get(
     let value = match instruction::get_element(state, arr, idx_val) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element addr.
+pub(super) fn handle_element_addr(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementAddr { dest, array, index } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let value = match instruction::element_addr(state, arr, idx_val) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
     };
 
     // store result

@@ -242,6 +242,13 @@ pub enum ThreadedInstructionData {
         index: u32,
     },
 
+    /// Get struct/tuple field address.
+    FieldAddr {
+        dest: mir::Value,
+        aggregate: mir::Value,
+        index: u32,
+    },
+
     /// Set struct/tuple field.
     FieldSet {
         dest: mir::Value,
@@ -252,6 +259,13 @@ pub enum ThreadedInstructionData {
 
     /// Get array element.
     ElementGet {
+        dest: mir::Value,
+        array: mir::Value,
+        index: mir::Value,
+    },
+
+    /// Get array element address.
+    ElementAddr {
         dest: mir::Value,
         array: mir::Value,
         index: mir::Value,

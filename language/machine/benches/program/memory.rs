@@ -121,10 +121,11 @@ block1:
     v4 = iconst 2i64
     v5 = managed.alloc_array i64, v4
     store v5, v0
-    v6 = field.set v5, 1, v1
+    v6 = field.addr v5, 1
+    store v6, v1
     v7 = iconst 1i64
     v8 = isub v0, v7
-    v9 = call @build_list(v8, v6)
+    v9 = call @build_list(v8, v5)
     return v9
 block2:
     return v1
@@ -138,9 +139,10 @@ block0(v0: ref<managed i64>, v1: i64):
     branch v4, block2, block1
 block1:
     v5 = iadd v1, v2
-    v6 = field.get v0, 1
-    v7 = call @walk_list(v6, v5)
-    return v7
+    v6 = field.addr v0, 1
+    v7 = load v6
+    v8 = call @walk_list(v7, v5)
+    return v8
 block2:
     return v1
 }
@@ -208,10 +210,11 @@ block1(v3: i64, v4: ref<managed i64>):
     v5 = icmp_sge v3, v0
     branch v5, block3(v4), block2
 block2:
-    v6 = element.set v4, v3, v3
+    v6 = element.addr v4, v3
+    store v6, v3
     v7 = iconst 1i64
     v8 = iadd v3, v7
-    jump block1(v8, v6)
+    jump block1(v8, v4)
 block3(v9: ref<managed i64>):
     v10 = iconst 0i64
     v11 = iconst 0i64
@@ -220,11 +223,12 @@ block4(v12: i64, v13: ref<managed i64>, v14: i64):
     v15 = icmp_sge v12, v0
     branch v15, block6(v14), block5
 block5:
-    v16 = element.get v13, v12
-    v17 = iadd v14, v16
-    v18 = iconst 1i64
-    v19 = iadd v12, v18
-    jump block4(v19, v13, v17)
+    v16 = element.addr v13, v12
+    v17 = load v16
+    v18 = iadd v14, v17
+    v19 = iconst 1i64
+    v20 = iadd v12, v19
+    jump block4(v20, v13, v18)
 block6(v20: i64):
     return v20
 }

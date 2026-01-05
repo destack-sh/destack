@@ -147,8 +147,8 @@ pub enum Instruction {
         value: Value,
     },
 
-    // aggregate operations (field.get, field.set, element.get, element.set)
-    /// Extract a field from a struct or tuple (field.get).
+    // aggregate operations (field.get, field.addr, field.set, element.get, element.addr, element.set)
+    /// Extract a field from an aggregate value (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
         destination: Value,
@@ -157,7 +157,7 @@ pub enum Instruction {
         /// The zero-based field index.
         index: u32,
     },
-    /// Get the address of a field from a struct or tuple (field.addr).
+    /// Get the address of a field from an aggregate value (field.addr).
     FieldAddr {
         /// The SSA value to define with the field address.
         destination: Value,
@@ -167,8 +167,6 @@ pub enum Instruction {
         index: u32,
     },
     /// Insert a value into a struct or tuple field (field.set).
-    /// For value aggregates, this creates a new aggregate.
-    /// For reference aggregates, this performs an in-place mutation.
     FieldSet {
         /// The SSA value to define with the new aggregate.
         destination: Value,
@@ -179,7 +177,7 @@ pub enum Instruction {
         /// The value to insert at the field.
         value: Value,
     },
-    /// Extract an element from an array (element.get).
+    /// Extract an element from an array aggregate (element.get).
     ElementGet {
         /// The SSA value to define with the extracted element.
         destination: Value,
@@ -188,7 +186,7 @@ pub enum Instruction {
         /// The index of the element (runtime value).
         index: Value,
     },
-    /// Get the address of an array element (element.addr).
+    /// Get the address of an array element from an aggregate (element.addr).
     ElementAddr {
         /// The SSA value to define with the element address.
         destination: Value,
@@ -198,8 +196,6 @@ pub enum Instruction {
         index: Value,
     },
     /// Insert a value into an array element (element.set).
-    /// For value arrays, this creates a new array.
-    /// For reference arrays, this performs an in-place mutation.
     ElementSet {
         /// The SSA value to define with the new array.
         destination: Value,

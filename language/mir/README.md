@@ -60,8 +60,8 @@ Each instruction defines at most one `Value`.
 | Allocation | `managed.alloc`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
 
-`field.get/set` and `element.get/set` operate on aggregate values *or* pointers/references
-to aggregates (managed, raw, or stack pointers).
+`field.get/set` and `element.get/set` operate on aggregate values.
+To access through pointers, use `field.addr` or `element.addr` and then `load`/`store`.
 `Local`s are stack slots for mutable bindings.
 SSA values are immutable.
 To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new value).

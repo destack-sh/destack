@@ -34,6 +34,11 @@ pub enum ValueTag {
     String = 13,
 }
 
+const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
+const POINTER_SLOT_SHIFT: u64 = 32;
+const STACK_INDEX_MASK: u64 = 0xFFFF;
+const STACK_SLOT_SHIFT: u64 = 16;
+
 /// A runtime value in the machine.
 ///
 /// Compact 16-byte representation using a packed data/meta layout.
@@ -82,14 +87,57 @@ impl std::fmt::Debug for Value {
                 let c = char::from_u32(self.data as u32).unwrap_or('\0');
                 write!(f, "Char({c:?})")
             }
-            ValueTag::ManagedReference => write!(f, "ManagedReference(HeapHandle({}))", self.data),
-            ValueTag::RawPointer => write!(f, "RawPointer({})", self.data),
-            ValueTag::StackPointer => {
-                let frame = self.data as u32;
-                let slot = (self.data >> 32) as u32;
-                write!(f, "StackPointer {{ frame: {frame}, slot: {slot} }}")
+            ValueTag::ManagedReference => {
+                let handle = self.as_heap_handle().unwrap();
+                let slot_offset = handle.slot_index();
+                if slot_offset == 0 {
+                    write!(f, "ManagedReference(HeapHandle({}))", handle.id())
+                } else {
+                    write!(
+                        f,
+                        "ManagedReference(HeapHandle({}), slot {})",
+                        handle.id(),
+                        slot_offset
+                    )
+                }
             }
-            ValueTag::GlobalPointer => write!(f, "GlobalPointer({})", self.data as u32),
+            ValueTag::RawPointer => {
+                let pointer = self.as_raw_pointer().unwrap();
+                let slot_offset = pointer.slot_index();
+                if slot_offset == 0 {
+                    write!(f, "RawPointer({})", pointer.id())
+                } else {
+                    write!(f, "RawPointer({}, slot {})", pointer.id(), slot_offset)
+                }
+            }
+            ValueTag::StackPointer => {
+                let pointer = self.as_stack_pointer().unwrap();
+                if pointer.slot_offset == 0 {
+                    write!(
+                        f,
+                        "StackPointer {{ frame: {}, slot: {} }}",
+                        pointer.frame_idx, pointer.slot
+                    )
+                } else {
+                    write!(
+                        f,
+                        "StackPointer {{ frame: {}, slot: {}, offset: {} }}",
+                        pointer.frame_idx, pointer.slot, pointer.slot_offset
+                    )
+                }
+            }
+            ValueTag::GlobalPointer => {
+                let pointer = self.as_global_pointer().unwrap();
+                if pointer.slot_offset == 0 {
+                    write!(f, "GlobalPointer({})", pointer.id.id)
+                } else {
+                    write!(
+                        f,
+                        "GlobalPointer({}, offset: {})",
+                        pointer.id.id, pointer.slot_offset
+                    )
+                }
+            }
             ValueTag::FunctionPointer => write!(f, "FunctionPointer({})", self.data as u32),
             ValueTag::Aggregate => write!(f, "Aggregate(HeapHandle({}))", self.data),
             ValueTag::String => write!(f, "String(HeapHandle({}))", self.data),
@@ -248,7 +296,10 @@ impl Value {
     /// Create a stack pointer value.
     #[inline]
     pub const fn stack_pointer(ptr: StackPointer) -> Self {
-        let data = (ptr.frame_idx as u64) | ((ptr.slot as u64) << 32);
+        let frame = (ptr.frame_idx as u64) & STACK_INDEX_MASK;
+        let slot = (ptr.slot as u64) & STACK_INDEX_MASK;
+        let offset = (ptr.slot_offset as u64) & POINTER_BASE_MASK;
+        let data = frame | (slot << STACK_SLOT_SHIFT) | (offset << POINTER_SLOT_SHIFT);
         Self {
             data,
             meta: Self::make_meta(ValueTag::StackPointer, 0),
@@ -258,8 +309,17 @@ impl Value {
     /// Create a global pointer value.
     #[inline]
     pub fn global_pointer(id: mir::LocalNodeId<mir::Global>) -> Self {
+        Self::global_pointer_with_offset(id, 0)
+    }
+
+    /// Create a global pointer value with a slot offset.
+    #[inline]
+    pub fn global_pointer_with_offset(
+        id: mir::LocalNodeId<mir::Global>,
+        slot_offset: usize,
+    ) -> Self {
         Self {
-            data: id.id as u64,
+            data: (id.id as u64) | ((slot_offset as u64) << POINTER_SLOT_SHIFT),
             meta: Self::make_meta(ValueTag::GlobalPointer, 0),
         }
     }
@@ -395,9 +455,13 @@ impl Value {
     #[inline]
     pub fn as_stack_pointer(&self) -> Option<StackPointer> {
         if self.tag() == ValueTag::StackPointer {
+            let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
+            let slot = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
+            let slot_offset = (self.data >> POINTER_SLOT_SHIFT) as usize;
             Some(StackPointer {
-                frame_idx: self.data as u32 as usize,
-                slot: (self.data >> 32) as u32 as usize,
+                frame_idx,
+                slot,
+                slot_offset,
             })
         } else {
             None
@@ -406,9 +470,11 @@ impl Value {
 
     /// Get this value as a global pointer.
     #[inline]
-    pub fn as_global_pointer(&self) -> Option<mir::LocalNodeId<mir::Global>> {
+    pub fn as_global_pointer(&self) -> Option<GlobalPointer> {
         if self.tag() == ValueTag::GlobalPointer {
-            Some(mir::LocalNodeId::new(self.data as u32))
+            let id = mir::LocalNodeId::new(self.data as u32);
+            let slot_offset = (self.data >> POINTER_SLOT_SHIFT) as usize;
+            Some(GlobalPointer { id, slot_offset })
         } else {
             None
         }
@@ -482,19 +548,33 @@ impl HeapHandle {
     /// Create a new heap handle from a raw id.
     #[inline]
     pub fn new(id: u64) -> Self {
-        HeapHandle(id)
+        HeapHandle::with_slot(id, 0)
     }
 
     /// Check if this handle is null.
     #[inline]
     pub fn is_null(&self) -> bool {
-        self.0 == 0
+        self.id() == 0
     }
 
     /// Get the raw id of this handle.
     #[inline]
     pub fn id(&self) -> u64 {
-        self.0
+        self.0 & POINTER_BASE_MASK
+    }
+
+    /// Get the slot offset stored in this handle.
+    #[inline]
+    pub fn slot_index(&self) -> usize {
+        (self.0 >> POINTER_SLOT_SHIFT) as usize
+    }
+
+    /// Create a new handle with a slot offset.
+    #[inline]
+    pub fn with_slot(id: u64, slot_index: u32) -> Self {
+        let base = id & POINTER_BASE_MASK;
+        let slot = (slot_index as u64) << POINTER_SLOT_SHIFT;
+        HeapHandle(base | slot)
     }
 }
 
@@ -509,19 +589,33 @@ impl RawPointer {
     /// Create a new raw pointer from an id.
     #[inline]
     pub fn new(id: u64) -> Self {
-        RawPointer(id)
+        RawPointer::with_slot(id, 0)
     }
 
     /// Check if this pointer is null.
     #[inline]
     pub fn is_null(&self) -> bool {
-        self.0 == 0
+        self.id() == 0
     }
 
-    /// Get the raw id of this pointer.
+    /// Get the base id of this pointer.
     #[inline]
     pub fn id(&self) -> u64 {
-        self.0
+        self.0 & POINTER_BASE_MASK
+    }
+
+    /// Get the slot offset stored in this pointer.
+    #[inline]
+    pub fn slot_index(&self) -> usize {
+        (self.0 >> POINTER_SLOT_SHIFT) as usize
+    }
+
+    /// Create a new raw pointer with a slot offset.
+    #[inline]
+    pub fn with_slot(id: u64, slot_index: u32) -> Self {
+        let base = id & POINTER_BASE_MASK;
+        let slot = (slot_index as u64) << POINTER_SLOT_SHIFT;
+        RawPointer(base | slot)
     }
 }
 
@@ -532,12 +626,37 @@ pub struct StackPointer {
     pub frame_idx: usize,
     /// The slot index within the frame's stack allocations.
     pub slot: usize,
+    /// The slot offset within the stack allocation.
+    pub slot_offset: usize,
 }
 
 impl StackPointer {
     /// Create a new stack pointer.
     #[inline]
     pub fn new(frame_idx: usize, slot: usize) -> Self {
-        Self { frame_idx, slot }
+        Self {
+            frame_idx,
+            slot,
+            slot_offset: 0,
+        }
     }
+
+    /// Create a stack pointer with an offset into the slot.
+    #[inline]
+    pub fn with_offset(frame_idx: usize, slot: usize, slot_offset: usize) -> Self {
+        Self {
+            frame_idx,
+            slot,
+            slot_offset,
+        }
+    }
+}
+
+/// Pointer to a global value (with optional slot offset).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GlobalPointer {
+    /// The global identifier.
+    pub id: mir::LocalNodeId<mir::Global>,
+    /// The slot offset within the global value.
+    pub slot_offset: usize,
 }
