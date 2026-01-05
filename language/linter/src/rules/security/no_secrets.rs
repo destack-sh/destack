@@ -15,6 +15,8 @@ declare_lint! {
         code = "LS010",
         category = Security,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -390,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_detects_aws_access_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // AWS access key: AKIA + 16 uppercase alphanumeric chars (20 total)
         let result = test.lint_ast("test.ts", r#"const key = "AKIAIOSFODNN7REALKEY";"#);
         test.result(result).assert_lint("no-secrets");
@@ -398,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_detects_github_pat() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // GitHub PAT: ghp_ + 36 alphanumeric chars
         let result = test.lint_ast(
             "test.ts",
@@ -409,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_detects_stripe_live_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
             "test.ts",
             r#"const key = "sk_live_abcdefghijklmnopqrstuvwx";"#,
@@ -419,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_detects_slack_token() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
             "test.ts",
             r#"const token = "xoxb-123456789012-1234567890123-abcdefghijklmnopqrstuvwx";"#,
@@ -429,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_detects_openai_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // OpenAI: sk- + 48 alphanumeric chars
         let result = test.lint_ast(
             "test.ts",
@@ -440,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_detects_private_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // Gitleaks requires full key block with BEGIN, content (64+ chars), and END markers
         let result = test.lint_ast(
             "test.ts",
@@ -451,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_detects_jwt() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
             "test.ts",
             r#"const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";"#,
@@ -461,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_detects_sendgrid_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // SendGrid: SG. + 22 chars + . + 43 chars
         let result = test.lint_ast(
             "test.ts",
@@ -472,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_detects_google_api_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
             "test.ts",
             r#"const key = "AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe";"#,
@@ -482,14 +484,14 @@ mod tests {
 
     #[test]
     fn test_detects_generic_api_key_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const key = "key=aaaaaaaaaa";"#);
         test.result(result).assert_lint("no-secrets");
     }
 
     #[test]
     fn test_detects_pypi_upload_token() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let suffix = "a".repeat(50);
         let token = format!("pypi-AgEIcHlwaS5vcmc{suffix}");
         let source = format!("const token = \"{token}\";");
@@ -499,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_detects_vault_batch_token() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let suffix = "a".repeat(138);
         let token = format!("hvb.{suffix}");
         let source = format!("const token = \"{token}\";");
@@ -509,7 +511,7 @@ mod tests {
 
     #[test]
     fn test_detects_slack_webhook_url() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let suffix = "a".repeat(43);
         let url = format!("https://hooks.slack.com/services/{suffix}");
         let source = format!("const url = \"{url}\";");
@@ -521,21 +523,21 @@ mod tests {
 
     #[test]
     fn test_detects_hardcoded_password() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const password = "supersecretpassword123";"#);
         test.result(result).assert_lint("no-secrets");
     }
 
     #[test]
     fn test_detects_hardcoded_api_key_by_name() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const apiKey = "some_long_api_key_value";"#);
         test.result(result).assert_lint("no-secrets");
     }
 
     #[test]
     fn test_detects_hardcoded_secret() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const clientSecret = "verysecretvalue1234";"#);
         test.result(result).assert_lint("no-secrets");
     }
@@ -544,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_detects_high_entropy_string() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // random-looking string with high entropy
         let result = test.lint_ast(
             "test.ts",
@@ -557,35 +559,35 @@ mod tests {
 
     #[test]
     fn test_allows_env_variable() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const password = process.env.PASSWORD;"#);
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_short_password() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const password = "short";"#);
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_placeholder_password() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const password = "your_password_here";"#);
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_example_value() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const apiKey = "example_api_key_here";"#);
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_test_key() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // Stripe test keys are generally safe
         let result = test.lint_ast(
             "test.ts",
@@ -597,14 +599,14 @@ mod tests {
 
     #[test]
     fn test_allows_non_secret_names() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast("test.ts", r#"const username = "john_doe_123";"#);
         test.result(result).assert_no_lint("no-secrets");
     }
 
     #[test]
     fn test_allows_urls_without_credentials() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
             "test.ts",
             r#"const url = "https://api.example.com/v1/users";"#,
@@ -614,7 +616,7 @@ mod tests {
 
     #[test]
     fn test_allows_file_paths() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         let result = test.lint_ast(
             "test.ts",
             r#"const path = "/etc/ssl/certs/ca-certificates.crt";"#,
@@ -624,7 +626,7 @@ mod tests {
 
     #[test]
     fn test_allows_low_entropy_strings() {
-        let test = TestProgram::for_rule_without_builtins(NoSecrets);
+        let test = TestProgram::for_rule_without_prelude(NoSecrets);
         // repetitive string has low entropy
         let result = test.lint_ast("test.ts", r#"const data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaa";"#);
         test.result(result).assert_no_lint("no-secrets");

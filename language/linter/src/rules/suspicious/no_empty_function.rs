@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU015",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -79,35 +81,35 @@ mod tests {
 
     #[test]
     fn test_detects_empty_function() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyFunction);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction);
         let result = test.lint_ast("test.ds", "function foo() {}");
         test.result(result).assert_lint("no-empty-function");
     }
 
     #[test]
     fn test_detects_empty_arrow_function() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyFunction);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction);
         let result = test.lint_ast("test.ds", "const foo = () => {}");
         test.result(result).assert_lint("no-empty-function");
     }
 
     #[test]
     fn test_allows_function_with_body() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyFunction);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction);
         let result = test.lint_ast("test.ds", "function foo() { return 1; }");
         test.result(result).assert_no_lint("no-empty-function");
     }
 
     #[test]
     fn test_allows_function_with_comment() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyFunction);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction);
         let result = test.lint_ast("test.ds", "function foo() { /* intentionally empty */ }");
         test.result(result).assert_no_lint("no-empty-function");
     }
 
     #[test]
     fn test_allows_function_declaration_without_body() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyFunction);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyFunction);
         let result = test.lint_ast("test.ts", "declare function foo(): void;");
         test.result(result).assert_no_lint("no-empty-function");
     }

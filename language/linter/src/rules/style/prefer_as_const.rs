@@ -12,6 +12,8 @@ declare_lint! {
         code = "LY040",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -83,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_detects_string_literal_cast() {
-        let test = TestProgram::for_rule_without_builtins(PreferAsConst);
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -95,7 +97,7 @@ const x = "hello" as "hello"
 
     #[test]
     fn test_detects_number_literal_cast() {
-        let test = TestProgram::for_rule_without_builtins(PreferAsConst);
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -107,7 +109,7 @@ const x = 42 as 42
 
     #[test]
     fn test_allows_as_const() {
-        let test = TestProgram::for_rule_without_builtins(PreferAsConst);
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -119,7 +121,7 @@ const x = "hello" as const
 
     #[test]
     fn test_allows_type_cast() {
-        let test = TestProgram::for_rule_without_builtins(PreferAsConst);
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -131,7 +133,7 @@ const x = value as string
 
     #[test]
     fn test_allows_object_cast() {
-        let test = TestProgram::for_rule_without_builtins(PreferAsConst);
+        let test = TestProgram::for_rule_without_prelude(PreferAsConst);
         let result = test.lint_ast(
             "test.ds",
             r#"

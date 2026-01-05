@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::{RequireLibSymbol, RequireWellKnownSymbol};
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
     unwrap_parenthesized_expression,
@@ -17,6 +18,12 @@ declare_lint! {
         code = "LS003",
         category = Security,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Function)],
+        requires_any = [
+            RequireLibSymbol("setTimeout", &["dom", "node"]),
+            RequireLibSymbol("setInterval", &["dom", "node"]),
+            RequireLibSymbol("setImmediate", &["dom", "node"]),
+        ],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -33,10 +40,7 @@ impl LintRule for NoImpliedEval {
 
     /// Check module DIR nodes for implied eval usage.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for implied eval usage
         let mut visitor = NoImpliedEvalVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -49,7 +53,7 @@ struct NoImpliedEvalVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Function constructor symbol.
-    function_symbol: Option<dir::GlobalSymbolId>,
+    function_symbol: dir::GlobalSymbolId,
     /// The Function member name.
     function_name: StringId,
     /// The setTimeout symbol for this module.
@@ -73,10 +77,7 @@ struct NoImpliedEvalVisitor<'a, 'b> {
 impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Build a visitor for no-implied-eval checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve well known symbols
-        let function_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Function);
-
-        // resolve lib symbols
+        let function_symbol = ctx.well_known_symbol(WellKnownSymbol::Function);
         let function_name = ctx.program.strings.intern("Function");
         let set_timeout_name = ctx.program.strings.intern("setTimeout");
         let set_interval_name = ctx.program.strings.intern("setInterval");
@@ -105,11 +106,9 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -186,9 +185,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     fn is_function_symbol(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match direct symbol references
         if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return self
-                .function_symbol
-                .is_some_and(|function_symbol| symbol == function_symbol);
+            return symbol == self.function_symbol;
         }
 
         // match global qualified references
@@ -281,22 +278,17 @@ impl NodeVisitor for NoImpliedEvalVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
-    use destack_workspace::Runtime;
 
     /// Report setTimeout with string arguments.
     #[test]
     fn test_flags_string_set_timeout() {
-        let test = TestProgram::for_rule_with_builtins(NoImpliedEval)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 setTimeout("doThing()", 10);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-implied-eval");
     }
@@ -304,15 +296,12 @@ setTimeout("doThing()", 10);
     /// Report setInterval with string arguments.
     #[test]
     fn test_flags_string_set_interval() {
-        let test = TestProgram::for_rule_with_builtins(NoImpliedEval)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 setInterval("doThing()", 10);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-implied-eval");
     }
@@ -320,15 +309,12 @@ setInterval("doThing()", 10);
     /// Report global setImmediate with string arguments.
     #[test]
     fn test_flags_global_set_immediate() {
-        let test = TestProgram::for_rule_with_builtins(NoImpliedEval)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 globalThis.setImmediate("doThing()");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-implied-eval");
     }
@@ -336,15 +322,12 @@ globalThis.setImmediate("doThing()");
     /// Report Function constructor calls.
     #[test]
     fn test_flags_function_constructor() {
-        let test = TestProgram::for_rule_with_builtins(NoImpliedEval)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 const fn = Function("return 1;");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-implied-eval");
     }
@@ -352,15 +335,12 @@ const fn = Function("return 1;");
     /// Allow function callbacks in timers.
     #[test]
     fn test_allows_function_timer() {
-        let test = TestProgram::for_rule_with_builtins(NoImpliedEval)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoImpliedEval);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 setTimeout(() => work(), 10);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-implied-eval");
     }

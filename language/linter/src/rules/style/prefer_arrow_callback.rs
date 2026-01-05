@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY039",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -139,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_allows_arrow_callback() {
-        let test = TestProgram::for_rule_without_builtins(PreferArrowCallback);
+        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -151,7 +153,7 @@ items.map((x) => x + 1)
 
     #[test]
     fn test_detects_function_callback() {
-        let test = TestProgram::for_rule_without_builtins(PreferArrowCallback);
+        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -163,7 +165,7 @@ items.map(function(x) { return x + 1 })
 
     #[test]
     fn test_allows_named_function() {
-        let test = TestProgram::for_rule_without_builtins(PreferArrowCallback);
+        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         // named functions are intentional, don't flag
         let result = test.lint_ast(
             "test.ds",
@@ -176,7 +178,7 @@ items.map(function increment(x) { return x + 1 })
 
     #[test]
     fn test_allows_non_callback_function() {
-        let test = TestProgram::for_rule_without_builtins(PreferArrowCallback);
+        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         // function declarations not used as callbacks
         let result = test.lint_ast(
             "test.ds",
@@ -191,7 +193,7 @@ function foo() {
 
     #[test]
     fn test_fix_function_to_arrow() {
-        let test = TestProgram::for_rule_without_builtins(PreferArrowCallback);
+        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_ast(
             "test.ds",
             r#"

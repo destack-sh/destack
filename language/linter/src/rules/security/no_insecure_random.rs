@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
 };
@@ -16,6 +17,8 @@ declare_lint! {
         code = "LS004",
         category = Security,
         level = Dir,
+        requires_all = [RequireLibSymbol("Math", &[])],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -48,7 +51,7 @@ struct NoInsecureRandomVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The Math symbol for this module.
-    math_symbol: Option<dir::GlobalSymbolId>,
+    math_symbol: dir::GlobalSymbolId,
     /// The Math member name.
     math_name: StringId,
     /// The random member name.
@@ -67,7 +70,7 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
         let random_name = ctx.program.strings.intern("random");
 
         // resolve lib symbols
-        let math_symbol = ctx.get_lib_item(math_name);
+        let math_symbol = ctx.lib_item(math_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
         // prepare visitor state
@@ -84,11 +87,6 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when Math is unavailable
-        if self.math_symbol.is_none() {
-            return;
-        }
-
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
@@ -150,11 +148,9 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match direct symbol references
-        if let Some(math_symbol) = self.math_symbol {
-            let target_symbol = expression_target_symbol(self.ctx.tree, expression_id);
-            if target_symbol == Some(math_symbol) {
-                return true;
-            }
+        let target_symbol = expression_target_symbol(self.ctx.tree, expression_id);
+        if target_symbol == Some(self.math_symbol) {
+            return true;
         }
 
         // match global qualified references
@@ -191,19 +187,17 @@ impl NodeVisitor for NoInsecureRandomVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report Math.random calls.
     #[test]
     fn test_flags_math_random() {
-        let test = TestProgram::for_rule_with_builtins(NoInsecureRandom);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = Math.random();
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-insecure-random");
     }
@@ -211,13 +205,12 @@ let value = Math.random();
     /// Report global Math.random calls.
     #[test]
     fn test_flags_global_math_random() {
-        let test = TestProgram::for_rule_with_builtins(NoInsecureRandom);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = globalThis.Math.random();
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-insecure-random");
     }
@@ -225,13 +218,12 @@ let value = globalThis.Math.random();
     /// Allow other Math calls.
     #[test]
     fn test_allows_other_math_call() {
-        let test = TestProgram::for_rule_with_builtins(NoInsecureRandom);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoInsecureRandom);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = Math.max(1, 2);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-insecure-random");
     }

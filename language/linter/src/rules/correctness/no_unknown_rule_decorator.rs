@@ -19,6 +19,8 @@ declare_lint! {
         code = "LC049",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -124,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_detects_unknown_rule_id() {
-        let test = TestProgram::for_rule_without_builtins(NoUnknownRuleDecorator);
+        let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -137,7 +139,7 @@ function foo() {}
 
     #[test]
     fn test_detects_unknown_rule_code() {
-        let test = TestProgram::for_rule_without_builtins(NoUnknownRuleDecorator);
+        let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +152,7 @@ function foo() {}
 
     #[test]
     fn test_allows_valid_rule_id() {
-        let test = TestProgram::for_rule_without_builtins(NoUnknownRuleDecorator);
+        let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -164,7 +166,7 @@ function foo() {}
 
     #[test]
     fn test_allows_valid_rule_code() {
-        let test = TestProgram::for_rule_without_builtins(NoUnknownRuleDecorator);
+        let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -178,7 +180,7 @@ function foo() {}
 
     #[test]
     fn test_checks_all_decorator_types() {
-        let test = TestProgram::for_rule_without_builtins(NoUnknownRuleDecorator);
+        let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -191,7 +193,7 @@ function foo() {}
 
     #[test]
     fn test_ignores_other_decorators() {
-        let test = TestProgram::for_rule_without_builtins(NoUnknownRuleDecorator);
+        let test = TestProgram::for_rule_without_prelude(NoUnknownRuleDecorator);
         let result = test.lint_ast(
             "test.ds",
             r#"

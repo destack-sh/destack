@@ -18,6 +18,8 @@ declare_lint! {
         code = "LY019",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -103,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_strings() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateString)
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 2);
         let result = test.lint_ast(
             "test.ds",
@@ -118,7 +120,7 @@ let c = "hello world";
 
     #[test]
     fn test_allows_few_occurrences() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateString)
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -133,7 +135,7 @@ let c = "hello world";
 
     #[test]
     fn test_ignores_short_strings() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateString)
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 1);
         let result = test.lint_ast(
             "test.ds",
@@ -151,7 +153,7 @@ let f = "a";
 
     #[test]
     fn test_counts_unique_strings_separately() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateString)
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateString)
             .with_options(|options| options.max_duplicate_string_occurrences = 2);
         let result = test.lint_ast(
             "test.ds",

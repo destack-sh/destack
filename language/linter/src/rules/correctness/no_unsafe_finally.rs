@@ -16,6 +16,8 @@ declare_lint! {
         code = "LC047",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -167,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_detects_return_in_finally() {
-        let test = TestProgram::for_rule_without_builtins(NoUnsafeFinally);
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -185,7 +187,7 @@ function foo() {
 
     #[test]
     fn test_detects_throw_in_finally() {
-        let test = TestProgram::for_rule_without_builtins(NoUnsafeFinally);
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -203,7 +205,7 @@ function foo() {
 
     #[test]
     fn test_detects_break_in_finally() {
-        let test = TestProgram::for_rule_without_builtins(NoUnsafeFinally);
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -221,7 +223,7 @@ while (true) {
 
     #[test]
     fn test_detects_continue_in_finally() {
-        let test = TestProgram::for_rule_without_builtins(NoUnsafeFinally);
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -239,7 +241,7 @@ while (true) {
 
     #[test]
     fn test_allows_return_in_try() {
-        let test = TestProgram::for_rule_without_builtins(NoUnsafeFinally);
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -257,7 +259,7 @@ function foo() {
 
     #[test]
     fn test_allows_return_in_nested_function() {
-        let test = TestProgram::for_rule_without_builtins(NoUnsafeFinally);
+        let test = TestProgram::for_rule_without_prelude(NoUnsafeFinally);
         let result = test.lint_ast(
             "test.ds",
             r#"

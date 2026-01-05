@@ -14,6 +14,8 @@ declare_lint! {
         code = "LC015",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -72,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_detects_control_char_in_regex() {
-        let test = TestProgram::for_rule_without_builtins(NoControlRegex);
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         // use a hex escape to embed a control character
         let result = test.lint_ast("test.ds", "/\x01/");
         test.result(result).assert_lint("no-control-regex");
@@ -80,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_allows_normal_regex() {
-        let test = TestProgram::for_rule_without_builtins(NoControlRegex);
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -92,7 +94,7 @@ let re = /abc/
 
     #[test]
     fn test_allows_escaped_control_sequences() {
-        let test = TestProgram::for_rule_without_builtins(NoControlRegex);
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -104,7 +106,7 @@ let re = /\n\t\r/
 
     #[test]
     fn test_allows_hex_escapes() {
-        let test = TestProgram::for_rule_without_builtins(NoControlRegex);
+        let test = TestProgram::for_rule_without_prelude(NoControlRegex);
         let result = test.lint_ast(
             "test.ds",
             r#"

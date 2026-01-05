@@ -485,7 +485,6 @@ impl<'a> ThreadedState<'a> {
     /// Get the current frame mutably.
     #[inline(always)]
     pub fn current_frame_mut(&mut self) -> &mut super::Frame {
-        // return current frame
         // #Safety: frame pointer is valid for current block execution
         unsafe { &mut *self.frame }
     }
@@ -493,7 +492,6 @@ impl<'a> ThreadedState<'a> {
     /// Get a frame by index.
     #[inline(always)]
     pub fn frame_by_index(&self, frame_index: usize) -> Result<&super::Frame, Error> {
-        // look up frame by index
         self.interpreter
             .call_stack
             .get(frame_index)
@@ -503,7 +501,6 @@ impl<'a> ThreadedState<'a> {
     /// Get a frame by index mutably.
     #[inline(always)]
     pub fn frame_by_index_mut(&mut self, frame_index: usize) -> Result<&mut super::Frame, Error> {
-        // look up frame by index
         self.interpreter
             .call_stack
             .get_mut(frame_index)
@@ -513,26 +510,16 @@ impl<'a> ThreadedState<'a> {
     /// Get value by SSA id.
     #[inline(always)]
     pub fn get(&self, v: mir::Value) -> Value {
-        // compute value index
         let index = v.0 as usize;
-
-        // validate bounds in debug builds
         debug_assert!(index < self.value_count, "ssa value out of bounds: {v:?}");
-
-        // read value
         unsafe { *self.values.add(index) }
     }
 
     /// Set value by SSA id.
     #[inline(always)]
     pub fn set(&mut self, v: mir::Value, val: Value) {
-        // compute value index
         let index = v.0 as usize;
-
-        // validate bounds in debug builds
         debug_assert!(index < self.value_count, "ssa value out of bounds: {v:?}");
-
-        // write value
         unsafe {
             *self.values.add(index) = val;
         }
@@ -541,26 +528,16 @@ impl<'a> ThreadedState<'a> {
     /// Get local variable.
     #[inline(always)]
     pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> Value {
-        // compute local index
         let index = local.id as usize;
-
-        // validate bounds in debug builds
         debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
-
-        // read local value
         unsafe { *self.locals.add(index) }
     }
 
     /// Set local variable.
     #[inline(always)]
     pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, val: Value) {
-        // compute local index
         let index = local.id as usize;
-
-        // validate bounds in debug builds
         debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
-
-        // write local value
         unsafe {
             *self.locals.add(index) = val;
         }
@@ -569,34 +546,24 @@ impl<'a> ThreadedState<'a> {
     /// Get the argument slice for the given range.
     #[inline(always)]
     pub fn argument_slice(&self, range: ArgumentRange) -> &[mir::Value] {
-        // compute argument range
         let start = range.start as usize;
         let len = range.len as usize;
-
-        // validate bounds in debug builds
         debug_assert!(
             start + len <= self.argument_pool_len,
             "argument pool out of bounds for range"
         );
-
-        // read argument slice
         unsafe { std::slice::from_raw_parts(self.argument_pool.add(start), len) }
     }
 
     /// Get the switch case slice for the given range.
     #[inline(always)]
     pub fn switch_cases(&self, range: SwitchRange) -> &[SwitchCase] {
-        // compute switch case range
         let start = range.start as usize;
         let len = range.len as usize;
-
-        // validate bounds in debug builds
         debug_assert!(
             start + len <= self.switch_case_pool_len,
             "switch case pool out of bounds for range"
         );
-
-        // read switch case slice
         unsafe { std::slice::from_raw_parts(self.switch_case_pool.add(start), len) }
     }
 }

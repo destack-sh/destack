@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
 };
@@ -16,6 +17,12 @@ declare_lint! {
         code = "LR001",
         category = Restriction,
         level = Dir,
+        requires_all = [],
+        requires_any = [
+            RequireLibSymbol("alert", &["dom"]),
+            RequireLibSymbol("confirm", &["dom"]),
+            RequireLibSymbol("prompt", &["dom"]),
+        ],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -222,19 +229,17 @@ impl NodeVisitor for NoAlertVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report alert calls.
     #[test]
     fn test_flags_alert_call() {
-        let test = TestProgram::for_rule_with_builtins(NoAlert).with_lib("dom");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 alert("stop");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-alert");
     }
@@ -242,13 +247,12 @@ alert("stop");
     /// Report window confirm calls.
     #[test]
     fn test_flags_window_confirm_call() {
-        let test = TestProgram::for_rule_with_builtins(NoAlert).with_lib("dom");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 window.confirm("ok");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-alert");
     }
@@ -256,13 +260,12 @@ window.confirm("ok");
     /// Report prompt calls.
     #[test]
     fn test_flags_prompt_call() {
-        let test = TestProgram::for_rule_with_builtins(NoAlert).with_lib("dom");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 prompt("name");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-alert");
     }
@@ -270,13 +273,12 @@ prompt("name");
     /// Allow other function calls.
     #[test]
     fn test_allows_other_call() {
-        let test = TestProgram::for_rule_with_builtins(NoAlert).with_lib("dom");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoAlert);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 notify("ok");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-alert");
     }

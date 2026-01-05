@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY057",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -65,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_number_type_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferPreciseNumeric);
+        let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -79,7 +81,7 @@ function foo(x: number): number {
 
     #[test]
     fn test_int32_type_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferPreciseNumeric);
+        let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -93,7 +95,7 @@ function foo(x: int32): int32 {
 
     #[test]
     fn test_float64_type_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferPreciseNumeric);
+        let test = TestProgram::for_rule_without_prelude(PreferPreciseNumeric);
         let result = test.lint_ast(
             "test.ds",
             r#"

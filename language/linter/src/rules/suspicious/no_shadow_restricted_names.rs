@@ -17,6 +17,8 @@ declare_lint! {
         code = "LU040",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -176,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_detects_nan_variable() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -189,7 +191,7 @@ let NaN = 0
 
     #[test]
     fn test_detects_infinity_variable() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -202,7 +204,7 @@ let Infinity = 100
 
     #[test]
     fn test_detects_arguments_param() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -215,7 +217,7 @@ function foo(arguments: int) {}
 
     #[test]
     fn test_detects_object_class() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -228,7 +230,7 @@ class Object {}
 
     #[test]
     fn test_detects_array_function() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -241,7 +243,7 @@ function Array() {}
 
     #[test]
     fn test_allows_normal_names() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -256,7 +258,7 @@ function foo() {}
 
     #[test]
     fn test_allows_similar_names() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -270,7 +272,7 @@ let isNaN = true
 
     #[test]
     fn test_detects_language_item_type() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -283,7 +285,7 @@ let Type = 42
 
     #[test]
     fn test_detects_language_item_add() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -296,7 +298,7 @@ struct Add {}
 
     #[test]
     fn test_detects_language_item_range() {
-        let test = TestProgram::for_rule_without_builtins(NoShadowRestrictedNames);
+        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
             r#"

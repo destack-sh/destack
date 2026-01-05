@@ -16,6 +16,8 @@ declare_lint! {
         code = "LX017",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -207,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_detects_complex_type() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexType)
+        let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.max_type_complexity = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -220,7 +222,7 @@ let x: Array<Map<string, List<Set<int32>>>>;
 
     #[test]
     fn test_allows_simple_type() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexType);
+        let test = TestProgram::for_rule_without_prelude(NoComplexType);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -232,7 +234,7 @@ let x: Array<string>;
 
     #[test]
     fn test_allows_moderate_type() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexType)
+        let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.max_type_complexity = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -245,7 +247,7 @@ let x: Map<string, Array<int32>>;
 
     #[test]
     fn test_counts_union_complexity() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexType)
+        let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.max_type_complexity = 2);
         let result = test.lint_ast(
             "test.ds",
@@ -258,7 +260,7 @@ let x: A | B | (C | D | E);
 
     #[test]
     fn test_checks_function_parameter() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexType)
+        let test = TestProgram::for_rule_without_prelude(NoComplexType)
             .with_options(|options| options.max_type_complexity = 2);
         let result = test.lint_ast(
             "test.ds",

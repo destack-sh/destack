@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU031",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -114,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_detects_negation_on_left() {
-        let test = TestProgram::for_rule_without_builtins(NoNegationInEqualityCheck);
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -127,7 +129,7 @@ const x = !a == b
 
     #[test]
     fn test_detects_negation_on_right() {
-        let test = TestProgram::for_rule_without_builtins(NoNegationInEqualityCheck);
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -140,7 +142,7 @@ const x = a == !b
 
     #[test]
     fn test_detects_with_strict_equality() {
-        let test = TestProgram::for_rule_without_builtins(NoNegationInEqualityCheck);
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +155,7 @@ const x = !a === b
 
     #[test]
     fn test_allows_not_equal() {
-        let test = TestProgram::for_rule_without_builtins(NoNegationInEqualityCheck);
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -166,7 +168,7 @@ const x = a != b
 
     #[test]
     fn test_allows_negation_of_whole_expression() {
-        let test = TestProgram::for_rule_without_builtins(NoNegationInEqualityCheck);
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +181,7 @@ const x = !(a == b)
 
     #[test]
     fn test_allows_normal_equality() {
-        let test = TestProgram::for_rule_without_builtins(NoNegationInEqualityCheck);
+        let test = TestProgram::for_rule_without_prelude(NoNegationInEqualityCheck);
         let result = test.lint_ast(
             "test.ds",
             r#"

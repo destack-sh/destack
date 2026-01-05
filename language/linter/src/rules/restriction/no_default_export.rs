@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR011",
         category = Restriction,
         level = Dir,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -93,53 +95,48 @@ impl LintRule for NoDefaultExport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_detects_default_export_function() {
-        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir(
             "test.ds",
-            "export default function foo() {}",
-            LintLevel::Dir,
-        );
+            "export default function foo() {}");
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
     }
 
     #[test]
     fn test_detects_default_export_class() {
-        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
-        let result = test.lint("test.ds", "export default class Foo {}", LintLevel::Dir);
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir("test.ds", "export default class Foo {}");
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
     }
 
     #[test]
     fn test_allows_named_export_function() {
-        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
-        let result = test.lint("test.ds", "export function foo() {}", LintLevel::Dir);
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir("test.ds", "export function foo() {}");
         test.check_clean();
         test.result(result).assert_no_lint("no-default-export");
     }
 
     #[test]
     fn test_allows_named_export_class() {
-        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
-        let result = test.lint("test.ds", "export class Foo {}", LintLevel::Dir);
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir("test.ds", "export class Foo {}");
         test.check_clean();
         test.result(result).assert_no_lint("no-default-export");
     }
 
     #[test]
     fn test_detects_default_export_identifier() {
-        let test = TestProgram::for_rule_without_builtins(NoDefaultExport);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoDefaultExport);
+        let result = test.lint_dir(
             "test.ds",
-            "const foo = 1;\nexport default foo;",
-            LintLevel::Dir,
-        );
+            "const foo = 1;\nexport default foo;");
         test.check_clean();
         test.result(result).assert_lint("no-default-export");
     }

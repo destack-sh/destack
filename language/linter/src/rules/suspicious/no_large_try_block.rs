@@ -15,6 +15,8 @@ declare_lint! {
         code = "LU026",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -87,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_detects_large_try_block() {
-        let test = TestProgram::for_rule_without_builtins(NoLargeTryBlock)
+        let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.max_try_block_statements = 3);
         let result = test.lint_ast(
             "test.ds",
@@ -107,7 +109,7 @@ try {
 
     #[test]
     fn test_allows_small_try_block() {
-        let test = TestProgram::for_rule_without_builtins(NoLargeTryBlock)
+        let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.max_try_block_statements = 5);
         let result = test.lint_ast(
             "test.ds",
@@ -125,7 +127,7 @@ try {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule_without_builtins(NoLargeTryBlock)
+        let test = TestProgram::for_rule_without_prelude(NoLargeTryBlock)
             .with_options(|options| options.max_try_block_statements = 3);
         let result = test.lint_ast(
             "test.ds",

@@ -16,6 +16,8 @@ declare_lint! {
         code = "LX016",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -164,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_detects_double_negation() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -177,7 +179,7 @@ let x = !!value
 
     #[test]
     fn test_detects_redundant_and() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -190,7 +192,7 @@ let x = a && a
 
     #[test]
     fn test_detects_redundant_or() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -203,7 +205,7 @@ let x = b || b
 
     #[test]
     fn test_detects_contradiction_and() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -216,7 +218,7 @@ let x = a && !a
 
     #[test]
     fn test_detects_contradiction_or() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -229,7 +231,7 @@ let x = a || !a
 
     #[test]
     fn test_allows_valid_expressions() {
-        let test = TestProgram::for_rule_without_builtins(NoComplexBooleanExpression);
+        let test = TestProgram::for_rule_without_prelude(NoComplexBooleanExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"

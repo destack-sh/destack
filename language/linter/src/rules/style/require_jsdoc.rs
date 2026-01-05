@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY075",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -90,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_exported_function_without_doc_detected() {
-        let test = TestProgram::for_rule_without_builtins(RequireJsdoc);
+        let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -102,7 +104,7 @@ export function foo() {}
 
     #[test]
     fn test_exported_function_with_doc_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireJsdoc);
+        let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +117,7 @@ export function foo() {}
 
     #[test]
     fn test_private_function_without_doc_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireJsdoc);
+        let test = TestProgram::for_rule_without_prelude(RequireJsdoc);
         let result = test.lint_ast(
             "test.ds",
             r#"

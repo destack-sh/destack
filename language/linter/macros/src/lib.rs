@@ -17,6 +17,8 @@ use proc_macro::TokenStream;
 ///         code = "LC002",
 ///         category = Correctness,
 ///         level = Dir,
+///         requires_all = [],
+///         requires_any = [],
 ///         fixable = true,
 ///     )]
 ///     pub NoDebugger,

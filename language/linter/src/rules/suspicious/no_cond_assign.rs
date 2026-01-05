@@ -14,6 +14,8 @@ declare_lint! {
         code = "LU004",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -87,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_detects_if_assignment() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -101,7 +103,7 @@ if (x = 1) {
 
     #[test]
     fn test_detects_while_assignment() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +117,7 @@ while (x = getValue()) {
 
     #[test]
     fn test_allows_comparison() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -129,7 +131,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_strict_comparison() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -143,7 +145,7 @@ if (x === 1) {
 
     #[test]
     fn test_allows_boolean_condition() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -157,7 +159,7 @@ if (isReady) {
 
     #[test]
     fn test_allows_function_call_condition() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -171,7 +173,7 @@ while (hasMore()) {
 
     #[test]
     fn test_allows_let_expression_in_condition() {
-        let test = TestProgram::for_rule_without_builtins(NoCondAssign);
+        let test = TestProgram::for_rule_without_prelude(NoCondAssign);
         let result = test.lint_ast(
             "test.ds",
             r#"

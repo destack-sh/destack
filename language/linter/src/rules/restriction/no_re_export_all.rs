@@ -14,6 +14,8 @@ declare_lint! {
         code = "LR012",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -78,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_detects_export_star() {
-        let test = TestProgram::for_rule_without_builtins(NoReExportAll);
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -90,7 +92,7 @@ export * from "./module"
 
     #[test]
     fn test_detects_export_star_from_path() {
-        let test = TestProgram::for_rule_without_builtins(NoReExportAll);
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -102,7 +104,7 @@ export * from "some/path"
 
     #[test]
     fn test_allows_export_star_as() {
-        let test = TestProgram::for_rule_without_builtins(NoReExportAll);
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -114,7 +116,7 @@ export * as utils from "./utils"
 
     #[test]
     fn test_allows_named_exports() {
-        let test = TestProgram::for_rule_without_builtins(NoReExportAll);
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -126,7 +128,7 @@ export { foo, bar } from "./module"
 
     #[test]
     fn test_allows_default_export() {
-        let test = TestProgram::for_rule_without_builtins(NoReExportAll);
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -138,7 +140,7 @@ export default foo
 
     #[test]
     fn test_allows_local_exports() {
-        let test = TestProgram::for_rule_without_builtins(NoReExportAll);
+        let test = TestProgram::for_rule_without_prelude(NoReExportAll);
         let result = test.lint_ast(
             "test.ds",
             r#"

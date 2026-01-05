@@ -34,6 +34,8 @@ Rules are declared using the `declare_lint!` macro, which generates the boilerpl
 @lint({
     category: Correctness,
     level: Dir,
+    requiresAll: [],
+    requiresAny: [],
     fixable: No,
 })
 /// Disallow `delete` on arrays (creates holes).

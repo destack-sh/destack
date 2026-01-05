@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
 };
@@ -16,6 +17,8 @@ declare_lint! {
         code = "LR008",
         category = Restriction,
         level = Dir,
+        requires_all = [RequireLibSymbol("console", &["dom", "node"])],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -50,7 +53,7 @@ struct NoConsoleVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The console symbol for this module.
-    console_symbol: Option<dir::GlobalSymbolId>,
+    console_symbol: dir::GlobalSymbolId,
     /// The console member name.
     console_name: StringId,
     /// The global qualifier symbols.
@@ -68,7 +71,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
         let console_name = ctx.program.strings.intern("console");
 
         // resolve lib symbols
-        let console_symbol = ctx.get_lib_item(console_name);
+        let console_symbol = ctx.lib_item(console_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
         // prepare visitor state
@@ -85,11 +88,6 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when console is unavailable
-        if self.console_symbol.is_none() {
-            return;
-        }
-
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
@@ -129,9 +127,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     fn is_console_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match direct symbol references
         if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return self
-                .console_symbol
-                .is_some_and(|console_symbol| console_symbol == symbol);
+            return symbol == self.console_symbol;
         }
 
         // match global qualified references
@@ -187,22 +183,17 @@ impl NodeVisitor for NoConsoleVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
-    use destack_workspace::Runtime;
 
     /// Report console method calls.
     #[test]
     fn test_flags_console_call() {
-        let test = TestProgram::for_rule_with_builtins(NoConsole)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 console.log("debug");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-console");
     }
@@ -210,15 +201,12 @@ console.log("debug");
     /// Report global console usage.
     #[test]
     fn test_flags_window_console_call() {
-        let test = TestProgram::for_rule_with_builtins(NoConsole)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 globalThis.console.error("oops");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-console");
     }
@@ -226,15 +214,12 @@ globalThis.console.error("oops");
     /// Allow other member access.
     #[test]
     fn test_allows_other_member_access() {
-        let test = TestProgram::for_rule_with_builtins(NoConsole)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoConsole);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 logger.info("ok");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-console");
     }

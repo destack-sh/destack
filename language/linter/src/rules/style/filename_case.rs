@@ -12,6 +12,8 @@ declare_lint! {
         code = "LY015",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -139,35 +141,35 @@ mod tests {
 
     #[test]
     fn test_allows_kebab_case() {
-        let test = TestProgram::for_rule_without_builtins(FilenameCaseRule);
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
         let result = test.lint_ast("my-component.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 
     #[test]
     fn test_detects_snake_case_when_kebab_expected() {
-        let test = TestProgram::for_rule_without_builtins(FilenameCaseRule);
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
         let result = test.lint_ast("my_component.ds", "const x = 1");
         test.result(result).assert_lint("filename-case");
     }
 
     #[test]
     fn test_detects_pascal_case_when_kebab_expected() {
-        let test = TestProgram::for_rule_without_builtins(FilenameCaseRule);
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
         let result = test.lint_ast("MyComponent.ds", "const x = 1");
         test.result(result).assert_lint("filename-case");
     }
 
     #[test]
     fn test_allows_index_file() {
-        let test = TestProgram::for_rule_without_builtins(FilenameCaseRule);
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
         let result = test.lint_ast("index.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }
 
     #[test]
     fn test_allows_mod_file() {
-        let test = TestProgram::for_rule_without_builtins(FilenameCaseRule);
+        let test = TestProgram::for_rule_without_prelude(FilenameCaseRule);
         let result = test.lint_ast("mod.ds", "const x = 1");
         test.result(result).assert_no_lint("filename-case");
     }

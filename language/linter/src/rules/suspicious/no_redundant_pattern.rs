@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU037",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -156,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_detects_all_wildcards_object() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantPattern);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -168,7 +170,7 @@ const { a: _, b: _ } = obj
 
     #[test]
     fn test_detects_all_wildcards_array() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantPattern);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -180,7 +182,7 @@ const [_, _] = arr
 
     #[test]
     fn test_allows_binding_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantPattern);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -192,7 +194,7 @@ const { a, b } = obj
 
     #[test]
     fn test_allows_mixed_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantPattern);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -204,7 +206,7 @@ const { a, _b } = obj
 
     #[test]
     fn test_allows_array_with_binding() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantPattern);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -216,7 +218,7 @@ const [_, x] = arr
 
     #[test]
     fn test_allows_simple_binding() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantPattern);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"

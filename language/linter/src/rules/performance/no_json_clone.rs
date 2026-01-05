@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
     unwrap_parenthesized_expression,
@@ -17,6 +18,8 @@ declare_lint! {
         code = "LP008",
         category = Performance,
         level = Dir,
+        requires_all = [RequireLibSymbol("JSON", &[])],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -49,7 +52,7 @@ struct NoJsonCloneVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The JSON symbol for this module.
-    json_symbol: Option<dir::GlobalSymbolId>,
+    json_symbol: dir::GlobalSymbolId,
     /// The JSON member name.
     json_name: StringId,
     /// The parse member name.
@@ -71,7 +74,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         let stringify_name = ctx.program.strings.intern("stringify");
 
         // resolve lib symbols
-        let json_symbol = ctx.get_lib_item(json_name);
+        let json_symbol = ctx.lib_item(json_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
         // prepare visitor state
@@ -89,11 +92,6 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when JSON is unavailable
-        if self.json_symbol.is_none() {
-            return;
-        }
-
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
@@ -167,13 +165,8 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             return false;
         }
 
-        // require JSON to be available
-        let Some(json_symbol) = self.json_symbol else {
-            return false;
-        };
-
         // match direct JSON references
-        if expression_target_symbol(self.ctx.tree, *left) == Some(json_symbol) {
+        if expression_target_symbol(self.ctx.tree, *left) == Some(self.json_symbol) {
             return true;
         }
 
@@ -227,19 +220,17 @@ impl NodeVisitor for NoJsonCloneVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report JSON clone usage.
     #[test]
     fn test_flags_json_clone() {
-        let test = TestProgram::for_rule_with_builtins(NoJsonClone);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 const next = JSON.parse(JSON.stringify(value));
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-json-clone");
     }
@@ -247,13 +238,12 @@ const next = JSON.parse(JSON.stringify(value));
     /// Report global JSON clone usage.
     #[test]
     fn test_flags_global_json_clone() {
-        let test = TestProgram::for_rule_with_builtins(NoJsonClone);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 const next = globalThis.JSON.parse(globalThis.JSON.stringify(value));
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-json-clone");
     }
@@ -261,13 +251,12 @@ const next = globalThis.JSON.parse(globalThis.JSON.stringify(value));
     /// Allow JSON.parse without stringify.
     #[test]
     fn test_allows_json_parse() {
-        let test = TestProgram::for_rule_with_builtins(NoJsonClone);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoJsonClone);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 const parsed = JSON.parse(text);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-json-clone");
     }

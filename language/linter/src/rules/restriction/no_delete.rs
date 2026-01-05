@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR036",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -74,7 +76,7 @@ mod tests {
     /// Detect delete usage.
     #[test]
     fn test_detects_delete_expression() {
-        let test = TestProgram::for_rule_without_builtins(NoDelete);
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -88,7 +90,7 @@ delete item.value;
     /// Allow code without delete usage.
     #[test]
     fn test_allows_without_delete() {
-        let test = TestProgram::for_rule_without_builtins(NoDelete);
+        let test = TestProgram::for_rule_without_prelude(NoDelete);
         let result = test.lint_ast(
             "test.ts",
             r#"

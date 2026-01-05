@@ -21,6 +21,8 @@ declare_lint! {
         code = "LP024",
         category = Performance,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -81,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_detects_regex_without_unicode_flag() {
-        let test = TestProgram::for_rule_without_builtins(RequireUnicodeRegexp);
+        let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -93,7 +95,7 @@ let re = /foo/
 
     #[test]
     fn test_detects_regex_with_other_flags() {
-        let test = TestProgram::for_rule_without_builtins(RequireUnicodeRegexp);
+        let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -105,7 +107,7 @@ let re = /foo/gi
 
     #[test]
     fn test_allows_regex_with_u_flag() {
-        let test = TestProgram::for_rule_without_builtins(RequireUnicodeRegexp);
+        let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -117,7 +119,7 @@ let re = /foo/u
 
     #[test]
     fn test_allows_regex_with_u_and_other_flags() {
-        let test = TestProgram::for_rule_without_builtins(RequireUnicodeRegexp);
+        let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -129,7 +131,7 @@ let re = /foo/giu
 
     #[test]
     fn test_allows_regex_with_v_flag() {
-        let test = TestProgram::for_rule_without_builtins(RequireUnicodeRegexp);
+        let test = TestProgram::for_rule_without_prelude(RequireUnicodeRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"

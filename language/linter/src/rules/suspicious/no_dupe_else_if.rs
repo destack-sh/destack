@@ -14,6 +14,8 @@ declare_lint! {
         code = "LU011",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -134,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_else_if() {
-        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +152,7 @@ if (x > 0) {
 
     #[test]
     fn test_detects_duplicate_in_longer_chain() {
-        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -168,7 +170,7 @@ if (x > 0) {
 
     #[test]
     fn test_allows_different_conditions() {
-        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -186,7 +188,7 @@ if (x > 0) {
 
     #[test]
     fn test_allows_simple_if_else() {
-        let test = TestProgram::for_rule_without_builtins(NoDupeElseIf);
+        let test = TestProgram::for_rule_without_prelude(NoDupeElseIf);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -26,6 +26,8 @@ declare_lint! {
         code = "LY049",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -112,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_exclusive_plus_one_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -124,7 +126,7 @@ const range = 0..n + 1
 
     #[test]
     fn test_exclusive_plus_one_with_start_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +138,7 @@ const range = 1..len + 1
 
     #[test]
     fn test_inclusive_range_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -148,7 +150,7 @@ const range = 0..=n
 
     #[test]
     fn test_exclusive_without_plus_one_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -160,7 +162,7 @@ const range = 0..n
 
     #[test]
     fn test_exclusive_length_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -172,7 +174,7 @@ const range = 0..arr.length
 
     #[test]
     fn test_for_loop_plus_one_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -188,7 +190,7 @@ function foo(n: int32) {
 
     #[test]
     fn test_plus_two_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -201,7 +203,7 @@ const range = 0..n + 2
 
     #[test]
     fn test_minus_one_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferInclusiveRange);
+        let test = TestProgram::for_rule_without_prelude(PreferInclusiveRange);
         let result = test.lint_ast(
             "test.ds",
             r#"

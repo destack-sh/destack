@@ -29,6 +29,8 @@ declare_lint! {
         code = "LX023",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -95,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_detects_unused_literal() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds", r#"
 5
@@ -106,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_detects_unused_string() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -118,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_detects_unused_binary() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -130,7 +132,7 @@ x + 1
 
     #[test]
     fn test_detects_unused_identifier() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds", r#"
 x
@@ -141,7 +143,7 @@ x
 
     #[test]
     fn test_allows_function_call() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +155,7 @@ doSomething()
 
     #[test]
     fn test_allows_assignment() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -165,7 +167,7 @@ x = 5
 
     #[test]
     fn test_allows_let_binding() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -177,7 +179,7 @@ let x = 5
 
     #[test]
     fn test_allows_return() {
-        let test = TestProgram::for_rule_without_builtins(NoUnusedExpressions);
+        let test = TestProgram::for_rule_without_prelude(NoUnusedExpressions);
         let result = test.lint_ast(
             "test.ds",
             r#"

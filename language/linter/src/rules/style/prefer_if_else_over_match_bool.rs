@@ -28,6 +28,8 @@ declare_lint! {
         code = "LY047",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -131,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_match_bool_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +151,7 @@ function foo(condition: bool) {
 
     #[test]
     fn test_match_bool_false_first_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -167,7 +169,7 @@ function foo(condition: bool) {
 
     #[test]
     fn test_if_else_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -186,7 +188,7 @@ function foo(condition: bool) {
 
     #[test]
     fn test_match_non_bool_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -204,7 +206,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_match_enum_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -222,7 +224,7 @@ function foo(x: int32?) {
 
     #[test]
     fn test_match_bool_with_wildcard_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -241,7 +243,7 @@ function foo(condition: bool) {
 
     #[test]
     fn test_match_more_than_two_arms_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -260,7 +262,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_match_bool_same_value_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfElseOverMatchBool);
+        let test = TestProgram::for_rule_without_prelude(PreferIfElseOverMatchBool);
         let result = test.lint_ast(
             "test.ds",
             r#"

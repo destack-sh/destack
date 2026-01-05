@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU038",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -82,35 +84,35 @@ mod tests {
 
     #[test]
     fn test_detects_return_assignment() {
-        let test = TestProgram::for_rule_without_builtins(NoReturnAssign);
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
         let result = test.lint_ast("test.ts", "function foo() { return x = 1; }");
         test.result(result).assert_lint("no-return-assign");
     }
 
     #[test]
     fn test_detects_parenthesized_assignment() {
-        let test = TestProgram::for_rule_without_builtins(NoReturnAssign);
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
         let result = test.lint_ast("test.ts", "function foo() { return (x = 1); }");
         test.result(result).assert_lint("no-return-assign");
     }
 
     #[test]
     fn test_allows_normal_return() {
-        let test = TestProgram::for_rule_without_builtins(NoReturnAssign);
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
         let result = test.lint_ast("test.ts", "function foo() { return x; }");
         test.result(result).assert_no_lint("no-return-assign");
     }
 
     #[test]
     fn test_allows_comparison_in_return() {
-        let test = TestProgram::for_rule_without_builtins(NoReturnAssign);
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
         let result = test.lint_ast("test.ts", "function foo() { return x == 1; }");
         test.result(result).assert_no_lint("no-return-assign");
     }
 
     #[test]
     fn test_allows_empty_return() {
-        let test = TestProgram::for_rule_without_builtins(NoReturnAssign);
+        let test = TestProgram::for_rule_without_prelude(NoReturnAssign);
         let result = test.lint_ast("test.ts", "function foo() { return; }");
         test.result(result).assert_no_lint("no-return-assign");
     }

@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
 };
@@ -17,6 +18,8 @@ declare_lint! {
         code = "LY031",
         category = Style,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -33,10 +36,7 @@ impl LintRule for NoObjectConstructor {
 
     /// Check module DIR nodes for Object constructor calls.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for object constructor calls
         let mut visitor = ObjectConstructorVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -49,7 +49,7 @@ struct ObjectConstructorVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known Object symbol for this module.
-    object_symbol: Option<dir::GlobalSymbolId>,
+    object_symbol: dir::GlobalSymbolId,
     /// The Object member name.
     object_name: StringId,
     /// The global qualifier symbols.
@@ -61,12 +61,10 @@ struct ObjectConstructorVisitor<'a, 'b> {
 impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     /// Build a visitor for object constructor checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known Object symbol for this module
-        let object_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Object);
+        let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
         let object_name = ctx.program.strings.intern("Object");
         let global_qualifiers = global_qualifier_symbols(ctx);
 
-        // prepare visitor state
         Self {
             ctx,
             meta,
@@ -79,16 +77,9 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when no Object symbol is available
-        if self.object_symbol.is_none() {
-            return;
-        }
-
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -132,9 +123,7 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     /// Return true when the expression is a reference to Object.
     fn is_object_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match direct symbol references
-        if let Some(object_symbol) = self.object_symbol
-            && expression_target_symbol(self.ctx.tree, expression_id) == Some(object_symbol)
-        {
+        if expression_target_symbol(self.ctx.tree, expression_id) == Some(self.object_symbol) {
             return true;
         }
 
@@ -184,31 +173,28 @@ fn object_constructor_reference(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_flags_object_constructor_call() {
-        let test = TestProgram::for_rule_with_builtins(NoObjectConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = Object();
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-object-constructor");
     }
 
     #[test]
     fn test_flags_object_constructor_new() {
-        let test = TestProgram::for_rule_with_builtins(NoObjectConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = new Object();
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-object-constructor");
     }
@@ -216,26 +202,24 @@ let value = new Object();
     /// Report global Object constructor calls.
     #[test]
     fn test_flags_global_object_constructor() {
-        let test = TestProgram::for_rule_with_builtins(NoObjectConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = globalThis.Object();
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-object-constructor");
     }
 
     #[test]
     fn test_allows_object_literal() {
-        let test = TestProgram::for_rule_with_builtins(NoObjectConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoObjectConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = { key: "value" };
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-object-constructor");
     }

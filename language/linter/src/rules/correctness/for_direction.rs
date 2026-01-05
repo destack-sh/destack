@@ -13,6 +13,8 @@ declare_lint! {
         code = "LC002",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -147,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_detects_wrong_direction_increment() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -161,7 +163,7 @@ for (let i = 0; i < 10; i--) {
 
     #[test]
     fn test_detects_wrong_direction_decrement() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -175,7 +177,7 @@ for (let i = 10; i > 0; i++) {
 
     #[test]
     fn test_detects_wrong_direction_less_equal() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -189,7 +191,7 @@ for (let i = 0; i <= 10; i--) {
 
     #[test]
     fn test_detects_wrong_direction_greater_equal() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -203,7 +205,7 @@ for (let i = 10; i >= 0; i++) {
 
     #[test]
     fn test_correct_direction_increment() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -217,7 +219,7 @@ for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_correct_direction_decrement() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -231,7 +233,7 @@ for (let i = 10; i > 0; i--) {
 
     #[test]
     fn test_correct_direction_add_assign() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -245,7 +247,7 @@ for (let i = 0; i < 10; i += 2) {
 
     #[test]
     fn test_correct_direction_subtract_assign() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -259,7 +261,7 @@ for (let i = 10; i > 0; i -= 2) {
 
     #[test]
     fn test_no_condition() {
-        let test = TestProgram::for_rule_without_builtins(ForDirection);
+        let test = TestProgram::for_rule_without_prelude(ForDirection);
         let result = test.lint_ast(
             "test.ds",
             r#"

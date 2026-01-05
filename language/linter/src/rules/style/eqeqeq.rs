@@ -7,15 +7,15 @@ declare_lint! {
     /// Require strict equality operators.
     ///
     /// Use `===` and `!==` instead of `==` and `!=`.
-    /// Note: In Destack, `==` is typed and overloadable, so this rule
-    /// may not always be applicable.
     #[lint(
         id = "eqeqeq",
         code = "LY012",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
-        recommended = Strict,
+        recommended = Off,
         stability = Stable
     )]
     pub Eqeqeq,
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_detects_loose_equality() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -108,7 +108,7 @@ if (a == b) {
 
     #[test]
     fn test_detects_loose_inequality() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -122,7 +122,7 @@ if (a != b) {
 
     #[test]
     fn test_allows_strict_equality() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +136,7 @@ if (a === b) {
 
     #[test]
     fn test_allows_strict_inequality() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -150,7 +150,7 @@ if (a !== b) {
 
     #[test]
     fn test_allows_other_operators() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -164,7 +164,7 @@ if (a < b && c > d) {
 
     #[test]
     fn test_fix_loose_equality() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -180,7 +180,7 @@ if (a === b) { x() }
 
     #[test]
     fn test_fix_loose_inequality() {
-        let test = TestProgram::for_rule_without_builtins(Eqeqeq);
+        let test = TestProgram::for_rule_without_prelude(Eqeqeq);
         let result = test.lint_ast(
             "test.ds",
             r#"

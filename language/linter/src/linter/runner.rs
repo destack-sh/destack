@@ -7,7 +7,7 @@ use destack_workspace::{LintPreset, LinterOptions, Module, ProfileId, Program};
 
 use crate::{
     BoxedLintRule, LintDiagnostic, LintLevel, LintModuleAstContext, LintModuleDirContext,
-    LintProgramContext, all_rules, recommended_rules,
+    all_rules, recommended_rules,
 };
 
 /// Runs lint rules against modules and programs.
@@ -99,9 +99,9 @@ impl LintRunner {
             return Vec::new();
         }
         match level {
-            LintLevel::Ast => self.lint_module_ast(program, module, options),
+            LintLevel::Ast => self.lint_module_ast(program, module, profile, options),
             LintLevel::Dir => self.lint_module_dir(program, module, profile, options),
-            LintLevel::Mir => todo!(),
+            LintLevel::Mir => todo!("MIR rules not yet supported"),
         }
     }
 
@@ -110,6 +110,7 @@ impl LintRunner {
         &self,
         program: Arc<Program>,
         module: Arc<RwLock<Module>>,
+        _profile: ProfileId,
         options: &LinterOptions,
     ) -> Vec<LintDiagnostic> {
         let module = module.read();
@@ -127,15 +128,16 @@ impl LintRunner {
             self.compute_fixes,
         );
 
+        // check ast rules
         for rule in &self.rules {
-            if rule.meta().level != LintLevel::Ast {
-                continue;
+            let meta = rule.meta();
+            if meta.level == LintLevel::Ast
+                && ctx.is_rule_supported(meta)
+                && ctx.is_rule_enabled(meta)
+            {
+                let severity = ctx.get_severity(meta);
+                rule.check_module_ast(severity, &mut ctx);
             }
-            if !ctx.is_rule_enabled(rule.meta()) {
-                continue;
-            }
-            let severity = ctx.get_severity(rule.meta());
-            rule.check_module_ast(severity, &mut ctx);
         }
 
         ctx.take_diagnostics()
@@ -184,16 +186,16 @@ impl LintRunner {
             self.compute_fixes,
         );
 
-        // check rules
+        // check dir rules
         for rule in &self.rules {
-            if rule.meta().level != LintLevel::Dir {
-                continue;
+            let meta = rule.meta();
+            if meta.level == LintLevel::Dir
+                && ctx.is_rule_supported(meta)
+                && ctx.is_rule_enabled(meta)
+            {
+                let severity = ctx.get_severity(meta);
+                rule.check_module_dir(severity, &mut ctx);
             }
-            if !ctx.is_rule_enabled(rule.meta()) {
-                continue;
-            }
-            let severity = ctx.get_severity(rule.meta());
-            rule.check_module_dir(severity, &mut ctx);
         }
 
         ctx.take_diagnostics()
@@ -229,26 +231,6 @@ impl LintRunner {
             diagnostics.extend(self.lint_module(program.clone(), module, profile, options, level));
         }
         diagnostics
-    }
-
-    /// Lint the entire program (cross-module analysis).
-    pub fn lint_program(
-        &self,
-        program: Arc<Program>,
-        options: &LinterOptions,
-    ) -> Vec<LintDiagnostic> {
-        if !options.enabled {
-            return Vec::new();
-        }
-
-        let mut context = LintProgramContext::new(program, options.clone());
-        for rule in &self.rules {
-            if !context.is_rule_enabled(rule.meta()) {
-                continue;
-            }
-            rule.check_program(&mut context);
-        }
-        context.take_diagnostics()
     }
 }
 

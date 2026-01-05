@@ -1,3 +1,4 @@
+use destack_dir::WellKnownSymbol;
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{LintCategory, LintSeverity};
 
@@ -21,6 +22,16 @@ pub enum LintScope {
     Module,
     /// Operates on the entire program (cross-module analysis).
     Program,
+}
+
+/// A symbol requirement for running a lint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LintRequirement {
+    /// A symbol provided by a builtin lib, resolved by name.
+    /// If libs are provided (second argument), at least one of them must be available.
+    RequireLibSymbol(&'static str, &'static [&'static str]),
+    /// A well-known symbol provided by the language runtime.
+    RequireWellKnownSymbol(WellKnownSymbol),
 }
 
 /// Whether a lint is part of the recommended set.
@@ -81,6 +92,10 @@ pub struct LintMeta {
     pub level: LintLevel,
     /// Scope this lint operates on.
     pub scope: LintScope,
+    /// Symbols that must all be available for this lint to run.
+    pub requires_all: &'static [LintRequirement],
+    /// Symbols where at least one must be available for this lint to run.
+    pub requires_any: &'static [LintRequirement],
 }
 
 impl LintMeta {

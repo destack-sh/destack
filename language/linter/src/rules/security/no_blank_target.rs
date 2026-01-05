@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
-// #Correctness: no-blank-target works but would be better with canonical DIR symbols?
+// TODO #Correctness: no-blank-target works but would be better with canonical DIR symbols?
 
 declare_lint! {
     /// Disallow `target="_blank"` without `rel="noopener noreferrer"`.
@@ -16,6 +16,8 @@ declare_lint! {
         code = "LS001",
         category = Security,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -167,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_detects_blank_target_without_rel() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +181,7 @@ let link = <a href="https://example.com" target="_blank">Click</a>
 
     #[test]
     fn test_allows_blank_target_with_noopener() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -191,7 +193,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener">Click</a
 
     #[test]
     fn test_allows_blank_target_with_noreferrer() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -203,7 +205,7 @@ let link = <a href="https://example.com" target="_blank" rel="noreferrer">Click<
 
     #[test]
     fn test_allows_blank_target_with_both() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -215,7 +217,7 @@ let link = <a href="https://example.com" target="_blank" rel="noopener noreferre
 
     #[test]
     fn test_allows_no_target() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -227,7 +229,7 @@ let link = <a href="https://example.com">Click</a>
 
     #[test]
     fn test_allows_other_target() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -239,7 +241,7 @@ let link = <a href="https://example.com" target="_self">Click</a>
 
     #[test]
     fn test_allows_non_anchor_element() {
-        let test = TestProgram::for_rule_without_builtins(NoBlankTarget);
+        let test = TestProgram::for_rule_without_prelude(NoBlankTarget);
         let result = test.lint_ast(
             "test.ds",
             r#"

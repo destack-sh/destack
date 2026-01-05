@@ -14,6 +14,8 @@ declare_lint! {
         code = "LC057",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Sometimes,
         recommended = Always,
         stability = Stable
@@ -163,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_detects_nan_strict_equal() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -176,7 +178,7 @@ if (x === NaN) {}
 
     #[test]
     fn test_detects_nan_equal() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -189,7 +191,7 @@ if (x == NaN) {}
 
     #[test]
     fn test_detects_nan_not_equal() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -202,7 +204,7 @@ if (x !== NaN) {}
 
     #[test]
     fn test_detects_nan_less_than() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -215,7 +217,7 @@ if (x < NaN) {}
 
     #[test]
     fn test_detects_nan_on_left() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -228,7 +230,7 @@ if (NaN === x) {}
 
     #[test]
     fn test_detects_number_nan() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -241,7 +243,7 @@ if (x === Number.NaN) {}
 
     #[test]
     fn test_allows_normal_comparison() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -254,7 +256,7 @@ if (x === 0.0) {}
 
     #[test]
     fn test_allows_isnan_call() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -267,7 +269,7 @@ if (Number.isNaN(x)) {}
 
     #[test]
     fn test_allows_nan_variable_name() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -280,7 +282,7 @@ let x = NaN
 
     #[test]
     fn test_fix_strict_equal() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -300,7 +302,7 @@ if (Number.isNaN(x)) { }
 
     #[test]
     fn test_fix_not_equal() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -320,7 +322,7 @@ if (!Number.isNaN(x)) { }
 
     #[test]
     fn test_fix_nan_on_left() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -340,7 +342,7 @@ if (Number.isNaN(x)) { }
 
     #[test]
     fn test_fix_complex_expression() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -360,7 +362,7 @@ let x = Number.isNaN((y + 1));
 
     #[test]
     fn test_no_fix_for_relational() {
-        let test = TestProgram::for_rule_without_builtins(UseIsnan);
+        let test = TestProgram::for_rule_without_prelude(UseIsnan);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
 };
@@ -16,6 +17,8 @@ declare_lint! {
         code = "LR025",
         category = Restriction,
         level = Dir,
+        requires_all = [RequireLibSymbol("process", &["node"])],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -48,7 +51,7 @@ struct NoProcessExitVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The process symbol for this module.
-    process_symbol: Option<dir::GlobalSymbolId>,
+    process_symbol: dir::GlobalSymbolId,
     /// The process member name.
     process_name: StringId,
     /// The exit member name.
@@ -64,7 +67,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // resolve lib symbols
         let process_name = ctx.program.strings.intern("process");
-        let process_symbol = ctx.get_lib_item(process_name);
+        let process_symbol = ctx.lib_item(process_name);
         let exit_name = ctx.program.strings.intern("exit");
         let global_qualifiers = global_qualifier_symbols(ctx);
 
@@ -82,11 +85,6 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when process is unavailable
-        if self.process_symbol.is_none() {
-            return;
-        }
-
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
@@ -144,9 +142,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     fn is_process_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match direct symbol references
         if let Some(symbol) = expression_target_symbol(self.ctx.tree, expression_id) {
-            return self
-                .process_symbol
-                .is_some_and(|process_symbol| process_symbol == symbol);
+            return symbol == self.process_symbol;
         }
 
         // match global qualified references
@@ -183,22 +179,17 @@ impl NodeVisitor for NoProcessExitVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
-    use destack_workspace::Runtime;
 
     /// Report process exit calls.
     #[test]
     fn test_flags_process_exit_call() {
-        let test = TestProgram::for_rule_with_builtins(NoProcessExit)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 process.exit(1);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-process-exit");
     }
@@ -206,15 +197,12 @@ process.exit(1);
     /// Report global process exit calls.
     #[test]
     fn test_flags_global_process_exit_call() {
-        let test = TestProgram::for_rule_with_builtins(NoProcessExit)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 globalThis.process.exit(1);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-process-exit");
     }
@@ -222,15 +210,12 @@ globalThis.process.exit(1);
     /// Allow other process calls.
     #[test]
     fn test_allows_other_process_call() {
-        let test = TestProgram::for_rule_with_builtins(NoProcessExit)
-            .with_runtime(Runtime::Node)
-            .with_lib("node");
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoProcessExit);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 process.cwd();
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-process-exit");
     }

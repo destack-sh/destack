@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU043",
         category = Suspicious,
         level = Dir,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -85,19 +87,17 @@ fn is_literal_expression(expression: &dir::Expression) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report throwing string literals.
     #[test]
     fn test_flags_string_literal_throw() {
-        let test = TestProgram::for_rule_without_builtins(NoThrowLiteral);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 throw "oops";
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-throw-literal");
     }
@@ -105,13 +105,12 @@ throw "oops";
     /// Report throwing object literals.
     #[test]
     fn test_flags_object_literal_throw() {
-        let test = TestProgram::for_rule_without_builtins(NoThrowLiteral);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 throw { message: "oops" };
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-throw-literal");
     }
@@ -119,13 +118,12 @@ throw { message: "oops" };
     /// Allow throwing Error objects.
     #[test]
     fn test_allows_error_throw() {
-        let test = TestProgram::for_rule_without_builtins(NoThrowLiteral);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoThrowLiteral);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 throw new Error("oops");
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-throw-literal");
     }

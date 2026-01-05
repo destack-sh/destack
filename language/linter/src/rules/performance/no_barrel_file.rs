@@ -23,6 +23,8 @@ declare_lint! {
         code = "LP006",
         category = Performance,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -114,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_detects_barrel_file_with_star_exports() {
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "index.ds",
             r#"
@@ -127,7 +129,7 @@ export * from "./bar"
 
     #[test]
     fn test_detects_barrel_file_with_named_exports() {
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "index.ds",
             r#"
@@ -140,7 +142,7 @@ export { bar, baz } from "./bar"
 
     #[test]
     fn test_detects_mixed_barrel_file() {
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "index.ds",
             r#"
@@ -154,7 +156,7 @@ export { bar } from "./bar"
     #[test]
     fn test_allows_single_reexport() {
         // a single re-export is fine, not considered a barrel file
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "index.ds",
             r#"
@@ -166,7 +168,7 @@ export * from "./foo"
 
     #[test]
     fn test_allows_module_with_real_code() {
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "module.ds",
             r#"
@@ -182,7 +184,7 @@ export function main() {
 
     #[test]
     fn test_allows_local_exports() {
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "module.ds",
             r#"
@@ -195,7 +197,7 @@ export const bar = 42
 
     #[test]
     fn test_allows_mixed_local_and_reexport() {
-        let test = TestProgram::for_rule_without_builtins(NoBarrelFile);
+        let test = TestProgram::for_rule_without_prelude(NoBarrelFile);
         let result = test.lint_ast(
             "module.ds",
             r#"

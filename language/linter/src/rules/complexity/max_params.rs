@@ -13,6 +13,8 @@ declare_lint! {
         code = "LX009",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -69,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_params() {
-        let test = TestProgram::for_rule_without_builtins(MaxParams);
+        let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -83,7 +85,7 @@ function tooMany(a: int32, b: int32, c: int32, d: int32, e: int32) {
 
     #[test]
     fn test_detects_exactly_over_limit() {
-        let test = TestProgram::for_rule_without_builtins(MaxParams);
+        let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -95,7 +97,7 @@ function fiveParams(a: int32, b: int32, c: int32, d: int32, e: int32) {}
 
     #[test]
     fn test_allows_four_params() {
-        let test = TestProgram::for_rule_without_builtins(MaxParams);
+        let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -109,7 +111,7 @@ function fourParams(a: int32, b: int32, c: int32, d: int32) {
 
     #[test]
     fn test_allows_few_params() {
-        let test = TestProgram::for_rule_without_builtins(MaxParams);
+        let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -123,7 +125,7 @@ function add(a: int32, b: int32) {
 
     #[test]
     fn test_allows_no_params() {
-        let test = TestProgram::for_rule_without_builtins(MaxParams);
+        let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -137,7 +139,7 @@ function noParams() {
 
     #[test]
     fn test_detects_lambda_too_many_params() {
-        let test = TestProgram::for_rule_without_builtins(MaxParams);
+        let test = TestProgram::for_rule_without_prelude(MaxParams);
         let result = test.lint_ast(
             "test.ds",
             r#"

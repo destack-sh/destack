@@ -12,6 +12,8 @@ declare_lint! {
         code = "LC029",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -68,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_detects_invalid_regex_unmatched_paren() {
-        let test = TestProgram::for_rule_without_builtins(NoInvalidRegexp);
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -80,7 +82,7 @@ let re = /(/
 
     #[test]
     fn test_detects_invalid_regex_unmatched_bracket() {
-        let test = TestProgram::for_rule_without_builtins(NoInvalidRegexp);
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -92,7 +94,7 @@ let re = /[/
 
     #[test]
     fn test_detects_invalid_regex_incomplete_escape() {
-        let test = TestProgram::for_rule_without_builtins(NoInvalidRegexp);
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -105,7 +107,7 @@ let re = /\p/
 
     #[test]
     fn test_allows_valid_regex() {
-        let test = TestProgram::for_rule_without_builtins(NoInvalidRegexp);
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -117,7 +119,7 @@ let re = /^[a-z]+$/
 
     #[test]
     fn test_allows_complex_valid_regex() {
-        let test = TestProgram::for_rule_without_builtins(NoInvalidRegexp);
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -129,7 +131,7 @@ let re = /(\d{1,3}\.){3}\d{1,3}/
 
     #[test]
     fn test_detects_invalid_repetition() {
-        let test = TestProgram::for_rule_without_builtins(NoInvalidRegexp);
+        let test = TestProgram::for_rule_without_prelude(NoInvalidRegexp);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR031",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -66,14 +68,14 @@ mod tests {
 
     #[test]
     fn test_detects_ternary() {
-        let test = TestProgram::for_rule_without_builtins(NoTernary);
+        let test = TestProgram::for_rule_without_prelude(NoTernary);
         let result = test.lint_ast("test.ts", "let x = a ? b : c;");
         test.result(result).assert_lint("no-ternary");
     }
 
     #[test]
     fn test_allows_if_else() {
-        let test = TestProgram::for_rule_without_builtins(NoTernary);
+        let test = TestProgram::for_rule_without_prelude(NoTernary);
         let result = test.lint_ast(
             "test.ts",
             r#"

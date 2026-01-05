@@ -24,6 +24,8 @@ declare_lint! {
         code = "LY071",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -139,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_multiple_indexed_accesses_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferTupleDestructure);
+        let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -154,7 +156,7 @@ function foo(tuple: (int32, int32)) {
 
     #[test]
     fn test_tuple_destructure_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferTupleDestructure);
+        let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -169,7 +171,7 @@ function foo(tuple: (int32, int32)) {
 
     #[test]
     fn test_single_access_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferTupleDestructure);
+        let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -185,7 +187,7 @@ function foo(tuple: (int32, int32)) {
 
     #[test]
     fn test_different_sources_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferTupleDestructure);
+        let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -202,7 +204,7 @@ function foo(a: (int32, int32), b: (int32, int32)) {
 
     #[test]
     fn test_three_accesses_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferTupleDestructure);
+        let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -218,7 +220,7 @@ function foo(tuple: (int32, int32, int32)) {
 
     #[test]
     fn test_array_access_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferTupleDestructure);
+        let test = TestProgram::for_rule_without_prelude(PreferTupleDestructure);
         let result = test.lint_ast(
             "test.ds",
             r#"

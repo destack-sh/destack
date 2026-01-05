@@ -1,7 +1,9 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Ident, LitStr, Meta, Result, Token, Visibility, parse_macro_input};
+use syn::{
+    Attribute, ExprArray, Ident, LitStr, Meta, Result, Token, Visibility, parse_macro_input,
+};
 
 /// Input for the declare_lint! macro.
 struct DeclareLintInput {
@@ -29,6 +31,10 @@ struct LintAttr {
     level: Ident,
     /// The rule scope (e.g., Module).
     scope: Option<Ident>,
+    /// Symbols that must all be available for the lint to run.
+    requires_all: ExprArray,
+    /// Symbols where at least one must be available for the lint to run.
+    requires_any: ExprArray,
     /// Whether the rule can provide fixes (Always, Sometimes, No).
     fixable: Ident,
     /// Whether the rule is recommended (Always, Strict, Off).
@@ -87,6 +93,8 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
     let mut category = None;
     let mut level = None;
     let mut scope = None;
+    let mut requires_all = None;
+    let mut requires_any = None;
     let mut fixable = None;
     let mut recommended = None;
     let mut stability = None;
@@ -113,6 +121,14 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
             meta.input.parse::<Token![=]>()?;
             let ident: Ident = meta.input.parse()?;
             scope = Some(ident);
+        } else if meta.path.is_ident("requires_all") {
+            meta.input.parse::<Token![=]>()?;
+            let expr: ExprArray = meta.input.parse()?;
+            requires_all = Some(expr);
+        } else if meta.path.is_ident("requires_any") {
+            meta.input.parse::<Token![=]>()?;
+            let expr: ExprArray = meta.input.parse()?;
+            requires_any = Some(expr);
         } else if meta.path.is_ident("fixable") {
             meta.input.parse::<Token![=]>()?;
             let ident: Ident = meta.input.parse()?;
@@ -141,6 +157,12 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `category` in #[lint(...)]"))?;
     let level = level
         .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `level` in #[lint(...)]"))?;
+    let requires_all = requires_all.ok_or_else(|| {
+        syn::Error::new_spanned(lint_attr, "missing `requires_all` in #[lint(...)]")
+    })?;
+    let requires_any = requires_any.ok_or_else(|| {
+        syn::Error::new_spanned(lint_attr, "missing `requires_any` in #[lint(...)]")
+    })?;
     let fixable = fixable
         .ok_or_else(|| syn::Error::new_spanned(lint_attr, "missing `fixable` in #[lint(...)]"))?;
     let recommended = recommended.ok_or_else(|| {
@@ -155,6 +177,8 @@ fn parse_lint_attr(attrs: &[Attribute]) -> Result<LintAttr> {
         category,
         level,
         scope,
+        requires_all,
+        requires_any,
         fixable,
         recommended,
         stability,
@@ -200,6 +224,8 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
         category,
         level,
         scope,
+        requires_all,
+        requires_any,
         fixable,
         recommended,
         stability,
@@ -245,6 +271,8 @@ pub(crate) fn declare_lint_impl(input: TokenStream) -> TokenStream {
             stability: crate::linter::Stability::#stability,
             level: crate::linter::LintLevel::#level,
             scope: crate::linter::LintScope::#scope,
+            requires_all: &#requires_all,
+            requires_any: &#requires_any,
         };
 
         impl #name {

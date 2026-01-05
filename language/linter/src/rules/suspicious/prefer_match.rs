@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU061",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -205,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_detects_long_if_else_chain() {
-        let test = TestProgram::for_rule_without_builtins(PreferMatch);
+        let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -223,7 +225,7 @@ if (x == 1) {
 
     #[test]
     fn test_detects_with_else_block() {
-        let test = TestProgram::for_rule_without_builtins(PreferMatch);
+        let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -241,7 +243,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_short_if_else() {
-        let test = TestProgram::for_rule_without_builtins(PreferMatch);
+        let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -257,7 +259,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_different_variables() {
-        let test = TestProgram::for_rule_without_builtins(PreferMatch);
+        let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -275,7 +277,7 @@ if (x == 1) {
 
     #[test]
     fn test_allows_non_equality_conditions() {
-        let test = TestProgram::for_rule_without_builtins(PreferMatch);
+        let test = TestProgram::for_rule_without_prelude(PreferMatch);
         let result = test.lint_ast(
             "test.ds",
             r#"

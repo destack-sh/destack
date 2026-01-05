@@ -14,6 +14,8 @@ declare_lint! {
         code = "LU025",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -96,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_detects_function_in_if() {
-        let test = TestProgram::for_rule_without_builtins(NoInnerDeclarations);
+        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -110,7 +112,7 @@ if (true) {
 
     #[test]
     fn test_detects_function_in_while() {
-        let test = TestProgram::for_rule_without_builtins(NoInnerDeclarations);
+        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -124,14 +126,14 @@ while (true) {
 
     #[test]
     fn test_allows_top_level_function() {
-        let test = TestProgram::for_rule_without_builtins(NoInnerDeclarations);
+        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast("test.ts", "function foo() {}");
         test.result(result).assert_no_lint("no-inner-declarations");
     }
 
     #[test]
     fn test_allows_function_inside_function() {
-        let test = TestProgram::for_rule_without_builtins(NoInnerDeclarations);
+        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
         let result = test.lint_ast(
             "test.ts",
             r#"
