@@ -157,8 +157,9 @@ block0:
     v0 = managed.alloc (i32, i32)
     v1 = iconst 42i32
     store v0, v1
-    v2 = field.get v0, 0
-    return v2
+    v2 = field.addr v0, 0
+    v3 = load v2
+    return v3
 }
 "#;
     run_mir_expect(mir, "heap_field", &[], Value::int32(42));
@@ -309,8 +310,9 @@ block0:
     v1 = iconst 10i32
     v2 = iconst 20i32
     store v0, v1
-    v3 = field.get v0, 0
-    return v3
+    v3 = field.addr v0, 0
+    v4 = load v3
+    return v4
 }
 "#;
     run_mir_expect(mir, "stack_struct", &[], Value::int32(10));

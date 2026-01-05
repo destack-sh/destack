@@ -214,7 +214,7 @@ record[key]       // works: Record<K, V> aliases to Map<K, V>
 Types with index signatures (`{ [key: string]: T }`) support dynamic keys (without requiring
 `Index/IndexSet` overloads):
 
-- If the key is a compile-time literal and the type has a known field, lower to `field.get/set`
+- If the key is a compile-time literal and the type has a known field, lower to `field.get/set` for aggregate values or `field.addr` plus `load`/`store` for references
 - Otherwise, lower to runtime index intrinsics (`intrinsic.index_get/index_set`)
 
 ## Semantic Differences

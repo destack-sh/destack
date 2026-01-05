@@ -33,6 +33,7 @@ pub(crate) struct BenchOptions {
     pub warmup: Duration,
 }
 
+#[allow(dead_code)]
 impl BenchOptions {
     /// Build benchmark options from explicit values.
     pub(crate) fn new(

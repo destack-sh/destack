@@ -508,9 +508,17 @@ fn thread_instruction(
             },
         },
 
-        mir::Instruction::FieldAddr { .. } => ThreadedInstruction {
-            handler: dispatch::handle_unsupported,
-            data: ThreadedInstructionData::Unsupported { name: "field.addr" },
+        mir::Instruction::FieldAddr {
+            destination,
+            aggregate,
+            index,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_field_addr,
+            data: ThreadedInstructionData::FieldAddr {
+                dest: *destination,
+                aggregate: *aggregate,
+                index: *index,
+            },
         },
 
         mir::Instruction::FieldSet {
@@ -541,10 +549,16 @@ fn thread_instruction(
             },
         },
 
-        mir::Instruction::ElementAddr { .. } => ThreadedInstruction {
-            handler: dispatch::handle_unsupported,
-            data: ThreadedInstructionData::Unsupported {
-                name: "element.addr",
+        mir::Instruction::ElementAddr {
+            destination,
+            array,
+            index,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_element_addr,
+            data: ThreadedInstructionData::ElementAddr {
+                dest: *destination,
+                array: *array,
+                index: *index,
             },
         },
 
@@ -758,13 +772,27 @@ fn infer_instruction_kind(
             let aggregate_kind = value_kinds.get(*aggregate)?;
             kind_from_field(tree, aggregate_kind, *index)
         }
-        mir::Instruction::FieldAddr { .. } => None,
+        mir::Instruction::FieldAddr {
+            aggregate, index, ..
+        } => {
+            let aggregate_kind = value_kinds.get(*aggregate)?;
+            let field_type_id = field_type_id_from_kind(tree, aggregate_kind, *index)?;
+            Some(ValueKind::Pointer {
+                pointee: field_type_id,
+            })
+        }
         mir::Instruction::FieldSet { aggregate, .. } => value_kinds.get(*aggregate),
         mir::Instruction::ElementGet { array, .. } => {
             let array_kind = value_kinds.get(*array)?;
             kind_from_element(tree, array_kind)
         }
-        mir::Instruction::ElementAddr { .. } => None,
+        mir::Instruction::ElementAddr { array, .. } => {
+            let array_kind = value_kinds.get(*array)?;
+            let element_type_id = element_type_id_from_kind(tree, array_kind)?;
+            Some(ValueKind::Pointer {
+                pointee: element_type_id,
+            })
+        }
         mir::Instruction::ElementSet { array, .. } => value_kinds.get(*array),
         mir::Instruction::ManagedAlloc { layout, .. } => {
             Some(ValueKind::Pointer { pointee: *layout })
@@ -900,6 +928,31 @@ fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<
     }
 }
 
+/// Resolve the field type id for an aggregate or pointer kind.
+fn field_type_id_from_kind(
+    tree: &mir::NodeTree,
+    kind: ValueKind,
+    index: u32,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    // unwrap pointer kinds to their pointee
+    let type_id = match kind {
+        ValueKind::Aggregate { ty } => ty,
+        ValueKind::Pointer { pointee } => pointee,
+        _ => return None,
+    };
+
+    // resolve field type from aggregate layout
+    match tree.get(type_id) {
+        mir::Type::Struct { fields } => {
+            let field = fields.get(index as usize)?;
+            let field = tree.get(*field);
+            Some(field.ty)
+        }
+        mir::Type::Tuple { elements } => elements.get(index as usize).copied(),
+        _ => None,
+    }
+}
+
 /// Resolve the element kind for an array value.
 fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
     // resolve element kind for array layouts
@@ -907,6 +960,26 @@ fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind>
         ValueKind::Array { element } => Some(kind_from_type(tree, element)),
         ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Array { element, .. } => Some(kind_from_type(tree, *element)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Resolve the element type id for an array or pointer kind.
+fn element_type_id_from_kind(
+    tree: &mir::NodeTree,
+    kind: ValueKind,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    // unwrap pointer kinds to their pointee
+    match kind {
+        ValueKind::Array { element } => Some(element),
+        ValueKind::Aggregate { ty } => match tree.get(ty) {
+            mir::Type::Array { element, .. } => Some(*element),
+            _ => None,
+        },
+        ValueKind::Pointer { pointee } => match tree.get(pointee) {
+            mir::Type::Array { element, .. } => Some(*element),
             _ => None,
         },
         _ => None,

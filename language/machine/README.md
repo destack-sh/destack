@@ -47,6 +47,9 @@ The managed heap does garbage collection during interpretation.
 The raw heap tracks allocations for leak detection in debug builds.
 Stack allocations get freed automatically when the frame exits.
 
+Aggregate access uses value operands for `field.get/set` and `element.get/set`.
+Pointer access goes through `field.addr` or `element.addr` with `load` or `store`.
+
 # Intrinsics
 
 Intrinsics are primitive operations handled directly by the interpreter:

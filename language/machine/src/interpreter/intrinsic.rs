@@ -1203,15 +1203,22 @@ impl Interpreter {
 
     /// Read a value from a memory slot at offset.
     fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
+        // resolve pointer and slot offset
         match ptr.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate => {
                 let handle = ptr.as_heap_handle().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
+                let slot_index = handle.slot_index().checked_add(offset).ok_or_else(|| {
+                    self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 0,
+                    })
+                })?;
                 if let Some(cell) = self.managed_heap.get(handle) {
                     cell.slots
-                        .get(offset)
+                        .get(slot_index)
                         .copied()
                         .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))
                 } else {
@@ -1223,9 +1230,15 @@ impl Interpreter {
                 if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
+                let slot_index = raw_ptr.slot_index().checked_add(offset).ok_or_else(|| {
+                    self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 0,
+                    })
+                })?;
                 if let Some(cell) = self.raw_heap.get(raw_ptr) {
                     cell.slots
-                        .get(offset)
+                        .get(slot_index)
                         .copied()
                         .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))
                 } else {
@@ -1241,7 +1254,13 @@ impl Interpreter {
                 let cell = frame
                     .get_stack_cell(sp.slot)
                     .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))?;
-                if let Some(value) = cell.slots.get(offset).copied() {
+                let slot_index = sp.slot_offset.checked_add(offset).ok_or_else(|| {
+                    self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: cell.slots.len(),
+                    })
+                })?;
+                if let Some(value) = cell.slots.get(slot_index).copied() {
                     return Ok(value);
                 }
                 if cell.slots.is_empty() && offset == 0 {
@@ -1260,17 +1279,24 @@ impl Interpreter {
 
     /// Write a value to a memory slot at offset.
     fn write_memory_slot(&mut self, ptr: &Value, offset: usize, value: Value) -> RuntimeResult<()> {
+        // resolve pointer and slot offset
         match ptr.tag() {
-            ValueTag::ManagedReference => {
+            ValueTag::ManagedReference | ValueTag::Aggregate => {
                 let handle = ptr.as_heap_handle().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
+                let slot_index = handle.slot_index().checked_add(offset).ok_or_else(|| {
+                    self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 0,
+                    })
+                })?;
                 if let Some(cell) = self.managed_heap.get_mut(handle) {
-                    while cell.slots.len() <= offset {
+                    while cell.slots.len() <= slot_index {
                         cell.slots.push(Value::VOID);
                     }
-                    cell.slots[offset] = value;
+                    cell.slots[slot_index] = value;
                     Ok(())
                 } else {
                     Err(self.make_error(Error::InvalidHeapHandle))
@@ -1281,11 +1307,17 @@ impl Interpreter {
                 if raw_ptr.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
                 }
+                let slot_index = raw_ptr.slot_index().checked_add(offset).ok_or_else(|| {
+                    self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 0,
+                    })
+                })?;
                 if let Some(cell) = self.raw_heap.get_mut(raw_ptr) {
-                    while cell.slots.len() <= offset {
+                    while cell.slots.len() <= slot_index {
                         cell.slots.push(Value::VOID);
                     }
-                    cell.slots[offset] = value;
+                    cell.slots[slot_index] = value;
                     Ok(())
                 } else {
                     Err(self.make_error(Error::InvalidHeapHandle))
@@ -1293,6 +1325,12 @@ impl Interpreter {
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
+                let slot_index = sp.slot_offset.checked_add(offset).ok_or_else(|| {
+                    self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 0,
+                    })
+                })?;
                 let frame = match self.call_stack.get_mut(sp.frame_idx) {
                     Some(frame) => frame,
                     None => return Err(self.make_error(Error::InvalidHeapHandle)),
@@ -1301,10 +1339,10 @@ impl Interpreter {
                     Some(cell) => cell,
                     None => return Err(self.make_error(Error::InvalidHeapHandle)),
                 };
-                while cell.slots.len() <= offset {
+                while cell.slots.len() <= slot_index {
                     cell.slots.push(Value::VOID);
                 }
-                cell.slots[offset] = value;
+                cell.slots[slot_index] = value;
                 Ok(())
             }
             _ => Err(self.make_error(Error::InvalidPointerType {
