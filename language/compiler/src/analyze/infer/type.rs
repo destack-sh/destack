@@ -606,7 +606,7 @@ impl Compiler {
     }
 
     /// Import a remote instance type into the local type table.
-    /// FUGU: infer remote module without requiring it be analyzed first? #RemoteAnalyze
+    /// FUGU #Broken: infer remote module without requiring it be analyzed first? #RemoteAnalyze
     fn import_instance_type_for_symbol(
         &self,
         profile: ProfileId,

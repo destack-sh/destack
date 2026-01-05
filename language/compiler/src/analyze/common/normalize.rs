@@ -967,4 +967,31 @@ impl Compiler {
         }
         normalized
     }
+
+    /// Resolve the apparent type for type operations.
+    pub(crate) fn apparent_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // start with the original type id
+        let mut apparent_id = type_id;
+
+        // substitute static parameter constraints when available
+        if let Type::Reference { symbol, .. } = types.get_type(apparent_id) {
+            let source_id = types.get_type_source(apparent_id);
+            if let Some(constraint_id) = self.static_parameter_constraint_type(
+                module, profile, *symbol, source_id, symbols, types,
+            ) && constraint_id != apparent_id
+            {
+                apparent_id = constraint_id;
+            }
+        }
+
+        // unwrap cached alias instances
+        self.unwrap_normalization_alias_reference(apparent_id, types)
+    }
 }

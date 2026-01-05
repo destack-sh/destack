@@ -85,6 +85,9 @@ impl Compiler {
         visited: &mut Vec<LocalTypeId>,
         visited_keys: &mut HashSet<LocalTypeId>,
     ) -> KeySet {
+        // resolve apparent types for key extraction
+        let type_id = self.apparent_type(module, profile, type_id, symbols, types);
+
         // avoid cycles when traversing recursive types
         if !visited_keys.insert(type_id) {
             return KeySet::default();
@@ -151,7 +154,6 @@ impl Compiler {
             }
             Type::Array { .. } | Type::ArraySized { .. } => {
                 let mut keys = KeySet::default();
-                // seed number index kind
                 keys.insert_index_kind(MappedIndexKind::Number);
                 keys
             }
@@ -169,6 +171,8 @@ impl Compiler {
                         visited_keys,
                     );
                 }
+
+                // fall back to all key kinds
                 let mut keys = KeySet::default();
                 keys.insert_index_kind(MappedIndexKind::String);
                 keys.insert_index_kind(MappedIndexKind::Number);
@@ -467,6 +471,10 @@ impl Compiler {
         mode: NormalizationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // resolve apparent operand types before index evaluation
+        let left = self.apparent_type(module, profile, left, symbols, types);
+        let index = self.apparent_type(module, profile, index, symbols, types);
+
         // normalize operands before evaluating the index
         let left = self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
         let index =

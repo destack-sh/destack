@@ -1,8 +1,8 @@
 use destack_source::ModuleId;
 
 use crate::{
-    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Node, StaticKey,
-    StringId,
+    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Node, NodeType,
+    StaticKey, StringId,
 };
 
 /// The space of a symbol.
@@ -240,6 +240,14 @@ impl Symbol {
             Some(StaticKey::Name(name)) => Some(name),
             _ => None,
         }
+    }
+
+    /// Check whether this symbol is a static parameter.
+    pub fn is_static_parameter(&self) -> bool {
+        self.space == SymbolSpace::Type
+            && self
+                .primary_declaration
+                .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
     }
 
     /// Declare this symbol from a declaration node.
