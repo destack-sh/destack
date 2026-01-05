@@ -44,7 +44,8 @@ We interpret MIR directly rather than JIT-compiling it.
 ## Value Representation
 
 Values currently use a compact 16-byte packed representation (data + tag/width metadata).
-NaN-boxing is the planned target for 8-byte values and fast type checks.
+Threaded decode builds a per-function value kind table so hot integer/float ops can skip tag checks.
+NaN-boxing is deferred until we can move width and type information into instruction metadata.
 
 Aggregates are heap-allocated today with handles in `Value`.
 Small aggregate inlining is planned once the 8-byte representation lands.
