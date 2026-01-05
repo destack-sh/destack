@@ -281,6 +281,19 @@ Reify makes certain abstractions explicit ("realized").
 It is profile-aware and uses Analyze resolutions and profile libraries.
 The output remains DIR and feeds Execute and Lower.
 
+### Insert ownership conversions
+
+Ownership conversions are represented explicitly in DIR as ownership expressions.
+Reify normalizes explicit ownership operators and inserts implicit borrows at reference boundaries.
+Implicit ownership conversions only create borrows and never transfer ownership.
+
+Implicit conversions:
+- `T` → `&T` or `&mut T` when a reference is required and the value is addressable
+- `^T` → `&T` to borrow from an owned value
+- `&mut T` → `&T` to reborrow as shared
+
+Ownership insertion happens before implicit cast insertion.
+
 ### Insert explicit and implicit casts
 
 All `as T` expressions are real casts and must be preserved.

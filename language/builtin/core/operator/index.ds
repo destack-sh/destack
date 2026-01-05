@@ -2,4 +2,3 @@ export * from "./arithmetic.ds";
 export * from "./comparison.ds";
 export * from "./subscript.ds";
 export * from "./format.ds";
-export * from "./drop.ds";

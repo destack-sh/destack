@@ -449,10 +449,74 @@ function process() {
 }
 ```
 
-Types can implement `Drop` to customize cleanup, enabling RAII patterns.
+`Drop` is a marker interface that opts a type into last-use cleanup.
+Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
+`using` always calls `Symbol.dispose`, even without `Drop`.
+Owned values are dropped at their last proven use unless `using` is specified.
+`using` bindings drop at scope end and cannot be moved.
+`^T` controls ownership transfer and move semantics.
+`using` controls drop timing and does not imply ownership.
+Combine `using` with `^T` for deterministic cleanup of owned values.
+`using` can wrap managed values to enforce scope-based cleanup when they implement `Symbol.dispose`.
 
 Strings follow the same ownership spectrum: `string` is GC-managed by default,
 `&string` is a borrowed view, and `^string` is explicitly owned.
+Similarly, `Slice` is an explicit view type with a pointer and length.
+Borrowing an array object does not imply a slice view.
+
+Example (slice view):
+
+```
+function sum(values: Slice<int>): int {
+    let total = 0;
+    for (const value of values) total += value;
+    total
+}
+
+const items = [1, 2, 3];
+sum(items.as_slice());
+```
+
+### Ownership Conversions
+
+Ownership conversions are explicit, except for borrows inserted at reference boundaries.
+Implicit ownership conversions only create borrows and never transfer ownership.
+
+Implicit conversions:
+- `T` → `&T` or `&mut T` when a reference is required and the value is addressable
+- `^T` → `&T` to borrow from an owned value
+- `&mut T` → `&T` to reborrow as shared
+
+Explicit conversions:
+- `T` ↔ `^T` require explicit ownership operators or helper calls
+- `&T` → `T` requires `Copy` or an explicit clone
+- `&T` → `^T` requires an explicit clone and ownership transfer
+- `*T` conversions require explicit unsafe operations
+
+Example (implicit borrow):
+
+```
+function read(item: &Item): int { item.size() }
+
+const value = Item { size: 10 };
+read(value);
+```
+
+Example (explicit ownership transfer):
+
+```
+function consume(value: ^Item) { ... }
+
+const value = Item { size: 10 };
+consume(^value);
+```
+
+Example (scope-end drop):
+
+```
+using file: ^File = File.open(path);
+file.write("hello");
+```
 
 **Returning references:**
 
