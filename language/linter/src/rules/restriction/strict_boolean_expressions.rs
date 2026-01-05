@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR035",
         category = Restriction,
         level = Dir,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -284,21 +286,18 @@ fn check_is_boolean(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_allows_boolean_condition() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let is_ready = true
 if (is_ready) {
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -306,16 +305,14 @@ if (is_ready) {
 
     #[test]
     fn test_flags_non_boolean_condition() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let count = 1
 if (count) {
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -323,16 +320,14 @@ if (count) {
 
     #[test]
     fn test_flags_negation_operand() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let name = "destack"
 if (!name) {
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -341,16 +336,14 @@ if (!name) {
     /// Allow comparison results in boolean conditions.
     #[test]
     fn test_allows_comparison_condition() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let count = 1
 if (count > 0) {
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -359,17 +352,15 @@ if (count > 0) {
     /// Flag non boolean operands in logical operators.
     #[test]
     fn test_flags_logical_operands() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let count = 1
 let is_ready = true
 if (count && is_ready) {
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint_count("strict-boolean-expressions", 1);
@@ -378,16 +369,14 @@ if (count && is_ready) {
     /// Allow logical operators when both operands are boolean.
     #[test]
     fn test_allows_logical_expression_values() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let is_ready: boolean = true
 let is_valid: boolean = false
 let is_ok = is_ready && is_valid
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -396,16 +385,14 @@ let is_ok = is_ready && is_valid
     /// Flag non-boolean logical expressions even outside conditions.
     #[test]
     fn test_flags_logical_expression_values() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let count = 1
 let name = "destack"
 let fallback = count || name
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint_count("strict-boolean-expressions", 2);
@@ -414,16 +401,14 @@ let fallback = count || name
     /// Allow logical assignments when operands are boolean.
     #[test]
     fn test_allows_logical_assignment() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let is_ready: boolean = true
 let is_valid: boolean = false
 is_ready &&= is_valid
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -432,16 +417,14 @@ is_ready &&= is_valid
     /// Flag non-boolean logical assignments.
     #[test]
     fn test_flags_logical_assignment() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let count = 1
 let is_ready: boolean = true
 is_ready ||= count
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -450,16 +433,14 @@ is_ready ||= count
     /// Flag non boolean loop conditions.
     #[test]
     fn test_flags_loop_condition() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let count = 1
 while (count) {
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -468,8 +449,8 @@ while (count) {
     /// Flag non boolean match guards.
     #[test]
     fn test_flags_match_guard() {
-        let test = TestProgram::for_rule_with_builtins(StrictBooleanExpressions);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(StrictBooleanExpressions);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let value = 1
@@ -477,9 +458,7 @@ match (value) {
     1 if value => "one"
     _ => "other"
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");

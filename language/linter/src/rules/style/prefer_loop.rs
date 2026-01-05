@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY050",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -117,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_detects_while_true() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -131,7 +133,7 @@ while (true) {
 
     #[test]
     fn test_detects_while_one() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -145,7 +147,7 @@ while (1) {
 
     #[test]
     fn test_detects_for_empty() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -159,7 +161,7 @@ for (;;) {
 
     #[test]
     fn test_allows_loop() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -173,7 +175,7 @@ loop {
 
     #[test]
     fn test_allows_while_condition() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -187,7 +189,7 @@ while (x > 0) {
 
     #[test]
     fn test_allows_for_with_condition() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -201,7 +203,7 @@ for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_allows_for_with_partial() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         // for loop with just initialization is not infinite
         let result = test.lint_ast(
             "test.ds",
@@ -217,7 +219,7 @@ for (let i = 0;;) {
 
     #[test]
     fn test_fix_while_true() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -239,7 +241,7 @@ loop {
 
     #[test]
     fn test_fix_for_empty() {
-        let test = TestProgram::for_rule_without_builtins(PreferLoop);
+        let test = TestProgram::for_rule_without_prelude(PreferLoop);
         let result = test.lint_ast(
             "test.ds",
             r#"

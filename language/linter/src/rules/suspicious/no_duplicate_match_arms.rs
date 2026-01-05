@@ -15,6 +15,8 @@ declare_lint! {
         code = "LU013",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -97,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_match_arms() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateMatchArms);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -112,7 +114,7 @@ match (x) {
 
     #[test]
     fn test_allows_different_bodies() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateMatchArms);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -128,7 +130,7 @@ match (x) {
 
     #[test]
     fn test_detects_duplicate_literals() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateMatchArms);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateMatchArms);
         let result = test.lint_ast(
             "test.ds",
             r#"

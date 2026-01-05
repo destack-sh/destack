@@ -13,6 +13,8 @@ declare_lint! {
         code = "LX006",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -66,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_detects_too_many_lines() {
-        let test = TestProgram::for_rule_without_builtins(MaxLines);
+        let test = TestProgram::for_rule_without_prelude(MaxLines);
         // create a file with 501 lines (over default 500)
         let mut source = String::new();
         for i in 0..501 {
@@ -78,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_allows_small_file() {
-        let test = TestProgram::for_rule_without_builtins(MaxLines);
+        let test = TestProgram::for_rule_without_prelude(MaxLines);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -92,7 +94,7 @@ let z = 3;
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule_without_builtins(MaxLines);
+        let test = TestProgram::for_rule_without_prelude(MaxLines);
         // create a file with exactly 500 lines (499 with newlines + 1 trailing)
         let mut source = String::new();
         for i in 0..499 {

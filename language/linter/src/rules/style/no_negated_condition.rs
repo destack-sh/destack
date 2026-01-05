@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY026",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -150,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_negated_if_with_else_detected() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -168,7 +170,7 @@ function foo(x: bool) {
 
     #[test]
     fn test_negated_ternary_detected() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -180,7 +182,7 @@ const result = (!condition) ? 1 : 2;
 
     #[test]
     fn test_not_equal_with_else_detected() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -198,7 +200,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_strict_not_equal_with_else_detected() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -216,7 +218,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_negated_if_without_else_allowed() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -232,7 +234,7 @@ function foo(x: bool) {
 
     #[test]
     fn test_positive_condition_allowed() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -250,7 +252,7 @@ function foo(x: bool) {
 
     #[test]
     fn test_equality_condition_allowed() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -268,7 +270,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_parenthesized_negation_detected() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -286,7 +288,7 @@ function foo(x: bool) {
 
     #[test]
     fn test_not_equal_ternary_detected() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -299,7 +301,7 @@ const result = (x != 0) ? 1 : 2;
     #[test]
     fn test_else_if_chain_allowed() {
         // negation in else-if chains is often intentional for clarity
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -318,7 +320,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_fix_negated_if() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -344,7 +346,7 @@ if (x) {
 
     #[test]
     fn test_fix_not_equal() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -370,7 +372,7 @@ if (x == 0) {
 
     #[test]
     fn test_fix_ternary() {
-        let test = TestProgram::for_rule_without_builtins(NoNegatedCondition);
+        let test = TestProgram::for_rule_without_prelude(NoNegatedCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"

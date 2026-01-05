@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU019",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Always,
         stability = Stable
@@ -82,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_detects_double_assertion() {
-        let test = TestProgram::for_rule_without_builtins(NoExtraNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -95,7 +97,7 @@ const x = value!!;
 
     #[test]
     fn test_detects_triple_assertion() {
-        let test = TestProgram::for_rule_without_builtins(NoExtraNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -109,7 +111,7 @@ const x = value!!!;
 
     #[test]
     fn test_allows_single_assertion() {
-        let test = TestProgram::for_rule_without_builtins(NoExtraNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -122,7 +124,7 @@ const x = value!;
 
     #[test]
     fn test_allows_no_assertion() {
-        let test = TestProgram::for_rule_without_builtins(NoExtraNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -135,7 +137,7 @@ const x = value;
 
     #[test]
     fn test_allows_assertion_on_different_values() {
-        let test = TestProgram::for_rule_without_builtins(NoExtraNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -148,7 +150,7 @@ const x = a!.b!;
 
     #[test]
     fn test_fix_removes_extra_assertion() {
-        let test = TestProgram::for_rule_without_builtins(NoExtraNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoExtraNonNullAssertion);
         let result = test.lint_ast(
             "test.ts",
             r#"

@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     const_i64, expression_target_symbol, is_string_type, string_literal_utf16_length,
     unwrap_parenthesized_expression,
@@ -17,6 +18,8 @@ declare_lint! {
         code = "LP021",
         category = Performance,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -33,10 +36,7 @@ impl LintRule for PreferStringEndsWith {
 
     /// Check module DIR nodes for slice comparisons that should use endsWith().
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for endsWith comparisons
         let mut visitor = PreferStringEndsWithVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -49,7 +49,7 @@ struct PreferStringEndsWithVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known String symbol for this module.
-    string_symbol: Option<dir::GlobalSymbolId>,
+    string_symbol: dir::GlobalSymbolId,
     /// The string id for the slice method name.
     slice_name: StringId,
     /// The string id for the length property name.
@@ -62,7 +62,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-endswith checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // resolve the well known String symbol for this module
-        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
+        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
 
         // intern commonly used names
         let slice_name = ctx.program.strings.intern("slice");
@@ -81,11 +81,9 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -191,7 +189,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             return false;
         };
 
-        is_string_type(self.ctx.types, type_id, self.string_symbol)
+        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
 
     /// Return true when the slice argument matches the suffix length.
@@ -313,52 +311,45 @@ impl NodeVisitor for PreferStringEndsWithVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report slice comparisons against suffix lengths.
     #[test]
     fn test_flags_slice_suffix_length_check() {
-        let test = TestProgram::for_rule_without_builtins(PreferStringEndsWith);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let text = "hello";
 let suffix = "lo";
 let ends = text.slice(-suffix.length) === suffix;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-string-endswith");
     }
 
     /// Report literal slice comparisons.
     #[test]
     fn test_flags_literal_suffix_check() {
-        let test = TestProgram::for_rule_without_builtins(PreferStringEndsWith);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let text = "hello";
 let ends = text.slice(-2) === "lo";
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-string-endswith");
     }
 
     /// Allow unrelated slice comparisons.
     #[test]
     fn test_allows_unrelated_slice_check() {
-        let test = TestProgram::for_rule_without_builtins(PreferStringEndsWith);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(PreferStringEndsWith);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let text = "hello";
 let ends = text.slice(0) === "hello";
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_no_lint("prefer-string-endswith");
     }
 }

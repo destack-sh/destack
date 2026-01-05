@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU016",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -76,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_object_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyPattern);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -88,7 +90,7 @@ const {} = obj
 
     #[test]
     fn test_detects_empty_array_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyPattern);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -100,7 +102,7 @@ const [] = arr
 
     #[test]
     fn test_detects_empty_tuple_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyPattern);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -112,7 +114,7 @@ const () = tuple
 
     #[test]
     fn test_detects_empty_pattern_in_function_param() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyPattern);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -124,7 +126,7 @@ function foo({}) {}
 
     #[test]
     fn test_allows_non_empty_object_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyPattern);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +138,7 @@ const { x } = obj
 
     #[test]
     fn test_allows_non_empty_array_pattern() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyPattern);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyPattern);
         let result = test.lint_ast(
             "test.ds",
             r#"

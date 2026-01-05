@@ -12,6 +12,8 @@ declare_lint! {
         code = "LU055",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Always,
         stability = Stable
@@ -79,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_detects_useless_rename_destructure() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessRename);
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -91,7 +93,7 @@ const { x: x } = obj
 
     #[test]
     fn test_allows_actual_rename() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessRename);
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -103,7 +105,7 @@ const { x: y } = obj
 
     #[test]
     fn test_allows_simple_destructure() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessRename);
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +117,7 @@ const { x } = obj
 
     #[test]
     fn test_detects_useless_rename_in_function_param() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessRename);
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -127,7 +129,7 @@ function foo({ a: a }) {}
 
     #[test]
     fn test_fix_useless_rename() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessRename);
+        let test = TestProgram::for_rule_without_prelude(NoUselessRename);
         let result = test.lint_ast(
             "test.ds",
             r#"

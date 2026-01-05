@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY037",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -97,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_detects_redundant_property() {
-        let test = TestProgram::for_rule_without_builtins(ObjectShorthand);
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -110,7 +112,7 @@ const obj = { x: x }
 
     #[test]
     fn test_allows_shorthand() {
-        let test = TestProgram::for_rule_without_builtins(ObjectShorthand);
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -123,7 +125,7 @@ const obj = { x }
 
     #[test]
     fn test_allows_different_names() {
-        let test = TestProgram::for_rule_without_builtins(ObjectShorthand);
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +138,7 @@ const obj = { y: x }
 
     #[test]
     fn test_allows_computed_value() {
-        let test = TestProgram::for_rule_without_builtins(ObjectShorthand);
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +151,7 @@ const obj = { x: x + 1 }
 
     #[test]
     fn test_fix_shorthand() {
-        let test = TestProgram::for_rule_without_builtins(ObjectShorthand);
+        let test = TestProgram::for_rule_without_prelude(ObjectShorthand);
         let result = test.lint_ast(
             "test.ds",
             r#"

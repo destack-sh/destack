@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU063",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -97,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_if_else_if_without_else_detected() {
-        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -115,7 +117,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_if_else_if_else_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -136,7 +138,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_simple_if_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +155,7 @@ function foo(x: int32) {
 
     #[test]
     fn test_simple_if_else_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireElseInIfChain);
+        let test = TestProgram::for_rule_without_prelude(RequireElseInIfChain);
         let result = test.lint_ast(
             "test.ds",
             r#"

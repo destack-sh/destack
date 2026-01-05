@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY005",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -141,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_inline_no_period_allowed() {
-        let test = TestProgram::for_rule_without_builtins(CommentPunctuation);
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -153,7 +155,7 @@ let x = 1 // increment counter
 
     #[test]
     fn test_inline_with_period_detected() {
-        let test = TestProgram::for_rule_without_builtins(CommentPunctuation);
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -165,7 +167,7 @@ let x = 1 // increment counter.
 
     #[test]
     fn test_doc_with_period_allowed() {
-        let test = TestProgram::for_rule_without_builtins(CommentPunctuation);
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -178,7 +180,7 @@ function foo() {}
 
     #[test]
     fn test_doc_without_punctuation_detected() {
-        let test = TestProgram::for_rule_without_builtins(CommentPunctuation);
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -191,7 +193,7 @@ function foo() {}
 
     #[test]
     fn test_doc_with_question_allowed() {
-        let test = TestProgram::for_rule_without_builtins(CommentPunctuation);
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -204,7 +206,7 @@ function foo() {}
 
     #[test]
     fn test_doc_with_exclamation_allowed() {
-        let test = TestProgram::for_rule_without_builtins(CommentPunctuation);
+        let test = TestProgram::for_rule_without_prelude(CommentPunctuation);
         let result = test.lint_ast(
             "test.ds",
             r#"

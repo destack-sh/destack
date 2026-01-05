@@ -14,6 +14,8 @@ declare_lint! {
         code = "LU036",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Always,
         stability = Stable
@@ -86,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_detects_guard_true() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -101,7 +103,7 @@ match (x) {
 
     #[test]
     fn test_detects_guard_false() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -116,7 +118,7 @@ match (x) {
 
     #[test]
     fn test_detects_guard_not_false() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -131,7 +133,7 @@ match (x) {
 
     #[test]
     fn test_detects_guard_zero() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -146,7 +148,7 @@ match (x) {
 
     #[test]
     fn test_detects_guard_one() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -161,7 +163,7 @@ match (x) {
 
     #[test]
     fn test_allows_variable_guard() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -177,7 +179,7 @@ match (x) {
 
     #[test]
     fn test_allows_no_guard() {
-        let test = TestProgram::for_rule_without_builtins(NoRedundantMatchGuard);
+        let test = TestProgram::for_rule_without_prelude(NoRedundantMatchGuard);
         let result = test.lint_ast(
             "test.ds",
             r#"

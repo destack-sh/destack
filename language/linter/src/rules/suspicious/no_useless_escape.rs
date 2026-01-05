@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU054",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -109,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_detects_useless_escape() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -121,7 +123,7 @@ const x = "hel\lo"
 
     #[test]
     fn test_allows_valid_escapes() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -133,7 +135,7 @@ const x = "hello\nworld"
 
     #[test]
     fn test_allows_quote_escape() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -145,7 +147,7 @@ const x = "say \"hello\""
 
     #[test]
     fn test_allows_backslash_escape() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessEscape);
+        let test = TestProgram::for_rule_without_prelude(NoUselessEscape);
         let result = test.lint_ast(
             "test.ds",
             r#"

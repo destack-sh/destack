@@ -14,6 +14,8 @@ declare_lint! {
         code = "LC003",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -95,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_detects_approx_pi() {
-        let test = TestProgram::for_rule_without_builtins(NoApproxConstant);
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -107,7 +109,7 @@ let pi = 3.14
 
     #[test]
     fn test_detects_approx_pi_more_digits() {
-        let test = TestProgram::for_rule_without_builtins(NoApproxConstant);
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -119,7 +121,7 @@ let pi = 3.14159
 
     #[test]
     fn test_detects_approx_e() {
-        let test = TestProgram::for_rule_without_builtins(NoApproxConstant);
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -131,7 +133,7 @@ let e = 2.71828
 
     #[test]
     fn test_detects_approx_sqrt2() {
-        let test = TestProgram::for_rule_without_builtins(NoApproxConstant);
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -143,7 +145,7 @@ let sqrt2 = 1.414
 
     #[test]
     fn test_allows_unrelated_floats() {
-        let test = TestProgram::for_rule_without_builtins(NoApproxConstant);
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -157,7 +159,7 @@ let z = 0.5
 
     #[test]
     fn test_allows_small_integers_as_floats() {
-        let test = TestProgram::for_rule_without_builtins(NoApproxConstant);
+        let test = TestProgram::for_rule_without_prelude(NoApproxConstant);
         let result = test.lint_ast(
             "test.ds",
             r#"

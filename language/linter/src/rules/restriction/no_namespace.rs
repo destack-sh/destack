@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR019",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -63,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_detects_namespace() {
-        let test = TestProgram::for_rule_without_builtins(NoNamespace);
+        let test = TestProgram::for_rule_without_prelude(NoNamespace);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -77,7 +79,7 @@ namespace MyNamespace {
 
     #[test]
     fn test_allows_module_exports() {
-        let test = TestProgram::for_rule_without_builtins(NoNamespace);
+        let test = TestProgram::for_rule_without_prelude(NoNamespace);
         let result = test.lint_ast(
             "test.ts",
             r#"

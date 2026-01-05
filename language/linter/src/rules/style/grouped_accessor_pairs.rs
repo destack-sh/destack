@@ -31,6 +31,8 @@ declare_lint! {
         code = "LY016",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -227,7 +229,7 @@ mod tests {
 
     #[test]
     fn test_adjacent_accessors_allowed() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -242,7 +244,7 @@ class Example {
 
     #[test]
     fn test_setter_then_getter_adjacent_allowed() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -257,7 +259,7 @@ class Example {
 
     #[test]
     fn test_non_adjacent_accessors_detected() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -273,7 +275,7 @@ class Example {
 
     #[test]
     fn test_multiple_fields_between_detected() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -290,7 +292,7 @@ class Example {
 
     #[test]
     fn test_only_getter_allowed() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -305,7 +307,7 @@ class Example {
 
     #[test]
     fn test_only_setter_allowed() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -320,7 +322,7 @@ class Example {
 
     #[test]
     fn test_object_literal_non_adjacent_detected() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -336,7 +338,7 @@ const obj = {
 
     #[test]
     fn test_object_literal_adjacent_allowed() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -352,7 +354,7 @@ const obj = {
 
     #[test]
     fn test_multiple_accessor_pairs_one_ungrouped() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -370,7 +372,7 @@ class Example {
 
     #[test]
     fn test_struct_accessors_non_adjacent_detected() {
-        let test = TestProgram::for_rule_without_builtins(GroupedAccessorPairs);
+        let test = TestProgram::for_rule_without_prelude(GroupedAccessorPairs);
         let result = test.lint_ast(
             "test.ds",
             r#"

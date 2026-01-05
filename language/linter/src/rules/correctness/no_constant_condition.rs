@@ -13,6 +13,8 @@ declare_lint! {
         code = "LC014",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -64,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_detects_if_true() {
-        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -76,7 +78,7 @@ if (true) { foo(); }
 
     #[test]
     fn test_detects_if_false() {
-        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -88,7 +90,7 @@ if (false) { foo(); }
 
     #[test]
     fn test_detects_while_true() {
-        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -100,7 +102,7 @@ while (true) { foo(); }
 
     #[test]
     fn test_detects_if_number() {
-        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -112,7 +114,7 @@ if (1) { foo(); }
 
     #[test]
     fn test_no_constant_with_variable() {
-        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -124,7 +126,7 @@ if (x) { foo(); }
 
     #[test]
     fn test_no_constant_with_comparison() {
-        let test = TestProgram::for_rule_without_builtins(NoConstantCondition);
+        let test = TestProgram::for_rule_without_prelude(NoConstantCondition);
         let result = test.lint_ast(
             "test.ds",
             r#"

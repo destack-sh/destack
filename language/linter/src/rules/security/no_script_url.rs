@@ -13,6 +13,8 @@ declare_lint! {
         code = "LS009",
         category = Security,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -71,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_detects_javascript_url() {
-        let test = TestProgram::for_rule_without_builtins(NoScriptUrl);
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -83,7 +85,7 @@ let url = "javascript:alert('XSS')"
 
     #[test]
     fn test_detects_javascript_url_case_insensitive() {
-        let test = TestProgram::for_rule_without_builtins(NoScriptUrl);
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -95,7 +97,7 @@ let url = "JavaScript:alert('XSS')"
 
     #[test]
     fn test_detects_javascript_url_with_whitespace() {
-        let test = TestProgram::for_rule_without_builtins(NoScriptUrl);
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -107,7 +109,7 @@ let url = "  javascript:void(0)"
 
     #[test]
     fn test_allows_normal_url() {
-        let test = TestProgram::for_rule_without_builtins(NoScriptUrl);
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -119,7 +121,7 @@ let url = "https://example.com"
 
     #[test]
     fn test_allows_string_containing_javascript_word() {
-        let test = TestProgram::for_rule_without_builtins(NoScriptUrl);
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -131,7 +133,7 @@ let msg = "I love javascript programming"
 
     #[test]
     fn test_allows_data_url() {
-        let test = TestProgram::for_rule_without_builtins(NoScriptUrl);
+        let test = TestProgram::for_rule_without_prelude(NoScriptUrl);
         let result = test.lint_ast(
             "test.ds",
             r#"

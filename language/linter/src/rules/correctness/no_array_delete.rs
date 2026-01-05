@@ -1,6 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::is_array_type;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -13,6 +14,8 @@ declare_lint! {
         code = "LC006",
         category = Correctness,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -29,10 +32,7 @@ impl LintRule for NoArrayDelete {
 
     /// Check module DIR nodes for array deletes.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for delete expressions
         let mut visitor = ArrayDeleteVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -45,7 +45,7 @@ struct ArrayDeleteVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known Array symbol for this module.
-    array_symbol: Option<dir::GlobalSymbolId>,
+    array_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -53,10 +53,7 @@ struct ArrayDeleteVisitor<'a, 'b> {
 impl<'a, 'b> ArrayDeleteVisitor<'a, 'b> {
     /// Build a visitor for array delete checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known Array symbol for this module
-        let array_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Array);
-
-        // prepare visitor state
+        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         Self {
             ctx,
             meta,
@@ -67,11 +64,9 @@ impl<'a, 'b> ArrayDeleteVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -94,7 +89,7 @@ impl<'a, 'b> ArrayDeleteVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(*left) else {
             return;
         };
-        let is_array = is_array_type(self.ctx.types, type_id, self.array_symbol);
+        let is_array = is_array_type(self.ctx.types, type_id, Some(self.array_symbol));
         if !is_array {
             return;
         }
@@ -146,35 +141,30 @@ impl NodeVisitor for ArrayDeleteVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_flags_delete_array_element() {
-        let test = TestProgram::for_rule_without_builtins(NoArrayDelete);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2, 3];
 delete items[0];
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_lint("no-array-delete");
     }
 
     #[test]
     fn test_allows_delete_object_property() {
-        let test = TestProgram::for_rule_without_builtins(NoArrayDelete);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoArrayDelete);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let item = { value: 1 };
 delete item.value;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_no_lint("no-array-delete");
     }

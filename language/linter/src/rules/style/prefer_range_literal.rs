@@ -16,6 +16,8 @@ declare_lint! {
         code = "LY061",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -180,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_detects_c_style_for() {
-        let test = TestProgram::for_rule_without_builtins(PreferRangeLiteral);
+        let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -194,7 +196,7 @@ for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_detects_c_style_for_increment_assign() {
-        let test = TestProgram::for_rule_without_builtins(PreferRangeLiteral);
+        let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -208,7 +210,7 @@ for (let i = 0; i < n; i += 1) {
 
     #[test]
     fn test_allows_range_literal() {
-        let test = TestProgram::for_rule_without_builtins(PreferRangeLiteral);
+        let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -222,7 +224,7 @@ for (i in 0..10) {
 
     #[test]
     fn test_allows_for_each() {
-        let test = TestProgram::for_rule_without_builtins(PreferRangeLiteral);
+        let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -236,7 +238,7 @@ for (item in items) {
 
     #[test]
     fn test_allows_complex_for() {
-        let test = TestProgram::for_rule_without_builtins(PreferRangeLiteral);
+        let test = TestProgram::for_rule_without_prelude(PreferRangeLiteral);
         // non-standard increment shouldn't trigger
         let result = test.lint_ast(
             "test.ds",

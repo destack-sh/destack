@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR016",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -63,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_detects_labeled_statement() {
-        let test = TestProgram::for_rule_without_builtins(NoLabels);
+        let test = TestProgram::for_rule_without_prelude(NoLabels);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -77,7 +79,7 @@ outer: for (let i = 0; i < 10; i++) {
 
     #[test]
     fn test_allows_unlabeled_loop() {
-        let test = TestProgram::for_rule_without_builtins(NoLabels);
+        let test = TestProgram::for_rule_without_prelude(NoLabels);
         let result = test.lint_ast(
             "test.ts",
             r#"

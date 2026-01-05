@@ -13,6 +13,8 @@ declare_lint! {
         code = "LX026",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -87,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_single_arm_match_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfLet);
+        let test = TestProgram::for_rule_without_prelude(PreferIfLet);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -104,7 +106,7 @@ function foo(x: int32?) {
 
     #[test]
     fn test_if_let_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfLet);
+        let test = TestProgram::for_rule_without_prelude(PreferIfLet);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -120,7 +122,7 @@ function foo(x: int32?) {
 
     #[test]
     fn test_multi_arm_match_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferIfLet);
+        let test = TestProgram::for_rule_without_prelude(PreferIfLet);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -13,6 +13,8 @@ declare_lint! {
         code = "LC038",
         category = Correctness,
         level = Dir,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -92,81 +94,70 @@ impl LintRule for NoSelfCompare {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_detects_self_equal() {
-        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let x = 1;
 x == x;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
     }
 
     #[test]
     fn test_detects_self_not_equal() {
-        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let x = 1;
 x != x;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
     }
 
     #[test]
     fn test_detects_self_less() {
-        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let x = 1;
 x < x;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
     }
 
     #[test]
     fn test_no_self_compare_different_vars() {
-        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let x = 1;
 let y = 2;
 x == y;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
     }
 
     #[test]
     fn test_no_self_compare_arithmetic() {
-        let test = TestProgram::for_rule_without_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let x = 1;
 x + x;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
     }

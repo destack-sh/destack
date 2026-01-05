@@ -13,6 +13,8 @@ declare_lint! {
         code = "LR013",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -60,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_detects_enum() {
-        let test = TestProgram::for_rule_without_builtins(NoEnum);
+        let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -76,7 +78,7 @@ enum Color {
 
     #[test]
     fn test_detects_const_enum() {
-        let test = TestProgram::for_rule_without_builtins(NoEnum);
+        let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -91,14 +93,14 @@ const enum Direction {
 
     #[test]
     fn test_allows_union_type() {
-        let test = TestProgram::for_rule_without_builtins(NoEnum);
+        let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast("test.ts", r#"type Color = "red" | "green" | "blue";"#);
         test.result(result).assert_no_lint("no-enum");
     }
 
     #[test]
     fn test_allows_const_object() {
-        let test = TestProgram::for_rule_without_builtins(NoEnum);
+        let test = TestProgram::for_rule_without_prelude(NoEnum);
         let result = test.lint_ast(
             "test.ts",
             r#"

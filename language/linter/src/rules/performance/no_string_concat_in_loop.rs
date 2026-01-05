@@ -1,6 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     ReferencePath, expression_reference_path, is_string_type, unwrap_parenthesized_expression,
 };
@@ -16,6 +17,8 @@ declare_lint! {
         code = "LP013",
         category = Performance,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -32,10 +35,7 @@ impl LintRule for NoStringConcatInLoop {
 
     /// Check module DIR nodes for string concatenation inside loops.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for string concatenation in loops
         let mut visitor = NoStringConcatInLoopVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -48,7 +48,7 @@ struct NoStringConcatInLoopVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known String symbol for this module.
-    string_symbol: Option<dir::GlobalSymbolId>,
+    string_symbol: dir::GlobalSymbolId,
     /// Whether the current traversal is inside a loop.
     is_in_loop: bool,
     /// The visitor options.
@@ -58,10 +58,7 @@ struct NoStringConcatInLoopVisitor<'a, 'b> {
 impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
     /// Build a visitor for string concatenation in loops.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known String symbol for this module
-        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
-
-        // prepare visitor state
+        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
         Self {
             ctx,
             meta,
@@ -73,11 +70,9 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -164,7 +159,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
             return false;
         };
 
-        is_string_type(self.ctx.types, type_id, self.string_symbol)
+        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
 
     /// Return true when the expression should be treated as a string.
@@ -394,14 +389,13 @@ impl NodeVisitor for NoStringConcatInLoopVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report += concatenation inside loops.
     #[test]
     fn test_flags_add_assign_in_loop() {
-        let test = TestProgram::for_rule_without_builtins(NoStringConcatInLoop);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = ["a", "b"];
@@ -409,17 +403,15 @@ let result = "";
 for (let i = 0; i < items.length; i += 1) {
     result += items[i];
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("no-string-concat-in-loop");
     }
 
     /// Report x = x + y concatenation inside loops.
     #[test]
     fn test_flags_self_add_assign_in_loop() {
-        let test = TestProgram::for_rule_without_builtins(NoStringConcatInLoop);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = ["a", "b"];
@@ -427,17 +419,15 @@ let result = "";
 for (const item of items) {
     result = result + item;
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("no-string-concat-in-loop");
     }
 
     /// Report x = y + x concatenation inside loops.
     #[test]
     fn test_flags_reversed_concat_in_loop() {
-        let test = TestProgram::for_rule_without_builtins(NoStringConcatInLoop);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = ["a", "b"];
@@ -445,17 +435,15 @@ let result = "";
 for (const item of items) {
     result = item + result;
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("no-string-concat-in-loop");
     }
 
     /// Allow numeric += inside loops.
     #[test]
     fn test_allows_numeric_add_assign() {
-        let test = TestProgram::for_rule_without_builtins(NoStringConcatInLoop);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(NoStringConcatInLoop);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2];
@@ -463,9 +451,7 @@ let total = 0;
 for (const item of items) {
     total += item;
 }
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result)
             .assert_no_lint("no-string-concat-in-loop");
     }

@@ -13,6 +13,8 @@ declare_lint! {
         code = "LC021",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -160,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_detects_fallthrough() {
-        let test = TestProgram::for_rule_without_builtins(NoFallthrough);
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +181,7 @@ switch (x) {
 
     #[test]
     fn test_allows_break() {
-        let test = TestProgram::for_rule_without_builtins(NoFallthrough);
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -199,7 +201,7 @@ switch (x) {
 
     #[test]
     fn test_allows_return() {
-        let test = TestProgram::for_rule_without_builtins(NoFallthrough);
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -219,7 +221,7 @@ function foo(x: int32): int32 {
 
     #[test]
     fn test_allows_throw() {
-        let test = TestProgram::for_rule_without_builtins(NoFallthrough);
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -237,7 +239,7 @@ switch (x) {
 
     #[test]
     fn test_allows_last_case_without_break() {
-        let test = TestProgram::for_rule_without_builtins(NoFallthrough);
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -256,7 +258,7 @@ switch (x) {
 
     #[test]
     fn test_ignores_match() {
-        let test = TestProgram::for_rule_without_builtins(NoFallthrough);
+        let test = TestProgram::for_rule_without_prelude(NoFallthrough);
         let result = test.lint_ast(
             "test.ds",
             r#"

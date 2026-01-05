@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY007",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -110,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_allows_type_when_type_preferred() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeDefinitions);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -123,7 +125,7 @@ type Point = { x: int32, y: int32 }
 
     #[test]
     fn test_detects_interface_when_type_preferred() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeDefinitions);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -139,7 +141,7 @@ interface Point {
 
     #[test]
     fn test_allows_newtype_interface() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeDefinitions);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         // newtype interfaces are not flagged (they have different semantics)
         let result = test.lint_ast(
             "test.ds",
@@ -155,7 +157,7 @@ newtype interface Serializable {
 
     #[test]
     fn test_allows_type_alias_non_object() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeDefinitions);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeDefinitions);
         // type aliases to non-object types are not flagged
         let result = test.lint_ast(
             "test.ds",

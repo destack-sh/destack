@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY002",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -86,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_detects_wrong_error_name() {
-        let test = TestProgram::for_rule_without_builtins(CatchErrorName);
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -102,7 +104,7 @@ try {
 
     #[test]
     fn test_allows_correct_name() {
-        let test = TestProgram::for_rule_without_builtins(CatchErrorName);
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -118,7 +120,7 @@ try {
 
     #[test]
     fn test_allows_try_without_catch() {
-        let test = TestProgram::for_rule_without_builtins(CatchErrorName);
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -134,7 +136,7 @@ try {
 
     #[test]
     fn test_detects_err_name() {
-        let test = TestProgram::for_rule_without_builtins(CatchErrorName);
+        let test = TestProgram::for_rule_without_prelude(CatchErrorName);
         let result = test.lint_ast(
             "test.ds",
             r#"

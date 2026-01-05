@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU017",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Always,
         stability = Stable
@@ -79,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_detects_empty_static_block() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -93,7 +95,7 @@ class Foo {
 
     #[test]
     fn test_allows_static_block_with_code() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -109,7 +111,7 @@ class Foo {
 
     #[test]
     fn test_allows_static_block_with_comment() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -123,7 +125,7 @@ class Foo {
 
     #[test]
     fn test_fix_removes_empty_static_block() {
-        let test = TestProgram::for_rule_without_builtins(NoEmptyStaticBlock);
+        let test = TestProgram::for_rule_without_prelude(NoEmptyStaticBlock);
         let result = test.lint_ast(
             "test.ts",
             r#"

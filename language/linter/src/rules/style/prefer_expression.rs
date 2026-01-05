@@ -17,6 +17,8 @@ declare_lint! {
         code = "LY044",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -266,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_detects_uninitialized_let_with_if_assignment() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpression);
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -285,7 +287,7 @@ function foo(condition: boolean) {
 
     #[test]
     fn test_allows_initialized_let() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpression);
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -304,7 +306,7 @@ function foo(condition: boolean) {
 
     #[test]
     fn test_allows_expression_based_if() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpression);
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -318,7 +320,7 @@ function foo(condition: boolean) {
 
     #[test]
     fn test_allows_if_without_else() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpression);
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -335,7 +337,7 @@ function foo(condition: boolean) {
 
     #[test]
     fn test_allows_if_not_assigning_to_same_variable() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpression);
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -355,7 +357,7 @@ function foo(condition: boolean) {
 
     #[test]
     fn test_allows_non_adjacent_statements() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpression);
+        let test = TestProgram::for_rule_without_prelude(PreferExpression);
         let result = test.lint_ast(
             "test.ds",
             r#"

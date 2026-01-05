@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -15,6 +16,8 @@ declare_lint! {
         code = "LY082",
         category = Style,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -31,10 +34,7 @@ impl LintRule for PreferArraySome {
 
     /// Check module DIR nodes for array comparisons that should use some().
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for candidate comparisons
         let mut visitor = PreferArraySomeVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -74,7 +74,7 @@ struct PreferArraySomeVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The array symbol for this module profile.
-    array_symbol: Option<dir::GlobalSymbolId>,
+    array_symbol: dir::GlobalSymbolId,
     /// The string id for the filter method name.
     filter_name: StringId,
     /// The string id for the findIndex method name.
@@ -88,15 +88,11 @@ struct PreferArraySomeVisitor<'a, 'b> {
 impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-some checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known Array symbol for this module
-        let array_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Array);
-
-        // intern commonly used names
+        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let filter_name = ctx.program.strings.intern("filter");
         let find_index_name = ctx.program.strings.intern("findIndex");
         let length_name = ctx.program.strings.intern("length");
 
-        // prepare visitor state
         Self {
             ctx,
             meta,
@@ -110,11 +106,9 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -294,7 +288,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             return false;
         };
 
-        is_array_type(self.ctx.types, type_id, self.array_symbol)
+        is_array_type(self.ctx.types, type_id, Some(self.array_symbol))
     }
 }
 
@@ -367,66 +361,57 @@ fn check_find_index_comparison(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report filter length comparisons against zero.
     #[test]
     fn test_flags_filter_length_non_empty_check() {
-        let test = TestProgram::for_rule_with_builtins(PreferArraySome);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2, 3];
 let has = items.filter(item => item > 1).length > 0;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-array-some");
     }
 
     /// Report filter length comparisons that check for emptiness.
     #[test]
     fn test_flags_filter_length_empty_check() {
-        let test = TestProgram::for_rule_with_builtins(PreferArraySome);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2, 3];
 let empty = items.filter(item => item > 1).length == 0;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-array-some");
     }
 
     /// Report findIndex comparisons against -1.
     #[test]
     fn test_flags_find_index_comparison() {
-        let test = TestProgram::for_rule_with_builtins(PreferArraySome);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2, 3];
 let has = items.findIndex(item => item > 1) !== -1;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-array-some");
     }
 
     /// Allow filter length comparisons that are not simple existence checks.
     #[test]
     fn test_allows_filter_length_thresholds() {
-        let test = TestProgram::for_rule_with_builtins(PreferArraySome);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferArraySome);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2, 3];
 let many = items.filter(item => item > 1).length > 1;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_no_lint("prefer-array-some");
     }
 }

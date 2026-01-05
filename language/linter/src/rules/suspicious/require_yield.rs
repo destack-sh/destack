@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU064",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -135,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_detects_generator_without_yield() {
-        let test = TestProgram::for_rule_without_builtins(RequireYield);
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +151,7 @@ function* gen() {
 
     #[test]
     fn test_detects_empty_generator() {
-        let test = TestProgram::for_rule_without_builtins(RequireYield);
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -161,7 +163,7 @@ function* gen() {}
 
     #[test]
     fn test_allows_generator_with_yield() {
-        let test = TestProgram::for_rule_without_builtins(RequireYield);
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -176,7 +178,7 @@ function* gen() {
 
     #[test]
     fn test_allows_generator_with_yield_in_loop() {
-        let test = TestProgram::for_rule_without_builtins(RequireYield);
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -192,7 +194,7 @@ function* gen() {
 
     #[test]
     fn test_allows_regular_function() {
-        let test = TestProgram::for_rule_without_builtins(RequireYield);
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -206,7 +208,7 @@ function foo() {
 
     #[test]
     fn test_allows_generator_with_yield_star() {
-        let test = TestProgram::for_rule_without_builtins(RequireYield);
+        let test = TestProgram::for_rule_without_prelude(RequireYield);
         let result = test.lint_ast(
             "test.ds",
             r#"

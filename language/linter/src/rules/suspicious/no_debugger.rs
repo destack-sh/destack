@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU010",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Always,
         stability = Stable
@@ -82,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_detects_debugger_statement() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -94,7 +96,7 @@ debugger;
 
     #[test]
     fn test_detects_debugger_expression() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -106,7 +108,7 @@ let x = debugger;
 
     #[test]
     fn test_detects_multiple_debuggers() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -122,7 +124,7 @@ debugger;
 
     #[test]
     fn test_no_debugger_clean_code() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -137,7 +139,7 @@ function foo() {
 
     #[test]
     fn test_fix_removes_debugger_statement() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -152,7 +154,7 @@ debugger;
 
     #[test]
     fn test_fix_preserves_surrounding_code() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -174,7 +176,7 @@ let y = 2;
 
     #[test]
     fn test_fix_without_semicolon() {
-        let test = TestProgram::for_rule_without_builtins(NoDebugger);
+        let test = TestProgram::for_rule_without_prelude(NoDebugger);
         let result = test.lint_ast(
             "test.ds",
             r#"

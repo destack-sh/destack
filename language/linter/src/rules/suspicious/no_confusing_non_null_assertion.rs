@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU007",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -129,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_detects_non_null_before_optional_chain() {
-        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -142,7 +144,7 @@ const x = foo!.?bar
 
     #[test]
     fn test_detects_non_null_after_optional_chain() {
-        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -155,7 +157,7 @@ const x = foo?.bar!
 
     #[test]
     fn test_allows_separate_non_null_and_optional() {
-        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -169,7 +171,7 @@ const y = baz?.qux
 
     #[test]
     fn test_allows_simple_non_null() {
-        let test = TestProgram::for_rule_without_builtins(NoConfusingNonNullAssertion);
+        let test = TestProgram::for_rule_without_prelude(NoConfusingNonNullAssertion);
         let result = test.lint_ast(
             "test.ds",
             r#"

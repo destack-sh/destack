@@ -15,9 +15,10 @@ use destack_workspace::{
     ProfileKey, Program, Runtime, Session,
 };
 
-use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRunner};
+use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRequirement, LintRunner};
 
 /// Test wrapper for linting.
+#[allow(unused)]
 pub(crate) struct TestProgram {
     /// The file system.
     fs: Arc<MemoryFileSystem>,
@@ -61,10 +62,28 @@ impl TestProgram {
 
         let session = Arc::new(Session::new(cwd.clone()).with_fs(fs.clone()));
         let program = session.add_root(cwd);
+
+        // libs
+        let mut libs = vec!["es2024".to_string()]; // should we even include this by default..?
+        for rule in &rules {
+            let meta = rule.meta();
+            for req in meta.requires_all.iter().chain(meta.requires_any.iter()) {
+                if let LintRequirement::RequireLibSymbol(_, rule_libs) = req {
+                    for lib in *rule_libs {
+                        let lib_str = (*lib).to_string();
+                        if !libs.contains(&lib_str) {
+                            libs.push(lib_str);
+                        }
+                    }
+                }
+            }
+        }
+
+        // profile
         let profile_key = ProfileKey::new(
             Runtime::Browser,
             Platform::Web,
-            vec!["es2024".to_string()],
+            libs,
             false,
             false,
             EnvSnapshot::from_env_all(),
@@ -72,6 +91,7 @@ impl TestProgram {
         );
         let profile_id = program.profiles.get_or_create(profile_key);
 
+        // compiler / runner
         let compiler = Arc::new(Compiler::new(
             session.clone(),
             program.clone(),
@@ -95,66 +115,28 @@ impl TestProgram {
     }
 
     /// Create a test program without prelude injection.
-    pub(crate) fn new_without_builtins(rules: Vec<BoxedLintRule>) -> Self {
+    pub(crate) fn new_without_prelude(rules: Vec<BoxedLintRule>) -> Self {
         Self::new(rules, false)
     }
 
     /// Create a test program with prelude injection.
-    pub(crate) fn new_with_builtins(rules: Vec<BoxedLintRule>) -> Self {
+    pub(crate) fn new_with_prelude(rules: Vec<BoxedLintRule>) -> Self {
         Self::new(rules, true)
     }
 
     /// Create a test with a single rule (without prelude).
-    pub(crate) fn for_rule_without_builtins<R: crate::LintRule + 'static>(rule: R) -> Self {
-        Self::new_without_builtins(vec![crate::boxed(rule)])
+    pub(crate) fn for_rule_without_prelude<R: crate::LintRule + 'static>(rule: R) -> Self {
+        Self::new_without_prelude(vec![crate::boxed(rule)])
     }
 
     /// Create a test with a single rule (with prelude).
-    pub(crate) fn for_rule_with_builtins<R: crate::LintRule + 'static>(rule: R) -> Self {
-        Self::new_with_builtins(vec![crate::boxed(rule)])
+    pub(crate) fn for_rule_with_prelude<R: crate::LintRule + 'static>(rule: R) -> Self {
+        Self::new_with_prelude(vec![crate::boxed(rule)])
     }
 
     /// Modify linter options.
     pub(crate) fn with_options(mut self, f: impl FnOnce(&mut LinterOptions)) -> Self {
         f(&mut self.linter_options);
-        self
-    }
-
-    /// Update the runtime for the test profile.
-    pub(crate) fn with_runtime(mut self, runtime: Runtime) -> Self {
-        let profile = self.program.profile(self.profile_id);
-        let libs = profile.key.lib.clone();
-        self.profile_id = self.program.profiles.get_or_create(ProfileKey::new(
-            runtime,
-            profile.key.platform,
-            libs,
-            profile.key.debug,
-            profile.key.test,
-            profile.key.env,
-            profile.key.flags,
-        ));
-        self
-    }
-
-    /// Load a lib module set.
-    pub(crate) fn with_lib(mut self, name: &str) -> Self {
-        self.session
-            .load_lib(name)
-            .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
-        let profile = self.program.profile(self.profile_id);
-        let mut libs = profile.key.lib.clone();
-        if !libs.iter().any(|lib| lib == name) {
-            libs.push(name.to_string());
-        }
-        self.profile_id = self.program.profiles.get_or_create(ProfileKey::new(
-            profile.key.runtime,
-            profile.key.platform,
-            libs,
-            profile.key.debug,
-            profile.key.test,
-            profile.key.env,
-            profile.key.flags,
-        ));
         self
     }
 
@@ -180,6 +162,20 @@ impl TestProgram {
     pub(crate) fn resolve_module(&self, module: ModuleId) {
         self.compiler.enqueue(ResolveTask::ResolveModuleCanonical {
             module,
+            profile: self.profile_id,
+        });
+    }
+
+    /// Resolve builtin language items for the current profile.
+    pub(crate) fn resolve_builtins(&self) {
+        self.compiler.enqueue(ResolveTask::ResolveBuiltins {
+            profile: self.profile_id,
+        });
+    }
+
+    /// Resolve builtin libs for the current profile.
+    pub(crate) fn resolve_libs(&self) {
+        self.compiler.enqueue(ResolveTask::ResolveLibs {
             profile: self.profile_id,
         });
     }
@@ -210,13 +206,15 @@ impl TestProgram {
         )
     }
 
-    /// Add module, compile through analysis, and lint.
-    pub(crate) fn lint(&self, path: &str, content: &str, level: LintLevel) -> Vec<LintDiagnostic> {
+    /// Add module, compile through analysis, and lint at DIR level.
+    pub(crate) fn lint_dir(&self, path: &str, content: &str) -> Vec<LintDiagnostic> {
         let module = self.add_module(path, content);
         self.import_module(module);
+        self.resolve_builtins();
+        self.resolve_libs();
         self.analyze_module(module);
         self.compile();
-        self.lint_module(module, level)
+        self.lint_module(module, LintLevel::Dir)
     }
 
     /// Add module, import only (parse), and lint at AST level.
@@ -365,6 +363,7 @@ impl<'a> LintResult<'a> {
         self.print_diagnostics(&self.diagnostics);
         panic!("expected lint '{rule_id}' at line {line} but found at lines: {lines:?}");
     }
+
     /// Apply edits to source code and return the result.
     pub(crate) fn apply_edits(&self, edits: Vec<&Edit>) -> String {
         // return original source if no edits

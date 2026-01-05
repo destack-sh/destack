@@ -14,6 +14,8 @@ declare_lint! {
         code = "LY021",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -131,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_detects_else_after_return() {
-        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -149,7 +151,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_allows_no_else() {
-        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -166,7 +168,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_allows_else_without_return_in_if() {
-        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -184,7 +186,7 @@ function foo(x: boolean) {
 
     #[test]
     fn test_fix_else_after_return() {
-        let test = TestProgram::for_rule_without_builtins(NoElseReturn);
+        let test = TestProgram::for_rule_without_prelude(NoElseReturn);
         let result = test.lint_ast(
             "test.ds",
             r#"

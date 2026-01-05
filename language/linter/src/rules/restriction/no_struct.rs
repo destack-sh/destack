@@ -14,6 +14,8 @@ declare_lint! {
         code = "LR030",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -64,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_detects_struct() {
-        let test = TestProgram::for_rule_without_builtins(NoStruct);
+        let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -79,7 +81,7 @@ struct Point {
 
     #[test]
     fn test_detects_exported_struct() {
-        let test = TestProgram::for_rule_without_builtins(NoStruct);
+        let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -94,7 +96,7 @@ export struct Point {
 
     #[test]
     fn test_allows_class() {
-        let test = TestProgram::for_rule_without_builtins(NoStruct);
+        let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -108,7 +110,7 @@ class MyClass {
 
     #[test]
     fn test_allows_interface() {
-        let test = TestProgram::for_rule_without_builtins(NoStruct);
+        let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
             "test.ts",
             r#"
@@ -122,7 +124,7 @@ interface MyInterface {
 
     #[test]
     fn test_allows_type() {
-        let test = TestProgram::for_rule_without_builtins(NoStruct);
+        let test = TestProgram::for_rule_without_prelude(NoStruct);
         let result = test.lint_ast(
             "test.ts",
             r#"

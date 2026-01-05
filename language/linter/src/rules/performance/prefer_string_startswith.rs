@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{const_i64, flip_binary_operator, is_string_type};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -15,6 +16,8 @@ declare_lint! {
         code = "LP022",
         category = Performance,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::String)],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -31,10 +34,7 @@ impl LintRule for PreferStringStartsWith {
 
     /// Check module DIR nodes for indexOf equality checks that should use startsWith().
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for startsWith comparisons
         let mut visitor = PreferStringStartsWithVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -47,7 +47,7 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known String symbol for this module.
-    string_symbol: Option<dir::GlobalSymbolId>,
+    string_symbol: dir::GlobalSymbolId,
     /// The string id for the indexOf method name.
     index_of_name: StringId,
     /// The visitor options.
@@ -57,13 +57,9 @@ struct PreferStringStartsWithVisitor<'a, 'b> {
 impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-startswith checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known String symbol for this module
-        let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
-
-        // intern commonly used names
+        let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
         let index_of_name = ctx.program.strings.intern("indexOf");
 
-        // prepare visitor state
         Self {
             ctx,
             meta,
@@ -75,11 +71,9 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -205,7 +199,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             return false;
         };
 
-        is_string_type(self.ctx.types, type_id, self.string_symbol)
+        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
     }
 }
 
@@ -238,36 +232,31 @@ impl NodeVisitor for PreferStringStartsWithVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     /// Report indexOf checks against zero.
     #[test]
     fn test_flags_index_of_zero_check() {
-        let test = TestProgram::for_rule_without_builtins(PreferStringStartsWith);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let text = "hello";
 let has = text.indexOf("he") === 0;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-string-startswith");
     }
 
     /// Allow non zero indexOf checks.
     #[test]
     fn test_allows_index_of_not_zero_check() {
-        let test = TestProgram::for_rule_without_builtins(PreferStringStartsWith);
-        let result = test.lint(
+        let test = TestProgram::for_rule_without_prelude(PreferStringStartsWith);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let text = "hello";
 let has = text.indexOf("he") !== -1;
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result)
             .assert_no_lint("prefer-string-startswith");
     }

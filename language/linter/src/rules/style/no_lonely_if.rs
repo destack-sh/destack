@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY025",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -126,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_detects_lonely_if() {
-        let test = TestProgram::for_rule_without_builtins(NoLonelyIf);
+        let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -144,7 +146,7 @@ if (a) {
 
     #[test]
     fn test_allows_else_if() {
-        let test = TestProgram::for_rule_without_builtins(NoLonelyIf);
+        let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -160,7 +162,7 @@ if (a) {
 
     #[test]
     fn test_allows_else_with_multiple_statements() {
-        let test = TestProgram::for_rule_without_builtins(NoLonelyIf);
+        let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +181,7 @@ if (a) {
 
     #[test]
     fn test_fix_lonely_if() {
-        let test = TestProgram::for_rule_without_builtins(NoLonelyIf);
+        let test = TestProgram::for_rule_without_prelude(NoLonelyIf);
         let result = test.lint_ast(
             "test.ds",
             r#"

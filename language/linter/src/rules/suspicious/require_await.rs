@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU062",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Strict,
         stability = Stable
@@ -172,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_async_without_await_detected() {
-        let test = TestProgram::for_rule_without_builtins(RequireAwait);
+        let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -186,7 +188,7 @@ async function foo() {
 
     #[test]
     fn test_async_with_await_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireAwait);
+        let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -201,7 +203,7 @@ async function foo() {
 
     #[test]
     fn test_non_async_function_allowed() {
-        let test = TestProgram::for_rule_without_builtins(RequireAwait);
+        let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -215,7 +217,7 @@ function foo() {
 
     #[test]
     fn test_fix_removes_async() {
-        let test = TestProgram::for_rule_without_builtins(RequireAwait);
+        let test = TestProgram::for_rule_without_prelude(RequireAwait);
         let result = test.lint_ast(
             "test.ds",
             r#"

@@ -4,7 +4,9 @@ use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, 
 use destack_source::{EditBuilder, File};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 
-use crate::{ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse};
+use crate::{
+    ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse, LintRequirement,
+};
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
 #[derive(Debug, Clone, Copy)]
@@ -101,6 +103,32 @@ impl<'a> LintModuleAstContext<'a> {
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
         self.options
             .resolve_severity(meta.id, meta.category, meta.category.default_severity())
+    }
+
+    /// Check if a requirement is met.
+    pub fn is_requirement_met(&self, _requirement: &LintRequirement) -> bool {
+        false // AST does not have lib symbols or well-known symbols
+    }
+
+    /// Check if a rule is supported.
+    pub fn is_rule_supported(&self, meta: &LintMeta) -> bool {
+        // requires all
+        if !meta.requires_all.is_empty() {
+            for requirement in meta.requires_all {
+                if !self.is_requirement_met(requirement) {
+                    return false;
+                }
+            }
+        }
+        // requires any
+        if !meta.requires_any.is_empty() {
+            for requirement in meta.requires_any {
+                if self.is_requirement_met(requirement) {
+                    return true;
+                }
+            }
+        }
+        true
     }
 
     /// Check if a rule is enabled.
@@ -272,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_allow_suppresses_by_id() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -285,7 +313,7 @@ function foo() {}
 
     #[test]
     fn test_allow_suppresses_by_code() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -298,7 +326,7 @@ function foo() {}
 
     #[test]
     fn test_allow_on_block() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -311,7 +339,7 @@ function foo() {}
 
     #[test]
     fn test_allow_does_not_affect_other_lints() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -324,7 +352,7 @@ function foo() {}
 
     #[test]
     fn test_forbid_prevents_inner_allow() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -341,7 +369,7 @@ function outer() {
 
     #[test]
     fn test_warn_changes_severity() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -355,7 +383,7 @@ function foo() {}
 
     #[test]
     fn test_deny_changes_severity() {
-        let test = TestProgram::for_rule_with_builtins(NoEmpty);
+        let test = TestProgram::for_rule_with_prelude(NoEmpty);
         let result = test.lint_ast(
             "test.ds",
             r#"

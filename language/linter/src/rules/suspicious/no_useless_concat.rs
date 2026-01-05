@@ -13,6 +13,8 @@ declare_lint! {
         code = "LU052",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = Always,
         recommended = Always,
         stability = Stable
@@ -127,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_detects_string_concat() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -139,7 +141,7 @@ const x = "hello" + "world";
 
     #[test]
     fn test_detects_string_concat_empty() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -151,7 +153,7 @@ const x = "" + "hello";
 
     #[test]
     fn test_allows_variable_concat() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -164,7 +166,7 @@ const x = a + "world";
 
     #[test]
     fn test_allows_number_addition() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -176,7 +178,7 @@ const x = 1 + 2;
 
     #[test]
     fn test_allows_mixed_concat() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -188,7 +190,7 @@ const x = "hello" + 42;
 
     #[test]
     fn test_fix_string_concat() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -206,7 +208,7 @@ const x = "helloworld";
 
     #[test]
     fn test_fix_empty_string() {
-        let test = TestProgram::for_rule_without_builtins(NoUselessConcat);
+        let test = TestProgram::for_rule_without_prelude(NoUselessConcat);
         let result = test.lint_ast(
             "test.ds",
             r#"

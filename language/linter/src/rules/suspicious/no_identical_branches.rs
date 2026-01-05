@@ -14,6 +14,8 @@ declare_lint! {
         code = "LU021",
         category = Suspicious,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -71,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_detects_identical_branches() {
-        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -87,7 +89,7 @@ if (x) {
 
     #[test]
     fn test_allows_different_branches() {
-        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -103,7 +105,7 @@ if (x) {
 
     #[test]
     fn test_allows_if_without_else() {
-        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -117,7 +119,7 @@ if (x) {
 
     #[test]
     fn test_detects_identical_ternary() {
-        let test = TestProgram::for_rule_without_builtins(NoIdenticalBranches);
+        let test = TestProgram::for_rule_without_prelude(NoIdenticalBranches);
         let result = test.lint_ast(
             "test.ds",
             r#"

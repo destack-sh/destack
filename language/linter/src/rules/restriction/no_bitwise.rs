@@ -14,6 +14,8 @@ declare_lint! {
         code = "LR005",
         category = Restriction,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Off,
         stability = Stable
@@ -100,70 +102,70 @@ mod tests {
 
     #[test]
     fn test_detects_bitwise_and() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a & b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_or() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a | b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_xor() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a ^ b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_not() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = ~a;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_shift_left() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a << b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_shift_right() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a >> b;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_detects_bitwise_assign() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "x &= 1;");
         test.result(result).assert_lint("no-bitwise");
     }
 
     #[test]
     fn test_allows_logical_and() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a && b;");
         test.result(result).assert_no_lint("no-bitwise");
     }
 
     #[test]
     fn test_allows_logical_or() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a || b;");
         test.result(result).assert_no_lint("no-bitwise");
     }
 
     #[test]
     fn test_allows_arithmetic() {
-        let test = TestProgram::for_rule_without_builtins(NoBitwise);
+        let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("test.ts", "let x = a + b * c;");
         test.result(result).assert_no_lint("no-bitwise");
     }

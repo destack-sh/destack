@@ -14,6 +14,8 @@ declare_lint! {
         code = "LC018",
         category = Correctness,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -108,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_detects_duplicate_integer_case() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -125,7 +127,7 @@ switch (x) {
 
     #[test]
     fn test_detects_duplicate_string_case() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -142,7 +144,7 @@ switch (x) {
 
     #[test]
     fn test_detects_duplicate_boolean_case() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -159,7 +161,7 @@ switch (x) {
 
     #[test]
     fn test_allows_unique_cases() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -176,7 +178,7 @@ switch (x) {
 
     #[test]
     fn test_ignores_match_expression() {
-        let test = TestProgram::for_rule_without_builtins(NoDuplicateCase);
+        let test = TestProgram::for_rule_without_prelude(NoDuplicateCase);
         let result = test.lint_ast(
             "test.ds",
             r#"

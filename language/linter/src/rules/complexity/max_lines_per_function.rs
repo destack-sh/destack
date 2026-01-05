@@ -13,6 +13,8 @@ declare_lint! {
         code = "LX007",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -90,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_detects_long_function() {
-        let test = TestProgram::for_rule_without_builtins(MaxLinesPerFunction);
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         // create a function with 51 lines (over default 50)
         let mut source = String::from("function foo() {\n");
         for i in 0..49 {
@@ -103,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_allows_short_function() {
-        let test = TestProgram::for_rule_without_builtins(MaxLinesPerFunction);
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -119,7 +121,7 @@ function foo() {
 
     #[test]
     fn test_allows_exactly_at_limit() {
-        let test = TestProgram::for_rule_without_builtins(MaxLinesPerFunction);
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         // create a function with exactly 50 lines
         let mut source = String::from("function foo() {\n");
         for i in 0..48 {
@@ -132,7 +134,7 @@ function foo() {
 
     #[test]
     fn test_checks_arrow_functions() {
-        let test = TestProgram::for_rule_without_builtins(MaxLinesPerFunction);
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         // create an arrow function with many lines
         let mut source = String::from("const foo = () => {\n");
         for i in 0..49 {
@@ -145,7 +147,7 @@ function foo() {
 
     #[test]
     fn test_ignores_function_declarations() {
-        let test = TestProgram::for_rule_without_builtins(MaxLinesPerFunction);
+        let test = TestProgram::for_rule_without_prelude(MaxLinesPerFunction);
         let result = test.lint_ast(
             "test.ds",
             r#"

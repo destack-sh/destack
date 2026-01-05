@@ -1,6 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_target_symbol;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -13,6 +14,8 @@ declare_lint! {
         code = "LC037",
         category = Correctness,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Promise)],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -29,10 +32,7 @@ impl LintRule for NoPromiseExecutorReturn {
 
     /// Check module DIR nodes for Promise executor returns.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for promise executor returns
         let mut visitor = PromiseExecutorReturnVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -45,7 +45,7 @@ struct PromiseExecutorReturnVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known Promise symbol for this module.
-    promise_symbol: Option<dir::GlobalSymbolId>,
+    promise_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -53,10 +53,7 @@ struct PromiseExecutorReturnVisitor<'a, 'b> {
 impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     /// Build a visitor for Promise executor return checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known Promise symbol for this module
-        let promise_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Promise);
-
-        // prepare visitor state
+        let promise_symbol = ctx.well_known_symbol(WellKnownSymbol::Promise);
         Self {
             ctx,
             meta,
@@ -67,16 +64,9 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when no Promise symbol is available
-        if self.promise_symbol.is_none() {
-            return;
-        }
-
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -91,13 +81,10 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         dynamic_arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non promise calls
-        let Some(promise_symbol) = self.promise_symbol else {
-            return;
-        };
         let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
             return;
         };
-        if target_symbol != promise_symbol {
+        if target_symbol != self.promise_symbol {
             return;
         }
 
@@ -284,34 +271,30 @@ impl NodeVisitor for ReturnValueVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_flags_executor_return_value() {
-        let test = TestProgram::for_rule_with_builtins(NoPromiseExecutorReturn);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let task = new Promise((resolve, reject) => {
     return 1;
 });
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result)
             .assert_lint("no-promise-executor-return");
     }
 
     #[test]
     fn test_flags_executor_expression_body() {
-        let test = TestProgram::for_rule_with_builtins(NoPromiseExecutorReturn);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let task = new Promise((resolve, reject) => resolve(1));
 "#,
-            LintLevel::Dir,
         );
         test.result(result)
             .assert_lint("no-promise-executor-return");
@@ -319,16 +302,14 @@ let task = new Promise((resolve, reject) => resolve(1));
 
     #[test]
     fn test_allows_executor_without_return() {
-        let test = TestProgram::for_rule_with_builtins(NoPromiseExecutorReturn);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoPromiseExecutorReturn);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let task = new Promise((resolve, reject) => {
     resolve(1);
 });
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result)
             .assert_no_lint("no-promise-executor-return");
     }

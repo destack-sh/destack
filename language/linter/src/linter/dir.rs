@@ -10,7 +10,7 @@ use destack_workspace::{
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::{ConstValue, LintDiagnostic, LintDirAnalysisCache, LintMeta};
+use crate::{ConstValue, LintDiagnostic, LintDirAnalysisCache, LintMeta, LintRequirement};
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
 #[derive(Debug, Clone, Copy)]
@@ -171,7 +171,7 @@ impl<'a> LintModuleDirContext<'a> {
     /// Get a cached lib symbol for the module profile and name.
     pub fn get_lib_item(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.lib_symbol(self.profile_id, name)
+        builtins.get_lib_symbol(self.profile_id, name)
     }
 
     /// Get a lib symbol from the cache, panicking if not found.
@@ -218,6 +218,40 @@ impl<'a> LintModuleDirContext<'a> {
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
         self.options
             .resolve_severity(meta.id, meta.category, meta.category.default_severity())
+    }
+
+    /// Check if a requirement is met.
+    pub fn is_requirement_met(&self, requirement: &LintRequirement) -> bool {
+        match requirement {
+            LintRequirement::RequireLibSymbol(name, _) => {
+                let name = self.program.strings.intern(name);
+                self.get_lib_item(name).is_some()
+            },
+            LintRequirement::RequireWellKnownSymbol(symbol) => {
+                self.get_well_known_symbol(*symbol).is_some()
+            },
+        }
+    }
+
+    /// Check if a rule is supported.
+    pub fn is_rule_supported(&self, meta: &LintMeta) -> bool {
+        // requires all
+        if !meta.requires_all.is_empty() {
+            for requirement in meta.requires_all {
+                if !self.is_requirement_met(requirement) {
+                    return false;
+                }
+            }
+        }
+        // requires any
+        if !meta.requires_any.is_empty() {
+            for requirement in meta.requires_any {
+                if self.is_requirement_met(requirement) {
+                    return true;
+                }
+            }
+        }
+        true
     }
 
     /// Check if a rule is enabled.
@@ -379,14 +413,13 @@ impl<'a> LintModuleDirContext<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::LintLevel;
     use crate::linter::TestProgram;
     use crate::rules::correctness::NoSelfCompare;
 
     #[test]
     fn test_allow_suppresses_by_id() {
-        let test = TestProgram::for_rule_with_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 @allow("no-self-compare")
@@ -395,7 +428,6 @@ function foo() {
     x == x
 }
 "#,
-            LintLevel::Dir,
         );
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
@@ -403,8 +435,8 @@ function foo() {
 
     #[test]
     fn test_allow_suppresses_by_code() {
-        let test = TestProgram::for_rule_with_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 @allow("LC038")
@@ -413,7 +445,6 @@ function foo() {
     x == x
 }
 "#,
-            LintLevel::Dir,
         );
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
@@ -421,8 +452,8 @@ function foo() {
 
     #[test]
     fn test_allow_does_not_affect_other_lints() {
-        let test = TestProgram::for_rule_with_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 @allow("some-other-lint")
@@ -431,7 +462,6 @@ function foo() {
     x == x
 }
 "#,
-            LintLevel::Dir,
         );
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
@@ -439,8 +469,8 @@ function foo() {
 
     #[test]
     fn test_forbid_prevents_inner_allow() {
-        let test = TestProgram::for_rule_with_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 @forbid("no-self-compare")
@@ -452,7 +482,6 @@ function outer() {
     }
 }
 "#,
-            LintLevel::Dir,
         );
         test.check_clean();
         // inner @allow should be ignored due to outer @forbid
@@ -461,8 +490,8 @@ function outer() {
 
     #[test]
     fn test_warn_changes_severity() {
-        let test = TestProgram::for_rule_with_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 @warn("no-self-compare")
@@ -471,7 +500,6 @@ function foo() {
     x == x
 }
 "#,
-            LintLevel::Dir,
         );
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
@@ -479,8 +507,8 @@ function foo() {
 
     #[test]
     fn test_deny_changes_severity() {
-        let test = TestProgram::for_rule_with_builtins(NoSelfCompare);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoSelfCompare);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 @deny("no-self-compare")
@@ -489,7 +517,6 @@ function foo() {
     x == x
 }
 "#,
-            LintLevel::Dir,
         );
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");

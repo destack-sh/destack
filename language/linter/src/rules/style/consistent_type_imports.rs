@@ -13,6 +13,8 @@ declare_lint! {
         code = "LY008",
         category = Style,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -78,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_allows_import_type() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeImports);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -91,7 +93,7 @@ import type { Foo, Bar } from "foo"
 
     #[test]
     fn test_detects_inline_type_imports() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeImports);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -103,7 +105,7 @@ import { type Foo, type Bar } from "foo"
 
     #[test]
     fn test_allows_mixed_imports() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeImports);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         // mixed imports are allowed (can't use `import type` for these)
         let result = test.lint_ast(
             "test.ds",
@@ -117,7 +119,7 @@ import { Foo, type Bar } from "foo"
 
     #[test]
     fn test_allows_value_imports() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeImports);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -130,7 +132,7 @@ import { foo, bar } from "foo"
 
     #[test]
     fn test_allows_namespace_import() {
-        let test = TestProgram::for_rule_without_builtins(ConsistentTypeImports);
+        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
         let result = test.lint_ast(
             "test.ds",
             r#"

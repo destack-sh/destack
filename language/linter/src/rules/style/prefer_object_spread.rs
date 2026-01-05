@@ -2,6 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
     unwrap_parenthesized_expression,
@@ -17,6 +18,8 @@ declare_lint! {
         code = "LY055",
         category = Style,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Object)],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -33,10 +36,7 @@ impl LintRule for PreferObjectSpread {
 
     /// Check module DIR nodes for Object.assign calls that should use spread.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for object spread opportunities
         let mut visitor = PreferObjectSpreadVisitor::new(ctx, meta);
         visitor.run();
     }
@@ -49,7 +49,7 @@ struct PreferObjectSpreadVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known Object symbol for this module.
-    object_symbol: Option<dir::GlobalSymbolId>,
+    object_symbol: dir::GlobalSymbolId,
     /// The Object member name.
     object_name: StringId,
     /// The string id for the assign method name.
@@ -63,15 +63,11 @@ struct PreferObjectSpreadVisitor<'a, 'b> {
 impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
     /// Build a visitor for prefer-object-spread checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known Object symbol for this module
-        let object_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Object);
-
-        // intern commonly used names
+        let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
         let object_name = ctx.program.strings.intern("Object");
         let assign_name = ctx.program.strings.intern("assign");
         let global_qualifiers = global_qualifier_symbols(ctx);
 
-        // prepare visitor state
         Self {
             ctx,
             meta,
@@ -85,11 +81,9 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);
@@ -169,9 +163,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
 
         // match direct Object symbol references
         if let Some(receiver_symbol) = expression_target_symbol(self.ctx.tree, receiver_id)
-            && self
-                .object_symbol
-                .is_some_and(|object_symbol| object_symbol == receiver_symbol)
+            && receiver_symbol == self.object_symbol
         {
             return true;
         }
@@ -229,49 +221,42 @@ impl NodeVisitor for PreferObjectSpreadVisitor<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_flags_object_assign_with_empty_object() {
-        let test = TestProgram::for_rule_with_builtins(PreferObjectSpread);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let base = { a: 1 };
 let merged = Object.assign({}, base);
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-object-spread");
     }
 
     /// Report global Object.assign with empty object.
     #[test]
     fn test_flags_global_object_assign_with_empty_object() {
-        let test = TestProgram::for_rule_with_builtins(PreferObjectSpread);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let base = { a: 1 };
 let merged = globalThis.Object.assign({}, base);
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_lint("prefer-object-spread");
     }
 
     #[test]
     fn test_allows_object_assign_with_non_empty_target() {
-        let test = TestProgram::for_rule_with_builtins(PreferObjectSpread);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(PreferObjectSpread);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let base = { a: 1 };
 let merged = Object.assign({ b: 2 }, base);
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_no_lint("prefer-object-spread");
     }
 }

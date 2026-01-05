@@ -1,6 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
+use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::expression_target_symbol;
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -14,6 +15,8 @@ declare_lint! {
         code = "LC005",
         category = Correctness,
         level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_any = [],
         fixable = No,
         recommended = Always,
         stability = Stable
@@ -46,7 +49,7 @@ struct ArrayConstructorVisitor<'a, 'b> {
     /// The lint metadata.
     meta: &'a LintMeta,
     /// The well known Array symbol for this module.
-    array_symbol: Option<dir::GlobalSymbolId>,
+    array_symbol: dir::GlobalSymbolId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -54,10 +57,7 @@ struct ArrayConstructorVisitor<'a, 'b> {
 impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
     /// Build a visitor for Array constructor checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve the well known Array symbol for this module
-        let array_symbol = ctx.get_well_known_symbol(WellKnownSymbol::Array);
-
-        // prepare visitor state
+        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         Self {
             ctx,
             meta,
@@ -68,11 +68,6 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // skip when no Array symbol is available
-        if self.array_symbol.is_none() {
-            return;
-        }
-
         // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
@@ -92,13 +87,10 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
         kind: &'static str,
     ) {
         // ignore non array references
-        let Some(array_symbol) = self.array_symbol else {
-            return;
-        };
         let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
             return;
         };
-        if target_symbol != array_symbol {
+        if target_symbol != self.array_symbol {
             return;
         }
 
@@ -161,74 +153,66 @@ fn array_constructor_reference(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LintLevel;
     use crate::linter::TestProgram;
 
     #[test]
     fn test_flags_array_constructor_call() {
-        let test = TestProgram::for_rule_with_builtins(NoArrayConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = Array(1, 2);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-array-constructor");
     }
 
     #[test]
     fn test_flags_array_constructor_new() {
-        let test = TestProgram::for_rule_with_builtins(NoArrayConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = new Array(1);
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_lint("no-array-constructor");
     }
 
     #[test]
     fn test_allows_array_literal() {
-        let test = TestProgram::for_rule_with_builtins(NoArrayConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let items = [1, 2];
 "#,
-            LintLevel::Dir,
         );
         test.result(result).assert_no_lint("no-array-constructor");
     }
 
     #[test]
     fn test_allows_shadowed_array() {
-        let test = TestProgram::for_rule_with_builtins(NoArrayConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let Array = (value: number): number => value;
 let item = Array(1);
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_no_lint("no-array-constructor");
     }
 
     #[test]
     fn test_allows_shadowed_array_in_function() {
-        let test = TestProgram::for_rule_with_builtins(NoArrayConstructor);
-        let result = test.lint(
+        let test = TestProgram::for_rule_with_prelude(NoArrayConstructor);
+        let result = test.lint_dir(
             "test.ds",
             r#"
 let build = (Array: (value: number) => number): number => {
     return Array(1);
 };
-"#,
-            LintLevel::Dir,
-        );
+"#);
         test.result(result).assert_no_lint("no-array-constructor");
     }
 }

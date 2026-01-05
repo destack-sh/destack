@@ -17,6 +17,8 @@ declare_lint! {
         code = "LX004",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -155,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_detects_deep_nesting() {
-        let test = TestProgram::for_rule_without_builtins(MaxDepth);
+        let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -179,7 +181,7 @@ function foo() {
 
     #[test]
     fn test_allows_shallow_nesting() {
-        let test = TestProgram::for_rule_without_builtins(MaxDepth);
+        let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -197,7 +199,7 @@ function foo() {
 
     #[test]
     fn test_else_if_does_not_increase_depth() {
-        let test = TestProgram::for_rule_without_builtins(MaxDepth);
+        let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -221,7 +223,7 @@ function foo() {
 
     #[test]
     fn test_counts_loop_nesting() {
-        let test = TestProgram::for_rule_without_builtins(MaxDepth);
+        let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -245,7 +247,7 @@ function foo() {
 
     #[test]
     fn test_function_resets_depth() {
-        let test = TestProgram::for_rule_without_builtins(MaxDepth);
+        let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -274,7 +276,7 @@ function outer() {
 
     #[test]
     fn test_at_exact_limit() {
-        let test = TestProgram::for_rule_without_builtins(MaxDepth);
+        let test = TestProgram::for_rule_without_prelude(MaxDepth);
         let result = test.lint_ast(
             "test.ds",
             r#"

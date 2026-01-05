@@ -13,6 +13,8 @@ declare_lint! {
         code = "LX025",
         category = Complexity,
         level = Ast,
+        requires_all = [],
+        requires_any = [],
         fixable = No,
         recommended = Strict,
         stability = Stable
@@ -188,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_let_if_sequence_detected() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpressionOverLetIf);
+        let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -208,7 +210,7 @@ function foo(cond: bool) {
 
     #[test]
     fn test_direct_expression_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpressionOverLetIf);
+        let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -223,7 +225,7 @@ function foo(cond: bool) {
 
     #[test]
     fn test_let_with_initializer_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpressionOverLetIf);
+        let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
@@ -241,7 +243,7 @@ function foo(cond: bool) {
 
     #[test]
     fn test_if_without_else_allowed() {
-        let test = TestProgram::for_rule_without_builtins(PreferExpressionOverLetIf);
+        let test = TestProgram::for_rule_without_prelude(PreferExpressionOverLetIf);
         let result = test.lint_ast(
             "test.ds",
             r#"
