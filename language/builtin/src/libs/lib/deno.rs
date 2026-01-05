@@ -14,8 +14,8 @@ const LIB_DENO_V2_5_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
 );
 
 pub const LIB_DENO: BuiltinLib =
-    BuiltinLib::ambient("deno", &[LIB_DENO_V2_6_INDEX_D_DS], &["esnext"]);
+    BuiltinLib::ambient_lib("deno", &[LIB_DENO_V2_6_INDEX_D_DS], &["esnext"]);
 pub const LIB_DENO_V2_6: BuiltinLib =
-    BuiltinLib::ambient("deno.v2.6", &[LIB_DENO_V2_6_INDEX_D_DS], &["esnext"]);
+    BuiltinLib::ambient_lib("deno.v2.6", &[LIB_DENO_V2_6_INDEX_D_DS], &["esnext"]);
 pub const LIB_DENO_V2_5: BuiltinLib =
-    BuiltinLib::ambient("deno.v2.5", &[LIB_DENO_V2_5_INDEX_D_DS], &["esnext"]);
+    BuiltinLib::ambient_lib("deno.v2.5", &[LIB_DENO_V2_5_INDEX_D_DS], &["esnext"]);

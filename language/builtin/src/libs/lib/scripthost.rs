@@ -8,4 +8,4 @@ const LIB_SCRIPTHOST_D_DS: BuiltinLibSource = BuiltinLibSource::new(
 );
 
 pub const LIB_SCRIPTHOST: BuiltinLib =
-    BuiltinLib::ambient("scripthost", &[LIB_SCRIPTHOST_D_DS], &["es5"]);
+    BuiltinLib::ambient_lib("scripthost", &[LIB_SCRIPTHOST_D_DS], &["es5"]);

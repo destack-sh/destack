@@ -12,9 +12,9 @@ use indexmap::IndexMap;
 
 use crate::{
     ArtifactRegistry, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot, FormatterOptions,
-    LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleType, Package,
-    PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId,
-    ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
+    LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleSource, ModuleType,
+    Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
+    ProfileId, ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -238,6 +238,7 @@ impl Program {
             None, // no tsconfig for root module
             ModuleType::Script,
             LanguageType::Destack,
+            ModuleSource::User,
             root_module_ast,
         );
 
@@ -281,6 +282,7 @@ impl Program {
             None,
             module_type,
             language_type,
+            ModuleSource::User,
         );
         self.modules.insert(module);
 

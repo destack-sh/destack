@@ -3,7 +3,7 @@ use destack_dir::{
     LocalScopeId, LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind,
     StaticKey, StringId, SymbolKind, SymbolSpace, SymbolTable,
 };
-use destack_workspace::{BUILTIN_PACKAGE_ID, Module, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -473,7 +473,7 @@ impl Compiler {
         }
 
         // try prelude if enabled (skip for builtin modules to avoid circular dependencies)
-        if module.package_id != BUILTIN_PACKAGE_ID
+        if module.is_user()
             && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?
         {
             return self.resolve_prelude_path(
@@ -488,6 +488,7 @@ impl Compiler {
             );
         }
 
+        // resolve global symbols
         if let Some(expr) = self.resolve_global_path(
             module,
             expression_id,

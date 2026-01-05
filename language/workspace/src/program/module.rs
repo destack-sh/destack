@@ -4,11 +4,21 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 
+use destack_builtin::BuiltinLibKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
 use crate::{
     ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId,
 };
+
+/// The source/origin of a module.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModuleSource {
+    /// User/project code.
+    User,
+    /// Builtin library code (core, std, or lib).
+    Builtin(BuiltinLibKind),
+}
 
 /// A Module is a single source unit.
 /// Destack treats all modules as "strict mode".
@@ -34,6 +44,8 @@ pub struct Module {
     pub module_type: ModuleType,
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
+    /// The source/origin of the module (user code or builtin).
+    pub source: ModuleSource,
 
     // NOTE #Architecture: module state is globally shared in Module/ModuleRegistry/Program/Workspace
     //  (dependencies and incrementalism work via compiler Task dependencies and explicit *Versions;
@@ -63,6 +75,7 @@ impl Module {
         tsconfig_id: Option<TsConfigId>,
         module_type: ModuleType,
         language_type: LanguageType,
+        source: ModuleSource,
     ) -> Self {
         Self {
             id,
@@ -75,6 +88,7 @@ impl Module {
             tsconfig_id,
             module_type,
             language_type,
+            source,
             ast: None,
             dir_base: None,
             dirs: Vec::new(),
@@ -94,6 +108,7 @@ impl Module {
         tsconfig_id: Option<TsConfigId>,
         module_type: ModuleType,
         language_type: LanguageType,
+        source: ModuleSource,
         ast: ModuleAst,
     ) -> Self {
         Self {
@@ -107,12 +122,25 @@ impl Module {
             tsconfig_id,
             module_type,
             language_type,
+            source,
             ast: Some(ast),
             dir_base: None,
             dirs: Vec::new(),
             comptimes: Vec::new(),
             mirs: Vec::new(),
         }
+    }
+
+    /// Whether this module is user/project code.
+    #[inline]
+    pub fn is_user(&self) -> bool {
+        matches!(self.source, ModuleSource::User)
+    }
+
+    /// Whether this module is a builtin library.
+    #[inline]
+    pub fn is_builtin(&self) -> bool {
+        matches!(self.source, ModuleSource::Builtin(_))
     }
 
     /// Get the AST.

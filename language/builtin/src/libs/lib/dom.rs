@@ -60,14 +60,14 @@ const DOM_CANONICAL_EXPORTS: &[&str] = &[
     "window",
 ];
 
-pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient("dom", &[LIB_DOM_INDEX_D_DS], &["es5"])
+pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient_lib("dom", &[LIB_DOM_INDEX_D_DS], &["es5"])
     .with_canonical_exports(DOM_CANONICAL_EXPORTS);
-pub const LIB_DOM_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_DOM_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "dom.asynciterable",
     &[LIB_DOM_ASYNCITERABLE_D_DS],
     &["dom", "es2018.asynciterable"],
 );
-pub const LIB_DOM_ITERABLE: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_DOM_ITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "dom.iterable",
     &[LIB_DOM_ITERABLE_D_DS],
     &["dom", "es2015.iterable"],

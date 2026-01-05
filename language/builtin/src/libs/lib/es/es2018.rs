@@ -20,7 +20,7 @@ lib_source!(LIB_ES_ES2018_INTL_D_DS, "intl.d.ts");
 lib_source!(LIB_ES_ES2018_PROMISE_D_DS, "promise.d.ts");
 lib_source!(LIB_ES_ES2018_REGEXP_D_DS, "regexp.d.ts");
 
-pub const LIB_ES2018: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ES2018: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018",
     &[
         LIB_ES_ES2018_ASYNCGENERATOR_D_DS,
@@ -34,19 +34,19 @@ pub const LIB_ES2018: BuiltinLib = BuiltinLib::ambient(
 )
 .with_canonical_exports(ES_CANONICAL_EXPORTS);
 
-pub const LIB_ES2018_ASYNCGENERATOR: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ES2018_ASYNCGENERATOR: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018.asyncgenerator",
     &[LIB_ES_ES2018_ASYNCGENERATOR_D_DS],
     &[],
 )
 .with_canonical_exports(ES_CANONICAL_EXPORTS);
-pub const LIB_ES2018_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ES2018_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018.asynciterable",
     &[LIB_ES_ES2018_ASYNCITERABLE_D_DS],
     &[],
 )
 .with_canonical_exports(ES_CANONICAL_EXPORTS);
-pub const LIB_ES2018_FULL: BuiltinLib = BuiltinLib::ambient(
+pub const LIB_ES2018_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018.full",
     &[LIB_ES_ES2018_FULL_D_DS],
     &[
@@ -60,11 +60,11 @@ pub const LIB_ES2018_FULL: BuiltinLib = BuiltinLib::ambient(
 )
 .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2018_INTL: BuiltinLib =
-    BuiltinLib::ambient("es2018.intl", &[LIB_ES_ES2018_INTL_D_DS], &[])
+    BuiltinLib::ambient_lib("es2018.intl", &[LIB_ES_ES2018_INTL_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2018_PROMISE: BuiltinLib =
-    BuiltinLib::ambient("es2018.promise", &[LIB_ES_ES2018_PROMISE_D_DS], &[])
+    BuiltinLib::ambient_lib("es2018.promise", &[LIB_ES_ES2018_PROMISE_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);
 pub const LIB_ES2018_REGEXP: BuiltinLib =
-    BuiltinLib::ambient("es2018.regexp", &[LIB_ES_ES2018_REGEXP_D_DS], &[])
+    BuiltinLib::ambient_lib("es2018.regexp", &[LIB_ES_ES2018_REGEXP_D_DS], &[])
         .with_canonical_exports(ES_CANONICAL_EXPORTS);

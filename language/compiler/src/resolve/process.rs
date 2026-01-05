@@ -2,7 +2,7 @@ use crate::{Compiler, ResolveResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::{BUILTIN_PACKAGE_ID, ProfileId};
+use destack_workspace::ProfileId;
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -69,7 +69,7 @@ impl Compiler {
                 if self.options.load_libs {
                     let module_ref = self.program.modules.get(module);
                     let module_ref = module_ref.read();
-                    if module_ref.package_id != BUILTIN_PACKAGE_ID {
+                    if module_ref.is_user() {
                         self.require_resolve_libs(profile)?;
                     }
                 }

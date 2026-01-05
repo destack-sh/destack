@@ -828,13 +828,13 @@ const UNDICI_TYPES_V7_SOURCES: &[BuiltinLibSource] = &[
 ];
 
 pub const LIB_UNDICI_TYPES_V5: BuiltinLib =
-    BuiltinLib::explicit("undici-types.v5", UNDICI_TYPES_V5_SOURCES, &["esnext"]);
+    BuiltinLib::explicit_lib("undici-types.v5", UNDICI_TYPES_V5_SOURCES, &["esnext"]);
 
 pub const LIB_UNDICI_TYPES_V6: BuiltinLib =
-    BuiltinLib::explicit("undici-types.v6", UNDICI_TYPES_V6_SOURCES, &["esnext"]);
+    BuiltinLib::explicit_lib("undici-types.v6", UNDICI_TYPES_V6_SOURCES, &["esnext"]);
 
 pub const LIB_UNDICI_TYPES_V7: BuiltinLib =
-    BuiltinLib::explicit("undici-types.v7", UNDICI_TYPES_V7_SOURCES, &["esnext"]);
+    BuiltinLib::explicit_lib("undici-types.v7", UNDICI_TYPES_V7_SOURCES, &["esnext"]);
 
 pub const LIB_UNDICI_TYPES: BuiltinLib =
-    BuiltinLib::explicit("undici-types", UNDICI_TYPES_V7_SOURCES, &["esnext"]);
+    BuiltinLib::explicit_lib("undici-types", UNDICI_TYPES_V7_SOURCES, &["esnext"]);
