@@ -184,7 +184,9 @@ impl Interpreter {
         );
 
         // bind function parameters to SSA values
-        for (i, param) in threaded.parameters.iter().enumerate() {
+        let parameter_slice =
+            argument_slice(threaded.argument_pool.as_slice(), threaded.parameters);
+        for (i, param) in parameter_slice.iter().enumerate() {
             let value = arguments.get(i).copied().unwrap_or(Value::VOID);
             frame.set_value(&mut self.value_stack, *param, value);
         }
@@ -232,8 +234,12 @@ impl Interpreter {
             // execute block starting from resume_pc
             let control = {
                 let frame_index = self.call_stack.len() - 1;
-                let mut state =
-                    ThreadedState::new(self, frame_index, current_func.argument_pool.as_slice());
+                let mut state = ThreadedState::new(
+                    self,
+                    frame_index,
+                    current_func.argument_pool.as_slice(),
+                    current_func.switch_case_pool.as_slice(),
+                );
                 (block.instructions[start_pc].handler)(&mut state, &block.instructions, start_pc)
             };
 
@@ -248,8 +254,12 @@ impl Interpreter {
                 } => {
                     // bind block parameters for target block
                     let target_block = &current_func.blocks[target as usize];
-                    let argument_slice =
+                    let argument_values =
                         argument_slice(current_func.argument_pool.as_slice(), arguments);
+                    let parameter_slice = argument_slice(
+                        current_func.argument_pool.as_slice(),
+                        target_block.parameters,
+                    );
                     let frame = self
                         .call_stack
                         .last()
@@ -258,8 +268,8 @@ impl Interpreter {
                         &mut self.value_stack,
                         frame,
                         frame,
-                        &target_block.parameters,
-                        argument_slice,
+                        parameter_slice,
+                        argument_values,
                     );
 
                     // update current block
@@ -277,11 +287,12 @@ impl Interpreter {
                     arguments,
                     resume_pc,
                 } => {
-                    let argument_slice =
+                    let argument_values =
                         argument_slice(current_func.argument_pool.as_slice(), arguments);
+                    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
                     // check for external or imported function
-                    let func: &mir::Function = self.tree.get(function);
+                    let func: &mir::Function = self.tree.get(function_id);
                     if func.is_import() {
                         // resolve arguments from caller
                         let caller = self
@@ -289,7 +300,7 @@ impl Interpreter {
                             .last()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                         let args =
-                            collect_argument_values(&self.value_stack, caller, argument_slice);
+                            collect_argument_values(&self.value_stack, caller, argument_values);
 
                         // resolve external handler
                         let name = self.strings.get(func.name).to_string();
@@ -313,10 +324,11 @@ impl Interpreter {
                     }
 
                     // get callee's threaded function
-                    let callee = self
-                        .threaded_functions
-                        .get(&function)
-                        .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function }))?;
+                    let callee = self.threaded_functions.get(&function_id).ok_or_else(|| {
+                        RuntimeError::new(Error::UndefinedFunction {
+                            function: function_id,
+                        })
+                    })?;
 
                     // check stack overflow
                     if self.call_stack.len() >= self.options.max_stack_depth {
@@ -345,7 +357,7 @@ impl Interpreter {
                         .resize(local_base + callee.local_count, Value::VOID);
                     let entry_block = callee.blocks[callee.entry as usize].mir_block;
                     let new_frame = Frame::new(
-                        function,
+                        function_id,
                         entry_block,
                         callee.entry as usize,
                         value_base,
@@ -355,6 +367,8 @@ impl Interpreter {
                     );
 
                     // bind callee's parameters
+                    let parameter_slice =
+                        argument_slice(callee.argument_pool.as_slice(), callee.parameters);
                     let caller = self
                         .call_stack
                         .last()
@@ -367,8 +381,8 @@ impl Interpreter {
                         &mut self.value_stack,
                         caller,
                         &new_frame,
-                        &callee.parameters,
-                        argument_slice,
+                        parameter_slice,
+                        argument_values,
                     );
 
                     // push callee frame

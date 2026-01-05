@@ -1,4 +1,5 @@
-use std::time::Instant;
+use std::cmp::Ordering;
+use std::time::{Duration, Instant};
 
 use destack_machine::interpreter::{Interpreter, MachineOptions};
 use destack_machine::memory::Value;
@@ -18,6 +19,111 @@ pub(crate) struct Program {
     pub expected: fn() -> Option<Value>,
     /// Default arguments for benchmarking.
     pub default_args: fn() -> Vec<Value>,
+}
+
+/// Benchmark options for quick runs.
+pub(crate) struct BenchOptions {
+    /// Filter patterns for program names.
+    pub filter: Option<Vec<String>>,
+    /// Number of timing repeats.
+    pub repeat: u32,
+    /// Minimum time per program run.
+    pub min_duration: Duration,
+    /// Warmup time per program.
+    pub warmup: Duration,
+}
+
+impl BenchOptions {
+    /// Build benchmark options from explicit values.
+    pub(crate) fn new(
+        filter: Option<Vec<String>>,
+        repeat: u32,
+        min_duration: Duration,
+        warmup: Duration,
+    ) -> Self {
+        // assemble options
+        Self {
+            filter,
+            repeat,
+            min_duration,
+            warmup,
+        }
+    }
+
+    /// Build default quick benchmark options.
+    pub(crate) fn quick(filter: Option<&[&str]>) -> Self {
+        // normalize filter patterns
+        let filter = filter.map(|patterns| patterns.iter().map(|pat| (*pat).to_string()).collect());
+
+        // use quick defaults
+        Self {
+            filter,
+            repeat: 3,
+            min_duration: Duration::from_millis(100),
+            warmup: Duration::from_millis(50),
+        }
+    }
+}
+
+/// Single benchmark timing sample.
+struct BenchSample {
+    /// Measured throughput in mops per second.
+    mops: f64,
+    /// Iterations performed.
+    iterations: u32,
+}
+
+/// Summary of benchmark samples.
+struct BenchSummary {
+    /// Median mops for the sample set.
+    median_mops: f64,
+    /// Iterations from the median sample.
+    median_iterations: u32,
+    /// Minimum mops observed.
+    min_mops: f64,
+    /// Maximum mops observed.
+    max_mops: f64,
+}
+
+/// Summarize benchmark samples with median and range.
+fn summarize_samples(samples: &mut [BenchSample]) -> BenchSummary {
+    // handle empty samples defensively
+    if samples.is_empty() {
+        return BenchSummary {
+            median_mops: 0.0,
+            median_iterations: 0,
+            min_mops: 0.0,
+            max_mops: 0.0,
+        };
+    }
+
+    // sort by mops for median selection
+    samples.sort_by(|a, b| a.mops.partial_cmp(&b.mops).unwrap_or(Ordering::Equal));
+
+    // compute min and max
+    let min_mops = samples.first().map(|s| s.mops).unwrap_or(0.0);
+    let max_mops = samples.last().map(|s| s.mops).unwrap_or(0.0);
+
+    // select median sample
+    let median_index = samples.len() / 2;
+    let median_sample = &samples[median_index];
+
+    // compute median mops
+    let median_mops = if samples.len() % 2 == 1 {
+        median_sample.mops
+    } else {
+        let lower = samples[median_index - 1].mops;
+        let upper = median_sample.mops;
+        (lower + upper) * 0.5
+    };
+
+    // return summary
+    BenchSummary {
+        median_mops,
+        median_iterations: median_sample.iterations,
+        min_mops,
+        max_mops,
+    }
 }
 
 impl Program {
@@ -93,13 +199,20 @@ const YELLOW: &str = "\x1b[33m";
 const CYAN: &str = "\x1b[36m";
 const RED: &str = "\x1b[31m";
 
-/// Run quick benchmarks with ~2s total time budget.
+/// Run quick benchmarks with default settings.
 #[allow(dead_code)]
 pub(crate) fn quick_bench(filter: Option<&[&str]>) {
-    use std::time::Duration;
+    // build quick defaults
+    let options = BenchOptions::quick(filter);
 
-    const TIME_PER_PROGRAM: Duration = Duration::from_millis(100);
+    // run with defaults
+    quick_bench_with_options(&options);
+}
 
+/// Run quick benchmarks with configurable timing.
+#[allow(dead_code)]
+pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
+    // gather benchmark programs
     let all_programs: Vec<(&str, &[&Program])> = vec![
         ("dispatch", dispatch::ALL),
         ("arithmetic", arithmetic::ALL),
@@ -108,66 +221,113 @@ pub(crate) fn quick_bench(filter: Option<&[&str]>) {
         ("intrinsics", intrinsics::ALL),
     ];
 
+    // clamp repeat and duration for safety
+    let repeat = options.repeat.max(1);
+    let min_duration = if options.min_duration.is_zero() {
+        Duration::from_millis(1)
+    } else {
+        options.min_duration
+    };
+
     // header
     println!();
     println!(
         "{BOLD}{:<28} {:>7} {:>5} {:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}",
         "Program", "Mops/s", "Iter", "Instrs", "Calls", "Stk", "Alloc", "Br", "Ld/St"
     );
+    if repeat > 1 {
+        println!(
+            "{DIM}median of {repeat} runs, min {:.0}ms, warmup {:.0}ms{RESET}",
+            min_duration.as_secs_f64() * 1000.0,
+            options.warmup.as_secs_f64() * 1000.0
+        );
+    }
     println!("{DIM}{}{RESET}", "─".repeat(86));
 
+    // track summary stats
     let bench_start = Instant::now();
     let mut total_mops = 0.0;
     let mut count = 0;
 
     for (category, programs) in &all_programs {
         for p in *programs {
+            // build display name
             let full_name = format!("{}/{}", category, p.name);
 
             // skip if filter provided and doesn't match
-            if let Some(patterns) = filter
+            if let Some(patterns) = options.filter.as_ref()
                 && !patterns.iter().any(|pat| full_name.contains(pat))
             {
                 continue;
             }
 
+            // build interpreter and arguments
             let mut interp = p.interpreter();
             let args = (p.default_args)();
 
-            // warmup run and get stats
-            let _ = interp.run_function_by_name(p.entry, &args).unwrap();
+            // run once for stats
             let result = interp.run_function_by_name(p.entry, &args).unwrap();
             let stats = &result.statistics;
             let needs_gc = stats.heap_allocations > 0;
 
-            // run for time budget
-            let mut iterations = 0u32;
-            let run_start = Instant::now();
-            while run_start.elapsed() < TIME_PER_PROGRAM {
-                if needs_gc {
-                    interp.collect_garbage();
+            // run warmup loop
+            if options.warmup > Duration::ZERO {
+                let warmup_start = Instant::now();
+                while warmup_start.elapsed() < options.warmup {
+                    if needs_gc {
+                        interp.collect_garbage();
+                    }
+                    let _ = interp.run_function_by_name(p.entry, &args).unwrap();
                 }
-                let _ = interp.run_function_by_name(p.entry, &args).unwrap();
-                iterations += 1;
             }
-            let elapsed = run_start.elapsed();
 
-            let total_instructions = stats.instructions_executed * iterations as u64;
-            let mops = total_instructions as f64 / elapsed.as_secs_f64() / 1_000_000.0;
+            // collect timing samples
+            let mut samples = Vec::with_capacity(repeat as usize);
+            for _ in 0..repeat {
+                // run for time budget
+                let mut iterations = 0u32;
+                let run_start = Instant::now();
+                while run_start.elapsed() < min_duration {
+                    if needs_gc {
+                        interp.collect_garbage();
+                    }
+                    let _ = interp.run_function_by_name(p.entry, &args).unwrap();
+                    iterations += 1;
+                }
+                let elapsed = run_start.elapsed();
+
+                // compute throughput
+                let total_instructions = stats.instructions_executed * iterations as u64;
+                let mops = total_instructions as f64 / elapsed.as_secs_f64() / 1_000_000.0;
+                samples.push(BenchSample { mops, iterations });
+            }
+
+            // summarize samples
+            let summary = summarize_samples(&mut samples);
+            let range_label = if repeat > 1 {
+                format!(
+                    "{DIM} ({:.1}-{:.1}){RESET}",
+                    summary.min_mops, summary.max_mops
+                )
+            } else {
+                String::new()
+            };
 
             // color based on performance
-            let mops_color = if mops >= 100.0 {
+            let mops_color = if summary.median_mops >= 100.0 {
                 GREEN
-            } else if mops >= 50.0 {
+            } else if summary.median_mops >= 50.0 {
                 YELLOW
             } else {
                 RED
             };
 
+            // print benchmark row
             let ld_st = stats.loads + stats.stores;
             println!(
-                "{CYAN}{full_name:<28}{RESET} {mops_color}{mops:>7.1}{RESET} {:>5} {DIM}{:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}",
-                iterations,
+                "{CYAN}{full_name:<28}{RESET} {mops_color}{:>7.1}{RESET} {:>5} {DIM}{:>9} {:>6} {:>5} {:>5} {:>6} {:>5}{RESET}{range_label}",
+                summary.median_mops,
+                summary.median_iterations,
                 stats.instructions_executed,
                 stats.calls_made,
                 stats.max_stack_depth,
@@ -176,7 +336,8 @@ pub(crate) fn quick_bench(filter: Option<&[&str]>) {
                 ld_st,
             );
 
-            total_mops += mops;
+            // update summary totals
+            total_mops += summary.median_mops;
             count += 1;
         }
     }

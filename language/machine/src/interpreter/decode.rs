@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
 use destack_mir as mir;
-use smallvec::SmallVec;
 
 use crate::memory::Value;
 
 use super::dispatch;
 use super::threaded::{
-    ArgumentRange, SwitchCase, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
+    ArgumentRange, SwitchCase, SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
     ThreadedInstructionData, pack_optional_value,
 };
 
@@ -214,8 +213,13 @@ pub(super) fn thread_function(
         "too many blocks for threaded indices"
     );
 
-    // allocate argument pool
+    // allocate argument pools
     let mut argument_pool = Vec::new();
+    let mut switch_case_pool = Vec::new();
+
+    // gather function parameters
+    let parameter_values: Vec<mir::Value> = func.parameters.iter().map(|p| p.value).collect();
+    let parameters = push_argument_range(&mut argument_pool, &parameter_values);
 
     // allocate threaded blocks
     let mut threaded_blocks = Vec::with_capacity(mir_blocks.len());
@@ -230,12 +234,10 @@ pub(super) fn thread_function(
             &block_index_map,
             &value_kinds,
             &mut argument_pool,
+            &mut switch_case_pool,
         );
         threaded_blocks.push(threaded);
     }
-
-    // gather function parameters
-    let parameters: SmallVec<[mir::Value; 8]> = func.parameters.iter().map(|p| p.value).collect();
 
     // compute storage sizes
     let local_count = func.locals.len();
@@ -246,6 +248,7 @@ pub(super) fn thread_function(
         entry: block_index_map[&entry_block] as u32,
         blocks: threaded_blocks,
         argument_pool,
+        switch_case_pool,
         value_count,
         local_count,
     })
@@ -259,6 +262,7 @@ fn thread_block(
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
+    switch_case_pool: &mut Vec<SwitchCase>,
 ) -> ThreadedBlock {
     // preallocate instruction list
     let mut instructions = Vec::with_capacity(block.instructions.len() + 1);
@@ -276,11 +280,13 @@ fn thread_block(
         block_index_map,
         value_kinds,
         argument_pool,
+        switch_case_pool,
     );
     instructions.push(terminator);
 
     // gather block parameters
-    let parameters: SmallVec<[mir::Value; 8]> = block.parameters.iter().map(|p| p.value).collect();
+    let parameter_values: Vec<mir::Value> = block.parameters.iter().map(|p| p.value).collect();
+    let parameters = push_argument_range(argument_pool, &parameter_values);
 
     // assemble block
     ThreadedBlock {
@@ -346,7 +352,7 @@ fn thread_instruction(
                 dest: *destination,
                 op: *operator,
                 arg: *argument,
-                to_type: *to_type,
+                to_type: to_type.id,
             },
         },
 
@@ -360,7 +366,7 @@ fn thread_instruction(
                 handler: dispatch::handle_call,
                 data: ThreadedInstructionData::Call {
                     dest: pack_optional_value(*destination),
-                    function: *function,
+                    function: function.id,
                     arguments: args,
                 },
             }
@@ -386,14 +392,14 @@ fn thread_instruction(
             handler: dispatch::handle_local_get,
             data: ThreadedInstructionData::LocalGet {
                 dest: *destination,
-                local: *local,
+                local: local.id,
             },
         },
 
         mir::Instruction::LocalSet { local, value } => ThreadedInstruction {
             handler: dispatch::handle_local_set,
             data: ThreadedInstructionData::LocalSet {
-                local: *local,
+                local: local.id,
                 value: *value,
             },
         },
@@ -405,7 +411,7 @@ fn thread_instruction(
             handler: dispatch::handle_global_addr,
             data: ThreadedInstructionData::GlobalAddr {
                 dest: *destination,
-                global: *global,
+                global: global.id,
             },
         },
 
@@ -416,7 +422,7 @@ fn thread_instruction(
             handler: dispatch::handle_global_const,
             data: ThreadedInstructionData::GlobalConst {
                 dest: *destination,
-                global: *global,
+                global: global.id,
             },
         },
 
@@ -923,20 +929,65 @@ fn update_max_value(max_value: &mut Option<u32>, value: mir::Value) {
 
 /// Append arguments to the pool and return their range.
 fn push_argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> ArgumentRange {
+    // fast path: no arguments
     if arguments.is_empty() {
         return ArgumentRange::empty();
     }
 
+    // compute range start
     let start = pool.len();
+
+    // validate bounds in debug builds
     debug_assert!(
         start + arguments.len() <= u32::MAX as usize,
         "argument pool overflow"
     );
+
+    // append arguments
     pool.extend_from_slice(arguments);
 
+    // return range
     ArgumentRange {
         start: start as u32,
         len: arguments.len() as u32,
+    }
+}
+
+/// Append switch cases to the pool and return their range.
+fn push_switch_case_range(
+    switch_case_pool: &mut Vec<SwitchCase>,
+    argument_pool: &mut Vec<mir::Value>,
+    block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    cases: &[mir::SwitchCase],
+) -> SwitchRange {
+    // fast path: no cases
+    if cases.is_empty() {
+        return SwitchRange::empty();
+    }
+
+    // compute range start
+    let start = switch_case_pool.len();
+
+    // validate bounds in debug builds
+    debug_assert!(
+        start + cases.len() <= u32::MAX as usize,
+        "switch case pool overflow"
+    );
+
+    // append cases
+    for case in cases {
+        let arguments = push_argument_range(argument_pool, &case.arguments);
+        switch_case_pool.push(SwitchCase {
+            value: case.value,
+            target: block_index_map[&case.target] as u32,
+            arguments,
+        });
+    }
+
+    // return range
+    SwitchRange {
+        start: start as u32,
+        len: cases.len() as u32,
     }
 }
 
@@ -946,6 +997,7 @@ fn thread_terminator(
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
+    switch_case_pool: &mut Vec<SwitchCase>,
 ) -> ThreadedInstruction {
     // map terminator opcode to threaded form
     match term {
@@ -987,20 +1039,14 @@ fn thread_terminator(
             default,
             default_arguments,
         } => {
-            let threaded_cases: Vec<SwitchCase> = cases
-                .iter()
-                .map(|c| SwitchCase {
-                    value: c.value,
-                    target: block_index_map[&c.target] as u32,
-                    arguments: push_argument_range(argument_pool, &c.arguments),
-                })
-                .collect();
+            let cases =
+                push_switch_case_range(switch_case_pool, argument_pool, block_index_map, cases);
 
             ThreadedInstruction {
                 handler: select_switch_handler(value_kinds, *value),
                 data: ThreadedInstructionData::Switch {
                     value: *value,
-                    cases: threaded_cases,
+                    cases,
                     default_target: block_index_map[default] as u32,
                     default_arguments: push_argument_range(argument_pool, default_arguments),
                 },

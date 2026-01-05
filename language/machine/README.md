@@ -1,43 +1,9 @@
 # Machine
 
 MIR interpreter for comptime execution, debug mode, and deoptimization.
-The Machine executes MIR directly without compiling to native code.
-
-# Overview
-
-The Machine serves two main roles in Destack:
-
+The Machine executes MIR directly without compiling to native code, serving two main roles:
 1. **Comptime**: Evaluate `comptime { }` blocks during compilation.
 2. **Debugging**: Run programs with full introspection for development (even de-opt from native).
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              COMPTIME EXECUTION                             │
-│                                                                             │
-│  Stages:  Lower ───► Machine ───► Patch                                     │
-│  Output:    MIR      results    patched DIR                                 │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                DEBUG MODE                                   │
-│                                                                             │
-│  Stages:  Lower ───► Machine ───► Debug Session                             │
-│  Output:    MIR    execution    breakpoints, stepping, inspection           │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DEOPTIMIZATION                                 │
-│                                                                             │
-│  Stages:  Native ───► Safepoint ───► Machine                                │
-│  Output:   code    reconstructed   continued execution                      │
-│              state               with introspection                         │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-We interpret MIR directly rather than JIT-compiling it.
 
 # Interpreter
 
@@ -56,14 +22,14 @@ The interpreter uses direct threading for efficient dispatch.
 Each instruction handler jumps directly to the next without returning to a central loop, which eliminates branch misprediction on the dispatch.
 Threaded decode precomputes handler pointers and compact instruction data, and this is the only execution path.
 
-Planned: common instruction sequences get fused into super-instructions:
+Common instruction sequences may be fused into super-instructions:
 - Load field, then load another field (nested access)
 - Compare and branch (conditionals)
 - Load, add constant, store (increment patterns)
 
 ## Caching
 
-Planned: type-dependent operations use inline caches for fast repeated access.
+Type-dependent operations may use inline caches for fast repeated access.
 First access populates the cache; subsequent accesses hit the fast path.
 This helps a lot with property access and type reflection.
 
