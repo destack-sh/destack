@@ -484,6 +484,7 @@ pub(super) fn handle_call(
         dest,
         function,
         arguments,
+        copies,
     } = &block[pc].data
     else {
         unreachable!()
@@ -494,6 +495,7 @@ pub(super) fn handle_call(
         function: *function,
         destination: *dest,
         arguments: *arguments,
+        copies: Some(*copies),
         resume_pc: pc + 1,
     }
 }
@@ -533,6 +535,7 @@ pub(super) fn handle_call_indirect(
         function,
         destination: *dest,
         arguments: *arguments,
+        copies: None,
         resume_pc: pc + 1,
     }
 }
@@ -1003,14 +1006,14 @@ pub(super) fn handle_jump(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Jump { target, arguments } = &block[pc].data else {
+    let ThreadedInstructionData::Jump { target, copies } = &block[pc].data else {
         unreachable!()
     };
 
     // return jump control
     ControlFlow::Jump {
         block: *target,
-        arguments: *arguments,
+        copies: *copies,
     }
 }
 
@@ -1024,9 +1027,9 @@ pub(super) fn handle_branch(
     let ThreadedInstructionData::Branch {
         condition,
         then_target,
-        then_arguments,
+        then_copies,
         else_target,
-        else_arguments,
+        else_copies,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1041,18 +1044,18 @@ pub(super) fn handle_branch(
 
     // handle truthy branch
     if is_truthy {
-        // forward then arguments
+        // forward then copies
         ControlFlow::Jump {
             block: *then_target,
-            arguments: *then_arguments,
+            copies: *then_copies,
         }
     }
     // otherwise jump to else target
     else {
-        // forward else arguments
+        // forward else copies
         ControlFlow::Jump {
             block: *else_target,
-            arguments: *else_arguments,
+            copies: *else_copies,
         }
     }
 }
@@ -1067,9 +1070,9 @@ pub(super) fn handle_branch_bool(
     let ThreadedInstructionData::Branch {
         condition,
         then_target,
-        then_arguments,
+        then_copies,
         else_target,
-        else_arguments,
+        else_copies,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1084,18 +1087,18 @@ pub(super) fn handle_branch_bool(
 
     // handle truthy branch
     if is_truthy {
-        // forward then arguments
+        // forward then copies
         ControlFlow::Jump {
             block: *then_target,
-            arguments: *then_arguments,
+            copies: *then_copies,
         }
     }
     // otherwise jump to else target
     else {
-        // forward else arguments
+        // forward else copies
         ControlFlow::Jump {
             block: *else_target,
-            arguments: *else_arguments,
+            copies: *else_copies,
         }
     }
 }
@@ -1111,7 +1114,7 @@ pub(super) fn handle_switch(
         value,
         cases,
         default_target,
-        default_arguments,
+        default_copies,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1128,19 +1131,19 @@ pub(super) fn handle_switch(
     let case_slice = state.switch_cases(*cases);
     for case in case_slice {
         if case.value == int_val {
-            // forward case arguments
+            // forward case copies
             return ControlFlow::Jump {
                 block: case.target,
-                arguments: case.arguments,
+                copies: case.copies,
             };
         }
     }
 
-    // forward default arguments
+    // forward default copies
     // return default jump
     ControlFlow::Jump {
         block: *default_target,
-        arguments: *default_arguments,
+        copies: *default_copies,
     }
 }
 
@@ -1155,7 +1158,7 @@ pub(super) fn handle_switch_int(
         value,
         cases,
         default_target,
-        default_arguments,
+        default_copies,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1172,19 +1175,19 @@ pub(super) fn handle_switch_int(
     let case_slice = state.switch_cases(*cases);
     for case in case_slice {
         if case.value == int_val {
-            // forward case arguments
+            // forward case copies
             return ControlFlow::Jump {
                 block: case.target,
-                arguments: case.arguments,
+                copies: case.copies,
             };
         }
     }
 
-    // forward default arguments
+    // forward default copies
     // return default jump
     ControlFlow::Jump {
         block: *default_target,
-        arguments: *default_arguments,
+        copies: *default_copies,
     }
 }
 

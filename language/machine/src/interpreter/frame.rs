@@ -1,5 +1,8 @@
+use std::ptr::NonNull;
+
 use destack_mir as mir;
 
+use super::threaded::ThreadedFunction;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapCell, HeapHandle, Value};
 
@@ -8,6 +11,8 @@ use crate::memory::{HeapCell, HeapHandle, Value};
 pub struct Frame {
     /// The function being executed.
     pub function: mir::LocalNodeId<mir::Function>,
+    /// Pointer to the threaded function for fast dispatch.
+    pub threaded: NonNull<ThreadedFunction>,
     /// The entry block of the function.
     pub entry_block: mir::LocalNodeId<mir::Block>,
     /// The current block being executed.
@@ -32,8 +37,10 @@ pub struct Frame {
 
 impl Frame {
     /// Create a new frame for a function.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         function: mir::LocalNodeId<mir::Function>,
+        threaded: NonNull<ThreadedFunction>,
         entry_block: mir::LocalNodeId<mir::Block>,
         block_index: usize,
         value_base: usize,
@@ -44,6 +51,7 @@ impl Frame {
         // assemble frame state
         Self {
             function,
+            threaded,
             entry_block,
             current_block: entry_block,
             block_index,
@@ -55,6 +63,14 @@ impl Frame {
             stack_cells: Vec::new(),
             return_destination: None,
         }
+    }
+
+    /// Get the threaded function for this frame.
+    #[inline]
+    pub fn threaded(&self) -> &ThreadedFunction {
+        // return threaded function
+        // safety: threaded pointer is valid for interpreter lifetime
+        unsafe { self.threaded.as_ref() }
     }
 
     /// Get a value from this frame.
