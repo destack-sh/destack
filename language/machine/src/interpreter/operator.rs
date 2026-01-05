@@ -191,6 +191,216 @@ pub(super) fn execute_binary(
     Ok(result)
 }
 
+/// Execute a signed integer binary operation.
+#[inline(always)]
+pub(super) fn execute_binary_int(
+    op: mir::BinaryOperator,
+    lhs: Value,
+    rhs: Value,
+) -> Result<Value, Error> {
+    use mir::BinaryOperator::*;
+
+    // decode operands
+    let a = lhs.raw_data() as i64;
+    let b = rhs.raw_data() as i64;
+    let width = lhs.width();
+
+    // apply operator
+    let result = match op {
+        Add => Value::int(a.wrapping_add(b), width),
+        Subtract => Value::int(a.wrapping_sub(b), width),
+        Multiply => Value::int(a.wrapping_mul(b), width),
+        SignedDivide => {
+            if b == 0 {
+                return Err(Error::DivisionByZero);
+            }
+            Value::int(a.wrapping_div(b), width)
+        }
+        SignedRemainder => {
+            if b == 0 {
+                return Err(Error::DivisionByZero);
+            }
+            Value::int(a.wrapping_rem(b), width)
+        }
+        Equal => Value::bool(a == b),
+        NotEqual => Value::bool(a != b),
+        SignedLessThan => Value::bool(a < b),
+        SignedLessEqual => Value::bool(a <= b),
+        SignedGreaterThan => Value::bool(a > b),
+        SignedGreaterEqual => Value::bool(a >= b),
+        And => Value::int(a & b, width),
+        Or => Value::int(a | b, width),
+        Xor => Value::int(a ^ b, width),
+        ShiftLeft => Value::int(a.wrapping_shl(b as u32), width),
+        ArithmeticShiftRight => Value::int(a.wrapping_shr(b as u32), width),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible types for {op:?}"),
+                actual: format!("{lhs:?}, {rhs:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute an unsigned integer binary operation.
+#[inline(always)]
+pub(super) fn execute_binary_uint(
+    op: mir::BinaryOperator,
+    lhs: Value,
+    rhs: Value,
+) -> Result<Value, Error> {
+    use mir::BinaryOperator::*;
+
+    // decode operands
+    let a = lhs.raw_data();
+    let b = rhs.raw_data();
+    let width = lhs.width();
+
+    // apply operator
+    let result = match op {
+        Add => Value::uint(a.wrapping_add(b), width),
+        Subtract => Value::uint(a.wrapping_sub(b), width),
+        Multiply => Value::uint(a.wrapping_mul(b), width),
+        UnsignedDivide => {
+            if b == 0 {
+                return Err(Error::DivisionByZero);
+            }
+            Value::uint(a.wrapping_div(b), width)
+        }
+        UnsignedRemainder => {
+            if b == 0 {
+                return Err(Error::DivisionByZero);
+            }
+            Value::uint(a.wrapping_rem(b), width)
+        }
+        UnsignedLessThan => Value::bool(a < b),
+        UnsignedLessEqual => Value::bool(a <= b),
+        UnsignedGreaterThan => Value::bool(a > b),
+        UnsignedGreaterEqual => Value::bool(a >= b),
+        And => Value::uint(a & b, width),
+        Or => Value::uint(a | b, width),
+        Xor => Value::uint(a ^ b, width),
+        ShiftLeft => Value::uint(a.wrapping_shl(b as u32), width),
+        LogicalShiftRight => Value::uint(a.wrapping_shr(b as u32), width),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible types for {op:?}"),
+                actual: format!("{lhs:?}, {rhs:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a float32 binary operation.
+#[inline(always)]
+pub(super) fn execute_binary_float32(
+    op: mir::BinaryOperator,
+    lhs: Value,
+    rhs: Value,
+) -> Result<Value, Error> {
+    use mir::BinaryOperator::*;
+
+    // decode operands
+    let a = f32::from_bits(lhs.raw_data() as u32);
+    let b = f32::from_bits(rhs.raw_data() as u32);
+
+    // apply operator
+    let result = match op {
+        FloatAdd => Value::float32(a + b),
+        FloatSubtract => Value::float32(a - b),
+        FloatMultiply => Value::float32(a * b),
+        FloatDivide => Value::float32(a / b),
+        FloatEqual => Value::bool(a == b),
+        FloatNotEqual => Value::bool(a != b),
+        FloatLessThan => Value::bool(a < b),
+        FloatLessEqual => Value::bool(a <= b),
+        FloatGreaterThan => Value::bool(a > b),
+        FloatGreaterEqual => Value::bool(a >= b),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible types for {op:?}"),
+                actual: format!("{lhs:?}, {rhs:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a float64 binary operation.
+#[inline(always)]
+pub(super) fn execute_binary_float64(
+    op: mir::BinaryOperator,
+    lhs: Value,
+    rhs: Value,
+) -> Result<Value, Error> {
+    use mir::BinaryOperator::*;
+
+    // decode operands
+    let a = f64::from_bits(lhs.raw_data());
+    let b = f64::from_bits(rhs.raw_data());
+
+    // apply operator
+    let result = match op {
+        FloatAdd => Value::float64(a + b),
+        FloatSubtract => Value::float64(a - b),
+        FloatMultiply => Value::float64(a * b),
+        FloatDivide => Value::float64(a / b),
+        FloatEqual => Value::bool(a == b),
+        FloatNotEqual => Value::bool(a != b),
+        FloatLessThan => Value::bool(a < b),
+        FloatLessEqual => Value::bool(a <= b),
+        FloatGreaterThan => Value::bool(a > b),
+        FloatGreaterEqual => Value::bool(a >= b),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible types for {op:?}"),
+                actual: format!("{lhs:?}, {rhs:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a boolean binary operation.
+#[inline(always)]
+pub(super) fn execute_binary_bool(
+    op: mir::BinaryOperator,
+    lhs: Value,
+    rhs: Value,
+) -> Result<Value, Error> {
+    use mir::BinaryOperator::*;
+
+    // decode operands
+    let a = lhs.raw_data() != 0;
+    let b = rhs.raw_data() != 0;
+
+    // apply operator
+    let result = match op {
+        And => Value::bool(a && b),
+        Or => Value::bool(a || b),
+        Xor => Value::bool(a ^ b),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible types for {op:?}"),
+                actual: format!("{lhs:?}, {rhs:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
 /// Execute a unary operation.
 #[inline(always)]
 pub(super) fn execute_unary(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
@@ -222,6 +432,124 @@ pub(super) fn execute_unary(op: mir::UnaryOperator, arg: Value) -> Result<Value,
             let value = arg.raw_data();
             Value::uint(!value, arg.width())
         }
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible type for {op:?}"),
+                actual: format!("{arg:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a signed integer unary operation.
+#[inline(always)]
+pub(super) fn execute_unary_int(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+    use mir::UnaryOperator::*;
+
+    // decode operand
+    let value = arg.raw_data() as i64;
+    let width = arg.width();
+
+    // apply operator
+    let result = match op {
+        Negate => Value::int(value.wrapping_neg(), width),
+        Not => Value::int(!value, width),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible type for {op:?}"),
+                actual: format!("{arg:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute an unsigned integer unary operation.
+#[inline(always)]
+pub(super) fn execute_unary_uint(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+    use mir::UnaryOperator::*;
+
+    // decode operand
+    let value = arg.raw_data();
+    let width = arg.width();
+
+    // apply operator
+    let result = match op {
+        Not => Value::uint(!value, width),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible type for {op:?}"),
+                actual: format!("{arg:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a float32 unary operation.
+#[inline(always)]
+pub(super) fn execute_unary_float32(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+    use mir::UnaryOperator::*;
+
+    // decode operand
+    let value = f32::from_bits(arg.raw_data() as u32);
+
+    // apply operator
+    let result = match op {
+        FloatNegate => Value::float32(-value),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible type for {op:?}"),
+                actual: format!("{arg:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a float64 unary operation.
+#[inline(always)]
+pub(super) fn execute_unary_float64(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+    use mir::UnaryOperator::*;
+
+    // decode operand
+    let value = f64::from_bits(arg.raw_data());
+
+    // apply operator
+    let result = match op {
+        FloatNegate => Value::float64(-value),
+        _ => {
+            return Err(Error::TypeMismatch {
+                expected: format!("compatible type for {op:?}"),
+                actual: format!("{arg:?}"),
+            });
+        }
+    };
+
+    // return result
+    Ok(result)
+}
+
+/// Execute a boolean unary operation.
+#[inline(always)]
+pub(super) fn execute_unary_bool(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+    use mir::UnaryOperator::*;
+
+    // decode operand
+    let value = arg.raw_data() != 0;
+
+    // apply operator
+    let result = match op {
+        Not => Value::bool(!value),
         _ => {
             return Err(Error::TypeMismatch {
                 expected: format!("compatible type for {op:?}"),

@@ -85,6 +85,176 @@ pub(super) fn handle_binary(
     next!(state, block, pc)
 }
 
+/// Handle signed integer binary operation.
+pub(super) fn handle_binary_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Binary {
+        dest,
+        op,
+        left,
+        right,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = state.get(*right);
+
+    // execute operation
+    let result = match operator::execute_binary_int(*op, lhs, rhs) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle unsigned integer binary operation.
+pub(super) fn handle_binary_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Binary {
+        dest,
+        op,
+        left,
+        right,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = state.get(*right);
+
+    // execute operation
+    let result = match operator::execute_binary_uint(*op, lhs, rhs) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle float32 binary operation.
+pub(super) fn handle_binary_float32(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Binary {
+        dest,
+        op,
+        left,
+        right,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = state.get(*right);
+
+    // execute operation
+    let result = match operator::execute_binary_float32(*op, lhs, rhs) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle float64 binary operation.
+pub(super) fn handle_binary_float64(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Binary {
+        dest,
+        op,
+        left,
+        right,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = state.get(*right);
+
+    // execute operation
+    let result = match operator::execute_binary_float64(*op, lhs, rhs) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle boolean binary operation.
+pub(super) fn handle_binary_bool(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Binary {
+        dest,
+        op,
+        left,
+        right,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = state.get(*right);
+
+    // execute operation
+    let result = match operator::execute_binary_bool(*op, lhs, rhs) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle unary operation.
 pub(super) fn handle_unary(
     state: &mut ThreadedState,
@@ -101,6 +271,141 @@ pub(super) fn handle_unary(
 
     // execute operation
     let result = match operator::execute_unary(*op, argument) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle signed integer unary operation.
+pub(super) fn handle_unary_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load operand
+    let argument = state.get(*arg);
+
+    // execute operation
+    let result = match operator::execute_unary_int(*op, argument) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle unsigned integer unary operation.
+pub(super) fn handle_unary_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load operand
+    let argument = state.get(*arg);
+
+    // execute operation
+    let result = match operator::execute_unary_uint(*op, argument) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle float32 unary operation.
+pub(super) fn handle_unary_float32(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load operand
+    let argument = state.get(*arg);
+
+    // execute operation
+    let result = match operator::execute_unary_float32(*op, argument) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle float64 unary operation.
+pub(super) fn handle_unary_float64(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load operand
+    let argument = state.get(*arg);
+
+    // execute operation
+    let result = match operator::execute_unary_float64(*op, argument) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle boolean unary operation.
+pub(super) fn handle_unary_bool(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Unary { dest, op, arg } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load operand
+    let argument = state.get(*arg);
+
+    // execute operation
+    let result = match operator::execute_unary_bool(*op, argument) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
     };
@@ -738,6 +1043,51 @@ pub(super) fn handle_branch(
     }
 }
 
+/// Handle boolean branch (exits tail-call chain).
+pub(super) fn handle_branch_bool(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Branch {
+        condition,
+        then_target,
+        then_arguments,
+        else_target,
+        else_arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // evaluate branch condition
+    let cond = state.get(*condition);
+    let is_truthy = cond.raw_data() != 0;
+
+    // update branch statistics
+    state.interpreter.statistics.branches += 1;
+
+    // handle truthy branch
+    if is_truthy {
+        // resolve then arguments
+        let args = collect_args(state, then_arguments);
+        ControlFlow::Jump {
+            block: *then_target,
+            arguments: args,
+        }
+    }
+    // otherwise jump to else target
+    else {
+        // resolve else arguments
+        let args = collect_args(state, else_arguments);
+        ControlFlow::Jump {
+            block: *else_target,
+            arguments: args,
+        }
+    }
+}
+
 /// Handle switch (exits tail-call chain).
 pub(super) fn handle_switch(
     state: &mut ThreadedState,
@@ -758,6 +1108,52 @@ pub(super) fn handle_switch(
     // load switch value
     let switch_val = state.get(*value);
     let int_val = switch_val.as_int().unwrap_or(0);
+
+    // update branch statistics
+    state.interpreter.statistics.branches += 1;
+
+    // find matching case
+    for case in cases {
+        if case.value == int_val {
+            // resolve case arguments
+            let args = collect_args(state, &case.arguments);
+            return ControlFlow::Jump {
+                block: case.target,
+                arguments: args,
+            };
+        }
+    }
+
+    // resolve default arguments
+    let args = collect_args(state, default_arguments);
+
+    // return default jump
+    ControlFlow::Jump {
+        block: *default_target,
+        arguments: args,
+    }
+}
+
+/// Handle integer switch (exits tail-call chain).
+pub(super) fn handle_switch_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Switch {
+        value,
+        cases,
+        default_target,
+        default_arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load switch value
+    let switch_val = state.get(*value);
+    let int_val = switch_val.raw_data() as i64;
 
     // update branch statistics
     state.interpreter.statistics.branches += 1;
