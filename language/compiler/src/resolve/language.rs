@@ -479,7 +479,6 @@ mod tests {
 
     /// Analyze all builtin libs (without errors).
     #[test]
-    #[ignore] // FUGU: compile_check_clean on test_analyze_all_builtin_libs
     fn test_analyze_all_builtin_libs() {
         // collect all libs into one test program
         let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
