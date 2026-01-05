@@ -350,9 +350,11 @@ impl Parser {
         }
 
         // regular static parameters
-        let parameters = self.with_options(self.options.nested().in_static(), |parser| {
-            parser.eat_parameters_body()
-        })?;
+        let mut options = self.options.nested().in_static();
+        if self.options.in_type {
+            options = options.in_type();
+        }
+        let parameters = self.with_options(options, |parser| parser.eat_parameters_body())?;
         self.eat_token(TokenType::GreaterThan)?;
         Ok(parameters)
     }

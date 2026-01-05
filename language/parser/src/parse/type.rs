@@ -229,8 +229,15 @@ impl Parser {
             };
             descriptor.name = name;
 
-            // static parameters
-            let static_parameters = self.eat_static_parameters_maybe()?;
+            // static parameters (speculative: may fail for type expressions like Foo<T[number]>)
+            let static_parameters = match self.eat_static_parameters_maybe() {
+                Ok(params) => params,
+                Err(_) => {
+                    // failed to parse as parameters, restore and fall through to expression
+                    self.restore(speculative_start.0, speculative_start.1);
+                    None
+                }
+            };
 
             // if followed by =, then it's a type alias
             if self.peek_token(TokenType::Assign).is_ok() {
@@ -267,7 +274,7 @@ impl Parser {
             }
             // otherwise it's a type expression with static arguments
             else {
-                // re-parse from before the static parameters to get them as a arguments
+                // re-parse from before the name to get static arguments properly
                 self.restore(speculative_start.0, speculative_start.1);
                 let mut right_options = self.options.not_in_position().in_type();
                 if self.options.in_type_conditional_right {
@@ -1798,6 +1805,209 @@ mod tests {
                         assert_expression_path!(parser, parser.tree.get(*index), "B");
                     });
                 });
+            });
+        });
+    }
+
+    /// Indexed access type inside generic arguments.
+    #[test]
+    fn test_parse_generic_with_indexed_access_type() {
+        // Foo<T[number]> - indexed access inside generic
+        let mut test = TestParser::new("type A = Foo<T[number]>");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                    assert_eq!(path.segments.len(), 1);
+                    let args = static_arguments.as_ref().unwrap();
+                    assert_eq!(args.len(), 1);
+                    assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "T");
+                            assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Indexed access type followed by array suffix.
+    #[test]
+    fn test_parse_indexed_access_with_array_suffix() {
+        // T[number][] - indexed access followed by array type
+        let mut test = TestParser::new("type A = T[number][]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                // outer [] is Index with no index (array type)
+                assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
+                    assert!(index.is_none());
+                    // inner T[number] is TypeIndex
+                    assert_node!(parser.tree, *left, Expression::TypeIndex { left, index } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "T");
+                        assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
+    }
+
+    /// Generic type with indexed access, followed by array suffix.
+    #[test]
+    fn test_parse_generic_indexed_access_with_array_suffix() {
+        // Foo<T[number]>[] - the pattern from deno builtins
+        let mut test = TestParser::new("type A = Foo<T[number]>[]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                // outer [] is Index with no index (array type)
+                assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
+                    assert!(index.is_none());
+                    // inner Foo<T[number]> is Path with static arguments
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                        assert_eq!(path.segments.len(), 1);
+                        let args = static_arguments.as_ref().unwrap();
+                        assert_eq!(args.len(), 1);
+                        assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                                assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Generic type with indexed access in TypeScript declaration file.
+    #[test]
+    fn test_parse_generic_indexed_access_typescript_declaration() {
+        // Foo<T[number]>[] in TypeScript declaration context
+        let mut test = TestParser::new_with_options(
+            "type A = Foo<T[number]>[]",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                // outer [] is Index with no index (array type)
+                assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
+                    assert!(index.is_none());
+                    // inner Foo<T[number]> is Path with static arguments
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                        assert_eq!(path.segments.len(), 1);
+                        let args = static_arguments.as_ref().unwrap();
+                        assert_eq!(args.len(), 1);
+                        assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                                assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Readonly prefix with generic containing indexed access type.
+    #[test]
+    fn test_parse_readonly_generic_indexed_access() {
+        // readonly Foo<T[number]>
+        let mut test = TestParser::new_with_options(
+            "type A = readonly Foo<T[number]>",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                // readonly Foo<T[number]>
+                assert_node!(parser.tree, *value, Expression::TypeUnary { right, .. } => {
+                    // Foo<T[number]>
+                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+                        assert_eq!(path.segments.len(), 1);
+                        let args = static_arguments.as_ref().unwrap();
+                        assert_eq!(args.len(), 1);
+                        // T[number]
+                        assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "T");
+                                assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Readonly prefix with generic containing indexed access and array suffix.
+    #[test]
+    fn test_parse_readonly_generic_indexed_access_array() {
+        // readonly Foo<T[number]>[]
+        let mut test = TestParser::new_with_options(
+            "type A = readonly Foo<T[number]>[]",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                // readonly Foo<T[number]>[]
+                assert_node!(parser.tree, *value, Expression::TypeUnary { right, .. } => {
+                    // Foo<T[number]>[]
+                    assert_node!(parser.tree, *right, Expression::Index { left, index, .. } => {
+                        assert!(index.is_none());
+                        // Foo<T[number]>
+                        assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                            assert_eq!(path.segments.len(), 1);
+                            let args = static_arguments.as_ref().unwrap();
+                            assert_eq!(args.len(), 1);
+                            // T[number]
+                            assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
+                                    assert_expression_path!(parser, parser.tree.get(*left), "T");
+                                    assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Complex conditional type from deno builtins with nested indexed access.
+    #[test]
+    fn test_parse_deno_conditional_indexed_access() {
+        let mut test = TestParser::new_with_options(
+            r#"type ToNativeParameterTypes<T extends readonly NativeType[]> =
+    [T[number][]] extends [T] ? ToNativeType<T[number]>[]
+      : [readonly T[number][]] extends [T] ? readonly ToNativeType<T[number]>[]
+      : never"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { static_parameters, value, .. } => {
+                let params = static_parameters.as_ref().unwrap();
+                assert_eq!(params.len(), 1);
+                assert_node!(parser.tree, *value, Expression::TypeConditional { .. });
             });
         });
     }
