@@ -80,9 +80,9 @@ pub(crate) fn compute_type_layout(
         }
 
         // pointers and references
-        mir::Type::RawPointer { .. }
-        | mir::Type::ManagedReference { .. }
-        | mir::Type::FunctionPointer { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
+        mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
+            Ok(TypeLayout::natural(pointer_bytes as u32))
+        }
 
         // arrays: size = element_size * length, alignment = element alignment
         mir::Type::Array { element, length } => {

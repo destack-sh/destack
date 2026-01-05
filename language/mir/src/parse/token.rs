@@ -34,8 +34,6 @@ pub enum TokenType {
     Void,
     /// `bool`
     Bool,
-    /// `rawptr`
-    RawPtr,
     /// `ref`
     Ref,
     /// `ref?`

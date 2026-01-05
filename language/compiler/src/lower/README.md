@@ -492,7 +492,7 @@ function process(x: Cat | Dog) {
 Elaborate transforms to a type guard chain (conceptually `instanceof`/`T.is`), Lower then emits:
 ```mir
 type @string = ref<struct { i32, i32, i32 }>
-type @ObjectWithVTable = struct { rawptr<void> }
+type @ObjectWithVTable = struct { ref<raw void> }
 
 function @process(v0: ref<@ObjectWithVTable>) -> @string {
 block0(v0: ref<@ObjectWithVTable>):
@@ -734,7 +734,7 @@ Arrays are heap-allocated, dynamically-sized collections (like Rust's `Vec<T>`).
 |---------|----------|-------|
 | `T[N]` | `Type::Array { element, length: N }` | Inline, value semantics |
 | `T[]` | `ref<managed @Array<T>>` | Heap, reference semantics |
-| `TypedArray` | `Type::RawPointer` to buffer | Direct memory access |
+| `TypedArray` | `Type::Reference(kind: Raw)` to buffer | Direct memory access |
 
 **Important:** `T[]` is NOT `Array<unknown>`. After monomorphization, we know T.
 `Array<unknown>` or `any[]` boxes elements and uses RTTI for type checks.
@@ -1005,7 +1005,7 @@ class Dog extends Animal {
 Lowers to:
 ```mir
 type @string = ref<struct { i32, i32, i32 }>
-type @Dog = struct { rawptr<void>, rawptr<void> }
+type @Dog = struct { ref<raw void>, ref<raw void> }
 
 function @Dog.speak(v0: ref<@Dog>) -> @string {
 block0(v0: ref<@Dog>):
@@ -1347,10 +1347,10 @@ function render(d: Drawable) { d.draw() }
 
 Lowers to:
 ```mir
-type @Drawable = struct { rawptr<void>, rawptr<void> }
+type @Drawable = struct { ref<raw void>, ref<raw void> }
 
-function @render(v0: rawptr<@Drawable>) -> void {
-block0(v0: rawptr<@Drawable>):
+function @render(v0: ref<raw @Drawable>) -> void {
+block0(v0: ref<raw @Drawable>):
     ; v0 is a fat pointer: { objectPtr, itabPtr }
     v1 = field.get v0, 0       ; load objectPtr
     v2 = field.get v0, 1       ; load itabPtr
@@ -1373,10 +1373,10 @@ function show(n: Named) { n.name }
 
 Lowers to:
 ```mir
-type @Named = struct { rawptr<void>, rawptr<void> }
+type @Named = struct { ref<raw void>, ref<raw void> }
 
-function @show(v0: rawptr<@Named>) -> rawptr<void> {
-block0(v0: rawptr<@Named>):
+function @show(v0: ref<raw @Named>) -> ref<raw void> {
+block0(v0: ref<raw @Named>):
     v1 = field.get v0, 0       ; load objectPtr
     v2 = field.get v0, 1       ; load itabPtr
     v3 = field.get v2, 1       ; load field offset for name (slot 1)
@@ -1395,9 +1395,9 @@ const d: Drawable = c  // creates fat pointer
 Lowers to:
 ```mir
 type @Circle = struct { f32 }
-type @Drawable = struct { rawptr<void>, rawptr<void> }
+type @Drawable = struct { ref<raw void>, ref<raw void> }
 
-function @example() -> rawptr<@Drawable> {
+function @example() -> ref<raw @Drawable> {
 block0:
     v0 = managed.alloc @Circle
     v1 = iconst 5.0f32
@@ -1824,8 +1824,8 @@ Shared memory is exposed via `SharedArrayBuffer`-style APIs and MIR atomic intri
 
 **MIR example, atomic increment with acquire release:**
 ```mir
-function @worker_increment(v0: rawptr<i32>) -> i32 {
-block0(v0: rawptr<i32>):
+function @worker_increment(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
     v1 = iconst 1i32
     v2 = intrinsic.atomic.fetch.add(v0, v1, acq_rel)
     return v2
@@ -1905,7 +1905,7 @@ function readConfig(): Result<Config, Error> {
 
 Lowers to early return on error (note: MIR is post-monomorphization, so `Result<Config, Error>` becomes a concrete monomorphized type like `Result_Config_Error`):
 ```mir
-type @Result_Config_Error = struct { i32, rawptr<void> }
+type @Result_Config_Error = struct { i32, ref<raw void> }
 
 function @readConfig() -> ref<@Result_Config_Error> {
 block0:
@@ -1970,7 +1970,7 @@ No stack unwinding machinery, no landing pads, no exception tables.
 This enables zero-cost error handling on the happy path.
 
 ```mir
-type @Error = struct { i32, rawptr<void> }
+type @Error = struct { i32, ref<raw void> }
 
 function @example_panic() -> void {
 block0:
@@ -2014,9 +2014,9 @@ struct FetchData_StateMachine {
 
 And a step function that implements the state machine for each suspension point:
 ```mir
-type @FetchData_StateMachine = struct { i32, rawptr<void>, rawptr<void>, rawptr<void> }
-type @any = struct { rawptr<void>, rawptr<void> }
-type @PollResult = struct { i32, rawptr<void> }
+type @FetchData_StateMachine = struct { i32, ref<raw void>, ref<raw void>, ref<raw void> }
+type @any = struct { ref<raw void>, ref<raw void> }
+type @PollResult = struct { i32, ref<raw void> }
 
 function @fetchData_step(v0: ref<@FetchData_StateMachine>, v1: ref<@any>) -> ref<@PollResult> {
 block0(v0: ref<@FetchData_StateMachine>, v1: ref<@any>):

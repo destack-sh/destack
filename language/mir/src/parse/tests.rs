@@ -85,7 +85,7 @@ block3:
 #[test]
 fn test_roundtrip_managed_alloc() {
     roundtrip(
-        r#"function @alloc_test() -> ref<i32> {
+        r#"function @alloc_test() -> ref<managed i32> {
 block0:
     v0 = managed.alloc i32
     return v0
@@ -96,7 +96,7 @@ block0:
 #[test]
 fn test_roundtrip_managed_alloc_array() {
     roundtrip(
-        r#"function @array_alloc(v0: i64) -> ref<i32> {
+        r#"function @array_alloc(v0: i64) -> ref<managed i32> {
 block0(v0: i64):
     v1 = managed.alloc_array i32, v0
     return v1
@@ -119,7 +119,7 @@ block0:
 #[test]
 fn test_roundtrip_stack_alloc() {
     roundtrip(
-        r#"function @stack_alloc() -> rawptr<i32> {
+        r#"function @stack_alloc() -> ref<raw i32> {
 block0:
     v0 = stack.alloc i32
     return v0
@@ -130,7 +130,7 @@ block0:
 #[test]
 fn test_roundtrip_nullable_ref() {
     roundtrip(
-        r#"function @nullable_test() -> ref?<i32> {
+        r#"function @nullable_test() -> ref?<managed i32> {
 block0:
     v0 = managed.alloc i32
     return v0
@@ -260,8 +260,8 @@ block0(v0: i32, v1: i32):
 fn test_roundtrip_intrinsic_atomic() {
     // atomic intrinsic with memory ordering
     roundtrip(
-        r#"function @atomic_test(v0: rawptr<i32>) -> i32 {
-block0(v0: rawptr<i32>):
+        r#"function @atomic_test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
     v1 = intrinsic.atomic.load(v0, acquire)
     return v1
 }"#,
@@ -312,8 +312,8 @@ block0(v0: [i32; 10], v1: i64):
 fn test_roundtrip_load_store() {
     // load and store through pointer
     roundtrip(
-        r#"function @load_store_test(v0: rawptr<i32>) -> i32 {
-block0(v0: rawptr<i32>):
+        r#"function @load_store_test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
     v1 = load v0
     v2 = iconst 42i32
     store v0, v2
@@ -407,8 +407,8 @@ block0(v0: struct { x: i32, y: f64 }):
 fn test_roundtrip_type_alias() {
     roundtrip(
         r#"type @Point = struct { i32, i32 }
-function @use_point(v0: ref<@Point>) -> ref<@Point> {
-block0(v0: ref<@Point>):
+function @use_point(v0: ref<managed @Point>) -> ref<managed @Point> {
+block0(v0: ref<managed @Point>):
     return v0
 }"#,
     );

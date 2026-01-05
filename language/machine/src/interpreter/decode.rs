@@ -490,6 +490,11 @@ fn thread_instruction(
             },
         },
 
+        mir::Instruction::Drop { .. } => ThreadedInstruction {
+            handler: dispatch::handle_unsupported,
+            data: ThreadedInstructionData::Unsupported { name: "drop" },
+        },
+
         mir::Instruction::FieldGet {
             destination,
             aggregate,
@@ -501,6 +506,11 @@ fn thread_instruction(
                 aggregate: *aggregate,
                 index: *index,
             },
+        },
+
+        mir::Instruction::FieldAddr { .. } => ThreadedInstruction {
+            handler: dispatch::handle_unsupported,
+            data: ThreadedInstructionData::Unsupported { name: "field.addr" },
         },
 
         mir::Instruction::FieldSet {
@@ -528,6 +538,13 @@ fn thread_instruction(
                 dest: *destination,
                 array: *array,
                 index: *index,
+            },
+        },
+
+        mir::Instruction::ElementAddr { .. } => ThreadedInstruction {
+            handler: dispatch::handle_unsupported,
+            data: ThreadedInstructionData::Unsupported {
+                name: "element.addr",
             },
         },
 
@@ -741,11 +758,13 @@ fn infer_instruction_kind(
             let aggregate_kind = value_kinds.get(*aggregate)?;
             kind_from_field(tree, aggregate_kind, *index)
         }
+        mir::Instruction::FieldAddr { .. } => None,
         mir::Instruction::FieldSet { aggregate, .. } => value_kinds.get(*aggregate),
         mir::Instruction::ElementGet { array, .. } => {
             let array_kind = value_kinds.get(*array)?;
             kind_from_element(tree, array_kind)
         }
+        mir::Instruction::ElementAddr { .. } => None,
         mir::Instruction::ElementSet { array, .. } => value_kinds.get(*array),
         mir::Instruction::ManagedAlloc { layout, .. } => {
             Some(ValueKind::Pointer { pointee: *layout })
@@ -763,6 +782,7 @@ fn infer_instruction_kind(
         } => infer_intrinsic_kind(tree, *intrinsic, *arguments, value_kinds),
         mir::Instruction::LocalSet { .. }
         | mir::Instruction::Store { .. }
+        | mir::Instruction::Drop { .. }
         | mir::Instruction::RawFree { .. } => None,
     }
 }
@@ -821,9 +841,7 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
         mir::Type::Float { width } => ValueKind::Float {
             width: *width as u8,
         },
-        mir::Type::RawPointer { pointee } | mir::Type::ManagedReference { pointee, .. } => {
-            ValueKind::Pointer { pointee: *pointee }
-        }
+        mir::Type::Reference { pointee, .. } => ValueKind::Pointer { pointee: *pointee },
         mir::Type::FunctionPointer { result, .. } => ValueKind::FunctionPointer { result: *result },
         mir::Type::Array { .. } | mir::Type::Tuple { .. } | mir::Type::Struct { .. } => {
             ValueKind::Aggregate { ty }

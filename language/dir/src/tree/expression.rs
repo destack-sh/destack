@@ -4,10 +4,10 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator, CastSource,
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
     DependencySource, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchSource, ModuleTarget, Mutability, Node, NodeType, Path, Pattern, Property,
-    ScalarLiteral, StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    MatchCase, MatchSource, ModuleTarget, Mutability, Node, NodeType, OwnershipCastOperator,
+    OwnershipCastSource, Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty,
+    SymbolSpaceOrder, TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeMappedModifiers,
+    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 
 /// A mapped type parameter for expressions.
@@ -155,6 +155,16 @@ pub enum Expression {
         value: LocalNodeId<Expression>,
         /// The target type expression.
         target_type: LocalNodeId<Expression>,
+    },
+
+    /// Cast a value expression to a target ownership form.
+    OwnershipCast {
+        /// The ownership cast operator to apply.
+        operator: OwnershipCastOperator,
+        /// The origin of the ownership cast in source.
+        source: OwnershipCastSource,
+        /// The value to cast.
+        value: LocalNodeId<Expression>,
     },
 
     /// Unary operation (except reference/dereference, e.g., `-x`).
@@ -468,6 +478,7 @@ impl Expression {
             Expression::TypePredicate { .. } => "type predicate",
 
             Expression::Cast { .. } => "cast",
+            Expression::OwnershipCast { .. } => "ownership cast",
             Expression::Unary { .. } => "unary",
             Expression::ValueOf { .. } => "value of",
             Expression::ReferenceOf { .. } => "reference of",

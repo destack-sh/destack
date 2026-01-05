@@ -1,15 +1,6 @@
 //! MIR local variables (stack slots).
 
-use crate::{LocalNodeId, Node, NodeType, Type};
-
-/// Mutability of a binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Mutability {
-    /// Immutable (const).
-    Immutable,
-    /// Mutable (var).
-    Mutable,
-}
+use crate::{LocalNodeId, Mutability, Node, NodeType, Type};
 
 /// Ownership semantics of a local or parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

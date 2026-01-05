@@ -1494,6 +1494,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 source: _,
                 value,
                 target_type: _,
+            }
+            | Expression::OwnershipCast {
+                operator: _,
+                source: _,
+                value,
             } => self.build_expression(*value, current_block_id),
             Expression::Unary { right, .. }
             | Expression::ValueOf { right, .. }

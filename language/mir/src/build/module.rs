@@ -1,8 +1,8 @@
 use destack_base::{ImmutableStringPool, StringId, StringPool};
 
 use crate::{
-    Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability, NodeTree, Type,
-    TypedValue, Value,
+    Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability, NodeTree, ReferenceKind,
+    Type, TypedValue, Value,
 };
 
 use super::FunctionBuilder;
@@ -99,12 +99,19 @@ impl ModuleBuilder {
 
     /// Create a raw pointer type (manual memory management).
     pub fn type_raw_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::RawPointer { pointee })
+        self.tree.insert(Type::Reference {
+            kind: ReferenceKind::Raw,
+            mutability: Mutability::Immutable,
+            pointee,
+            is_nullable: false,
+        })
     }
 
     /// Create a managed reference type (runtime-tracked).
     pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::ManagedReference {
+        self.tree.insert(Type::Reference {
+            kind: ReferenceKind::Managed,
+            mutability: Mutability::Immutable,
             pointee,
             is_nullable: false,
         })
@@ -115,7 +122,9 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::ManagedReference {
+        self.tree.insert(Type::Reference {
+            kind: ReferenceKind::Managed,
+            mutability: Mutability::Immutable,
             pointee,
             is_nullable: true,
         })

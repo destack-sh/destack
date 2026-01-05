@@ -444,6 +444,12 @@ impl Compiler {
                 target_ty_id
             }
 
+            Expression::OwnershipCast {
+                operator: _,
+                source: _,
+                value,
+            } => self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?,
+
             // unary operations: compound type
             Expression::Unary { operator, right } => self.infer_unary_expression(
                 module,

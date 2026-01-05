@@ -117,11 +117,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
 
     match ty {
-        Type::RawPointer { pointee } => {
-            let pointee_ty = tree.get(*pointee);
-            visitor.visit_type(tree, *pointee, pointee_ty);
-        }
-        Type::ManagedReference { pointee, .. } => {
+        Type::Reference { pointee, .. } => {
             let pointee_ty = tree.get(*pointee);
             visitor.visit_type(tree, *pointee, pointee_ty);
         }

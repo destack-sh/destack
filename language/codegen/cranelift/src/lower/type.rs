@@ -40,9 +40,7 @@ pub(crate) fn lower_type(
             )),
         },
 
-        mir::Type::RawPointer { .. }
-        | mir::Type::ManagedReference { .. }
-        | mir::Type::FunctionPointer { .. } => {
+        mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
             // inline pointer_type
             let ty = match pointer_bytes {
                 4 => cir::types::I32,

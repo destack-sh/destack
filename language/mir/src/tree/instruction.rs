@@ -140,12 +140,28 @@ pub enum Instruction {
         value: Value,
     },
 
+    // drop
+    /// Drop a value (drop).
+    Drop {
+        /// The value to drop.
+        value: Value,
+    },
+
     // aggregate operations (field.get, field.set, element.get, element.set)
     /// Extract a field from a struct or tuple (field.get).
     FieldGet {
         /// The SSA value to define with the extracted field.
         destination: Value,
         /// The aggregate value to extract from.
+        aggregate: Value,
+        /// The zero-based field index.
+        index: u32,
+    },
+    /// Get the address of a field from a struct or tuple (field.addr).
+    FieldAddr {
+        /// The SSA value to define with the field address.
+        destination: Value,
+        /// The aggregate value to get the field from.
         aggregate: Value,
         /// The zero-based field index.
         index: u32,
@@ -168,6 +184,15 @@ pub enum Instruction {
         /// The SSA value to define with the extracted element.
         destination: Value,
         /// The array value to extract from.
+        array: Value,
+        /// The index of the element (runtime value).
+        index: Value,
+    },
+    /// Get the address of an array element (element.addr).
+    ElementAddr {
+        /// The SSA value to define with the element address.
+        destination: Value,
+        /// The array value to get the element from.
         array: Value,
         /// The index of the element (runtime value).
         index: Value,
@@ -208,7 +233,7 @@ pub enum Instruction {
 
     // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
     /// Allocate a managed (runtime-tracked) struct (managed.alloc).
-    /// Returns a `ManagedReference<T>`.
+    /// Returns a `ref<managed T>`.
     ManagedAlloc {
         /// The SSA value to define with the allocated reference.
         destination: Value,
@@ -216,7 +241,7 @@ pub enum Instruction {
         layout: LocalNodeId<Type>,
     },
     /// Allocate a managed array (managed.alloc_array).
-    /// Returns a `ManagedReference<[T]>`.
+    /// Returns a `ref<managed [T]>`.
     ManagedAllocArray {
         /// The SSA value to define with the allocated reference.
         destination: Value,
@@ -228,7 +253,7 @@ pub enum Instruction {
 
     // allocation (raw - manual memory management: raw.alloc, raw.free)
     /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a `RawPointer<T>`. Caller must free with `raw.free`.
+    /// Returns a `ref<raw T>`. Caller must free with `raw.free`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: Value,
@@ -243,7 +268,7 @@ pub enum Instruction {
 
     // allocation (stack - automatic, scoped to function: stack.alloc)
     /// Allocate on the stack (lives until function returns) (stack.alloc).
-    /// Returns a `RawPointer<T>`. Cannot free explicitly.
+    /// Returns a `ref<raw T>`. Cannot free explicitly.
     StackAlloc {
         /// The SSA value to define with the stack pointer.
         destination: Value,
@@ -288,9 +313,12 @@ impl Instruction {
             Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
+            Instruction::Drop { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
+            Instruction::FieldAddr { destination, .. } => Some(*destination),
             Instruction::FieldSet { destination, .. } => Some(*destination),
             Instruction::ElementGet { destination, .. } => Some(*destination),
+            Instruction::ElementAddr { destination, .. } => Some(*destination),
             Instruction::ElementSet { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
@@ -319,11 +347,14 @@ impl Instruction {
             Instruction::GlobalConst { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
+            Instruction::Drop { value } => smallvec![*value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
+            Instruction::FieldAddr { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
             Instruction::ElementGet { array, index, .. } => smallvec![*array, *index],
+            Instruction::ElementAddr { array, index, .. } => smallvec![*array, *index],
             Instruction::ElementSet {
                 array,
                 index,

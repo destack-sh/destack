@@ -112,8 +112,8 @@ block3:
 pub(crate) const LINKED_WALK: Program = Program {
     name: "linked_walk",
     source: r#"
-function @build_list(v0: i64, v1: ref<i64>) -> ref<i64> {
-block0(v0: i64, v1: ref<i64>):
+function @build_list(v0: i64, v1: ref<managed i64>) -> ref<managed i64> {
+block0(v0: i64, v1: ref<managed i64>):
     v2 = iconst 0i64
     v3 = icmp_eq v0, v2
     branch v3, block2, block1
@@ -130,8 +130,8 @@ block2:
     return v1
 }
 
-function @walk_list(v0: ref<i64>, v1: i64) -> i64 {
-block0(v0: ref<i64>, v1: i64):
+function @walk_list(v0: ref<managed i64>, v1: i64) -> i64 {
+block0(v0: ref<managed i64>, v1: i64):
     v2 = load v0
     v3 = iconst 0i64
     v4 = icmp_eq v2, v3
@@ -204,7 +204,7 @@ block0(v0: i64):
     v1 = managed.alloc_array i64, v0
     v2 = iconst 0i64
     jump block1(v2, v1)
-block1(v3: i64, v4: ref<i64>):
+block1(v3: i64, v4: ref<managed i64>):
     v5 = icmp_sge v3, v0
     branch v5, block3(v4), block2
 block2:
@@ -212,11 +212,11 @@ block2:
     v7 = iconst 1i64
     v8 = iadd v3, v7
     jump block1(v8, v6)
-block3(v9: ref<i64>):
+block3(v9: ref<managed i64>):
     v10 = iconst 0i64
     v11 = iconst 0i64
     jump block4(v10, v9, v11)
-block4(v12: i64, v13: ref<i64>, v14: i64):
+block4(v12: i64, v13: ref<managed i64>, v14: i64):
     v15 = icmp_sge v12, v0
     branch v15, block6(v14), block5
 block5:

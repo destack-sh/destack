@@ -4,7 +4,7 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatMirNode, LocalNodeId, MirFormatter, Type, TypeAlias};
+use crate::{FormatMirNode, LocalNodeId, MirFormatter, Mutability, ReferenceKind, Type, TypeAlias};
 
 impl<'a> FormatMirNode<'a, Type> for Type {
     fn format_node(&self, id: LocalNodeId<Type>, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -41,17 +41,44 @@ fn format_type_inner<'a>(
         Type::Float { width } => {
             write!(f, [text(&format!("f{width}"))])
         }
-        Type::RawPointer { pointee } => {
-            write!(f, [token("rawptr<"), pointee, token(">")])
-        }
-        Type::ManagedReference {
+        Type::Reference {
+            kind,
+            mutability,
             pointee,
-            is_nullable: nullable,
+            is_nullable,
         } => {
-            if *nullable {
-                write!(f, [token("ref?<"), pointee, token(">")])
+            let ref_token = if *is_nullable { "ref?<" } else { "ref<" };
+            let kind_token = match kind {
+                ReferenceKind::Managed => "managed",
+                ReferenceKind::Owned => "owned",
+                ReferenceKind::Borrowed => "borrowed",
+                ReferenceKind::Raw => "raw",
+            };
+
+            if *mutability == Mutability::Mutable {
+                write!(
+                    f,
+                    [
+                        token(ref_token),
+                        token(kind_token),
+                        space(),
+                        token("mut"),
+                        space(),
+                        pointee,
+                        token(">")
+                    ]
+                )
             } else {
-                write!(f, [token("ref<"), pointee, token(">")])
+                write!(
+                    f,
+                    [
+                        token(ref_token),
+                        token(kind_token),
+                        space(),
+                        pointee,
+                        token(">")
+                    ]
+                )
             }
         }
         Type::Array { element, length } => {
