@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Generics, Heritage, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalTypeId, Mutability,
-    NodeTree, SymbolTable, Type, TypeKind, TypeMappedModifiers, TypeModifier, TypeTable,
-    VarianceBound,
+    NodeTree, SymbolSpace, SymbolTable, Type, TypeKind, TypeMappedModifiers, TypeModifier,
+    TypeTable, VarianceBound,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -105,6 +105,7 @@ impl Compiler {
                             module,
                             ast,
                             scope,
+                            SymbolSpace::Type,
                             *static_parameter,
                             parent_id,
                             tree,

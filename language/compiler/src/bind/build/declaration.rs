@@ -394,6 +394,7 @@ impl Compiler {
                                 module,
                                 ast,
                                 (scope_id, symbols.get_scope_mark(scope_id)),
+                                SymbolSpace::Type,
                                 *param,
                                 Some(declaration_id),
                                 tree,
