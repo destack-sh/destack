@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
+    expression_is_global_qualified_member, expression_target_symbol,
     unwrap_parenthesized_expression,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -66,7 +66,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
         let object_name = ctx.program.strings.intern("Object");
         let assign_name = ctx.program.strings.intern("assign");
-        let global_qualifiers = global_qualifier_symbols(ctx);
+        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,

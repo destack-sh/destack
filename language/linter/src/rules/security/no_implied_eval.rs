@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::{RequireLibSymbol, RequireWellKnownSymbol};
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
+    expression_is_global_qualified_member, expression_target_symbol,
     unwrap_parenthesized_expression,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -85,7 +85,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         let set_timeout_symbol = ctx.get_declared_lib_symbol(set_timeout_name);
         let set_interval_symbol = ctx.get_declared_lib_symbol(set_interval_name);
         let set_immediate_symbol = ctx.get_declared_lib_symbol(set_immediate_name);
-        let global_qualifiers = global_qualifier_symbols(ctx);
+        let global_qualifiers = ctx.global_qualifier_symbols();
 
         // prepare visitor state
         Self {

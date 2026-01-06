@@ -10,7 +10,10 @@ use destack_workspace::{
 use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::{ConstValue, LintDiagnostic, LintDirAnalysisCache, LintMeta, LintRequirement};
+use crate::{
+    ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDiagnostic, LintDirAnalysisCache, LintMeta,
+    LintRequirement,
+};
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
 #[derive(Debug, Clone, Copy)]
@@ -59,7 +62,7 @@ pub struct LintModuleDirContext<'a> {
     pub options: &'a LinterOptions,
 
     /// Whether to compute fixes for diagnostics.
-    pub compute_fixes: bool,
+    pub include_fixes: bool,
 
     /// Cached analysis results.
     analysis: LintDirAnalysisCache,
@@ -96,7 +99,7 @@ impl<'a> LintModuleDirContext<'a> {
         imported_modules: IndexMap<(Option<ModuleId>, StringId), dir::ModuleTarget>,
         exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
         options: &'a LinterOptions,
-        compute_fixes: bool,
+        include_fixes: bool,
     ) -> Self {
         Self {
             program,
@@ -115,7 +118,7 @@ impl<'a> LintModuleDirContext<'a> {
             imported_modules,
             exported_symbols,
             options,
-            compute_fixes,
+            include_fixes,
             analysis: LintDirAnalysisCache::default(),
             diagnostics: Vec::new(),
         }
@@ -435,6 +438,26 @@ impl<'a> LintModuleDirContext<'a> {
     /// Return a constant boolean value if the expression can be evaluated.
     pub fn const_bool(&mut self, id: dir::LocalNodeId<dir::Expression>) -> Option<bool> {
         self.const_value(id).map(ConstValue::to_bool)
+    }
+
+    /// Return cached global qualifier symbols.
+    /// #Performance: avoid cloning the global qualifiers vector
+    pub fn global_qualifier_symbols(&mut self) -> Vec<dir::GlobalSymbolId> {
+        if let Some(symbols) = &self.analysis.global_qualifier_symbols {
+            return symbols.clone();
+        }
+
+        // resolve configured globals
+        let mut qualifiers = Vec::new();
+        for name in GLOBAL_QUALIFIER_SYMBOLS {
+            let name_id = self.program.strings.intern(name);
+            if let Some(symbol) = self.get_declared_lib_symbol(name_id) {
+                qualifiers.push(symbol);
+            }
+        }
+        self.analysis.global_qualifier_symbols = Some(qualifiers.clone());
+
+        qualifiers
     }
 }
 
