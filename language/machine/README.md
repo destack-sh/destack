@@ -66,7 +66,7 @@ Intrinsics are primitive operations handled directly by the interpreter:
 **Comptime-only intrinsics** (`sizeOf`, `alignOf`, `typeOf`) get evaluated during compilation and replaced with constants.
 Native codegen never sees them (directly).
 
-**Semantically void intrinsics** (`volatile.load`, `atomic.*`, `prefetch`) execute but don't do anything special in the interpreter.
+**Semantically void intrinsics** (`volatile.load`, `atomic.*`, `prefetch`) execute but don't do anything special in the interpreter (yet?).
 This lets comptime code include patterns that use these operations without breaking.
 
 # External Functions

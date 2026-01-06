@@ -4,7 +4,7 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
-use crate::memory::Value;
+use crate::memory::{ReferenceMeta, Value, ValueTag};
 
 use super::threaded::{
     ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, ThreadedInstruction,
@@ -53,6 +53,68 @@ fn collect_values(state: &mut ThreadedState, arguments: ArgumentRange) -> SmallV
 
     // return argument values
     args
+}
+
+/// Format a reference kind label for diagnostics.
+fn reference_label(reference: ReferenceMeta) -> String {
+    match reference.kind() {
+        Some(kind) => format!("{kind:?}"),
+        None => "unknown".to_string(),
+    }
+}
+
+/// Validate reference kind against the pointer storage.
+fn check_reference_kind(
+    state: &ThreadedState,
+    reference: ReferenceMeta,
+    pointer: Value,
+) -> Result<(), Error> {
+    if !state.interpreter.options.enforce_reference_kinds {
+        return Ok(());
+    }
+
+    let Some(kind) = reference.kind() else {
+        return Ok(());
+    };
+
+    let is_managed = pointer.tag() == ValueTag::ManagedReference;
+    match kind {
+        mir::ReferenceKind::Managed if !is_managed => Err(Error::InvalidReferenceKind {
+            reference: reference_label(reference),
+            actual: format!("{pointer:?}"),
+        }),
+        mir::ReferenceKind::Owned | mir::ReferenceKind::Borrowed | mir::ReferenceKind::Raw
+            if is_managed =>
+        {
+            Err(Error::InvalidReferenceKind {
+                reference: reference_label(reference),
+                actual: format!("{pointer:?}"),
+            })
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Validate reference mutability for stores.
+fn check_reference_mutability(
+    state: &ThreadedState,
+    reference: ReferenceMeta,
+) -> Result<(), Error> {
+    if !state.interpreter.options.enforce_reference_mutability {
+        return Ok(());
+    }
+
+    let Some(mutability) = reference.mutability() else {
+        return Ok(());
+    };
+
+    if matches!(mutability, mir::Mutability::Immutable) {
+        return Err(Error::ImmutableReferenceWrite {
+            reference: reference_label(reference),
+        });
+    }
+
+    Ok(())
 }
 
 /// Handle constant load.
@@ -592,12 +654,24 @@ pub(super) fn handle_global_addr(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::GlobalAddr { dest, global } = &block[pc].data else {
+    let ThreadedInstructionData::GlobalAddr {
+        dest,
+        global,
+        reference,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
     // write global pointer
-    state.set(*dest, Value::global_pointer(global_id(*global)));
+    let ptr = Value::global_pointer_with_meta(global_id(*global), 0, *reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return ControlFlow::Error(error);
+    }
+
+    state.set(*dest, ptr);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -662,7 +736,12 @@ pub(super) fn handle_store(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::Store { pointer, value } = &block[pc].data else {
+    let ThreadedInstructionData::Store {
+        pointer,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -670,8 +749,257 @@ pub(super) fn handle_store(
     let ptr = state.get(*pointer);
     let val = state.get(*value);
 
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return ControlFlow::Error(error);
+    }
+
     // write through pointer
     if let Err(e) = instruction::store_to_pointer(state, ptr, val) {
+        return ControlFlow::Error(e);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle managed pointer load.
+pub(super) fn handle_load_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*pointer);
+
+    // load from managed pointer
+    let value = match instruction::load_from_managed_reference(state, ptr) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store loaded value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle raw pointer load.
+pub(super) fn handle_load_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*pointer);
+
+    // load from raw pointer
+    let value = match instruction::load_from_raw_pointer(state, ptr) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store loaded value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle stack pointer load.
+pub(super) fn handle_load_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*pointer);
+
+    // load from stack pointer
+    let value = match instruction::load_from_stack_pointer(state, ptr) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store loaded value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle global pointer load.
+pub(super) fn handle_load_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*pointer);
+
+    // load from global pointer
+    let value = match instruction::load_from_global_pointer(state, ptr) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store loaded value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle managed pointer store.
+pub(super) fn handle_store_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Store {
+        pointer,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return ControlFlow::Error(error);
+    }
+
+    // write through managed pointer
+    if let Err(e) = instruction::store_to_managed_reference(state, ptr, val) {
+        return ControlFlow::Error(e);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle raw pointer store.
+pub(super) fn handle_store_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Store {
+        pointer,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return ControlFlow::Error(error);
+    }
+
+    // write through raw pointer
+    if let Err(e) = instruction::store_to_raw_pointer(state, ptr, val) {
+        return ControlFlow::Error(e);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle stack pointer store.
+pub(super) fn handle_store_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Store {
+        pointer,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return ControlFlow::Error(error);
+    }
+
+    // write through stack pointer
+    if let Err(e) = instruction::store_to_stack_pointer(state, ptr, val) {
+        return ControlFlow::Error(e);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle global pointer store.
+pub(super) fn handle_store_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Store {
+        pointer,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, ptr) {
+        return ControlFlow::Error(error);
+    }
+
+    // write through global pointer
+    if let Err(e) = instruction::store_to_global_pointer(state, ptr, val) {
         return ControlFlow::Error(e);
     }
 
@@ -722,6 +1050,8 @@ pub(super) fn handle_field_addr(
         dest,
         aggregate,
         index,
+        reference,
+        field_count,
     } = &block[pc].data
     else {
         unreachable!()
@@ -731,7 +1061,521 @@ pub(super) fn handle_field_addr(
     let agg = state.get(*aggregate);
 
     // compute field address
-    let value = match instruction::field_addr(state, agg, *index) {
+    let value = match instruction::field_addr(state, agg, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field addr on aggregate values.
+pub(super) fn handle_field_addr_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldAddr {
+        dest,
+        aggregate,
+        index,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::Aggregate {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "aggregate".to_string(),
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let handle = agg.as_heap_handle().unwrap();
+    let value = match instruction::field_addr_managed(state, handle, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field addr on managed references.
+pub(super) fn handle_field_addr_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldAddr {
+        dest,
+        aggregate,
+        index,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::ManagedReference {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let handle = agg.as_heap_handle().unwrap();
+    let value = match instruction::field_addr_managed(state, handle, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field addr on raw pointers.
+pub(super) fn handle_field_addr_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldAddr {
+        dest,
+        aggregate,
+        index,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::RawPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let pointer = agg.as_raw_pointer().unwrap();
+    let value = match instruction::field_addr_raw(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field addr on stack pointers.
+pub(super) fn handle_field_addr_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldAddr {
+        dest,
+        aggregate,
+        index,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::StackPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let pointer = agg.as_stack_pointer().unwrap();
+    let value = match instruction::field_addr_stack(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field addr on global pointers.
+pub(super) fn handle_field_addr_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldAddr {
+        dest,
+        aggregate,
+        index,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::GlobalPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let pointer = agg.as_global_pointer().unwrap();
+    let value = match instruction::field_addr_global(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field load.
+pub(super) fn handle_field_load(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldLoad {
+        dest,
+        aggregate,
+        index,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+
+    // compute field address
+    let pointer = match instruction::field_addr(state, agg, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_pointer(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field load on aggregate values.
+pub(super) fn handle_field_load_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldLoad {
+        dest,
+        aggregate,
+        index,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::Aggregate {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "aggregate".to_string(),
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let handle = agg.as_heap_handle().unwrap();
+    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_managed_reference(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field load on managed references.
+pub(super) fn handle_field_load_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldLoad {
+        dest,
+        aggregate,
+        index,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::ManagedReference {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let handle = agg.as_heap_handle().unwrap();
+    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_managed_reference(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field load on raw pointers.
+pub(super) fn handle_field_load_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldLoad {
+        dest,
+        aggregate,
+        index,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::RawPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let pointer = agg.as_raw_pointer().unwrap();
+    let pointer = match instruction::field_addr_raw(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_raw_pointer(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field load on stack pointers.
+pub(super) fn handle_field_load_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldLoad {
+        dest,
+        aggregate,
+        index,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::StackPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let pointer = agg.as_stack_pointer().unwrap();
+    let pointer = match instruction::field_addr_stack(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_stack_pointer(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field load on global pointers.
+pub(super) fn handle_field_load_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldLoad {
+        dest,
+        aggregate,
+        index,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::GlobalPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+
+    // compute field address
+    let pointer = agg.as_global_pointer().unwrap();
+    let pointer = match instruction::field_addr_global(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_global_pointer(state, pointer) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -777,6 +1621,307 @@ pub(super) fn handle_field_set(
     next!(state, block, pc)
 }
 
+/// Handle field store.
+pub(super) fn handle_field_store(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let agg = state.get(*aggregate);
+    let val = state.get(*value);
+
+    // compute field address
+    let pointer = match instruction::field_addr(state, agg, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field store on aggregate values.
+pub(super) fn handle_field_store_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::Aggregate {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "aggregate".to_string(),
+            actual: format!("{agg:?}"),
+        });
+    }
+    let val = state.get(*value);
+
+    // compute field address
+    let handle = agg.as_heap_handle().unwrap();
+    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field store on managed references.
+pub(super) fn handle_field_store_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::ManagedReference {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+    let val = state.get(*value);
+
+    // compute field address
+    let handle = agg.as_heap_handle().unwrap();
+    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field store on raw pointers.
+pub(super) fn handle_field_store_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::RawPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+    let val = state.get(*value);
+
+    // compute field address
+    let pointer = agg.as_raw_pointer().unwrap();
+    let pointer = match instruction::field_addr_raw(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_raw_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field store on stack pointers.
+pub(super) fn handle_field_store_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::StackPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+    let val = state.get(*value);
+
+    // compute field address
+    let pointer = agg.as_stack_pointer().unwrap();
+    let pointer = match instruction::field_addr_stack(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_stack_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field store on global pointers.
+pub(super) fn handle_field_store_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference,
+        field_count,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let agg = state.get(*aggregate);
+    if agg.tag() != ValueTag::GlobalPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{agg:?}"),
+        });
+    }
+    let val = state.get(*value);
+
+    // compute field address
+    let pointer = agg.as_global_pointer().unwrap();
+    let pointer = match instruction::field_addr_global(state, pointer, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_global_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle element get.
 pub(super) fn handle_element_get(
     state: &mut ThreadedState,
@@ -813,7 +1958,14 @@ pub(super) fn handle_element_addr(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ElementAddr { dest, array, index } = &block[pc].data else {
+    let ThreadedInstructionData::ElementAddr {
+        dest,
+        array,
+        index,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -823,7 +1975,543 @@ pub(super) fn handle_element_addr(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let value = match instruction::element_addr(state, arr, idx_val) {
+    let value = match instruction::element_addr(state, arr, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element addr on aggregate values.
+pub(super) fn handle_element_addr_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementAddr {
+        dest,
+        array,
+        index,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::Aggregate {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "array".to_string(),
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let handle = arr.as_heap_handle().unwrap();
+    let value = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element addr on managed references.
+pub(super) fn handle_element_addr_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementAddr {
+        dest,
+        array,
+        index,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::ManagedReference {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let handle = arr.as_heap_handle().unwrap();
+    let value = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element addr on raw pointers.
+pub(super) fn handle_element_addr_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementAddr {
+        dest,
+        array,
+        index,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::RawPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_raw_pointer().unwrap();
+    let value = match instruction::element_addr_raw(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element addr on stack pointers.
+pub(super) fn handle_element_addr_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementAddr {
+        dest,
+        array,
+        index,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::StackPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_stack_pointer().unwrap();
+    let value = match instruction::element_addr_stack(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element addr on global pointers.
+pub(super) fn handle_element_addr_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementAddr {
+        dest,
+        array,
+        index,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::GlobalPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_global_pointer().unwrap();
+    let value = match instruction::element_addr_global(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // apply reference metadata
+    let value = value.with_reference_meta(*reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element load.
+pub(super) fn handle_element_load(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementLoad {
+        dest,
+        array,
+        index,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = match instruction::element_addr(state, arr, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_pointer(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element load on aggregate values.
+pub(super) fn handle_element_load_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementLoad {
+        dest,
+        array,
+        index,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::Aggregate {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "array".to_string(),
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let handle = arr.as_heap_handle().unwrap();
+    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_managed_reference(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element load on managed references.
+pub(super) fn handle_element_load_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementLoad {
+        dest,
+        array,
+        index,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::ManagedReference {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let handle = arr.as_heap_handle().unwrap();
+    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_managed_reference(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element load on raw pointers.
+pub(super) fn handle_element_load_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementLoad {
+        dest,
+        array,
+        index,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::RawPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_raw_pointer().unwrap();
+    let pointer = match instruction::element_addr_raw(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_raw_pointer(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element load on stack pointers.
+pub(super) fn handle_element_load_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementLoad {
+        dest,
+        array,
+        index,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::StackPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_stack_pointer().unwrap();
+    let pointer = match instruction::element_addr_stack(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_stack_pointer(state, pointer) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element load on global pointers.
+pub(super) fn handle_element_load_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementLoad {
+        dest,
+        array,
+        index,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load array and index
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::GlobalPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_global_pointer().unwrap();
+    let pointer = match instruction::element_addr_global(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // load value
+    let value = match instruction::load_from_global_pointer(state, pointer) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -871,6 +2559,331 @@ pub(super) fn handle_element_set(
     next!(state, block, pc)
 }
 
+/// Handle element store.
+pub(super) fn handle_element_store(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementStore {
+        array,
+        index,
+        value,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let arr = state.get(*array);
+    let idx = state.get(*index);
+    let val = state.get(*value);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = match instruction::element_addr(state, arr, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element store on aggregate values.
+pub(super) fn handle_element_store_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementStore {
+        array,
+        index,
+        value,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::Aggregate {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "array".to_string(),
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let val = state.get(*value);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let handle = arr.as_heap_handle().unwrap();
+    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element store on managed references.
+pub(super) fn handle_element_store_managed(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementStore {
+        array,
+        index,
+        value,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::ManagedReference {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let val = state.get(*value);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let handle = arr.as_heap_handle().unwrap();
+    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element store on raw pointers.
+pub(super) fn handle_element_store_raw(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementStore {
+        array,
+        index,
+        value,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::RawPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let val = state.get(*value);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_raw_pointer().unwrap();
+    let pointer = match instruction::element_addr_raw(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_raw_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element store on stack pointers.
+pub(super) fn handle_element_store_stack(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementStore {
+        array,
+        index,
+        value,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::StackPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let val = state.get(*value);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_stack_pointer().unwrap();
+    let pointer = match instruction::element_addr_stack(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_stack_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle element store on global pointers.
+pub(super) fn handle_element_store_global(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::ElementStore {
+        array,
+        index,
+        value,
+        reference,
+        array_length,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let arr = state.get(*array);
+    if arr.tag() != ValueTag::GlobalPointer {
+        return ControlFlow::Error(Error::InvalidPointerType {
+            actual: format!("{arr:?}"),
+        });
+    }
+    let idx = state.get(*index);
+    let val = state.get(*value);
+    let idx_val = idx.as_uint().unwrap_or(0);
+
+    // compute element address
+    let pointer = arr.as_global_pointer().unwrap();
+    let pointer = match instruction::element_addr_global(state, pointer, idx_val, *array_length) {
+        Ok(value) => value,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let pointer = pointer.with_reference_meta(*reference);
+
+    // validate reference semantics
+    if let Err(error) = check_reference_kind(state, *reference, pointer) {
+        return ControlFlow::Error(error);
+    }
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // store value
+    if let Err(error) = instruction::store_to_global_pointer(state, pointer, val) {
+        return ControlFlow::Error(error);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle managed allocation.
 pub(super) fn handle_managed_alloc(
     state: &mut ThreadedState,
@@ -878,7 +2891,7 @@ pub(super) fn handle_managed_alloc(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ManagedAlloc { dest } = &block[pc].data else {
+    let ThreadedInstructionData::ManagedAlloc { dest, reference } = &block[pc].data else {
         unreachable!()
     };
 
@@ -890,7 +2903,14 @@ pub(super) fn handle_managed_alloc(
     // allocate heap cell
     let handle = state.interpreter.managed_heap.allocate();
     state.interpreter.statistics.heap_allocations += 1;
-    state.set(*dest, Value::managed_reference(handle));
+    let value = Value::managed_reference_with_meta(handle, *reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    state.set(*dest, value);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -903,7 +2923,12 @@ pub(super) fn handle_managed_alloc_array(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ManagedAllocArray { dest, length } = &block[pc].data else {
+    let ThreadedInstructionData::ManagedAllocArray {
+        dest,
+        length,
+        reference,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -919,7 +2944,14 @@ pub(super) fn handle_managed_alloc_array(
     // allocate heap cell with slots
     let handle = state.interpreter.managed_heap.allocate_with_slots(length);
     state.interpreter.statistics.heap_allocations += 1;
-    state.set(*dest, Value::managed_reference(handle));
+    let value = Value::managed_reference_with_meta(handle, *reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    state.set(*dest, value);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -932,7 +2964,7 @@ pub(super) fn handle_raw_alloc(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::RawAlloc { dest } = &block[pc].data else {
+    let ThreadedInstructionData::RawAlloc { dest, reference } = &block[pc].data else {
         unreachable!()
     };
 
@@ -944,7 +2976,14 @@ pub(super) fn handle_raw_alloc(
     // allocate raw heap cell
     let ptr = state.interpreter.raw_heap.allocate();
     state.interpreter.statistics.heap_allocations += 1;
-    state.set(*dest, Value::raw_pointer(ptr));
+    let value = Value::raw_pointer_with_meta(ptr, *reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    state.set(*dest, value);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -990,7 +3029,7 @@ pub(super) fn handle_stack_alloc(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::StackAlloc { dest } = &block[pc].data else {
+    let ThreadedInstructionData::StackAlloc { dest, reference } = &block[pc].data else {
         unreachable!()
     };
 
@@ -998,7 +3037,14 @@ pub(super) fn handle_stack_alloc(
     let frame_index = state.frame_index;
     let slot = state.current_frame_mut().allocate_stack_cell();
     let sp = crate::memory::StackPointer::new(frame_index, slot);
-    state.set(*dest, Value::stack_pointer(sp));
+    let value = Value::stack_pointer_with_meta(sp, *reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    state.set(*dest, value);
 
     // continue to next instruction
     next!(state, block, pc)

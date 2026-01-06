@@ -123,11 +123,11 @@ pub enum Intrinsic {
     RawEq,
 
     // garbage collection
-    /// GC write barrier for concurrent marking (Dijkstra-style insertion barrier).
+    /// GC write barrier for concurrent marking.
     /// Called before writing a managed reference to shade the new value grey.
     /// `(ptr, val) -> ()`
     GcWriteBarrier,
-    /// GC read barrier (optional, for some GC designs like ZGC).
+    /// GC read barrier.
     /// Called when reading a managed reference.
     /// `(ptr) -> ()`
     GcReadBarrier,

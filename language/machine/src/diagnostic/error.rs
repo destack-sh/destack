@@ -115,6 +115,12 @@ pub enum Error {
 
     /// Invalid arguments to intrinsic.
     InvalidIntrinsicArguments { intrinsic: String } = 24,
+
+    /// Attempted to write through an immutable reference.
+    ImmutableReferenceWrite { reference: String } = 25,
+
+    /// Reference kind is incompatible with the pointer storage.
+    InvalidReferenceKind { reference: String, actual: String } = 26,
 }
 
 impl Error {
@@ -180,6 +186,12 @@ impl Error {
             Self::Abort => "abort called".to_string(),
             Self::InvalidIntrinsicArguments { intrinsic } => {
                 format!("invalid arguments to intrinsic: {intrinsic}")
+            }
+            Self::ImmutableReferenceWrite { reference } => {
+                format!("cannot write through immutable reference: {reference}")
+            }
+            Self::InvalidReferenceKind { reference, actual } => {
+                format!("invalid reference kind {reference} for pointer {actual}")
             }
         }
     }

@@ -5,7 +5,7 @@ use std::fmt;
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
-use crate::memory::Value;
+use crate::memory::{ReferenceMeta, Value};
 use crate::{Frame, Interpreter};
 
 /// Handler function for threaded dispatch.
@@ -116,6 +116,12 @@ pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
 /// Sentinel function index used for missing threaded entries.
 pub(crate) const INVALID_FUNCTION_INDEX: u32 = u32::MAX;
 
+/// Sentinel field count for unknown aggregate layouts.
+pub(super) const UNKNOWN_FIELD_COUNT: u32 = u32::MAX;
+
+/// Sentinel array length for unknown layouts.
+pub(super) const UNKNOWN_ARRAY_LENGTH: u64 = u64::MAX;
+
 /// Pack an optional SSA value into a sentinel encoding.
 pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
     value.unwrap_or(mir::Value(INVALID_VALUE_ID))
@@ -218,7 +224,11 @@ pub enum ThreadedInstructionData {
     LocalSet { local: u32, value: mir::Value },
 
     /// Get global address.
-    GlobalAddr { dest: mir::Value, global: u32 },
+    GlobalAddr {
+        dest: mir::Value,
+        global: u32,
+        reference: ReferenceMeta,
+    },
 
     /// Load global constant.
     GlobalConst { dest: mir::Value, global: u32 },
@@ -233,6 +243,7 @@ pub enum ThreadedInstructionData {
     Store {
         pointer: mir::Value,
         value: mir::Value,
+        reference: ReferenceMeta,
     },
 
     /// Get struct/tuple field.
@@ -247,6 +258,16 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         aggregate: mir::Value,
         index: u32,
+        reference: ReferenceMeta,
+        field_count: u32,
+    },
+
+    /// Load a field through field.addr + load.
+    FieldLoad {
+        dest: mir::Value,
+        aggregate: mir::Value,
+        index: u32,
+        field_count: u32,
     },
 
     /// Set struct/tuple field.
@@ -255,6 +276,15 @@ pub enum ThreadedInstructionData {
         aggregate: mir::Value,
         index: u32,
         value: mir::Value,
+    },
+
+    /// Store a field through field.addr + store.
+    FieldStore {
+        aggregate: mir::Value,
+        index: u32,
+        value: mir::Value,
+        reference: ReferenceMeta,
+        field_count: u32,
     },
 
     /// Get array element.
@@ -269,6 +299,16 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         array: mir::Value,
         index: mir::Value,
+        reference: ReferenceMeta,
+        array_length: u64,
+    },
+
+    /// Load an element through element.addr + load.
+    ElementLoad {
+        dest: mir::Value,
+        array: mir::Value,
+        index: mir::Value,
+        array_length: u64,
     },
 
     /// Set array element.
@@ -279,23 +319,42 @@ pub enum ThreadedInstructionData {
         value: mir::Value,
     },
 
+    /// Store an element through element.addr + store.
+    ElementStore {
+        array: mir::Value,
+        index: mir::Value,
+        value: mir::Value,
+        reference: ReferenceMeta,
+        array_length: u64,
+    },
+
     /// Allocate managed memory.
-    ManagedAlloc { dest: mir::Value },
+    ManagedAlloc {
+        dest: mir::Value,
+        reference: ReferenceMeta,
+    },
 
     /// Allocate managed array.
     ManagedAllocArray {
         dest: mir::Value,
         length: mir::Value,
+        reference: ReferenceMeta,
     },
 
     /// Allocate raw memory.
-    RawAlloc { dest: mir::Value },
+    RawAlloc {
+        dest: mir::Value,
+        reference: ReferenceMeta,
+    },
 
     /// Free raw memory.
     RawFree { pointer: mir::Value },
 
     /// Allocate stack memory.
-    StackAlloc { dest: mir::Value },
+    StackAlloc {
+        dest: mir::Value,
+        reference: ReferenceMeta,
+    },
 
     /// Intrinsic call.
     Intrinsic {

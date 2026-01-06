@@ -2,14 +2,29 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::memory::Value;
+use crate::memory::{ReferenceMeta, Value};
 
 use super::dispatch;
 use super::threaded::{
     ArgumentRange, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, SwitchCase,
     SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction, ThreadedInstructionData,
-    pack_optional_value,
+    UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, pack_optional_value,
 };
+
+/// Storage class for pointer-like values.
+#[derive(Clone, Copy, Debug)]
+enum PointerStorage {
+    /// Managed heap reference.
+    Managed,
+    /// Raw heap pointer.
+    Raw,
+    /// Stack pointer.
+    Stack,
+    /// Global pointer.
+    Global,
+    /// Unknown pointer storage.
+    Unknown,
+}
 
 /// Scalar and aggregate kinds used for typed dispatch selection.
 #[derive(Clone, Copy, Debug)]
@@ -27,6 +42,8 @@ enum ValueKind {
     /// Pointer-like value with pointee type.
     Pointer {
         pointee: mir::LocalNodeId<mir::Type>,
+        storage: PointerStorage,
+        reference: ReferenceMeta,
     },
     /// Function pointer value with result type.
     FunctionPointer { result: mir::LocalNodeId<mir::Type> },
@@ -35,6 +52,7 @@ enum ValueKind {
     /// Managed array value with element type.
     Array {
         element: mir::LocalNodeId<mir::Type>,
+        length: u64,
     },
     /// Unknown or unsupported type.
     Unknown,
@@ -115,6 +133,226 @@ fn select_unary_handler(
         }
         (Some(ValueKind::Bool), mir::UnaryOperator::Not) => dispatch::handle_unary_bool,
         _ => dispatch::handle_unary,
+    }
+}
+
+/// Pick a load handler based on inferred pointer storage.
+fn select_load_handler(
+    value_kinds: &ValueKinds,
+    pointer: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(pointer) {
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_load_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_load_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_load_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_load_global,
+        _ => dispatch::handle_load,
+    }
+}
+
+/// Pick a store handler based on inferred pointer storage.
+fn select_store_handler(
+    value_kinds: &ValueKinds,
+    pointer: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(pointer) {
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_store_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_store_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_store_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_store_global,
+        _ => dispatch::handle_store,
+    }
+}
+
+/// Pick a field address handler based on inferred aggregate storage.
+fn select_field_addr_handler(
+    value_kinds: &ValueKinds,
+    aggregate: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(aggregate) {
+        Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_addr_aggregate,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_field_addr_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_field_addr_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_field_addr_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_field_addr_global,
+        _ => dispatch::handle_field_addr,
+    }
+}
+
+/// Pick an element address handler based on inferred array storage.
+fn select_element_addr_handler(
+    value_kinds: &ValueKinds,
+    array: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(array) {
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
+            dispatch::handle_element_addr_aggregate
+        }
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_element_addr_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_element_addr_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_element_addr_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_element_addr_global,
+        _ => dispatch::handle_element_addr,
+    }
+}
+
+/// Pick a field load handler based on inferred aggregate storage.
+fn select_field_load_handler(
+    value_kinds: &ValueKinds,
+    aggregate: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(aggregate) {
+        Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_load_aggregate,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_field_load_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_field_load_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_field_load_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_field_load_global,
+        _ => dispatch::handle_field_load,
+    }
+}
+
+/// Pick a field store handler based on inferred aggregate storage.
+fn select_field_store_handler(
+    value_kinds: &ValueKinds,
+    aggregate: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(aggregate) {
+        Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_store_aggregate,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_field_store_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_field_store_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_field_store_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_field_store_global,
+        _ => dispatch::handle_field_store,
+    }
+}
+
+/// Pick an element load handler based on inferred array storage.
+fn select_element_load_handler(
+    value_kinds: &ValueKinds,
+    array: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(array) {
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
+            dispatch::handle_element_load_aggregate
+        }
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_element_load_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_element_load_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_element_load_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_element_load_global,
+        _ => dispatch::handle_element_load,
+    }
+}
+
+/// Pick an element store handler based on inferred array storage.
+fn select_element_store_handler(
+    value_kinds: &ValueKinds,
+    array: mir::Value,
+) -> super::threaded::ThreadedHandler {
+    match value_kinds.get(array) {
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
+            dispatch::handle_element_store_aggregate
+        }
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => dispatch::handle_element_store_managed,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => dispatch::handle_element_store_raw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => dispatch::handle_element_store_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => dispatch::handle_element_store_global,
+        _ => dispatch::handle_element_store,
     }
 }
 
@@ -208,6 +446,7 @@ pub(super) fn thread_function(
     // compute value kinds for typed dispatch
     let value_count = compute_value_count_from_mir(tree, func, &mir_blocks);
     let value_kinds = build_value_kinds(tree, func, &mir_blocks, value_count);
+    let value_uses = compute_value_use_counts(tree, &mir_blocks, value_count);
 
     // validate threaded indices
     debug_assert!(
@@ -246,6 +485,7 @@ pub(super) fn thread_function(
             &block_parameters,
             function_indices,
             &value_kinds,
+            &value_uses,
             &mut argument_pool,
             &mut switch_case_pool,
             &mut copy_pool,
@@ -279,6 +519,7 @@ fn thread_block(
     block_parameters: &[Vec<mir::Value>],
     function_indices: &[u32],
     value_kinds: &ValueKinds,
+    value_uses: &[u32],
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
@@ -294,8 +535,26 @@ fn thread_block(
     let mut instructions = Vec::with_capacity(block.instructions.len() + 1);
 
     // convert regular instructions
-    for &inst_id in &block.instructions {
+    let mut inst_index = 0usize;
+    while inst_index < block.instructions.len() {
+        // load current instruction
+        let inst_id = block.instructions[inst_index];
         let inst = tree.get(inst_id);
+
+        // attempt addr + load/store fusion
+        if let Some((threaded, skip)) = try_fuse_addr_access(
+            tree,
+            inst,
+            block.instructions.get(inst_index + 1).copied(),
+            value_kinds,
+            value_uses,
+        ) {
+            instructions.push(threaded);
+            inst_index += skip;
+            continue;
+        }
+
+        // fall back to standard threading
         let threaded = thread_instruction(
             tree,
             inst,
@@ -305,6 +564,7 @@ fn thread_block(
             function_indices,
         );
         instructions.push(threaded);
+        inst_index += 1;
     }
 
     // append threaded terminator
@@ -326,6 +586,121 @@ fn thread_block(
         mir_block,
         parameters,
         instructions,
+    }
+}
+
+/// Try to fuse addr + load/store into a single threaded instruction.
+fn try_fuse_addr_access(
+    tree: &mir::NodeTree,
+    inst: &mir::Instruction,
+    next_inst_id: Option<mir::LocalNodeId<mir::Instruction>>,
+    value_kinds: &ValueKinds,
+    value_uses: &[u32],
+) -> Option<(ThreadedInstruction, usize)> {
+    // bail if there is no next instruction
+    let next_inst_id = next_inst_id?;
+
+    // check value usage count for the addr result
+    let can_fuse =
+        |value: mir::Value| -> bool { value_uses.get(value.0 as usize).copied().unwrap_or(0) == 1 };
+
+    // load next instruction for pattern matching
+    let next_inst = tree.get(next_inst_id);
+
+    match inst {
+        mir::Instruction::FieldAddr {
+            destination,
+            aggregate,
+            index,
+        } => {
+            if !can_fuse(*destination) {
+                return None;
+            }
+
+            let field_count = value_kinds
+                .get(*aggregate)
+                .and_then(|kind| field_count_from_kind(tree, kind))
+                .unwrap_or(UNKNOWN_FIELD_COUNT);
+
+            match next_inst {
+                mir::Instruction::Load {
+                    destination: load_dest,
+                    pointer,
+                } if pointer == destination => Some((
+                    ThreadedInstruction {
+                        handler: select_field_load_handler(value_kinds, *aggregate),
+                        data: ThreadedInstructionData::FieldLoad {
+                            dest: *load_dest,
+                            aggregate: *aggregate,
+                            index: *index,
+                            field_count,
+                        },
+                    },
+                    2,
+                )),
+                mir::Instruction::Store { pointer, value } if pointer == destination => Some((
+                    ThreadedInstruction {
+                        handler: select_field_store_handler(value_kinds, *aggregate),
+                        data: ThreadedInstructionData::FieldStore {
+                            aggregate: *aggregate,
+                            index: *index,
+                            value: *value,
+                            reference: reference_meta_for_value(value_kinds, *destination),
+                            field_count,
+                        },
+                    },
+                    2,
+                )),
+                _ => None,
+            }
+        }
+        mir::Instruction::ElementAddr {
+            destination,
+            array,
+            index,
+        } => {
+            if !can_fuse(*destination) {
+                return None;
+            }
+
+            let array_length = value_kinds
+                .get(*array)
+                .and_then(|kind| array_length_from_kind(tree, kind))
+                .unwrap_or(UNKNOWN_ARRAY_LENGTH);
+
+            match next_inst {
+                mir::Instruction::Load {
+                    destination: load_dest,
+                    pointer,
+                } if pointer == destination => Some((
+                    ThreadedInstruction {
+                        handler: select_element_load_handler(value_kinds, *array),
+                        data: ThreadedInstructionData::ElementLoad {
+                            dest: *load_dest,
+                            array: *array,
+                            index: *index,
+                            array_length,
+                        },
+                    },
+                    2,
+                )),
+                mir::Instruction::Store { pointer, value } if pointer == destination => Some((
+                    ThreadedInstruction {
+                        handler: select_element_store_handler(value_kinds, *array),
+                        data: ThreadedInstructionData::ElementStore {
+                            array: *array,
+                            index: *index,
+                            value: *value,
+                            reference: reference_meta_for_value(value_kinds, *destination),
+                            array_length,
+                        },
+                    },
+                    2,
+                )),
+                _ => None,
+            }
+        }
+        _ => None,
     }
 }
 
@@ -457,6 +832,7 @@ fn thread_instruction(
             data: ThreadedInstructionData::GlobalAddr {
                 dest: *destination,
                 global: global.id,
+                reference: reference_meta_for_value(value_kinds, *destination),
             },
         },
 
@@ -475,7 +851,7 @@ fn thread_instruction(
             destination,
             pointer,
         } => ThreadedInstruction {
-            handler: dispatch::handle_load,
+            handler: select_load_handler(value_kinds, *pointer),
             data: ThreadedInstructionData::Load {
                 dest: *destination,
                 pointer: *pointer,
@@ -483,10 +859,11 @@ fn thread_instruction(
         },
 
         mir::Instruction::Store { pointer, value } => ThreadedInstruction {
-            handler: dispatch::handle_store,
+            handler: select_store_handler(value_kinds, *pointer),
             data: ThreadedInstructionData::Store {
                 pointer: *pointer,
                 value: *value,
+                reference: reference_meta_for_value(value_kinds, *pointer),
             },
         },
 
@@ -513,11 +890,16 @@ fn thread_instruction(
             aggregate,
             index,
         } => ThreadedInstruction {
-            handler: dispatch::handle_field_addr,
+            handler: select_field_addr_handler(value_kinds, *aggregate),
             data: ThreadedInstructionData::FieldAddr {
                 dest: *destination,
                 aggregate: *aggregate,
                 index: *index,
+                reference: reference_meta_for_value(value_kinds, *destination),
+                field_count: value_kinds
+                    .get(*aggregate)
+                    .and_then(|kind| field_count_from_kind(tree, kind))
+                    .unwrap_or(UNKNOWN_FIELD_COUNT),
             },
         },
 
@@ -554,11 +936,16 @@ fn thread_instruction(
             array,
             index,
         } => ThreadedInstruction {
-            handler: dispatch::handle_element_addr,
+            handler: select_element_addr_handler(value_kinds, *array),
             data: ThreadedInstructionData::ElementAddr {
                 dest: *destination,
                 array: *array,
                 index: *index,
+                reference: reference_meta_for_value(value_kinds, *destination),
+                array_length: value_kinds
+                    .get(*array)
+                    .and_then(|kind| array_length_from_kind(tree, kind))
+                    .unwrap_or(UNKNOWN_ARRAY_LENGTH),
             },
         },
 
@@ -579,7 +966,10 @@ fn thread_instruction(
 
         mir::Instruction::ManagedAlloc { destination, .. } => ThreadedInstruction {
             handler: dispatch::handle_managed_alloc,
-            data: ThreadedInstructionData::ManagedAlloc { dest: *destination },
+            data: ThreadedInstructionData::ManagedAlloc {
+                dest: *destination,
+                reference: reference_meta_for_value(value_kinds, *destination),
+            },
         },
 
         mir::Instruction::ManagedAllocArray {
@@ -591,12 +981,20 @@ fn thread_instruction(
             data: ThreadedInstructionData::ManagedAllocArray {
                 dest: *destination,
                 length: *length,
+                reference: ReferenceMeta::new(
+                    mir::ReferenceKind::Managed,
+                    mir::Mutability::Mutable,
+                    false,
+                ),
             },
         },
 
         mir::Instruction::RawAlloc { destination, .. } => ThreadedInstruction {
             handler: dispatch::handle_raw_alloc,
-            data: ThreadedInstructionData::RawAlloc { dest: *destination },
+            data: ThreadedInstructionData::RawAlloc {
+                dest: *destination,
+                reference: reference_meta_for_value(value_kinds, *destination),
+            },
         },
 
         mir::Instruction::RawFree { pointer } => ThreadedInstruction {
@@ -606,7 +1004,10 @@ fn thread_instruction(
 
         mir::Instruction::StackAlloc { destination, .. } => ThreadedInstruction {
             handler: dispatch::handle_stack_alloc,
-            data: ThreadedInstructionData::StackAlloc { dest: *destination },
+            data: ThreadedInstructionData::StackAlloc {
+                dest: *destination,
+                reference: reference_meta_for_value(value_kinds, *destination),
+            },
         },
 
         mir::Instruction::Intrinsic {
@@ -683,6 +1084,53 @@ fn build_value_kinds(
     value_kinds
 }
 
+/// Compute SSA value use counts across the function.
+fn compute_value_use_counts(
+    tree: &mir::NodeTree,
+    mir_blocks: &[mir::LocalNodeId<mir::Block>],
+    value_count: usize,
+) -> Vec<u32> {
+    // allocate use counters
+    let mut uses = vec![0u32; value_count];
+
+    // record a single use safely
+    let mut record_use = |value: mir::Value| {
+        if let Some(slot) = uses.get_mut(value.0 as usize) {
+            *slot = slot.saturating_add(1);
+        }
+    };
+
+    // scan instructions and terminators for value uses
+    for block_id in mir_blocks {
+        let block = tree.get(*block_id);
+        for inst_id in &block.instructions {
+            let inst = tree.get(*inst_id);
+            for value in inst.uses() {
+                record_use(value);
+            }
+            if let Some(args) = inst.argument_slice() {
+                for arg in tree.get_arguments(args) {
+                    record_use(*arg);
+                }
+            }
+        }
+        for value in block.terminator.uses() {
+            record_use(value);
+        }
+    }
+
+    // return the use table
+    uses
+}
+
+/// Get reference metadata for a value when available.
+fn reference_meta_for_value(value_kinds: &ValueKinds, value: mir::Value) -> ReferenceMeta {
+    match value_kinds.get(value) {
+        Some(ValueKind::Pointer { reference, .. }) => reference,
+        _ => ReferenceMeta::NONE,
+    }
+}
+
 /// Infer the value kind for a MIR instruction.
 fn infer_instruction_kind(
     tree: &mir::NodeTree,
@@ -756,7 +1204,11 @@ fn infer_instruction_kind(
         }
         mir::Instruction::GlobalAddr { global, .. } => {
             let global = tree.get(*global);
-            Some(ValueKind::Pointer { pointee: global.ty })
+            Some(ValueKind::Pointer {
+                pointee: global.ty,
+                storage: PointerStorage::Global,
+                reference: ReferenceMeta::new(mir::ReferenceKind::Raw, global.mutability, false),
+            })
         }
         mir::Instruction::GlobalConst { global, .. } => {
             let global = tree.get(*global);
@@ -777,8 +1229,11 @@ fn infer_instruction_kind(
         } => {
             let aggregate_kind = value_kinds.get(*aggregate)?;
             let field_type_id = field_type_id_from_kind(tree, aggregate_kind, *index)?;
+            let (storage, reference) = pointer_metadata_from_aggregate(aggregate_kind);
             Some(ValueKind::Pointer {
                 pointee: field_type_id,
+                storage,
+                reference,
             })
         }
         mir::Instruction::FieldSet { aggregate, .. } => value_kinds.get(*aggregate),
@@ -789,20 +1244,42 @@ fn infer_instruction_kind(
         mir::Instruction::ElementAddr { array, .. } => {
             let array_kind = value_kinds.get(*array)?;
             let element_type_id = element_type_id_from_kind(tree, array_kind)?;
+            let (storage, reference) = pointer_metadata_from_array(array_kind);
             Some(ValueKind::Pointer {
                 pointee: element_type_id,
+                storage,
+                reference,
             })
         }
         mir::Instruction::ElementSet { array, .. } => value_kinds.get(*array),
-        mir::Instruction::ManagedAlloc { layout, .. } => {
-            Some(ValueKind::Pointer { pointee: *layout })
-        }
-        mir::Instruction::ManagedAllocArray { element, .. } => {
-            Some(ValueKind::Array { element: *element })
-        }
-        mir::Instruction::RawAlloc { layout, .. } | mir::Instruction::StackAlloc { layout, .. } => {
-            Some(ValueKind::Pointer { pointee: *layout })
-        }
+        mir::Instruction::ManagedAlloc { layout, .. } => Some(ValueKind::Pointer {
+            pointee: *layout,
+            storage: PointerStorage::Managed,
+            reference: ReferenceMeta::new(
+                mir::ReferenceKind::Managed,
+                mir::Mutability::Mutable,
+                false,
+            ),
+        }),
+        mir::Instruction::ManagedAllocArray { element, .. } => Some(ValueKind::Pointer {
+            pointee: *element,
+            storage: PointerStorage::Managed,
+            reference: ReferenceMeta::new(
+                mir::ReferenceKind::Managed,
+                mir::Mutability::Mutable,
+                false,
+            ),
+        }),
+        mir::Instruction::RawAlloc { layout, .. } => Some(ValueKind::Pointer {
+            pointee: *layout,
+            storage: PointerStorage::Raw,
+            reference: ReferenceMeta::new(mir::ReferenceKind::Raw, mir::Mutability::Mutable, false),
+        }),
+        mir::Instruction::StackAlloc { layout, .. } => Some(ValueKind::Pointer {
+            pointee: *layout,
+            storage: PointerStorage::Stack,
+            reference: ReferenceMeta::new(mir::ReferenceKind::Raw, mir::Mutability::Mutable, false),
+        }),
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
@@ -869,11 +1346,59 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
         mir::Type::Float { width } => ValueKind::Float {
             width: *width as u8,
         },
-        mir::Type::Reference { pointee, .. } => ValueKind::Pointer { pointee: *pointee },
+        mir::Type::Reference {
+            kind,
+            mutability,
+            pointee,
+            is_nullable,
+        } => ValueKind::Pointer {
+            pointee: *pointee,
+            storage: pointer_storage_from_reference_kind(*kind),
+            reference: ReferenceMeta::new(*kind, *mutability, *is_nullable),
+        },
         mir::Type::FunctionPointer { result, .. } => ValueKind::FunctionPointer { result: *result },
-        mir::Type::Array { .. } | mir::Type::Tuple { .. } | mir::Type::Struct { .. } => {
-            ValueKind::Aggregate { ty }
-        }
+        mir::Type::Array { element, length } => ValueKind::Array {
+            element: *element,
+            length: *length,
+        },
+        mir::Type::Tuple { .. } | mir::Type::Struct { .. } => ValueKind::Aggregate { ty },
+    }
+}
+
+/// Map a reference kind to a pointer storage class.
+fn pointer_storage_from_reference_kind(kind: mir::ReferenceKind) -> PointerStorage {
+    match kind {
+        mir::ReferenceKind::Managed => PointerStorage::Managed,
+        mir::ReferenceKind::Owned | mir::ReferenceKind::Raw => PointerStorage::Raw,
+        mir::ReferenceKind::Borrowed => PointerStorage::Unknown,
+    }
+}
+
+/// Resolve pointer metadata for aggregate values or pointers.
+fn pointer_metadata_from_aggregate(kind: ValueKind) -> (PointerStorage, ReferenceMeta) {
+    match kind {
+        ValueKind::Pointer {
+            storage, reference, ..
+        } => (storage, reference),
+        ValueKind::Aggregate { .. } => (
+            PointerStorage::Managed,
+            ReferenceMeta::new(mir::ReferenceKind::Managed, mir::Mutability::Mutable, false),
+        ),
+        _ => (PointerStorage::Unknown, ReferenceMeta::NONE),
+    }
+}
+
+/// Resolve pointer metadata for array values or pointers.
+fn pointer_metadata_from_array(kind: ValueKind) -> (PointerStorage, ReferenceMeta) {
+    match kind {
+        ValueKind::Pointer {
+            storage, reference, ..
+        } => (storage, reference),
+        ValueKind::Array { .. } | ValueKind::Aggregate { .. } => (
+            PointerStorage::Managed,
+            ReferenceMeta::new(mir::ReferenceKind::Managed, mir::Mutability::Mutable, false),
+        ),
+        _ => (PointerStorage::Unknown, ReferenceMeta::NONE),
     }
 }
 
@@ -902,7 +1427,7 @@ fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
 fn kind_from_pointer(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
     // resolve pointee kind when available
     match kind {
-        ValueKind::Pointer { pointee } => Some(kind_from_type(tree, pointee)),
+        ValueKind::Pointer { pointee, .. } => Some(kind_from_type(tree, pointee)),
         _ => None,
     }
 }
@@ -937,7 +1462,7 @@ fn field_type_id_from_kind(
     // unwrap pointer kinds to their pointee
     let type_id = match kind {
         ValueKind::Aggregate { ty } => ty,
-        ValueKind::Pointer { pointee } => pointee,
+        ValueKind::Pointer { pointee, .. } => pointee,
         _ => return None,
     };
 
@@ -957,7 +1482,7 @@ fn field_type_id_from_kind(
 fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
     // resolve element kind for array layouts
     match kind {
-        ValueKind::Array { element } => Some(kind_from_type(tree, element)),
+        ValueKind::Array { element, .. } => Some(kind_from_type(tree, element)),
         ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Array { element, .. } => Some(kind_from_type(tree, *element)),
             _ => None,
@@ -973,13 +1498,52 @@ fn element_type_id_from_kind(
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // unwrap pointer kinds to their pointee
     match kind {
-        ValueKind::Array { element } => Some(element),
+        ValueKind::Array { element, .. } => Some(element),
         ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Array { element, .. } => Some(*element),
             _ => None,
         },
-        ValueKind::Pointer { pointee } => match tree.get(pointee) {
+        ValueKind::Pointer { pointee, .. } => match tree.get(pointee) {
             mir::Type::Array { element, .. } => Some(*element),
+            _ => Some(pointee),
+        },
+        _ => None,
+    }
+}
+
+/// Resolve the field count for a struct or tuple kind.
+fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u32> {
+    match kind {
+        ValueKind::Aggregate { ty } => match tree.get(ty) {
+            mir::Type::Struct { fields } => u32::try_from(fields.len()).ok(),
+            mir::Type::Tuple { elements } => u32::try_from(elements.len()).ok(),
+            _ => None,
+        },
+        ValueKind::Pointer { pointee, .. } => match tree.get(pointee) {
+            mir::Type::Struct { fields } => u32::try_from(fields.len()).ok(),
+            mir::Type::Tuple { elements } => u32::try_from(elements.len()).ok(),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Resolve the element length for an array kind.
+fn array_length_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u64> {
+    match kind {
+        ValueKind::Array { length, .. } => {
+            if length == UNKNOWN_ARRAY_LENGTH {
+                None
+            } else {
+                Some(length)
+            }
+        }
+        ValueKind::Aggregate { ty } => match tree.get(ty) {
+            mir::Type::Array { length, .. } => Some(*length),
+            _ => None,
+        },
+        ValueKind::Pointer { pointee, .. } => match tree.get(pointee) {
+            mir::Type::Array { length, .. } => Some(*length),
             _ => None,
         },
         _ => None,
