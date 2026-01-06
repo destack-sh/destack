@@ -41,7 +41,7 @@ impl Compiler {
         }
 
         // build lib load order with dependencies first
-        let version_overrides = collect_lib_version_overrides(&libs);
+        let version_overrides = collect_lib_version_overrides(&libs)?;
         let ordered_libs = {
             let mut ordered_libs = Vec::new();
             let mut seen_libs = HashSet::new();
@@ -546,20 +546,48 @@ fn split_versioned_path(path: &str) -> Option<(String, String)> {
 }
 
 /// Collect explicit lib version overrides from the requested lib list.
-fn collect_lib_version_overrides(libs: &[String]) -> HashMap<String, String> {
-    // gather explicit versioned libs
+fn collect_lib_version_overrides(libs: &[String]) -> ResolveResult<HashMap<String, String>> {
+    // prepare traversal state
     let mut overrides = HashMap::new();
+    let mut seen = HashSet::new();
 
+    // walk all requested libs
     for lib in libs {
-        let Some((base, _version)) = split_versioned_lib_name(lib) else {
-            continue;
-        };
-
-        // map the base name to the explicit version
-        overrides.insert(base.to_string(), lib.clone());
+        collect_lib_version_overrides_for_lib(lib, &mut overrides, &mut seen)?;
     }
 
-    overrides
+    Ok(overrides)
+}
+
+/// Collect explicit versioned libs in the dependency graph.
+fn collect_lib_version_overrides_for_lib(
+    name: &str,
+    overrides: &mut HashMap<String, String>,
+    seen: &mut HashSet<String>,
+) -> ResolveResult<()> {
+    // skip already visited libs
+    if !seen.insert(name.to_string()) {
+        return Ok(());
+    }
+
+    // record explicit versioned libs
+    if let Some((base, _version)) = split_versioned_lib_name(name) {
+        overrides
+            .entry(base.to_string())
+            .or_insert_with(|| name.to_string());
+    }
+
+    // load the lib for dependencies
+    let lib = builtin_lib(name).ok_or_else(|| ResolveError::MissingBuiltinLib {
+        name: name.to_string(),
+    })?;
+
+    // walk dependencies
+    for &dependency in lib.dependencies {
+        collect_lib_version_overrides_for_lib(dependency, overrides, seen)?;
+    }
+
+    Ok(())
 }
 
 /// Resolve a dependency name to a versioned lib when an override exists.

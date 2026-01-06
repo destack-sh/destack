@@ -8,7 +8,7 @@ use super::dispatch;
 use super::threaded::{
     ArgumentRange, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, SwitchCase,
     SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction, ThreadedInstructionData,
-    UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, pack_optional_value,
+    UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT, pack_optional_value,
 };
 
 /// Storage class for pointer-like values.
@@ -964,11 +964,15 @@ fn thread_instruction(
             },
         },
 
-        mir::Instruction::ManagedAlloc { destination, .. } => ThreadedInstruction {
+        mir::Instruction::ManagedAlloc {
+            destination,
+            layout,
+        } => ThreadedInstruction {
             handler: dispatch::handle_managed_alloc,
             data: ThreadedInstructionData::ManagedAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
+                slot_count: slot_count_from_type(tree, *layout).unwrap_or(UNKNOWN_SLOT_COUNT),
             },
         },
 
@@ -989,11 +993,15 @@ fn thread_instruction(
             },
         },
 
-        mir::Instruction::RawAlloc { destination, .. } => ThreadedInstruction {
+        mir::Instruction::RawAlloc {
+            destination,
+            layout,
+        } => ThreadedInstruction {
             handler: dispatch::handle_raw_alloc,
             data: ThreadedInstructionData::RawAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
+                slot_count: slot_count_from_type(tree, *layout).unwrap_or(UNKNOWN_SLOT_COUNT),
             },
         },
 
@@ -1002,11 +1010,15 @@ fn thread_instruction(
             data: ThreadedInstructionData::RawFree { pointer: *pointer },
         },
 
-        mir::Instruction::StackAlloc { destination, .. } => ThreadedInstruction {
+        mir::Instruction::StackAlloc {
+            destination,
+            layout,
+        } => ThreadedInstruction {
             handler: dispatch::handle_stack_alloc,
             data: ThreadedInstructionData::StackAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
+                slot_count: slot_count_from_type(tree, *layout).unwrap_or(UNKNOWN_SLOT_COUNT),
             },
         },
 
@@ -1508,6 +1520,22 @@ fn element_type_id_from_kind(
             _ => Some(pointee),
         },
         _ => None,
+    }
+}
+
+/// Resolve the slot count for a concrete type layout.
+fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Option<u32> {
+    // map types to slot counts
+    match tree.get(ty) {
+        mir::Type::Struct { fields } => u32::try_from(fields.len()).ok(),
+        mir::Type::Tuple { elements } => u32::try_from(elements.len()).ok(),
+        mir::Type::Array { length, .. } => u32::try_from(*length).ok(),
+        mir::Type::Void => Some(1),
+        mir::Type::Boolean
+        | mir::Type::Int { .. }
+        | mir::Type::Float { .. }
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. } => Some(1),
     }
 }
 

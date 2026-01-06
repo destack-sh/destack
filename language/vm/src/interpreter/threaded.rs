@@ -122,6 +122,9 @@ pub(super) const UNKNOWN_FIELD_COUNT: u32 = u32::MAX;
 /// Sentinel array length for unknown layouts.
 pub(super) const UNKNOWN_ARRAY_LENGTH: u64 = u64::MAX;
 
+/// Sentinel slot count for unknown allocation layouts.
+pub(super) const UNKNOWN_SLOT_COUNT: u32 = u32::MAX;
+
 /// Pack an optional SSA value into a sentinel encoding.
 pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
     value.unwrap_or(mir::Value(INVALID_VALUE_ID))
@@ -332,6 +335,7 @@ pub enum ThreadedInstructionData {
     ManagedAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
+        slot_count: u32,
     },
 
     /// Allocate managed array.
@@ -345,6 +349,7 @@ pub enum ThreadedInstructionData {
     RawAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
+        slot_count: u32,
     },
 
     /// Free raw memory.
@@ -354,6 +359,7 @@ pub enum ThreadedInstructionData {
     StackAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
+        slot_count: u32,
     },
 
     /// Intrinsic call.
@@ -452,6 +458,10 @@ pub struct ThreadedState<'a> {
     pub frame_index: usize,
     /// Interpreter reference for heap and globals.
     pub interpreter: &'a mut Interpreter,
+    /// Whether bounds checks are enabled for this execution.
+    pub bounds_checks: bool,
+    /// Whether null checks are enabled for this execution.
+    pub null_checks: bool,
     /// Pointer to the current frame for fast access.
     frame: *mut Frame,
     /// Pointer to SSA value storage for this frame.
@@ -488,6 +498,8 @@ impl fmt::Debug for ThreadedState<'_> {
             .field("local_count", &self.local_count)
             .field("argument_pool_len", &self.argument_pool_len)
             .field("switch_case_pool_len", &self.switch_case_pool_len)
+            .field("bounds_checks", &self.bounds_checks)
+            .field("null_checks", &self.null_checks)
             .finish()
     }
 }
@@ -500,6 +512,11 @@ impl<'a> ThreadedState<'a> {
         argument_pool: &[mir::Value],
         switch_case_pool: &[SwitchCase],
     ) -> Self {
+        // resolve check policies
+        let mode = interpreter.options.execution_mode;
+        let bounds_checks = interpreter.options.bounds_checks.is_enabled_for(mode);
+        let null_checks = interpreter.options.null_checks.is_enabled_for(mode);
+
         // get frame pointer
         // #Safety: frame_index always points at the current frame
         let frame =
@@ -529,6 +546,8 @@ impl<'a> ThreadedState<'a> {
         Self {
             frame_index,
             interpreter,
+            bounds_checks,
+            null_checks,
             frame,
             values: unsafe { values_ptr.add(value_base) },
             value_count,

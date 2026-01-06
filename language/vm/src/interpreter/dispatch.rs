@@ -8,7 +8,7 @@ use crate::memory::{ReferenceMeta, Value, ValueTag};
 
 use super::threaded::{
     ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, ThreadedInstruction,
-    ThreadedInstructionData, ThreadedState, is_invalid_value,
+    ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT, is_invalid_value,
 };
 use super::{instruction, operator};
 
@@ -1387,15 +1387,9 @@ pub(super) fn handle_field_load_aggregate(
         });
     }
 
-    // compute field address
+    // load field value
     let handle = agg.as_heap_handle().unwrap();
-    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_managed_reference(state, pointer) {
+    let value = match instruction::load_field_managed(state, handle, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1432,15 +1426,9 @@ pub(super) fn handle_field_load_managed(
         });
     }
 
-    // compute field address
+    // load field value
     let handle = agg.as_heap_handle().unwrap();
-    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_managed_reference(state, pointer) {
+    let value = match instruction::load_field_managed(state, handle, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1477,15 +1465,9 @@ pub(super) fn handle_field_load_raw(
         });
     }
 
-    // compute field address
+    // load field value
     let pointer = agg.as_raw_pointer().unwrap();
-    let pointer = match instruction::field_addr_raw(state, pointer, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_raw_pointer(state, pointer) {
+    let value = match instruction::load_field_raw(state, pointer, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1522,15 +1504,9 @@ pub(super) fn handle_field_load_stack(
         });
     }
 
-    // compute field address
+    // load field value
     let pointer = agg.as_stack_pointer().unwrap();
-    let pointer = match instruction::field_addr_stack(state, pointer, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_stack_pointer(state, pointer) {
+    let value = match instruction::load_field_stack(state, pointer, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1567,15 +1543,9 @@ pub(super) fn handle_field_load_global(
         });
     }
 
-    // compute field address
+    // load field value
     let pointer = agg.as_global_pointer().unwrap();
-    let pointer = match instruction::field_addr_global(state, pointer, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_global_pointer(state, pointer) {
+    let value = match instruction::load_field_global(state, pointer, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -1693,22 +1663,15 @@ pub(super) fn handle_field_store_aggregate(
     }
     let val = state.get(*value);
 
-    // compute field address
-    let handle = agg.as_heap_handle().unwrap();
-    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference kind
+    let handle = agg.as_heap_handle().unwrap();
+    let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
 
     // store value
-    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+    if let Err(error) = instruction::store_field_managed(state, handle, *index, *field_count, val) {
         return ControlFlow::Error(error);
     }
 
@@ -1743,22 +1706,15 @@ pub(super) fn handle_field_store_managed(
     }
     let val = state.get(*value);
 
-    // compute field address
-    let handle = agg.as_heap_handle().unwrap();
-    let pointer = match instruction::field_addr_managed(state, handle, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference kind
+    let handle = agg.as_heap_handle().unwrap();
+    let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
 
     // store value
-    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+    if let Err(error) = instruction::store_field_managed(state, handle, *index, *field_count, val) {
         return ControlFlow::Error(error);
     }
 
@@ -1793,22 +1749,16 @@ pub(super) fn handle_field_store_raw(
     }
     let val = state.get(*value);
 
-    // compute field address
-    let pointer = agg.as_raw_pointer().unwrap();
-    let pointer = match instruction::field_addr_raw(state, pointer, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference kind
+    let raw_pointer = agg.as_raw_pointer().unwrap();
+    let pointer = Value::raw_pointer_with_meta(raw_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
 
     // store value
-    if let Err(error) = instruction::store_to_raw_pointer(state, pointer, val) {
+    if let Err(error) = instruction::store_field_raw(state, raw_pointer, *index, *field_count, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -1843,16 +1793,9 @@ pub(super) fn handle_field_store_stack(
     }
     let val = state.get(*value);
 
-    // compute field address
-    let pointer = agg.as_stack_pointer().unwrap();
-    let pointer = match instruction::field_addr_stack(state, pointer, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let stack_pointer = agg.as_stack_pointer().unwrap();
+    let pointer = Value::stack_pointer_with_meta(stack_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -1861,7 +1804,9 @@ pub(super) fn handle_field_store_stack(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_stack_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_field_stack(state, stack_pointer, *index, *field_count, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -1896,16 +1841,10 @@ pub(super) fn handle_field_store_global(
     }
     let val = state.get(*value);
 
-    // compute field address
-    let pointer = agg.as_global_pointer().unwrap();
-    let pointer = match instruction::field_addr_global(state, pointer, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let global_pointer = agg.as_global_pointer().unwrap();
+    let pointer =
+        Value::global_pointer_with_meta(global_pointer.id, global_pointer.slot_offset, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -1914,7 +1853,9 @@ pub(super) fn handle_field_store_global(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_global_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_field_global(state, global_pointer, *index, *field_count, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -2315,15 +2256,9 @@ pub(super) fn handle_element_load_aggregate(
     let idx = state.get(*index);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
+    // load element value
     let handle = arr.as_heap_handle().unwrap();
-    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_managed_reference(state, pointer) {
+    let value = match instruction::load_element_managed(state, handle, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -2362,15 +2297,9 @@ pub(super) fn handle_element_load_managed(
     let idx = state.get(*index);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
+    // load element value
     let handle = arr.as_heap_handle().unwrap();
-    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_managed_reference(state, pointer) {
+    let value = match instruction::load_element_managed(state, handle, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -2409,15 +2338,9 @@ pub(super) fn handle_element_load_raw(
     let idx = state.get(*index);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
+    // load element value
     let pointer = arr.as_raw_pointer().unwrap();
-    let pointer = match instruction::element_addr_raw(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_raw_pointer(state, pointer) {
+    let value = match instruction::load_element_raw(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -2456,15 +2379,9 @@ pub(super) fn handle_element_load_stack(
     let idx = state.get(*index);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
+    // load element value
     let pointer = arr.as_stack_pointer().unwrap();
-    let pointer = match instruction::element_addr_stack(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_stack_pointer(state, pointer) {
+    let value = match instruction::load_element_stack(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -2503,15 +2420,9 @@ pub(super) fn handle_element_load_global(
     let idx = state.get(*index);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
+    // load element value
     let pointer = arr.as_global_pointer().unwrap();
-    let pointer = match instruction::element_addr_global(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // load value
-    let value = match instruction::load_from_global_pointer(state, pointer) {
+    let value = match instruction::load_element_global(state, pointer, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -2638,16 +2549,9 @@ pub(super) fn handle_element_store_aggregate(
     let val = state.get(*value);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let handle = arr.as_heap_handle().unwrap();
-    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let handle = arr.as_heap_handle().unwrap();
+    let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -2656,7 +2560,9 @@ pub(super) fn handle_element_store_aggregate(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_element_managed(state, handle, idx_val, *array_length, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -2693,16 +2599,9 @@ pub(super) fn handle_element_store_managed(
     let val = state.get(*value);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let handle = arr.as_heap_handle().unwrap();
-    let pointer = match instruction::element_addr_managed(state, handle, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let handle = arr.as_heap_handle().unwrap();
+    let pointer = Value::managed_reference_with_meta(handle, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -2711,7 +2610,9 @@ pub(super) fn handle_element_store_managed(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_managed_reference(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_element_managed(state, handle, idx_val, *array_length, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -2748,16 +2649,9 @@ pub(super) fn handle_element_store_raw(
     let val = state.get(*value);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let pointer = arr.as_raw_pointer().unwrap();
-    let pointer = match instruction::element_addr_raw(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let raw_pointer = arr.as_raw_pointer().unwrap();
+    let pointer = Value::raw_pointer_with_meta(raw_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -2766,7 +2660,9 @@ pub(super) fn handle_element_store_raw(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_raw_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_element_raw(state, raw_pointer, idx_val, *array_length, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -2803,16 +2699,9 @@ pub(super) fn handle_element_store_stack(
     let val = state.get(*value);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let pointer = arr.as_stack_pointer().unwrap();
-    let pointer = match instruction::element_addr_stack(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let stack_pointer = arr.as_stack_pointer().unwrap();
+    let pointer = Value::stack_pointer_with_meta(stack_pointer, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -2821,7 +2710,9 @@ pub(super) fn handle_element_store_stack(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_stack_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_element_stack(state, stack_pointer, idx_val, *array_length, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -2858,16 +2749,10 @@ pub(super) fn handle_element_store_global(
     let val = state.get(*value);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let pointer = arr.as_global_pointer().unwrap();
-    let pointer = match instruction::element_addr_global(state, pointer, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
     // validate reference semantics
+    let global_pointer = arr.as_global_pointer().unwrap();
+    let pointer =
+        Value::global_pointer_with_meta(global_pointer.id, global_pointer.slot_offset, *reference);
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return ControlFlow::Error(error);
     }
@@ -2876,7 +2761,9 @@ pub(super) fn handle_element_store_global(
     }
 
     // store value
-    if let Err(error) = instruction::store_to_global_pointer(state, pointer, val) {
+    if let Err(error) =
+        instruction::store_element_global(state, global_pointer, idx_val, *array_length, val)
+    {
         return ControlFlow::Error(error);
     }
 
@@ -2891,7 +2778,12 @@ pub(super) fn handle_managed_alloc(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::ManagedAlloc { dest, reference } = &block[pc].data else {
+    let ThreadedInstructionData::ManagedAlloc {
+        dest,
+        reference,
+        slot_count,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -2901,7 +2793,14 @@ pub(super) fn handle_managed_alloc(
     }
 
     // allocate heap cell
-    let handle = state.interpreter.managed_heap.allocate();
+    let handle = if *slot_count == UNKNOWN_SLOT_COUNT {
+        state.interpreter.managed_heap.allocate()
+    } else {
+        state
+            .interpreter
+            .managed_heap
+            .allocate_with_slots(*slot_count as usize)
+    };
     state.interpreter.statistics.heap_allocations += 1;
     let value = Value::managed_reference_with_meta(handle, *reference);
 
@@ -2964,7 +2863,12 @@ pub(super) fn handle_raw_alloc(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::RawAlloc { dest, reference } = &block[pc].data else {
+    let ThreadedInstructionData::RawAlloc {
+        dest,
+        reference,
+        slot_count,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -2974,7 +2878,14 @@ pub(super) fn handle_raw_alloc(
     }
 
     // allocate raw heap cell
-    let ptr = state.interpreter.raw_heap.allocate();
+    let ptr = if *slot_count == UNKNOWN_SLOT_COUNT {
+        state.interpreter.raw_heap.allocate()
+    } else {
+        state
+            .interpreter
+            .raw_heap
+            .allocate_with_slots(*slot_count as usize)
+    };
     state.interpreter.statistics.heap_allocations += 1;
     let value = Value::raw_pointer_with_meta(ptr, *reference);
 
@@ -3029,13 +2940,24 @@ pub(super) fn handle_stack_alloc(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::StackAlloc { dest, reference } = &block[pc].data else {
+    let ThreadedInstructionData::StackAlloc {
+        dest,
+        reference,
+        slot_count,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
     // NOTE #Incomplete: stack allocation requires proper layout sizing
     let frame_index = state.frame_index;
-    let slot = state.current_frame_mut().allocate_stack_cell();
+    let slot = if *slot_count == UNKNOWN_SLOT_COUNT {
+        state.current_frame_mut().allocate_stack_cell()
+    } else {
+        state
+            .current_frame_mut()
+            .allocate_stack_cell_with_slots(*slot_count as usize)
+    };
     let sp = crate::memory::StackPointer::new(frame_index, slot);
     let value = Value::stack_pointer_with_meta(sp, *reference);
 
