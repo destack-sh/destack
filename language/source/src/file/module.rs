@@ -79,7 +79,7 @@ impl std::fmt::Display for ModuleId {
 }
 
 impl ModuleId {
-    /// Well-known ID for ephemeral/virtual modules (REPL, root).
+    /// Well-known ID for ephemeral/virtual modules (e.g., REPL, root).
     pub const EPHEMERAL: Self = Self {
         package_id: PackageId::EPHEMERAL,
         local_id: 0,

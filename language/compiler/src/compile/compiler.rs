@@ -157,15 +157,16 @@ pub struct Compiler {
     /// The pending compiler diagnostics (transient).
     pub pending_diagnostics: DiagnosticCollector,
 
+    /// The shared comptime target configuration.
+    pub comptime_target: Target,
+
     /// The queue of compiler tasks.
     pub(super) queue: TaskQueue,
     /// Compilation statistics.
     pub stats: Arc<CompilerStats>,
+
     /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
     import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
-
-    /// The shared comptime target configuration.
-    pub comptime_target: Target,
     /// Global symbol tables indexed by target and profile.
     pub(crate) global_symbol_caches: DashMap<GlobalSymbolCacheKey, GlobalSymbolCache>,
     /// Module binding tables indexed by target and profile.
@@ -196,12 +197,12 @@ impl Compiler {
             seen_errors: Mutex::new(Vec::new()),
             seen_warnings: Mutex::new(Vec::new()),
             pending_diagnostics: DiagnosticCollector::new(),
+            comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
             global_symbol_caches: DashMap::new(),
             module_binding_caches: DashMap::new(),
             stats: Arc::new(CompilerStats::new()),
-            comptime_target,
         }
     }
 
