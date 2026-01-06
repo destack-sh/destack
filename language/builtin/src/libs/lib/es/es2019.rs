@@ -1,5 +1,8 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
-use super::ES_CANONICAL_EXPORTS;
+use super::es2018::ES2018_DECLARED_SYMBOLS;
+
+pub(crate) const ES2019_DECLARED_SYMBOLS: &[&str] = ES2018_DECLARED_SYMBOLS;
+const ES2019_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 macro_rules! lib_source {
     ($name:ident, $file:literal) => {
@@ -32,11 +35,11 @@ pub const LIB_ES2019: BuiltinLib = BuiltinLib::ambient_lib(
     ],
     &["es2018"],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 
 pub const LIB_ES2019_ARRAY: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.array", &[LIB_ES_ES2019_ARRAY_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2019_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2019.full",
     &[LIB_ES_ES2019_FULL_D_DS],
@@ -49,16 +52,16 @@ pub const LIB_ES2019_FULL: BuiltinLib = BuiltinLib::ambient_lib(
         "dom.asynciterable",
     ],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 pub const LIB_ES2019_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.intl", &[LIB_ES_ES2019_INTL_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2019_OBJECT: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.object", &[LIB_ES_ES2019_OBJECT_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2019_STRING: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.string", &[LIB_ES_ES2019_STRING_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2019_SYMBOL: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.symbol", &[LIB_ES_ES2019_SYMBOL_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);

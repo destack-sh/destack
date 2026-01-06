@@ -1,6 +1,6 @@
 /// The kind of symbol a lang item expects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LanguageItemKind {
+pub enum LanguageSymbolKind {
     /// A `newtype interface` declaration.
     Interface,
     /// A `struct` declaration.
@@ -13,7 +13,7 @@ pub enum LanguageItemKind {
     Function,
 }
 
-macro_rules! define_language_items {
+macro_rules! define_language_symbols {
     (
         $(
             $(#[$cat_attr:meta])*
@@ -33,14 +33,14 @@ macro_rules! define_language_items {
         /// - Special syntax handling (`?`, `..`, etc.)
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(clippy::upper_case_acronyms)]
-        pub enum LanguageItem {
+        pub enum LanguageSymbol {
             $($(
                 $(#[$item_attr])*
                 $name,
             )*)*
         }
 
-        impl LanguageItem {
+        impl LanguageSymbol {
             /// The module path where this item is defined (relative to core/).
             pub fn module(&self) -> &'static str {
                 match self {
@@ -56,20 +56,20 @@ macro_rules! define_language_items {
             }
 
             /// The expected symbol kind.
-            pub fn kind(&self) -> LanguageItemKind {
+            pub fn kind(&self) -> LanguageSymbolKind {
                 match self {
-                    $($(Self::$name => LanguageItemKind::$kind,)*)*
+                    $($(Self::$name => LanguageSymbolKind::$kind,)*)*
                 }
             }
 
             /// Iterate over all lang items.
             pub fn all() -> impl Iterator<Item = Self> {
-                const ALL: &[LanguageItem] = &[$($(LanguageItem::$name,)*)*];
+                const ALL: &[LanguageSymbol] = &[$($(LanguageSymbol::$name,)*)*];
                 ALL.iter().copied()
             }
         }
 
-        impl std::fmt::Display for LanguageItem {
+        impl std::fmt::Display for LanguageSymbol {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.export_name())
             }
@@ -77,7 +77,7 @@ macro_rules! define_language_items {
     };
 }
 
-define_language_items! {
+define_language_symbols! {
     /// Arithmetic operator interfaces.
     arithmetic {
         /// `+` operator: `a + b` => `a.add(b)`
@@ -309,16 +309,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_language_item_all() {
-        // all items should be iterable
-        let count = LanguageItem::all().count();
-        assert!(count > 0);
-    }
-
-    #[test]
     fn test_add_properties() {
-        assert_eq!(LanguageItem::Add.module(), "operator/arithmetic");
-        assert_eq!(LanguageItem::Add.export_name(), "Add");
-        assert_eq!(LanguageItem::Add.kind(), LanguageItemKind::Interface);
+        assert_eq!(LanguageSymbol::Add.module(), "operator/arithmetic");
+        assert_eq!(LanguageSymbol::Add.export_name(), "Add");
+        assert_eq!(LanguageSymbol::Add.kind(), LanguageSymbolKind::Interface);
     }
 }

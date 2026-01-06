@@ -19,7 +19,7 @@ const LIB_DOM_ITERABLE_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!(concat!("../../../lib/dom/iterable.d.ts")),
 );
 
-const DOM_CANONICAL_EXPORTS: &[&str] = &[
+const DOM_DECLARED_SYMBOLS: &[&str] = &[
     "AbortController",
     "Crypto",
     "Document",
@@ -61,7 +61,7 @@ const DOM_CANONICAL_EXPORTS: &[&str] = &[
 ];
 
 pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient_lib("dom", &[LIB_DOM_INDEX_D_DS], &["es5"])
-    .with_canonical_exports(DOM_CANONICAL_EXPORTS);
+    .with_declared_symbols(DOM_DECLARED_SYMBOLS);
 pub const LIB_DOM_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "dom.asynciterable",
     &[LIB_DOM_ASYNCITERABLE_D_DS],

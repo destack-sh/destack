@@ -5,7 +5,7 @@ use std::thread;
 use dashmap::DashMap;
 
 use destack_source::{DiagnosticCollector, DiagnosticOptions, ModuleId, Uri};
-use destack_workspace::{LanguageBuiltins, Program, Session, Target};
+use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
 
 use crate::{
@@ -214,7 +214,7 @@ impl Compiler {
     }
 
     /// Get the builtins (if loaded in program).
-    pub fn builtins(&self) -> Option<&Arc<LanguageBuiltins>> {
+    pub fn builtins(&self) -> Option<&Arc<Builtins>> {
         self.program.builtins.as_ref()
     }
 

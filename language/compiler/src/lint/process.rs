@@ -62,7 +62,6 @@ impl Compiler {
         }
 
         let module = self.program.modules.get(module_id);
-        // don't compute fixes, we just report diagnostics here
         let runner = LintRunner::from_options(&options).with_fixes(false);
 
         // run at each IR level

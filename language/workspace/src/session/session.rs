@@ -6,8 +6,8 @@ use destack_base::StringPool;
 use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
 use crate::{
-    ArtifactRegistry, FormatterOptions, LanguageBuiltins, LinterOptions, ModuleRegistry,
-    PackageRegistry, ProfileId, Program, TsConfigRegistry, Workspace,
+    ArtifactRegistry, Builtins, FormatterOptions, LinterOptions, ModuleRegistry, PackageRegistry,
+    ProfileId, Program, TsConfigRegistry, Workspace,
 };
 
 /// A session is the persistent state for a workspace.
@@ -40,7 +40,7 @@ pub struct Session {
     /// The artifact registry (for generated artifacts from codegen).
     pub artifacts: Arc<ArtifactRegistry>,
     /// Compiled builtins (always loaded).
-    pub builtins: Arc<LanguageBuiltins>,
+    pub builtins: Arc<Builtins>,
 }
 
 impl Session {
@@ -49,7 +49,7 @@ impl Session {
         let files = Arc::new(FileRegistry::new());
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
-        let builtins = Arc::new(LanguageBuiltins::embedded(
+        let builtins = Arc::new(Builtins::embedded(
             files.clone(),
             modules.clone(),
             packages.clone(),
@@ -79,7 +79,7 @@ impl Session {
         let files = Arc::new(FileRegistry::new());
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
-        let builtins = Arc::new(LanguageBuiltins::embedded(
+        let builtins = Arc::new(Builtins::embedded(
             files.clone(),
             modules.clone(),
             packages.clone(),

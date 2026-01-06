@@ -334,6 +334,82 @@ impl Compiler {
         let first_segment = path.first_segment().expect("path is empty");
         let key = StaticKey::Name(first_segment);
 
+        // prefer cached declared lib symbols when available
+        if let Some(symbol_id) = builtins.get_declared_lib_symbol(profile, first_segment) {
+            self.require_resolve_module_prepare_if_needed(module.id, symbol_id.module_id, profile)?;
+            let ambient_module = self.program.modules.get(symbol_id.module_id);
+            let ambient_module = ambient_module.read();
+            let ambient_dir = ambient_module.dir(profile);
+            let symbols = ambient_dir.symbols.read();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            let global_this_name = self.program.strings.intern("globalThis");
+            let matches_space = symbol.space == SymbolSpace::TypeValue
+                || space_order.spaces().contains(&symbol.space)
+                || (symbol.space == SymbolSpace::Value && first_segment == global_this_name);
+            if matches_space {
+                if path.segments.len() == 1 {
+                    return Ok(Some(Expression::GlobalReference {
+                        path: path.clone(),
+                        static_arguments,
+                        target_symbol: symbol_id,
+                    }));
+                }
+
+                if symbol.kind == SymbolKind::Namespace {
+                    let remaining_path = path.slice(1..);
+                    match self.resolve_relative_symbol(
+                        &ambient_module,
+                        node,
+                        symbol_id.local_id,
+                        &remaining_path,
+                        space_order,
+                        &symbols,
+                    ) {
+                        Ok((resolved_id, None)) => {
+                            return Ok(Some(Expression::GlobalReference {
+                                path: path.clone(),
+                                static_arguments,
+                                target_symbol: resolved_id.into_global(symbol_id.module_id),
+                            }));
+                        }
+                        Ok((resolved_id, Some(remaining))) => {
+                            let resolved_path =
+                                path.slice(0..path.segments.len() - remaining.segments.len());
+                            let root_expr = Expression::GlobalReference {
+                                path: resolved_path,
+                                static_arguments: None,
+                                target_symbol: resolved_id.into_global(symbol_id.module_id),
+                            };
+                            return Ok(Some(self.build_member_chain(
+                                expression_id,
+                                root_expr,
+                                &remaining,
+                                static_arguments,
+                                tree,
+                            )));
+                        }
+                        Err(e) => return Err(e),
+                    }
+                }
+
+                let root_path = Path {
+                    segments: vec![first_segment].into(),
+                };
+                let root_expr = Expression::GlobalReference {
+                    path: root_path,
+                    static_arguments: None,
+                    target_symbol: symbol_id,
+                };
+                return Ok(Some(self.build_member_chain(
+                    expression_id,
+                    root_expr,
+                    &path.slice(1..),
+                    static_arguments,
+                    tree,
+                )));
+            }
+        }
+
         // search ambient lib namespace scopes in order
         for module_id in ambient_modules {
             // skip self
@@ -348,14 +424,14 @@ impl Compiler {
             let ambient_dir = ambient_module.dir(profile);
             let symbols = ambient_dir.symbols.read();
 
-            // find symbol in ambient lib namespace scope
-            let namespace_scope = symbols.get_scope_by_id(ambient_dir.namespace_scope);
+            // find symbol in ambient lib global augmentation scope
+            let global_scope = symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
             let symbol_id = self.resolve_absolute_symbol(
                 &ambient_module,
                 node,
                 (
-                    ambient_dir.namespace_scope,
-                    namespace_scope,
+                    ambient_dir.global_augmentation_scope,
+                    global_scope,
                     LocalScopeMark::end(),
                 ),
                 key,
@@ -870,7 +946,7 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use crate::{TestProgram, assert_node, assert_string};
-    use destack_builtin::LanguageItem;
+    use destack_builtin::LanguageSymbol;
     use destack_dir::{Expression, Pattern, ScalarLiteral};
 
     /// Resolve labeled break to outer loop.
@@ -2057,7 +2133,7 @@ import { X } from "./a.ds";
 
     /// Test that prelude items (like Add, Type) are available in user code.
     #[test]
-    fn test_resolve_builtin_language_items() {
+    fn test_resolve_builtin_language_symbols() {
         let test = TestProgram::memory_sequential_with_prelude();
 
         // code that uses prelude items without importing them
@@ -2082,8 +2158,8 @@ function printType(t: Type) {
         test.resolve_module(module_id);
         test.compile();
         test.check_clean();
-        for item in LanguageItem::all() {
-            let _ = test.compiler.language_item(item);
+        for item in LanguageSymbol::all() {
+            let _ = test.compiler.language_symbol(item);
         }
     }
 }

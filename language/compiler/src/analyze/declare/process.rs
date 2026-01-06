@@ -37,11 +37,11 @@ impl Compiler {
             );
         }
 
-        // register extensions
+        // FUGU #Incomplete: implement #Extensions
+        // register extensions?
         // 1) register inherent extensions from imported symbols
         // 2) register local extensions from local symbols
         // 3) register named extensions from imported symbols
-        // FUGU #Incomplete: implement #Extensions
 
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {

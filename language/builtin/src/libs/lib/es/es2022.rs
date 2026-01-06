@@ -1,5 +1,8 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
-use super::ES_CANONICAL_EXPORTS;
+use super::es2021::ES2021_DECLARED_SYMBOLS;
+
+pub(crate) const ES2022_DECLARED_SYMBOLS: &[&str] = ES2021_DECLARED_SYMBOLS;
+const ES2022_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 macro_rules! lib_source {
     ($name:ident, $file:literal) => {
@@ -34,14 +37,14 @@ pub const LIB_ES2022: BuiltinLib = BuiltinLib::ambient_lib(
     ],
     &["es2021"],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 
 pub const LIB_ES2022_ARRAY: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.array", &[LIB_ES_ES2022_ARRAY_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2022_ERROR: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.error", &[LIB_ES_ES2022_ERROR_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2022_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2022.full",
     &[LIB_ES_ES2022_FULL_D_DS],
@@ -54,16 +57,16 @@ pub const LIB_ES2022_FULL: BuiltinLib = BuiltinLib::ambient_lib(
         "dom.asynciterable",
     ],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 pub const LIB_ES2022_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.intl", &[LIB_ES_ES2022_INTL_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2022_OBJECT: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.object", &[LIB_ES_ES2022_OBJECT_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2022_REGEXP: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.regexp", &[LIB_ES_ES2022_REGEXP_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2022_STRING: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.string", &[LIB_ES_ES2022_STRING_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);

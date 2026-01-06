@@ -44,8 +44,8 @@ impl Compiler {
             return Assignability::Assignable;
         }
 
-        // normalize target and source types for assignability
-        let target_id = self.normalize_type(
+        // normalize and resolve apparent types for assignability
+        let target_id = self.normalize_apparent_type(
             module,
             profile,
             target_id,
@@ -53,7 +53,7 @@ impl Compiler {
             types,
             NormalizationMode::Assign,
         );
-        let source_id = self.normalize_type(
+        let source_id = self.normalize_apparent_type(
             module,
             profile,
             source_id,
@@ -61,10 +61,6 @@ impl Compiler {
             types,
             NormalizationMode::Assign,
         );
-
-        // resolve apparent types after normalization
-        let target_id = self.apparent_type(module, profile, target_id, symbols, types);
-        let source_id = self.apparent_type(module, profile, source_id, symbols, types);
 
         // recheck equality after normalization
         if target_id == source_id {
@@ -1705,9 +1701,9 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Asynchrony, FloatType, FunctionCardinality, IntType, LocalNodeIdAny, LocalTypeId,
-        PrimitiveType, ScalarLiteral, StaticKey, Type, TypeElement, TypeField, TypeIndexSignature,
-        TypeLiteral, TypeTable,
+        Asynchrony, FloatType, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeIdAny,
+        LocalSymbolId, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, StringId, SymbolTable,
+        SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
     };
     use destack_source::{FileContent, Span};
     use destack_workspace::ModuleDir;
@@ -1724,6 +1720,25 @@ mod tests {
     fn insert_test_type(types: &mut TypeTable, source_id: LocalNodeIdAny, ty: Type) -> LocalTypeId {
         // keep type sources consistent in tests
         types.insert_type_from_any(ty, source_id)
+    }
+
+    /// Find a symbol id by name and type.
+    fn expect_symbol_by_name(
+        symbols: &SymbolTable,
+        name: StringId,
+        symbol_type: SymbolType,
+    ) -> GlobalSymbolId {
+        // scan for a matching symbol
+        for symbol_index in 0..symbols.symbol_count() {
+            let local_id = LocalSymbolId::new(symbol_index);
+            let symbol = symbols.get_symbol(local_id);
+            if symbol.ty == symbol_type && symbol.key == Some(StaticKey::Name(name)) {
+                return LocalSymbolId::new_typed(symbol_index, symbol.ty)
+                    .into_global(symbols.module_id);
+            }
+        }
+
+        panic!("expected symbol");
     }
 
     /// Number is assignable to number.
@@ -1754,6 +1769,75 @@ mod tests {
         assert_eq!(
             test.compiler.is_type_assignable(
                 &module, profile, &symbols, number_ty, number_ty, &mut types, &options
+            ),
+            Assignability::Assignable
+        );
+    }
+
+    /// ArrayBuffer is assignable to ArrayBufferLike.
+    #[test]
+    fn test_analyze_assignability_alias_index_access() {
+        // arrange test module
+        let test = TestProgram::memory_sequential();
+        let source = r#"
+interface ArrayBuffer {}
+
+interface ArrayBufferTypes {
+    ArrayBuffer: ArrayBuffer
+}
+
+type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
+"#;
+        let module_id = test.add_module("test.ds", source);
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        // load module state
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let source_id = test_source_id(dir);
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+
+        // resolve symbol ids
+        let array_buffer_name = test.program.strings.intern("ArrayBuffer");
+        let array_buffer_like_name = test.program.strings.intern("ArrayBufferLike");
+        let array_buffer_symbol =
+            expect_symbol_by_name(&symbols, array_buffer_name, SymbolType::Interface);
+        let array_buffer_like_symbol =
+            expect_symbol_by_name(&symbols, array_buffer_like_name, SymbolType::TypeAlias);
+
+        // build reference types
+        let array_buffer_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Reference {
+                symbol: array_buffer_symbol,
+                static_arguments: None,
+            },
+        );
+        let array_buffer_like_ty = insert_test_type(
+            &mut types,
+            source_id,
+            Type::Reference {
+                symbol: array_buffer_like_symbol,
+                static_arguments: None,
+            },
+        );
+
+        // assert assignability
+        assert_eq!(
+            test.compiler.is_type_assignable(
+                &module,
+                profile,
+                &symbols,
+                array_buffer_like_ty,
+                array_buffer_ty,
+                &mut types,
+                &options
             ),
             Assignability::Assignable
         );

@@ -682,7 +682,16 @@ impl Compiler {
             types,
         );
         if substitutions.is_empty() {
-            return Some(instance_type_id);
+            // normalize the instance type (even when no substitutions are available)
+            return Some(self.normalize_type_inner(
+                module,
+                profile,
+                instance_type_id,
+                symbols,
+                types,
+                mode,
+                visited,
+            ));
         }
 
         // substitute parameters inside the instance type
@@ -914,9 +923,7 @@ impl Compiler {
         type_id: LocalTypeId,
         types: &TypeTable,
     ) -> LocalTypeId {
-        // track alias chains as we walk
         let mut current_id = type_id;
-        // record visited symbols to avoid cycles
         let mut visited = Vec::new();
         loop {
             // exit when the current type is not a reference
@@ -993,5 +1000,20 @@ impl Compiler {
 
         // unwrap cached alias instances
         self.unwrap_normalization_alias_reference(apparent_id, types)
+    }
+
+    /// Normalize and resolve the apparent type.
+    pub(crate) fn normalize_apparent_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: NormalizationMode,
+    ) -> LocalTypeId {
+        let type_id = self.normalize_type(module, profile, type_id, symbols, types, mode);
+        let type_id = self.apparent_type(module, profile, type_id, symbols, types);
+        self.normalize_type(module, profile, type_id, symbols, types, mode)
     }
 }

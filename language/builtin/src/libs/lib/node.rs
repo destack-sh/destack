@@ -25,7 +25,7 @@ const LIB_NODE_V24_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!(concat!("../../../lib/node/v24/index.d.ts")),
 );
 
-const NODE_CANONICAL_EXPORTS: &[&str] = &[
+const NODE_DECLARED_SYMBOLS: &[&str] = &[
     "Buffer",
     "console",
     "clearImmediate",
@@ -46,32 +46,32 @@ pub const LIB_NODE: BuiltinLib = BuiltinLib::ambient_lib(
     &["esnext", "undici-types.v6"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v6")])
-.with_canonical_exports(NODE_CANONICAL_EXPORTS);
+.with_declared_symbols(NODE_DECLARED_SYMBOLS);
 pub const LIB_NODE_V18: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v18",
     &[LIB_NODE_V18_INDEX_D_DS],
     &["esnext", "undici-types.v5"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v5")])
-.with_canonical_exports(NODE_CANONICAL_EXPORTS);
+.with_declared_symbols(NODE_DECLARED_SYMBOLS);
 pub const LIB_NODE_V20: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v20",
     &[LIB_NODE_V20_INDEX_D_DS],
     &["esnext", "undici-types.v6"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v6")])
-.with_canonical_exports(NODE_CANONICAL_EXPORTS);
+.with_declared_symbols(NODE_DECLARED_SYMBOLS);
 pub const LIB_NODE_V22: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v22",
     &[LIB_NODE_V22_INDEX_D_DS],
     &["esnext", "undici-types.v6"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v6")])
-.with_canonical_exports(NODE_CANONICAL_EXPORTS);
+.with_declared_symbols(NODE_DECLARED_SYMBOLS);
 pub const LIB_NODE_V24: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v24",
     &[LIB_NODE_V24_INDEX_D_DS],
     &["esnext", "undici-types.v7"],
 )
 .with_specifier_aliases(&[("undici-types", "undici-types.v7")])
-.with_canonical_exports(NODE_CANONICAL_EXPORTS);
+.with_declared_symbols(NODE_DECLARED_SYMBOLS);
