@@ -156,6 +156,28 @@ impl TaskPhase {
             Self::Lint => 'L',
         }
     }
+
+    /// All phases in compilation order.
+    pub const ALL: [TaskPhase; 13] = [
+        Self::Import,
+        Self::Bind,
+        Self::Resolve,
+        Self::Analyze,
+        Self::Elaborate,
+        Self::Execute,
+        Self::Lower,
+        Self::Verify,
+        Self::Optimize,
+        Self::Generate,
+        Self::Link,
+        Self::Emit,
+        Self::Lint,
+    ];
+
+    /// Iterate over all phases in compilation order.
+    pub fn all() -> impl Iterator<Item = TaskPhase> {
+        Self::ALL.into_iter()
+    }
 }
 
 /// Task for the compiler during compilation.
