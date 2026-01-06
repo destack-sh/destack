@@ -43,9 +43,8 @@ const NODE_DECLARED_SYMBOLS: &[&str] = &[
 pub const LIB_NODE: BuiltinLib = BuiltinLib::ambient_lib(
     "node",
     &[LIB_NODE_V22_INDEX_D_DS],
-    &["esnext", "undici-types.v6"],
+    &["esnext", "undici-types"],
 )
-.with_specifier_aliases(&[("undici-types", "undici-types.v6")])
 .with_declared_symbols(NODE_DECLARED_SYMBOLS);
 pub const LIB_NODE_V18: BuiltinLib = BuiltinLib::ambient_lib(
     "node.v18",
