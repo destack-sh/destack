@@ -73,93 +73,91 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
-        // load module data and acquire resolve locks
+        // load module data for read
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
-        let mut tree = dir.tree.write();
-        let mut symbols = dir.symbols.write();
 
-        // resolve module dependency expressions first
-        let mut collector = TaskResultCollector::new();
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            match tree.get(expression_id) {
-                Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
-                    self.collect(
-                        &mut collector,
-                        self.resolve_expression(
-                            &module,
-                            dir,
-                            profile,
-                            expression_id,
-                            &mut tree,
-                            &mut symbols,
-                        ),
-                    );
+        // resolve module dependency expressions 
+        {
+            let mut tree = dir.tree.write();
+            let mut symbols = dir.symbols.write();
+            let mut collector = TaskResultCollector::new();
+            for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+                match tree.get(expression_id) {
+                    Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
+                        self.collect(
+                            &mut collector,
+                            self.resolve_expression(
+                                &module,
+                                dir,
+                                profile,
+                                expression_id,
+                                &mut tree,
+                                &mut symbols,
+                            ),
+                        );
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ResolveError::Yield { dependency });
+            if let Some(dependency) = collector.try_into_yield_any() {
+                return Err(ResolveError::Yield { dependency });
+            }
         }
 
         // resolve dependencies
-        let mut collector = TaskResultCollector::new();
-        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            self.collect(
-                &mut collector,
-                self.resolve_dependency_item(
-                    &module,
-                    dir,
-                    profile,
-                    item_id,
-                    &mut tree,
-                    &mut symbols,
-                ),
-            );
-        }
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ResolveError::Yield { dependency });
-        }
+        self.resolve_dependency_items(module_id, profile)?;
 
-        // build the global symbol table after dependency resolution
+        // build the global symbol table (after dependency resolution)
         self.require_global_symbol_cache(module.id, profile)?;
 
         // resolve expressions
-        let mut collector = TaskResultCollector::new();
-        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-            self.collect(
-                &mut collector,
-                self.resolve_expression(
-                    &module,
-                    dir,
-                    profile,
-                    expression_id,
-                    &mut tree,
-                    &mut symbols,
-                ),
-            );
-        }
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ResolveError::Yield { dependency });
-        }
-
-        // resolve declarations (e.g., extension target_symbol)
-        let mut collector = TaskResultCollector::new();
-        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
-            self.collect(
-                &mut collector,
-                self.resolve_declaration(&module, dir, declaration_id, &mut tree, &mut symbols),
-            );
-        }
-        if let Some(dependency) = collector.try_into_yield_any() {
-            return Err(ResolveError::Yield { dependency });
+        {
+            let mut tree = dir.tree.write();
+            let mut symbols = dir.symbols.write();
+            let mut collector = TaskResultCollector::new();
+            for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+                self.collect(
+                    &mut collector,
+                    self.resolve_expression(
+                        &module,
+                        dir,
+                        profile,
+                        expression_id,
+                        &mut tree,
+                        &mut symbols,
+                    ),
+                );
+            }
+            if let Some(dependency) = collector.try_into_yield_any() {
+                return Err(ResolveError::Yield { dependency });
+            }
         }
 
-        // finalize export targets after dependency resolution
-        self.finalize_module_exports(dir, &tree, &mut symbols);
-        self.finalize_module_binding_exports(dir, &tree, &mut symbols);
+        // resolve declarations (e.g., extensions, types/aliases)
+        {
+            let mut tree = dir.tree.write();
+            let mut symbols = dir.symbols.write();
+            let mut collector = TaskResultCollector::new();
+            for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+                self.collect(
+                    &mut collector,
+                    self.resolve_declaration(&module, dir, declaration_id, &mut tree, &mut symbols),
+                );
+            }
+            if let Some(dependency) = collector.try_into_yield_any() {
+                return Err(ResolveError::Yield { dependency });
+            }
+        }
+
+        // finalize export targets (after dependency resolution)
+        {
+            let tree = dir.tree.read();
+            let mut symbols = dir.symbols.write();
+            self.finalize_module_exports(dir, &tree, &mut symbols);
+            self.finalize_module_binding_exports(dir, &tree, &mut symbols);
+        }
 
         Ok(())
     }
@@ -170,28 +168,51 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
-        // load module data and acquire resolve locks
+        // load module data for read
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
-        let mut tree = dir.tree.write();
-        let mut symbols = dir.symbols.write();
+        let item_ids = {
+            let tree = dir.tree.read();
+            tree.iter_node_ids_of_type::<DependencyItem>()
+        };
 
         // resolve dependency items
         let mut collector = TaskResultCollector::new();
-        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            self.collect(
-                &mut collector,
-                self.resolve_dependency_item(
-                    &module,
-                    dir,
-                    profile,
-                    item_id,
-                    &mut tree,
-                    &mut symbols,
-                ),
-            );
+        for item_id in item_ids {
+            // resolve the dependency item (with read locks)
+            let resolved_item = {
+                let tree = dir.tree.read();
+                let symbols = dir.symbols.read();
+                self.resolve_dependency_item(&module, dir, profile, item_id, &tree, &symbols)
+            };
+
+            // collect yields and return on non yield errors
+            let resolved_item = match resolved_item {
+                Ok(resolved_item) => resolved_item,
+                Err(error) => {
+                    if let Some(error) = collector.try_collect::<(), _>(Err(error)) {
+                        return Err(error);
+                    }
+                    continue;
+                }
+            };
+
+            // apply resolved dependency updates (with write locks)
+            if let Some(resolved_item) = resolved_item {
+                let mut tree = dir.tree.write();
+                let mut symbols = dir.symbols.write();
+                if let Some(symbol_id) = resolved_item.symbol()
+                    && let Some(target_symbol) = resolved_item.target_symbol()
+                {
+                    symbols.get_symbol_mut(symbol_id).resolve_to(target_symbol);
+                }
+
+                *tree.get_mut(item_id) = resolved_item;
+            }
         }
+
+        // yield unresolved dependency items (after collection)
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(ResolveError::Yield { dependency });
         }
