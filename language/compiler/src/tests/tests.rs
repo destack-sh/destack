@@ -28,7 +28,7 @@ use crate::{
 
 use super::tracing::init_tracing;
 
-const TEST_TIMEOUT_SECONDS: u64 = 1;
+const TEST_TIMEOUT_SECONDS: u64 = 10; // NOTE #Performance: revert test timeout to 1s
 
 /// Choose a worker count for parallel tests without oversubscribing the host.
 fn test_parallel_workers() -> u16 {

@@ -751,8 +751,8 @@ impl Compiler {
             return Ok(remote_target);
         }
 
-        // check if already resolved globally
-        if !is_relative {
+        // check if already resolved "globally" (since it's not relative we can avoid re-doing the work)
+        if !is_relative && !module.is_builtin() {
             self.require_resolve_module_prepare_if_needed(
                 module.id,
                 self.program.root_module_id,
@@ -780,7 +780,8 @@ impl Compiler {
             dir.imported_modules
                 .write()
                 .insert((relative_module, target), binding_target);
-            if !is_relative {
+            // cache globally for non-relative imports (see above)
+            if !is_relative && !module.is_builtin() {
                 self.require_resolve_module_prepare_if_needed(
                     module.id,
                     self.program.root_module_id,
@@ -802,10 +803,7 @@ impl Compiler {
             .resolve_specifier_to_module(target, relative_module)
             .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
 
-        // ensure the target module is imported (may yield)
-        self.require_import_module(remote_module_id)?;
-
-        // ensure the target module is bound (may yield)
+        // require module to be bound
         self.require_bind_module_validate(remote_module_id)?;
 
         // record the resolved import
@@ -973,16 +971,16 @@ impl Compiler {
         }
     }
 
-    /// Resolve a DependencyItem.
+    /// Resolve a dependency item.
     pub(super) fn resolve_dependency_item(
         &self,
         module: &Module,
         dir: &ModuleDir,
         profile: ProfileId,
         item_id: LocalNodeId<DependencyItem>,
-        tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
-    ) -> ResolveResult<()> {
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> ResolveResult<Option<DependencyItem>> {
         // resolve the dependency item based on its mode
         let item = tree.get(item_id);
         let resolved_item: DependencyItem = match item {
@@ -1107,7 +1105,7 @@ impl Compiler {
             } => {
                 // nothing to resolve for unnamed local exports (internal edge case)
                 let Some(name_id) = name else {
-                    return Ok(());
+                    return Ok(None);
                 };
 
                 // resolve the local symbol in scope
@@ -1133,19 +1131,11 @@ impl Compiler {
 
             _ => {
                 // nothing to do
-                return Ok(());
+                return Ok(None);
             }
         };
 
-        // update the target symbol of our symbol
-        if let Some(symbol_id) = resolved_item.symbol()
-            && let Some(target_symbol) = resolved_item.target_symbol()
-        {
-            symbols.get_symbol_mut(symbol_id).resolve_to(target_symbol);
-        }
-
-        *tree.get_mut(item_id) = resolved_item;
-        Ok(())
+        Ok(Some(resolved_item))
     }
 
     /// Resolve an item symbol in a remote module, searching through namespace exports if needed.
