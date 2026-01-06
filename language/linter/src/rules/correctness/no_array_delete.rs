@@ -151,7 +151,8 @@ mod tests {
             r#"
 let items = [1, 2, 3];
 delete items[0];
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_lint("no-array-delete");
     }
@@ -164,7 +165,8 @@ delete items[0];
             r#"
 let item = { value: 1 };
 delete item.value;
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_no_lint("no-array-delete");
     }

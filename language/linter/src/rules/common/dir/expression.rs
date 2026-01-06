@@ -74,6 +74,7 @@ pub fn expression_is_global_qualified_member(
 }
 
 /// Collect the global qualifier symbols for the active profile.
+/// NOTE #Cleanup: move global qualifiers helper into LintModuleDirContext?
 pub fn global_qualifier_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSymbolId> {
     // collect canonical global qualifiers
     let mut qualifiers = Vec::new();
@@ -81,7 +82,7 @@ pub fn global_qualifier_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::Glob
     // resolve configured globals
     for name in ["globalThis", "window", "self", "global"] {
         let name_id = ctx.program.strings.intern(name);
-        if let Some(symbol) = ctx.get_lib_item(name_id) {
+        if let Some(symbol) = ctx.get_declared_lib_symbol(name_id) {
             qualifiers.push(symbol);
         }
     }

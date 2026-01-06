@@ -286,7 +286,8 @@ mod tests {
             r#"
 let items = [1, 2, 3];
 let has = items.indexOf(2) !== -1;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-includes");
     }
 
@@ -299,7 +300,8 @@ let has = items.indexOf(2) !== -1;
             r#"
 let text = "hello";
 let has = text.indexOf("lo") != -1;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-includes");
     }
 
@@ -312,7 +314,8 @@ let has = text.indexOf("lo") != -1;
             r#"
 let items = [1, 2, 3];
 let first = items.indexOf(2) === 0;
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("prefer-includes");
     }
 }

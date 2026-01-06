@@ -67,14 +67,10 @@ struct NoConsoleVisitor<'a, 'b> {
 impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     /// Build a visitor for no-console checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // intern commonly used names
         let console_name = ctx.program.strings.intern("console");
-
-        // resolve lib symbols
-        let console_symbol = ctx.lib_item(console_name);
+        let console_symbol = ctx.declared_lib_symbol(console_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
-        // prepare visitor state
         Self {
             ctx,
             meta,

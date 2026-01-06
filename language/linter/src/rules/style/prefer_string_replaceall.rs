@@ -204,7 +204,8 @@ mod tests {
             r#"
 let text = "hello";
 let next = text.replace(/l/g, "x");
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-string-replaceall");
     }
 
@@ -216,7 +217,8 @@ let next = text.replace(/l/g, "x");
             r#"
 let text = "hello";
 let next = text.replace(/l/, "x");
-"#);
+"#,
+        );
         test.result(result)
             .assert_no_lint("prefer-string-replaceall");
     }

@@ -75,18 +75,14 @@ struct NoAlertVisitor<'a, 'b> {
 impl<'a, 'b> NoAlertVisitor<'a, 'b> {
     /// Build a visitor for no-alert checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // intern commonly used names
         let alert_name = ctx.program.strings.intern("alert");
         let confirm_name = ctx.program.strings.intern("confirm");
         let prompt_name = ctx.program.strings.intern("prompt");
-
-        // resolve lib symbols
-        let alert_symbol = ctx.get_lib_item(alert_name);
-        let confirm_symbol = ctx.get_lib_item(confirm_name);
-        let prompt_symbol = ctx.get_lib_item(prompt_name);
+        let alert_symbol = ctx.get_declared_lib_symbol(alert_name);
+        let confirm_symbol = ctx.get_declared_lib_symbol(confirm_name);
+        let prompt_symbol = ctx.get_declared_lib_symbol(prompt_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
-        // prepare visitor state
         Self {
             ctx,
             meta,

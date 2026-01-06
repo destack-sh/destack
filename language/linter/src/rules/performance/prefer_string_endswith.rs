@@ -323,7 +323,8 @@ mod tests {
 let text = "hello";
 let suffix = "lo";
 let ends = text.slice(-suffix.length) === suffix;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-string-endswith");
     }
 
@@ -336,7 +337,8 @@ let ends = text.slice(-suffix.length) === suffix;
             r#"
 let text = "hello";
 let ends = text.slice(-2) === "lo";
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-string-endswith");
     }
 
@@ -349,7 +351,8 @@ let ends = text.slice(-2) === "lo";
             r#"
 let text = "hello";
 let ends = text.slice(0) === "hello";
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("prefer-string-endswith");
     }
 }

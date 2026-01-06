@@ -297,7 +297,8 @@ mod tests {
 let is_ready = true
 if (is_ready) {
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -312,7 +313,8 @@ if (is_ready) {
 let count = 1
 if (count) {
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -327,7 +329,8 @@ if (count) {
 let name = "destack"
 if (!name) {
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -343,7 +346,8 @@ if (!name) {
 let count = 1
 if (count > 0) {
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -360,7 +364,8 @@ let count = 1
 let is_ready = true
 if (count && is_ready) {
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint_count("strict-boolean-expressions", 1);
@@ -376,7 +381,8 @@ if (count && is_ready) {
 let is_ready: boolean = true
 let is_valid: boolean = false
 let is_ok = is_ready && is_valid
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -392,7 +398,8 @@ let is_ok = is_ready && is_valid
 let count = 1
 let name = "destack"
 let fallback = count || name
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint_count("strict-boolean-expressions", 2);
@@ -408,7 +415,8 @@ let fallback = count || name
 let is_ready: boolean = true
 let is_valid: boolean = false
 is_ready &&= is_valid
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_no_lint("strict-boolean-expressions");
@@ -424,7 +432,8 @@ is_ready &&= is_valid
 let count = 1
 let is_ready: boolean = true
 is_ready ||= count
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -440,7 +449,8 @@ is_ready ||= count
 let count = 1
 while (count) {
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");
@@ -458,7 +468,8 @@ match (value) {
     1 if value => "one"
     _ => "other"
 }
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result)
             .assert_lint("strict-boolean-expressions");

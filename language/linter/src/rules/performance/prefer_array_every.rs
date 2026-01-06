@@ -257,7 +257,8 @@ mod tests {
             r#"
 let items = [1, 2, 3];
 let all = items.filter(item => item > 1).length === items.length;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-array-every");
     }
 
@@ -270,7 +271,8 @@ let all = items.filter(item => item > 1).length === items.length;
             r#"
 let items = [1, 2, 3];
 let all = items.length === items.filter(item => item > 1).length;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-array-every");
     }
 
@@ -284,7 +286,8 @@ let all = items.length === items.filter(item => item > 1).length;
 let items = [1, 2, 3];
 let other = [1, 2, 3];
 let all = items.filter(item => item > 1).length === other.length;
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("prefer-array-every");
     }
 }

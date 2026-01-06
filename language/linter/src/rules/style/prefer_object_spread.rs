@@ -231,7 +231,8 @@ mod tests {
             r#"
 let base = { a: 1 };
 let merged = Object.assign({}, base);
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-object-spread");
     }
 
@@ -244,7 +245,8 @@ let merged = Object.assign({}, base);
             r#"
 let base = { a: 1 };
 let merged = globalThis.Object.assign({}, base);
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-object-spread");
     }
 
@@ -256,7 +258,8 @@ let merged = globalThis.Object.assign({}, base);
             r#"
 let base = { a: 1 };
 let merged = Object.assign({ b: 2 }, base);
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("prefer-object-spread");
     }
 }

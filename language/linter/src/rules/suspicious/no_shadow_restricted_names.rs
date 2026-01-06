@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use destack_ast as ast;
-use destack_builtin::LanguageItem;
+use destack_builtin::LanguageSymbol;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
@@ -51,7 +51,7 @@ const JS_GLOBALS: &[&str] = &[
 /// Sorted list of all restricted names (JS globals + language items).
 static RESTRICTED_NAMES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     let mut names: Vec<&'static str> = JS_GLOBALS.to_vec();
-    names.extend(LanguageItem::all().map(|item| item.export_name()));
+    names.extend(LanguageSymbol::all().map(|item| item.export_name()));
     names.sort_unstable();
     names.dedup();
     names
@@ -271,7 +271,7 @@ let isNaN = true
     }
 
     #[test]
-    fn test_detects_language_item_type() {
+    fn test_detects_language_symbol_type() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
@@ -284,7 +284,7 @@ let Type = 42
     }
 
     #[test]
-    fn test_detects_language_item_add() {
+    fn test_detects_language_symbol_add() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",
@@ -297,7 +297,7 @@ struct Add {}
     }
 
     #[test]
-    fn test_detects_language_item_range() {
+    fn test_detects_language_symbol_range() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
             "test.ds",

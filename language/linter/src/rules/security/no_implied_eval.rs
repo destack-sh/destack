@@ -82,9 +82,9 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         let set_timeout_name = ctx.program.strings.intern("setTimeout");
         let set_interval_name = ctx.program.strings.intern("setInterval");
         let set_immediate_name = ctx.program.strings.intern("setImmediate");
-        let set_timeout_symbol = ctx.get_lib_item(set_timeout_name);
-        let set_interval_symbol = ctx.get_lib_item(set_interval_name);
-        let set_immediate_symbol = ctx.get_lib_item(set_immediate_name);
+        let set_timeout_symbol = ctx.get_declared_lib_symbol(set_timeout_name);
+        let set_interval_symbol = ctx.get_declared_lib_symbol(set_interval_name);
+        let set_immediate_symbol = ctx.get_declared_lib_symbol(set_immediate_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
         // prepare visitor state

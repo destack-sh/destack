@@ -104,7 +104,8 @@ mod tests {
             r#"
 let x = 1;
 x == x;
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
     }
@@ -117,7 +118,8 @@ x == x;
             r#"
 let x = 1;
 x != x;
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
     }
@@ -130,7 +132,8 @@ x != x;
             r#"
 let x = 1;
 x < x;
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_lint("no-self-compare");
     }
@@ -144,7 +147,8 @@ x < x;
 let x = 1;
 let y = 2;
 x == y;
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
     }
@@ -157,7 +161,8 @@ x == y;
             r#"
 let x = 1;
 x + x;
-"#);
+"#,
+        );
         test.check_clean();
         test.result(result).assert_no_lint("no-self-compare");
     }

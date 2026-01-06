@@ -65,13 +65,11 @@ struct NoProcessExitVisitor<'a, 'b> {
 impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     /// Build a visitor for no-process-exit checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // resolve lib symbols
         let process_name = ctx.program.strings.intern("process");
-        let process_symbol = ctx.lib_item(process_name);
+        let process_symbol = ctx.declared_lib_symbol(process_name);
         let exit_name = ctx.program.strings.intern("exit");
         let global_qualifiers = global_qualifier_symbols(ctx);
 
-        // prepare visitor state
         Self {
             ctx,
             meta,

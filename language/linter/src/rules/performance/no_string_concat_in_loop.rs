@@ -403,7 +403,8 @@ let result = "";
 for (let i = 0; i < items.length; i += 1) {
     result += items[i];
 }
-"#);
+"#,
+        );
         test.result(result).assert_lint("no-string-concat-in-loop");
     }
 
@@ -419,7 +420,8 @@ let result = "";
 for (const item of items) {
     result = result + item;
 }
-"#);
+"#,
+        );
         test.result(result).assert_lint("no-string-concat-in-loop");
     }
 
@@ -435,7 +437,8 @@ let result = "";
 for (const item of items) {
     result = item + result;
 }
-"#);
+"#,
+        );
         test.result(result).assert_lint("no-string-concat-in-loop");
     }
 
@@ -451,7 +454,8 @@ let total = 0;
 for (const item of items) {
     total += item;
 }
-"#);
+"#,
+        );
         test.result(result)
             .assert_no_lint("no-string-concat-in-loop");
     }
