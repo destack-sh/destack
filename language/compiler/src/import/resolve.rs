@@ -77,18 +77,35 @@ impl Compiler {
             let builtins = self.program.builtins.as_ref()?;
 
             // map specifier to builtin lib name
-            let lib_name = if let Some(lib) = builtin_lib(specifier) {
-                lib.name
-            } else if let Some(source_lib_name) = builtins.lib_name_for_module(source_module) {
-                let source_lib = builtin_lib(source_lib_name)?;
-                source_lib
-                    .specifier_aliases
-                    .iter()
-                    .find(|(alias, _)| *alias == specifier)
-                    .map(|(_, target)| *target)?
-            } else {
-                return None;
-            };
+            let lib_name =
+                // prefer source lib aliases when available
+                if let Some(source_lib_name) = builtins.lib_name_for_module(source_module) {
+                    let source_lib = builtin_lib(source_lib_name)?;
+                    // alias mapping for bare specifiers
+                    if let Some((_, target)) = source_lib
+                        .specifier_aliases
+                        .iter()
+                        .find(|(alias, _)| *alias == specifier)
+                    {
+                        *target
+                    }
+                    // fallback to builtin lib name when no alias matches
+                    else if let Some(lib) = builtin_lib(specifier) {
+                        lib.name
+                    }
+                    // no alias mapping exists
+                    else {
+                        return None;
+                    }
+                }
+                // direct builtin lib lookup without source context
+                else if let Some(lib) = builtin_lib(specifier) {
+                    lib.name
+                }
+                // specifier is not a builtin lib
+                else {
+                    return None;
+                };
 
             // resolve entry module and ensure lib is loaded
             let lib = builtin_lib(lib_name)?;
