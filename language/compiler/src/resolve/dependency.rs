@@ -798,9 +798,15 @@ impl Compiler {
             return Ok(binding_target);
         }
 
-        // resolve specifier to module id (synchronous)
+        // resolve specifier to module id (synchronous!)
+        // (for builtin modules, always pass source module to support specifier aliases)
+        let source_module = if module.is_builtin() {
+            Some(module.id)
+        } else {
+            relative_module
+        };
         let remote_module_id = self
-            .resolve_specifier_to_module(target, relative_module)
+            .resolve_specifier_to_module(target, source_module)
             .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
 
         // require module to be bound
