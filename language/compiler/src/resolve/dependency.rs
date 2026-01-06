@@ -11,7 +11,9 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 
-use crate::{BindError, Compiler, ResolveError, ResolveResult};
+use crate::{
+    BindError, Compiler, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -356,12 +358,14 @@ impl Compiler {
                             let node =
                                 self.export_entry_node(binding_ref.module_id, &export, &symbols);
                             if let (Some(node), Some(other_node)) = (node, other_node) {
-                                self.error(BindError::ConflictingExport {
+                                self.check_can_merge_declarations(
+                                    existing,
+                                    symbol,
                                     node,
                                     other_node,
-                                    module: binding_ref.module_id,
-                                    name: Some(key),
-                                });
+                                    binding_ref.module_id,
+                                    Some(key),
+                                );
                             }
                             return Ok(Some(existing));
                         }
@@ -955,12 +959,14 @@ impl Compiler {
                         if existing != symbol {
                             let node = item_id.into_global_any(binding_ref.module_id);
                             if let Some(other_node) = other_node {
-                                self.error(BindError::ConflictingExport {
+                                self.check_can_merge_declarations(
+                                    existing,
+                                    symbol,
                                     node,
                                     other_node,
-                                    module: binding_ref.module_id,
-                                    name: None,
-                                });
+                                    binding_ref.module_id,
+                                    None,
+                                );
                             }
                             return Ok(Some(existing));
                         }
@@ -1258,12 +1264,14 @@ impl Compiler {
                     Some((existing, other_node)) => {
                         if existing != symbol_id {
                             let node = origin_item.into_global_any(source_module_id);
-                            self.error(BindError::ConflictingExport {
+                            self.check_can_merge_declarations(
+                                existing,
+                                symbol_id,
                                 node,
                                 other_node,
-                                module: source_module_id,
-                                name: Some(key),
-                            });
+                                source_module_id,
+                                Some(key),
+                            );
                             return Ok(existing);
                         }
                     }
@@ -1305,5 +1313,44 @@ impl Compiler {
             return true;
         }
         export_kind == DependencyKind::Value
+    }
+
+    /// Report a conflicting export error if two symbols cannot merge.
+    fn check_can_merge_declarations(
+        &self,
+        left: GlobalSymbolId,
+        right: GlobalSymbolId,
+        node: GlobalNodeIdAny,
+        other_node: GlobalNodeIdAny,
+        module: ModuleId,
+        name: Option<StaticKey>,
+    ) {
+        // load symbol info from both modules
+        let left_module = self.program.modules.get(left.module_id);
+        let left_module = left_module.read();
+        let left_symbols = left_module.dir_base().symbols.read();
+        let left_symbol = left_symbols.get_symbol(left.local_id);
+
+        let right_module = self.program.modules.get(right.module_id);
+        let right_module = right_module.read();
+        let right_symbols = right_module.dir_base().symbols.read();
+        let right_symbol = right_symbols.get_symbol(right.local_id);
+
+        // check if the symbols can merge (e.g., interface + class)
+        let language_type = left_module.language_type;
+        let can_merge = can_merge_declarations(
+            language_type,
+            SymbolDescriptor::from(left_symbol),
+            SymbolDescriptor::from(right_symbol),
+        );
+
+        if !can_merge {
+            self.error(BindError::ConflictingExport {
+                node,
+                other_node,
+                module,
+                name,
+            });
+        }
     }
 }
