@@ -41,11 +41,17 @@ impl Compiler {
         }
 
         // build lib load order with dependencies first
+        let version_overrides = collect_lib_version_overrides(&libs);
         let ordered_libs = {
             let mut ordered_libs = Vec::new();
             let mut seen_libs = HashSet::new();
             for lib_name in &libs {
-                self.collect_lib_dependencies(lib_name, &mut ordered_libs, &mut seen_libs)?;
+                self.collect_lib_dependencies(
+                    lib_name,
+                    &mut ordered_libs,
+                    &mut seen_libs,
+                    &version_overrides,
+                )?;
             }
             ordered_libs
         };
@@ -233,7 +239,9 @@ impl Compiler {
         name: &str,
         ordered: &mut Vec<String>,
         seen: &mut HashSet<String>,
+        version_overrides: &HashMap<String, String>,
     ) -> ResolveResult<()> {
+        // skip already collected libs
         if !seen.insert(name.to_string()) {
             return Ok(());
         }
@@ -245,9 +253,11 @@ impl Compiler {
 
         // collect dependencies
         for &dependency in lib.dependencies {
-            self.collect_lib_dependencies(dependency, ordered, seen)?;
+            let dependency = resolve_lib_dependency_name(dependency, version_overrides);
+            self.collect_lib_dependencies(&dependency, ordered, seen, version_overrides)?;
         }
 
+        // record the lib after dependencies
         ordered.push(name.to_string());
         Ok(())
     }
@@ -442,6 +452,7 @@ impl Compiler {
 
     /// Reject multiple builtin lib versions in the same lib set.
     fn check_builtin_lib_version_conflicts(&self, ordered_libs: &[String]) -> ResolveResult<()> {
+        // group libs by base and version
         let mut grouped = HashMap::<String, HashMap<String, HashSet<String>>>::new();
 
         for name in ordered_libs {
@@ -456,6 +467,7 @@ impl Compiler {
                 .insert(name.clone());
         }
 
+        // collect bases with multiple versions
         let mut conflicts: Vec<(String, Vec<String>)> = grouped
             .into_iter()
             .filter_map(|(base, versions)| {
@@ -472,6 +484,7 @@ impl Compiler {
             })
             .collect();
 
+        // report the first conflict if any
         conflicts.sort_by(|left, right| left.0.cmp(&right.0));
         if let Some((base, libs)) = conflicts.first() {
             return Err(ResolveError::ConflictingBuiltinLibVersions {
@@ -486,10 +499,12 @@ impl Compiler {
 
 /// Return the base name and version for a builtin lib, if versioned.
 fn builtin_lib_version_info(name: &str) -> Option<(String, String)> {
+    // prefer explicit versioned names
     if let Some((base, version)) = split_versioned_lib_name(name) {
         return Some((base.to_string(), version.to_string()));
     }
 
+    // fall back to the lib source path
     let lib = builtin_lib(name)?;
     let source = lib.sources.first()?;
     split_versioned_path(source.path)
@@ -497,12 +512,14 @@ fn builtin_lib_version_info(name: &str) -> Option<(String, String)> {
 
 /// Split a name like "node.v24" into base and version.
 fn split_versioned_lib_name(name: &str) -> Option<(&str, &str)> {
+    // find the version separator
     let index = name.find(".v")?;
     let version = &name[index + 2..];
     if version.is_empty() {
         return None;
     }
 
+    // require a digit to avoid alias segments
     let is_versioned = version.chars().next().is_some_and(|ch| ch.is_ascii_digit());
     if !is_versioned {
         return None;
@@ -513,16 +530,52 @@ fn split_versioned_lib_name(name: &str) -> Option<(&str, &str)> {
 
 /// Split a source path like "node/v24" into base and version.
 fn split_versioned_path(path: &str) -> Option<(String, String)> {
+    // read base and version path segments
     let mut segments = path.split('/');
     let base = segments.next()?;
     let version = segments.last()?;
     let version = version.strip_prefix('v')?;
+
+    // require a digit to treat as versioned
     let is_versioned = version.chars().next().is_some_and(|ch| ch.is_ascii_digit());
     if is_versioned {
         return Some((base.to_string(), version.to_string()));
     }
 
     None
+}
+
+/// Collect explicit lib version overrides from the requested lib list.
+fn collect_lib_version_overrides(libs: &[String]) -> HashMap<String, String> {
+    // gather explicit versioned libs
+    let mut overrides = HashMap::new();
+
+    for lib in libs {
+        let Some((base, _version)) = split_versioned_lib_name(lib) else {
+            continue;
+        };
+
+        // map the base name to the explicit version
+        overrides.insert(base.to_string(), lib.clone());
+    }
+
+    overrides
+}
+
+/// Resolve a dependency name to a versioned lib when an override exists.
+fn resolve_lib_dependency_name(name: &str, version_overrides: &HashMap<String, String>) -> String {
+    // keep explicit versioned dependencies
+    if split_versioned_lib_name(name).is_some() {
+        return name.to_string();
+    }
+
+    // apply any explicit version override
+    if let Some(override_name) = version_overrides.get(name) {
+        return override_name.clone();
+    }
+
+    // fall back to the original name
+    name.to_string()
 }
 
 #[cfg(test)]
