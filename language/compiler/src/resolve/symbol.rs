@@ -66,7 +66,7 @@ impl Compiler {
     }
 
     /// Find the best matching symbol for a key within a single scope.
-    fn find_symbol_in_scope(
+    pub(super) fn find_symbol_in_scope(
         &self,
         scope: &Scope,
         key: StaticKey,

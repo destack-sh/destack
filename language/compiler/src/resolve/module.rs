@@ -1066,7 +1066,7 @@ impl Compiler {
     }
 
     /// Get any export parent expression for an item, if any.
-    fn export_item_parent(
+    pub(super) fn export_item_parent(
         &self,
         tree: &NodeTree,
         item_id: LocalNodeId<DependencyItem>,

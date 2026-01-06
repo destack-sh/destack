@@ -624,6 +624,11 @@ declare module "assert" {
     export = assert;
 }
 
+declare module "node:assert" {
+    import assert = require("assert");
+    export = assert;
+}
+
 declare module "assert/strict" {
     import {
         Assert,
@@ -632,7 +637,7 @@ declare module "assert/strict" {
         AssertStrict,
         AssertMethodNames,
         ok,
-    } from "assert";
+    } from "node:assert";
     export {
         Assert,
         AssertionError,
