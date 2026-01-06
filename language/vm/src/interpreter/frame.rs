@@ -198,6 +198,14 @@ impl Frame {
         slot
     }
 
+    /// Allocate a new stack cell with the given slot count.
+    pub fn allocate_stack_cell_with_slots(&mut self, slot_count: usize) -> usize {
+        // allocate stack cell
+        let slot = self.stack_cells.len();
+        self.stack_cells.push(HeapCell::with_slots(slot_count));
+        slot
+    }
+
     /// Get a stack cell by slot index.
     #[inline]
     pub fn get_stack_cell(&self, slot: usize) -> Option<&HeapCell> {

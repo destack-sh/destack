@@ -12,6 +12,8 @@ pub struct ManagedHeap {
     cells: Vec<Option<HeapCell>>,
     /// Free slot indices available for reuse.
     free_list: Vec<usize>,
+    /// Count of live heap cells (excluding the null slot).
+    allocated_cells: usize,
 }
 
 /// A raw heap for manual memory management (not GC-tracked).
@@ -57,6 +59,7 @@ impl ManagedHeap {
             // reserve slot 0 for null handle
             cells: vec![None],
             free_list: Vec::new(),
+            allocated_cells: 0,
         }
     }
 
@@ -88,10 +91,12 @@ impl ManagedHeap {
     fn allocate_cell(&mut self, cell: HeapCell) -> HeapHandle {
         if let Some(index) = self.free_list.pop() {
             self.cells[index] = Some(cell);
+            self.allocated_cells += 1;
             HeapHandle::new(index as u64)
         } else {
             let index = self.cells.len();
             self.cells.push(Some(cell));
+            self.allocated_cells += 1;
             HeapHandle::new(index as u64)
         }
     }
@@ -133,13 +138,15 @@ impl ManagedHeap {
         if index < self.cells.len() && self.cells[index].is_some() {
             self.cells[index] = None;
             self.free_list.push(index);
+            debug_assert!(self.allocated_cells > 0, "heap allocation count underflow");
+            self.allocated_cells -= 1;
         }
     }
 
     /// Get the number of allocated cells.
     #[inline]
     pub fn cell_count(&self) -> usize {
-        self.cells.iter().skip(1).filter(|c| c.is_some()).count()
+        self.allocated_cells
     }
 
     /// Check if the heap is empty.
@@ -152,8 +159,9 @@ impl ManagedHeap {
     #[inline]
     pub fn clear(&mut self) {
         self.cells.clear();
-        self.cells.push(None); // re-reserve slot 0
+        self.cells.push(None); // reserve slot 0 again
         self.free_list.clear();
+        self.allocated_cells = 0;
     }
 
     /// Run basic mark-and-sweep garbage collection.
@@ -185,11 +193,12 @@ impl ManagedHeap {
 
         // sweep phase: free all unmarked cells
         for index in 1..self.cells.len() {
-            if let Some(cell) = &self.cells[index]
-                && !cell.marked
-            {
+            let should_free = matches!(self.cells[index].as_ref(), Some(cell) if !cell.marked);
+            if should_free {
                 self.cells[index] = None;
                 self.free_list.push(index);
+                debug_assert!(self.allocated_cells > 0, "heap allocation count underflow");
+                self.allocated_cells -= 1;
             }
         }
     }
