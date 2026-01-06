@@ -1049,7 +1049,7 @@ impl Compiler {
     }
 
     /// Check if this module should export all symbols from its namespace.
-    fn module_is_ambient_lib(&self, module: &Module) -> bool {
+    pub(super) fn module_is_ambient_lib(&self, module: &Module) -> bool {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };

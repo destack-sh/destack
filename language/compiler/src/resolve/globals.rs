@@ -2,11 +2,11 @@ use std::collections::VecDeque;
 
 use destack_base::StringId;
 use destack_dir::{
-    Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
-    Path, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree, Path, StaticKey,
+    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::{ModuleId, ModuleVersion, PackageId};
-use destack_workspace::{Module, ProfileId, Target, TargetDiscovery, TargetId};
+use destack_workspace::{Module, ModuleDir, ProfileId, Target, TargetDiscovery, TargetId};
 use indexmap::IndexMap;
 
 use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue, TaskDependencyError};
@@ -25,7 +25,7 @@ pub(crate) struct GlobalSymbolCacheKey {
 /// Track global symbols from declare global blocks reachable from a root set.
 #[derive(Debug, Clone)]
 pub(crate) struct GlobalSymbolCache {
-    /// Versions for modules included in the index.
+    /// Versions for modules included in the cache.
     pub module_versions: IndexMap<ModuleId, ModuleVersion>,
     /// First symbol observed for each global key.
     pub symbols: IndexMap<StaticKey, GlobalSymbolId>,
@@ -80,6 +80,7 @@ pub(crate) struct GlobalSymbolGroupKey {
     pub space: SymbolSpace,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Prepare the global symbol table for a module and profile.
     pub(super) fn require_global_symbol_cache(
@@ -96,7 +97,7 @@ impl Compiler {
             .map(|c| !c.is_complete())
             .unwrap_or(true);
         if needs_build {
-            let cache = self.build_global_symbol_table(&key, &roots, profile_id)?;
+            let cache = self.build_global_symbol_cache_resumable(&key, &roots, profile_id)?;
             self.global_symbol_caches.insert(key.clone(), cache);
         }
 
@@ -104,7 +105,6 @@ impl Compiler {
     }
 
     /// Resolve a path against the global symbol table.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn resolve_global_path(
         &self,
         module: &Module,
@@ -118,7 +118,7 @@ impl Compiler {
     ) -> ResolveResult<Option<Expression>> {
         // load the cached table for this module
         let key = self.build_global_symbol_table_key(module.id, profile_id)?;
-        let Some(index) = self.global_symbol_caches.get(&key) else {
+        let Some(cache) = self.global_symbol_caches.get(&key) else {
             return Ok(None);
         };
 
@@ -132,7 +132,7 @@ impl Compiler {
                 key: symbol_key,
                 space: *space,
             };
-            if let Some(symbol) = index.symbols_by_space.get(&group_key).copied() {
+            if let Some(symbol) = cache.symbols_by_space.get(&group_key).copied() {
                 target_symbol = Some(symbol);
                 break;
             }
@@ -141,13 +141,13 @@ impl Compiler {
                     key: symbol_key,
                     space: SymbolSpace::TypeValue,
                 };
-                if let Some(symbol) = index.symbols_by_space.get(&type_value_key).copied() {
+                if let Some(symbol) = cache.symbols_by_space.get(&type_value_key).copied() {
                     target_symbol = Some(symbol);
                     break;
                 }
             }
         }
-        let target_symbol = target_symbol.or_else(|| index.symbols.get(&symbol_key).copied());
+        let target_symbol = target_symbol.or_else(|| cache.symbols.get(&symbol_key).copied());
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
@@ -388,9 +388,48 @@ impl Compiler {
         }
     }
 
+    /// Build a global symbol cache for freestanding modules.
+    /// This collects all global symbols from the given modules in one go.
+    pub(super) fn build_global_symbol_cache_freestanding(
+        &self,
+        modules: &[ModuleId],
+        profile_id: ProfileId,
+    ) -> ResolveResult<GlobalSymbolCache> {
+        let mut cache = GlobalSymbolCache::new();
+        cache.pending.extend(modules.iter().copied());
+
+        // process all lib modules
+        while let Some(module_id) = cache.pending.pop_front() {
+            // skip already processed modules
+            if cache.module_versions.contains_key(&module_id) {
+                continue;
+            }
+
+            // load the module tree and symbols
+            self.require_bind_module_validate(module_id)?;
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let base_dir = module.dir(profile_id);
+            let tree = base_dir.tree.read();
+            let symbols = base_dir.symbols.read();
+            cache.module_versions.insert(module_id, module.version);
+
+            // collect global declarations from this module
+            self.collect_global_augmentation_symbols(&module, base_dir, &symbols, &mut cache);
+            if module.language_type.is_declaration() {
+                self.collect_export_namespace_globals(&module, &tree, &mut cache);
+            }
+            if self.module_is_ambient_lib(&module) {
+                self.collect_namespace_scope_globals(&module, base_dir, &symbols, &mut cache);
+            }
+        }
+
+        Ok(cache)
+    }
+
     /// Build the global symbol table for a root module set.
     /// Resumes from partial state if available.
-    fn build_global_symbol_table(
+    fn build_global_symbol_cache_resumable(
         &self,
         key: &GlobalSymbolCacheKey,
         roots: &[ModuleId],
@@ -419,14 +458,7 @@ impl Compiler {
                 // put current module back for retry
                 cache.pending.push_front(module_id);
                 self.global_symbol_caches.insert(key.clone(), cache);
-                return Err(match error {
-                    TaskDependencyError::NotReady { dependency } => {
-                        ResolveError::Yield { dependency }
-                    }
-                    TaskDependencyError::Failed { dependency } => {
-                        ResolveError::UnsatisfiedDependency { dependency }
-                    }
-                });
+                return Err(error.into());
             }
 
             // load the module tree and symbols
@@ -438,8 +470,13 @@ impl Compiler {
             cache.module_versions.insert(module_id, module.version);
 
             // collect global declarations from this module
-            self.collect_global_symbols(module_id, &tree, &symbols, &mut cache);
-            self.collect_export_namespace_globals(&module, &tree, &mut cache);
+            self.collect_global_augmentation_symbols(&module, base_dir, &symbols, &mut cache);
+            if module.language_type.is_declaration() {
+                self.collect_export_namespace_globals(&module, &tree, &mut cache);
+            }
+            if self.module_is_ambient_lib(&module) {
+                self.collect_namespace_scope_globals(&module, base_dir, &symbols, &mut cache);
+            }
 
             // enqueue dependency targets for further discovery
             let dependency_targets = self.collect_dependency_targets(module_id, &tree);
@@ -463,81 +500,59 @@ impl Compiler {
         Ok(cache)
     }
 
-    /// Collect global symbols from declare global blocks in a module.
-    fn collect_global_symbols(
+    /// Collect global symbols from the global augmentation scope.
+    /// Symbols inside `declare global { }` blocks are bound into this scope by the binder.
+    fn collect_global_augmentation_symbols(
         &self,
-        module_id: ModuleId,
-        tree: &NodeTree,
+        module: &Module,
+        dir: &ModuleDir,
         symbols: &SymbolTable,
-        index: &mut GlobalSymbolCache,
+        cache: &mut GlobalSymbolCache,
     ) {
-        // scan for declare global blocks
-        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
-            let Declaration::Global { expressions, .. } = tree.get(declaration_id) else {
-                continue;
-            };
-
-            // collect expressions inside the global block
-            for expression_id in expressions {
-                self.collect_global_expression(module_id, tree, symbols, index, *expression_id);
-            }
+        let scope = symbols.get_scope_by_id(dir.global_augmentation_scope);
+        for (key, symbol_id) in &scope.named_symbols {
+            let symbol = symbols.get_symbol(*symbol_id);
+            cache.insert_symbol(*key, symbol.space, symbol_id.into_global(module.id));
         }
     }
 
     /// Collect global symbols from `export as namespace` declarations.
+    /// Only call this for declaration modules (`.d.ts`).
     fn collect_export_namespace_globals(
         &self,
         module: &Module,
         tree: &NodeTree,
-        index: &mut GlobalSymbolCache,
+        cache: &mut GlobalSymbolCache,
     ) {
-        // skip non-declaration modules
-        if !module.language_type.is_declaration() {
-            return;
-        }
-
-        // collect namespace symbols from export as namespace declarations
         let symbol_id = module.dir_base().namespace_symbol.into_global(module.id);
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             let Expression::ExportNamespace { name } = tree.get(expression_id) else {
                 continue;
             };
-            index.insert_symbol(StaticKey::Name(*name), SymbolSpace::Value, symbol_id);
+            cache.insert_symbol(StaticKey::Name(*name), SymbolSpace::Value, symbol_id);
         }
     }
 
-    /// Collect global symbols from an expression inside a global block.
-    fn collect_global_expression(
+    /// Collect top-level declarations from a module's namespace scope as globals.
+    /// Intended only for ambient/global script modules where top-level symbols are globals.
+    fn collect_namespace_scope_globals(
         &self,
-        module_id: ModuleId,
-        tree: &NodeTree,
+        module: &Module,
+        dir: &ModuleDir,
         symbols: &SymbolTable,
-        index: &mut GlobalSymbolCache,
-        expression_id: LocalNodeId<Expression>,
+        cache: &mut GlobalSymbolCache,
     ) {
-        // walk statements and declarations inside a global block
-        match tree.get(expression_id) {
-            Expression::Statement { statement } => {
-                self.collect_global_expression(module_id, tree, symbols, index, *statement);
-            }
-            Expression::Declaration { declaration } => {
-                // register the symbol for the global key
-                let declaration = tree.get(*declaration);
-                let symbol_id = declaration.descriptor().symbol;
-                let symbol = symbols.get_symbol(symbol_id);
-                let Some(key) = symbol.key else {
-                    return;
-                };
-                index.insert_symbol(key, symbol.space, symbol_id.into_global(module_id));
-            }
-            _ => {}
+        let scope = symbols.get_scope_by_id(dir.namespace_scope);
+        for (key, symbol_id) in &scope.named_symbols {
+            let symbol = symbols.get_symbol(*symbol_id);
+            cache.insert_symbol(*key, symbol.space, symbol_id.into_global(module.id));
         }
     }
 
     /// Collect module specifiers referenced by imports and reexports.
     pub(super) fn collect_dependency_targets(
         &self,
-        module_id: ModuleId,
+     module_id: ModuleId,
         tree: &NodeTree,
     ) -> Vec<(StringId, GlobalNodeIdAny)> {
         // collect import and reexport targets
@@ -557,5 +572,72 @@ impl Compiler {
             }
         }
         targets
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_dir::StaticKey;
+
+    use crate::TestProgram;
+
+    /// Test that symbols inside `declare global { }` blocks are collected as globals.
+    #[test]
+    fn test_collect_global_symbols_declare_global() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+declare global {
+    var TestGlobal: string;
+    function testGlobalFn(): void;
+    interface TestGlobalInterface {}
+}
+export {};
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(module_id);
+        let cache = test
+            .compiler
+            .build_global_symbol_cache_freestanding(&[module_id], profile)
+            .unwrap();
+
+        // check that the global symbols were collected
+        let test_global_key = StaticKey::Name(test.program.strings.intern("TestGlobal"));
+        assert!(cache.symbols.contains_key(&test_global_key),);
+        let test_fn_key = StaticKey::Name(test.program.strings.intern("testGlobalFn"));
+        assert!(cache.symbols.contains_key(&test_fn_key),);
+        let test_iface_key = StaticKey::Name(test.program.strings.intern("TestGlobalInterface"));
+        assert!(cache.symbols.contains_key(&test_iface_key),);
+    }
+
+    /// Test that symbols inside nested `declare module "x" { global { } }` are collected.
+    #[test]
+    fn test_collect_global_symbols_nested_in_module() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+declare module "buffer" {
+    global {
+        var Buffer: string;
+    }
+}
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(module_id);
+        let cache = test
+            .compiler
+            .build_global_symbol_cache_freestanding(&[module_id], profile)
+            .unwrap();
+
+        let buffer_key = StaticKey::Name(test.program.strings.intern("Buffer"));
+        assert!(cache.symbols.contains_key(&buffer_key),);
     }
 }

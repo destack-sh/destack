@@ -181,6 +181,44 @@ declare module "foo" {
         });
     }
 
+    /// Parse a global augmentation inside a module declaration.
+    #[test]
+    fn test_parse_nested_global_block_in_module() {
+        let mut test = TestParser::new_with_options(
+            r###"
+declare module "buffer" {
+    global {
+        var Buffer: BufferConstructor;
+    }
+}
+"###,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                let name = descriptor.name.expect("expected name");
+                assert_node!(name, Name::String(name_id) => {
+                    assert_string!(parser, name_id, "buffer");
+                });
+                assert_eq!(expressions.len(), 1);
+
+                let nested_id = expressions[0];
+                assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
+                    assert_node!(parser.tree, *global_id, Declaration::Global { descriptor, expressions, .. } => {
+                        assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                        assert!(descriptor.name.is_none());
+                        assert_eq!(expressions.len(), 1);
+                    });
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_module_block_destack_declaration() {
         let mut test = TestParser::new_with_options(
