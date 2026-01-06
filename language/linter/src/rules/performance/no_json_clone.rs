@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
+    expression_is_global_qualified_member, expression_target_symbol,
     unwrap_parenthesized_expression,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
@@ -72,7 +72,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         let parse_name = ctx.program.strings.intern("parse");
         let stringify_name = ctx.program.strings.intern("stringify");
         let json_symbol = ctx.declared_lib_symbol(json_name);
-        let global_qualifiers = global_qualifier_symbols(ctx);
+        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,

@@ -3,9 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
-};
+use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -63,7 +61,7 @@ impl<'a, 'b> ObjectConstructorVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
         let object_name = ctx.program.strings.intern("Object");
-        let global_qualifiers = global_qualifier_symbols(ctx);
+        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,

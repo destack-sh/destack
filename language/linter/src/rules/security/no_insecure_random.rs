@@ -3,9 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{
-    expression_is_global_qualified_member, expression_target_symbol, global_qualifier_symbols,
-};
+use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -68,7 +66,7 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
         let math_name = ctx.program.strings.intern("Math");
         let random_name = ctx.program.strings.intern("random");
         let math_symbol = ctx.declared_lib_symbol(math_name);
-        let global_qualifiers = global_qualifier_symbols(ctx);
+        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,

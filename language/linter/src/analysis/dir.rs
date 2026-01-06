@@ -4,11 +4,15 @@ use destack_dir as dir;
 
 use crate::ConstValue;
 
-#[derive(Debug, Default)]
+pub const GLOBAL_QUALIFIER_SYMBOLS: [&str; 4] = ["globalThis", "window", "self", "global"];
+
 /// Cache shared analysis results for DIR lint rules.
+#[derive(Debug, Default)]
 pub struct LintDirAnalysisCache {
+    /// Cached "global qualifier" symbols.
+    pub global_qualifier_symbols: Option<Vec<dir::GlobalSymbolId>>,
     /// Cached constant values for DIR expressions.
-    const_values: HashMap<u32, Option<ConstValue>>,
+    pub const_values: HashMap<u32, Option<ConstValue>>,
 }
 
 impl LintDirAnalysisCache {
