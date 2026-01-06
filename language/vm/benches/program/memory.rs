@@ -5,6 +5,10 @@ use destack_vm::memory::Value;
 pub(crate) const ALL: &[&Program] = &[
     &ALLOC_SINGLE,
     &ALLOC_BURST,
+    &ALLOC_ARRAY_SMALL,
+    &ALLOC_ARRAY_LARGE,
+    &ALLOC_STRUCT_LARGE,
+    &RAW_ALLOC_FREE,
     &LOAD_STORE,
     &LINKED_WALK,
     &FIELD_ACCESS,
@@ -67,6 +71,139 @@ block3:
 "#,
     entry: "alloc_burst",
     expected: || Some(Value::int64(1000)),
+    default_args: || vec![Value::int64(1000)],
+};
+
+/// Allocate small arrays sized to stay inline.
+pub(crate) const ALLOC_ARRAY_SMALL: Program = Program {
+    name: "alloc_array_small",
+    source: r#"
+function @alloc_array_small(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 0i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = iconst 2i64
+    v7 = managed.alloc_array i64, v6
+    v8 = iconst 0i64
+    v9 = element.addr v7, v8
+    store v9, v3
+    v10 = iconst 1i64
+    v11 = element.addr v7, v10
+    store v11, v3
+    v12 = iadd v4, v3
+    v13 = iconst 1i64
+    v14 = iadd v3, v13
+    jump block1(v14, v12)
+block3(v15: i64):
+    return v15
+}
+"#,
+    entry: "alloc_array_small",
+    expected: || Some(Value::int64(499_500)),
+    default_args: || vec![Value::int64(1000)],
+};
+
+/// Allocate larger arrays to force heap slot storage.
+pub(crate) const ALLOC_ARRAY_LARGE: Program = Program {
+    name: "alloc_array_large",
+    source: r#"
+function @alloc_array_large(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 0i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = iconst 64i64
+    v7 = managed.alloc_array i64, v6
+    v8 = iconst 0i64
+    v9 = element.addr v7, v8
+    store v9, v3
+    v10 = iconst 63i64
+    v11 = element.addr v7, v10
+    store v11, v3
+    v12 = iadd v4, v3
+    v13 = iconst 1i64
+    v14 = iadd v3, v13
+    jump block1(v14, v12)
+block3(v15: i64):
+    return v15
+}
+"#,
+    entry: "alloc_array_large",
+    expected: || Some(Value::int64(499_500)),
+    default_args: || vec![Value::int64(1000)],
+};
+
+/// Allocate larger structs with multiple field stores per iteration.
+pub(crate) const ALLOC_STRUCT_LARGE: Program = Program {
+    name: "alloc_struct_large",
+    source: r#"
+function @alloc_struct_large(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 0i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = managed.alloc (i64, i64, i64, i64)
+    v7 = field.addr v6, 0
+    store v7, v3
+    v8 = field.addr v6, 1
+    store v8, v3
+    v9 = field.addr v6, 2
+    store v9, v3
+    v10 = field.addr v6, 3
+    store v10, v3
+    v11 = iadd v4, v3
+    v12 = iconst 1i64
+    v13 = iadd v3, v12
+    jump block1(v13, v11)
+block3(v14: i64):
+    return v14
+}
+"#,
+    entry: "alloc_struct_large",
+    expected: || Some(Value::int64(499_500)),
+    default_args: || vec![Value::int64(1000)],
+};
+
+/// Raw allocation with immediate free per iteration.
+pub(crate) const RAW_ALLOC_FREE: Program = Program {
+    name: "raw_alloc_free",
+    source: r#"
+function @raw_alloc_free(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 0i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = raw.alloc i64
+    store v6, v3
+    v7 = load v6
+    raw.free v6
+    v8 = iadd v4, v7
+    v9 = iconst 1i64
+    v10 = iadd v3, v9
+    jump block1(v10, v8)
+block3(v11: i64):
+    return v11
+}
+"#,
+    entry: "raw_alloc_free",
+    expected: || Some(Value::int64(499_500)),
     default_args: || vec![Value::int64(1000)],
 };
 
