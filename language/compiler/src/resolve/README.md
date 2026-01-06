@@ -7,9 +7,6 @@ Resolve runs per profile and depends only on Bind outputs.
 ## Objectives
 
 Resolve is strictly **TypeScript compliant** for imports and exports.
-It avoids cross-module deadlocks and unstable cycles.
-It preserves Destack extensions without changing TS semantics.
-
 Resolve produces three concrete outcomes that the rest of the pipeline depends on:
 1. **Symbol targets** for every import, export, and reference.
 2. **Export tables** keyed by `(SymbolSpace, StaticKey)` for every module.

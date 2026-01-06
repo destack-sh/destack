@@ -15,6 +15,16 @@ use crate::{
     BindError, Compiler, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
 };
 
+/// Target of an export assignment resolution.
+/// Used when resolving named imports from modules with `export = X`.
+#[derive(Debug, Clone, Copy)]
+enum ExportAssignmentTarget {
+    /// Redirect to another module's exports (e.g., `export = importedModule`)
+    Module(ModuleTarget),
+    /// Look in a namespace symbol's members (e.g., `export = LocalNamespace`)
+    Namespace(GlobalSymbolId),
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Select the export spaces to consider for a dependency kind.
@@ -495,14 +505,31 @@ impl Compiler {
                 let symbols = dir.symbols.read();
                 let scope = symbols.get_scope_by_id(scope_id);
                 let space_order = self.export_spaces_for_kind(kind);
-                let symbol_id = self.resolve_absolute_symbol(
-                    module,
-                    item_node,
-                    (scope_id, scope, LocalScopeMark::end()),
-                    StaticKey::Name(name_id),
-                    space_order,
-                    &symbols,
-                )?;
+                let key = StaticKey::Name(name_id);
+
+                // try resolving in the local scope first, fall back to global augmentation scope
+                // (for types defined in `global { }` blocks within module declarations)
+                let symbol_id = self
+                    .resolve_absolute_symbol(
+                        module,
+                        item_node,
+                        (scope_id, scope, LocalScopeMark::end()),
+                        key,
+                        space_order,
+                        &symbols,
+                    )
+                    .or_else(|_| {
+                        let global_scope_id = dir.global_augmentation_scope;
+                        let global_scope = symbols.get_scope_by_id(global_scope_id);
+                        self.resolve_absolute_symbol(
+                            module,
+                            item_node,
+                            (global_scope_id, global_scope, LocalScopeMark::end()),
+                            key,
+                            space_order,
+                            &symbols,
+                        )
+                    })?;
                 Ok(Some(symbol_id.into_global(module.id)))
             }
             DependencyItem::UnresolvedRemote {
@@ -983,6 +1010,353 @@ impl Compiler {
         }
     }
 
+    /// Resolve the export assignment target for a module, if present.
+    /// Returns either a module to redirect to, or a namespace symbol to look inside.
+    /// This is used to follow `export =` chains when resolving named imports.
+    fn resolve_export_assignment_target(
+        &self,
+        origin_module_id: ModuleId,
+        target: ModuleTarget,
+        profile: ProfileId,
+    ) -> ResolveResult<Option<ExportAssignmentTarget>> {
+        match target {
+            ModuleTarget::Module(module_id) => {
+                // ensure the target module is prepared
+                self.require_resolve_module_prepare_if_needed(
+                    origin_module_id,
+                    module_id,
+                    profile,
+                )?;
+
+                // check if module has an export assignment
+                let module = self.program.modules.get(module_id);
+                let module = module.read();
+                let dir = module.dir(profile);
+                let export_assignment = *dir.export_assignment.read();
+                let Some(item_id) = export_assignment else {
+                    return Ok(None);
+                };
+
+                // resolve the export assignment item
+                let tree = dir.tree.read();
+                let item = tree.get(item_id);
+                self.resolve_export_assignment_target_for_item(
+                    module_id,
+                    profile,
+                    dir,
+                    &tree,
+                    dir.namespace_scope,
+                    item,
+                )
+            }
+            ModuleTarget::Binding(specifier) => {
+                // load bindings for the specifier
+                let bindings =
+                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let Some(bindings) = bindings else {
+                    return Ok(None);
+                };
+
+                // check each binding for an export assignment target
+                for binding_ref in bindings {
+                    // ensure the binding module is prepared
+                    self.require_resolve_module_prepare_if_needed(
+                        origin_module_id,
+                        binding_ref.module_id,
+                        profile,
+                    )?;
+
+                    // load the binding export assignment entry
+                    let module = self.program.modules.get(binding_ref.module_id);
+                    let module = module.read();
+                    let dir = module.dir(profile);
+                    let binding_exports = dir
+                        .module_binding_exports
+                        .read()
+                        .get(&binding_ref.declaration.into_any())
+                        .cloned();
+                    let Some(binding_exports) = binding_exports else {
+                        continue;
+                    };
+                    let Some(item_id) = binding_exports.export_assignment else {
+                        continue;
+                    };
+
+                    // get binding scope for import lookup
+                    let Some((scope_id, _, _)) =
+                        self.binding_info_for_declaration(dir, binding_ref.declaration)
+                    else {
+                        continue;
+                    };
+
+                    // read the export assignment dependency item
+                    let tree = dir.tree.read();
+                    let item = tree.get(item_id);
+
+                    // resolve the export assignment item
+                    if let Some(target) = self.resolve_export_assignment_target_for_item(
+                        binding_ref.module_id,
+                        profile,
+                        dir,
+                        &tree,
+                        scope_id,
+                        item,
+                    )? {
+                        return Ok(Some(target));
+                    }
+                }
+
+                Ok(None)
+            }
+        }
+    }
+
+    /// Resolve an export assignment target from a dependency item.
+    fn resolve_export_assignment_target_for_item(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        scope_id: LocalScopeId,
+        item: &DependencyItem,
+    ) -> ResolveResult<Option<ExportAssignmentTarget>> {
+        // resolve the assignment target based on the dependency item
+        match item {
+            DependencyItem::Remote { target_module, .. } => {
+                Ok(Some(ExportAssignmentTarget::Module(*target_module)))
+            }
+            DependencyItem::UnresolvedRemote {
+                target_module: Some(target_module),
+                ..
+            } => Ok(Some(ExportAssignmentTarget::Module(*target_module))),
+            DependencyItem::Local { target_symbol, .. } => {
+                // export = localSymbol: the target could be a namespace
+                Ok(Some(ExportAssignmentTarget::Namespace(*target_symbol)))
+            }
+            DependencyItem::Value { value, .. } => self.resolve_export_assignment_value_target(
+                module_id, profile, dir, tree, scope_id, *value,
+            ),
+            _ => Ok(None),
+        }
+    }
+
+    /// Resolve an export assignment target from a value expression.
+    fn resolve_export_assignment_value_target(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        scope_id: LocalScopeId,
+        value: LocalNodeId<Expression>,
+    ) -> ResolveResult<Option<ExportAssignmentTarget>> {
+        // handle resolved references
+        let expr = tree.get(value);
+        if let Expression::LocalReference {
+            path,
+            target_symbol,
+            ..
+        }
+        | Expression::ModuleReference {
+            path,
+            target_symbol,
+            ..
+        }
+        | Expression::GlobalReference {
+            path,
+            target_symbol,
+            ..
+        } = expr
+        {
+            if let Some(name) = path.first_segment()
+                && let Some(redirect) =
+                    self.find_import_redirect_for_name(module_id, profile, tree, scope_id, name)?
+            {
+                return Ok(Some(ExportAssignmentTarget::Module(redirect)));
+            }
+
+            return Ok(Some(ExportAssignmentTarget::Namespace(*target_symbol)));
+        }
+
+        // handle unresolved paths
+        if let Expression::UnresolvedPath { path, .. } = expr
+            && let Some(name) = path.first_segment()
+        {
+            if let Some(redirect) =
+                self.find_import_redirect_for_name(module_id, profile, tree, scope_id, name)?
+            {
+                return Ok(Some(ExportAssignmentTarget::Module(redirect)));
+            }
+
+            let symbols = dir.symbols.read();
+            let key = StaticKey::Name(name);
+            let symbol_id = self.find_namespace_symbol_in_scope(&symbols, scope_id, key);
+            if let Some(symbol_id) = symbol_id {
+                return Ok(Some(ExportAssignmentTarget::Namespace(
+                    symbol_id.into_global(module_id),
+                )));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Find a namespace symbol in a scope, falling back to any matching symbol.
+    fn find_namespace_symbol_in_scope(
+        &self,
+        symbols: &SymbolTable,
+        scope_id: LocalScopeId,
+        key: StaticKey,
+    ) -> Option<LocalSymbolId> {
+        // prefer namespace symbols for class or namespace merges
+        let scope = symbols.get_scope_by_id(scope_id);
+        let mut fallback = None;
+        for (candidate_key, symbol_id) in &scope.named_symbols {
+            if *candidate_key != key {
+                continue;
+            }
+
+            let symbol = symbols.get_symbol(*symbol_id);
+            if symbol.kind == destack_dir::SymbolKind::Namespace {
+                return Some(*symbol_id);
+            }
+
+            if fallback.is_none() {
+                fallback = Some(*symbol_id);
+            }
+        }
+
+        fallback
+    }
+
+    /// Find an import redirect target for a name in a binding scope.
+    /// Used to resolve `export = X` where X is an import alias.
+    fn find_import_redirect_for_name(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        scope_id: LocalScopeId,
+        name: StringId,
+    ) -> ResolveResult<Option<ModuleTarget>> {
+        // scan dependency items in the scope
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            // skip items outside the binding scope
+            let (item_scope_id, _) = tree.get_scope(item_id);
+            if item_scope_id != scope_id {
+                continue;
+            }
+
+            // check if this is an import that declares the name we're looking for
+            let item = tree.get(item_id);
+            match item {
+                DependencyItem::UnresolvedRemote {
+                    source,
+                    mode: DependencyMode::Namespace,
+                    name: item_name,
+                    alias,
+                    target,
+                    ..
+                } if matches!(
+                    source,
+                    DependencySource::ImportEquals | DependencySource::RequireCall
+                ) && alias.or(*item_name) == Some(name) =>
+                {
+                    // found `import X = require("target")` where X is our name
+                    // resolve module bindings before falling back to module specifiers
+                    if let Some(binding_target) =
+                        self.resolve_module_binding_target(module_id, profile, *target)?
+                    {
+                        return Ok(Some(binding_target));
+                    }
+
+                    // resolve the specifier to a module target
+                    return Ok(self
+                        .resolve_specifier_to_module(*target, Some(module_id))
+                        .ok()
+                        .map(ModuleTarget::Module));
+                }
+                DependencyItem::Remote {
+                    mode: DependencyMode::Namespace,
+                    name: item_name,
+                    alias,
+                    target_module,
+                    ..
+                } if alias.or(*item_name) == Some(name) => {
+                    // already resolved import, use its target module
+                    return Ok(Some(*target_module));
+                }
+                _ => continue,
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Resolve a symbol by looking inside a namespace symbol's scope.
+    /// Used for `export = LocalNamespace` where we need to find members of the namespace.
+    fn resolve_symbol_in_namespace(
+        &self,
+        _node: GlobalNodeIdAny,
+        namespace_symbol: GlobalSymbolId,
+        profile: ProfileId,
+        kind: DependencyKind,
+        key: StaticKey,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        // load the namespace symbol's module and check if it's a namespace
+        let module = self.program.modules.get(namespace_symbol.module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+
+        let symbol = symbols.get_symbol(namespace_symbol.local_id);
+
+        // if this is a namespace, look in its scope
+        if symbol.kind == destack_dir::SymbolKind::Namespace {
+            let (scope_id, _) = symbol.scope;
+            let scope = symbols.get_scope_by_id(scope_id);
+            let space_order = self.export_spaces_for_kind(kind);
+
+            let (preferred, fallback) =
+                self.find_symbol_in_scope(scope, key, space_order, &symbols, None);
+
+            if let Some(symbol_id) = preferred.or(fallback) {
+                return Ok(Some(symbol_id.into_global(namespace_symbol.module_id)));
+            }
+        }
+
+        // if not a namespace (or not found), check for merged namespace with same name
+        // this handles `class Foo {} namespace Foo {}` where export = Foo points to the class
+        if let Some(name) = symbol.name() {
+            let symbol_key = StaticKey::Name(name);
+            let (scope_id, _) = symbol.scope;
+            let scope = symbols.get_scope_by_id(scope_id);
+
+            // look for a namespace symbol with the same name in the same scope
+            for (k, sym_id) in &scope.named_symbols {
+                if *k == symbol_key {
+                    let other_symbol = symbols.get_symbol(*sym_id);
+                    if other_symbol.kind == destack_dir::SymbolKind::Namespace {
+                        // found a merged namespace, look in its scope
+                        let (ns_scope_id, _) = other_symbol.scope;
+                        let ns_scope = symbols.get_scope_by_id(ns_scope_id);
+                        let space_order = self.export_spaces_for_kind(kind);
+
+                        let (preferred, fallback) =
+                            self.find_symbol_in_scope(ns_scope, key, space_order, &symbols, None);
+
+                        if let Some(symbol_id) = preferred.or(fallback) {
+                            return Ok(Some(symbol_id.into_global(namespace_symbol.module_id)));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Resolve a dependency item.
     pub(super) fn resolve_dependency_item(
         &self,
@@ -1122,15 +1496,41 @@ impl Compiler {
 
                 // resolve the local symbol in scope
                 let (scope_id, scope, mark) = symbols.get_scope(item_id, tree);
+                let mark = if self.export_item_parent(tree, item_id).is_some() {
+                    // export specifiers can reference later declarations
+                    LocalScopeMark::end()
+                } else {
+                    mark
+                };
                 let space_order = self.export_spaces_for_kind(*kind);
-                let target_symbol_id = self.resolve_absolute_symbol(
-                    module,
-                    item_id.into_global_any(module.id),
-                    (scope_id, scope, mark),
-                    StaticKey::Name(*name_id),
-                    space_order,
-                    symbols,
-                )?;
+                let key = StaticKey::Name(*name_id);
+                let node = item_id.into_global_any(module.id);
+
+                // try resolving in the local scope first
+                let target_symbol_id = self
+                    .resolve_absolute_symbol(
+                        module,
+                        node,
+                        (scope_id, scope, mark),
+                        key,
+                        space_order,
+                        symbols,
+                    )
+                    // fallback to global augmentation scope for types like AllowSharedBuffer
+                    // that are defined in `global { }` blocks within module declarations
+                    .or_else(|_| {
+                        let global_scope_id = dir.global_augmentation_scope;
+                        let global_scope = symbols.get_scope_by_id(global_scope_id);
+                        self.resolve_absolute_symbol(
+                            module,
+                            node,
+                            (global_scope_id, global_scope, LocalScopeMark::end()),
+                            key,
+                            space_order,
+                            symbols,
+                        )
+                    })?;
+
                 DependencyItem::Local {
                     mode: *mode,
                     kind: *kind,
@@ -1178,6 +1578,39 @@ impl Compiler {
         )?;
         if let Some(symbol_id) = resolved_symbol {
             return Ok(symbol_id);
+        }
+
+        // fall back to export assignment target (e.g., `export = X`)
+        // handles both module redirects and local namespace lookups
+        if let Some(target) =
+            self.resolve_export_assignment_target(module.id, remote_target, profile)?
+        {
+            match target {
+                ExportAssignmentTarget::Module(redirect_target) => {
+                    // recursively resolve the symbol in the redirected module
+                    return self.resolve_remote_item_symbol(
+                        module,
+                        node,
+                        redirect_target,
+                        profile,
+                        kind,
+                        origin_symbol,
+                        key,
+                    );
+                }
+                ExportAssignmentTarget::Namespace(namespace_symbol) => {
+                    // look up the key in the namespace symbol's scope
+                    if let Some(symbol) = self.resolve_symbol_in_namespace(
+                        node,
+                        namespace_symbol,
+                        profile,
+                        kind,
+                        key,
+                    )? {
+                        return Ok(symbol);
+                    }
+                }
+            }
         }
 
         // fall back to namespace exports
