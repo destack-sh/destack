@@ -36,7 +36,7 @@ pub const LIB_ES2016_ARRAY_INCLUDE: BuiltinLib = BuiltinLib::ambient_lib(
     &[LIB_ES_ES2016_ARRAY_INCLUDE_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2016_EMPTY_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2016_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2016_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2016.full",
     &[LIB_ES_ES2016_FULL_D_DS],
@@ -48,7 +48,7 @@ pub const LIB_ES2016_FULL: BuiltinLib = BuiltinLib::ambient_lib(
         "dom.iterable",
     ],
 )
-    .with_declared_symbols(ES2016_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2016_DECLARED_SYMBOLS);
 pub const LIB_ES2016_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2016.intl", &[LIB_ES_ES2016_INTL_D_DS], &[])
         .with_declared_symbols(ES2016_EMPTY_DECLARED_SYMBOLS);

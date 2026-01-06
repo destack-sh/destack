@@ -19,7 +19,7 @@ destack_fir = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
-destack_machine = { workspace = true }
+destack_vm = { workspace = true }
 
 [dev-dependencies]
 

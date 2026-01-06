@@ -1,7 +1,7 @@
 # MIR
 
 Machine-level Intermediate Representation for Destack.
-This is what gets fed to native codegen (Cranelift) and WASM, and what the comptime interpreter (Machine) executes.
+This is what gets fed to native codegen (Cranelift) and WASM, and what the comptime interpreter (VM) executes.
 
 ## Overview
 
@@ -106,7 +106,7 @@ They have no function body: each backend implements them specially.
 | SIMD | `shuffle`, `splat`, `reduce.add`, etc. |
 
 Reflection intrinsics (`size_of`, etc.) are comptime-only—they get evaluated during compilation and replaced with constants.
-The Machine handles these; native codegen never sees them.
+The VM handles these; native codegen never sees them.
 
 ## Types
 

@@ -78,13 +78,13 @@ pub const LIB_ES2018_ASYNCGENERATOR: BuiltinLib = BuiltinLib::ambient_lib(
     &[LIB_ES_ES2018_ASYNCGENERATOR_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2018_ASYNCGENERATOR_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2018_ASYNCGENERATOR_DECLARED_SYMBOLS);
 pub const LIB_ES2018_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018.asynciterable",
     &[LIB_ES_ES2018_ASYNCITERABLE_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2018_ASYNCITERABLE_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2018_ASYNCITERABLE_DECLARED_SYMBOLS);
 pub const LIB_ES2018_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018.full",
     &[LIB_ES_ES2018_FULL_D_DS],

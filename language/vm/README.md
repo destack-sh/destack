@@ -1,7 +1,7 @@
-# Machine
+# VM
 
 MIR interpreter for comptime execution, debug mode, and deoptimization.
-The Machine executes MIR directly without compiling to native code, serving two main roles:
+The VM executes MIR directly without compiling to native code, serving two main roles:
 1. **Comptime**: Evaluate `comptime { }` blocks during compilation.
 2. **Debugging**: Run programs with full introspection for development (even de-opt from native).
 
@@ -35,7 +35,7 @@ This helps a lot with property access and type reflection.
 
 # Memory
 
-The Machine manages three kinds of memory, matching MIR's semantics:
+The VM manages three kinds of memory, matching MIR's semantics:
 
 | Kind | Instruction | Lifetime | Use Case |
 |------|-------------|----------|----------|
@@ -79,7 +79,7 @@ If an FFI call crashes, the interpreter state is preserved for inspection.
 
 # Debug Mode
 
-In debug mode, the Machine provides full introspection:
+In debug mode, the VM provides full introspection:
 
 **Breakpoints**: Pause execution at specific MIR locations.
 
@@ -94,7 +94,7 @@ The only difference is that debug commands can pause and inspect execution.
 
 # Deoptimization
 
-Native code can transfer execution to the Machine at safepoints.
+Native code can transfer execution to the VM at safepoints.
 This enables debugging of optimized code by continuing in the interpreter.
 
 ## Safepoints
@@ -123,7 +123,7 @@ fn triggerDeopt() {
     interpreterState = reconstructState(nativeState, safepoint)
 
     // transfer to interpreter and continue
-    machine.continueFrom(interpreterState)
+    vm.continueFrom(interpreterState)
 }
 ```
 

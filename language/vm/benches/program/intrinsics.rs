@@ -1,5 +1,5 @@
 use super::Program;
-use destack_machine::memory::Value;
+use destack_vm::memory::Value;
 
 /// All intrinsics benchmark programs.
 pub(crate) const ALL: &[&Program] = &[&BIT_OPS, &MATH_FLOAT, &CHECKED_ARITH];

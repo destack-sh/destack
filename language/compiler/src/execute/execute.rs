@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ComptimeOutput, ModuleComptime, ProfileId};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
-use {destack_dir as dir, destack_machine as machine};
+use {destack_dir as dir, destack_vm as vm};
 
 impl Compiler {
     /// Prepare comptime state for a module within a profile.
@@ -186,10 +186,10 @@ impl Compiler {
                 self.lower_comptime_expression(&module, profile_id, *body)?;
 
             // execute the MIR with the interpreter
-            let mut interpreter = machine::Interpreter::with_options(
+            let mut interpreter = vm::Interpreter::with_options(
                 mir_tree,
                 strings.into_immutable(), // NOTE #Performance: avoid cloning the string pool
-                machine::MachineOptions::comptime(),
+                vm::MachineOptions::comptime(),
             );
             let output = interpreter
                 .run_function(function_id, &[])
@@ -198,17 +198,17 @@ impl Compiler {
                     message: format!("{error}"),
                 })?;
 
-            // convert the machine value to a static expression
-            let machine_value = output.value;
-            let dir_value = self
-                .value_to_static_expression(&machine_value)
-                .ok_or_else(|| ExecuteError::FailedExecution {
+            // convert the vm value to a static expression
+            let vm_value = output.value;
+            let dir_value = self.value_to_static_expression(&vm_value).ok_or_else(|| {
+                ExecuteError::FailedExecution {
                     module: module_id,
                     message: "unsupported comptime result".to_string(),
-                })?;
+                }
+            })?;
 
             Some(ComptimeOutput {
-                machine: Some(machine_value),
+                vm: Some(vm_value),
                 dir: Some(dir_value),
                 mir: None,
             })

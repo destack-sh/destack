@@ -845,5 +845,8 @@ pub const LIB_UNDICI_TYPES_V7: BuiltinLib = BuiltinLib::explicit_lib(
     &["esnext", "node.v24"],
 );
 
-pub const LIB_UNDICI_TYPES: BuiltinLib =
-    BuiltinLib::explicit_lib("undici-types", UNDICI_TYPES_V7_SOURCES, &["esnext", "node.v24"]);
+pub const LIB_UNDICI_TYPES: BuiltinLib = BuiltinLib::explicit_lib(
+    "undici-types",
+    UNDICI_TYPES_V7_SOURCES,
+    &["esnext", "node.v24"],
+);

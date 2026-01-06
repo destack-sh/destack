@@ -1,4 +1,4 @@
-use destack_machine::Value;
+use destack_vm::Value;
 
 use crate::TestProgram;
 

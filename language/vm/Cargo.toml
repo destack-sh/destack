@@ -1,6 +1,6 @@
 [package]
-name = "destack_machine"
-description = "Destack Machine - MIR interpreter and JIT execution engine"
+name = "destack_vm"
+description = "Destack VM - MIR interpreter and JIT execution engine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -26,7 +26,7 @@ criterion = { workspace = true }
 pprof = { workspace = true }
 
 [[bench]]
-name = "machine_execute"
+name = "vm_execute"
 harness = false
 
 [lints]

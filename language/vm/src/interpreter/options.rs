@@ -1,4 +1,4 @@
-/// Execution role for the machine interpreter.
+/// Execution role for the VM interpreter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionMode {
     /// Evaluate compile time blocks and expressions.
@@ -80,7 +80,7 @@ pub enum BorrowCheckMode {
     Strict,
 }
 
-/// Configuration options for the machine interpreter.
+/// Configuration options for the VM interpreter.
 #[derive(Debug, Clone)]
 pub struct MachineOptions {
     /// The execution role for this interpreter instance.
@@ -122,7 +122,7 @@ pub struct MachineOptions {
 
 impl Default for MachineOptions {
     fn default() -> Self {
-        // default machine limits and policies
+        // default vm limits and policies
         Self {
             execution_mode: ExecutionMode::default(),
             runtime_policy: RuntimePolicy::default(),

@@ -1,4 +1,4 @@
-use destack_machine::{
+use destack_vm::{
     Frame, HeapHandle, RawPointer, StackPointer, ThreadedBlock, ThreadedFunction,
     ThreadedInstruction, ThreadedState, Value,
 };

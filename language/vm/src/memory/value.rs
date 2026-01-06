@@ -105,7 +105,7 @@ const STACK_SLOT_SHIFT: u64 = 16;
 const REF_META_SHIFT: u64 = 16;
 const REF_META_MASK: u64 = 0x1F << REF_META_SHIFT;
 
-/// A runtime value in the machine.
+/// A runtime value in the VM.
 ///
 /// Compact 16-byte representation using a packed data/meta layout.
 /// The data field stores the actual value, meta stores the tag and width.
