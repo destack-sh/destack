@@ -1,12 +1,33 @@
-use crate::{DependencyItem, LocalNodeId, LocalSymbolId, StaticKey, SymbolSpace};
+use destack_source::ModuleId;
+
+use crate::{DependencyItem, GlobalSymbolId, LocalNodeId, LocalSymbolId, StaticKey, SymbolSpace};
 
 /// The kind of an export entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportKind {
     /// A local symbol export.
     Local,
-    /// A re-export via a dependency item.
+    /// A reexport via a dependency item.
     ReExport,
+}
+
+/// The resolution state of an export target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportTarget {
+    /// A resolved export target.
+    Resolved(GlobalSymbolId),
+    /// An unresolved export target.
+    Unresolved,
+}
+
+impl ExportTarget {
+    /// Return the resolved target symbol, if any.
+    pub fn resolved(self) -> Option<GlobalSymbolId> {
+        match self {
+            ExportTarget::Resolved(symbol) => Some(symbol),
+            ExportTarget::Unresolved => None,
+        }
+    }
 }
 
 /// An Export is a resolved module export entry.
@@ -18,33 +39,47 @@ pub struct Export {
     pub space: SymbolSpace,
     /// The export kind.
     pub kind: ExportKind,
+    /// The export target resolution state.
+    pub target: ExportTarget,
     /// The local symbol export.
     pub symbol: Option<LocalSymbolId>,
-    /// The re-export item.
+    /// The reexport item.
     pub item: Option<LocalNodeId<DependencyItem>>,
 }
 
 impl Export {
     /// Create a local export entry.
-    pub fn local(key: StaticKey, space: SymbolSpace, symbol: LocalSymbolId) -> Self {
+    pub fn local(
+        module_id: ModuleId,
+        key: StaticKey,
+        space: SymbolSpace,
+        symbol: LocalSymbolId,
+    ) -> Self {
         Self {
             key,
             space,
             kind: ExportKind::Local,
+            target: ExportTarget::Resolved(symbol.into_global(module_id)),
             symbol: Some(symbol),
             item: None,
         }
     }
 
-    /// Create a re-export entry.
+    /// Create a reexport entry.
     pub fn reexport(key: StaticKey, space: SymbolSpace, item: LocalNodeId<DependencyItem>) -> Self {
         Self {
             key,
             space,
             kind: ExportKind::ReExport,
+            target: ExportTarget::Unresolved,
             symbol: None,
             item: Some(item),
         }
+    }
+
+    /// Resolve the export target to a concrete symbol.
+    pub fn resolve_target(&mut self, target: GlobalSymbolId) {
+        self.target = ExportTarget::Resolved(target);
     }
 }
 
