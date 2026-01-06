@@ -243,7 +243,8 @@ mod tests {
             r#"
 let text = "hello";
 let has = text.indexOf("he") === 0;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-string-startswith");
     }
 
@@ -256,7 +257,8 @@ let has = text.indexOf("he") === 0;
             r#"
 let text = "hello";
 let has = text.indexOf("he") !== -1;
-"#);
+"#,
+        );
         test.result(result)
             .assert_no_lint("prefer-string-startswith");
     }

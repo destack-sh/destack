@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_ast::StringId;
-use destack_builtin::LanguageItem;
+use destack_builtin::LanguageSymbol;
 use destack_dir::WellKnownSymbol;
 use destack_source::{EditBuilder, File, ModuleId, Span};
 use destack_workspace::{
@@ -157,28 +157,28 @@ impl<'a> LintModuleDirContext<'a> {
     }
 
     /// Get a language item from the cache, returning None if not found.
-    pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
+    pub fn get_language_symbol(&self, item: LanguageSymbol) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
         builtins.items.get(&item).map(|value| *value)
     }
 
     /// Get a language item from the cache, panicking if not found.
-    pub fn language_item(&self, item: LanguageItem) -> dir::GlobalSymbolId {
-        self.get_language_item(item)
+    pub fn language_symbol(&self, item: LanguageSymbol) -> dir::GlobalSymbolId {
+        self.get_language_symbol(item)
             .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 
-    /// Get a cached lib symbol for the module profile and name.
-    pub fn get_lib_item(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
+    /// Get a cached declared lib symbol for the module profile and name.
+    pub fn get_declared_lib_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.get_lib_symbol(self.profile_id, name)
+        builtins.get_declared_lib_symbol(self.profile_id, name)
     }
 
-    /// Get a lib symbol from the cache, panicking if not found.
-    pub fn lib_item(&self, name: StringId) -> dir::GlobalSymbolId {
-        self.get_lib_item(name).unwrap_or_else(|| {
+    /// Get a declared lib symbol from the cache, panicking if not found.
+    pub fn declared_lib_symbol(&self, name: StringId) -> dir::GlobalSymbolId {
+        self.get_declared_lib_symbol(name).unwrap_or_else(|| {
             let name = self.program.strings.get(name);
-            panic!("lib symbol '{}' not available", name.as_ref())
+            panic!("declared lib symbol '{}' not available", name.as_ref())
         })
     }
 
@@ -223,14 +223,41 @@ impl<'a> LintModuleDirContext<'a> {
     /// Check if a requirement is met.
     pub fn is_requirement_met(&self, requirement: &LintRequirement) -> bool {
         match requirement {
-            LintRequirement::RequireLibSymbol(name, _) => {
+            LintRequirement::RequireLibSymbol(name, libs) => {
+                if !self.is_lib_available(libs) {
+                    return false;
+                }
                 let name = self.program.strings.intern(name);
-                self.get_lib_item(name).is_some()
-            },
+                self.get_declared_lib_symbol(name).is_some()
+            }
             LintRequirement::RequireWellKnownSymbol(symbol) => {
                 self.get_well_known_symbol(*symbol).is_some()
-            },
+            }
         }
+    }
+
+    /// Return true when at least one of the required libs is available.
+    fn is_lib_available(&self, libs: &[&str]) -> bool {
+        if libs.is_empty() {
+            return true;
+        }
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return false;
+        };
+        let Some(ambient_modules) = builtins.ambient_libs(self.profile_id) else {
+            return false;
+        };
+
+        for module_id in ambient_modules {
+            let Some(lib_name) = builtins.lib_name_for_module(module_id) else {
+                continue;
+            };
+            if libs.contains(&lib_name) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Check if a rule is supported.

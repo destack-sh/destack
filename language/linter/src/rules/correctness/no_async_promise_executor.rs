@@ -174,7 +174,8 @@ mod tests {
 let task = new Promise(async (resolve, reject) => {
     resolve(1);
 });
-"#);
+"#,
+        );
         test.result(result).assert_lint("no-async-promise-executor");
     }
 
@@ -187,7 +188,8 @@ let task = new Promise(async (resolve, reject) => {
 let task = new Promise((resolve, reject) => {
     resolve(1);
 });
-"#);
+"#,
+        );
         test.result(result)
             .assert_no_lint("no-async-promise-executor");
     }
@@ -203,7 +205,8 @@ async function executor(resolve, reject) {
 }
 
 let task = new Promise(executor);
-"#);
+"#,
+        );
         test.result(result).assert_lint("no-async-promise-executor");
     }
 }

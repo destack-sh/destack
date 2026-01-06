@@ -372,7 +372,8 @@ mod tests {
             r#"
 let items = [1, 2, 3];
 let has = items.filter(item => item > 1).length > 0;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-array-some");
     }
 
@@ -385,7 +386,8 @@ let has = items.filter(item => item > 1).length > 0;
             r#"
 let items = [1, 2, 3];
 let empty = items.filter(item => item > 1).length == 0;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-array-some");
     }
 
@@ -398,7 +400,8 @@ let empty = items.filter(item => item > 1).length == 0;
             r#"
 let items = [1, 2, 3];
 let has = items.findIndex(item => item > 1) !== -1;
-"#);
+"#,
+        );
         test.result(result).assert_lint("prefer-array-some");
     }
 
@@ -411,7 +414,8 @@ let has = items.findIndex(item => item > 1) !== -1;
             r#"
 let items = [1, 2, 3];
 let many = items.filter(item => item > 1).length > 1;
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("prefer-array-some");
     }
 }

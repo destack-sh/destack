@@ -65,15 +65,11 @@ struct NoInsecureRandomVisitor<'a, 'b> {
 impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
     /// Build a visitor for no-insecure-random checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        // intern commonly used names
         let math_name = ctx.program.strings.intern("Math");
         let random_name = ctx.program.strings.intern("random");
-
-        // resolve lib symbols
-        let math_symbol = ctx.lib_item(math_name);
+        let math_symbol = ctx.declared_lib_symbol(math_name);
         let global_qualifiers = global_qualifier_symbols(ctx);
 
-        // prepare visitor state
         Self {
             ctx,
             meta,

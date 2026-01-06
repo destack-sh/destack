@@ -199,7 +199,8 @@ let items = [1, 2];
             r#"
 let Array = (value: number): number => value;
 let item = Array(1);
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("no-array-constructor");
     }
 
@@ -212,7 +213,8 @@ let item = Array(1);
 let build = (Array: (value: number) => number): number => {
     return Array(1);
 };
-"#);
+"#,
+        );
         test.result(result).assert_no_lint("no-array-constructor");
     }
 }

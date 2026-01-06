@@ -282,7 +282,8 @@ mod tests {
 let task = new Promise((resolve, reject) => {
     return 1;
 });
-"#);
+"#,
+        );
         test.result(result)
             .assert_lint("no-promise-executor-return");
     }
@@ -309,7 +310,8 @@ let task = new Promise((resolve, reject) => resolve(1));
 let task = new Promise((resolve, reject) => {
     resolve(1);
 });
-"#);
+"#,
+        );
         test.result(result)
             .assert_no_lint("no-promise-executor-return");
     }
