@@ -53,10 +53,10 @@ impl Compiler {
                 continue;
             };
 
-            let symbol = match export.kind {
+            let symbol = export.target.resolved().or_else(|| match export.kind {
                 ExportKind::Local => export.symbol.map(|symbol| symbol.into_global(module_id)),
                 ExportKind::ReExport => export.item.and_then(|item| tree.get(item).target_symbol()),
-            };
+            });
 
             // return the first matching symbol
             if let Some(symbol) = symbol {

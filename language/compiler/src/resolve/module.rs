@@ -255,7 +255,6 @@ impl Compiler {
             self.insert_binding_symbol_exports(
                 module.id,
                 &binding,
-                tree,
                 symbols,
                 &mut exports,
                 export_assignment_item,
@@ -274,7 +273,7 @@ impl Compiler {
             );
 
             // insert ambient exports for remaining names
-            self.insert_binding_ambient_exports(&binding, symbols, &mut exports);
+            self.insert_binding_ambient_exports(module.id, &binding, symbols, &mut exports);
 
             // record the binding exports
             binding_exports.insert(
@@ -340,7 +339,6 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         binding: &ModuleBinding,
-        tree: &NodeTree,
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
@@ -404,10 +402,9 @@ impl Compiler {
                 if !seen_exports.insert((space, key)) {
                     continue;
                 }
-                let export = Export::local(key, space, symbol_id);
+                let export = Export::local(module_id, key, space, symbol_id);
                 self.insert_exports(
                     module_id,
-                    tree,
                     symbols,
                     exports,
                     export,
@@ -500,10 +497,14 @@ impl Compiler {
                     // emit default value exports
                     if *mode == DependencyMode::Default {
                         let key = StaticKey::Name(default_name);
-                        let export = Export::local(key, SymbolSpace::Value, binding.default_symbol);
+                        let export = Export::local(
+                            module_id,
+                            key,
+                            SymbolSpace::Value,
+                            binding.default_symbol,
+                        );
                         self.insert_exports(
                             module_id,
-                            tree,
                             symbols,
                             exports,
                             export,
@@ -530,7 +531,6 @@ impl Compiler {
                 let export = Export::reexport(key, *space, item_id);
                 self.insert_exports(
                     module_id,
-                    tree,
                     symbols,
                     exports,
                     export,
@@ -543,6 +543,7 @@ impl Compiler {
     /// Insert ambient exports for a module binding scope.
     fn insert_binding_ambient_exports(
         &self,
+        module_id: ModuleId,
         binding: &ModuleBinding,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
@@ -587,7 +588,10 @@ impl Compiler {
             // insert exports for each space if not already present
             for space in spaces.into_iter().flatten() {
                 if !exports.contains_key(&(space, key)) {
-                    exports.insert((space, key), Export::local(key, space, symbol_id));
+                    exports.insert(
+                        (space, key),
+                        Export::local(module_id, key, space, symbol_id),
+                    );
                 }
             }
         }
@@ -631,7 +635,10 @@ impl Compiler {
                     // insert exports for each space if not already present
                     for space in spaces.into_iter().flatten() {
                         if !exports.contains_key(&(space, *key)) {
-                            exports.insert((space, *key), Export::local(*key, space, *symbol_id));
+                            exports.insert(
+                                (space, *key),
+                                Export::local(module_id, *key, space, *symbol_id),
+                            );
                         }
                     }
                 }
@@ -658,7 +665,6 @@ impl Compiler {
         self.insert_symbol_exports(
             module.id,
             dir,
-            tree,
             symbols,
             &mut exports,
             export_assignment_item,
@@ -678,7 +684,7 @@ impl Compiler {
 
         // add ambient exports when a builtin lib is global
         if self.module_is_ambient_lib(module) {
-            self.insert_ambient_exports(dir, symbols, &mut exports);
+            self.insert_ambient_exports(module.id, dir, symbols, &mut exports);
         }
     }
 
@@ -736,7 +742,6 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         dir: &ModuleDir,
-        tree: &NodeTree,
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
@@ -790,10 +795,9 @@ impl Compiler {
             };
 
             // insert the export entry
-            let export = Export::local(key, symbol.space, symbol_id);
+            let export = Export::local(module_id, key, symbol.space, symbol_id);
             self.insert_exports(
                 module_id,
-                tree,
                 symbols,
                 exports,
                 export,
@@ -886,10 +890,10 @@ impl Compiler {
                     // emit default value exports
                     if *mode == DependencyMode::Default {
                         let key = StaticKey::Name(default_name);
-                        let export = Export::local(key, SymbolSpace::Value, dir.default_symbol);
+                        let export =
+                            Export::local(module_id, key, SymbolSpace::Value, dir.default_symbol);
                         self.insert_exports(
                             module_id,
-                            tree,
                             symbols,
                             exports,
                             export,
@@ -916,7 +920,6 @@ impl Compiler {
                 let export = Export::reexport(key, *space, item_id);
                 self.insert_exports(
                     module_id,
-                    tree,
                     symbols,
                     exports,
                     export,
@@ -943,89 +946,13 @@ impl Compiler {
             }
         }
 
-        // skip if a default target is already resolved
+        // resolve the default export target from value expressions
         if symbols
             .get_symbol(dir.default_symbol)
             .target_symbol
-            .is_some()
+            .is_none()
         {
-            return;
-        }
-
-        // resolve the default export target from value expressions
-        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            // skip nonexport statements
-            if self.export_statement_parent(tree, item_id).is_none() {
-                continue;
-            }
-
-            // skip nondefault value exports
-            let DependencyItem::Value { mode, value } = tree.get(item_id) else {
-                continue;
-            };
-            if *mode != DependencyMode::Default {
-                continue;
-            }
-
-            // resolve the target symbol for the default export
-            let value_expression = tree.get(*value);
-            if let Some(target_symbol) = value_expression.target_symbol() {
-                symbols
-                    .get_symbol_mut(dir.default_symbol)
-                    .resolve_to(target_symbol);
-                break;
-            }
-        }
-    }
-
-    /// Finalize export targets for module bindings after dependency resolution.
-    fn finalize_module_binding_exports(
-        &self,
-        dir: &ModuleDir,
-        tree: &NodeTree,
-        symbols: &mut SymbolTable,
-    ) {
-        // snapshot module bindings for export resolution
-        let bindings = dir.module_bindings.read().clone();
-
-        // finalize exports for each module binding
-        for binding in bindings {
-            // resolve export assignment target symbols
-            if let Some(binding_exports) = dir
-                .module_binding_exports
-                .read()
-                .get(&binding.declaration.into_any())
-                && let Some(item_id) = binding_exports.export_assignment
-            {
-                let DependencyItem::Value { mode, value } = tree.get(item_id) else {
-                    continue;
-                };
-                if *mode == DependencyMode::Namespace {
-                    let value_expression = tree.get(*value);
-                    if let Some(target_symbol) = value_expression.target_symbol() {
-                        symbols
-                            .get_symbol_mut(binding.export_assignment_symbol)
-                            .resolve_to(target_symbol);
-                    }
-                }
-            }
-
-            // skip if a default target is already resolved
-            if symbols
-                .get_symbol(binding.default_symbol)
-                .target_symbol
-                .is_some()
-            {
-                continue;
-            }
-
-            // resolve the default export target from value expressions
             for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-                // skip items outside the binding scope
-                if !self.dependency_item_in_scope(tree, item_id, binding.scope) {
-                    continue;
-                }
-
                 // skip nonexport statements
                 if self.export_statement_parent(tree, item_id).is_none() {
                     continue;
@@ -1043,11 +970,117 @@ impl Compiler {
                 let value_expression = tree.get(*value);
                 if let Some(target_symbol) = value_expression.target_symbol() {
                     symbols
-                        .get_symbol_mut(binding.default_symbol)
+                        .get_symbol_mut(dir.default_symbol)
                         .resolve_to(target_symbol);
                     break;
                 }
             }
+        }
+
+        // resolve export targets for reexports
+        let mut exports = dir.exported_symbols.write();
+        self.finalize_export_targets(tree, &mut exports);
+    }
+
+    /// Finalize export targets for module bindings after dependency resolution.
+    fn finalize_module_binding_exports(
+        &self,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+    ) {
+        // snapshot module bindings for export resolution
+        let bindings = dir.module_bindings.read().clone();
+
+        // load the binding exports table for updates
+        let mut binding_exports = dir.module_binding_exports.write();
+
+        // finalize exports for each module binding
+        for binding in bindings {
+            let binding_key = binding.declaration.into_any();
+
+            // resolve export assignment target symbols
+            if let Some(item_id) = binding_exports
+                .get(&binding_key)
+                .and_then(|binding_exports| binding_exports.export_assignment)
+            {
+                let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                    continue;
+                };
+                if *mode == DependencyMode::Namespace {
+                    let value_expression = tree.get(*value);
+                    if let Some(target_symbol) = value_expression.target_symbol() {
+                        symbols
+                            .get_symbol_mut(binding.export_assignment_symbol)
+                            .resolve_to(target_symbol);
+                    }
+                }
+            }
+
+            // resolve the default export target from value expressions
+            if symbols
+                .get_symbol(binding.default_symbol)
+                .target_symbol
+                .is_none()
+            {
+                for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+                    // skip items outside the binding scope
+                    if !self.dependency_item_in_scope(tree, item_id, binding.scope) {
+                        continue;
+                    }
+
+                    // skip nonexport statements
+                    if self.export_statement_parent(tree, item_id).is_none() {
+                        continue;
+                    }
+
+                    // skip nondefault value exports
+                    let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                        continue;
+                    };
+                    if *mode != DependencyMode::Default {
+                        continue;
+                    }
+
+                    // resolve the target symbol for the default export
+                    let value_expression = tree.get(*value);
+                    if let Some(target_symbol) = value_expression.target_symbol() {
+                        symbols
+                            .get_symbol_mut(binding.default_symbol)
+                            .resolve_to(target_symbol);
+                        break;
+                    }
+                }
+            }
+
+            // resolve export targets for reexports
+            if let Some(binding_exports) = binding_exports.get_mut(&binding_key) {
+                self.finalize_export_targets(tree, &mut binding_exports.exports);
+            }
+        }
+    }
+
+    /// Resolve reexport targets after dependency resolution.
+    fn finalize_export_targets(
+        &self,
+        tree: &NodeTree,
+        exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
+    ) {
+        // update unresolved reexports with resolved targets
+        for export in exports.values_mut() {
+            if export.target.resolved().is_some() {
+                continue;
+            }
+            if export.kind != ExportKind::ReExport {
+                continue;
+            }
+            let Some(item_id) = export.item else {
+                continue;
+            };
+            let Some(target_symbol) = tree.get(item_id).target_symbol() else {
+                continue;
+            };
+            export.resolve_target(target_symbol);
         }
     }
 
@@ -1112,6 +1145,7 @@ impl Compiler {
     /// Insert ambient exports without overriding explicit export entries.
     fn insert_ambient_exports(
         &self,
+        module_id: ModuleId,
         dir: &ModuleDir,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
@@ -1150,7 +1184,10 @@ impl Compiler {
                 if exports.contains_key(&(space, key)) {
                     return;
                 }
-                exports.insert((space, key), Export::local(key, space, symbol_id));
+                exports.insert(
+                    (space, key),
+                    Export::local(module_id, key, space, symbol_id),
+                );
             };
 
             // expand type value entries into type and value exports
@@ -1204,7 +1241,6 @@ impl Compiler {
     fn insert_exports(
         &self,
         module_id: ModuleId,
-        tree: &NodeTree,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export: Export,
@@ -1218,21 +1254,13 @@ impl Compiler {
         if export.space == SymbolSpace::TypeValue {
             let mut type_export = export.clone();
             type_export.space = SymbolSpace::Type;
-            self.insert_exports(module_id, tree, symbols, exports, type_export, node);
+            self.insert_exports(module_id, symbols, exports, type_export, node);
 
             let mut value_export = export;
             value_export.space = SymbolSpace::Value;
-            self.insert_exports(module_id, tree, symbols, exports, value_export, node);
+            self.insert_exports(module_id, symbols, exports, value_export, node);
             return;
         }
-
-        // map an export entry to its target symbol
-        let export_target = |export: &Export| -> Option<GlobalSymbolId> {
-            match export.kind {
-                ExportKind::Local => export.symbol.map(|symbol| symbol.into_global(module_id)),
-                ExportKind::ReExport => export.item.and_then(|item| tree.get(item).target_symbol()),
-            }
-        };
 
         // insert when the export slot is empty
         let Some(existing) = exports.get(&(space, key)) else {
@@ -1241,33 +1269,27 @@ impl Compiler {
         };
 
         // resolve targets for conflict checks
-        let existing_target = export_target(existing);
-        let next_target = export_target(&export);
+        let existing_target = existing.target.resolved();
+        let next_target = export.target.resolved();
 
-        // skip unresolved reexports when a local export exists
-        if existing.kind == ExportKind::Local
-            && export.kind == ExportKind::ReExport
-            && next_target.is_none()
-        {
+        // keep resolved exports when the new target is unresolved
+        if existing_target.is_some() && next_target.is_none() {
             return;
         }
-        if existing.kind == ExportKind::ReExport
-            && export.kind == ExportKind::Local
-            && existing_target.is_none()
-        {
+
+        // replace unresolved exports with resolved ones
+        if existing_target.is_none() && next_target.is_some() {
             exports.insert((space, key), export);
             return;
         }
-        if existing.kind == ExportKind::ReExport
-            && export.kind == ExportKind::ReExport
-            && existing_target.is_none()
-            && next_target.is_none()
-        {
+
+        // keep the first unresolved export
+        if existing_target.is_none() && next_target.is_none() {
             return;
         }
 
         // skip duplicates that resolve to the same target
-        if existing_target.is_some() && existing_target == next_target {
+        if existing_target == next_target {
             return;
         }
 
