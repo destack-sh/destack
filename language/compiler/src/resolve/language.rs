@@ -383,7 +383,8 @@ impl Compiler {
     }
 
     /// Find the type-space counterpart of a symbol if one exists.
-    /// FUGU #Cleanup: remove resolve_well_known_type_symbol in favor of symbol-space-keyed well known symbols
+    /// FUGU #Cleanup: remove resolve_well_known_type_symbol in favor of symbol-space-keyed well known symbols (?)
+    ///  (do we even need both..? for TS compatibility I suppose?)
     fn resolve_well_known_type_symbol(
         &self,
         profile: ProfileId,

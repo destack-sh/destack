@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{BindError, Compiler, ResolveError, ResolveResult, TaskResultCollector};
 use destack_builtin::builtin_lib;
 use destack_dir::{
@@ -359,6 +361,7 @@ impl Compiler {
             )
             .collect();
 
+        let mut seen_exports = HashSet::new();
         for symbol_id in symbol_ids {
             // read symbol metadata
             let symbol = symbols.get_symbol(symbol_id);
@@ -391,16 +394,26 @@ impl Compiler {
                 }
             };
 
-            // insert the export entry
-            let export = Export::local(key, symbol.space, symbol_id);
-            self.insert_exports(
-                module_id,
-                tree,
-                symbols,
-                exports,
-                export,
-                symbol.primary_declaration,
-            );
+            // insert export entries for each symbol space
+            let spaces = match symbol.space {
+                SymbolSpace::TypeValue => [Some(SymbolSpace::Type), Some(SymbolSpace::Value)],
+                SymbolSpace::Type | SymbolSpace::Value => [Some(symbol.space), None],
+                SymbolSpace::Label => [None, None],
+            };
+            for space in spaces.into_iter().flatten() {
+                if !seen_exports.insert((space, key)) {
+                    continue;
+                }
+                let export = Export::local(key, space, symbol_id);
+                self.insert_exports(
+                    module_id,
+                    tree,
+                    symbols,
+                    exports,
+                    export,
+                    symbol.primary_declaration,
+                );
+            }
 
             // align the binding default symbol with default export declarations
             if export_mode == DependencyMode::Default
@@ -1227,9 +1240,33 @@ impl Compiler {
             return;
         };
 
-        // skip duplicates that resolve to the same target
+        // resolve targets for conflict checks
         let existing_target = export_target(existing);
         let next_target = export_target(&export);
+
+        // skip unresolved reexports when a local export exists
+        if existing.kind == ExportKind::Local
+            && export.kind == ExportKind::ReExport
+            && next_target.is_none()
+        {
+            return;
+        }
+        if existing.kind == ExportKind::ReExport
+            && export.kind == ExportKind::Local
+            && existing_target.is_none()
+        {
+            exports.insert((space, key), export);
+            return;
+        }
+        if existing.kind == ExportKind::ReExport
+            && export.kind == ExportKind::ReExport
+            && existing_target.is_none()
+            && next_target.is_none()
+        {
+            return;
+        }
+
+        // skip duplicates that resolve to the same target
         if existing_target.is_some() && existing_target == next_target {
             return;
         }

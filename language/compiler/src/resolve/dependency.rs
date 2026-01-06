@@ -1758,7 +1758,6 @@ impl Compiler {
         module: ModuleId,
         name: Option<StaticKey>,
     ) {
-        // load symbol info from both modules
         let left_module = self.program.modules.get(left.module_id);
         let left_module = left_module.read();
         let left_symbols = left_module.dir_base().symbols.read();
