@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -119,6 +120,8 @@ pub struct Builtins {
 
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
     pub lib_module_by_name: DashMap<String, Vec<ModuleId>>,
+    /// Lib load markers by name.
+    pub lib_loading_by_name: DashMap<String, ()>,
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,
     /// Ambient lib modules per profile.
@@ -234,6 +237,7 @@ impl Builtins {
             core_module_by_item: language_symbol_modules,
             prelude_module_id,
             lib_module_by_name: DashMap::new(),
+            lib_loading_by_name: DashMap::new(),
             lib_name_by_module: DashMap::new(),
             ambient_libs_by_profile: DashMap::new(),
             declared_lib_symbols_by_profile: DashMap::new(),
@@ -258,21 +262,56 @@ impl Builtins {
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
     ) -> Option<Vec<ModuleId>> {
-        // check cache first
-        if let Some(cached) = self.lib_module_by_name.get(name) {
-            if let Some(lib) = builtin_lib(name) {
-                for module_id in cached.iter() {
-                    self.lib_name_by_module.insert(*module_id, lib.name);
-                }
-            }
-            return Some(cached.clone());
+        // create a local cycle guard
+        let mut loading = HashSet::new();
+
+        // load the lib with cycle tracking
+        self.load_lib_inner(name, files, modules, &mut loading)
+    }
+
+    /// Load a lib module set with cycle tracking.
+    fn load_lib_inner(
+        &self,
+        name: &str,
+        files: Arc<FileRegistry>,
+        modules: Arc<ModuleRegistry>,
+        loading: &mut HashSet<String>,
+    ) -> Option<Vec<ModuleId>> {
+        // return cached modules when available
+        if let Some(cached) = self.cached_lib_modules(name) {
+            return Some(cached);
         }
 
+        // skip recursive cycles in the current load chain
+        if loading.contains(name) {
+            return Some(Vec::new());
+        }
+
+        // load the lib metadata
         let lib = builtin_lib(name)?;
+
+        // wait if another thread is already loading this lib
+        if self
+            .lib_loading_by_name
+            .insert(name.to_string(), ())
+            .is_some()
+        {
+            return self.wait_for_lib_modules(name);
+        }
+
+        // track this lib for the current load chain
+        loading.insert(name.to_string());
 
         // recursively load dependencies
         for &dependency in lib.dependencies {
-            self.load_lib(dependency, files.clone(), modules.clone())?;
+            if self
+                .load_lib_inner(dependency, files.clone(), modules.clone(), loading)
+                .is_none()
+            {
+                self.lib_loading_by_name.remove(name);
+                loading.remove(name);
+                return None;
+            }
         }
 
         // register lib sources
@@ -283,6 +322,7 @@ impl Builtins {
             module_ids.push(module_id);
         }
 
+        // register module to lib name mappings
         for module_id in &module_ids {
             self.lib_name_by_module.insert(*module_id, lib.name);
         }
@@ -291,7 +331,44 @@ impl Builtins {
         self.lib_module_by_name
             .insert(name.to_string(), module_ids.clone());
 
+        // clear load markers
+        self.lib_loading_by_name.remove(name);
+        loading.remove(name);
+
         Some(module_ids)
+    }
+
+    /// Clone cached module ids and refresh lib name mappings.
+    fn cached_lib_modules(&self, name: &str) -> Option<Vec<ModuleId>> {
+        // read cached module ids
+        let cached = self.lib_module_by_name.get(name)?;
+
+        // refresh module to lib name mappings when possible
+        if let Some(lib) = builtin_lib(name) {
+            for module_id in cached.iter() {
+                self.lib_name_by_module.insert(*module_id, lib.name);
+            }
+        }
+
+        Some(cached.clone())
+    }
+
+    /// Wait for a lib that is already loading elsewhere.
+    fn wait_for_lib_modules(&self, name: &str) -> Option<Vec<ModuleId>> {
+        loop {
+            // return cached modules when they appear
+            if let Some(cached) = self.cached_lib_modules(name) {
+                return Some(cached);
+            }
+
+            // stop waiting if the load marker is gone
+            if !self.lib_loading_by_name.contains_key(name) {
+                return None;
+            }
+
+            // yield to the loader thread
+            std::thread::yield_now();
+        }
     }
 
     /// Set the ambient lib modules for a profile.
