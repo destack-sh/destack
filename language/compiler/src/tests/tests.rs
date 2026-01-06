@@ -15,15 +15,16 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_machine::{Interpreter, MachineOptions, Value};
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
-    DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType, MemoryFileSystem,
-    ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri, print_diagnostics, print_diff,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType,
+    MemoryFileSystem, ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri,
+    print_diagnostics, print_diff,
 };
 use destack_workspace::{Module, ProfileId, Program, Session, TargetId};
 use parking_lot::RwLock;
 
 use crate::{
     AnalyzeTask, BindTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask,
-    LintTask, LowerTask, ResolveTask, Task, default_workers,
+    LintTask, LowerTask, ResolveTask, Task, TaskPhase, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -586,9 +587,73 @@ impl TestProgram {
         }
     }
 
+    /// Check that no diagnostics with the given prefix are present.
+    pub fn check_no_diagnostics_with_prefix(&self, prefix: &str) {
+        let diagnostics = self.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let has_prefix = diagnostic_vec.iter().any(|d| d.code.starts_with(prefix));
+        if has_prefix {
+            // print the diagnostics
+            let matching = DiagnosticCollection::from_diagnostics(
+                diagnostic_vec
+                    .iter()
+                    .filter(|d| d.code.starts_with(prefix))
+                    .cloned()
+                    .collect(),
+            );
+            let options = PrintOptions::new()
+                .with_line_width(self.program.formatter.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &matching, options);
+            panic!("unexpected diagnostics with prefix '{prefix}'");
+        }
+    }
+
+    /// Check that no diagnostics for the given phases are present.
+    pub fn check_no_diagnostics_for_phases(&self, phases: &[TaskPhase]) {
+        // build prefixes for both errors and warnings for each phase
+        let prefixes: Vec<String> = phases
+            .iter()
+            .flat_map(|phase| {
+                let letter = phase.letter();
+                [format!("E{letter}"), format!("W{letter}")]
+            })
+            .collect();
+
+        // check for any matching diagnostics
+        let diagnostics = self.program.diagnostics.collect();
+        let diagnostic_vec = diagnostics.iter();
+        let has_matching = diagnostic_vec.iter().any(|d| {
+            prefixes.iter().any(|prefix| d.code.starts_with(prefix))
+        });
+
+        if has_matching {
+            // print only the matching diagnostics
+            let matching_diagnostics = DiagnosticCollection::from_diagnostics(
+                diagnostic_vec
+                    .iter()
+                    .filter(|d| prefixes.iter().any(|prefix| d.code.starts_with(prefix)))
+                    .cloned()
+                    .collect(),
+            );
+            let options = PrintOptions::new()
+                .with_line_width(self.program.formatter.line_width as u32)
+                .with_module_count(self.program.modules.len());
+            print_diagnostics(&self.program.files, &matching_diagnostics, options);
+            let phase_names: Vec<&str> = phases.iter().map(|p| p.name()).collect();
+            panic!("unexpected diagnostics for phases: {phase_names:?}");
+        }
+    }
+
+    /// Check that no diagnostics up to (but not including) the given phase are present.
+    pub fn check_no_diagnostics_up_to_phase(&self, phase: TaskPhase) {
+        let phases: Vec<TaskPhase> = TaskPhase::all().take_while(|p| *p != phase).collect();
+        self.check_no_diagnostics_for_phases(&phases);
+    }
+
     /// Check that exactly the given diagnostics are present (by code).
     /// Panics if the actual diagnostics don't match.
-    pub fn check_diagnostics(&self, expected_codes: &[&str]) {
+    pub fn check_has_diagnostics(&self, expected_codes: &[&str]) {
         let diagnostics = self.program.diagnostics.collect();
         let diagnostic_vec = diagnostics.iter();
         let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();

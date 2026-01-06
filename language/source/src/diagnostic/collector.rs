@@ -25,6 +25,11 @@ impl DiagnosticCollection {
         }
     }
 
+    /// Create a new diagnostic collection with the given diagnostics.
+    pub fn from_diagnostics(diagnostics: Vec<Diagnostic>) -> Self {
+        Self { diagnostics }
+    }
+
     /// Add a Diagnostic.
     pub fn insert(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
