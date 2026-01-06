@@ -383,8 +383,12 @@ impl Compiler {
     }
 
     /// Find the type-space counterpart of a symbol if one exists.
-    /// FUGU #Cleanup: remove resolve_well_known_type_symbol in favor of symbol-space-keyed well known symbols 
-    fn resolve_well_known_type_symbol(&self, profile: ProfileId, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
+    /// FUGU #Cleanup: remove resolve_well_known_type_symbol in favor of symbol-space-keyed well known symbols
+    fn resolve_well_known_type_symbol(
+        &self,
+        profile: ProfileId,
+        symbol_id: GlobalSymbolId,
+    ) -> GlobalSymbolId {
         let module = self.program.modules.get(symbol_id.module_id);
         let module = module.read();
         let Some(dir) = module.dir_maybe(profile) else {
@@ -438,7 +442,7 @@ mod tests {
     use destack_builtin::{LIBS, LanguageSymbol, STD_LIB};
     use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
 
-    use crate::{TestProgram, assert_string};
+    use crate::{TaskPhase, TestProgram, assert_string};
 
     /// Test that language item modules can be looked up correctly.
     #[test]
@@ -460,12 +464,12 @@ mod tests {
     #[test]
     fn test_resolve_builtin_lib_symbols() {
         for lib in LIBS {
-            eprintln!("resolving lib: {}", lib.name); // FUGU: remove this
             let test = TestProgram::memory_sequential_with_prelude_and_libs()
                 .with_profile_libs(&[lib.name]);
             test.resolve_builtins();
             test.resolve_libs();
             test.compile();
+            test.check_no_diagnostics_up_to_including_phase(TaskPhase::Resolve);
 
             let profile = test.default_profile_id_for_root();
             for &symbol in lib.declared_symbols {

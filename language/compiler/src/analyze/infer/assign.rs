@@ -3240,7 +3240,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         let module_id = test.add_module("test.ds", r#"let x: number = "hello";"#);
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA004"]);
+        test.check_has_diagnostics(&["EA004"]);
     }
 
     /// Excess properties on object literals should error.
@@ -3250,7 +3250,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         let module_id = test.add_module("test.ds", "let x: { a: number } = { a: 1, b: 2 };");
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA036"]);
+        test.check_has_diagnostics(&["EA036"]);
     }
 
     /// Excess property diagnostics should anchor to the object literal span.
@@ -3332,7 +3332,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         let module_id = test.add_module("test.ds", "let x: string = true;");
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA004"]);
+        test.check_has_diagnostics(&["EA004"]);
     }
 
     /// Anything should be assignable to any.
@@ -3378,7 +3378,7 @@ let result = greet(42);
         );
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA004"]);
+        test.check_has_diagnostics(&["EA004"]);
     }
 
     /// Function with declared return type should have that type.
@@ -3456,7 +3456,7 @@ let x: number = getNumber();
         let module_id = test.add_module("test.ds", "let x: int8 = 128;");
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA004"]);
+        test.check_has_diagnostics(&["EA004"]);
     }
 
     /// Value within uint8 range should be valid.
@@ -3476,7 +3476,7 @@ let x: number = getNumber();
         let module_id = test.add_module("test.ds", "let x: uint8 = 256;");
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA004"]);
+        test.check_has_diagnostics(&["EA004"]);
     }
 
     /// Negative value should not be assignable to unsigned type.
@@ -3487,7 +3487,7 @@ let x: number = getNumber();
         let module_id = test.add_module("test.ds", "let x: uint = -1;");
         test.analyze_module(module_id);
         test.compile();
-        test.check_diagnostics(&["EA004"]);
+        test.check_has_diagnostics(&["EA004"]);
     }
 
     /// Integer literal 42 is assignable to int32.

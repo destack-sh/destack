@@ -623,9 +623,9 @@ impl TestProgram {
         // check for any matching diagnostics
         let diagnostics = self.program.diagnostics.collect();
         let diagnostic_vec = diagnostics.iter();
-        let has_matching = diagnostic_vec.iter().any(|d| {
-            prefixes.iter().any(|prefix| d.code.starts_with(prefix))
-        });
+        let has_matching = diagnostic_vec
+            .iter()
+            .any(|d| prefixes.iter().any(|prefix| d.code.starts_with(prefix)));
 
         if has_matching {
             // print only the matching diagnostics
@@ -646,8 +646,16 @@ impl TestProgram {
     }
 
     /// Check that no diagnostics up to (but not including) the given phase are present.
-    pub fn check_no_diagnostics_up_to_phase(&self, phase: TaskPhase) {
+    pub fn check_no_diagnostics_up_to_excluding_phase(&self, phase: TaskPhase) {
         let phases: Vec<TaskPhase> = TaskPhase::all().take_while(|p| *p != phase).collect();
+        self.check_no_diagnostics_for_phases(&phases);
+    }
+
+    /// Check that no diagnostics up to and including the given phase are present.
+    pub fn check_no_diagnostics_up_to_including_phase(&self, phase: TaskPhase) {
+        let phases: Vec<TaskPhase> = TaskPhase::all()
+            .take_while(|p| p.code() <= phase.code())
+            .collect();
         self.check_no_diagnostics_for_phases(&phases);
     }
 
