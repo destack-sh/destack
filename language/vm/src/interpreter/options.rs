@@ -142,50 +142,39 @@ impl Default for MachineOptions {
 impl MachineOptions {
     /// Create options with no step limit for trusted code.
     pub fn unbounded() -> Self {
-        // start from defaults
-        let mut options = Self::default();
-
-        // remove the instruction limit
-        options.max_instructions = None;
-
-        // return configured options
-        options
+        // use default options without instruction limits
+        Self {
+            max_instructions: None,
+            ..Self::default()
+        }
     }
 
     /// Create options for testing with smaller limits.
     pub fn test() -> Self {
-        // start from defaults
-        let mut options = Self::default();
-
-        // tighten resource limits
-        options.max_stack_depth = 100;
-        options.max_heap_cells = 1000;
-        options.max_instructions = Some(100_000);
-
-        // enable strict runtime checks
-        options.execution_mode = ExecutionMode::Debug;
-        options.borrow_mode = BorrowCheckMode::Strict;
-        options.enforce_reference_kinds = true;
-        options.enforce_reference_mutability = true;
-
-        // return configured options
-        options
+        // use strict settings with tighter resource limits
+        Self {
+            execution_mode: ExecutionMode::Debug,
+            borrow_mode: BorrowCheckMode::Strict,
+            max_stack_depth: 100,
+            max_heap_cells: 1000,
+            max_instructions: Some(100_000),
+            enforce_reference_kinds: true,
+            enforce_reference_mutability: true,
+            ..Self::default()
+        }
     }
 
     /// Create options for debug execution.
     pub fn debug() -> Self {
-        // start from defaults
-        let mut options = Self::default();
-
-        // enable debug behaviors
-        options.execution_mode = ExecutionMode::Debug;
-        options.borrow_mode = BorrowCheckMode::Strict;
-        options.external_calls = ExternalCallPolicy::Protected;
-        options.enforce_reference_kinds = true;
-        options.enforce_reference_mutability = true;
-
-        // return configured options
-        options
+        // use strict runtime checks with protected externals
+        Self {
+            execution_mode: ExecutionMode::Debug,
+            borrow_mode: BorrowCheckMode::Strict,
+            external_calls: ExternalCallPolicy::Protected,
+            enforce_reference_kinds: true,
+            enforce_reference_mutability: true,
+            ..Self::default()
+        }
     }
 
     /// Create options for comptime execution.

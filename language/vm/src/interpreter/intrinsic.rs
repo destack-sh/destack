@@ -1292,15 +1292,30 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                if let Some(cell) = self.managed_heap.get_mut(handle) {
-                    while cell.slots.len() <= slot_index {
-                        cell.slots.push(Value::VOID);
+                // resolve the managed cell
+                let error = match self.managed_heap.get_mut(handle) {
+                    Some(cell) => {
+                        // ensure the slot exists
+                        let required_len = slot_index + 1;
+                        if cell.slots.len() < required_len {
+                            cell.slots.resize(required_len, Value::VOID);
+                        }
+
+                        // write the slot value
+                        if let Some(slot) = cell.slots.get_mut(slot_index) {
+                            *slot = value;
+                            return Ok(());
+                        }
+
+                        Error::InvalidFieldAccess {
+                            index: offset as u32,
+                            field_count: cell.slots.len(),
+                        }
                     }
-                    cell.slots[slot_index] = value;
-                    Ok(())
-                } else {
-                    Err(self.make_error(Error::InvalidHeapHandle))
-                }
+                    None => return Err(self.make_error(Error::InvalidHeapHandle)),
+                };
+
+                Err(self.make_error(error))
             }
             ValueTag::RawPointer => {
                 let raw_ptr = ptr.as_raw_pointer().unwrap();
@@ -1313,15 +1328,30 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                if let Some(cell) = self.raw_heap.get_mut(raw_ptr) {
-                    while cell.slots.len() <= slot_index {
-                        cell.slots.push(Value::VOID);
+                // resolve the raw cell
+                let error = match self.raw_heap.get_mut(raw_ptr) {
+                    Some(cell) => {
+                        // ensure the slot exists
+                        let required_len = slot_index + 1;
+                        if cell.slots.len() < required_len {
+                            cell.slots.resize(required_len, Value::VOID);
+                        }
+
+                        // write the slot value
+                        if let Some(slot) = cell.slots.get_mut(slot_index) {
+                            *slot = value;
+                            return Ok(());
+                        }
+
+                        Error::InvalidFieldAccess {
+                            index: offset as u32,
+                            field_count: cell.slots.len(),
+                        }
                     }
-                    cell.slots[slot_index] = value;
-                    Ok(())
-                } else {
-                    Err(self.make_error(Error::InvalidHeapHandle))
-                }
+                    None => return Err(self.make_error(Error::InvalidHeapHandle)),
+                };
+
+                Err(self.make_error(error))
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
@@ -1331,19 +1361,34 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                let frame = match self.call_stack.get_mut(sp.frame_idx) {
-                    Some(frame) => frame,
+                let error = match self.call_stack.get_mut(sp.frame_idx) {
+                    Some(frame) => {
+                        let cell = match frame.get_stack_cell_mut(sp.slot) {
+                            Some(cell) => cell,
+                            None => return Err(self.make_error(Error::InvalidHeapHandle)),
+                        };
+
+                        // ensure the slot exists
+                        let required_len = slot_index + 1;
+                        if cell.slots.len() < required_len {
+                            cell.slots.resize(required_len, Value::VOID);
+                        }
+
+                        // write the slot value
+                        if let Some(slot) = cell.slots.get_mut(slot_index) {
+                            *slot = value;
+                            return Ok(());
+                        }
+
+                        Error::InvalidFieldAccess {
+                            index: offset as u32,
+                            field_count: cell.slots.len(),
+                        }
+                    }
                     None => return Err(self.make_error(Error::InvalidHeapHandle)),
                 };
-                let cell = match frame.get_stack_cell_mut(sp.slot) {
-                    Some(cell) => cell,
-                    None => return Err(self.make_error(Error::InvalidHeapHandle)),
-                };
-                while cell.slots.len() <= slot_index {
-                    cell.slots.push(Value::VOID);
-                }
-                cell.slots[slot_index] = value;
-                Ok(())
+
+                Err(self.make_error(error))
             }
             _ => Err(self.make_error(Error::InvalidPointerType {
                 actual: format!("{ptr:?}"),

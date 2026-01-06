@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
-use super::value::{HeapHandle, RawPointer, Value};
+use super::slot::{HeapCell, SlotStorage};
+use super::value::{HeapHandle, Value};
 
 /// A managed heap for interpreter allocations (GC-tracked).
 ///
@@ -16,42 +15,6 @@ pub struct ManagedHeap {
     allocated_cells: usize,
 }
 
-/// A raw heap for manual memory management (not GC-tracked).
-#[derive(Debug, Default)]
-pub struct RawHeap {
-    /// Allocated cells, indexed by pointer ID.
-    cells: HashMap<u64, HeapCell>,
-    /// Next pointer ID to allocate.
-    next_id: u64,
-}
-
-/// A cell on the heap (unit of allocation).
-#[derive(Debug, Default)]
-pub struct HeapCell {
-    /// The cell's slots (for structs/tuples) or elements (for arrays).
-    pub slots: Vec<Value>,
-    /// Whether this cell has been marked (for GC).
-    pub marked: bool,
-}
-
-impl HeapCell {
-    /// Create a new empty cell.
-    pub fn new() -> Self {
-        Self {
-            slots: Vec::new(),
-            marked: false,
-        }
-    }
-
-    /// Create a cell with the given number of slots (initialized to Void).
-    pub fn with_slots(count: usize) -> Self {
-        Self {
-            slots: vec![Value::VOID; count],
-            marked: false,
-        }
-    }
-}
-
 impl ManagedHeap {
     /// Create a new empty heap.
     pub fn new() -> Self {
@@ -65,24 +28,18 @@ impl ManagedHeap {
 
     /// Allocate a new cell and return its handle.
     pub fn allocate(&mut self) -> HeapHandle {
-        self.allocate_cell(HeapCell {
-            slots: Vec::new(),
-            marked: false,
-        })
+        self.allocate_cell(HeapCell::new())
     }
 
     /// Allocate a cell with a given number of slots (initialized to Void).
     pub fn allocate_with_slots(&mut self, slot_count: usize) -> HeapHandle {
-        self.allocate_cell(HeapCell {
-            slots: vec![Value::VOID; slot_count],
-            marked: false,
-        })
+        self.allocate_cell(HeapCell::with_slots(slot_count))
     }
 
     /// Allocate a cell with the given slot values.
     pub fn allocate_with_values(&mut self, slots: Vec<Value>) -> HeapHandle {
         self.allocate_cell(HeapCell {
-            slots,
+            slots: SlotStorage::from_values(slots),
             marked: false,
         })
     }
@@ -123,11 +80,12 @@ impl ManagedHeap {
     #[inline]
     pub fn set_slot(&mut self, handle: HeapHandle, index: usize, value: Value) -> bool {
         if let Some(cell) = self.get_mut(handle)
-            && index < cell.slots.len()
+            && let Some(slot) = cell.slots.get_mut(index)
         {
-            cell.slots[index] = value;
+            *slot = value;
             return true;
         }
+
         false
     }
 
@@ -208,75 +166,5 @@ impl ManagedHeap {
         if let Some(handle) = value.as_heap_handle() {
             worklist.push(handle);
         }
-    }
-}
-
-impl RawHeap {
-    /// Create a new empty raw heap.
-    pub fn new() -> Self {
-        Self {
-            cells: HashMap::new(),
-            next_id: 1, // (start at 1 so 0 can be null)
-        }
-    }
-
-    /// Allocate a new cell and return its pointer.
-    pub fn allocate(&mut self) -> RawPointer {
-        self.allocate_cell(HeapCell {
-            slots: Vec::new(),
-            marked: false,
-        })
-    }
-
-    /// Allocate a cell with a given number of slots (initialized to Void).
-    pub fn allocate_with_slots(&mut self, slot_count: usize) -> RawPointer {
-        self.allocate_cell(HeapCell {
-            slots: vec![Value::VOID; slot_count],
-            marked: false,
-        })
-    }
-
-    /// Internal: allocate a cell with a new ID.
-    fn allocate_cell(&mut self, cell: HeapCell) -> RawPointer {
-        let id = self.next_id;
-        self.next_id += 1;
-        self.cells.insert(id, cell);
-        RawPointer::new(id)
-    }
-
-    /// Get a cell by pointer.
-    #[inline]
-    pub fn get(&self, pointer: RawPointer) -> Option<&HeapCell> {
-        self.cells.get(&pointer.id())
-    }
-
-    /// Get a mutable reference to a cell.
-    #[inline]
-    pub fn get_mut(&mut self, pointer: RawPointer) -> Option<&mut HeapCell> {
-        self.cells.get_mut(&pointer.id())
-    }
-
-    /// Free a cell by pointer. Returns true if the cell existed.
-    #[inline]
-    pub fn free(&mut self, pointer: RawPointer) -> bool {
-        self.cells.remove(&pointer.id()).is_some()
-    }
-
-    /// Get the number of allocated cells.
-    #[inline]
-    pub fn cell_count(&self) -> usize {
-        self.cells.len()
-    }
-
-    /// Check if the heap is empty.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.cells.is_empty()
-    }
-
-    /// Clear all allocations.
-    #[inline]
-    pub fn clear(&mut self) {
-        self.cells.clear();
     }
 }
