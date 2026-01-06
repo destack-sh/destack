@@ -88,11 +88,9 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
     /// Walk the DIR tree roots.
     fn run(&mut self) {
-        // capture roots and tree references
         let roots = self.ctx.roots.clone();
         let tree = self.ctx.tree;
 
-        // walk the module expression tree
         for root_id in roots {
             let expression = tree.get(root_id);
             self.visit_expression(tree, root_id, expression);

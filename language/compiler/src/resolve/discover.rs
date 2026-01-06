@@ -6,6 +6,8 @@ use destack_workspace::{Target, TargetId};
 use crate::Compiler;
 
 /// Describe a failure while discovering target modules.
+/// #Architecture: target discovery in resolve overlaps with but is different from module resolution.
+/// (While Resolver does full resolution, target discovery is for simpler TargetDiscovery / Targets.)
 #[derive(Debug, Clone)]
 pub(crate) enum TargetDiscoveryIssue {
     /// Missing package path for entry based discovery.
@@ -111,10 +113,9 @@ impl Compiler {
                 continue;
             };
 
-            // evaluate exclude patterns
+            // check exclude patterns
             let path_str = relative_path.to_string_lossy();
             let path_bytes = path_str.as_bytes();
-
             let is_excluded = exclude
                 .iter()
                 .any(|pattern| glob_matches(pattern.as_bytes(), 0, path_bytes, 0));
@@ -122,7 +123,7 @@ impl Compiler {
                 continue;
             }
 
-            // evaluate include patterns
+            // check include patterns
             let is_included = include.is_empty()
                 || include
                     .iter()
