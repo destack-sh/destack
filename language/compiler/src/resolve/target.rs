@@ -505,4 +505,153 @@ import { Assert, AssertionError } from 'assert/strict';
         test.resolve_module(main_module_id);
         test.compile_check_clean();
     }
+
+    /// Test circular imports between module bindings.
+    #[test]
+    fn test_module_binding_circular_imports() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "decl.d.ts",
+            r#"
+declare module "assert" {
+    import strict = require("assert/strict");
+    function assert(value: unknown): void;
+    namespace assert {
+        interface Assert {}
+        var Assert: { new(): Assert };
+        export { strict };
+    }
+    export = assert;
+}
+
+declare module "assert/strict" {
+    import { Assert } from "assert";
+    function strict(value: unknown): void;
+    namespace strict {
+        export { Assert };
+    }
+    export = strict;
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import './decl.d.ts';
+import { Assert } from 'assert';
+import { Assert as AssertStrict } from 'assert/strict';
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Test multiple namespace blocks that merge (like real node assert module).
+    #[test]
+    fn test_module_binding_multiple_namespace_blocks() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "decl.d.ts",
+            r#"
+declare module "assert" {
+    import strict = require("assert/strict");
+    function assert(value: unknown): void;
+    // first namespace block with the types
+    namespace assert {
+        interface Assert {}
+        var Assert: { new(): Assert };
+        function ok(value: unknown): void;
+    }
+    // second namespace block that re-exports
+    namespace assert {
+        export { strict };
+    }
+    export = assert;
+}
+
+declare module "assert/strict" {
+    import { Assert } from "assert";
+    export { Assert };
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import './decl.d.ts';
+import { Assert, ok } from 'assert';
+import { Assert as AssertStrict } from 'assert/strict';
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Regression test for exact node assert structure with interface+var Assert.
+    #[test]
+    fn test_module_binding_node_assert_pattern() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "decl.d.ts",
+            r#"
+declare module "assert" {
+    import strict = require("assert/strict");
+    function assert(value: unknown, message?: string): asserts value;
+    const kOptions: unique symbol;
+    namespace assert {
+        type AssertMethodNames = "ok" | "fail";
+        interface AssertOptions {
+            strict?: boolean | undefined;
+        }
+        interface Assert {
+            readonly [kOptions]: AssertOptions & { strict: false };
+        }
+        interface AssertStrict {
+            readonly [kOptions]: AssertOptions & { strict: true };
+        }
+        var Assert: {
+            new(options?: AssertOptions & { strict?: true }): AssertStrict;
+            new(options: AssertOptions): Assert;
+        };
+        class AssertionError {
+            constructor();
+        }
+        function ok(value: unknown, message?: string): asserts value;
+    }
+    namespace assert {
+        export { strict };
+    }
+    export = assert;
+}
+
+declare module "assert/strict" {
+    import {
+        Assert,
+        AssertionError,
+        AssertOptions,
+        AssertStrict,
+        AssertMethodNames,
+        ok,
+    } from "assert";
+    export {
+        Assert,
+        AssertionError,
+        AssertOptions,
+        AssertStrict,
+        AssertMethodNames,
+        ok,
+    };
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import './decl.d.ts';
+import { Assert, AssertionError } from 'assert/strict';
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
 }
