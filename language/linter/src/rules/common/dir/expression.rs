@@ -1,7 +1,7 @@
 use destack_base::{StringId, StringPool};
 use destack_dir as dir;
 
-use crate::{ConstValue, LintModuleDirContext};
+use crate::ConstValue;
 
 /// The base of a reference path.
 #[derive(Debug, Clone, PartialEq, Eq)]
