@@ -18,6 +18,15 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<()> {
+        // resolve libs if needed
+        if self.options.load_libs {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            if module.is_user() {
+                self.require_resolve_libs(profile_id)?;
+            }
+        }
+
         // load the module and skip when the profile dir already exists
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
@@ -78,7 +87,7 @@ impl Compiler {
         let module = module.read();
         let dir = module.dir(profile);
 
-        // resolve module dependency expressions 
+        // resolve module dependency expressions
         {
             let mut tree = dir.tree.write();
             let mut symbols = dir.symbols.write();

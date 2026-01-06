@@ -66,13 +66,6 @@ impl Compiler {
             }
             ResolveTask::ResolveModulePrepare { module, profile } => {
                 self.require_bind_module_validate(module)?;
-                if self.options.load_libs {
-                    let module_ref = self.program.modules.get(module);
-                    let module_ref = module_ref.read();
-                    if module_ref.is_user() {
-                        self.require_resolve_libs(profile)?;
-                    }
-                }
                 self.resolve_module_prepare(module, profile)?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {
