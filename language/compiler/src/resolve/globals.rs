@@ -552,7 +552,7 @@ impl Compiler {
     /// Collect module specifiers referenced by imports and reexports.
     pub(super) fn collect_dependency_targets(
         &self,
-     module_id: ModuleId,
+        module_id: ModuleId,
         tree: &NodeTree,
     ) -> Vec<(StringId, GlobalNodeIdAny)> {
         // collect import and reexport targets

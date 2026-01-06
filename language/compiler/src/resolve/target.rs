@@ -440,4 +440,69 @@ declare module "node:zlib" {
         test.resolve_module(main_module_id);
         test.compile_check_clean();
     }
+
+    /// Test that namespace members are exported from a module binding with `export = MergedClass`.
+    #[test]
+    fn test_module_binding_namespace_member_export() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "decl.d.ts",
+            r#"
+declare module "stream" {
+    class Stream {}
+    namespace Stream {
+        class Duplex {}
+        class Readable {}
+    }
+    export = Stream;
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import './decl.d.ts';
+import { Duplex, Readable, Stream } from 'stream';
+const d: Duplex = new Duplex();
+const r: Readable = new Readable();
+const s: Stream = new Stream();
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Test function+namespace merge exports namespace members.
+    #[test]
+    fn test_module_binding_function_namespace_merge() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "decl.d.ts",
+            r#"
+declare module "assert" {
+    function assert(value: unknown): void;
+    namespace assert {
+        interface Assert {}
+        var Assert: { new(): Assert };
+        class AssertionError {}
+    }
+    export = assert;
+}
+    
+declare module "assert/strict" {
+    import { Assert, AssertionError } from "assert";
+    export { Assert, AssertionError };
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import './decl.d.ts';
+import { Assert, AssertionError } from 'assert/strict';
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
 }

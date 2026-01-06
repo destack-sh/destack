@@ -536,6 +536,7 @@ impl Compiler {
     ) {
         // collect namespace symbols
         let scope = symbols.get_scope_by_id(binding.scope);
+
         let symbol_ids: Vec<LocalSymbolId> = scope
             .named_symbols
             .iter()
@@ -550,7 +551,7 @@ impl Compiler {
             .collect();
 
         // insert exports without overriding explicit entries
-        for symbol_id in symbol_ids {
+        for symbol_id in symbol_ids.iter().copied() {
             // skip synthetic export assignment symbol
             if symbol_id == binding.export_assignment_symbol {
                 continue;
@@ -562,32 +563,65 @@ impl Compiler {
                 continue;
             };
 
-            // expand type value entries into type and value exports
+            // determine export spaces (TypeValue expands to both Type and Value)
             let key = StaticKey::Name(name);
-            match symbol.space {
-                SymbolSpace::TypeValue => {
-                    if !exports.contains_key(&(SymbolSpace::Type, key)) {
-                        exports.insert(
-                            (SymbolSpace::Type, key),
-                            Export::local(key, SymbolSpace::Type, symbol_id),
-                        );
-                    }
-                    if !exports.contains_key(&(SymbolSpace::Value, key)) {
-                        exports.insert(
-                            (SymbolSpace::Value, key),
-                            Export::local(key, SymbolSpace::Value, symbol_id),
-                        );
+            let spaces: [Option<SymbolSpace>; 2] = match symbol.space {
+                SymbolSpace::TypeValue => [Some(SymbolSpace::Type), Some(SymbolSpace::Value)],
+                SymbolSpace::Type | SymbolSpace::Value => [Some(symbol.space), None],
+                SymbolSpace::Label => [None, None],
+            };
+
+            // insert exports for each space if not already present
+            for space in spaces.into_iter().flatten() {
+                if !exports.contains_key(&(space, key)) {
+                    exports.insert((space, key), Export::local(key, space, symbol_id));
+                }
+            }
+        }
+
+        // export members from namespace scopes
+        for symbol_id in symbol_ids.iter().copied() {
+            // collect namespace symbols, including those in merge groups
+            let mut namespace_symbols = Vec::new();
+            let symbol = symbols.get_symbol(symbol_id);
+            if symbol.kind == destack_dir::SymbolKind::Namespace {
+                namespace_symbols.push(symbol_id);
+            }
+
+            // check merge group for additional namespace symbols (e.g., function+namespace merge)
+            if let Some(merge_group) = symbol.merge_group {
+                for &group_symbol_id in symbols.merge_group_symbols(merge_group) {
+                    let group_symbol = symbols.get_symbol(group_symbol_id);
+                    if group_symbol.kind == destack_dir::SymbolKind::Namespace {
+                        namespace_symbols.push(group_symbol_id);
                     }
                 }
-                SymbolSpace::Type | SymbolSpace::Value => {
-                    if !exports.contains_key(&(symbol.space, key)) {
-                        exports.insert(
-                            (symbol.space, key),
-                            Export::local(key, symbol.space, symbol_id),
-                        );
+            }
+
+            // export members from each namespace scope
+            for ns_symbol_id in namespace_symbols {
+                let ns_symbol = symbols.get_symbol(ns_symbol_id);
+                let namespace_scope = symbols.get_scope_by_id(ns_symbol.scope.0);
+
+                for (key, symbol_id) in &namespace_scope.named_symbols {
+                    let symbol = symbols.get_symbol(*symbol_id);
+
+                    // determine export spaces (TypeValue expands to both Type and Value)
+                    let spaces: [Option<SymbolSpace>; 2] = match symbol.space {
+                        SymbolSpace::TypeValue => {
+                            [Some(SymbolSpace::Type), Some(SymbolSpace::Value)]
+                        }
+                        SymbolSpace::Type | SymbolSpace::Value => [Some(symbol.space), None],
+                        SymbolSpace::Label => [None, None],
+                    };
+
+                    // insert exports for each space if not already present
+                    for space in spaces.into_iter().flatten() {
+                        if !exports.contains_key(&(space, *key)) {
+                            exports.insert((space, *key), Export::local(*key, space, *symbol_id));
+                        }
                     }
                 }
-                SymbolSpace::Label => {}
             }
         }
     }
