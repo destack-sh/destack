@@ -93,6 +93,13 @@ pub enum ResolveError {
     #[error(code = "ER013", message = "missing builtin lib '{name}'")]
     MissingBuiltinLib { name: String },
 
+    /// Conflicting builtin lib versions.
+    #[error(
+        code = "ER015",
+        message = "conflicting builtin lib versions for '{base}': {libs}"
+    )]
+    ConflictingBuiltinLibVersions { base: String, libs: String },
+
     /// Invalid target configuration.
     #[error(code = "ER014", message = "invalid target config: {target}: {message}")]
     InvalidTargetConfig {

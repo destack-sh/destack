@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use destack_base::StringId;
 use destack_builtin::{LanguageSymbol, builtin_lib};
@@ -49,6 +49,9 @@ impl Compiler {
             }
             ordered_libs
         };
+
+        // reject conflicting builtin lib versions before loading modules
+        self.check_builtin_lib_version_conflicts(&ordered_libs)?;
 
         // load libs in order
         let loaded_modules = self.load_lib_modules_in_order(builtins, &ordered_libs)?;
@@ -436,6 +439,90 @@ impl Compiler {
             .map(|id| id.into_global(module.id))
             .unwrap_or(symbol_id)
     }
+
+    /// Reject multiple builtin lib versions in the same lib set.
+    fn check_builtin_lib_version_conflicts(&self, ordered_libs: &[String]) -> ResolveResult<()> {
+        let mut grouped = HashMap::<String, HashMap<String, HashSet<String>>>::new();
+
+        for name in ordered_libs {
+            let Some((base, version)) = builtin_lib_version_info(name) else {
+                continue;
+            };
+            grouped
+                .entry(base)
+                .or_default()
+                .entry(version)
+                .or_default()
+                .insert(name.clone());
+        }
+
+        let mut conflicts: Vec<(String, Vec<String>)> = grouped
+            .into_iter()
+            .filter_map(|(base, versions)| {
+                if versions.len() <= 1 {
+                    return None;
+                }
+                let mut names: Vec<String> = versions
+                    .into_iter()
+                    .flat_map(|(_, names)| names.into_iter())
+                    .collect();
+                names.sort();
+                names.dedup();
+                Some((base, names))
+            })
+            .collect();
+
+        conflicts.sort_by(|left, right| left.0.cmp(&right.0));
+        if let Some((base, libs)) = conflicts.first() {
+            return Err(ResolveError::ConflictingBuiltinLibVersions {
+                base: base.clone(),
+                libs: libs.join(", "),
+            });
+        }
+
+        Ok(())
+    }
+}
+
+/// Return the base name and version for a builtin lib, if versioned.
+fn builtin_lib_version_info(name: &str) -> Option<(String, String)> {
+    if let Some((base, version)) = split_versioned_lib_name(name) {
+        return Some((base.to_string(), version.to_string()));
+    }
+
+    let lib = builtin_lib(name)?;
+    let source = lib.sources.first()?;
+    split_versioned_path(source.path)
+}
+
+/// Split a name like "node.v24" into base and version.
+fn split_versioned_lib_name(name: &str) -> Option<(&str, &str)> {
+    let index = name.find(".v")?;
+    let version = &name[index + 2..];
+    if version.is_empty() {
+        return None;
+    }
+
+    let is_versioned = version.chars().next().is_some_and(|ch| ch.is_ascii_digit());
+    if !is_versioned {
+        return None;
+    }
+
+    Some((&name[..index], version))
+}
+
+/// Split a source path like "node/v24" into base and version.
+fn split_versioned_path(path: &str) -> Option<(String, String)> {
+    let mut segments = path.split('/');
+    let base = segments.next()?;
+    let version = segments.last()?;
+    let version = version.strip_prefix('v')?;
+    let is_versioned = version.chars().next().is_some_and(|ch| ch.is_ascii_digit());
+    if is_versioned {
+        return Some((base.to_string(), version.to_string()));
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -484,6 +571,17 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Report conflicts when multiple builtin lib versions are requested.
+    #[test]
+    fn test_error_on_conflicting_builtin_lib_versions() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_libs(&["node", "node.v24"]);
+        test.resolve_builtins();
+        test.resolve_libs();
+        test.compile();
+        test.check_has_diagnostic("ER015");
     }
 
     /// Resolve well known symbols from builtin libs.
