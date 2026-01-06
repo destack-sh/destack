@@ -81,8 +81,8 @@ pub struct BuiltinLib {
     pub dependencies: &'static [&'static str],
     /// Import specifier aliases for this library.
     pub specifier_aliases: &'static [(&'static str, &'static str)],
-    /// Canonical exports used by the compiler for fast builtin lookups.
-    pub canonical_exports: &'static [&'static str],
+    /// Symbols declared by this library used by the compiler.
+    pub declared_symbols: &'static [&'static str],
     /// Whether symbols are ambient without explicit imports.
     pub is_ambient: bool,
 }
@@ -102,7 +102,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: true,
             specifier_aliases: &[],
-            canonical_exports: &[],
+            declared_symbols: &[],
         }
     }
 
@@ -119,7 +119,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: true,
             specifier_aliases: &[],
-            canonical_exports: &[],
+            declared_symbols: &[],
         }
     }
 
@@ -136,7 +136,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: true,
             specifier_aliases: &[],
-            canonical_exports: &[],
+            declared_symbols: &[],
         }
     }
 
@@ -153,7 +153,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: false,
             specifier_aliases: &[],
-            canonical_exports: &[],
+            declared_symbols: &[],
         }
     }
 
@@ -170,16 +170,16 @@ impl BuiltinLib {
             dependencies,
             is_ambient: false,
             specifier_aliases: &[],
-            canonical_exports: &[],
+            declared_symbols: &[],
         }
     }
 
-    /// Attach canonical exports to the builtin library definition.
-    pub(crate) const fn with_canonical_exports(
+    /// Attach declared symbols to the builtin library definition.
+    pub(crate) const fn with_declared_symbols(
         mut self,
-        canonical_exports: &'static [&'static str],
+        declared_symbols: &'static [&'static str],
     ) -> Self {
-        self.canonical_exports = canonical_exports;
+        self.declared_symbols = declared_symbols;
         self
     }
 

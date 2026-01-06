@@ -25,3 +25,5 @@ and limitations under the License.
 /// <reference lib="es2020.string" />
 /// <reference lib="es2020.symbol.wellknown" />
 /// <reference lib="es2020.intl" />
+
+declare var globalThis: any;

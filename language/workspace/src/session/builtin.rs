@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_base::{StringId, StringPool};
 use destack_builtin::{
-    BuiltinLibKind, BuiltinLibSource, CORE_SOURCES, LanguageItem, PRELUDE_SOURCE, builtin_lib,
+    BuiltinLibKind, BuiltinLibSource, CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
 };
 use destack_dir::{GlobalSymbolId, WellKnownSymbol, WellKnownSymbolKey};
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
@@ -105,42 +105,36 @@ impl WellKnownSymbols {
     }
 }
 
-/// Language builtins.
+/// Language and library builtins.
 #[derive(Debug)]
-pub struct LanguageBuiltins {
+pub struct Builtins {
     /// The builtin package ID.
     pub package_id: PackageId,
-
     /// Core modules by path (e.g., "operator/arithmetic.ds" -> ModuleId).
     pub core_module_by_path: IndexMap<String, ModuleId>,
-
-    /// Core module for each language item (LanguageItem -> ModuleId).
-    pub core_module_by_item: IndexMap<LanguageItem, ModuleId>,
-
+    /// Core module for each language item (LanguageSymbol -> ModuleId).
+    pub core_module_by_item: IndexMap<LanguageSymbol, ModuleId>,
     /// The prelude module ID (re-exports items available without imports).
     pub prelude_module_id: ModuleId,
 
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
     pub lib_module_by_name: DashMap<String, Vec<ModuleId>>,
-
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,
-
     /// Ambient lib modules per profile.
     pub ambient_libs_by_profile: DashMap<ProfileId, Vec<ModuleId>>,
 
-    /// Canonical lib symbols per profile.
-    pub lib_symbols_by_profile: DashMap<ProfileId, IndexMap<StringId, GlobalSymbolId>>,
-
+    /// Declared lib symbols per profile.
+    pub declared_lib_symbols_by_profile: DashMap<ProfileId, IndexMap<StringId, GlobalSymbolId>>,
     /// Well-known symbols per profile.
     pub well_known_by_profile: DashMap<ProfileId, WellKnownSymbols>,
 
-    /// Resolved language items cache (LanguageItem -> GlobalSymbolId).
+    /// Resolved language items cache (LanguageSymbol -> GlobalSymbolId).
     /// (Populated lazily when items are first resolved after module compilation.)
-    pub items: DashMap<LanguageItem, GlobalSymbolId>,
+    pub items: DashMap<LanguageSymbol, GlobalSymbolId>,
 }
 
-impl LanguageBuiltins {
+impl Builtins {
     /// Create builtins by registering core modules from embedded sources.
     pub fn embedded(
         files: Arc<FileRegistry>,
@@ -213,15 +207,15 @@ impl LanguageBuiltins {
         }
 
         // build language item -> module mapping, validating all items have modules
-        let mut language_item_modules = IndexMap::with_capacity(LanguageItem::all().count());
-        for item in LanguageItem::all() {
+        let mut language_symbol_modules = IndexMap::with_capacity(LanguageSymbol::all().count());
+        for item in LanguageSymbol::all() {
             let module_path = format!("{}.ds", item.module());
             let module_id = core_modules.get(&module_path).unwrap_or_else(|| {
                 panic!(
                     "language item {item:?} references module '{module_path}' which is not in CORE_SOURCES"
                 )
             });
-            language_item_modules.insert(item, *module_id);
+            language_symbol_modules.insert(item, *module_id);
         }
 
         // look up prelude module ID (must be registered)
@@ -237,19 +231,19 @@ impl LanguageBuiltins {
         Self {
             package_id: BUILTIN_PACKAGE_ID,
             core_module_by_path: core_modules,
-            core_module_by_item: language_item_modules,
+            core_module_by_item: language_symbol_modules,
             prelude_module_id,
             lib_module_by_name: DashMap::new(),
             lib_name_by_module: DashMap::new(),
             ambient_libs_by_profile: DashMap::new(),
-            lib_symbols_by_profile: DashMap::new(),
+            declared_lib_symbols_by_profile: DashMap::new(),
             well_known_by_profile: DashMap::new(),
             items: DashMap::new(),
         }
     }
 
     /// Get the ModuleId for a language item's defining module.
-    pub fn module_for_item(&self, item: LanguageItem) -> ModuleId {
+    pub fn module_for_item(&self, item: LanguageSymbol) -> ModuleId {
         *self
             .core_module_by_item
             .get(&item)
@@ -312,9 +306,13 @@ impl LanguageBuiltins {
             .map(|modules| modules.clone())
     }
 
-    /// Get the canonical lib symbol for a profile and name.
-    pub fn lib_symbol(&self, profile_id: ProfileId, name: StringId) -> Option<GlobalSymbolId> {
-        self.lib_symbols_by_profile
+    /// Get the declared lib symbol for a profile and name.
+    pub fn get_declared_lib_symbol(
+        &self,
+        profile_id: ProfileId,
+        name: StringId,
+    ) -> Option<GlobalSymbolId> {
+        self.declared_lib_symbols_by_profile
             .get(&profile_id)
             .and_then(|symbols| symbols.get(&name).copied())
     }
@@ -331,13 +329,14 @@ impl LanguageBuiltins {
             .map(|symbols| symbols.clone())
     }
 
-    /// Set the canonical lib symbols for a profile.
-    pub fn set_lib_symbols(
+    /// Set the declared lib symbols for a profile.
+    pub fn set_declared_lib_symbols(
         &self,
         profile_id: ProfileId,
         symbols: IndexMap<StringId, GlobalSymbolId>,
     ) {
-        self.lib_symbols_by_profile.insert(profile_id, symbols);
+        self.declared_lib_symbols_by_profile
+            .insert(profile_id, symbols);
     }
 
     /// Set well-known symbols for a profile.

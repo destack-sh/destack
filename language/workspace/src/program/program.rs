@@ -11,8 +11,8 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    ArtifactRegistry, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot, FormatterOptions,
-    LanguageBuiltins, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleSource, ModuleType,
+    ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
+    FormatterOptions, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleSource, ModuleType,
     Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
     ProfileId, ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
 };
@@ -74,7 +74,7 @@ pub struct Program {
 
     // builtins
     /// Language builtins.
-    pub builtins: Option<Arc<LanguageBuiltins>>,
+    pub builtins: Option<Arc<Builtins>>,
     /// The root module id.
     pub root_module_id: ModuleId,
     /// Fallback file for diagnostics without source anchors.
@@ -148,7 +148,7 @@ impl Program {
         tsconfigs: Arc<TsConfigRegistry>,
         strings: Arc<StringPool>,
         artifacts: Arc<ArtifactRegistry>,
-        builtins: Option<Arc<LanguageBuiltins>>,
+        builtins: Option<Arc<Builtins>>,
     ) -> Self {
         let diagnostics = DiagnosticCollector::new();
         let profiles = Arc::new(ProfileRegistry::new());

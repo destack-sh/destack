@@ -1,5 +1,8 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
-use super::ES_CANONICAL_EXPORTS;
+use super::es2022::ES2022_DECLARED_SYMBOLS;
+
+pub(crate) const ES2023_DECLARED_SYMBOLS: &[&str] = ES2022_DECLARED_SYMBOLS;
+const ES2023_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 macro_rules! lib_source {
     ($name:ident, $file:literal) => {
@@ -28,14 +31,14 @@ pub const LIB_ES2023: BuiltinLib = BuiltinLib::ambient_lib(
     ],
     &["es2022"],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES2023_DECLARED_SYMBOLS);
 
 pub const LIB_ES2023_ARRAY: BuiltinLib =
     BuiltinLib::ambient_lib("es2023.array", &[LIB_ES_ES2023_ARRAY_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2023_COLLECTION: BuiltinLib =
     BuiltinLib::ambient_lib("es2023.collection", &[LIB_ES_ES2023_COLLECTION_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2023_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2023.full",
     &[LIB_ES_ES2023_FULL_D_DS],
@@ -48,7 +51,7 @@ pub const LIB_ES2023_FULL: BuiltinLib = BuiltinLib::ambient_lib(
         "dom.asynciterable",
     ],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES2023_DECLARED_SYMBOLS);
 pub const LIB_ES2023_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2023.intl", &[LIB_ES_ES2023_INTL_D_DS], &[])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);

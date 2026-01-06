@@ -1,50 +1,50 @@
-use destack_builtin::LanguageItem;
+use destack_builtin::LanguageSymbol;
 use destack_dir::{AssignOperator, BinaryOperator, UnaryOperator};
 
-/// Extension trait to get the LanguageItem for an operator.
-pub trait OperatorLanguageItemExt {
-    /// Get the LanguageItem for this operator, if one exists.
-    fn language_item(&self) -> Option<LanguageItem>;
+/// Extension trait to get the LanguageSymbol for an operator.
+pub trait OperatorLanguageSymbolExt {
+    /// Get the LanguageSymbol for this operator, if one exists.
+    fn language_symbol(&self) -> Option<LanguageSymbol>;
 }
 
-impl OperatorLanguageItemExt for BinaryOperator {
-    fn language_item(&self) -> Option<LanguageItem> {
+impl OperatorLanguageSymbolExt for BinaryOperator {
+    fn language_symbol(&self) -> Option<LanguageSymbol> {
         match self {
             // arithmetic
             BinaryOperator::Add | BinaryOperator::WrappingAdd | BinaryOperator::SaturatingAdd => {
-                Some(LanguageItem::Add)
+                Some(LanguageSymbol::Add)
             }
             BinaryOperator::Subtract
             | BinaryOperator::WrappingSubtract
-            | BinaryOperator::SaturatingSubtract => Some(LanguageItem::Subtract),
+            | BinaryOperator::SaturatingSubtract => Some(LanguageSymbol::Subtract),
             BinaryOperator::Multiply
             | BinaryOperator::WrappingMultiply
-            | BinaryOperator::SaturatingMultiply => Some(LanguageItem::Multiply),
-            BinaryOperator::Divide => Some(LanguageItem::Divide),
-            BinaryOperator::Remainder => Some(LanguageItem::Remainder),
+            | BinaryOperator::SaturatingMultiply => Some(LanguageSymbol::Multiply),
+            BinaryOperator::Divide => Some(LanguageSymbol::Divide),
+            BinaryOperator::Remainder => Some(LanguageSymbol::Remainder),
             BinaryOperator::Exponent
             | BinaryOperator::WrappingExponent
-            | BinaryOperator::SaturatingExponent => Some(LanguageItem::Power),
+            | BinaryOperator::SaturatingExponent => Some(LanguageSymbol::Power),
 
             // shift
             BinaryOperator::ShiftLeft | BinaryOperator::SaturatingShiftLeft => {
-                Some(LanguageItem::ShiftLeft)
+                Some(LanguageSymbol::ShiftLeft)
             }
-            BinaryOperator::ShiftRight => Some(LanguageItem::ShiftRight),
-            BinaryOperator::UnsignedShiftRight => Some(LanguageItem::ShiftRightUnsigned),
+            BinaryOperator::ShiftRight => Some(LanguageSymbol::ShiftRight),
+            BinaryOperator::UnsignedShiftRight => Some(LanguageSymbol::ShiftRightUnsigned),
 
             // elementwise/bitwise
-            BinaryOperator::ElementwiseAnd => Some(LanguageItem::And),
-            BinaryOperator::ElementwiseXor => Some(LanguageItem::Xor),
-            BinaryOperator::ElementwiseOr => Some(LanguageItem::Or),
+            BinaryOperator::ElementwiseAnd => Some(LanguageSymbol::And),
+            BinaryOperator::ElementwiseXor => Some(LanguageSymbol::Xor),
+            BinaryOperator::ElementwiseOr => Some(LanguageSymbol::Or),
 
             // comparison
-            BinaryOperator::Equal | BinaryOperator::NotEqual => Some(LanguageItem::Equal),
+            BinaryOperator::Equal | BinaryOperator::NotEqual => Some(LanguageSymbol::Equal),
             BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict => None,
             BinaryOperator::LessThan
             | BinaryOperator::LessThanOrEqual
             | BinaryOperator::GreaterThan
-            | BinaryOperator::GreaterThanOrEqual => Some(LanguageItem::Compare),
+            | BinaryOperator::GreaterThanOrEqual => Some(LanguageSymbol::Compare),
 
             // boolean
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce => None,
@@ -55,13 +55,13 @@ impl OperatorLanguageItemExt for BinaryOperator {
     }
 }
 
-impl OperatorLanguageItemExt for UnaryOperator {
-    fn language_item(&self) -> Option<LanguageItem> {
+impl OperatorLanguageSymbolExt for UnaryOperator {
+    fn language_symbol(&self) -> Option<LanguageSymbol> {
         match self {
-            UnaryOperator::Negate | UnaryOperator::WrappingNegate => Some(LanguageItem::Negate),
-            UnaryOperator::Plus => Some(LanguageItem::Plus),
-            UnaryOperator::ElementwiseNot => Some(LanguageItem::Not),
-            UnaryOperator::Dereference => Some(LanguageItem::Deref),
+            UnaryOperator::Negate | UnaryOperator::WrappingNegate => Some(LanguageSymbol::Negate),
+            UnaryOperator::Plus => Some(LanguageSymbol::Plus),
+            UnaryOperator::ElementwiseNot => Some(LanguageSymbol::Not),
+            UnaryOperator::Dereference => Some(LanguageSymbol::Deref),
 
             // increment/decrement
             UnaryOperator::PostIncrement
@@ -78,36 +78,36 @@ impl OperatorLanguageItemExt for UnaryOperator {
     }
 }
 
-impl OperatorLanguageItemExt for AssignOperator {
-    fn language_item(&self) -> Option<LanguageItem> {
+impl OperatorLanguageSymbolExt for AssignOperator {
+    fn language_symbol(&self) -> Option<LanguageSymbol> {
         match self {
             // arithmetic
             AssignOperator::AddAssign
             | AssignOperator::WrappingAddAssign
-            | AssignOperator::SaturatingAddAssign => Some(LanguageItem::Add),
+            | AssignOperator::SaturatingAddAssign => Some(LanguageSymbol::Add),
             AssignOperator::SubtractAssign
             | AssignOperator::WrappingSubtractAssign
-            | AssignOperator::SaturatingSubtractAssign => Some(LanguageItem::Subtract),
+            | AssignOperator::SaturatingSubtractAssign => Some(LanguageSymbol::Subtract),
             AssignOperator::MultiplyAssign
             | AssignOperator::WrappingMultiplyAssign
-            | AssignOperator::SaturatingMultiplyAssign => Some(LanguageItem::Multiply),
-            AssignOperator::DivideAssign => Some(LanguageItem::Divide),
-            AssignOperator::RemainderAssign => Some(LanguageItem::Remainder),
+            | AssignOperator::SaturatingMultiplyAssign => Some(LanguageSymbol::Multiply),
+            AssignOperator::DivideAssign => Some(LanguageSymbol::Divide),
+            AssignOperator::RemainderAssign => Some(LanguageSymbol::Remainder),
             AssignOperator::ExponentAssign
             | AssignOperator::WrappingExponentAssign
-            | AssignOperator::SaturatingExponentAssign => Some(LanguageItem::Power),
+            | AssignOperator::SaturatingExponentAssign => Some(LanguageSymbol::Power),
 
             // shift
             AssignOperator::ShiftLeftAssign | AssignOperator::SaturatingShiftLeftAssign => {
-                Some(LanguageItem::ShiftLeft)
+                Some(LanguageSymbol::ShiftLeft)
             }
-            AssignOperator::ShiftRightAssign => Some(LanguageItem::ShiftRight),
-            AssignOperator::UnsignedShiftRightAssign => Some(LanguageItem::ShiftRightUnsigned),
+            AssignOperator::ShiftRightAssign => Some(LanguageSymbol::ShiftRight),
+            AssignOperator::UnsignedShiftRightAssign => Some(LanguageSymbol::ShiftRightUnsigned),
 
             // elementwise/bitwise
-            AssignOperator::ElementwiseAndAssign => Some(LanguageItem::And),
-            AssignOperator::ElementwiseXorAssign => Some(LanguageItem::Xor),
-            AssignOperator::ElementwiseOrAssign => Some(LanguageItem::Or),
+            AssignOperator::ElementwiseAndAssign => Some(LanguageSymbol::And),
+            AssignOperator::ElementwiseXorAssign => Some(LanguageSymbol::Xor),
+            AssignOperator::ElementwiseOrAssign => Some(LanguageSymbol::Or),
 
             // boolean
             AssignOperator::AndAssign

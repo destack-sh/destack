@@ -1,5 +1,5 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
-use super::ES_CANONICAL_EXPORTS;
+use super::es5::ES5_DECLARED_SYMBOLS;
 
 const LIB_ES_DECORATORS_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
@@ -16,10 +16,10 @@ const LIB_ES_DECORATORS_LEGACY_D_DS: BuiltinLibSource = BuiltinLibSource::new(
 
 pub const LIB_DECORATORS: BuiltinLib =
     BuiltinLib::ambient_lib("decorators", &[LIB_ES_DECORATORS_D_DS], &["es5"])
-        .with_canonical_exports(ES_CANONICAL_EXPORTS);
+        .with_declared_symbols(ES5_DECLARED_SYMBOLS);
 pub const LIB_DECORATORS_LEGACY: BuiltinLib = BuiltinLib::ambient_lib(
     "decorators.legacy",
     &[LIB_ES_DECORATORS_LEGACY_D_DS],
     &["es5"],
 )
-.with_canonical_exports(ES_CANONICAL_EXPORTS);
+.with_declared_symbols(ES5_DECLARED_SYMBOLS);

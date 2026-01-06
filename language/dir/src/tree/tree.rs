@@ -328,6 +328,12 @@ impl NodeTree {
         self.source_id_by_node_id[node_id as usize]
     }
 
+    /// Return true when the node id exists in this tree.
+    #[inline]
+    pub fn has_node_id(&self, node_id: u32) -> bool {
+        (node_id as usize) < self.source_id_by_node_id.len()
+    }
+
     /// Get the DIR node id by its AST id.
     #[inline]
     pub fn get_node_id_by_source_id(&self, ast_id: u32) -> Option<LocalNodeIdAny> {

@@ -2105,27 +2105,6 @@ async function fetchData(): Promise<Data> {
 The async runtime model is target-specific (like GC), but the general architecture follows
 JS semantics for compatibility.
 
-**Event loop:**
-- Single-threaded event loop (like Node.js)
-- Processes microtasks between macrotasks
-- Integrates with OS async I/O (epoll, kqueue, IOCP)
-
-**Microtask queue:**
-- Promise resolution callbacks
-- `queueMicrotask()` support
-- Runs to completion before next macrotask
-
-**Timer integration:**
-- `setTimeout`, `setInterval`, `setImmediate`
-- High-resolution timers when available
-
-**I/O integration:**
-- Async file I/O via thread pool or OS async
-- Async networking via non-blocking sockets
-- Async DNS resolution
-
----
-
 # Code Generation
 
 MIR is target-independent, so code generation is mostly mechanical translation.

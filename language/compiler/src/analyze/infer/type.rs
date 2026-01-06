@@ -4,7 +4,7 @@ use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
 };
-use destack_builtin::LanguageItem;
+use destack_builtin::LanguageSymbol;
 use destack_dir::{
     BinaryOperator, Declaration, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
     LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, PrimitiveType, ScalarLiteral,
@@ -2551,10 +2551,10 @@ impl Compiler {
     pub(super) fn is_interface_implemented(
         &self,
         ty: &Type,
-        interface_item: LanguageItem,
+        interface_item: LanguageSymbol,
         types: &TypeTable,
     ) -> bool {
-        let interface_symbol = self.language_item(interface_item);
+        let interface_symbol = self.language_symbol(interface_item);
         match ty {
             Type::Reference { symbol, .. } => {
                 self.is_type_lineage_assignable(*symbol, interface_symbol, types)

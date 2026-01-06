@@ -123,7 +123,8 @@ impl Compiler {
     ) -> StaticParameter {
         let parameter = if symbol_id.module_id == module.id {
             self.collect_static_parameter_in_module(
-                module.id,
+                module,
+                profile,
                 symbol_id,
                 kind,
                 fallback_source_id,
@@ -138,7 +139,8 @@ impl Compiler {
             let remote_symbols = remote_module.dir(profile).symbols.read();
 
             self.collect_static_parameter_in_module(
-                remote_module.id,
+                &remote_module,
+                profile,
                 symbol_id,
                 kind,
                 fallback_source_id,
@@ -258,7 +260,7 @@ impl Compiler {
             let remote_module = remote_module.read();
             let remote_dir = remote_module.dir(profile);
             let remote_symbols = remote_dir.symbols.read();
-        
+
             // read the remote symbol
             let remote_symbol = remote_symbols.get_symbol(symbol.local_id);
             if !remote_symbol.is_static_parameter() {
@@ -303,7 +305,8 @@ impl Compiler {
     /// Collect static parameter metadata from a module.
     fn collect_static_parameter_in_module(
         &self,
-        module_id: ModuleId,
+        module: &Module,
+        _profile: ProfileId,
         symbol_id: GlobalSymbolId,
         kind: StaticParameterKind,
         fallback_source_id: LocalNodeIdAny,
@@ -320,7 +323,7 @@ impl Compiler {
         let parameter = tree.get(parameter_id);
 
         // resolve the declared type for the parameter
-        let declared_type_id = if module_id == types.module_id {
+        let declared_type_id = if module.id == types.module_id {
             types
                 .get_declared_type_id(primary_declaration)
                 .unwrap_or_else(|| {
@@ -346,10 +349,10 @@ impl Compiler {
         // resolve the default expression for the parameter
         let default_expression = match parameter {
             Parameter::Named { default, .. } => {
-                default.map(|expression_id| expression_id.into_global(module_id))
+                default.map(|expression_id| expression_id.into_global(module.id))
             }
             Parameter::Pattern { default, .. } => {
-                default.map(|expression_id| expression_id.into_global(module_id))
+                default.map(|expression_id| expression_id.into_global(module.id))
             }
             Parameter::Variadic { .. } => None,
         };

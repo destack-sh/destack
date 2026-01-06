@@ -1,5 +1,23 @@
 use super::super::super::source::{BuiltinLib, BuiltinLibSource};
-use super::ES_CANONICAL_EXPORTS;
+
+pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
+    "Array",
+    "Boolean",
+    "Date",
+    "Error",
+    "EvalError",
+    "Function",
+    "JSON",
+    "Math",
+    "Number",
+    "Object",
+    "RangeError",
+    "ReferenceError",
+    "RegExp",
+    "String",
+    "SyntaxError",
+    "TypeError",
+];
 
 const LIB_ES_ES5_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
     "lib",
@@ -9,4 +27,4 @@ const LIB_ES_ES5_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(
 );
 
 pub const LIB_ES5: BuiltinLib = BuiltinLib::ambient_lib("es5", &[LIB_ES_ES5_INDEX_D_DS], &[])
-    .with_canonical_exports(ES_CANONICAL_EXPORTS);
+    .with_declared_symbols(ES5_DECLARED_SYMBOLS);

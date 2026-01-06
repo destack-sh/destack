@@ -227,6 +227,7 @@ impl TypeTable {
     }
 
     /// Clear cached normalization results.
+    /// #Suspicious: why do we need clear_normalization_cache at all?
     pub fn clear_normalization_cache(&mut self) {
         let type_count = self.next_type_id as usize;
         self.normalized_assignability_type_by_id.clear();
@@ -293,7 +294,7 @@ impl TypeTable {
     /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);
-        self.clear_normalization_cache();
+        self.clear_normalization_cache(); // #Suspicious: why clear normalization cache in set_instance_type?
     }
 
     /// Get the instance type for a symbol.

@@ -2,9 +2,9 @@ use super::member::MemberResolution;
 use super::{index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
-    OperatorLanguageItemExt,
+    OperatorLanguageSymbolExt,
 };
-use destack_builtin::LanguageItem;
+use destack_builtin::LanguageSymbol;
 use destack_dir::{
     BinaryOperator, Constraint, Expression, InferTable, LocalInstanceId, LocalNodeId, LocalTypeId,
     NodeTree, ScalarLiteral, StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable,
@@ -32,7 +32,7 @@ impl Compiler {
             self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
         let right_ty = types.get_type(right_ty_id).clone();
 
-        let operator_item = operator.language_item();
+        let operator_item = operator.language_symbol();
 
         // use builtin rules when appropriate
         if self.should_use_builtin_unary_operator(operator, &right_ty, types) {
@@ -206,7 +206,7 @@ impl Compiler {
             );
         }
 
-        let operator_item = operator.language_item();
+        let operator_item = operator.language_symbol();
 
         // use builtin rules when appropriate
         if self.should_use_builtin_binary_operator(operator, &left_ty, &right_ty, types) {
@@ -446,7 +446,7 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // use Try semantics when the receiver implements Try
-        if self.is_interface_implemented(left_ty, LanguageItem::Try, types) {
+        if self.is_interface_implemented(left_ty, LanguageSymbol::Try, types) {
             let branch = self.resolve_try_branch_member(
                 module,
                 expression_id,
@@ -558,7 +558,7 @@ impl Compiler {
             return Ok(builtin_ty_id);
         }
 
-        if !self.is_interface_implemented(&receiver_ty, LanguageItem::Index, types) {
+        if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::Index, types) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id.into_global_any(module.id),
             });
@@ -569,7 +569,7 @@ impl Compiler {
         }
 
         // resolve the index member function
-        let member_key = self.operator_member_key(LanguageItem::Index);
+        let member_key = self.operator_member_key(LanguageSymbol::Index);
         let Some(resolved) = self.resolve_member_function(
             module,
             expression_id,
@@ -753,7 +753,7 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        if !self.is_interface_implemented(&receiver_ty, LanguageItem::IndexSet, types) {
+        if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::IndexSet, types) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id.into_global_any(module.id),
             });
@@ -764,7 +764,7 @@ impl Compiler {
         }
 
         // resolve the index set member function
-        let member_key = self.operator_member_key(LanguageItem::IndexSet);
+        let member_key = self.operator_member_key(LanguageSymbol::IndexSet);
         let Some(resolved) = self.resolve_member_function(
             module,
             expression_id,
@@ -891,7 +891,7 @@ impl Compiler {
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let left_ty = types.get_type(left_ty_id).clone();
 
-        if !self.is_interface_implemented(&left_ty, LanguageItem::Try, types) {
+        if !self.is_interface_implemented(&left_ty, LanguageSymbol::Try, types) {
             self.error(AnalyzeError::NoOverload {
                 node: expression_id.into_global_any(module.id),
                 receiver_ty: left_ty_id.into_global(module.id),
@@ -1206,7 +1206,7 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                let result_symbol = self.language_item(LanguageItem::Result);
+                let result_symbol = self.language_symbol(LanguageSymbol::Result);
                 if *symbol != result_symbol {
                     return None;
                 }
@@ -1264,7 +1264,7 @@ impl Compiler {
     }
 
     /// Build the member key for a language item operator interface.
-    fn operator_member_key(&self, operator_item: LanguageItem) -> StaticKey {
+    fn operator_member_key(&self, operator_item: LanguageSymbol) -> StaticKey {
         let export_name = operator_item.export_name();
         let mut chars = export_name.chars();
         let first_char = chars.next().unwrap_or_default();
@@ -1284,7 +1284,7 @@ impl Compiler {
         right_ty: &Type,
         types: &TypeTable,
     ) -> bool {
-        if operator.language_item().is_none() {
+        if operator.language_symbol().is_none() {
             return true;
         }
 
@@ -1315,7 +1315,7 @@ impl Compiler {
         right_ty: &Type,
         types: &TypeTable,
     ) -> bool {
-        if operator.language_item().is_none() {
+        if operator.language_symbol().is_none() {
             return true;
         }
 
