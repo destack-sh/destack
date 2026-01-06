@@ -34,10 +34,76 @@ pub enum ValueTag {
     String = 13,
 }
 
+/// Metadata for reference values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReferenceMeta {
+    bits: u8,
+}
+
+impl ReferenceMeta {
+    /// Empty reference metadata.
+    pub const NONE: Self = Self { bits: 0 };
+
+    /// Create reference metadata.
+    pub fn new(kind: mir::ReferenceKind, mutability: mir::Mutability, is_nullable: bool) -> Self {
+        let kind_bits = match kind {
+            mir::ReferenceKind::Managed => 1,
+            mir::ReferenceKind::Owned => 2,
+            mir::ReferenceKind::Borrowed => 3,
+            mir::ReferenceKind::Raw => 4,
+        };
+
+        let mut bits = kind_bits;
+        if matches!(mutability, mir::Mutability::Mutable) {
+            bits |= 1 << 3;
+        }
+        if is_nullable {
+            bits |= 1 << 4;
+        }
+
+        Self { bits }
+    }
+
+    /// Get the reference kind when available.
+    pub fn kind(self) -> Option<mir::ReferenceKind> {
+        match self.bits & 0x7 {
+            0 => None,
+            1 => Some(mir::ReferenceKind::Managed),
+            2 => Some(mir::ReferenceKind::Owned),
+            3 => Some(mir::ReferenceKind::Borrowed),
+            4 => Some(mir::ReferenceKind::Raw),
+            _ => None,
+        }
+    }
+
+    /// Get the reference mutability when available.
+    pub fn mutability(self) -> Option<mir::Mutability> {
+        self.kind()?;
+
+        if self.bits & (1 << 3) != 0 {
+            Some(mir::Mutability::Mutable)
+        } else {
+            Some(mir::Mutability::Immutable)
+        }
+    }
+
+    /// Check whether this reference is nullable.
+    pub fn is_nullable(self) -> bool {
+        self.bits & (1 << 4) != 0
+    }
+
+    /// Return the raw metadata bits.
+    pub fn bits(self) -> u8 {
+        self.bits
+    }
+}
+
 const POINTER_BASE_MASK: u64 = 0xFFFF_FFFF;
 const POINTER_SLOT_SHIFT: u64 = 32;
 const STACK_INDEX_MASK: u64 = 0xFFFF;
 const STACK_SLOT_SHIFT: u64 = 16;
+const REF_META_SHIFT: u64 = 16;
+const REF_META_MASK: u64 = 0x1F << REF_META_SHIFT;
 
 /// A runtime value in the machine.
 ///
@@ -184,6 +250,21 @@ impl Value {
         (tag as u64) | ((width as u64) << 8)
     }
 
+    /// Attach reference metadata to this value.
+    #[inline]
+    pub fn with_reference_meta(mut self, meta: ReferenceMeta) -> Self {
+        let bits = (meta.bits() as u64) << REF_META_SHIFT;
+        self.meta = (self.meta & !REF_META_MASK) | bits;
+        self
+    }
+
+    /// Get reference metadata from this value.
+    #[inline]
+    pub fn reference_meta(&self) -> ReferenceMeta {
+        let bits = ((self.meta & REF_META_MASK) >> REF_META_SHIFT) as u8;
+        ReferenceMeta { bits }
+    }
+
     /// Get the type tag.
     #[inline(always)]
     pub fn tag(&self) -> ValueTag {
@@ -284,6 +365,12 @@ impl Value {
         }
     }
 
+    /// Create a managed reference value with metadata.
+    #[inline]
+    pub fn managed_reference_with_meta(handle: HeapHandle, meta: ReferenceMeta) -> Self {
+        Self::managed_reference(handle).with_reference_meta(meta)
+    }
+
     /// Create a raw pointer value.
     #[inline]
     pub const fn raw_pointer(ptr: RawPointer) -> Self {
@@ -291,6 +378,12 @@ impl Value {
             data: ptr.0,
             meta: Self::make_meta(ValueTag::RawPointer, 0),
         }
+    }
+
+    /// Create a raw pointer value with metadata.
+    #[inline]
+    pub fn raw_pointer_with_meta(ptr: RawPointer, meta: ReferenceMeta) -> Self {
+        Self::raw_pointer(ptr).with_reference_meta(meta)
     }
 
     /// Create a stack pointer value.
@@ -304,6 +397,12 @@ impl Value {
             data,
             meta: Self::make_meta(ValueTag::StackPointer, 0),
         }
+    }
+
+    /// Create a stack pointer value with metadata.
+    #[inline]
+    pub fn stack_pointer_with_meta(ptr: StackPointer, meta: ReferenceMeta) -> Self {
+        Self::stack_pointer(ptr).with_reference_meta(meta)
     }
 
     /// Create a global pointer value.
@@ -322,6 +421,16 @@ impl Value {
             data: (id.id as u64) | ((slot_offset as u64) << POINTER_SLOT_SHIFT),
             meta: Self::make_meta(ValueTag::GlobalPointer, 0),
         }
+    }
+
+    /// Create a global pointer value with metadata.
+    #[inline]
+    pub fn global_pointer_with_meta(
+        id: mir::LocalNodeId<mir::Global>,
+        slot_offset: usize,
+        meta: ReferenceMeta,
+    ) -> Self {
+        Self::global_pointer_with_offset(id, slot_offset).with_reference_meta(meta)
     }
 
     /// Create a function pointer value.

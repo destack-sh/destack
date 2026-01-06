@@ -338,8 +338,8 @@ block0(v0: ref<raw i32>):
 #[test]
 fn test_null_pointer_store() {
     let mir = r#"
-function @null_store(v0: ref<raw i32>, v1: i32) -> void {
-block0(v0: ref<raw i32>, v1: i32):
+function @null_store(v0: ref<raw mut i32>, v1: i32) -> void {
+block0(v0: ref<raw mut i32>, v1: i32):
     store v0, v1
     return
 }

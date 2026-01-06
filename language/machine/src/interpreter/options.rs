@@ -12,6 +12,12 @@ pub struct MachineOptions {
     /// Maximum number of instructions to execute before timeout.
     /// None means no limit (use with caution).
     pub max_instructions: Option<u64>,
+
+    /// Enforce reference kind constraints (debug-only checks).
+    pub enforce_reference_kinds: bool,
+
+    /// Enforce reference mutability rules on stores (debug-only checks).
+    pub enforce_reference_mutability: bool,
 }
 
 impl Default for MachineOptions {
@@ -20,6 +26,8 @@ impl Default for MachineOptions {
             max_stack_depth: 1024,
             max_heap_cells: 100_000,
             max_instructions: Some(10_000_000),
+            enforce_reference_kinds: false,
+            enforce_reference_mutability: false,
         }
     }
 }
@@ -39,6 +47,8 @@ impl MachineOptions {
             max_stack_depth: 100,
             max_heap_cells: 1000,
             max_instructions: Some(100_000),
+            enforce_reference_kinds: true,
+            enforce_reference_mutability: true,
         }
     }
 

@@ -1,7 +1,7 @@
 use crate::diagnostic::Error;
 use crate::memory::{GlobalPointer, HeapHandle, RawPointer, StackPointer, Value, ValueTag};
 
-use super::threaded::ThreadedState;
+use super::threaded::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
 
 /// Load a value from a pointer.
 #[inline(always)]
@@ -71,13 +71,207 @@ pub(super) fn store_to_pointer(
     }
 }
 
+/// Load a value from a managed reference.
+#[inline(always)]
+pub(super) fn load_from_managed_reference(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+) -> Result<Value, Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::ManagedReference {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve handle
+    let handle = ptr.as_heap_handle().unwrap();
+    load_heap_slot(state, handle, handle.slot_index())
+}
+
+/// Load a value from a raw pointer.
+#[inline(always)]
+pub(super) fn load_from_raw_pointer(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+) -> Result<Value, Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::RawPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let raw_ptr = ptr.as_raw_pointer().unwrap();
+    load_raw_slot(state, raw_ptr, raw_ptr.slot_index())
+}
+
+/// Load a value from a stack pointer.
+#[inline(always)]
+pub(super) fn load_from_stack_pointer(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+) -> Result<Value, Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::StackPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let sp = ptr.as_stack_pointer().unwrap();
+    load_stack_slot(state, sp, sp.slot_offset)
+}
+
+/// Load a value from a global pointer.
+#[inline(always)]
+pub(super) fn load_from_global_pointer(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+) -> Result<Value, Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::GlobalPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let global = ptr.as_global_pointer().unwrap();
+    load_global_slot(state, global)
+}
+
+/// Store a value through a managed reference.
+#[inline(always)]
+pub(super) fn store_to_managed_reference(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+    val: Value,
+) -> Result<(), Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::ManagedReference {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve handle
+    let handle = ptr.as_heap_handle().unwrap();
+    store_heap_slot(state, handle, handle.slot_index(), val)
+}
+
+/// Store a value through a raw pointer.
+#[inline(always)]
+pub(super) fn store_to_raw_pointer(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+    val: Value,
+) -> Result<(), Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::RawPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let raw_ptr = ptr.as_raw_pointer().unwrap();
+    store_raw_slot(state, raw_ptr, raw_ptr.slot_index(), val)
+}
+
+/// Store a value through a stack pointer.
+#[inline(always)]
+pub(super) fn store_to_stack_pointer(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+    val: Value,
+) -> Result<(), Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::StackPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let sp = ptr.as_stack_pointer().unwrap();
+    store_stack_slot(state, sp, sp.slot_offset, val)
+}
+
+/// Store a value through a global pointer.
+#[inline(always)]
+pub(super) fn store_to_global_pointer(
+    state: &mut ThreadedState<'_>,
+    ptr: Value,
+    val: Value,
+) -> Result<(), Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::GlobalPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let global = ptr.as_global_pointer().unwrap();
+    let global_def = state.interpreter.tree.get(global.id);
+    if !global_def.is_mutable() {
+        return Err(Error::ImmutableGlobalWrite { global: global.id });
+    }
+    store_global_slot(state, global, val)
+}
+
+/// Validate a field index against a known field count.
+#[inline(always)]
+fn check_field_index(index: u32, field_count: u32) -> Result<(), Error> {
+    // skip checks when the layout is unknown
+    if field_count == UNKNOWN_FIELD_COUNT {
+        return Ok(());
+    }
+
+    // reject out of bounds indices
+    if index >= field_count {
+        return Err(Error::InvalidFieldAccess {
+            index,
+            field_count: field_count as usize,
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate an array index against a known length.
+#[inline(always)]
+fn check_array_index(index: u64, array_length: u64) -> Result<(), Error> {
+    // skip checks when the length is unknown
+    if array_length == UNKNOWN_ARRAY_LENGTH {
+        return Ok(());
+    }
+
+    // reject out of bounds indices
+    if index >= array_length {
+        return Err(Error::InvalidArrayAccess {
+            index,
+            length: array_length,
+        });
+    }
+
+    Ok(())
+}
+
 /// Get the address of a field from an aggregate or pointer.
 #[inline(always)]
 pub(super) fn field_addr(
     state: &mut ThreadedState<'_>,
     aggregate: Value,
     index: u32,
+    field_count: u32,
 ) -> Result<Value, Error> {
+    // validate field index when known
+    check_field_index(index, field_count)?;
+
     // resolve the source and compute the field pointer
     match aggregate.tag() {
         ValueTag::Aggregate | ValueTag::ManagedReference => {
@@ -115,13 +309,91 @@ pub(super) fn field_addr(
     }
 }
 
+/// Get the address of a field from a managed reference.
+#[inline(always)]
+pub(super) fn field_addr_managed(
+    state: &mut ThreadedState<'_>,
+    handle: HeapHandle,
+    index: u32,
+    field_count: u32,
+) -> Result<Value, Error> {
+    // validate field index when known
+    check_field_index(index, field_count)?;
+
+    // resolve slot offset
+    let slot_index = resolve_heap_field_slot(state, handle, index)?;
+    Ok(Value::managed_reference(HeapHandle::with_slot(
+        handle.id(),
+        slot_index,
+    )))
+}
+
+/// Get the address of a field from a raw pointer.
+#[inline(always)]
+pub(super) fn field_addr_raw(
+    state: &mut ThreadedState<'_>,
+    pointer: RawPointer,
+    index: u32,
+    field_count: u32,
+) -> Result<Value, Error> {
+    // validate field index when known
+    check_field_index(index, field_count)?;
+
+    // resolve slot offset
+    let slot_index = resolve_raw_field_slot(state, pointer, index)?;
+    Ok(Value::raw_pointer(RawPointer::with_slot(
+        pointer.id(),
+        slot_index,
+    )))
+}
+
+/// Get the address of a field from a stack pointer.
+#[inline(always)]
+pub(super) fn field_addr_stack(
+    state: &mut ThreadedState<'_>,
+    pointer: StackPointer,
+    index: u32,
+    field_count: u32,
+) -> Result<Value, Error> {
+    // validate field index when known
+    check_field_index(index, field_count)?;
+
+    // resolve slot offset
+    let slot_index = resolve_stack_field_slot(state, pointer, index)?;
+    Ok(Value::stack_pointer(StackPointer::with_offset(
+        pointer.frame_idx,
+        pointer.slot,
+        slot_index,
+    )))
+}
+
+/// Get the address of a field from a global pointer.
+#[inline(always)]
+pub(super) fn field_addr_global(
+    state: &mut ThreadedState<'_>,
+    pointer: GlobalPointer,
+    index: u32,
+    field_count: u32,
+) -> Result<Value, Error> {
+    // validate field index when known
+    check_field_index(index, field_count)?;
+
+    // resolve slot offset
+    let slot_index = resolve_global_field_slot(state, pointer, index)?;
+    Ok(Value::global_pointer_with_offset(pointer.id, slot_index))
+}
+
 /// Get the address of an element from an array or pointer.
 #[inline(always)]
 pub(super) fn element_addr(
     state: &mut ThreadedState<'_>,
     array: Value,
     index: u64,
+    array_length: u64,
 ) -> Result<Value, Error> {
+    // validate array index when known
+    check_array_index(index, array_length)?;
+
     // resolve the source and compute the element pointer
     match array.tag() {
         ValueTag::Aggregate | ValueTag::ManagedReference => {
@@ -157,6 +429,83 @@ pub(super) fn element_addr(
             actual: format!("{array:?}"),
         }),
     }
+}
+
+/// Get the address of an element from a managed reference.
+#[inline(always)]
+pub(super) fn element_addr_managed(
+    state: &mut ThreadedState<'_>,
+    handle: HeapHandle,
+    index: u64,
+    array_length: u64,
+) -> Result<Value, Error> {
+    // validate array index when known
+    check_array_index(index, array_length)?;
+
+    // resolve slot offset
+    let slot_index = resolve_heap_element_slot(state, handle, index)?;
+    Ok(Value::managed_reference(HeapHandle::with_slot(
+        handle.id(),
+        slot_index,
+    )))
+}
+
+/// Get the address of an element from a raw pointer.
+#[inline(always)]
+pub(super) fn element_addr_raw(
+    state: &mut ThreadedState<'_>,
+    pointer: RawPointer,
+    index: u64,
+    array_length: u64,
+) -> Result<Value, Error> {
+    // validate array index when known
+    check_array_index(index, array_length)?;
+
+    // resolve slot offset
+    let slot_index = resolve_raw_element_slot(state, pointer, index)?;
+    Ok(Value::raw_pointer(RawPointer::with_slot(
+        pointer.id(),
+        slot_index,
+    )))
+}
+
+/// Get the address of an element from a stack pointer.
+#[inline(always)]
+pub(super) fn element_addr_stack(
+    state: &mut ThreadedState<'_>,
+    pointer: StackPointer,
+    index: u64,
+    array_length: u64,
+) -> Result<Value, Error> {
+    // validate array index when known
+    check_array_index(index, array_length)?;
+
+    // resolve slot offset
+    let slot_index = resolve_stack_element_slot(state, pointer, index)?;
+    Ok(Value::stack_pointer(StackPointer::with_offset(
+        pointer.frame_idx,
+        pointer.slot,
+        slot_index as usize,
+    )))
+}
+
+/// Get the address of an element from a global pointer.
+#[inline(always)]
+pub(super) fn element_addr_global(
+    state: &mut ThreadedState<'_>,
+    pointer: GlobalPointer,
+    index: u64,
+    array_length: u64,
+) -> Result<Value, Error> {
+    // validate array index when known
+    check_array_index(index, array_length)?;
+
+    // resolve slot offset
+    let slot_index = resolve_global_element_slot(state, pointer, index)?;
+    Ok(Value::global_pointer_with_offset(
+        pointer.id,
+        slot_index as usize,
+    ))
 }
 
 /// Get a field from an aggregate value.
