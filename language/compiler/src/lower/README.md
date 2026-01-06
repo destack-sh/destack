@@ -1188,7 +1188,7 @@ struct StructType<T> {
 ```
 
 **Comptime:** Full type information is available as compile-time data.
-Type operations execute in the Machine interpreter (which runs MIR), so comptime and runtime share the same representation.
+Type operations execute in the VM interpreter (which runs MIR), so comptime and runtime share the same representation.
 This simplifies the design: there's no separate "comptime type format" vs "runtime type format".
 
 ```ds

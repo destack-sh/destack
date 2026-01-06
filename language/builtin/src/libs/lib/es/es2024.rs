@@ -74,7 +74,7 @@ pub const LIB_ES2024_SHAREDMEMORY: BuiltinLib = BuiltinLib::ambient_lib(
     &[LIB_ES_ES2024_SHAREDMEMORY_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2024_STRING: BuiltinLib =
     BuiltinLib::ambient_lib("es2024.string", &[LIB_ES_ES2024_STRING_D_DS], &[])
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);

@@ -703,7 +703,7 @@ Destack uses two related but separate "evaluate during compile time" mechanisms:
   Static execution is required for static parameters, array sizes, and other type-driven
   constructs that must be known for analysis (i.e., type checking).
 - **Comptime execution** evaluates `comptime` expressions and blocks during the Execute phase
-  by running MIR in the Machine interpreter. The result is substituted back into the program
+  by running MIR in the VM interpreter. The result is substituted back into the program
   as a constant and any comptime-controlled branches are eliminated.
 
 Static execution must not depend on full comptime execution. This avoids dependency cycles

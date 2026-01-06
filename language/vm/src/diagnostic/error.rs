@@ -267,7 +267,7 @@ impl From<Error> for RuntimeError {
     }
 }
 
-/// Result type for machine operations.
+/// Result type for VM operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Result type for runtime operations that include stack traces.

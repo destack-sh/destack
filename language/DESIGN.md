@@ -451,7 +451,7 @@ Destack distinguishes **static execution** and **comptime execution**:
   This includes literals, arithmetic on literals, known constants, and other syntax that can be folded without
   executing user code. These are required for static parameters and type-level arguments.
 - **Comptime execution** evaluates `comptime` expressions and blocks by running MIR in the
-  Machine interpreter during the Execute phase. Results are written back into the program
+  VM interpreter during the Execute phase. Results are written back into the program
   as constants and dead branches are eliminated.
 
 Static execution must not depend on full comptime execution. 

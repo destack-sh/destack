@@ -1,4 +1,4 @@
-//! Memory management for the Destack machine.
+//! Memory management for the Destack VM.
 
 mod heap;
 mod value;

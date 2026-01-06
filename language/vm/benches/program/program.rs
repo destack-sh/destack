@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::time::{Duration, Instant};
 
-use destack_machine::interpreter::{Interpreter, MachineOptions};
-use destack_machine::memory::Value;
 use destack_mir::parse::Parser;
+use destack_vm::interpreter::{Interpreter, MachineOptions};
+use destack_vm::memory::Value;
 
 use super::{arithmetic, calls, dispatch, intrinsics, memory};
 

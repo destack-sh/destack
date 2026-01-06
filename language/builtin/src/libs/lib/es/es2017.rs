@@ -102,7 +102,7 @@ pub const LIB_ES2017_SHAREDMEMORY: BuiltinLib = BuiltinLib::ambient_lib(
     &[LIB_ES_ES2017_SHAREDMEMORY_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2017_SHAREDMEMORY_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2017_SHAREDMEMORY_DECLARED_SYMBOLS);
 pub const LIB_ES2017_STRING: BuiltinLib =
     BuiltinLib::ambient_lib("es2017.string", &[LIB_ES_ES2017_STRING_D_DS], &[])
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);

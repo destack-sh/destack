@@ -1,4 +1,4 @@
-//! Diagnostics for the Destack machine.
+//! Diagnostics for the Destack VM.
 
 mod error;
 

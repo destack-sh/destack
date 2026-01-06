@@ -1,22 +1,22 @@
 use crate::{Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::ModuleId;
-use {destack_dir as dir, destack_machine as machine};
+use {destack_dir as dir, destack_vm as vm};
 
 #[allow(dead_code)]
 impl Compiler {
-    /// Convert a static expression into a machine value.
+    /// Convert a static expression into a VM value.
     pub(crate) fn static_expression_to_value(
         &self,
         value: &dir::StaticExpression,
-    ) -> Option<machine::Value> {
+    ) -> Option<vm::Value> {
         match value {
             dir::StaticExpression::ScalarLiteral { value } => match value {
-                dir::ScalarLiteral::Boolean(value) => Some(machine::Value::bool(*value)),
-                dir::ScalarLiteral::Integer(value) => Some(machine::Value::int64(*value)),
-                dir::ScalarLiteral::Bigint(value) => Some(machine::Value::int64(*value)),
-                dir::ScalarLiteral::Float(value) => Some(machine::Value::float64(*value)),
-                dir::ScalarLiteral::Character(value) => Some(machine::Value::char(*value)),
+                dir::ScalarLiteral::Boolean(value) => Some(vm::Value::bool(*value)),
+                dir::ScalarLiteral::Integer(value) => Some(vm::Value::int64(*value)),
+                dir::ScalarLiteral::Bigint(value) => Some(vm::Value::int64(*value)),
+                dir::ScalarLiteral::Float(value) => Some(vm::Value::float64(*value)),
+                dir::ScalarLiteral::Character(value) => Some(vm::Value::char(*value)),
                 // #Incomplete: support more complex static values in comptime
                 dir::ScalarLiteral::String(_) => None,
                 dir::ScalarLiteral::RegexString { .. } => None,
@@ -25,12 +25,12 @@ impl Compiler {
         }
     }
 
-    /// Convert a machine value into a static expression.
+    /// Convert a VM value into a static expression.
     pub(crate) fn value_to_static_expression(
         &self,
-        value: &machine::Value,
+        value: &vm::Value,
     ) -> Option<dir::StaticExpression> {
-        use machine::ValueTag;
+        use vm::ValueTag;
 
         let scalar = match value.tag() {
             ValueTag::Bool => dir::ScalarLiteral::Boolean(value.as_bool()?),

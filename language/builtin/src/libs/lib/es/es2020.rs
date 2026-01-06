@@ -40,8 +40,7 @@ pub(crate) const ES2020_DECLARED_SYMBOLS: &[&str] = &[
     "globalThis",
 ];
 
-const ES2020_BIGINT_DECLARED_SYMBOLS: &[&str] =
-    &["BigInt", "BigInt64Array", "BigUint64Array"];
+const ES2020_BIGINT_DECLARED_SYMBOLS: &[&str] = &["BigInt", "BigInt64Array", "BigUint64Array"];
 const ES2020_EMPTY_DECLARED_SYMBOLS: &[&str] = &[];
 
 macro_rules! lib_source {
@@ -116,7 +115,7 @@ pub const LIB_ES2020_SHAREDMEMORY: BuiltinLib = BuiltinLib::ambient_lib(
     &[LIB_ES_ES2020_SHAREDMEMORY_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
 pub const LIB_ES2020_STRING: BuiltinLib =
     BuiltinLib::ambient_lib("es2020.string", &[LIB_ES_ES2020_STRING_D_DS], &[])
         .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
@@ -125,4 +124,4 @@ pub const LIB_ES2020_SYMBOL_WELLKNOWN: BuiltinLib = BuiltinLib::ambient_lib(
     &[LIB_ES_ES2020_SYMBOL_WELLKNOWN_D_DS],
     &[],
 )
-    .with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);
+.with_declared_symbols(ES2020_EMPTY_DECLARED_SYMBOLS);

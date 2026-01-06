@@ -12,13 +12,13 @@ use destack_dir::{
     NodeTree, Pattern, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
-use destack_machine::{Interpreter, MachineOptions, Value};
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType,
     MemoryFileSystem, ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri,
     print_diagnostics, print_diff,
 };
+use destack_vm::{Interpreter, MachineOptions, Value};
 use destack_workspace::{Module, ProfileId, Program, Session, TargetId};
 use parking_lot::RwLock;
 

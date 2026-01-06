@@ -6,7 +6,7 @@ mod program;
 
 /// Command line arguments.
 #[derive(Parser)]
-#[command(name = "bench_stats", about = "Quick machine interpreter benchmarks")]
+#[command(name = "bench_stats", about = "Quick VM interpreter benchmarks")]
 struct Args {
     /// Run validation instead of benchmarks.
     #[arg(short, long)]

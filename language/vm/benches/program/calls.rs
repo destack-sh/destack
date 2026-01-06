@@ -1,5 +1,5 @@
 use super::Program;
-use destack_machine::memory::Value;
+use destack_vm::memory::Value;
 
 /// All function call benchmark programs.
 pub(crate) const ALL: &[&Program] = &[

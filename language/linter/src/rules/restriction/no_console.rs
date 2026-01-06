@@ -35,10 +35,7 @@ impl LintRule for NoConsole {
 
     /// Check module DIR nodes for console usage.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
-        // resolve lint metadata
         let meta = self.meta();
-
-        // walk the module for console usage
         let mut visitor = NoConsoleVisitor::new(ctx, meta);
         visitor.run();
     }
