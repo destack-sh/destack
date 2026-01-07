@@ -55,6 +55,15 @@ impl SlotStorage {
         }
     }
 
+    /// Create slot storage for exactly 2 values (avoids Vec allocation).
+    #[inline]
+    pub fn from_pair(first: Value, second: Value) -> Self {
+        Self::Inline {
+            len: 2,
+            slots: [first, second],
+        }
+    }
+
     /// Return the number of slots.
     #[inline]
     pub fn len(&self) -> usize {
@@ -80,13 +89,13 @@ impl SlotStorage {
     }
 
     /// Return a slot by index.
-    #[inline]
+    #[inline(always)]
     pub fn get(&self, index: usize) -> Option<&Value> {
         self.as_slice().get(index)
     }
 
     /// Return a mutable slot by index.
-    #[inline]
+    #[inline(always)]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut Value> {
         match self {
             Self::Inline { len, slots } => {
@@ -104,7 +113,7 @@ impl SlotStorage {
     ///
     /// # Safety
     /// Caller must ensure the index is within the current slot bounds.
-    #[inline]
+    #[inline(always)]
     pub unsafe fn get_unchecked(&self, index: usize) -> &Value {
         match self {
             Self::Inline { len, slots } => {
@@ -119,7 +128,7 @@ impl SlotStorage {
     ///
     /// # Safety
     /// Caller must ensure the index is within the current slot bounds.
-    #[inline]
+    #[inline(always)]
     pub unsafe fn get_unchecked_mut(&mut self, index: usize) -> &mut Value {
         match self {
             Self::Inline { len, slots } => {

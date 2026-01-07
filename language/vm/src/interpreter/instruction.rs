@@ -533,6 +533,18 @@ pub(super) fn load_field_managed(
     // track pointer loads
     state.interpreter.statistics.loads += 1;
 
+    // fast path: skip all validation when bounds and null checks are disabled
+    if !state.bounds_checks && !state.null_checks {
+        // compute slot index
+        let slot_index = handle.slot_index().wrapping_add(index as usize);
+
+        // #Safety: checks are disabled, caller ensures validity
+        let cell = unsafe { state.interpreter.managed_heap.get_unchecked(handle) };
+        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
+        let value = unsafe { *cell.slots.get_unchecked(slot_index) };
+        return Ok(value);
+    }
+
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
@@ -615,6 +627,18 @@ pub(super) fn store_field_managed(
 ) -> Result<(), Error> {
     // track pointer stores
     state.interpreter.statistics.stores += 1;
+
+    // fast path: skip all validation when bounds and null checks are disabled
+    if !state.bounds_checks && !state.null_checks {
+        // compute slot index
+        let slot_index = handle.slot_index().wrapping_add(index as usize);
+
+        // #Safety: checks are disabled, caller ensures validity
+        let cell = unsafe { state.interpreter.managed_heap.get_unchecked_mut(handle) };
+        debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
+        unsafe { *cell.slots.get_unchecked_mut(slot_index) = value };
+        return Ok(());
+    }
 
     // validate field index when known
     check_field_index(state, index, field_count)?;

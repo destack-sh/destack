@@ -462,6 +462,7 @@ impl Interpreter {
     // checked arithmetic
 
     /// Add with overflow detection.
+    #[inline]
     fn execute_add_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -490,7 +491,7 @@ impl Interpreter {
                     }
                     _ => a.overflowing_add(b),
                 };
-                Ok(self.allocate_aggregate(vec![Value::int(result, width), Value::bool(overflow)]))
+                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -511,12 +512,7 @@ impl Interpreter {
                     }
                     _ => a.overflowing_add(b),
                 };
-                Ok(
-                    self.allocate_aggregate(vec![
-                        Value::uint(result, width),
-                        Value::bool(overflow),
-                    ]),
-                )
+                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -526,6 +522,7 @@ impl Interpreter {
     }
 
     /// Subtract with overflow detection.
+    #[inline]
     fn execute_sub_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -554,7 +551,7 @@ impl Interpreter {
                     }
                     _ => a.overflowing_sub(b),
                 };
-                Ok(self.allocate_aggregate(vec![Value::int(result, width), Value::bool(overflow)]))
+                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -575,12 +572,7 @@ impl Interpreter {
                     }
                     _ => a.overflowing_sub(b),
                 };
-                Ok(
-                    self.allocate_aggregate(vec![
-                        Value::uint(result, width),
-                        Value::bool(overflow),
-                    ]),
-                )
+                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -590,6 +582,7 @@ impl Interpreter {
     }
 
     /// Multiply with overflow detection.
+    #[inline]
     fn execute_mul_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
@@ -618,7 +611,7 @@ impl Interpreter {
                     }
                     _ => a.overflowing_mul(b),
                 };
-                Ok(self.allocate_aggregate(vec![Value::int(result, width), Value::bool(overflow)]))
+                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -639,12 +632,7 @@ impl Interpreter {
                     }
                     _ => a.overflowing_mul(b),
                 };
-                Ok(
-                    self.allocate_aggregate(vec![
-                        Value::uint(result, width),
-                        Value::bool(overflow),
-                    ]),
-                )
+                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -1463,7 +1451,7 @@ impl Interpreter {
             self.write_memory_slot(&ptr, 0, desired)?;
         }
 
-        Ok(self.allocate_aggregate(vec![current, Value::bool(success)]))
+        Ok(self.allocate_pair(current, Value::bool(success)))
     }
 
     /// Atomic fetch-and-add.

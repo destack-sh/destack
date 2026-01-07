@@ -44,6 +44,15 @@ impl ManagedHeap {
         })
     }
 
+    /// Allocate a cell with exactly 2 slot values (avoids Vec allocation).
+    #[inline]
+    pub fn allocate_pair(&mut self, first: Value, second: Value) -> HeapHandle {
+        self.allocate_cell(HeapCell {
+            slots: SlotStorage::from_pair(first, second),
+            marked: false,
+        })
+    }
+
     /// Internal: allocate a cell, reusing free slots if available.
     fn allocate_cell(&mut self, cell: HeapCell) -> HeapHandle {
         if let Some(index) = self.free_list.pop() {
@@ -59,15 +68,50 @@ impl ManagedHeap {
     }
 
     /// Get a cell by handle.
-    #[inline]
+    #[inline(always)]
     pub fn get(&self, handle: HeapHandle) -> Option<&HeapCell> {
         self.cells.get(handle.id() as usize)?.as_ref()
     }
 
     /// Get a mutable reference to a cell.
-    #[inline]
+    #[inline(always)]
     pub fn get_mut(&mut self, handle: HeapHandle) -> Option<&mut HeapCell> {
         self.cells.get_mut(handle.id() as usize)?.as_mut()
+    }
+
+    /// Get a cell by handle without bounds checks.
+    ///
+    /// # Safety
+    /// Caller must ensure the handle points to a valid allocated cell.
+    #[inline(always)]
+    pub unsafe fn get_unchecked(&self, handle: HeapHandle) -> &HeapCell {
+        let index = handle.id() as usize;
+        debug_assert!(index < self.cells.len(), "heap handle out of bounds");
+        debug_assert!(
+            unsafe { self.cells.get_unchecked(index).is_some() },
+            "heap handle points to freed cell"
+        );
+        unsafe { self.cells.get_unchecked(index).as_ref().unwrap_unchecked() }
+    }
+
+    /// Get a mutable reference to a cell without bounds checks.
+    ///
+    /// # Safety
+    /// Caller must ensure the handle points to a valid allocated cell.
+    #[inline(always)]
+    pub unsafe fn get_unchecked_mut(&mut self, handle: HeapHandle) -> &mut HeapCell {
+        let index = handle.id() as usize;
+        debug_assert!(index < self.cells.len(), "heap handle out of bounds");
+        debug_assert!(
+            unsafe { self.cells.get_unchecked(index).is_some() },
+            "heap handle points to freed cell"
+        );
+        unsafe {
+            self.cells
+                .get_unchecked_mut(index)
+                .as_mut()
+                .unwrap_unchecked()
+        }
     }
 
     /// Get a slot of a cell.
