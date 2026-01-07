@@ -26,11 +26,15 @@ mod no_unneeded_ternary;
 mod no_var;
 mod object_shorthand;
 mod operator_assignment;
+mod prefer_array_filter;
+mod prefer_array_find;
+mod prefer_array_map;
 mod prefer_array_some;
 mod prefer_arrow_callback;
 mod prefer_as_const;
 mod prefer_exponentiation_operator;
 mod prefer_expression;
+mod prefer_flat_map;
 mod prefer_fragment_shorthand;
 mod prefer_if_else_over_match_bool;
 mod prefer_implicit_return;
@@ -87,11 +91,15 @@ pub use no_unneeded_ternary::*;
 pub use no_var::*;
 pub use object_shorthand::*;
 pub use operator_assignment::*;
+pub use prefer_array_filter::*;
+pub use prefer_array_find::*;
+pub use prefer_array_map::*;
 pub use prefer_array_some::*;
 pub use prefer_arrow_callback::*;
 pub use prefer_as_const::*;
 pub use prefer_exponentiation_operator::*;
 pub use prefer_expression::*;
+pub use prefer_flat_map::*;
 pub use prefer_fragment_shorthand::*;
 pub use prefer_if_else_over_match_bool::*;
 pub use prefer_implicit_return::*;
@@ -149,11 +157,15 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoVar),
         boxed(ObjectShorthand),
         boxed(OperatorAssignment),
+        boxed(PreferArrayFilter),
+        boxed(PreferArrayFind),
+        boxed(PreferArrayMap),
         boxed(PreferArraySome),
         boxed(PreferArrowCallback),
         boxed(PreferAsConst),
         boxed(PreferExponentiationOperator),
         boxed(PreferExpression),
+        boxed(PreferFlatMap),
         boxed(PreferFragmentShorthand),
         boxed(PreferIfElseOverMatchBool),
         boxed(PreferImplicitReturn),

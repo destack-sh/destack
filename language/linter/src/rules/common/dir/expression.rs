@@ -179,3 +179,38 @@ fn expression_reference_path_base(
         _ => expression.target_symbol().map(ReferenceBase::Symbol),
     }
 }
+
+/// Info about a method call expression (receiver.method(...)).
+#[derive(Debug, Clone, Copy)]
+pub struct MethodCallInfo {
+    /// The call expression id.
+    pub call_id: dir::LocalNodeId<dir::Expression>,
+    /// The receiver expression id (the object the method is called on).
+    pub receiver_id: dir::LocalNodeId<dir::Expression>,
+    /// The method name.
+    pub method_name: StringId,
+}
+
+/// Match a method call expression and extract its parts.
+pub fn expression_method_call(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<MethodCallInfo> {
+    // match call expression
+    let expression = tree.get(expression_id);
+    let dir::Expression::Call { left, .. } = expression else {
+        return None;
+    };
+
+    // match member access for the callee
+    let callee = tree.get(*left);
+    let dir::Expression::Member { left, name, .. } = callee else {
+        return None;
+    };
+
+    Some(MethodCallInfo {
+        call_id: expression_id,
+        receiver_id: *left,
+        method_name: *name,
+    })
+}
