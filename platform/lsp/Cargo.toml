@@ -38,5 +38,5 @@ tokio = { version = "1", features = [
 	"io-std",
 	"sync",
 ] }
-tower-lsp-server = "0.22.1"
+tower-lsp-server = { path = "src/tower-lsp-server" }
 tracing = { workspace = true }
