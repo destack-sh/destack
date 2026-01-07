@@ -1,0 +1,246 @@
+use destack_base::StringId;
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_workspace::LintSeverity;
+
+use crate::LintRequirement::RequireWellKnownSymbol;
+use crate::rules::common::is_array_type;
+use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+
+declare_lint! {
+    /// Require comparison function for array `.sort()`.
+    ///
+    /// Without a comparison function, `.sort()` converts elements to strings
+    /// and sorts them lexicographically. This is almost never correct for
+    /// numeric arrays: `[10, 2, 1].sort()` produces `[1, 10, 2]`.
+    #[lint(
+        id = "require-array-sort-compare",
+        code = "LC053",
+        category = Correctness,
+        level = Dir,
+        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Array)],
+        requires_any = [],
+        fixable = No,
+        recommended = Always,
+        stability = Stable
+    )]
+    pub RequireArraySortCompare,
+    "Require comparison function for .sort()"
+}
+
+impl LintRule for RequireArraySortCompare {
+    /// Return lint metadata.
+    fn meta(&self) -> &'static LintMeta {
+        RequireArraySortCompare::meta()
+    }
+
+    /// Check module DIR nodes for sort calls without comparator.
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        let meta = self.meta();
+        let mut visitor = ArraySortVisitor::new(ctx, meta);
+        visitor.run();
+    }
+}
+
+/// Node visitor that flags sort calls without comparison functions.
+struct ArraySortVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The well known Array symbol for this module.
+    array_symbol: dir::GlobalSymbolId,
+    /// The sort method name.
+    sort_name: StringId,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a, 'b> ArraySortVisitor<'a, 'b> {
+    /// Build a visitor for array sort checks.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
+        let sort_name = ctx.program.strings.intern("sort");
+
+        Self {
+            ctx,
+            meta,
+            array_symbol,
+            sort_name,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Walk the DIR tree roots.
+    fn run(&mut self) {
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
+
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
+        }
+    }
+
+    /// Check a call expression for array sort without comparator.
+    fn check_sort_call(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        // match member access for sort method
+        let left_expression = self.ctx.tree.get(left);
+        let dir::Expression::Member {
+            left: receiver,
+            name,
+            ..
+        } = left_expression
+        else {
+            return;
+        };
+
+        // check method name
+        if *name != self.sort_name {
+            return;
+        }
+
+        // ensure no arguments provided
+        if !arguments.is_empty() {
+            return;
+        }
+
+        // resolve the receiver type
+        let Some(type_id) = self.ctx.expression_type_id(*receiver) else {
+            return;
+        };
+
+        // check if the receiver is an array type
+        if !is_array_type(self.ctx.types, type_id, Some(self.array_symbol)) {
+            return;
+        }
+
+        // honor per node severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report the diagnostic
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                REQUIRE_ARRAY_SORT_COMPARE.id,
+                REQUIRE_ARRAY_SORT_COMPARE.code,
+                REQUIRE_ARRAY_SORT_COMPARE.category,
+                severity,
+                "array .sort() requires a comparison function",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("provide a comparison function to avoid lexicographic sorting"),
+        );
+    }
+}
+
+impl NodeVisitor for ArraySortVisitor<'_, '_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // check call expressions for sort without comparator
+        if let dir::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        {
+            self.check_sort_call(id, *left, dynamic_arguments);
+        }
+
+        // walk expression children
+        walk_expression(self, tree, id, expression);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linter::TestProgram;
+
+    #[test]
+    fn test_flags_sort_without_compare() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let items = [3, 1, 2];
+items.sort();
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_flags_sort_on_typed_array() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let items: number[] = [3, 1, 2];
+items.sort();
+"#,
+        );
+        test.result(result)
+            .assert_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_allows_sort_with_compare() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let items = [3, 1, 2];
+items.sort((a, b) => a - b);
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_allows_sort_on_non_array() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let custom = { sort: () => {} };
+custom.sort();
+"#,
+        );
+        test.result(result)
+            .assert_no_lint("require-array-sort-compare");
+    }
+
+    #[test]
+    fn test_flags_string_array_sort() {
+        let test = TestProgram::for_rule_without_prelude(RequireArraySortCompare);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let names: string[] = ["c", "a", "b"];
+names.sort();
+"#,
+        );
+        // string arrays still flag because the rule doesn't differentiate element types
+        test.result(result)
+            .assert_lint("require-array-sort-compare");
+    }
+}
