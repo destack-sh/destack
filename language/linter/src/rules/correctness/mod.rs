@@ -12,11 +12,14 @@ mod no_empty_range;
 mod no_fallthrough;
 mod no_floating_point_equality;
 mod no_for_in_array;
+mod no_infinite_recursion;
 mod no_invalid_regexp;
+mod no_iterator_invalidation;
 mod no_loop_single_iteration;
 mod no_promise_executor_return;
 mod no_self_compare;
 mod no_sparse_arrays;
+mod no_throw_in_result_function;
 mod no_unknown_rule_decorator;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
@@ -39,11 +42,14 @@ pub use no_empty_range::*;
 pub use no_fallthrough::*;
 pub use no_floating_point_equality::*;
 pub use no_for_in_array::*;
+pub use no_infinite_recursion::*;
 pub use no_invalid_regexp::*;
+pub use no_iterator_invalidation::*;
 pub use no_loop_single_iteration::*;
 pub use no_promise_executor_return::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
+pub use no_throw_in_result_function::*;
 pub use no_unknown_rule_decorator::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
@@ -60,6 +66,8 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoAsyncPromiseExecutor),
         boxed(NoCompareNegZero),
         boxed(NoForInArray),
+        boxed(NoInfiniteRecursion),
+        boxed(NoIteratorInvalidation),
         boxed(NoControlRegex),
         boxed(NoConstantBinaryExpression),
         boxed(NoConstantCondition),
@@ -69,6 +77,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoFallthrough),
         boxed(NoFloatingPointEquality),
         boxed(NoLoopSingleIteration),
+        boxed(NoThrowInResultFunction),
         boxed(NoPromiseExecutorReturn),
         boxed(NoSelfCompare),
         boxed(RequireArraySortCompare),

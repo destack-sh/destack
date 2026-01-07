@@ -4,7 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_is_potentially_tainted, expression_target_symbol,
+    expression_is_global_qualified_member, expression_is_potentially_tainted,
+    expression_target_symbol,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
