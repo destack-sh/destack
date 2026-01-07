@@ -160,9 +160,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         }
 
         let declarator = self.ctx.tree.get(declarators[0]);
-        let Some(value_id) = declarator.value else {
-            return None;
-        };
+        let value_id = declarator.value?;
 
         // check the initializer is 0
         let value = self.ctx.tree.get(value_id);
@@ -327,11 +325,11 @@ impl NodeVisitor for IndexUseCollector<'_> {
         }
 
         // check for any other reference to the index variable
-        if let Some(target) = expression.target_symbol() {
-            if target == self.index_symbol {
-                // this is a use outside of arr[i] pattern
-                self.all_uses_are_indexing = false;
-            }
+        if let Some(target) = expression.target_symbol()
+            && target == self.index_symbol
+        {
+            // this is a use outside of arr[i] pattern
+            self.all_uses_are_indexing = false;
         }
 
         // walk children

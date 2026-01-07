@@ -247,10 +247,10 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
 
         // check for member accesses (like items.length) as other use
         // but exclude .push() which is handled by check_call
-        if let dir::Expression::Member { left, name, .. } = expression {
-            if *name != self.push_name {
-                self.mark_other_use(*left);
-            }
+        if let dir::Expression::Member { left, name, .. } = expression
+            && *name != self.push_name
+        {
+            self.mark_other_use(*left);
         }
 
         // walk expression children
