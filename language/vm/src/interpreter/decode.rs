@@ -92,25 +92,116 @@ fn select_binary_handler(
     left: mir::Value,
     operator: mir::BinaryOperator,
 ) -> ThreadedHandler {
+    use mir::BinaryOperator::*;
+
     // resolve operand kind
     let kind = value_kinds.get(left);
 
-    // select handler by kind
+    // try specialized integer handlers first (no operator dispatch overhead)
+    if let Some(ValueKind::Int { signed, .. }) = kind
+        && let Some(handler) = select_specialized_int_handler(operator, signed)
+    {
+        return handler;
+    }
+
+    // fall back to typed handlers
     match kind {
         Some(ValueKind::Int { signed: true, .. }) => dispatch::handle_binary_int,
         Some(ValueKind::Int { signed: false, .. }) => dispatch::handle_binary_uint,
         Some(ValueKind::Float { width: 32 }) => dispatch::handle_binary_float32,
         Some(ValueKind::Float { width: 64 }) => dispatch::handle_binary_float64,
-        Some(ValueKind::Bool)
-            if matches!(
-                operator,
-                mir::BinaryOperator::And | mir::BinaryOperator::Or | mir::BinaryOperator::Xor
-            ) =>
-        {
-            dispatch::handle_binary_bool
-        }
+        Some(ValueKind::Bool) if matches!(operator, And | Or | Xor) => dispatch::handle_binary_bool,
         _ => dispatch::handle_binary,
     }
+}
+
+/// Select a fully specialized integer handler if available.
+fn select_specialized_int_handler(
+    operator: mir::BinaryOperator,
+    signed: bool,
+) -> Option<ThreadedHandler> {
+    use mir::BinaryOperator::*;
+
+    Some(if signed {
+        match operator {
+            // signed arithmetic
+            Add => dispatch::handle_add_int,
+            Subtract => dispatch::handle_sub_int,
+            Multiply => dispatch::handle_mul_int,
+            // signed bitwise
+            And => dispatch::handle_and_int,
+            Or => dispatch::handle_or_int,
+            Xor => dispatch::handle_xor_int,
+            ShiftLeft => dispatch::handle_shl_int,
+            ArithmeticShiftRight => dispatch::handle_shr_int,
+            // signed comparisons
+            Equal => dispatch::handle_eq_int,
+            NotEqual => dispatch::handle_ne_int,
+            SignedLessThan => dispatch::handle_lt_int,
+            SignedLessEqual => dispatch::handle_le_int,
+            SignedGreaterThan => dispatch::handle_gt_int,
+            SignedGreaterEqual => dispatch::handle_ge_int,
+            _ => return None,
+        }
+    } else {
+        match operator {
+            // unsigned arithmetic
+            Add => dispatch::handle_add_uint,
+            Subtract => dispatch::handle_sub_uint,
+            Multiply => dispatch::handle_mul_uint,
+            // unsigned bitwise
+            And => dispatch::handle_and_uint,
+            Or => dispatch::handle_or_uint,
+            Xor => dispatch::handle_xor_uint,
+            ShiftLeft => dispatch::handle_shl_uint,
+            LogicalShiftRight => dispatch::handle_shr_uint,
+            // unsigned comparisons (eq/ne produce bool, not int/uint)
+            Equal => dispatch::handle_eq_int,
+            NotEqual => dispatch::handle_ne_int,
+            UnsignedLessThan => dispatch::handle_lt_uint,
+            UnsignedLessEqual => dispatch::handle_le_uint,
+            UnsignedGreaterThan => dispatch::handle_gt_uint,
+            UnsignedGreaterEqual => dispatch::handle_ge_uint,
+            _ => return None,
+        }
+    })
+}
+
+/// Select a specialized const-right handler if available.
+fn select_specialized_const_int_handler(
+    operator: mir::BinaryOperator,
+    signed: bool,
+) -> Option<ThreadedHandler> {
+    use mir::BinaryOperator::*;
+
+    Some(if signed {
+        match operator {
+            Add => dispatch::handle_add_const_int,
+            Subtract => dispatch::handle_sub_const_int,
+            Multiply => dispatch::handle_mul_const_int,
+            Equal => dispatch::handle_eq_const_int,
+            NotEqual => dispatch::handle_ne_const_int,
+            SignedLessThan => dispatch::handle_lt_const_int,
+            SignedLessEqual => dispatch::handle_le_const_int,
+            SignedGreaterThan => dispatch::handle_gt_const_int,
+            SignedGreaterEqual => dispatch::handle_ge_const_int,
+            _ => return None,
+        }
+    } else {
+        match operator {
+            Add => dispatch::handle_add_const_uint,
+            Subtract => dispatch::handle_sub_const_uint,
+            Multiply => dispatch::handle_mul_const_uint,
+            // eq/ne produce bool, can use signed version
+            Equal => dispatch::handle_eq_const_int,
+            NotEqual => dispatch::handle_ne_const_int,
+            UnsignedLessThan => dispatch::handle_lt_const_uint,
+            UnsignedLessEqual => dispatch::handle_le_const_uint,
+            UnsignedGreaterThan => dispatch::handle_gt_const_uint,
+            UnsignedGreaterEqual => dispatch::handle_ge_const_uint,
+            _ => return None,
+        }
+    })
 }
 
 /// Pick a unary handler based on inferred operand kind.
@@ -548,6 +639,19 @@ fn thread_block(
             continue;
         }
 
+        // attempt const + binary fusion
+        if let Some((threaded, skip)) = try_fuse_const_binary(
+            tree,
+            inst,
+            block.instructions.get(inst_index + 1).copied(),
+            value_kinds,
+            value_uses,
+        ) {
+            instructions.push(threaded);
+            inst_index += skip;
+            continue;
+        }
+
         // fall back to standard threading
         let threaded = thread_instruction(
             tree,
@@ -758,6 +862,91 @@ fn try_fuse_addr_access(
     }
 }
 
+/// Try to fuse const + binary into a single instruction with embedded constant.
+fn try_fuse_const_binary(
+    tree: &mir::NodeTree,
+    inst: &mir::Instruction,
+    next_inst_id: Option<mir::LocalNodeId<mir::Instruction>>,
+    value_kinds: &ValueKinds,
+    value_uses: &[u32],
+) -> Option<(ThreadedInstruction, usize)> {
+    // bail if there is no next instruction
+    let next_inst_id = next_inst_id?;
+
+    // check if the value is only used once
+    let can_fuse =
+        |value: mir::Value| -> bool { value_uses.get(value.0 as usize).copied().unwrap_or(0) == 1 };
+
+    // we need a Const instruction
+    let mir::Instruction::Const { destination, value } = inst else {
+        return None;
+    };
+
+    // check if the const value is only used once
+    if !can_fuse(*destination) {
+        return None;
+    }
+
+    // load next instruction and check if it's a binary using our constant
+    let next_inst = tree.get(next_inst_id);
+    let mir::Instruction::Binary {
+        destination: bin_dest,
+        operator,
+        left,
+        right,
+    } = next_inst
+    else {
+        return None;
+    };
+
+    // we can fuse if the constant is the right operand
+    if right != destination {
+        return None;
+    }
+
+    // skip comparisons: they may be fused with branches, which expect both
+    // operands to be materialized values
+    if operator.is_comparison() {
+        return None;
+    }
+
+    // convert constant to runtime Value
+    let const_value = Value::from(value);
+
+    // check if left operand is integer for specialized handler
+    let kind = value_kinds.get(*left);
+    if let Some(ValueKind::Int { signed, .. }) = kind {
+        // try to get a specialized const handler
+        if let Some(handler) = select_specialized_const_int_handler(*operator, signed) {
+            return Some((
+                ThreadedInstruction {
+                    handler,
+                    data: ThreadedInstructionData::BinaryConstRightSpecialized {
+                        dest: *bin_dest,
+                        left: *left,
+                        right_const: const_value,
+                    },
+                },
+                2,
+            ));
+        }
+    }
+
+    // fall back to generic binary with const right
+    Some((
+        ThreadedInstruction {
+            handler: dispatch::handle_binary_const_right,
+            data: ThreadedInstructionData::BinaryConstRight {
+                dest: *bin_dest,
+                op: *operator,
+                left: *left,
+                right_const: const_value,
+            },
+        },
+        2,
+    ))
+}
+
 /// Try to fuse compare + branch into a single instruction.
 ///
 /// If the terminator is a Branch whose condition comes from an icmp in the same block
@@ -900,15 +1089,33 @@ fn thread_instruction(
             operator,
             left,
             right,
-        } => ThreadedInstruction {
-            handler: select_binary_handler(value_kinds, *left, *operator),
-            data: ThreadedInstructionData::Binary {
-                dest: *destination,
-                op: *operator,
-                left: *left,
-                right: *right,
-            },
-        },
+        } => {
+            // check if we can use a specialized handler
+            let kind = value_kinds.get(*left);
+            if let Some(ValueKind::Int { signed, .. }) = kind
+                && let Some(handler) = select_specialized_int_handler(*operator, signed)
+            {
+                return ThreadedInstruction {
+                    handler,
+                    data: ThreadedInstructionData::BinarySpecialized {
+                        dest: *destination,
+                        left: *left,
+                        right: *right,
+                    },
+                };
+            }
+
+            // fall back to generic binary instruction
+            ThreadedInstruction {
+                handler: select_binary_handler(value_kinds, *left, *operator),
+                data: ThreadedInstructionData::Binary {
+                    dest: *destination,
+                    op: *operator,
+                    left: *left,
+                    right: *right,
+                },
+            }
+        }
 
         mir::Instruction::Unary {
             destination,
