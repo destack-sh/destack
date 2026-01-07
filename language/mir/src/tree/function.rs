@@ -1,6 +1,6 @@
 use destack_base::StringId;
 
-use crate::{Block, Linkage, Local, LocalNodeId, Node, NodeType, Type, TypedValue, Value};
+use crate::{Block, Linkage, Local, LocalNodeId, Node, NodeTree, NodeType, Type, TypedValue, Value};
 
 /// Memory allocation restrictions for a function.
 ///
@@ -183,6 +183,34 @@ impl Function {
         let id = self.next_value_id;
         self.next_value_id += 1;
         Value::new(id)
+    }
+
+    /// Recompute `next_value_id` by scanning all values in the function.
+    ///
+    /// Call this before allocating new values if the function was parsed
+    /// or modified externally and `next_value_id` may be stale.
+    pub fn recompute_next_value_id(&mut self, tree: &NodeTree) {
+        let mut max_id: u32 = 0;
+
+        // function parameters
+        for param in &self.parameters {
+            max_id = max_id.max(param.value.0);
+        }
+
+        // block parameters and instruction destinations
+        for &block_id in &self.blocks {
+            let block = tree.get(block_id);
+            for param in &block.parameters {
+                max_id = max_id.max(param.value.0);
+            }
+            for &instr_id in &block.instructions {
+                if let Some(dest) = tree.get(instr_id).destination() {
+                    max_id = max_id.max(dest.0);
+                }
+            }
+        }
+
+        self.next_value_id = max_id + 1;
     }
 
     /// Add a local variable and return its id.

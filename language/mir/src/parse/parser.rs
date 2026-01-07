@@ -467,13 +467,10 @@ impl<'a> Parser<'a> {
             .copied()
             .ok_or_else(|| ParseError::new("function must have at least one block", self.pos()))?;
 
-        let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
-
         let function = self.tree.get_mut(id);
         function.locals = locals;
         function.blocks = blocks;
         function.entry = Some(entry);
-        function.next_value_id = next_value_id;
 
         Ok(id)
     }
