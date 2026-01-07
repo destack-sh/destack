@@ -14,7 +14,6 @@ mod no_floating_point_equality;
 mod no_for_in_array;
 mod no_invalid_regexp;
 mod no_loop_single_iteration;
-mod no_new_native_nonconstructor;
 mod no_promise_executor_return;
 mod no_self_compare;
 mod no_sparse_arrays;
@@ -42,7 +41,6 @@ pub use no_floating_point_equality::*;
 pub use no_for_in_array::*;
 pub use no_invalid_regexp::*;
 pub use no_loop_single_iteration::*;
-pub use no_new_native_nonconstructor::*;
 pub use no_promise_executor_return::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
@@ -62,7 +60,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoAsyncPromiseExecutor),
         boxed(NoCompareNegZero),
         boxed(NoForInArray),
-        boxed(NoNewNativeNonconstructor),
         boxed(NoControlRegex),
         boxed(NoConstantBinaryExpression),
         boxed(NoConstantCondition),

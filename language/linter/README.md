@@ -95,9 +95,7 @@ High-confidence issues that are almost always wrong.
 | `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | ✅ | Unsafe | Disallow async functions as Promise executor |
 | `LC008` | `no-base-to-string` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow `.toString()` on objects without useful representation |
 | `LC009` | `no-borrow-across-await` | Destack | DIR | ✓ | 🔶 | None | Disallow holding borrows across await points |
-| `LC010` | `no-class-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning class/struct declarations |
 | `LC011` | `no-compare-neg-zero` | ESLint | AST | ✓ | ✅ | Safe | Disallow comparing against negative zero |
-| `LC012` | `no-const-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning const variables |
 | `LC013` | `no-constant-binary-expression` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow expressions where the operation doesn't affect the value |
 | `LC014` | `no-constant-condition` | ESLint | AST | ✓ | ✅ | None | Disallow constant expressions in conditions |
 | `LC015` | `no-control-regex` | ESLint | AST | ✓ | ✅ | None | Disallow control characters in regular expressions |
@@ -109,7 +107,6 @@ High-confidence issues that are almost always wrong.
 | `LC021` | `no-fallthrough` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow fallthrough of case statements |
 | `LC022` | `no-floating-promises` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require Promises to be awaited or returned |
 | `LC023` | `no-for-in-array` | TS-ESLint | DIR | ✓ | ✅ | None | Disallow iterating over arrays with for-in |
-| `LC024` | `no-func-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning function declarations |
 | `LC025` | `no-implicit-any-in-export` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow implicit `any` in public APIs |
 | `LC026` | `no-index-out-of-bounds` | Destack | DIR | ✗ | 🔶 | None | Disallow array access where index is not proven in bounds |
 | `LC027` | `no-infinite-iterator` | Destack | DIR | ✗ | 🔶 | None | Disallow using methods that produce infinite iterators |
@@ -119,14 +116,11 @@ High-confidence issues that are almost always wrong.
 | `LC031` | `no-loop-single-iteration` | SonarQube | AST | ✓ | ✅ | Suggestion | Disallow loops that execute at most once |
 | `LC032` | `no-misused-promises` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow Promises in places not designed to handle them |
 | `LC033` | `no-misused-spread` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow spread syntax in contexts where it's incorrect |
-| `LC034` | `no-new-native-nonconstructor` | ESLint | DIR | ✓ | ✅ | None | Disallow `new` on Symbol and BigInt |
-| `LC035` | `no-obj-calls` | ESLint | DIR | ✓ | 🔶 | None | Disallow calling global objects as functions |
 | `LC036` | `no-overlapping-match-arms` | Destack | DIR | ✓ | 🔶 | Safe | Disallow match patterns that subsume later arms |
 | `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | ✅ | Safe | Disallow returning values from Promise executor |
 | `LC038` | `no-self-compare` | ESLint | AST | ✓ | ✅ | None | Disallow comparisons where both sides are exactly the same |
 | `LC039` | `no-sparse-arrays` | ESLint | AST | ✓ | ✅ | None | Disallow sparse arrays with holes |
 | `LC040` | `no-struct-identity-compare` | Destack | DIR | ✓ | 🔶 | Safe | Disallow identity comparison on value types |
-| `LC041` | `no-this-before-super` | ESLint | DIR | ✓ | 🔶 | None | Disallow `this` before calling `super()` in constructors |
 | `LC042` | `no-throw-in-result-function` | Destack | DIR | ✓ | 🔶 | None | Disallow `throw` in functions returning `Result` |
 | `LC043` | `no-unchecked-overflow` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow arithmetic that may overflow without explicit handling |
 | `LC044` | `no-unchecked-pointer-deref` | Destack | DIR | ✗ | 🔶 | None | Disallow dereferencing pointers without a proven non-null guard |
@@ -135,7 +129,6 @@ High-confidence issues that are almost always wrong.
 | `LC047` | `no-unsafe-finally` | ESLint | AST | ✓ | ✅ | Safe | Disallow control flow statements in finally blocks |
 | `LC048` | `no-unsafe-negation` | ESLint | AST | ✓ | ✅ | Safe | Disallow negating the left operand of relational operators |
 | `LC049` | `no-unknown-rule-decorator` | Destack | AST | ✓ | ✅ | None | Disallow unknown rule decorators |
-| `LC050` | `no-unsafe-optional-chaining` | ESLint | DIR | ✓ | 🔶 | None | Disallow optional chaining in contexts where undefined is not allowed |
 | `LC051` | `no-useless-assignment` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow assignments that are immediately overwritten |
 | `LC052` | `no-useless-increment` | SonarQube | DIR | ✓ | 🔶 | Safe | Disallow incrementing a value that is never used afterward |
 | `LC053` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | ✅ | Suggestion | Require comparison function for `.sort()` |
