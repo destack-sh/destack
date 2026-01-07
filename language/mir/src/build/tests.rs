@@ -361,6 +361,68 @@ block3:
     assert_eq!(output, expected);
 }
 
+/// Trivial phi removal is skipped for incomplete phis.
+#[test]
+fn test_ssa_trivial_phi_unsealed() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let bool_type = module.type_bool();
+    let i32_type = module.type_i32();
+
+    // build function
+    let mut builder = module.function("trivial_phi_unsealed", &[bool_type], i32_type);
+
+    // create blocks
+    let entry_block = builder.create_block();
+    let then_block = builder.create_block();
+    let else_block = builder.create_block();
+    let merge_block = builder.create_block();
+
+    // create variable
+    let result_variable = builder.create_variable(i32_type);
+
+    // entry block: define variable, then branch
+    builder.switch_to_block(entry_block);
+    let condition_value = builder.function_parameter(0);
+    let same_value = builder.iconst_i32(42);
+    builder.define_variable(result_variable, same_value);
+    builder.branch(condition_value, then_block, else_block);
+    builder.seal_block(entry_block);
+
+    // then block: don't redefine, just jump
+    builder.switch_to_block(then_block);
+    builder.jump(merge_block);
+    builder.seal_block(then_block);
+
+    // else block: don't redefine, just jump
+    builder.switch_to_block(else_block);
+    builder.jump(merge_block);
+    builder.seal_block(else_block);
+
+    // merge block: use variable before sealing to create an incomplete phi
+    builder.switch_to_block(merge_block);
+    let result_value = builder.use_variable(result_variable);
+    builder.return_(Some(result_value));
+    builder.finish();
+
+    // verify output: trivial phi removal rewrites the unsealed use
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @trivial_phi_unsealed(v0: bool) -> i32 {
+block0:
+    v1 = iconst 42i32
+    branch v0, block1, block2
+block1:
+    jump block3
+block2:
+    jump block3
+block3:
+    return v1
+}";
+    assert_eq!(output, expected);
+}
+
 /// All arithmetic operations in sequence.
 #[test]
 fn test_build_arithmetic_operations() {
