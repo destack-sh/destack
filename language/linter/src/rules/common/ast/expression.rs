@@ -299,39 +299,8 @@ pub fn expression_is_equal(
                 ..
             },
         ) => {
-            if !expression_is_equal(ctx, *left_callee, *right_callee) {
-                return false;
-            }
-            if left_args.len() != right_args.len() {
-                return false;
-            }
-            for (left_arg_id, right_arg_id) in left_args.iter().zip(right_args.iter()) {
-                let left_arg = ctx.tree.get(*left_arg_id);
-                let right_arg = ctx.tree.get(*right_arg_id);
-                let args_equal = match (left_arg, right_arg) {
-                    (
-                        ast::Argument::Positional {
-                            value: left_value, ..
-                        },
-                        ast::Argument::Positional {
-                            value: right_value, ..
-                        },
-                    ) => expression_is_equal(ctx, *left_value, *right_value),
-                    (
-                        ast::Argument::Spread {
-                            value: left_value, ..
-                        },
-                        ast::Argument::Spread {
-                            value: right_value, ..
-                        },
-                    ) => expression_is_equal(ctx, *left_value, *right_value),
-                    _ => false,
-                };
-                if !args_equal {
-                    return false;
-                }
-            }
-            true
+            expression_is_equal(ctx, *left_callee, *right_callee)
+                && arguments_are_equal(ctx, left_args, right_args)
         }
 
         // blocks: compare contents
@@ -391,20 +360,22 @@ fn expression_unwrap_parentheses<'a>(
 }
 
 /// Return whether two paths are equal.
-fn paths_equal(ctx: &LintModuleAstContext<'_>, left: &ast::Path, right: &ast::Path) -> bool {
+pub fn paths_equal(ctx: &LintModuleAstContext<'_>, left: &ast::Path, right: &ast::Path) -> bool {
     if left.segments.len() != right.segments.len() {
         return false;
     }
+
     for (left_segment, right_segment) in left.segments.iter().zip(right.segments.iter()) {
         if !string_ids_equal(ctx, *left_segment, *right_segment) {
             return false;
         }
     }
+
     true
 }
 
 /// Return whether two string IDs refer to equal strings.
-fn string_ids_equal(
+pub fn string_ids_equal(
     ctx: &LintModuleAstContext<'_>,
     left: ast::StringId,
     right: ast::StringId,
@@ -412,6 +383,94 @@ fn string_ids_equal(
     let left_string = ctx.strings.get(left);
     let right_string = ctx.strings.get(right);
     left_string.as_ref() == right_string.as_ref()
+}
+
+/// Return whether two argument lists are equal.
+pub fn arguments_are_equal(
+    ctx: &LintModuleAstContext<'_>,
+    left: &[ast::LocalNodeId<ast::Argument>],
+    right: &[ast::LocalNodeId<ast::Argument>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    for (left_arg_id, right_arg_id) in left.iter().zip(right.iter()) {
+        if !argument_is_equal(ctx, *left_arg_id, *right_arg_id) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Return whether two arguments are structurally equal.
+pub fn argument_is_equal(
+    ctx: &LintModuleAstContext<'_>,
+    left_id: ast::LocalNodeId<ast::Argument>,
+    right_id: ast::LocalNodeId<ast::Argument>,
+) -> bool {
+    let left = ctx.tree.get(left_id);
+    let right = ctx.tree.get(right_id);
+
+    match (left, right) {
+        // positional arguments
+        (
+            ast::Argument::Positional {
+                value: left_value, ..
+            },
+            ast::Argument::Positional {
+                value: right_value, ..
+            },
+        ) => expression_is_equal(ctx, *left_value, *right_value),
+
+        // spread arguments
+        (
+            ast::Argument::Spread {
+                value: left_value, ..
+            },
+            ast::Argument::Spread {
+                value: right_value, ..
+            },
+        ) => expression_is_equal(ctx, *left_value, *right_value),
+
+        // named arguments
+        (
+            ast::Argument::Named {
+                name: left_name,
+                value: left_value,
+                ..
+            },
+            ast::Argument::Named {
+                name: right_name,
+                value: right_value,
+                ..
+            },
+        ) => {
+            left_name.string() == right_name.string()
+                && expression_is_equal(ctx, *left_value, *right_value)
+        }
+
+        // labeled arguments
+        (
+            ast::Argument::Labeled {
+                label: left_label,
+                value: left_value,
+                ..
+            },
+            ast::Argument::Labeled {
+                label: right_label,
+                value: right_value,
+                ..
+            },
+        ) => {
+            string_ids_equal(ctx, *left_label, *right_label)
+                && expression_is_equal(ctx, *left_value, *right_value)
+        }
+
+        // different argument types
+        _ => false,
+    }
 }
 
 /// Check if an expression has side effects (conservatively returns true if unsure).

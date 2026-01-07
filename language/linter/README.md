@@ -156,7 +156,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU009` | `no-constructor-return` | ESLint | AST | ✓ | ✅ | Safe | Disallow returning values from constructors |
 | `LU010` | `no-debugger` | ESLint | AST | ✓ | ✅ | Safe | Disallow debugger statements |
 | `LU011` | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | None | Disallow duplicate conditions in if-else-if chains |
-| `LU012` | `no-duplicate-decorators` | Destack | AST | ✓ | ✅ | Always | Disallow duplicate decorators on the same target |
+| `LU012` | `no-duplicate-decorators` | Destack | AST | ✓ | ✅ | Always | Disallow identical decorators (same name and arguments) |
 | `LU013` | `no-duplicate-match-arms` | Destack | AST | ✓ | ✅ | None | Warn on match arms with identical bodies |
 | `LU014` | `no-empty` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow empty block statements |
 | `LU015` | `no-empty-function` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow empty functions |
