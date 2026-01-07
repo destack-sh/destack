@@ -24,6 +24,13 @@ impl Compiler {
         let types = dir.types.read().clone();
 
         // build the module lowerer
+        let pointer_bytes = self
+            .pointer_bytes_for_target(module_id, target_id)
+            .map_err(|error| ExecuteError::FailedLower {
+                module: module_id,
+                error: Box::new(error.clone()),
+                message: format!("{error}"),
+            })?;
         let mut lowerer = ModuleLowerer::new(
             self,
             &module_guard,
@@ -32,6 +39,7 @@ impl Compiler {
             &symbols,
             &types,
             target_id,
+            pointer_bytes,
         );
 
         // lower the full module for comptime execution
@@ -63,7 +71,16 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let types = dir.types.read();
         let mut builder = mir::ModuleBuilder::new();
-        let mut type_lowerer = TypeLowerer::new(&mut builder);
+        // NOTE #Broken: comptime uses host pointer width until execute is target-aware
+        let pointer_bytes = std::mem::size_of::<usize>() as u8;
+        self.validate_pointer_bytes(module.id, pointer_bytes).map_err(|error| {
+            ExecuteError::FailedLower {
+                module: module.id,
+                error: Box::new(error.clone()),
+                message: format!("{error}"),
+            }
+        })?;
+        let mut type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
 
         // resolve the return type for the comptime expression
         let return_type_id =

@@ -39,6 +39,7 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) type_lowerer: TypeLowerer,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(
@@ -49,9 +50,10 @@ impl<'a> ModuleLowerer<'a> {
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         target: &'a TargetId,
+        pointer_bytes: u8,
     ) -> Self {
         let mut builder = mir::ModuleBuilder::new();
-        let type_lowerer = TypeLowerer::new(&mut builder);
+        let type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
 
         Self {
             compiler,

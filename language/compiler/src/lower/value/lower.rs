@@ -3,7 +3,8 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::{BlockLowerer, ScalarKind, scalar_kind_for_dir_type};
+use super::super::block::LocalBinding;
+use super::super::{BlockLowerer, ScalarType};
 
 impl BlockLowerer<'_, '_> {
     /// Lower a value expression to its result value and type.
@@ -17,12 +18,7 @@ impl BlockLowerer<'_, '_> {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
-                let binding = self.locals_by_symbol.get(target_symbol).ok_or_else(|| {
-                    LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
-                        message: "missing local reference target symbol".to_string(),
-                    }
-                })?;
+                let binding = self.local_binding_for_symbol(expression_id, *target_symbol)?;
                 let value = self.builder.use_variable(binding.variable);
                 Ok((value, binding.ty))
             }
@@ -32,8 +28,8 @@ impl BlockLowerer<'_, '_> {
                     Ok((value, self.type_lowerer.ty_bool))
                 }
                 dir::ScalarLiteral::Integer(value) => {
-                    match self.scalar_kind_for_expression(expression_id) {
-                        Some(ScalarKind::Float { width }) => {
+                    match self.scalar_type_for_expression(expression_id) {
+                        Some(ScalarType::Float { width }) => {
                             let value = self.builder.fconst(*value as f64, width as u8);
                             let ty = if width == 32 {
                                 self.type_lowerer.ty_f32
@@ -42,7 +38,7 @@ impl BlockLowerer<'_, '_> {
                             };
                             Ok((value, ty))
                         }
-                        Some(ScalarKind::SignedInt { width }) => {
+                        Some(ScalarType::SignedInt { width }) => {
                             let value = self.builder.iconst(*value, width as u8, true);
                             let ty = if width == 64 {
                                 self.type_lowerer.ty_i64
@@ -58,8 +54,8 @@ impl BlockLowerer<'_, '_> {
                     }
                 }
                 dir::ScalarLiteral::Float(value) => {
-                    let width = match self.scalar_kind_for_expression(expression_id) {
-                        Some(ScalarKind::Float { width }) => width,
+                    let width = match self.scalar_type_for_expression(expression_id) {
+                        Some(ScalarType::Float { width }) => width,
                         _ => 64,
                     };
                     let value = self.builder.fconst(*value, width as u8);
@@ -126,6 +122,27 @@ impl BlockLowerer<'_, '_> {
                     result_type
                 };
                 Ok((value, ty))
+            }
+            Expression::Assign { left, right } => {
+                // resolve the assignment target
+                let target_symbol = match self.dir_tree.get(*left) {
+                    Expression::LocalReference { target_symbol, .. } => *target_symbol,
+                    _ => {
+                        return Err(LowerError::UnsupportedConstruct {
+                            node: expression_id.into_global_any(self.module_id),
+                            message: "unsupported assignment target".to_string(),
+                        })?;
+                    }
+                };
+                let binding = self.local_binding_for_symbol(*left, target_symbol)?;
+
+                // lower the assigned value
+                let (value, value_type) = self.lower_value_expression(*right)?;
+
+                // update the variable binding
+                self.builder.define_variable(binding.variable, value);
+
+                Ok((value, value_type))
             }
             Expression::Call {
                 left,
@@ -199,13 +216,13 @@ impl BlockLowerer<'_, '_> {
         operator: dir::BinaryOperator,
         operand_id: LocalNodeId<Expression>,
     ) -> LowerResult<mir::BinaryOperator> {
-        let scalar_kind =
-            self.scalar_kind_for_expression(operand_id)
+        let scalar_type =
+            self.scalar_type_for_expression(operand_id)
                 .ok_or_else(|| LowerError::MissingType {
                     node: expression_id.into_global_any(self.module_id),
                 })?;
-        let is_float = matches!(scalar_kind, ScalarKind::Float { .. });
-        let is_signed = matches!(scalar_kind, ScalarKind::SignedInt { .. });
+        let is_float = matches!(scalar_type, ScalarType::Float { .. });
+        let is_signed = matches!(scalar_type, ScalarType::SignedInt { .. });
 
         let op = match (operator, is_float, is_signed) {
             (dir::BinaryOperator::Add, false, _) => mir::BinaryOperator::Add,
@@ -253,24 +270,24 @@ impl BlockLowerer<'_, '_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
-        match self.scalar_kind_for_expression(expression_id)? {
-            ScalarKind::Bool => Some(self.type_lowerer.ty_bool),
-            ScalarKind::SignedInt { width: 32 } => Some(self.type_lowerer.ty_i32),
-            ScalarKind::SignedInt { width: 64 } => Some(self.type_lowerer.ty_i64),
-            ScalarKind::Float { width: 32 } => Some(self.type_lowerer.ty_f32),
-            ScalarKind::Float { width: 64 } => Some(self.type_lowerer.ty_f64),
+        match self.scalar_type_for_expression(expression_id)? {
+            ScalarType::Bool => Some(self.type_lowerer.ty_bool),
+            ScalarType::SignedInt { width: 32 } => Some(self.type_lowerer.ty_i32),
+            ScalarType::SignedInt { width: 64 } => Some(self.type_lowerer.ty_i64),
+            ScalarType::Float { width: 32 } => Some(self.type_lowerer.ty_f32),
+            ScalarType::Float { width: 64 } => Some(self.type_lowerer.ty_f64),
             _ => None,
         }
     }
 
-    /// Resolve the scalar kind for a typed expression.
-    pub(crate) fn scalar_kind_for_expression(
+    /// Resolve the scalar type for a typed expression.
+    pub(crate) fn scalar_type_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
-    ) -> Option<ScalarKind> {
+    ) -> Option<ScalarType> {
         let type_id = self.dir_type_id_for_expression(expression_id)?;
         let dir_type = self.types.get_type(type_id);
-        scalar_kind_for_dir_type(dir_type)
+        self.type_lowerer.scalar_type_for_dir_type(dir_type)
     }
 
     /// Resolve the DIR type id for a typed expression.
@@ -305,5 +322,21 @@ impl BlockLowerer<'_, '_> {
         let primary_declaration = symbol.primary_declaration?;
         self.types
             .get_declared_or_inferred_type_id(primary_declaration)
+    }
+
+    /// Resolve a local binding for a symbol reference.
+    fn local_binding_for_symbol(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+    ) -> LowerResult<LocalBinding> {
+        let binding = self.locals_by_symbol.get(&target_symbol).ok_or_else(|| {
+            LowerError::UnsupportedConstruct {
+                node: expression_id.into_global_any(self.module_id),
+                message: "missing local reference target symbol".to_string(),
+            }
+        })?;
+
+        Ok(*binding)
     }
 }

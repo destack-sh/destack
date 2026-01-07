@@ -748,6 +748,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "target-lexicon",
  "tracing",
  "tracing-subscriber",
 ]

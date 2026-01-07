@@ -7,7 +7,7 @@ use crate::{LowerError, LowerResult};
 
 /// Classify scalar types for lowering decisions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ScalarKind {
+pub(crate) enum ScalarType {
     /// Represent a boolean scalar.
     Bool,
     /// Represent a signed integer scalar.
@@ -32,6 +32,8 @@ pub(crate) enum ScalarKind {
 pub(crate) struct TypeLowerer {
     /// Cache lowered MIR types by DIR type id.
     type_cache: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
+    /// Pointer width in bits for pointer-sized integers.
+    pointer_width_bits: u16,
     /// Cache the MIR void type.
     pub(crate) ty_void: mir::LocalNodeId<mir::Type>,
     /// Cache the MIR bool type.
@@ -48,9 +50,13 @@ pub(crate) struct TypeLowerer {
 
 impl TypeLowerer {
     /// Create a new type lowerer with common MIR types initialized.
-    pub(crate) fn new(builder: &mut mir::ModuleBuilder) -> Self {
+    pub(crate) fn new(builder: &mut mir::ModuleBuilder, pointer_bytes: u8) -> Self {
+        // compute pointer width from the target pointer size
+        let pointer_width_bits = u16::from(pointer_bytes) * 8;
+
         Self {
             type_cache: HashMap::new(),
+            pointer_width_bits,
             ty_void: builder.type_void(),
             ty_bool: builder.type_bool(),
             ty_i32: builder.type_i32(),
@@ -129,7 +135,8 @@ impl TypeLowerer {
                 dir::IntType::Uint16 => Some(builder.type_int(16, false)),
                 dir::IntType::Uint128 => Some(builder.type_int(128, false)),
                 dir::IntType::Uint256 => Some(builder.type_int(256, false)),
-                dir::IntType::Isize | dir::IntType::Usize => None,
+                dir::IntType::Isize => Some(builder.type_int(self.pointer_width_bits, true)),
+                dir::IntType::Usize => Some(builder.type_int(self.pointer_width_bits, false)),
                 dir::IntType::Arbitrary { width, is_signed } => {
                     Some(builder.type_int(width, is_signed))
                 }
@@ -148,57 +155,61 @@ impl TypeLowerer {
             _ => None,
         }
     }
-}
 
-/// Resolve a scalar kind for a given DIR type.
-pub(crate) fn scalar_kind_for_dir_type(dir_type: &dir::Type) -> Option<ScalarKind> {
-    match dir_type {
-        dir::Type::TypeLiteral {
-            value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean),
-        } => Some(ScalarKind::Bool),
-        dir::Type::TypeLiteral {
-            value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Number),
-        } => Some(ScalarKind::Float { width: 64 }),
-        dir::Type::TypeLiteral {
-            value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(float_type)),
-        } => match float_type.simplify() {
-            dir::FloatType::Float32 => Some(ScalarKind::Float { width: 32 }),
-            dir::FloatType::Float64 => Some(ScalarKind::Float { width: 64 }),
-            dir::FloatType::Arbitrary { width } => Some(ScalarKind::Float { width }),
-        },
-        dir::Type::TypeLiteral {
-            value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
-        } => match int_type.simplify() {
-            dir::IntType::Int8 => Some(ScalarKind::SignedInt { width: 8 }),
-            dir::IntType::Int16 => Some(ScalarKind::SignedInt { width: 16 }),
-            dir::IntType::Int32 => Some(ScalarKind::SignedInt { width: 32 }),
-            dir::IntType::Int64 => Some(ScalarKind::SignedInt { width: 64 }),
-            dir::IntType::Int128 => Some(ScalarKind::SignedInt { width: 128 }),
-            dir::IntType::Int256 => Some(ScalarKind::SignedInt { width: 256 }),
-            dir::IntType::Uint8 => Some(ScalarKind::UnsignedInt { width: 8 }),
-            dir::IntType::Uint16 => Some(ScalarKind::UnsignedInt { width: 16 }),
-            dir::IntType::Uint32 => Some(ScalarKind::UnsignedInt { width: 32 }),
-            dir::IntType::Uint64 => Some(ScalarKind::UnsignedInt { width: 64 }),
-            dir::IntType::Uint128 => Some(ScalarKind::UnsignedInt { width: 128 }),
-            dir::IntType::Uint256 => Some(ScalarKind::UnsignedInt { width: 256 }),
-            dir::IntType::Isize => None,
-            dir::IntType::Usize => None,
-            dir::IntType::Arbitrary { width, is_signed } => {
-                if is_signed {
-                    Some(ScalarKind::SignedInt { width })
-                } else {
-                    Some(ScalarKind::UnsignedInt { width })
+    /// Resolve a scalar type for a given DIR type.
+    pub(crate) fn scalar_type_for_dir_type(&self, dir_type: &dir::Type) -> Option<ScalarType> {
+        match dir_type {
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean),
+            } => Some(ScalarType::Bool),
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Number),
+            } => Some(ScalarType::Float { width: 64 }),
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(float_type)),
+            } => match float_type.simplify() {
+                dir::FloatType::Float32 => Some(ScalarType::Float { width: 32 }),
+                dir::FloatType::Float64 => Some(ScalarType::Float { width: 64 }),
+                dir::FloatType::Arbitrary { width } => Some(ScalarType::Float { width }),
+            },
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
+            } => match int_type.simplify() {
+                dir::IntType::Int8 => Some(ScalarType::SignedInt { width: 8 }),
+                dir::IntType::Int16 => Some(ScalarType::SignedInt { width: 16 }),
+                dir::IntType::Int32 => Some(ScalarType::SignedInt { width: 32 }),
+                dir::IntType::Int64 => Some(ScalarType::SignedInt { width: 64 }),
+                dir::IntType::Int128 => Some(ScalarType::SignedInt { width: 128 }),
+                dir::IntType::Int256 => Some(ScalarType::SignedInt { width: 256 }),
+                dir::IntType::Uint8 => Some(ScalarType::UnsignedInt { width: 8 }),
+                dir::IntType::Uint16 => Some(ScalarType::UnsignedInt { width: 16 }),
+                dir::IntType::Uint32 => Some(ScalarType::UnsignedInt { width: 32 }),
+                dir::IntType::Uint64 => Some(ScalarType::UnsignedInt { width: 64 }),
+                dir::IntType::Uint128 => Some(ScalarType::UnsignedInt { width: 128 }),
+                dir::IntType::Uint256 => Some(ScalarType::UnsignedInt { width: 256 }),
+                dir::IntType::Isize => Some(ScalarType::SignedInt {
+                    width: self.pointer_width_bits,
+                }),
+                dir::IntType::Usize => Some(ScalarType::UnsignedInt {
+                    width: self.pointer_width_bits,
+                }),
+                dir::IntType::Arbitrary { width, is_signed } => {
+                    if is_signed {
+                        Some(ScalarType::SignedInt { width })
+                    } else {
+                        Some(ScalarType::UnsignedInt { width })
+                    }
                 }
-            }
-        },
-        dir::Type::TypeLiteral {
-            value: dir::TypeLiteral::ScalarLiteral(literal),
-        } => match literal {
-            dir::ScalarLiteral::Boolean(_) => Some(ScalarKind::Bool),
-            dir::ScalarLiteral::Integer(_) => Some(ScalarKind::SignedInt { width: 32 }),
-            dir::ScalarLiteral::Float(_) => Some(ScalarKind::Float { width: 64 }),
+            },
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::ScalarLiteral(literal),
+            } => match literal {
+                dir::ScalarLiteral::Boolean(_) => Some(ScalarType::Bool),
+                dir::ScalarLiteral::Integer(_) => Some(ScalarType::SignedInt { width: 32 }),
+                dir::ScalarLiteral::Float(_) => Some(ScalarType::Float { width: 64 }),
+                _ => None,
+            },
             _ => None,
-        },
-        _ => None,
+        }
     }
 }

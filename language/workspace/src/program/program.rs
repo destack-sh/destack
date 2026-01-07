@@ -385,7 +385,7 @@ impl Program {
             .targets
             .get(target_id)
             .cloned()
-            .or_else(|| Self::implicit_target_for_name(&target_id.name))?;
+            .or_else(|| Target::implicit_for_name(&target_id.name))?;
 
         let compiler_options = package
             .dsconfig
@@ -403,19 +403,6 @@ impl Program {
 
         let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
         Some(self.profiles.get_or_create(key))
-    }
-
-    fn implicit_target_for_name(name: &str) -> Option<Target> {
-        match name {
-            "default" => Some(Target::js(name)),
-            "js" => Some(Target::js(name)),
-            "ts" => Some(Target::ts(name)),
-            "node" => Some(Target::node(name)),
-            "wasm" => Some(Target::wasm_js(name)),
-            "wasm-wasi" | "wasi" => Some(Target::wasm_wasi(name)),
-            "native" => Some(Target::native(name)),
-            _ => None,
-        }
     }
 
     /// Collect additive library types for a target.

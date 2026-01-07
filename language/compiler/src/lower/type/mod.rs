@@ -1,4 +1,4 @@
 mod cast;
-mod lowerer;
+mod lower;
 
-pub(crate) use lowerer::*;
+pub(crate) use lower::*;

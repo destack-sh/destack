@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_dir::{Declarator, Expression, GlobalSymbolId, LocalNodeId, Pattern};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -71,6 +71,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 }
                 Ok(Terminates::No)
             }
+            Expression::Let { declarators, .. } => {
+                self.lower_let_expression(expression_id, declarators)
+            }
             Expression::Return { value } => {
                 let return_value = if let Some(value) = value {
                     let (value, _) = self.lower_value_expression(*value)?;
@@ -93,6 +96,83 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 Ok(Terminates::No)
             }
         }
+    }
+
+    /// Lower a let binding statement into locals.
+    fn lower_let_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        declarators: &[LocalNodeId<Declarator>],
+    ) -> LowerResult<Terminates> {
+        // lower each declarator in order
+        for declarator_id in declarators {
+            let declarator = self.dir_tree.get(*declarator_id);
+
+            // require an initializer for native lowering
+            let value_id = declarator
+                .value
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module_id),
+                    message: "missing let initializer".to_string(),
+                })?;
+
+            // lower the initializer value first
+            let (value, value_type) = self.lower_value_expression(value_id)?;
+
+            // lower the binding pattern
+            let pattern_id = declarator.pattern;
+            let pattern = self.dir_tree.get(pattern_id);
+            match pattern {
+                Pattern::Wildcard => {
+                    // wildcard bindings evaluate and discard the value
+                }
+                Pattern::Binding {
+                    symbol, pattern, ..
+                } => {
+                    // reject nested patterns for now
+                    if pattern.is_some() {
+                        return Err(LowerError::UnsupportedConstruct {
+                            node: pattern_id.into_global_any(self.module_id),
+                            message: "unsupported binding pattern".to_string(),
+                        })?;
+                    }
+
+                    // convert the symbol id for lookup
+                    let symbol_id = symbol.into_global(self.module_id);
+
+                    // reject duplicate bindings (#Incomplete?)
+                    if self.locals_by_symbol.contains_key(&symbol_id) {
+                        return Err(LowerError::UnsupportedConstruct {
+                            node: pattern_id.into_global_any(self.module_id),
+                            message: "duplicate local binding".to_string(),
+                        })?;
+                    }
+
+                    // allocate the mir variable
+                    let variable = self.builder.create_variable(value_type);
+
+                    // define the initial value
+                    self.builder.define_variable(variable, value);
+
+                    // record the binding for later references
+                    self.locals_by_symbol.insert(
+                        symbol_id,
+                        LocalBinding {
+                            variable,
+                            ty: value_type,
+                        },
+                    );
+                }
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: pattern_id.into_global_any(self.module_id),
+                        message: "unsupported let pattern".to_string(),
+                    })?;
+                }
+            }
+        }
+
+        Ok(Terminates::No)
     }
 
     /// Lower an if statement into blocks and branches.

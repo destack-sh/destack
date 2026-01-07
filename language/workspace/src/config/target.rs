@@ -812,6 +812,20 @@ impl Target {
         }
     }
 
+    /// Create an implicit target configuration for a known target name.
+    pub fn implicit_for_name(name: &str) -> Option<Self> {
+        match name {
+            "default" => Some(Self::js(name)),
+            "js" => Some(Self::js(name)),
+            "ts" => Some(Self::ts(name)),
+            "node" => Some(Self::node(name)),
+            "wasm" => Some(Self::wasm_js(name)),
+            "wasm-wasi" | "wasi" => Some(Self::wasm_wasi(name)),
+            "native" => Some(Self::native(name)),
+            _ => None,
+        }
+    }
+
     /// Derive the output mode from the target configuration.
     pub fn output_mode(&self) -> OutputMode {
         if self.out_file.is_some() || self.output.is_single_file() {
