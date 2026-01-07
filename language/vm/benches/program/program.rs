@@ -316,7 +316,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             };
 
             // print benchmark row
-            let mem = stats.loads + stats.stores;
+            let mem = stats.loads() + stats.stores();
             println!(
                 "{CYAN}{full_name:<28}{RESET}  {mops_color}{:>7.1}{RESET}  {BOLD}{:>8}{RESET} {DIM}{:>8}  {:>6} {:>4} {:>5}  {:>6} {:>5}  {:>11}{RESET}",
                 summary.median_mops,
@@ -325,7 +325,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                 stats.calls_made,
                 stats.max_stack_depth,
                 stats.heap_allocations,
-                stats.branches,
+                stats.branches(),
                 mem,
                 range_label,
             );

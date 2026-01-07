@@ -9,15 +9,36 @@ pub struct Statistics {
     pub calls_made: u64,
     /// Maximum call stack depth reached.
     pub max_stack_depth: usize,
-    /// Number of heap allocations performed.
+    /// Number of heap allocations performed (always tracked for gc decisions).
     pub heap_allocations: u64,
+
+    // detailed statistics: only tracked when the `stats` feature is enabled
     /// Number of branch and switch instructions executed.
+    #[cfg(feature = "stats")]
     pub branches: u64,
     /// Number of load instructions executed.
+    #[cfg(feature = "stats")]
     pub loads: u64,
     /// Number of store instructions executed.
+    #[cfg(feature = "stats")]
     pub stores: u64,
 }
+
+/// Increment a statistic counter (no-op when stats feature is disabled).
+#[cfg(feature = "stats")]
+macro_rules! stat_inc {
+    ($stats:expr, $field:ident) => {
+        $stats.$field += 1
+    };
+}
+
+/// Increment a statistic counter (no-op when stats feature is disabled).
+#[cfg(not(feature = "stats"))]
+macro_rules! stat_inc {
+    ($stats:expr, $field:ident) => {};
+}
+
+pub(crate) use stat_inc;
 
 impl Statistics {
     /// Create new empty statistics.
@@ -28,5 +49,44 @@ impl Statistics {
     /// Reset all statistics to zero.
     pub fn reset(&mut self) {
         *self = Self::default();
+    }
+
+    /// Get branch count (0 when stats feature is disabled).
+    #[inline]
+    pub fn branches(&self) -> u64 {
+        #[cfg(feature = "stats")]
+        {
+            self.branches
+        }
+        #[cfg(not(feature = "stats"))]
+        {
+            0
+        }
+    }
+
+    /// Get load count (0 when stats feature is disabled).
+    #[inline]
+    pub fn loads(&self) -> u64 {
+        #[cfg(feature = "stats")]
+        {
+            self.loads
+        }
+        #[cfg(not(feature = "stats"))]
+        {
+            0
+        }
+    }
+
+    /// Get store count (0 when stats feature is disabled).
+    #[inline]
+    pub fn stores(&self) -> u64 {
+        #[cfg(feature = "stats")]
+        {
+            self.stores
+        }
+        #[cfg(not(feature = "stats"))]
+        {
+            0
+        }
     }
 }

@@ -367,10 +367,12 @@ fn select_field_store_handler(
     index: u32,
 ) -> ThreadedHandler {
     // small managed aggregates (≤2 fields) use inline slot storage
-    if field_count > 0 && field_count <= 2 && index < field_count {
-        if let Some(ValueKind::Aggregate { .. }) = value_kinds.get(aggregate) {
-            return dispatch::handle_field_store_inline;
-        }
+    if field_count > 0
+        && field_count <= 2
+        && index < field_count
+        && let Some(ValueKind::Aggregate { .. }) = value_kinds.get(aggregate)
+    {
+        return dispatch::handle_field_store_inline;
     }
 
     match value_kinds.get(aggregate) {

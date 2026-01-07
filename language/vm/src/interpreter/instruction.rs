@@ -3,13 +3,14 @@ use crate::memory::{
     GlobalPointer, HeapHandle, RawPointer, SlotStorage, StackPointer, Value, ValueTag,
 };
 
+use super::statistics::stat_inc;
 use super::threaded::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
 
 /// Load a value from a pointer.
 #[inline(always)]
 pub(super) fn load_from_pointer(state: &mut ThreadedState<'_>, ptr: Value) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // resolve pointer kind and load
     match ptr.tag() {
@@ -43,7 +44,7 @@ pub(super) fn store_to_pointer(
     val: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // resolve pointer kind and store
     match ptr.tag() {
@@ -533,7 +534,7 @@ pub(super) fn load_field_managed(
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // fast path: skip all validation when bounds and null checks are disabled
     if !state.bounds_checks && !state.null_checks {
@@ -639,7 +640,7 @@ pub(super) fn store_field_managed(
     value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // fast path: skip all validation when bounds and null checks are disabled
     if !state.bounds_checks && !state.null_checks {
@@ -743,7 +744,7 @@ pub(super) fn load_field_raw(
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate field index when known
     check_field_index(state, index, field_count)?;
@@ -826,7 +827,7 @@ pub(super) fn store_field_raw(
     value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate field index when known
     check_field_index(state, index, field_count)?;
@@ -906,7 +907,7 @@ pub(super) fn load_field_stack(
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate field index when known
     check_field_index(state, index, field_count)?;
@@ -986,7 +987,7 @@ pub(super) fn store_field_stack(
     let bounds_checks = state.bounds_checks;
 
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate field index when known
     check_field_index(state, index, field_count)?;
@@ -1060,7 +1061,7 @@ pub(super) fn load_field_global(
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate field index when known
     check_field_index(state, index, field_count)?;
@@ -1161,7 +1162,7 @@ pub(super) fn store_field_global(
     value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate field index when known
     check_field_index(state, index, field_count)?;
@@ -1261,7 +1262,7 @@ pub(super) fn load_element_managed(
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1342,7 +1343,7 @@ pub(super) fn store_element_managed(
     value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1420,7 +1421,7 @@ pub(super) fn load_element_raw(
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1501,7 +1502,7 @@ pub(super) fn store_element_raw(
     value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1579,7 +1580,7 @@ pub(super) fn load_element_stack(
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1657,7 +1658,7 @@ pub(super) fn store_element_stack(
     let bounds_checks = state.bounds_checks;
 
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1728,7 +1729,7 @@ pub(super) fn load_element_global(
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
@@ -1827,7 +1828,7 @@ pub(super) fn store_element_global(
     value: Value,
 ) -> Result<(), Error> {
     // track pointer stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // validate array index when known
     check_array_index(state, index, array_length)?;
