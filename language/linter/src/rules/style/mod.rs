@@ -29,6 +29,7 @@ mod operator_assignment;
 mod prefer_array_some;
 mod prefer_arrow_callback;
 mod prefer_as_const;
+mod prefer_exponentiation_operator;
 mod prefer_expression;
 mod prefer_fragment_shorthand;
 mod prefer_if_else_over_match_bool;
@@ -88,6 +89,7 @@ pub use operator_assignment::*;
 pub use prefer_array_some::*;
 pub use prefer_arrow_callback::*;
 pub use prefer_as_const::*;
+pub use prefer_exponentiation_operator::*;
 pub use prefer_expression::*;
 pub use prefer_fragment_shorthand::*;
 pub use prefer_if_else_over_match_bool::*;
@@ -148,6 +150,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferArraySome),
         boxed(PreferArrowCallback),
         boxed(PreferAsConst),
+        boxed(PreferExponentiationOperator),
         boxed(PreferExpression),
         boxed(PreferFragmentShorthand),
         boxed(PreferIfElseOverMatchBool),
