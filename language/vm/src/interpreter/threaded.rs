@@ -254,6 +254,7 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         aggregate: mir::Value,
         index: u32,
+        field_count: u32,
     },
 
     /// Get struct/tuple field address.

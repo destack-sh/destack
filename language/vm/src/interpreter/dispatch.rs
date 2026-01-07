@@ -1018,6 +1018,7 @@ pub(super) fn handle_field_get(
         dest,
         aggregate,
         index,
+        field_count: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1030,6 +1031,51 @@ pub(super) fn handle_field_get(
     let value = match instruction::get_field(state, agg, *index) {
         Ok(v) => v,
         Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field get for small inline aggregates (≤2 fields).
+#[inline(always)]
+pub(super) fn handle_field_get_inline(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldGet {
+        dest,
+        aggregate,
+        index,
+        field_count: _,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load aggregate and extract heap handle
+    let agg = state.get(*aggregate);
+    let handle = match agg.as_heap_handle() {
+        Some(h) => h,
+        None => return ControlFlow::Error(crate::diagnostic::Error::InvalidHeapHandle),
+    };
+
+    // reject null handles when enabled
+    if state.null_checks && handle.is_null() {
+        return ControlFlow::Error(crate::diagnostic::Error::NullPointerDereference);
+    }
+
+    // fast path: directly access heap cell and inline slots
+    let value = unsafe {
+        let cell = state.interpreter.managed_heap.get_unchecked(handle);
+        let slot_index = handle.slot_index().wrapping_add(*index as usize);
+        // inline storage is guaranteed for field_count ≤ 2
+        *cell.slots.get_unchecked(slot_index)
     };
 
     // store result
