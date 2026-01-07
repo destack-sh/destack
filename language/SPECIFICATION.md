@@ -124,13 +124,15 @@ Destack extends TypeScript's type system with precise primitives, explicit refer
 
 ### Inference
 
-Destack requires explicit types at public boundaries.
+Destack prefers explicit types at public boundaries.
 Public boundaries include exported declarations and public members.
+Exported bindings may use local surface inference when their type is determined from local syntax
+without relying on _inferred_ types from other modules.
 Inference is local and never relies on whole program analysis.
 
 #### Explicit Typing
 
-Most non-local constructs must be explicitly typed.
+Most non-local constructs must be explicitly typed unless surface inference applies.
 
 - Non lambda functions, methods, and constructors must annotate dynamic parameters.
 
@@ -140,7 +142,8 @@ export function sum(left: int32, right: int32): int32 {
 }
 ```
 
-- Non lambda functions, methods, and constructors must annotate return types.
+- Non lambda functions, methods, and constructors must annotate return types unless surface
+  inference applies for an export.
 
 ```
 export function version(): string {
@@ -158,6 +161,23 @@ export struct User {
 ```
 
 - Function types in type declarations must annotate parameters and return types.
+
+#### Public boundaries and surface inference
+
+Exported bindings may omit explicit annotations when their types can be inferred from local syntax.
+This inference never consults inferred types from other modules.
+If an exported binding depends on a value whose declared type is unavailable, it must be annotated.
+
+Examples:
+
+```
+export const version = "v1";        // ok, inferred from local literal
+export let counter = 0;             // ok, inferred and widened locally
+export function add(a: int, b: int) { // ok, return type inferred locally
+    a + b
+}
+export const shared = other.value;  // requires annotation if other.value lacks a declared type
+```
 
 ```
 export interface Parser {
