@@ -146,7 +146,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | Code | Rule | Source | Level | Ready | Status | Fixability | Description |
 |------|------|--------|-------|-------|--------|------------|-------------|
 | `LU001` | `guard-for-in` | ESLint | AST | ✓ | ✅ | Suggestion | Require `hasOwnProperty` guard in for-in loops |
-| `LU002` | `no-async-foreach` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow `forEach` with async callback (doesn't await) |
+| `LU002` | `no-async-foreach` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `forEach` with async callback (doesn't await) |
 | `LU003` | `no-async-map-without-await` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow async callbacks in `.map()` without awaiting results |
 | `LU004` | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow assignment operators in conditional expressions |
 | `LU005` | `no-conflicting-decorators` | Destack | DIR | ✓ | 🔶 | None | Disallow decorator combinations that conflict |
@@ -156,13 +156,13 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU009` | `no-constructor-return` | ESLint | AST | ✓ | ✅ | Safe | Disallow returning values from constructors |
 | `LU010` | `no-debugger` | ESLint | AST | ✓ | ✅ | Safe | Disallow debugger statements |
 | `LU011` | `no-dupe-else-if` | ESLint | AST | ✓ | ✅ | None | Disallow duplicate conditions in if-else-if chains |
-| `LU012` | `no-duplicate-decorators` | Destack | AST | ✓ | 🔶 | Safe | Disallow duplicate decorators on the same target |
+| `LU012` | `no-duplicate-decorators` | Destack | AST | ✓ | ✅ | Always | Disallow duplicate decorators on the same target |
 | `LU013` | `no-duplicate-match-arms` | Destack | AST | ✓ | ✅ | None | Warn on match arms with identical bodies |
 | `LU014` | `no-empty` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow empty block statements |
 | `LU015` | `no-empty-function` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow empty functions |
 | `LU016` | `no-empty-pattern` | ESLint | AST | ✓ | ✅ | None | Disallow empty destructuring patterns |
 | `LU017` | `no-empty-static-block` | ESLint | AST | ✓ | ✅ | Safe | Disallow empty static initialization blocks in classes |
-| `LU018` | `no-ex-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning exceptions in catch clauses |
+| `LU018` | `no-ex-assign` | ESLint | AST | ✓ | ✅ | None | Disallow reassigning exceptions in catch clauses |
 | `LU019` | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow extra non-null assertions |
 | `LU020` | `no-global-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow assignments to native objects or read-only globals |
 | `LU021` | `no-identical-branches` | SonarQube | AST | ✓ | ✅ | Safe | Warn when all branches of if/switch have identical bodies |
@@ -259,7 +259,6 @@ Correct code that could be faster or use less memory.
 | `LP014` | `no-super-linear-regex` | Destack | AST | ✓ | ✅ | None | Disallow regular expressions with catastrophic backtracking |
 | `LP015` | `prefer-array-every` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.every()` over `.filter().length === .length` |
 | `LP016` | `prefer-array-literal` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest using array literal instead of empty array followed by extend |
-| `LP017` | `prefer-array-some` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer `.some()` over `.find() !== undefined` |
 | `LP018` | `prefer-for-of` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer for-of loops over index-based for loops |
 | `LP019` | `prefer-includes` | TS-ESLint | DIR | ✓ | ✅ | Safe | Prefer `.includes()` over `.indexOf() !== -1` | 
 | `LP020` | `prefer-reserve` | Clippy | DIR | ✗ | 🔶 | Suggestion | Prefer reserving capacity when the size is known |
@@ -305,7 +304,6 @@ Subjective preferences for consistent coding style.
 | `LY027` | `no-redundant-type-constituents` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type constituents made redundant by others |
 | `LY028` | `no-nested-template-literal` | SonarQube | AST | ✓ | ✅ | None | Disallow template literals nested inside template literals |
 | `LY029` | `no-nested-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow nested ternary expressions |
-| `LY030` | `no-switch` | Destack | AST | ✓ | 🔶 | Safe | Disallow switch statements (in favor of match) |
 | `LY031` | `no-object-constructor` | ESLint | DIR | ✓ | ✅ | Safe | Disallow `new Object()` |
 | `LY032` | `no-unneeded-ternary` | ESLint | AST | ✓ | ✅ | Safe | Disallow ternary operators when simpler alternatives exist |
 | `LY033` | `no-unnecessary-template-expression` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow unnecessary template literal expressions |
@@ -433,7 +431,6 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR029` | `no-shadow` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow shadowing by rebinding a value |
 | `LR030` | `no-struct` | Destack | AST | ✓ | ✅ | Unsafe | Disallow struct declarations (prefer classes) |
 | `LR031` | `no-ternary` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow ternary operators |
-| `LR032` | `no-void` | ESLint | AST | ✓ | 🔶 | Safe | Disallow the `void` operator |
 | `LR033` | `no-warning-comments` | ESLint | AST | ✓ | ✅ | None | Disallow specified warning terms in comments (TODO, FIXME, etc.) |
 | `LR034` | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Unsafe | Disallow wildcard imports |
 | `LR035` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Unsafe | Disallow truthy/falsy coercion in conditions |
