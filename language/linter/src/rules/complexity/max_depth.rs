@@ -141,8 +141,8 @@ impl NodeVisitor for DepthNodeVisitor {
             }
         }
 
-        // walk children (this handles the recursion with stack protection)
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        // walk children
+        walk_expression(self, tree, id, expression);
 
         if increases_depth {
             self.depth -= 1;

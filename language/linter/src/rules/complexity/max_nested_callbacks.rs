@@ -126,11 +126,11 @@ impl NodeVisitor for CallbackVisitor {
                 });
             }
             // walk the argument (which will visit the callback body)
-            destack_base::ensure_sufficient_stack(|| walk_argument(self, tree, id, argument));
+            walk_argument(self, tree, id, argument);
             self.depth -= 1;
         } else {
             // not a callback, just walk normally
-            destack_base::ensure_sufficient_stack(|| walk_argument(self, tree, id, argument));
+            walk_argument(self, tree, id, argument);
         }
     }
 
@@ -157,7 +157,7 @@ impl NodeVisitor for CallbackVisitor {
         }
 
         // walk children
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        walk_expression(self, tree, id, expression);
     }
 }
 

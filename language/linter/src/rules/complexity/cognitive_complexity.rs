@@ -152,9 +152,7 @@ impl NodeVisitor for CognitiveVisitor {
                 self.nesting += 1;
 
                 // walk condition and then branch normally
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
+                walk_expression(self, tree, id, expression);
 
                 self.nesting -= 1;
 
@@ -168,11 +166,7 @@ impl NodeVisitor for CognitiveVisitor {
             | Expression::Loop { .. } => {
                 self.add_complexity(1);
                 self.nesting += 1;
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.nesting -= 1;
                 return;
             }
@@ -180,11 +174,7 @@ impl NodeVisitor for CognitiveVisitor {
             Expression::Match { .. } => {
                 self.add_complexity(1);
                 self.nesting += 1;
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.nesting -= 1;
                 return;
             }
@@ -194,12 +184,7 @@ impl NodeVisitor for CognitiveVisitor {
             } => {
                 // try block increases nesting
                 self.nesting += 1;
-
-                // walk try expression
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.nesting -= 1;
 
                 // catch adds complexity if present
@@ -230,7 +215,7 @@ impl NodeVisitor for CognitiveVisitor {
         }
 
         // default: walk children
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        walk_expression(self, tree, id, expression);
     }
 }
 

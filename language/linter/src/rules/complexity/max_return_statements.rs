@@ -116,9 +116,7 @@ impl NodeVisitor for ReturnStatementVisitor {
 
                         // walk the function body
                         let body_expression = tree.get(*body_id);
-                        destack_base::ensure_sufficient_stack(|| {
-                            walk_expression(self, tree, *body_id, body_expression)
-                        });
+                        walk_expression(self, tree, *body_id, body_expression);
 
                         // pop and check the count
                         let return_count = self.return_counts.pop().unwrap_or(0);
@@ -138,7 +136,7 @@ impl NodeVisitor for ReturnStatementVisitor {
         }
 
         // default recursion for non-function expressions
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        walk_expression(self, tree, id, expression);
     }
 }
 

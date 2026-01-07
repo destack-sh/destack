@@ -158,7 +158,7 @@ impl NodeVisitor for FinallyVisitor {
             _ => {}
         }
 
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        walk_expression(self, tree, id, expression);
     }
 }
 
