@@ -10,14 +10,18 @@ mod no_control_regex;
 mod no_duplicate_case;
 mod no_empty_range;
 mod no_fallthrough;
+mod no_floating_point_equality;
+mod no_for_in_array;
 mod no_invalid_regexp;
 mod no_loop_single_iteration;
+mod no_new_native_nonconstructor;
 mod no_promise_executor_return;
 mod no_self_compare;
 mod no_sparse_arrays;
 mod no_unknown_rule_decorator;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
+mod require_array_sort_compare;
 mod use_isnan;
 
 use crate::{BoxedLintRule, boxed};
@@ -34,14 +38,18 @@ pub use no_control_regex::*;
 pub use no_duplicate_case::*;
 pub use no_empty_range::*;
 pub use no_fallthrough::*;
+pub use no_floating_point_equality::*;
+pub use no_for_in_array::*;
 pub use no_invalid_regexp::*;
 pub use no_loop_single_iteration::*;
+pub use no_new_native_nonconstructor::*;
 pub use no_promise_executor_return::*;
 pub use no_self_compare::*;
 pub use no_sparse_arrays::*;
 pub use no_unknown_rule_decorator::*;
 pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
+pub use require_array_sort_compare::*;
 pub use use_isnan::*;
 
 /// Get all correctness rules.
@@ -53,6 +61,8 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoArrayDelete),
         boxed(NoAsyncPromiseExecutor),
         boxed(NoCompareNegZero),
+        boxed(NoForInArray),
+        boxed(NoNewNativeNonconstructor),
         boxed(NoControlRegex),
         boxed(NoConstantBinaryExpression),
         boxed(NoConstantCondition),
@@ -60,9 +70,11 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoEmptyRange),
         boxed(NoInvalidRegexp),
         boxed(NoFallthrough),
+        boxed(NoFloatingPointEquality),
         boxed(NoLoopSingleIteration),
         boxed(NoPromiseExecutorReturn),
         boxed(NoSelfCompare),
+        boxed(RequireArraySortCompare),
         boxed(NoSparseArrays),
         boxed(NoUnknownRuleDecorator),
         boxed(NoUnsafeFinally),
