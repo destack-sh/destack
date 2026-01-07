@@ -204,6 +204,35 @@ impl NodeTree {
         let end = start + slice.count as usize;
         &self.instruction_arguments[start..end]
     }
+
+    /// Replace a node in-place, preserving the original at a new ID.
+    ///
+    /// - The original node is preserved at a new ID (for diagnostics/mapping)
+    /// - The node at `id` is replaced with `replacement`
+    /// - The source ID is preserved on both the original location and the preserved copy
+    ///
+    /// Returns the ID of the preserved original node.
+    pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
+    where
+        T: Node + Clone,
+        Self: NodeTreeImpl<T>,
+    {
+        // get original node and its source
+        let original = self.get(id).clone();
+        let source = self.source_id_by_node_id[id.id as usize];
+
+        // preserve original at new ID
+        let preserved_id = if let Some(source_dir_id) = source {
+            self.insert_from(original, source_dir_id)
+        } else {
+            self.insert(original)
+        };
+
+        // replace in-place
+        *self.get_mut(id) = replacement;
+
+        preserved_id
+    }
 }
 
 /// Trait for mapping node types to arenas.

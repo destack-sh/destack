@@ -24,6 +24,7 @@ impl Compiler {
         match task {
             LowerTask::LowerModule { module, target } => {
                 self.lower_module(module, target)?;
+                self.stats.record_lower();
             }
         }
         Ok(())

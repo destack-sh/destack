@@ -1,5 +1,3 @@
-// NOTE #Architecture: CLI should be implemented via NAPI on top of library/tui stuff
-
 use clap::Parser;
 
 #[cfg(feature = "dev")]
@@ -18,6 +16,8 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
+
+// FUGU: improve CLI styling & progress reporting, improve diagnostic formatting, ..
 
 #[derive(Parser, Debug)]
 pub enum Command {

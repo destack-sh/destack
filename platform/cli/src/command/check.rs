@@ -371,6 +371,50 @@ pub fn print_stats_summary(
 
     write_line(line_writer, &format!("{icon} {main_part}{lines_suffix}"));
 
+    // show MIR optimization metrics if any optimizations were performed
+    if stats.mir_functions_optimized > 0 && stats.mir_instructions_before > 0 {
+        let instr_before = stats.mir_instructions_before;
+        let instr_after = stats.mir_instructions_after;
+        let blocks_before = stats.mir_blocks_before;
+        let blocks_after = stats.mir_blocks_after;
+
+        // calculate percentages (negative = reduction)
+        let instr_delta = if instr_before > 0 {
+            ((instr_after as f64 - instr_before as f64) / instr_before as f64 * 100.0) as i32
+        } else {
+            0
+        };
+        let blocks_delta = if blocks_before > 0 {
+            ((blocks_after as f64 - blocks_before as f64) / blocks_before as f64 * 100.0) as i32
+        } else {
+            0
+        };
+
+        // format delta with sign and color
+        let format_delta = |delta: i32| -> String {
+            if delta < 0 {
+                console::green(&format!("{}%", delta))
+            } else if delta > 0 {
+                console::yellow(&format!("+{}%", delta))
+            } else {
+                console::dim("0%")
+            }
+        };
+
+        let mir_line = format!(
+            "  {} optimized {} functions: {} → {} instructions ({}), {} → {} blocks ({})",
+            console::dim("→"),
+            stats.mir_functions_optimized,
+            format_number(instr_before),
+            format_number(instr_after),
+            format_delta(instr_delta),
+            format_number(blocks_before),
+            format_number(blocks_after),
+            format_delta(blocks_delta),
+        );
+        write_line(line_writer, &mir_line);
+    }
+
     // show per-package breakdown if multiple packages (excluding internal ones)
     // aggregate by package name to avoid duplicates
     let mut package_map: std::collections::HashMap<String, (usize, usize, std::time::Duration)> =

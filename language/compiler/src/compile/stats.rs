@@ -59,6 +59,28 @@ pub struct CompilerStats {
     /// Modules linted (lint phase).
     pub modules_linted: AtomicUsize,
 
+    // Middle-end counts
+    /// Modules executed (execute phase).
+    pub modules_executed: AtomicUsize,
+    /// Modules lowered (lower phase).
+    pub modules_lowered: AtomicUsize,
+    /// Modules verified (verify phase).
+    pub modules_verified: AtomicUsize,
+    /// Modules optimized (optimize phase).
+    pub modules_optimized: AtomicUsize,
+
+    // MIR optimization metrics
+    /// Functions optimized.
+    pub mir_functions_optimized: AtomicUsize,
+    /// MIR instructions before optimization.
+    pub mir_instructions_before: AtomicUsize,
+    /// MIR instructions after optimization.
+    pub mir_instructions_after: AtomicUsize,
+    /// MIR blocks before optimization.
+    pub mir_blocks_before: AtomicUsize,
+    /// MIR blocks after optimization.
+    pub mir_blocks_after: AtomicUsize,
+
     // Size metrics
     /// Total lines of source code processed.
     pub lines_processed: AtomicUsize,
@@ -94,6 +116,15 @@ impl CompilerStats {
             modules_elaborated: AtomicUsize::new(0),
             modules_generated: AtomicUsize::new(0),
             modules_linted: AtomicUsize::new(0),
+            modules_executed: AtomicUsize::new(0),
+            modules_lowered: AtomicUsize::new(0),
+            modules_verified: AtomicUsize::new(0),
+            modules_optimized: AtomicUsize::new(0),
+            mir_functions_optimized: AtomicUsize::new(0),
+            mir_instructions_before: AtomicUsize::new(0),
+            mir_instructions_after: AtomicUsize::new(0),
+            mir_blocks_before: AtomicUsize::new(0),
+            mir_blocks_after: AtomicUsize::new(0),
             lines_processed: AtomicUsize::new(0),
             package_stats: DashMap::new(),
             phase_stats: DashMap::new(),
@@ -213,6 +244,52 @@ impl CompilerStats {
         self.modules_linted.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record a module being executed (comptime).
+    #[inline]
+    pub fn record_execute(&self) {
+        self.modules_executed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a module being lowered to MIR.
+    #[inline]
+    pub fn record_lower(&self) {
+        self.modules_lowered.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a module being verified.
+    #[inline]
+    pub fn record_verify(&self) {
+        self.modules_verified.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a module being optimized.
+    #[inline]
+    pub fn record_optimize(&self) {
+        self.modules_optimized.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record MIR optimization metrics for a module.
+    #[inline]
+    pub fn record_optimize_mir(
+        &self,
+        functions: usize,
+        instructions_before: usize,
+        instructions_after: usize,
+        blocks_before: usize,
+        blocks_after: usize,
+    ) {
+        self.mir_functions_optimized
+            .fetch_add(functions, Ordering::Relaxed);
+        self.mir_instructions_before
+            .fetch_add(instructions_before, Ordering::Relaxed);
+        self.mir_instructions_after
+            .fetch_add(instructions_after, Ordering::Relaxed);
+        self.mir_blocks_before
+            .fetch_add(blocks_before, Ordering::Relaxed);
+        self.mir_blocks_after
+            .fetch_add(blocks_after, Ordering::Relaxed);
+    }
+
     /// Record a slow task.
     #[inline]
     pub fn record_slow_task(&self) {
@@ -296,11 +373,20 @@ impl CompilerStats {
             modules_elaborated: self.modules_elaborated.load(Ordering::Relaxed),
             modules_generated: self.modules_generated.load(Ordering::Relaxed),
             modules_linted: self.modules_linted.load(Ordering::Relaxed),
+            modules_executed: self.modules_executed.load(Ordering::Relaxed),
+            modules_lowered: self.modules_lowered.load(Ordering::Relaxed),
+            modules_verified: self.modules_verified.load(Ordering::Relaxed),
+            modules_optimized: self.modules_optimized.load(Ordering::Relaxed),
             module_count,
             lines_processed: self.lines_processed.load(Ordering::Relaxed),
             packages,
             phases,
             slow_tasks: self.slow_tasks.load(Ordering::Relaxed),
+            mir_functions_optimized: self.mir_functions_optimized.load(Ordering::Relaxed),
+            mir_instructions_before: self.mir_instructions_before.load(Ordering::Relaxed),
+            mir_instructions_after: self.mir_instructions_after.load(Ordering::Relaxed),
+            mir_blocks_before: self.mir_blocks_before.load(Ordering::Relaxed),
+            mir_blocks_after: self.mir_blocks_after.load(Ordering::Relaxed),
         }
     }
 }
@@ -358,6 +444,14 @@ pub struct StatsSnapshot {
     pub modules_generated: usize,
     /// Modules linted.
     pub modules_linted: usize,
+    /// Modules executed (comptime).
+    pub modules_executed: usize,
+    /// Modules lowered to MIR.
+    pub modules_lowered: usize,
+    /// Modules verified.
+    pub modules_verified: usize,
+    /// Modules optimized.
+    pub modules_optimized: usize,
     /// Total modules in program.
     pub module_count: usize,
     /// Total lines of source code processed.
@@ -368,6 +462,16 @@ pub struct StatsSnapshot {
     pub phases: Vec<PhaseStatsSnapshot>,
     /// Slow tasks detected.
     pub slow_tasks: usize,
+    /// MIR functions optimized.
+    pub mir_functions_optimized: usize,
+    /// MIR instructions before optimization.
+    pub mir_instructions_before: usize,
+    /// MIR instructions after optimization.
+    pub mir_instructions_after: usize,
+    /// MIR blocks before optimization.
+    pub mir_blocks_before: usize,
+    /// MIR blocks after optimization.
+    pub mir_blocks_after: usize,
 }
 
 impl StatsSnapshot {

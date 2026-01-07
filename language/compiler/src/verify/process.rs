@@ -20,6 +20,7 @@ impl Compiler {
             VerifyTask::VerifyModule { module, target } => {
                 self.require_lower_module(module, &target)?;
                 self.verify_module(module, &target)?;
+                self.stats.record_verify();
             }
         }
         Ok(())
