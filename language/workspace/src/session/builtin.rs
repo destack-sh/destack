@@ -121,6 +121,8 @@ pub struct Builtins {
     /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
     pub lib_module_by_name: DashMap<String, Vec<ModuleId>>,
     /// Lib load markers by name.
+    /// #Cleanup: can we do better than lib load markers in Builtins?
+    /// (It's a little annoying fishy, but we have to protect against concurrent re-entrant loads.)
     pub lib_loading_by_name: DashMap<String, ()>,
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,

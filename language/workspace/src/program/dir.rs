@@ -134,7 +134,7 @@ impl ModuleDir {
             global_augmentation_scope: base.global_augmentation_scope,
             default_symbol: base.default_symbol,
             export_assignment_symbol: base.export_assignment_symbol,
-            export_assignment: RwLock::new(base.export_assignment.read().clone()),
+            export_assignment: RwLock::new(*base.export_assignment.read()),
             namespace_exports: RwLock::new(base.namespace_exports.read().clone()),
             module_bindings: RwLock::new(base.module_bindings.read().clone()),
             module_binding_exports: RwLock::new(base.module_binding_exports.read().clone()),
