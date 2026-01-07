@@ -1,6 +1,6 @@
 mod block;
 mod constant;
 mod declaration;
-mod lowerer;
+mod function;
 
 pub(crate) use block::*;
