@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    ReferencePath, expression_reference_path, is_string_type, expression_unwrap_parenthesized,
+    ReferencePath, expression_reference_path, expression_unwrap_parenthesized, is_string_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 

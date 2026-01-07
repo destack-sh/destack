@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_target_symbol, is_string_type, string_literal_utf16_length,
-    expression_unwrap_parenthesized,
+    const_i64, expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
+    string_literal_utf16_length,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
