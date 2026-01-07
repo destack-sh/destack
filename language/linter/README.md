@@ -104,11 +104,11 @@ High-confidence issues that are almost always wrong.
 | `LC016` | `no-deprecated` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Disallow use of `@deprecated` APIs |
 | `LC017` | `no-division-by-zero` | Destack | DIR | ✓ | 🔶 | None | Disallow division where denominator is not proven non-zero |
 | `LC018` | `no-duplicate-case` | ESLint | AST | ✓ | ✅ | None | Disallow duplicate case labels |
-| `LC019` | `no-floating-point-equality` | Clippy | DIR | ✓ | 🔶 | Suggestion | Disallow direct `==` comparison of floats |
+| `LC019` | `no-floating-point-equality` | Clippy | DIR | ✓ | ✅ | Suggestion | Disallow direct `==` comparison of floats |
 | `LC020` | `no-empty-range` | Destack | AST | ✓ | ✅ | None | Disallow empty ranges where start > end |
 | `LC021` | `no-fallthrough` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow fallthrough of case statements |
 | `LC022` | `no-floating-promises` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require Promises to be awaited or returned |
-| `LC023` | `no-for-in-array` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow iterating over arrays with for-in |
+| `LC023` | `no-for-in-array` | TS-ESLint | DIR | ✓ | ✅ | None | Disallow iterating over arrays with for-in |
 | `LC024` | `no-func-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow reassigning function declarations |
 | `LC025` | `no-implicit-any-in-export` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow implicit `any` in public APIs |
 | `LC026` | `no-index-out-of-bounds` | Destack | DIR | ✗ | 🔶 | None | Disallow array access where index is not proven in bounds |
@@ -119,7 +119,7 @@ High-confidence issues that are almost always wrong.
 | `LC031` | `no-loop-single-iteration` | SonarQube | AST | ✓ | ✅ | Suggestion | Disallow loops that execute at most once |
 | `LC032` | `no-misused-promises` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow Promises in places not designed to handle them |
 | `LC033` | `no-misused-spread` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow spread syntax in contexts where it's incorrect |
-| `LC034` | `no-new-native-nonconstructor` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow `new` on Symbol and BigInt |
+| `LC034` | `no-new-native-nonconstructor` | ESLint | DIR | ✓ | ✅ | None | Disallow `new` on Symbol and BigInt |
 | `LC035` | `no-obj-calls` | ESLint | DIR | ✓ | 🔶 | None | Disallow calling global objects as functions |
 | `LC036` | `no-overlapping-match-arms` | Destack | DIR | ✓ | 🔶 | Safe | Disallow match patterns that subsume later arms |
 | `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | ✅ | Safe | Disallow returning values from Promise executor |
@@ -138,7 +138,7 @@ High-confidence issues that are almost always wrong.
 | `LC050` | `no-unsafe-optional-chaining` | ESLint | DIR | ✓ | 🔶 | None | Disallow optional chaining in contexts where undefined is not allowed |
 | `LC051` | `no-useless-assignment` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow assignments that are immediately overwritten |
 | `LC052` | `no-useless-increment` | SonarQube | DIR | ✓ | 🔶 | Safe | Disallow incrementing a value that is never used afterward |
-| `LC053` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require comparison function for `.sort()` |
+| `LC053` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | ✅ | Suggestion | Require comparison function for `.sort()` |
 | `LC054` | `switch-exhaustiveness-check` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require switch statements to be exhaustive |
 | `LC055` | `unbound-method` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow unbound methods as callbacks |
 | `LC056` | `unused-must-use` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow ignoring return values of `@mustUse` functions |
@@ -325,7 +325,7 @@ Subjective preferences for consistent coding style.
 | `LY040` | `prefer-as-const` | TS-ESLint | AST | ✓ | ✅ | Safe | Prefer `as const` over literal type assertions |
 | `LY041` | `prefer-const` | ESLint | DIR | ✓ | 🔶 | Safe | Require `const` declarations for never-reassigned variables |
 | `LY042` | `prefer-destructuring` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer destructuring from arrays and objects |
-| `LY043` | `prefer-exponentiation-operator` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer `**` over `Math.pow()` |
+| `LY043` | `prefer-exponentiation-operator` | ESLint | DIR | ✓ | ✅ | Safe | Prefer `**` over `Math.pow()` |
 | `LY044` | `prefer-expression` | Destack | AST | ✓ | ✅ | Safe | Prefer expression syntax for assignments |
 | `LY045` | `prefer-extension-method` | Destack | DIR | ✗ | 🔶 | Suggestion | Suggest converting functions to extension methods |
 | `LY046` | `prefer-fragment-shorthand` | Destack | AST | ✓ | ✅ | Safe | Prefer `<>` shorthand over `<Fragment>` |
