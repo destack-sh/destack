@@ -37,7 +37,6 @@ block0:
 }
 
 #[test]
-#[ignore] // FUGU: runtime stack overflow until implicit cast lowering is fixed
 fn test_lower_fibonacci_function() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -61,21 +60,22 @@ function fibonacci(n: number): number {
 function @fibonacci(v0: f64) -> f64 {
 block0:
     v1 = iconst 2i32
-    v2 = fcmp_lt v0, v1
-    branch v2, block1, block2
+    v2 = scvt_to_float v1 -> f64
+    v3 = fcmp_lt v0, v2
+    branch v3, block1, block2
 block1:
     return v0
 block2:
     jump block3
 block3:
-    v5 = iconst 1f64
-    v6 = fsub v0, v5
-    v7 = call @fibonacci(v6)
-    v8 = iconst 2f64
-    v9 = fsub v0, v8
-    v10 = call @fibonacci(v9)
-    v11 = fadd v7, v10
-    return v11
+    v6 = iconst 1f64
+    v7 = fsub v0, v6
+    v8 = call @fibonacci(v7)
+    v9 = iconst 2f64
+    v10 = fsub v0, v9
+    v11 = call @fibonacci(v10)
+    v12 = fadd v8, v11
+    return v12
 }
 "#,
     );
