@@ -203,12 +203,16 @@ pub struct LinterOptions {
     // complexity thresholds
     /// Maximum boolean parameters or fields.
     pub max_booleans: usize,
+    /// Maximum branches in a single conditional (if/match).
+    pub max_branching_factor: usize,
     /// Maximum cognitive complexity.
     pub max_cognitive_complexity: usize,
     /// Maximum cyclomatic complexity.
     pub max_cyclomatic_complexity: usize,
     /// Maximum nesting depth.
     pub max_depth: usize,
+    /// Maximum static parameters (generics including const values).
+    pub max_static_params: usize,
     /// Maximum lines per file.
     pub max_lines: usize,
     /// Maximum lines per function.
@@ -264,9 +268,11 @@ impl Default for LinterOptions {
             overrides: IndexMap::new(),
             // complexity
             max_booleans: 3,
+            max_branching_factor: 10,
             max_cognitive_complexity: 30,
             max_cyclomatic_complexity: 40,
             max_depth: 4,
+            max_static_params: 4,
             max_lines: 500,
             max_lines_per_function: 50,
             max_nested_callbacks: 4,

@@ -187,6 +187,27 @@ impl Declaration {
             | Declaration::Function { .. } => None,
         }
     }
+
+    /// Get the static parameters of the declaration.
+    #[inline]
+    pub fn static_parameters(&self) -> Option<&Vec<LocalNodeId<Parameter>>> {
+        match self {
+            Declaration::Function { signature, .. } => signature
+                .generics
+                .as_ref()
+                .and_then(|g| g.static_parameters.as_ref()),
+            Declaration::Namespace { generics, .. }
+            | Declaration::Struct { generics, .. }
+            | Declaration::Class { generics, .. }
+            | Declaration::Interface { generics, .. }
+            | Declaration::Enum { generics, .. }
+            | Declaration::Extension { generics, .. } => generics.static_parameters.as_ref(),
+            Declaration::Type {
+                static_parameters, ..
+            } => static_parameters.as_ref(),
+            Declaration::Global { .. } => None,
+        }
+    }
 }
 
 /// The kind of an enum declaration.
