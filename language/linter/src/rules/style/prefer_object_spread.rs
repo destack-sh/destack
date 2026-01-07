@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
-    unwrap_parenthesized_expression,
+    expression_unwrap_parenthesized,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -180,7 +180,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
     /// Return true when the expression is an empty object literal.
     fn is_empty_object_literal(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = unwrap_parenthesized_expression(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
         // match empty object literals
         let expression = self.ctx.tree.get(expression_id);

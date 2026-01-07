@@ -223,17 +223,12 @@ Patterns that may expose the application to attacks.
 | `LS002` | `no-hardcoded-ip` | SonarQube | AST | ✓ | ✅ | None | Disallow hardcoded IP addresses |
 | `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | ✅ | Safe | Disallow `setTimeout` and `setInterval` with string arguments |
 | `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | ✅ | None | Disallow insecure random number generators |
-| `LS005` | `no-open-redirect` | Semgrep | DIR | ✗ | 🔶 | None | Disallow redirects using user-controlled URLs |
-| `LS006` | `no-path-traversal` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in file system paths |
-| `LS007` | `no-prototype-pollution` | Semgrep | DIR | ✗ | 🔶 | Suggestion | Disallow patterns that may pollute Object.prototype |
-| `LS008` | `no-regex-injection` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in regular expression patterns |
+| `LS005` | `no-open-redirect` | Semgrep | DIR | ✓ | ✅ | None | Disallow redirects using user-controlled URLs |
+| `LS007` | `no-prototype-pollution` | Semgrep | DIR | ✓ | ✅ | None | Disallow patterns that may pollute Object.prototype |
+| `LS008` | `no-regex-injection` | Destack | DIR | ✓ | ✅ | None | Disallow tainted data in regular expression patterns |
 | `LS009` | `no-script-url` | ESLint | AST | ✓ | ✅ | None | Disallow `javascript:` URLs |
 | `LS010` | `no-secrets` | Biome | AST | ✓ | ✅ | None | Disallow hardcoded secrets and credentials |
-| `LS011` | `no-sensitive-log` | Bearer | DIR | ✗ | 🔶 | Suggestion | Disallow logging data marked as sensitive |
-| `LS012` | `no-sql-injection` | Destack | DIR | ✗ | 🔶 | None | Disallow tainted data in SQL queries |
-| `LS013` | `no-unsafe-deserialization` | Semgrep | DIR | ✗ | 🔶 | None | Disallow unsafe deserialization of untrusted input |
-| `LS014` | `no-unsafe-templating` | Semgrep | DIR | ✗ | 🔶 | None | Disallow untrusted data in string templating sinks |
-| `LS015` | `no-weak-crypto` | Semgrep | DIR | ✓ | 🔶 | Suggestion | Disallow weak cryptographic algorithms |
+| `LS015` | `no-weak-crypto` | Semgrep | DIR | ✓ | ✅ | None | Disallow weak cryptographic algorithms |
 
 ## Performance (P)
 

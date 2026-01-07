@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    ReferencePath, expression_reference_path, is_string_type, unwrap_parenthesized_expression,
+    ReferencePath, expression_reference_path, is_string_type, expression_unwrap_parenthesized,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -165,7 +165,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
     /// Return true when the expression should be treated as a string.
     fn is_string_like_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = unwrap_parenthesized_expression(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
         // match string literals or typed strings
         let expression = self.ctx.tree.get(expression_id);
@@ -184,7 +184,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         reference: &ReferencePath,
     ) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = unwrap_parenthesized_expression(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
         // descend into add chains
         let expression = self.ctx.tree.get(expression_id);
@@ -209,7 +209,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = unwrap_parenthesized_expression(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
         // descend into add chains
         let expression = self.ctx.tree.get(expression_id);

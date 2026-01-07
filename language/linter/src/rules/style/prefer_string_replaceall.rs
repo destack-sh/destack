@@ -3,7 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{is_string_type, unwrap_parenthesized_expression};
+use crate::rules::common::{is_string_type, expression_unwrap_parenthesized};
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -145,7 +145,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     /// Return true when the expression is a global regex literal.
     fn is_global_regex(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // unwrap parenthesized expressions
-        let expression_id = unwrap_parenthesized_expression(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
 
         // match regex literals
         let expression = self.ctx.tree.get(expression_id);

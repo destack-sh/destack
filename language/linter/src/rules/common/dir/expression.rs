@@ -27,7 +27,7 @@ pub fn expression_target_symbol(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     // unwrap parenthesized expressions first
-    let expression_id = unwrap_parenthesized_expression(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
     // return the reference target symbol when present
     let expression = tree.get(expression_id);
@@ -74,7 +74,7 @@ pub fn expression_is_global_qualified_member(
 }
 
 /// Return the expression id with parenthesized nodes unwrapped.
-pub fn unwrap_parenthesized_expression(
+pub fn expression_unwrap_parenthesized(
     tree: &dir::NodeTree,
     mut expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
@@ -125,6 +125,36 @@ pub fn flip_binary_operator(operator: dir::BinaryOperator) -> Option<dir::Binary
         | dir::BinaryOperator::NotEqualStrict => Some(operator),
         _ => None,
     }
+}
+
+/// Return true when the expression is potentially user-controlled.
+///
+/// Literals are considered safe; references, calls, member access, index access,
+/// binary operations, and template expressions are considered potentially tainted.
+pub fn expression_is_potentially_tainted(
+    tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    // unwrap parentheses
+    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression = tree.get(expression_id);
+
+    // literals are safe
+    if matches!(expression, dir::Expression::ScalarLiteral { .. }) {
+        return false;
+    }
+
+    // these expression kinds can carry user-controlled data
+    matches!(
+        expression,
+        dir::Expression::LocalReference { .. }
+            | dir::Expression::ModuleReference { .. }
+            | dir::Expression::Member { .. }
+            | dir::Expression::Call { .. }
+            | dir::Expression::Index { .. }
+            | dir::Expression::Binary { .. }
+            | dir::Expression::TemplateExpression { .. }
+    )
 }
 
 /// Get the base of a reference path.
