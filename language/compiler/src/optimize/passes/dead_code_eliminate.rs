@@ -117,7 +117,7 @@ impl FunctionPass for DeadCodeEliminate {
         }
 
         if changed {
-            // values changed, but CFG intact 
+            // values changed, but CFG intact
             AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
         } else {
             AnalysisPreservation::all()

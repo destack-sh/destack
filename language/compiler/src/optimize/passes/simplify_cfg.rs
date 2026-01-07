@@ -5,15 +5,17 @@ use destack_mir as mir;
 
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
+    instruction_substitute_uses, terminator_substitute_uses,
 };
 
 declare_pass! {
     /// Simplify the control flow graph.
     ///
     /// This pass performs several CFG simplifications:
-    /// 1. Unreachable block elimination - removes blocks not reachable from entry
-    /// 2. Constant branch folding - converts `branch const, A, B` to `jump`
-    /// 3. Empty block elimination - removes blocks that just jump to another block
+    /// 1. Constant branch folding: converts `branch const, A, B` to `jump`
+    /// 2. Jump threading: threads jumps through empty blocks
+    /// 3. Block merging: merges blocks with single predecessor/successor
+    /// 4. Unreachable block elimination: removes blocks not reachable from entry
     #[pass(id = "simplify-cfg")]
     pub SimplifyCfg,
     "Simplify control flow graph"
@@ -39,10 +41,16 @@ impl FunctionPass for SimplifyCfg {
         changed |= fold_constant_branches(function, tree);
 
         // phase 2: jump threading
-        // threads jumps through empty blocks that just unconditionally jump elsewhere
+        // threads jumps through empty blocks
         changed |= thread_jumps(function, tree);
 
-        // phase 3: eliminate unreachable blocks
+        // phase 3: block merging
+        // merges blocks with single predecessor/successor
+        if let Some(entry) = function.entry {
+            changed |= merge_blocks(function, tree, entry);
+        }
+
+        // phase 4: eliminate unreachable blocks
         if let Some(entry) = function.entry {
             changed |= eliminate_unreachable_blocks(function, tree, entry);
         }
@@ -266,6 +274,121 @@ fn resolve_jump_target(
             }
         }
     }
+}
+
+/// Merge blocks where predecessor has single successor and successor has single predecessor.
+///
+/// If block A unconditionally jumps to block B, and B has no other predecessors,
+/// we can merge B's instructions and terminator into A.
+///
+/// Returns true if any blocks were merged.
+fn merge_blocks(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    entry: mir::LocalNodeId<mir::Block>,
+) -> bool {
+    // build predecessor count for each block
+    let mut predecessor_count: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
+    for &block_id in &function.blocks {
+        predecessor_count.entry(block_id).or_insert(0);
+        let block = tree.get(block_id);
+        for successor in block.terminator.successors() {
+            *predecessor_count.entry(successor).or_insert(0) += 1;
+        }
+    }
+
+    let mut changed = false;
+    let mut merged_away: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+
+    // iterate until no more merges possible
+    loop {
+        let mut merged_this_round = false;
+
+        for &block_id in &function.blocks {
+            if merged_away.contains(&block_id) {
+                continue;
+            }
+
+            // extract info from block without holding borrow
+            let (target, arguments, block_clone) = {
+                let block = tree.get(block_id);
+                let mir::Terminator::Jump { target, arguments } = &block.terminator else {
+                    continue;
+                };
+                (*target, arguments.clone(), block.clone())
+            };
+
+            // don't merge into ourselves
+            if target == block_id {
+                continue;
+            }
+
+            // target must have exactly one predecessor (us)
+            if predecessor_count.get(&target).copied().unwrap_or(0) != 1 {
+                continue;
+            }
+
+            // don't merge away the entry block
+            if target == entry {
+                continue;
+            }
+
+            // target must not already be merged away
+            if merged_away.contains(&target) {
+                continue;
+            }
+
+            // extract target block info
+            let (param_to_arg, target_instructions, target_terminator) = {
+                let target_block = tree.get(target);
+                let param_to_arg: HashMap<mir::Value, mir::Value> = target_block
+                    .parameters
+                    .iter()
+                    .zip(arguments.iter())
+                    .map(|(param, arg)| (param.value, *arg))
+                    .collect();
+                (
+                    param_to_arg,
+                    target_block.instructions.clone(),
+                    target_block.terminator.clone(),
+                )
+            };
+
+            // merge: append target's instructions to our block, take target's terminator
+            let mut new_block = block_clone;
+
+            // copy and substitute instructions from target
+            for instruction_id in target_instructions {
+                let instruction = tree.get(instruction_id).clone();
+                let new_instruction = instruction_substitute_uses(&instruction, &param_to_arg);
+                let new_id = tree.insert(new_instruction);
+                new_block.instructions.push(new_id);
+            }
+
+            // substitute and take target's terminator
+            new_block.terminator = terminator_substitute_uses(&target_terminator, &param_to_arg);
+
+            tree.replace(block_id, new_block);
+
+            // mark target as merged away
+            merged_away.insert(target);
+            merged_this_round = true;
+            changed = true;
+        }
+
+        if !merged_this_round {
+            break;
+        }
+    }
+
+    // remove merged blocks from function
+    if !merged_away.is_empty() {
+        function
+            .blocks
+            .retain(|block_id| !merged_away.contains(block_id));
+    }
+
+    changed
 }
 
 /// Eliminate blocks not reachable from the entry block.
@@ -598,14 +721,13 @@ block0:
 block1(v3: i32):
     return v3
 }"#;
+        // after folding branch to jump, block merging merges block1 into block0
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst true
     v1 = iconst 42i32
     v2 = iconst 0i32
-    jump block1(v1)
-block1(v3: i32):
-    return v3
+    return v1
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -669,7 +791,7 @@ block0:
     #[test]
     fn test_preserve_block_with_instructions() {
         // block1 has instructions so can't be threaded through
-        // block2 is empty so block1's jump threads to return
+        // but after threading block1's jump to return, block0 and block1 merge
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -680,12 +802,10 @@ block1:
 block2:
     return v1
 }"#;
-        // block1's jump to block2 threads to return, block2 becomes unreachable
+        // block1's jump threads to return, then block0 and block1 merge
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
-    jump block1
-block1:
     v1 = iadd v0, v0
     return v1
 }"#;
