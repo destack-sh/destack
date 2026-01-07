@@ -369,7 +369,7 @@ Overly complex code that is harder to understand and maintain.
 | `LX002` | `cyclomatic-complexity` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum cyclomatic complexity |
 | `LX003` | `max-branching-factor` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum branching factor in conditionals |
 | `LX004` | `max-depth` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested blocks |
-| `LX005` | `max-generic-params` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum number of generic parameters |
+| `LX005` | `max-static-params` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum number of static parameters |
 | `LX006` | `max-lines` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per file |
 | `LX007` | `max-lines-per-function` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per function |
 | `LX008` | `max-nested-callbacks` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested callbacks |
@@ -378,7 +378,6 @@ Overly complex code that is harder to understand and maintain.
 | `LX011` | `max-statements` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of statements per function |
 | `LX012` | `max-switch-cases` | SonarQube | AST | ✓ | ✅ | None | Enforce a maximum number of cases in a switch statement |
 | `LX013` | `max-type-fields` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of fields in a struct, class, interface, or object type |
-| `LX014` | `max-type-nesting` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum nesting depth for types |
 | `LX015` | `max-type-variants` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of variants in a union type or enum |
 | `LX016` | `no-complex-boolean-expression` | Destack | AST | ✓ | ✅ | Safe | Suggest simplifying complex boolean expressions |
 | `LX017` | `no-complex-type` | Destack | AST | ✓ | ✅ | None | Warn on overly complex types that should be aliased |

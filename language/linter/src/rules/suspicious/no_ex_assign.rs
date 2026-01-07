@@ -136,9 +136,7 @@ fn is_path_to_name(
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
     match expr {
-        ast::Expression::Path { path, .. } => {
-            path.segments.len() == 1 && path.segments[0] == name
-        }
+        ast::Expression::Path { path, .. } => path.segments.len() == 1 && path.segments[0] == name,
         ast::Expression::Parenthesized { expression } => is_path_to_name(ctx, *expression, name),
         _ => false,
     }
