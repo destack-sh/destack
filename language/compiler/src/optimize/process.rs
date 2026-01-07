@@ -4,7 +4,7 @@ use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
 use destack_workspace::TargetId;
 
-use super::{OptimizationContext, OptimizationLevel, default_pipeline};
+use super::{OptimizationContext, OptimizationLevel, count_mir_size, default_pipeline};
 
 /// Task to optimize something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -47,6 +47,7 @@ impl Compiler {
         // build optimization pipeline for this level
         let pipeline = default_pipeline(level);
         if pipeline.function_pass_count() == 0 && pipeline.module_pass_count() == 0 {
+            self.stats.record_optimize();
             return Ok(());
         }
 
@@ -57,11 +58,27 @@ impl Compiler {
         let mut tree = mir.tree.write();
         let strings = mir.strings.clone();
 
+        // count MIR size before optimization
+        let before = count_mir_size(&tree);
+
         // create optimization context
         let context = OptimizationContext::new(&strings);
 
         // run the pipeline on all functions
         pipeline.run_on_module(&mut tree, &context);
+
+        // count MIR size after optimization
+        let after = count_mir_size(&tree);
+
+        // record metrics
+        self.stats.record_optimize();
+        self.stats.record_optimize_mir(
+            before.functions,
+            before.instructions,
+            after.instructions,
+            before.blocks,
+            after.blocks,
+        );
 
         Ok(())
     }

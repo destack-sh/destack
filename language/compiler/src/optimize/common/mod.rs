@@ -2,6 +2,7 @@ mod analysis;
 mod block;
 mod context;
 mod instruction;
+mod metrics;
 mod pass;
 mod pipeline;
 #[cfg(test)]
@@ -11,5 +12,6 @@ pub use analysis::*;
 pub use block::*;
 pub use context::*;
 pub use instruction::*;
+pub use metrics::*;
 pub use pass::*;
 pub use pipeline::*;
