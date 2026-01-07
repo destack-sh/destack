@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{
     BinaryOperator, Declaration, Expression, FlowEdgeKind, FlowGraphBuilder, InferTable,
-    LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
+    LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
     StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
     TypeUnaryOperator,
 };
@@ -703,6 +703,154 @@ let x = greeting;
         x_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+        }
+    );
+}
+
+/// Analyze cross module member access using declared shapes.
+#[test]
+fn test_analyze_cross_module_member_access_declared_shape() {
+    // arrange test modules
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "lib.ds",
+        r#"
+export struct Box {
+    value: number
+}
+
+export let boxed: Box = { value: 1 };
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { boxed } from "./lib.ds";
+
+let value = boxed.value;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let types = load_types(&test, module_id);
+
+    // value should be number from the declared field type
+    let value_symbol = test.resolve_to_symbol("main.ds", "value").unwrap();
+    let value_ty_id = types.get_value_type_id(value_symbol).unwrap();
+
+    assert_type!(
+        types,
+        value_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+}
+
+/// Analyze circular imports with a declared export anchor.
+#[test]
+fn test_analyze_cross_module_circular_imports_with_declared_anchor() {
+    // arrange circular modules with a declared anchor
+    let test = TestProgram::memory_sequential();
+    let b_module_id = test.add_module(
+        "b.ds",
+        r#"
+import { a } from "./a.ds";
+
+export let b = a;
+"#,
+    );
+    let a_module_id = test.add_module(
+        "a.ds",
+        r#"
+import { b } from "./b.ds";
+
+export let a: number = b;
+"#,
+    );
+
+    // run analyze pipeline for the anchor module
+    test.analyze_module_and_check_clean(a_module_id);
+
+    // load typed module data
+    let types = load_types(&test, b_module_id);
+
+    // b should pick up the declared number type from a
+    let b_symbol = test.resolve_to_symbol("b.ds", "b").unwrap();
+    let b_ty_id = types.get_value_type_id(b_symbol).unwrap();
+
+    assert_type!(
+        types,
+        b_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+}
+
+/// Analyze export chain surface inference.
+#[test]
+fn test_analyze_export_chain_surface_inference() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = analyze_module_with_source(
+        &test,
+        "test.ds",
+        r#"
+export let a = 1;
+export let b = a;
+"#,
+    );
+
+    // load typed module data
+    let (roots, tree, _symbols, types) = load_tree_symbols_types(&test, module_id);
+
+    // locate exported declarators
+    let a_name = test.program.strings.intern("a");
+    let b_name = test.program.strings.intern("b");
+    let a_declarator_id = expect_let_declarator_by_name(&roots, &tree, a_name);
+    let b_declarator_id = expect_let_declarator_by_name(&roots, &tree, b_name);
+
+    // resolve binding symbols
+    let a_pattern = tree.get(tree.get(a_declarator_id).pattern);
+    let b_pattern = tree.get(tree.get(b_declarator_id).pattern);
+    let Pattern::Binding {
+        symbol: a_symbol, ..
+    } = a_pattern
+    else {
+        panic!("expected binding");
+    };
+    let Pattern::Binding {
+        symbol: b_symbol, ..
+    } = b_pattern
+    else {
+        panic!("expected binding");
+    };
+
+    // read value types
+    let a_ty_id = types
+        .get_value_type_id(a_symbol.into_global(module_id))
+        .expect("expected a type");
+    let b_ty_id = types
+        .get_value_type_id(b_symbol.into_global(module_id))
+        .expect("expected b type");
+
+    // both exports resolve to the literal number type
+    assert_type!(
+        types,
+        a_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
+        }
+    );
+    assert_type!(
+        types,
+        b_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
         }
     );
 }

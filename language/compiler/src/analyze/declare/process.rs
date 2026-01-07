@@ -1,5 +1,5 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError, TaskResultCollector};
-use destack_dir::LocalTypeId;
+use destack_dir::{LocalTypeId, Type};
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
@@ -20,6 +20,7 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
+        // load module state and dir tables
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
@@ -28,14 +29,58 @@ impl Compiler {
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
 
-        // evaluate any unevaluated types
-        for i in 0..types.type_count() {
-            let ty_id = LocalTypeId::new(i);
-            self.collect(
-                &mut collector,
-                self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
-            );
+        // evaluate unevaluated types to a fixed point
+        let mut did_change = true;
+        while did_change {
+            did_change = false;
+            let type_count = types.type_count();
+
+            // attempt evaluation for each unevaluated type
+            for i in 0..type_count {
+                let ty_id = LocalTypeId::new(i);
+                let was_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
+                if !was_unevaluated {
+                    continue;
+                }
+
+                // evaluate the type and track progress
+                self.collect(
+                    &mut collector,
+                    self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
+                );
+
+                // record progress on any resolved types
+                let is_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
+                if was_unevaluated && !is_unevaluated {
+                    did_change = true;
+                }
+            }
+
+            // repeat when new types were added
+            if types.type_count() != type_count {
+                did_change = true;
+            }
         }
+
+        // declare type-level declarations and shapes
+        self.collect(
+            &mut collector,
+            self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
+        );
+
+        // declare exported value types with local-only inference
+        let exported_symbols = dir.exported_symbols.read();
+        self.collect(
+            &mut collector,
+            self.declare_exported_value_types(
+                &module,
+                profile,
+                &exported_symbols,
+                &tree,
+                &symbols,
+                &mut types,
+            ),
+        );
 
         // FUGU #Incomplete: implement #Extensions
         // register extensions?
@@ -48,6 +93,7 @@ impl Compiler {
             return Err(AnalyzeError::Yield { dependency });
         }
 
+        // return the collected result
         Ok(())
     }
 }

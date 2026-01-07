@@ -6,7 +6,7 @@ use destack_dir::{
 
 impl Compiler {
     /// Get or create an inference variable type for a symbol.
-    pub(super) fn infer_var_type_for_symbol(
+    pub(crate) fn infer_var_type_for_symbol(
         &self,
         infer: &mut InferTable,
         types: &mut TypeTable,
@@ -31,7 +31,7 @@ impl Compiler {
     }
 
     /// Get or create an inference variable type for a node.
-    pub(super) fn infer_var_type_for_node(
+    pub(crate) fn infer_var_type_for_node(
         &self,
         infer: &mut InferTable,
         types: &mut TypeTable,
@@ -56,7 +56,7 @@ impl Compiler {
 
     /// Check whether a type id points at an inference variable.
     #[inline]
-    pub(super) fn is_infer_var_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+    pub(crate) fn is_infer_var_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
         matches!(types.get_type(ty_id), Type::InferVar { .. })
     }
 }

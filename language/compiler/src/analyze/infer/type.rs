@@ -467,9 +467,9 @@ impl Compiler {
             return Ok(None);
         }
 
-        // ensure the defining module is analyzed before reading its types #RemoteAnalyze
+        // ensure the defining module is declared before reading its types
         if symbol.module_id != module.id {
-            self.require_analyze_module(symbol.module_id, profile)
+            self.require_analyze_module_declare(symbol.module_id, profile)
                 .map_err(AnalyzeError::from)?;
         }
 
@@ -606,7 +606,6 @@ impl Compiler {
     }
 
     /// Import a remote instance type into the local type table.
-    /// FUGU #Broken: infer remote module without requiring it be analyzed first? #RemoteAnalyze
     fn import_instance_type_for_symbol(
         &self,
         profile: ProfileId,
@@ -614,8 +613,8 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // ensure the remote module is analyzed before reading its types
-        self.require_analyze_module(symbol.module_id, profile)
+        // ensure the remote module is declared before reading its types
+        self.require_analyze_module_declare(symbol.module_id, profile)
             .map_err(|error| match error {
                 TaskDependencyError::NotReady { dependency } => AnalyzeError::Yield { dependency },
                 TaskDependencyError::Failed { dependency } => {
@@ -1625,7 +1624,9 @@ impl Compiler {
                 if extension.symbol.module_id == module.id {
                     return true;
                 }
-                false // TODO #Incomplete: local/named extensions #Extensions
+
+                // TODO #Incomplete: local and named extensions for #Extensions
+                false
             }
         }
     }
@@ -1642,8 +1643,8 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let remote_module_id = target_symbol.module_id;
 
-        // ensure the remote module is analyzed (may yield)
-        self.require_analyze_module(remote_module_id, profile)?;
+        // ensure the remote module is declared (may yield)
+        self.require_analyze_module_declare(remote_module_id, profile)?;
 
         // look up the type in the remote module's TypeTable
         let remote_module = self.program.modules.get(remote_module_id);
@@ -1674,7 +1675,7 @@ impl Compiler {
     /// Import a type from a remote module into the current module's TypeTable.
     /// For structural types (arrays, objects, ..): recursively copy the type structure.
     /// For nominal types (Type::Reference): keep them as references to the original symbol.
-    pub(super) fn import_type_from_remote_for_node(
+    pub(crate) fn import_type_from_remote_for_node(
         &self,
         node_id: LocalNodeIdAny,
         remote_ty: &Type,
