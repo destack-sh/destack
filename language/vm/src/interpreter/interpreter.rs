@@ -272,6 +272,7 @@ impl Interpreter {
     }
 
     /// Create an error with current call stack.
+    #[cold]
     pub(super) fn make_error(&self, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(self.get_call_stack_info())
     }
@@ -279,6 +280,13 @@ impl Interpreter {
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
         let handle = self.managed_heap.allocate_with_values(values);
+        Value::aggregate(handle)
+    }
+
+    /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
+    #[inline]
+    pub fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
+        let handle = self.managed_heap.allocate_pair(first, second);
         Value::aggregate(handle)
     }
 
@@ -291,6 +299,7 @@ impl Interpreter {
     }
 
     /// Create an error with instruction anchor.
+    #[cold]
     #[allow(dead_code)]
     pub(super) fn make_error_at(
         &self,
