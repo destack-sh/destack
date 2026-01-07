@@ -1035,9 +1035,9 @@ function classify(x: number): string {
             module_id,
             r#"
 function classify(x): string {
-    if (n > 0) {
+    if (n > 0 as number) {
         return "positive";
-    } else if (n < 0) {
+    } else if (n < 0 as number) {
         return "negative";
     } else {
         return "zero";

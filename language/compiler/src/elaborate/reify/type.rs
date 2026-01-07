@@ -217,6 +217,53 @@ pub(super) fn numeric_cast_operator(source: &Type, target: &Type) -> Option<Cast
     }
 }
 
+/// Return the common numeric type id for a binary operation.
+pub(super) fn common_numeric_type_id_for_binary(
+    left_type_id: LocalTypeId,
+    right_type_id: LocalTypeId,
+    source_id: LocalNodeId<Expression>,
+    types: &mut TypeTable,
+) -> Option<LocalTypeId> {
+    // read the left and right types
+    let left_type = types.get_type(left_type_id);
+    let right_type = types.get_type(right_type_id);
+
+    // require numeric kinds for both sides
+    let left_kind = numeric_kind_for_type(left_type)?;
+    let right_kind = numeric_kind_for_type(right_type)?;
+
+    // prefer the non literal side when paired with a literal
+    let left_is_literal = is_scalar_literal_type(left_type);
+    let right_is_literal = is_scalar_literal_type(right_type);
+
+    if left_is_literal && !right_is_literal {
+        return Some(right_type_id);
+    }
+
+    if right_is_literal && !left_is_literal {
+        return Some(left_type_id);
+    }
+
+    // widen literal only expressions to number
+    if left_is_literal && right_is_literal {
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        };
+        let type_id = types.insert_type_from(ty, source_id);
+        return Some(type_id);
+    }
+
+    // select the wider numeric type between the operands
+    let prefer_left = prefer_left_numeric_kind(left_kind, right_kind);
+    let preferred_id = if prefer_left {
+        left_type_id
+    } else {
+        right_type_id
+    };
+
+    Some(preferred_id)
+}
+
 /// Check whether a type is an integer type.
 pub(super) fn is_integer_type(ty: &Type) -> bool {
     matches!(
@@ -227,6 +274,37 @@ pub(super) fn is_integer_type(ty: &Type) -> bool {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
         }
     )
+}
+
+/// Choose whether the left numeric kind should be preferred.
+fn prefer_left_numeric_kind(left: NumericKind, right: NumericKind) -> bool {
+    match (left, right) {
+        (NumericKind::Float { width: left_width }, NumericKind::Float { width: right_width }) => {
+            left_width >= right_width
+        }
+        (
+            NumericKind::Int {
+                width: left_width,
+                is_signed: left_signed,
+            },
+            NumericKind::Int {
+                width: right_width,
+                is_signed: right_signed,
+            },
+        ) => {
+            if left_width != right_width {
+                return left_width > right_width;
+            }
+
+            if left_signed != right_signed {
+                return left_signed;
+            }
+
+            true
+        }
+        (NumericKind::Float { .. }, NumericKind::Int { .. }) => true,
+        (NumericKind::Int { .. }, NumericKind::Float { .. }) => false,
+    }
 }
 
 /// Check whether a type is the `any` type.
