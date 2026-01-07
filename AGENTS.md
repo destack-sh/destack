@@ -44,6 +44,11 @@ else {
   ...
 }
 
+For ===-like separators for large comment blocks, you may use upper case sentences:
+// ================================================================================
+// Binary operator precedence
+// ================================================================================
+
 Comments MAY start with keywords:
 - `NOTE`: call out something important
 - `TODO`: something to address eventually
