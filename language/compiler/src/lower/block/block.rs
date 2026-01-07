@@ -6,7 +6,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::TypeLowerer;
+use super::super::TypeLowerer;
 
 /// Track whether a statement terminates control flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
