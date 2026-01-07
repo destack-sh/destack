@@ -103,7 +103,6 @@ impl FunctionPass for ConstantFold {
         }
 
         // constant folding doesn't change the CFG, only instruction contents
-        // so we preserve CFG-based analyses like dominator tree
         AnalysisPreservation::all()
     }
 }
@@ -391,6 +390,7 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
+    /// Signed integer addition folds to result, division by zero returns None.
     #[test]
     fn test_fold_binary_signed() {
         assert_eq!(
@@ -401,14 +401,16 @@ mod tests {
                 is_signed: true
             })
         );
+
         assert_eq!(
             fold_binary_signed(10, 0, 32, mir::BinaryOperator::SignedDivide),
             None
         );
     }
 
+    /// Unary negation folds signed integer to its negated value.
     #[test]
-    fn test_fold_unary() {
+    fn test_fold_unary_negation() {
         assert_eq!(
             fold_unary(
                 mir::UnaryOperator::Negate,
@@ -426,8 +428,9 @@ mod tests {
         );
     }
 
+    /// Binary add of two constants folds to their sum.
     #[test]
-    fn test_pass_folds_binary_add() {
+    fn test_fold_binary_add() {
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -442,14 +445,16 @@ block0:
     v2 = iconst 3i32
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_eq(expected);
     }
 
+    /// Chained arithmetic operations fold through intermediate results.
     #[test]
-    fn test_pass_folds_chained_operations() {
-        // v0 = 2, v1 = 3, v2 = v0 * v1 = 6, v3 = v2 + 4 = 10
+    fn test_fold_chained_operations() {
+        // 2 * 3 = 6, then 6 + 4 = 10
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 2i32
@@ -468,13 +473,15 @@ block0:
     v4 = iconst 10i32
     return v4
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_eq(expected);
     }
 
+    /// Comparison of constants folds to boolean result.
     #[test]
-    fn test_pass_folds_comparison() {
+    fn test_fold_comparison() {
         let input = r#"function @test() -> bool {
 block0:
     v0 = iconst 5i32
@@ -489,27 +496,31 @@ block0:
     v2 = iconst true
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_eq(expected);
     }
 
+    /// Operations with non-constant operands are not folded.
     #[test]
-    fn test_pass_no_fold_with_non_constant() {
-        // v0 is a parameter, not a constant - can't fold
+    fn test_preserve_non_constant_operands() {
+        // v0 is a parameter, not a constant
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 2i32
     v2 = iadd v0, v1
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_unchanged(input);
     }
 
+    /// Unary negation instruction folds constant to negated value.
     #[test]
-    fn test_pass_folds_unary_negation() {
+    fn test_fold_unary_negation_instruction() {
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
@@ -522,13 +533,15 @@ block0:
     v1 = iconst -42i32
     return v1
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_eq(expected);
     }
 
+    /// Boolean not folds true to false.
     #[test]
-    fn test_pass_folds_boolean_not() {
+    fn test_fold_boolean_not() {
         let input = r#"function @test() -> bool {
 block0:
     v0 = iconst true
@@ -541,6 +554,159 @@ block0:
     v1 = iconst false
     return v1
 }"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_eq(expected);
+    }
+
+    /// Unsigned integer division folds correctly.
+    #[test]
+    fn test_fold_unsigned_division() {
+        let input = r#"function @test() -> u32 {
+block0:
+    v0 = iconst 10u32
+    v1 = iconst 3u32
+    v2 = udiv v0, v1
+    return v2
+}"#;
+        let expected = r#"function @test() -> u32 {
+block0:
+    v0 = iconst 10u32
+    v1 = iconst 3u32
+    v2 = iconst 3u32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_eq(expected);
+    }
+
+    /// Division by zero is not folded to avoid compile-time UB.
+    #[test]
+    fn test_preserve_division_by_zero() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 10i32
+    v1 = iconst 0i32
+    v2 = sdiv v0, v1
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_unchanged(input);
+    }
+
+    /// Constants from earlier blocks are available for folding in later blocks.
+    #[test]
+    fn test_fold_across_blocks() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 5i32
+    v2 = iconst 3i32
+    branch v0, block1, block2
+block1:
+    v3 = iadd v1, v2
+    return v3
+block2:
+    v4 = imul v1, v2
+    return v4
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 5i32
+    v2 = iconst 3i32
+    branch v0, block1, block2
+block1:
+    v3 = iconst 8i32
+    return v3
+block2:
+    v4 = iconst 15i32
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_eq(expected);
+    }
+
+    /// Bitwise and, or, xor fold correctly on integer constants.
+    #[test]
+    fn test_fold_bitwise_operations() {
+        // 10 & 12 = 8, 10 | 12 = 14, 10 ^ 12 = 6
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 10i32
+    v1 = iconst 12i32
+    v2 = band v0, v1
+    v3 = bor v0, v1
+    v4 = bxor v0, v1
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 10i32
+    v1 = iconst 12i32
+    v2 = iconst 8i32
+    v3 = iconst 14i32
+    v4 = iconst 6i32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_eq(expected);
+    }
+
+    /// Shift left and arithmetic shift right fold correctly.
+    #[test]
+    fn test_fold_shift_operations() {
+        // 8 << 2 = 32, 8 >> 2 = 2 (signed/arithmetic)
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 8i32
+    v1 = iconst 2i32
+    v2 = ishl v0, v1
+    v3 = sshr v0, v1
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 8i32
+    v1 = iconst 2i32
+    v2 = iconst 32i32
+    v3 = iconst 2i32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_eq(expected);
+    }
+
+    /// Boolean and/or operations fold correctly.
+    #[test]
+    fn test_fold_boolean_and_or() {
+        // true && false = false, true || false = true
+        let input = r#"function @test() -> bool {
+block0:
+    v0 = iconst true
+    v1 = iconst false
+    v2 = band v0, v1
+    v3 = bor v0, v1
+    return v2
+}"#;
+        let expected = r#"function @test() -> bool {
+block0:
+    v0 = iconst true
+    v1 = iconst false
+    v2 = iconst false
+    v3 = iconst true
+    return v2
+}"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_eq(expected);

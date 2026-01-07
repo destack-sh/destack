@@ -1,11 +1,10 @@
 use crate::{Compiler, OptimizeResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
-use destack_mir::Function;
 use destack_source::ModuleId;
 use destack_workspace::TargetId;
 
-use super::{BoxedFunctionPass, OptimizationContext, OptimizationLevel, passes};
+use super::{OptimizationContext, OptimizationLevel, default_pipeline};
 
 /// Task to optimize something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -45,9 +44,9 @@ impl Compiler {
         // get optimization level from target config
         let level = self.optimization_level_for_target(target);
 
-        // get the passes for this level
-        let passes = passes::passes_for_level(level);
-        if passes.is_empty() {
+        // build optimization pipeline for this level
+        let pipeline = default_pipeline(level);
+        if pipeline.function_pass_count() == 0 && pipeline.module_pass_count() == 0 {
             return Ok(());
         }
 
@@ -58,45 +57,13 @@ impl Compiler {
         let mut tree = mir.tree.write();
         let strings = mir.strings.clone();
 
-        // collect function IDs (to avoid borrow issues during iteration)
-        let function_ids: Vec<_> = tree.iter_nodes::<Function>().map(|(id, _)| id).collect();
+        // create optimization context
+        let context = OptimizationContext::new(&strings);
 
-        // run passes on each function
-        for function_id in function_ids {
-            self.optimize_function(function_id, &mut tree, &strings, &passes);
-        }
+        // run the pipeline on all functions
+        pipeline.run_on_module(&mut tree, &context);
 
         Ok(())
-    }
-
-    /// Run optimization passes on a single function.
-    fn optimize_function(
-        &self,
-        function_id: destack_mir::LocalNodeId<Function>,
-        tree: &mut destack_mir::NodeTree,
-        strings: &destack_base::StringPool,
-        passes: &[BoxedFunctionPass],
-    ) {
-        // clone function to work around borrow checker
-        // (Function is small - just metadata + block/local IDs)
-        let mut function = tree.get(function_id).clone();
-
-        // skip imported functions (no body to optimize)
-        if function.entry.is_none() {
-            return;
-        }
-
-        // create context for this function
-        let context = OptimizationContext::new(strings);
-
-        // run each pass
-        for pass in passes {
-            let preserved = pass.run_on_function(&mut function, tree, &context);
-            context.invalidate(&preserved);
-        }
-
-        // write function back (in case passes modified it)
-        *tree.get_mut(function_id) = function;
     }
 
     /// Get the optimization level for a target.
