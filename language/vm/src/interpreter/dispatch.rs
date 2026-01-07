@@ -343,6 +343,831 @@ pub(super) fn handle_binary_bool(
     next!(state, block, pc)
 }
 
+// ============================================================================
+// Specialized Integer Arithmetic Handlers
+// ============================================================================
+
+/// Execute integer addition without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_add_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_add(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute integer subtraction without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_sub_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_sub(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute integer multiplication without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_mul_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_mul(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute integer bitwise AND without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_and_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a & b, width));
+    next!(state, block, pc)
+}
+
+/// Execute integer bitwise OR without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_or_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a | b, width));
+    next!(state, block, pc)
+}
+
+/// Execute integer bitwise XOR without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_xor_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a ^ b, width));
+    next!(state, block, pc)
+}
+
+/// Execute shift left without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_shl_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as u32;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_shl(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute arithmetic shift right without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_shr_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as u32;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_shr(b), width));
+    next!(state, block, pc)
+}
+
+// ============================================================================
+// Specialized Unsigned Integer Arithmetic Handlers
+// ============================================================================
+
+/// Execute unsigned integer addition without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_add_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_add(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned integer subtraction without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_sub_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_sub(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned integer multiplication without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_mul_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_mul(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned bitwise AND without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_and_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a & b, width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned bitwise OR without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_or_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a | b, width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned bitwise XOR without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_xor_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a ^ b, width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned shift left without operator dispatch.
+#[inline(always)]
+pub(super) fn handle_shl_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data() as u32;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_shl(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute logical shift right for unsigned values.
+#[inline(always)]
+pub(super) fn handle_shr_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data() as u32;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_shr(b), width));
+    next!(state, block, pc)
+}
+
+// ============================================================================
+// Specialized Integer Comparison Handlers
+// ============================================================================
+
+/// Execute integer equality comparison.
+#[inline(always)]
+pub(super) fn handle_eq_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    state.set(*dest, Value::bool(a == b));
+    next!(state, block, pc)
+}
+
+/// Execute integer inequality comparison.
+#[inline(always)]
+pub(super) fn handle_ne_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    state.set(*dest, Value::bool(a != b));
+    next!(state, block, pc)
+}
+
+/// Execute signed less than comparison.
+#[inline(always)]
+pub(super) fn handle_lt_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    state.set(*dest, Value::bool(a < b));
+    next!(state, block, pc)
+}
+
+/// Execute signed less than or equal comparison.
+#[inline(always)]
+pub(super) fn handle_le_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    state.set(*dest, Value::bool(a <= b));
+    next!(state, block, pc)
+}
+
+/// Execute signed greater than comparison.
+#[inline(always)]
+pub(super) fn handle_gt_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    state.set(*dest, Value::bool(a > b));
+    next!(state, block, pc)
+}
+
+/// Execute signed greater than or equal comparison.
+#[inline(always)]
+pub(super) fn handle_ge_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = state.get(*right).raw_data() as i64;
+    state.set(*dest, Value::bool(a >= b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned less than comparison.
+#[inline(always)]
+pub(super) fn handle_lt_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    state.set(*dest, Value::bool(a < b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned less than or equal comparison.
+#[inline(always)]
+pub(super) fn handle_le_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    state.set(*dest, Value::bool(a <= b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned greater than comparison.
+#[inline(always)]
+pub(super) fn handle_gt_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    state.set(*dest, Value::bool(a > b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned greater than or equal comparison.
+#[inline(always)]
+pub(super) fn handle_ge_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinarySpecialized { dest, left, right } = &block[pc].data else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = state.get(*right).raw_data();
+    state.set(*dest, Value::bool(a >= b));
+    next!(state, block, pc)
+}
+
+// ============================================================================
+// Specialized Handlers With Constant Right Operand
+// ============================================================================
+
+/// Execute integer addition with constant right operand.
+#[inline(always)]
+pub(super) fn handle_add_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_add(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute integer subtraction with constant right operand.
+#[inline(always)]
+pub(super) fn handle_sub_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_sub(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute integer multiplication with constant right operand.
+#[inline(always)]
+pub(super) fn handle_mul_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    let width = state.get(*left).width();
+    state.set(*dest, Value::int(a.wrapping_mul(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute equality comparison with constant right operand.
+#[inline(always)]
+pub(super) fn handle_eq_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    state.set(*dest, Value::bool(a == b));
+    next!(state, block, pc)
+}
+
+/// Execute inequality comparison with constant right operand.
+#[inline(always)]
+pub(super) fn handle_ne_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    state.set(*dest, Value::bool(a != b));
+    next!(state, block, pc)
+}
+
+/// Execute signed less than with constant right operand.
+#[inline(always)]
+pub(super) fn handle_lt_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    state.set(*dest, Value::bool(a < b));
+    next!(state, block, pc)
+}
+
+/// Execute signed less equal with constant right operand.
+#[inline(always)]
+pub(super) fn handle_le_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    state.set(*dest, Value::bool(a <= b));
+    next!(state, block, pc)
+}
+
+/// Execute signed greater than with constant right operand.
+#[inline(always)]
+pub(super) fn handle_gt_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    state.set(*dest, Value::bool(a > b));
+    next!(state, block, pc)
+}
+
+/// Execute signed greater equal with constant right operand.
+#[inline(always)]
+pub(super) fn handle_ge_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data() as i64;
+    let b = right_const.raw_data() as i64;
+    state.set(*dest, Value::bool(a >= b));
+    next!(state, block, pc)
+}
+
+// ============================================================================
+// Unsigned Handlers With Constant Right Operand
+// ============================================================================
+
+/// Execute unsigned addition with constant right operand.
+#[inline(always)]
+pub(super) fn handle_add_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_add(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned subtraction with constant right operand.
+#[inline(always)]
+pub(super) fn handle_sub_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_sub(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned multiplication with constant right operand.
+#[inline(always)]
+pub(super) fn handle_mul_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    let width = state.get(*left).width();
+    state.set(*dest, Value::uint(a.wrapping_mul(b), width));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned less than with constant right operand.
+#[inline(always)]
+pub(super) fn handle_lt_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    state.set(*dest, Value::bool(a < b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned less equal with constant right operand.
+#[inline(always)]
+pub(super) fn handle_le_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    state.set(*dest, Value::bool(a <= b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned greater than with constant right operand.
+#[inline(always)]
+pub(super) fn handle_gt_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    state.set(*dest, Value::bool(a > b));
+    next!(state, block, pc)
+}
+
+/// Execute unsigned greater equal with constant right operand.
+#[inline(always)]
+pub(super) fn handle_ge_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRightSpecialized {
+        dest,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+    let a = state.get(*left).raw_data();
+    let b = right_const.raw_data();
+    state.set(*dest, Value::bool(a >= b));
+    next!(state, block, pc)
+}
+
+// ============================================================================
+// Generic Binary With Constant Right Operand
+// ============================================================================
+
+/// Execute generic binary operation with constant right operand.
+#[inline(always)]
+pub(super) fn handle_binary_const_right(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryConstRight {
+        dest,
+        op,
+        left,
+        right_const,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    let left_value = state.get(*left);
+    let result = match operator::execute_binary(*op, left_value, *right_const) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    state.set(*dest, result);
+    next!(state, block, pc)
+}
+
 /// Handle unary operation.
 pub(super) fn handle_unary(
     state: &mut ThreadedState,

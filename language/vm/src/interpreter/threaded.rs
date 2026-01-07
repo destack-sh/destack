@@ -189,6 +189,28 @@ pub enum ThreadedInstructionData {
         right: mir::Value,
     },
 
+    /// Specialized binary operation (operator baked into handler).
+    BinarySpecialized {
+        dest: mir::Value,
+        left: mir::Value,
+        right: mir::Value,
+    },
+
+    /// Binary operation with constant right operand.
+    BinaryConstRight {
+        dest: mir::Value,
+        op: mir::BinaryOperator,
+        left: mir::Value,
+        right_const: Value,
+    },
+
+    /// Specialized binary with constant right (operator baked into handler).
+    BinaryConstRightSpecialized {
+        dest: mir::Value,
+        left: mir::Value,
+        right_const: Value,
+    },
+
     /// Unary operation.
     Unary {
         dest: mir::Value,
