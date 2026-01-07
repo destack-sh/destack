@@ -16,6 +16,22 @@ declare_pass! {
     /// instructions. An instruction is live if:
     /// - It has side effects (calls, stores, etc.)
     /// - Its result is used by a live instruction or terminator
+    ///
+    /// ```mir
+    /// function @before(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     v1 = iconst 42i32
+    ///     v2 = iadd v0, v1
+    ///     return v0
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     return v0
+    /// }
+    /// ```
     #[pass(id = "dead-code-eliminate")]
     pub DeadCodeEliminate,
     "Eliminate dead code"

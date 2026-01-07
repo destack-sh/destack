@@ -63,6 +63,11 @@ impl TestProgram {
         mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
     }
 
+    /// Get the formatted output.
+    pub(crate) fn output(&self) -> String {
+        self.format()
+    }
+
     /// Assert that the current MIR matches the expected output after formatting.
     #[track_caller]
     pub(crate) fn assert_eq(&self, expected: &str) {

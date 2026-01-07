@@ -16,6 +16,26 @@ declare_pass! {
     /// 2. Jump threading: threads jumps through empty blocks
     /// 3. Block merging: merges blocks with single predecessor/successor
     /// 4. Unreachable block elimination: removes blocks not reachable from entry
+    ///
+    /// ```mir
+    /// function @before(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     v1 = iconst true
+    ///     branch v1, block1, block2
+    /// block1:
+    ///     return v0
+    /// block2:
+    ///     v2 = iconst 0i32
+    ///     return v2
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     return v0
+    /// }
+    /// ```
     #[pass(id = "simplify-cfg")]
     pub SimplifyCfg,
     "Simplify control flow graph"

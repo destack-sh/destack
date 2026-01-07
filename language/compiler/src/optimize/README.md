@@ -128,7 +128,7 @@ These form the foundation of the optimization pipeline.
 | `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | ✅ | — | Branch folding, jump threading, block merging, unreachable elimination |
 | `dead-code-eliminate` | DeadCodeEliminate | function | O1 | ✓ | ✅ | — | Remove dead instructions via backwards liveness (ADCE) |
 | `instruction-combine` | InstructionCombine | function | O1 | ✓ | 🔶 | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
-| `copy-propagate` | CopyPropagate | function | O1 | ✓ | 🔶 | — | Replace uses of `v1 = v0` with `v0` directly |
+| `copy-propagate` | CopyPropagate | function | O1 | ✓ | ✅ | — | Replace uses of `v1 = v0` with `v0` directly |
 | `local-cse` | LocalCse | function | O1 | ✓ | 🔶 | — | Eliminate redundant computations within a basic block |
 | `gvn` | GlobalValueNumbering | function | O2 | ✓ | 🔶 | domtree | Eliminate redundant computations across basic blocks |
 | `sccp` | SparseConditionalConstantProp | function | O2 | ✓ | 🔶 | cfg | Aggressive constant propagation with unreachable code detection |
@@ -162,7 +162,7 @@ These are critical for achieving Rust/Go-level performance.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|
-| `mem2reg` | Mem2Reg | function | O1 | ✓ | 🔶 | domtree | Promote stack allocations to SSA values |
+| `mem2reg` | Mem2Reg | function | O1 | ✓ | ✅ | domtree | Promote stack allocations to SSA values |
 | `sroa` | ScalarReplacementOfAggregates | function | O2 | ✓ | 🔶 | — | Break aggregates into individual scalar values |
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✗ | 🔶 | alias | Forward stored values to subsequent loads |
 | `dead-store-eliminate` | DeadStoreEliminate | function | O2 | ✗ | 🔶 | alias, liveness | Remove stores that are overwritten before being read |
@@ -236,7 +236,7 @@ Return `AnalysisPreservation.none()` if the CFG or values changed.
 The default pipeline runs passes in this order:
 
 ```
-O1+: ConstantFold → InstructionCombine → SimplifyCfg → DeadCodeEliminate
+O1+: ConstantFold → InstructionCombine → CopyPropagate → Mem2Reg → SimplifyCfg → DeadCodeEliminate
 O2+: (above) + Inline → (scalar cleanup) → StackPromote → Devirtualize
 O3+: (above) + LoopUnroll → LoopDistribute → LoopVectorize → SlpVectorize → FunctionSpecialize
 ```
