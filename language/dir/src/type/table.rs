@@ -48,6 +48,8 @@ pub struct TypeTable {
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The inferred type by node id.
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// The signature type by node id (separate from declared types).
+    pub(crate) signature_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
 
     // symbol types
     /// The instance type by symbol id (for type declarations: the shape of instances).
@@ -112,6 +114,7 @@ impl TypeTable {
             // node types
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
+            signature_type_by_node_id: IndexMap::new(),
             // symbol types
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
@@ -289,6 +292,16 @@ impl TypeTable {
     ) -> Option<LocalTypeId> {
         self.get_declared_type_id(node_id)
             .or_else(|| self.get_inferred_type_id(node_id))
+    }
+
+    /// Set the signature type for a declaration or member node.
+    pub fn set_signature_type_for_node(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+        self.signature_type_by_node_id.insert(node_id, ty);
+    }
+
+    /// Get the signature type id for a declaration or member node.
+    pub fn get_signature_type_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.signature_type_by_node_id.get(&node_id).copied()
     }
 
     /// Set the instance type for a symbol (what type instances of this type have).

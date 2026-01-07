@@ -33,9 +33,11 @@ Analyze sits between Resolve and Elaborate in the per-profile pipeline.
 **Outputs**: Fully typed DIR plus Instances and Resolutions.
 
 Analyze runs in two internal stages with a clear contract:
-1. **Declare**: elaborate type-level declarations, build instance shapes, and infer declared surface
-   types for exports and type queries using local information only
-2. **Infer**: infer value types, resolve overloads, solve constraints, and apply flow narrowing
+1. **Declare**: evaluate `Type::Unevaluated` to a local fixpoint, elaborate type-level declarations,
+   register instance/value shapes plus lineages and extensions, and compute export surface types
+   using local-only surface inference, and record signature types for functions and methods
+2. **Infer**: infer value types and function bodies, resolve overloads, solve constraints, and apply
+   flow narrowing without mutating declared shapes or lineages
 
 # Outputs
 
@@ -46,6 +48,7 @@ Elaborate and Lower rely on these results and don't recompute anything.
 **What TypeTable stores:**
 - **Declared types**: From explicit annotations (`: T`)
 - **Inferred types**: Computed for all reachable expressions
+- **Signature types**: Declared function or method signatures, refined by inference
 - **Instance types**: The shape of declared types
 - **Value types**: The type a symbol has at use sites
 - **Instances**: Concrete instantiations of generic declarations
@@ -57,6 +60,9 @@ During analysis, we also maintain an **InferTable** with inference variables and
 This gets resolved before Elaborate and isn't consumed by later passes.
 Declared types come from explicit annotations and _local_ surface inference for exported values and
 type queries. Inferred types are computed for *all* reachable expressions (and some unreachable ones).
+
+Surface inference uses the regular inference engine with caching disabled and no flow narrowing.
+It only consults declared types and the local module syntax.
 
 # Type Inference
 
@@ -207,7 +213,7 @@ type into the local TypeTable. Structural types are copied recursively; nominal 
 their GlobalSymbolId identity. Inference variables from remote modules are replaced with explicit
 `unknown` to keep inference local. Exported surfaces should have declared types for stable
 cross-module typing; if surface inference cannot resolve an export without cross-module inference,
-the export must be explicitly annotated or defaults to `unknown` with a diagnostic.
+the export must be explicitly annotated or defaults to `unknown` with a warning.
 
 # Tests
 

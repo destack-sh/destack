@@ -135,7 +135,7 @@ impl Compiler {
 
     destack_base::ensure_sufficient_stack! {
     /// Infer the type of an expression.
-    pub(super) fn infer_expression(
+    pub(crate) fn infer_expression(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -145,9 +145,10 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        // reuse an inferred result
-        if let Some(ty_id) =
-            types.get_inferred_type_id(expression_id.into_global_any(module.id))
+        // reuse an inferred result when caching is enabled
+        if !ctx.is_surface_inference
+            && let Some(ty_id) =
+                types.get_inferred_type_id(expression_id.into_global_any(module.id))
         {
             return Ok(ty_id);
         }
@@ -155,7 +156,8 @@ impl Compiler {
         // resolve the flow environment for the node when flow typing is active
         let flow_environment = ctx.flow.as_ref().and_then(|flow_context| {
             if flow_context.module_id != module.id {
-                return None; // #Suspicious: isn't this an internal error anyway?
+                // NOTE #Suspicious: flow context belongs to a different module
+                return None;
             }
             let block_id = flow_context
                 .graph
@@ -1647,7 +1649,9 @@ impl Compiler {
             }
         };
 
-            types.set_inferred_type(expression_id.into_global_any(module.id), ty_id);
+            if !ctx.is_surface_inference {
+                types.set_inferred_type(expression_id.into_global_any(module.id), ty_id);
+            }
 
             Ok(ty_id)
         }
@@ -1664,7 +1668,9 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        if let Some(ty_id) = types.get_inferred_type_id(block_id.into_global_any(module.id)) {
+        if !ctx.is_surface_inference
+            && let Some(ty_id) = types.get_inferred_type_id(block_id.into_global_any(module.id))
+        {
             return Ok(ty_id);
         }
 
@@ -1707,7 +1713,9 @@ impl Compiler {
             types.insert_type_from(ty, block_id)
         };
 
-        types.set_inferred_type(block_id.into_global_any(module.id), ty_id);
+        if !ctx.is_surface_inference {
+            types.set_inferred_type(block_id.into_global_any(module.id), ty_id);
+        }
 
         Ok(ty_id)
     }
@@ -1848,6 +1856,7 @@ impl Compiler {
                     symbol.into_global(module.id),
                     signature,
                     expected_method_ty_id,
+                    None,
                     tree,
                     symbols,
                     types,

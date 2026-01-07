@@ -187,7 +187,7 @@ impl Compiler {
             }
         }
 
-        // coalesce is handled separately
+        // handle coalesce operator separately
         if matches!(operator, BinaryOperator::Coalesce) {
             return self.infer_coalesce_expression(
                 module,

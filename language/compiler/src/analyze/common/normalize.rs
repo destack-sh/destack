@@ -49,7 +49,7 @@ impl Compiler {
 
         // keep the source id for any normalized replacement
         let source_id = types.get_type_source(type_id);
-        // #Performance: clone to avoid holding a borrow across recursive normalization
+        // NOTE #Performance: clone to avoid holding a borrow across recursive normalization
         let ty = types.get_type(type_id).clone();
 
         // normalize based on structural shape
@@ -629,34 +629,13 @@ impl Compiler {
         let instance_type_id = types.get_instance_type_id(symbol)?;
 
         // prefer resolved instance arguments when available
-        let mut resolved_arguments = self
+        let resolved_arguments = self
             .resolved_static_arguments_for_reference(module, source_id, types)
-            .unwrap_or_default();
-
-        // resolve arguments on demand when instances are not registered yet
-        if resolved_arguments.is_empty() {
-            let tree = module.dir(profile).tree.read();
-            let options = self.analyze_context_options_for_module(module.id);
-            match self.resolve_type_reference_static_arguments(
-                module,
-                profile,
-                source_id,
-                symbol,
-                Some(arguments),
-                &options,
-                &tree,
-                symbols,
-                types,
-            ) {
-                Ok(Some(arguments)) => {
-                    resolved_arguments = arguments;
-                }
-                Ok(None) => {}
-                Err(error) => {
-                    self.error(error);
-                }
-            }
-        }
+            .unwrap_or_else(|| {
+                // use provided arguments directly during normalization
+                // (validation should have happened during original type resolution)
+                arguments.to_vec()
+            });
         if resolved_arguments.is_empty() {
             return Some(self.normalize_type_inner(
                 module,
@@ -1012,8 +991,13 @@ impl Compiler {
         types: &mut TypeTable,
         mode: NormalizationMode,
     ) -> LocalTypeId {
+        // normalize the input type first
         let type_id = self.normalize_type(module, profile, type_id, symbols, types, mode);
+
+        // resolve apparent types after normalization
         let type_id = self.apparent_type(module, profile, type_id, symbols, types);
+
+        // normalize again after apparent type expansion
         self.normalize_type(module, profile, type_id, symbols, types, mode)
     }
 }

@@ -1,5 +1,6 @@
 use crate::Compiler;
-use destack_dir::{LocalTypeId, Type, TypeTable};
+use destack_dir::{FunctionSignature, LocalTypeId, NodeTree, Type, TypeTable};
+use destack_workspace::Module;
 
 impl Compiler {
     /// Build a union type from two type ids.
@@ -71,5 +72,37 @@ impl Compiler {
                 }
             }
         }
+    }
+
+    /// Build placeholder types for static parameters in a signature.
+    pub(crate) fn static_parameter_placeholders_for_signature(
+        &self,
+        module: &Module,
+        signature: &FunctionSignature,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Vec<LocalTypeId> {
+        // extract static parameters from the signature
+        let mut static_parameters = Vec::new();
+        let Some(generics) = &signature.generics else {
+            return static_parameters;
+        };
+        let Some(parameters) = &generics.static_parameters else {
+            return static_parameters;
+        };
+
+        // register each static parameter as a reference placeholder
+        for parameter_id in parameters {
+            let parameter = tree.get(*parameter_id);
+            let symbol = parameter.symbol().into_global(module.id);
+            let ty = Type::Reference {
+                symbol,
+                static_arguments: None,
+            };
+            let ty_id = types.insert_type_from(ty, *parameter_id);
+            static_parameters.push(ty_id);
+        }
+
+        static_parameters
     }
 }

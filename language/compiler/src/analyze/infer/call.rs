@@ -326,7 +326,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                );
+                )?;
                 let member_symbol = match &member_resolution {
                     MemberResolution::Static { symbol } => Some(*symbol),
                     _ => None,
@@ -842,7 +842,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-        );
+        )?;
         let member_symbol = match &member_resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,

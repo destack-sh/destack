@@ -51,4 +51,8 @@ pub enum AnalyzeWarning {
         node: GlobalNodeIdAny,
         shadowed_by: GlobalNodeIdAny,
     },
+
+    /// Exported value type could not be inferred.
+    #[warning(code = "WA011", message = "exported value has unknown type")]
+    ExportTypeUnknown { node: GlobalNodeIdAny },
 }

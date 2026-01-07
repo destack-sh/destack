@@ -72,7 +72,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-        );
+        )?;
         let member_symbol = match &member_resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
@@ -297,8 +297,8 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-    ) -> MemberResolution {
-        match receiver_ty {
+    ) -> AnalyzeResult<MemberResolution> {
+        let resolution = match receiver_ty {
             Type::Reference { .. } => {
                 // resolve nominal members first
                 let mut visited = Vec::new();
@@ -312,7 +312,7 @@ impl Compiler {
                     types,
                     &mut visited,
                     true,
-                );
+                )?;
                 if let Some(symbol) = member_symbol {
                     MemberResolution::Static { symbol }
                 } else {
@@ -335,9 +335,9 @@ impl Compiler {
                         types,
                         &mut visited,
                         true,
-                    );
+                    )?;
                     let Some(member_symbol) = member_symbol else {
-                        return MemberResolution::None;
+                        return Ok(MemberResolution::None);
                     };
                     if !symbols_for_union.contains(&member_symbol) {
                         symbols_for_union.push(member_symbol);
@@ -368,14 +368,16 @@ impl Compiler {
                     types,
                     &mut visited,
                     true,
-                );
+                )?;
                 if let Some(symbol) = member_symbol {
                     MemberResolution::Static { symbol }
                 } else {
                     MemberResolution::None
                 }
             }
-        }
+        };
+
+        Ok(resolution)
     }
 
     /// Return true when the expression is rooted at import.meta.
@@ -407,7 +409,7 @@ impl Compiler {
         types: &TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
         allow_implicit: bool,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let resolved = match receiver_ty {
             Type::Value { value } => {
                 let value_ty = types.get_type(*value).clone();
@@ -421,20 +423,25 @@ impl Compiler {
                     types,
                     visited,
                     allow_implicit,
-                )
+                )?
             }
             Type::Reference { symbol, .. } => self.resolve_member_symbol_for_symbol(
                 module, *symbol, member_key, profile, tree, symbols, types, visited,
-            ),
+            )?,
             _ => None,
         };
 
         if resolved.is_some() || !allow_implicit {
-            return resolved;
+            return Ok(resolved);
         }
 
-        let well_known_symbol = self.well_known_symbol_for_type(receiver_ty, types)?;
-        let symbol = self.get_well_known_type_symbol(profile, well_known_symbol)?;
+        let Some(well_known_symbol) = self.well_known_symbol_for_type(receiver_ty, types) else {
+            return Ok(None);
+        };
+
+        let Some(symbol) = self.get_well_known_type_symbol(profile, well_known_symbol) else {
+            return Ok(None);
+        };
         self.resolve_member_symbol_for_symbol(
             module, symbol, member_key, profile, tree, symbols, types, visited,
         )
@@ -451,10 +458,10 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // stop on cycles in symbol lookup
         if visited.contains(&symbol) {
-            return None;
+            return Ok(None);
         }
         visited.push(symbol);
 
@@ -474,7 +481,11 @@ impl Compiler {
             );
         }
 
-        // load remote module data for symbol lookup #RemoteAnalyze
+        // ensure the remote module is declared before reading its DIR
+        self.require_analyze_module_declare(symbol.module_id, profile)
+            .map_err(AnalyzeError::from)?;
+
+        // load remote module data for symbol lookup
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.read();
         let remote_dir = remote_module.dir(profile);
@@ -496,7 +507,7 @@ impl Compiler {
         )
     }
 
-    /// Resolve member symbols using module-local declarations and merges. #RemoteAnalyze
+    /// Resolve member symbols using module-local declarations and merges.
     /// This follows infer_member_of_symbol lookup order using module data.
     fn resolve_member_symbol_in_module(
         &self,
@@ -509,7 +520,7 @@ impl Compiler {
         types: &TypeTable,
         allow_merge: bool,
         visited: &mut Vec<GlobalSymbolId>,
-    ) -> Option<GlobalSymbolId> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let symbol_entry = symbols.get_symbol(symbol.local_id);
 
         // step 1: check members declared directly on this symbol
@@ -522,7 +533,7 @@ impl Compiler {
             symbols,
             types,
         ) {
-            return Some(member_symbol);
+            return Ok(Some(member_symbol));
         }
 
         // step 2: check merge groups and global augmentations
@@ -543,8 +554,8 @@ impl Compiler {
                         symbols,
                         types,
                         visited,
-                    ) {
-                        return Some(member_symbol);
+                    )? {
+                        return Ok(Some(member_symbol));
                     }
                 }
             }
@@ -568,8 +579,8 @@ impl Compiler {
                         symbols,
                         types,
                         visited,
-                    ) {
-                        return Some(member_symbol);
+                    )? {
+                        return Ok(Some(member_symbol));
                     }
                 }
             }
@@ -581,9 +592,9 @@ impl Compiler {
             if let Some(extends) = lineage.extends
                 && let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
                     module, extends, member_key, profile, tree, symbols, types, visited,
-                )
+                )?
             {
-                return Some(member_symbol);
+                return Ok(Some(member_symbol));
             }
 
             // check implemented interfaces
@@ -597,8 +608,8 @@ impl Compiler {
                     symbols,
                     types,
                     visited,
-                ) {
-                    return Some(member_symbol);
+                )? {
+                    return Ok(Some(member_symbol));
                 }
             }
 
@@ -606,34 +617,35 @@ impl Compiler {
             for embedded in &lineage.embedded {
                 if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
                     module, *embedded, member_key, profile, tree, symbols, types, visited,
-                ) {
-                    return Some(member_symbol);
+                )? {
+                    return Ok(Some(member_symbol));
                 }
             }
         }
 
         // check visible extensions for this symbol
-        let extension_ids = types.get_extensions_for_target(symbol)?.clone();
-        for extension_id in extension_ids {
-            let extension = types.get_extension(extension_id);
-            if !self.is_extension_visible(module, extension) {
-                continue;
-            }
+        if let Some(extension_ids) = types.get_extensions_for_target(symbol) {
+            for extension_id in extension_ids {
+                let extension = types.get_extension(*extension_id);
+                if !self.is_extension_visible(module, extension) {
+                    continue;
+                }
 
-            if let Some(member_symbol) = self.find_member_symbol_in_declaration(
-                symbol.module_id,
-                profile,
-                extension.symbol,
-                member_key,
-                tree,
-                symbols,
-                types,
-            ) {
-                return Some(member_symbol);
+                if let Some(member_symbol) = self.find_member_symbol_in_declaration(
+                    symbol.module_id,
+                    profile,
+                    extension.symbol,
+                    member_key,
+                    tree,
+                    symbols,
+                    types,
+                ) {
+                    return Ok(Some(member_symbol));
+                }
             }
         }
 
-        None
+        Ok(None)
     }
 
     /// Find a member symbol inside a declaration for a key.

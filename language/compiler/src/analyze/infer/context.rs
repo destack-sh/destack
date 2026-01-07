@@ -40,6 +40,8 @@ pub struct InferContext {
     pub try_stack: Vec<TryContextFrame>,
     /// Flow context for the current function body.
     pub flow: Option<FlowContext>,
+    /// Whether this context should avoid caching inferred types.
+    pub is_surface_inference: bool,
 }
 
 /// Describe flow data used for inference.
@@ -80,6 +82,7 @@ impl InferContext {
             in_abstract_class: false,
             try_stack: Vec::new(),
             flow: None,
+            is_surface_inference: false,
         }
     }
 
@@ -100,6 +103,7 @@ impl InferContext {
             in_abstract_class: self.in_abstract_class,
             try_stack: self.try_stack.clone(),
             flow: self.flow.clone(),
+            is_surface_inference: self.is_surface_inference,
         }
     }
 
@@ -120,12 +124,19 @@ impl InferContext {
             in_abstract_class: false,
             try_stack: Vec::new(),
             flow: self.flow.clone(),
+            is_surface_inference: self.is_surface_inference,
         }
     }
 
     /// Attach flow context to this inference context.
     pub fn with_flow_context(mut self, flow: FlowContext) -> Self {
         self.flow = Some(flow);
+        self
+    }
+
+    /// Mark this context as surface inference.
+    pub fn for_surface_inference(mut self) -> Self {
+        self.is_surface_inference = true;
         self
     }
 

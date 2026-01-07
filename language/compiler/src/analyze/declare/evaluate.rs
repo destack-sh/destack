@@ -1,9 +1,10 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
-    FunctionSignature, LocalNodeId, LocalTypeId, Mutability, NodeTree, Property, StaticArgument,
-    StaticExpression, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator,
+    FunctionSignature, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, Property,
+    StaticArgument, StaticExpression, SymbolTable, Type, TypeElement, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -20,6 +21,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // pull the unevaluated expression id when needed
         let expression_id = {
             let ty = types.get_type(ty_id);
             let Type::Unevaluated(expression_id) = *ty else {
@@ -39,7 +41,9 @@ impl Compiler {
         )?;
         let ty = types.get_type_mut(ty_id);
         *ty = evaluated_ty;
-        types.clear_normalization_cache(); // #Suspicious: why clear normalization cache in evaluate_type?
+
+        // NOTE #Suspicious: clearing the normalization cache here is heavy, revisit
+        types.clear_normalization_cache();
 
         Ok(())
     }
@@ -83,15 +87,20 @@ impl Compiler {
     }
 
     /// Evaluate a function signature into a Type.
-    fn evaluate_function_signature_to_type(
+    pub(super) fn evaluate_function_signature_to_type(
         &self,
         module: &Module,
         profile: ProfileId,
         signature: &FunctionSignature,
+        source_id: LocalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
+        // collect static parameter placeholders
+        let static_parameters =
+            self.static_parameter_placeholders_for_signature(module, signature, tree, types);
+
         // evaluate parameter types
         let mut dynamic_parameters = Vec::with_capacity(signature.dynamic_parameters.len());
         for parameter_id in signature.dynamic_parameters.iter() {
@@ -109,6 +118,24 @@ impl Compiler {
             dynamic_parameters.push(declared_type_id);
         }
 
+        // evaluate this parameter when present
+        let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
+            let declared_type_id = types
+                .get_declared_type_id(this_parameter_id.into_global(module.id).into())
+                .unwrap_or_else(|| {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, this_parameter_id)
+                });
+
+            self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+
+            Some(declared_type_id)
+        } else {
+            None
+        };
+
         // evaluate return type
         let return_type = if let Some(return_type_id) = signature.return_type {
             Some(self.try_evaluate_expression_to_type(
@@ -120,15 +147,18 @@ impl Compiler {
                 types,
             )?)
         } else {
-            None
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            Some(types.insert_type_from_any(ty, source_id))
         };
 
         // build function type
         Ok(Type::Function {
             asynchrony: signature.asynchrony,
             cardinality: signature.cardinality,
-            static_parameters: Vec::new(),
-            this_parameter: None,
+            static_parameters,
+            this_parameter,
             dynamic_parameters,
             return_type,
         })
@@ -320,11 +350,19 @@ impl Compiler {
                 );
             }
 
-            Expression::Declaration { declaration } => {
-                let declaration = tree.get(declaration).clone();
+            Expression::Declaration {
+                declaration: declaration_id,
+            } => {
+                let declaration = tree.get(declaration_id).clone();
                 if let Declaration::Function { signature, .. } = declaration {
                     self.evaluate_function_signature_to_type(
-                        module, profile, &signature, tree, symbols, types,
+                        module,
+                        profile,
+                        &signature,
+                        declaration_id.into_any(),
+                        tree,
+                        symbols,
+                        types,
                     )?
                 } else {
                     // #Incomplete: only function declarations are evaluable as types (?)
@@ -818,7 +856,13 @@ impl Compiler {
                                 )
                             {
                                 let ty = self.evaluate_function_signature_to_type(
-                                    module, profile, &signature, tree, symbols, types,
+                                    module,
+                                    profile,
+                                    &signature,
+                                    property_id.into_any(),
+                                    tree,
+                                    symbols,
+                                    types,
                                 )?;
                                 let ty_id = types.insert_type_from(ty, property_id);
                                 match signature.mode {
@@ -841,7 +885,13 @@ impl Compiler {
                             };
 
                             let ty = self.evaluate_function_signature_to_type(
-                                module, profile, &signature, tree, symbols, types,
+                                module,
+                                profile,
+                                &signature,
+                                property_id.into_any(),
+                                tree,
+                                symbols,
+                                types,
                             )?;
                             let ty_id = types.insert_type_from(ty, property_id);
 

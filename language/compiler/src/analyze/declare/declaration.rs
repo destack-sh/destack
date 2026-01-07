@@ -1,0 +1,1109 @@
+use destack_dir::{
+    BindingKind, Constraint, Declaration, Declarator, DynamicKey, Export, Expression, FunctionMode,
+    Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage, InferOrigin, InferScope, Lineage,
+    LocalNodeId, LocalSymbolId, Member, NodeTree, NodeType, NodeVisitor, Parameter, StaticKey,
+    SymbolSpace, SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
+    TypeTable,
+};
+use destack_workspace::{Module, ProfileId};
+
+use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+
+use super::super::common::ObjectShape;
+
+/// Visitor used to declare type-level constructs across a module.
+#[derive(Debug)]
+struct DeclareVisitor<'a> {
+    /// The compiler shared state.
+    compiler: &'a Compiler,
+    /// The module being declared.
+    module: &'a Module,
+    /// The profile id used for evaluation.
+    profile: ProfileId,
+    /// The symbol table for this module.
+    symbols: &'a SymbolTable,
+    /// The type table for this module.
+    types: &'a mut TypeTable,
+    /// Track the first error encountered while walking.
+    result: AnalyzeResult<()>,
+    /// Node visitor options (unused, but required by trait).
+    options: destack_dir::NodeVisitorOptions,
+}
+
+impl<'a> DeclareVisitor<'a> {
+    /// Create a new declare visitor.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        symbols: &'a SymbolTable,
+        types: &'a mut TypeTable,
+    ) -> Self {
+        // build the visitor state
+        Self {
+            compiler,
+            module,
+            profile,
+            symbols,
+            types,
+            result: Ok(()),
+            options: destack_dir::NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Check if this visitor should continue.
+    fn should_continue(&self) -> bool {
+        // stop once an error is recorded
+        self.result.is_ok()
+    }
+
+    /// Record a declare result, preserving the first error.
+    fn record_result(&mut self, result: AnalyzeResult<()>) {
+        // keep the first error in the visitor
+        if self.result.is_ok() && result.is_err() {
+            self.result = result;
+        }
+    }
+
+    /// Finish the walk and return the result.
+    fn finish(self) -> AnalyzeResult<()> {
+        // return the recorded result
+        self.result
+    }
+}
+
+impl destack_dir::NodeVisitor for DeclareVisitor<'_> {
+    fn options(&self) -> &destack_dir::NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        // stop on first error
+        if !self.should_continue() {
+            return;
+        }
+
+        // walk nested expression nodes
+        destack_base::ensure_sufficient_stack(|| {
+            destack_dir::walk_expression(self, tree, id, expression);
+        });
+    }
+
+    fn visit_block(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<destack_dir::Block>,
+        block: &destack_dir::Block,
+    ) {
+        // stop on first error
+        if !self.should_continue() {
+            return;
+        }
+
+        // walk nested block nodes
+        destack_dir::walk_block(self, tree, id, block);
+    }
+
+    fn visit_declaration(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Declaration>,
+        declaration: &Declaration,
+    ) {
+        // stop on first error
+        if !self.should_continue() {
+            return;
+        }
+
+        // declare this declaration before walking nested nodes
+        let result = self.compiler.declare_declaration(
+            self.module,
+            self.profile,
+            id,
+            tree,
+            self.symbols,
+            self.types,
+        );
+        self.record_result(result);
+
+        // stop on error after declaration work
+        if !self.should_continue() {
+            return;
+        }
+
+        // walk nested declaration nodes
+        destack_dir::walk_declaration(self, tree, id, declaration);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+impl Compiler {
+    /// Declare all declarations reachable from the module roots.
+    pub(crate) fn declare_module_declarations(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // prepare the declaration visitor
+        let mut visitor = DeclareVisitor::new(self, module, profile, symbols, types);
+
+        // walk each root expression to visit all declarations
+        for root_id in module.dir(profile).roots.iter() {
+            // visit the root expression
+            let root = tree.get(*root_id);
+            visitor.visit_expression(tree, *root_id, root);
+
+            // stop early on errors
+            if !visitor.should_continue() {
+                break;
+            }
+        }
+
+        // return the visitor result
+        visitor.finish()
+    }
+
+    /// Declare a single declaration node.
+    pub(super) fn declare_declaration(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_id: LocalNodeId<Declaration>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // load the declaration node
+        let declaration = tree.get(declaration_id);
+
+        // dispatch by declaration kind
+        match declaration {
+            Declaration::Global { .. } => Ok(()),
+            Declaration::Namespace { generics, .. } => {
+                // declare namespace generics
+                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+
+                Ok(())
+            }
+            Declaration::Type {
+                descriptor,
+                kind,
+                static_parameters,
+                value,
+                ..
+            } => {
+                // declare static parameters
+                if let Some(parameters) = static_parameters.as_ref() {
+                    for parameter_id in parameters {
+                        self.declare_parameter(
+                            module,
+                            profile,
+                            *parameter_id,
+                            tree,
+                            symbols,
+                            types,
+                        )?;
+                    }
+                }
+
+                // evaluate the type alias value
+                let instance_ty_id = self.try_evaluate_expression_to_type(
+                    module, profile, *value, tree, symbols, types,
+                )?;
+
+                // register the instance type for this symbol
+                let symbol = descriptor.symbol.into_global(module.id);
+                let instance_ty_id = match *kind {
+                    TypeKind::Structural => instance_ty_id,
+                    TypeKind::Nominal => {
+                        let ty = Type::Reference {
+                            symbol,
+                            static_arguments: None,
+                        };
+                        types.insert_type_from(ty, declaration_id)
+                    }
+                };
+                types.set_instance_type(symbol, instance_ty_id);
+
+                // register the value type for this symbol
+                let value_ty = Type::Value {
+                    value: instance_ty_id,
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(symbol, value_ty_id);
+
+                Ok(())
+            }
+            Declaration::Struct {
+                descriptor,
+                generics,
+                heritage,
+                members,
+                ..
+            } => {
+                // resolve declaration merge state
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
+                // declare generics and heritage
+                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.declare_heritage(
+                    module,
+                    profile,
+                    heritage,
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // build instance shape from members
+                let shape =
+                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+
+                // merge instance shapes for merged declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
+
+                // register the nominal type as the value type
+                let nominal_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+                let value_ty = Type::Value {
+                    value: nominal_ty_id,
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+
+                Ok(())
+            }
+            Declaration::Class {
+                descriptor,
+                generics,
+                heritage,
+                members,
+                ..
+            } => {
+                // resolve declaration merge state
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
+                // declare generics and heritage
+                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.declare_heritage(
+                    module,
+                    profile,
+                    heritage,
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // build instance shape from members
+                let shape =
+                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+
+                // merge instance shapes for merged declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
+
+                // register the nominal type as the value type
+                let nominal_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+                let value_ty = Type::Value {
+                    value: nominal_ty_id,
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+
+                Ok(())
+            }
+            Declaration::Enum {
+                descriptor,
+                generics,
+                heritage,
+                fields,
+                ..
+            } => {
+                // declare generics and heritage
+                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.declare_heritage(
+                    module,
+                    profile,
+                    heritage,
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // register the nominal instance type
+                let enum_symbol = descriptor.symbol.into_global(module.id);
+                let instance_ty = Type::Reference {
+                    symbol: enum_symbol,
+                    static_arguments: None,
+                };
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
+                types.set_instance_type(enum_symbol, instance_ty_id);
+
+                // build value fields for enum members
+                let mut value_fields = Vec::new();
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    let field_symbol = field.symbol.into_global(module.id);
+                    types.set_value_type(field_symbol, instance_ty_id);
+
+                    value_fields.push(TypeField {
+                        key: StaticKey::Name(field.name),
+                        ty: instance_ty_id,
+                        is_optional: false,
+                        is_readonly: true,
+                    });
+                }
+
+                // merge enum fields with existing value type when present
+                let mut merged_fields = Vec::new();
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                if allow_merge
+                    && let Some(existing_id) = types.get_value_type_id(enum_symbol)
+                    && let Type::Object { fields, .. } = types.get_type(existing_id)
+                {
+                    merged_fields.extend_from_slice(fields);
+                }
+                merged_fields.extend(value_fields);
+
+                // register the enum value type
+                let value_ty = Type::Object {
+                    fields: merged_fields,
+                    call_signatures: Vec::new(),
+                    construct_signatures: Vec::new(),
+                    index_signatures: Vec::new(),
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(enum_symbol, value_ty_id);
+
+                Ok(())
+            }
+            Declaration::Interface {
+                descriptor,
+                generics,
+                heritage,
+                members,
+                ..
+            } => {
+                // resolve declaration merge state
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
+                // declare generics and heritage
+                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.declare_heritage(
+                    module,
+                    profile,
+                    heritage,
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // build instance shape from members
+                let shape =
+                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+
+                // merge instance shapes for merged declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
+
+                // register the nominal type as the value type
+                let nominal_ty = Type::Reference {
+                    symbol: descriptor.symbol.into_global(module.id),
+                    static_arguments: None,
+                };
+                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+                let value_ty = Type::Value {
+                    value: nominal_ty_id,
+                };
+                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+
+                Ok(())
+            }
+            Declaration::Function {
+                descriptor,
+                signature,
+                ..
+            } => {
+                // resolve declaration merge state
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+
+                // declare generics for the signature
+                if let Some(generics) = signature.generics.as_ref() {
+                    self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                }
+
+                // evaluate the function signature
+                let ty = self.evaluate_function_signature_to_type(
+                    module,
+                    profile,
+                    signature,
+                    declaration_id.into_any(),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let fn_ty_id = types.insert_type_from_any(ty, declaration_id.into_any());
+
+                // record the declared signature for inference
+                types.set_signature_type_for_node(
+                    declaration_id.into_global_any(module.id),
+                    fn_ty_id,
+                );
+
+                // merge into callable instance shape
+                let mut shape = ObjectShape::default();
+                shape.push_call_signature(fn_ty_id);
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge the function into the value type
+                self.merge_function_value_type(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    fn_ty_id,
+                    types,
+                    allow_merge,
+                );
+
+                Ok(())
+            }
+            Declaration::Extension {
+                descriptor,
+                generics,
+                target_type,
+                target_symbol,
+                heritage,
+                members,
+                ..
+            } => {
+                // declare generics and heritage
+                self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    *target_type,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                self.declare_heritage(
+                    module,
+                    profile,
+                    heritage,
+                    Some(descriptor.symbol),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // build the extension instance shape
+                let shape =
+                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+                let instance_ty = shape.into_object_type();
+                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
+                let extension_symbol = descriptor.symbol.into_global(module.id);
+                types.set_instance_type(extension_symbol, instance_ty_id);
+
+                // register the extension when a target symbol exists
+                if let Some(target) = target_symbol {
+                    let kind = if module.id == target.module_id {
+                        destack_dir::ExtensionKind::Inherent
+                    } else if descriptor.name.is_some() {
+                        destack_dir::ExtensionKind::Nominal
+                    } else {
+                        destack_dir::ExtensionKind::Local
+                    };
+                    let lineage = types.get_lineage_id_for_symbol(extension_symbol);
+                    let extension =
+                        destack_dir::Extension::new(extension_symbol, kind, *target, lineage);
+                    types.insert_extension(extension);
+                }
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Declare generics by evaluating static parameter constraint types.
+    fn declare_generics(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        generics: &Generics,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // evaluate static parameter constraints
+        if let Some(parameters) = generics.static_parameters.as_ref() {
+            for parameter_id in parameters {
+                self.declare_parameter(module, profile, *parameter_id, tree, symbols, types)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Declare a parameter by evaluating its declared type.
+    fn declare_parameter(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        parameter_id: LocalNodeId<Parameter>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // resolve the declared type for the parameter
+        let declared_type_id = types.get_declared_type_id(parameter_id.into_global_any(module.id));
+        let Some(declared_type_id) = declared_type_id else {
+            return Ok(());
+        };
+
+        // evaluate the declared type
+        self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+
+        Ok(())
+    }
+
+    /// Declare heritage lineages for a nominal type.
+    fn declare_heritage(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        heritage: &Heritage,
+        symbol: Option<LocalSymbolId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // resolve heritage targets from evaluated types when possible
+        let collect_symbol = |expression_id: LocalNodeId<Expression>,
+                              symbols: &SymbolTable,
+                              types: &mut TypeTable|
+         -> AnalyzeResult<Option<GlobalSymbolId>> {
+            let ty_id = self.try_evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+            )?;
+            let ty = types.get_type(ty_id);
+            let type_symbol = match ty {
+                Type::Reference { symbol, .. } => Some(*symbol),
+                Type::Value { value } => match types.get_type(*value) {
+                    Type::Reference { symbol, .. } => Some(*symbol),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            if let Some(type_symbol) = type_symbol {
+                return Ok(Some(type_symbol));
+            }
+
+            let expression = tree.get(expression_id);
+            Ok(expression.target_symbol())
+        };
+
+        // resolve extends symbols
+        let mut extends_symbols = Vec::new();
+        if let Some(extend_types) = heritage.extends_types.as_ref() {
+            for expression_id in extend_types {
+                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                    let canonical_symbol =
+                        self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                    extends_symbols.push(canonical_symbol);
+                }
+            }
+        }
+
+        // resolve implements symbols
+        let mut implements_symbols = Vec::new();
+        if let Some(implements_types) = heritage.implements_types.as_ref() {
+            for expression_id in implements_types {
+                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                    let canonical_symbol =
+                        self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                    implements_symbols.push(canonical_symbol);
+                }
+            }
+        }
+
+        // resolve embedded symbols
+        let mut embedded_symbols = Vec::new();
+        if let Some(embedded_types) = heritage.embedded_types.as_ref() {
+            for expression_id in embedded_types {
+                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                    let canonical_symbol =
+                        self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                    embedded_symbols.push(canonical_symbol);
+                }
+            }
+        }
+
+        // record lineage when a symbol is provided
+        if let Some(symbol) = symbol {
+            let lineage = Lineage {
+                extends: extends_symbols.first().copied(),
+                implements: implements_symbols,
+                embedded: embedded_symbols,
+            };
+            if !lineage.is_empty() {
+                let lineage_id = types.insert_lineage(lineage);
+                types.set_lineage_for_symbol(symbol.into_global(module.id), lineage_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Declare the instance shape for a list of members.
+    fn declare_member_shape(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        members: &[LocalNodeId<Member>],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<ObjectShape> {
+        let mut shape = ObjectShape::default();
+
+        // collect member contributions
+        for member_id in members {
+            let member_shape =
+                self.declare_member(module, profile, *member_id, tree, symbols, types)?;
+            shape.extend_from_shape(&member_shape);
+        }
+
+        Ok(shape)
+    }
+
+    /// Declare a single member into an object shape.
+    fn declare_member(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        member_id: LocalNodeId<Member>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<ObjectShape> {
+        let member = tree.get(member_id);
+        let mut shape = ObjectShape::default();
+
+        match member {
+            Member::Type { .. } => Ok(shape),
+            Member::Field {
+                modifiers,
+                key,
+                value,
+                ..
+            } => {
+                // handle index signatures
+                if let Some(DynamicKey::NamedExpression { name, key }) = key {
+                    let key_type = self.try_evaluate_expression_to_type(
+                        module, profile, *key, tree, symbols, types,
+                    )?;
+                    let value_type = if let Some(value) = value {
+                        self.try_evaluate_expression_to_type(
+                            module, profile, *value, tree, symbols, types,
+                        )?
+                    } else {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        types.insert_type_from_any(ty, member_id.into_any())
+                    };
+                    let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
+                        modifiers.mutability == Some(destack_dir::Mutability::Immutable)
+                    });
+
+                    shape.index_signatures.push(TypeIndexSignature {
+                        name: *name,
+                        key_type,
+                        value_type,
+                        is_readonly,
+                    });
+
+                    return Ok(shape);
+                }
+
+                // resolve a static key for the field
+                let static_key = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                });
+
+                // resolve the field type
+                let value_ty_id = if let Some(value) = value {
+                    self.try_evaluate_expression_to_type(
+                        module, profile, *value, tree, symbols, types,
+                    )?
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from_any(ty, member_id.into_any())
+                };
+
+                // collect field modifiers
+                let is_optional = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
+                let is_readonly = modifiers.as_ref().is_some_and(|m| {
+                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
+                });
+
+                // build the field when a static key exists
+                if let Some(key) = static_key {
+                    shape.fields.push(TypeField {
+                        key,
+                        ty: value_ty_id,
+                        is_optional,
+                        is_readonly,
+                    });
+                }
+
+                Ok(shape)
+            }
+            Member::Method {
+                key,
+                signature,
+                body,
+                ..
+            } => {
+                // handle call or construct signatures
+                if key.is_none()
+                    && body.is_none()
+                    && matches!(
+                        signature.mode,
+                        Some(FunctionMode::Call)
+                            | Some(FunctionMode::New)
+                            | Some(FunctionMode::Constructor)
+                    )
+                {
+                    let ty = self.evaluate_function_signature_to_type(
+                        module,
+                        profile,
+                        signature,
+                        member_id.into_any(),
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    let ty_id = types.insert_type_from_any(ty, member_id.into_any());
+
+                    // record the declared signature for inference
+                    types.set_signature_type_for_node(member_id.into_global_any(module.id), ty_id);
+
+                    match signature.mode {
+                        Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
+                            shape.construct_signatures.push(ty_id);
+                        }
+                        _ => {
+                            shape.call_signatures.push(ty_id);
+                        }
+                    }
+
+                    return Ok(shape);
+                }
+
+                // resolve the method key
+                let Some(key) = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                }) else {
+                    return Ok(shape);
+                };
+
+                // build the method type
+                let ty = self.evaluate_function_signature_to_type(
+                    module,
+                    profile,
+                    signature,
+                    member_id.into_any(),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let ty_id = types.insert_type_from_any(ty, member_id.into_any());
+
+                // record the declared signature for inference
+                types.set_signature_type_for_node(member_id.into_global_any(module.id), ty_id);
+
+                // collect field modifiers
+                let is_optional = false;
+                let is_readonly = true;
+
+                shape.fields.push(TypeField {
+                    key,
+                    ty: ty_id,
+                    is_optional,
+                    is_readonly,
+                });
+
+                Ok(shape)
+            }
+            Member::Embed { .. } | Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => {
+                Ok(shape)
+            }
+        }
+    }
+
+    /// Declare exported value types using local information only.
+    pub(crate) fn declare_exported_value_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        exported_symbols: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        #[derive(Debug)]
+        struct ExportInference {
+            symbol: GlobalSymbolId,
+            declarator_id: LocalNodeId<Declarator>,
+            value_id: Option<LocalNodeId<Expression>>,
+        }
+
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut infer = destack_dir::InferTable::default();
+        let base_ctx = InferContext::new(profile, options).for_surface_inference();
+        let mut inferred_exports = Vec::new();
+        let mut export_inference = Vec::new();
+
+        // collect exported symbols that need value types
+        for export in exported_symbols.values() {
+            if export.space != SymbolSpace::Value {
+                continue;
+            }
+            let Some(target_symbol) = export.target.resolved() else {
+                continue;
+            };
+            if target_symbol.module_id != module.id {
+                continue;
+            }
+            if types.get_value_type_id(target_symbol).is_some() {
+                continue;
+            }
+
+            // resolve the primary declaration node
+            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+            let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                continue;
+            };
+
+            // resolve the declarator that owns this binding
+            let declarator_id = self.declarator_for_symbol(tree, primary_declaration);
+            let Some(declarator_id) = declarator_id else {
+                continue;
+            };
+
+            // evaluate declared types when present
+            let declared_type_id =
+                types.get_declared_type_id(declarator_id.into_global_any(module.id));
+            if let Some(declared_type_id) = declared_type_id {
+                self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+                types.set_value_type(target_symbol, declared_type_id);
+                continue;
+            }
+
+            // defer to surface inference for initializer only exports
+            let declarator = tree.get(declarator_id);
+            export_inference.push(ExportInference {
+                symbol: target_symbol,
+                declarator_id,
+                value_id: declarator.value,
+            });
+        }
+
+        // seed inference variables for export symbols
+        for export in &export_inference {
+            let scope = InferScope {
+                owner: export.symbol,
+                function_id: None,
+            };
+            let origin = InferOrigin::Expression(export.declarator_id.into_global_any(module.id));
+            let symbol_ty_id = self.infer_var_type_for_symbol(
+                &mut infer,
+                types,
+                export.symbol,
+                export.declarator_id.into_any(),
+                origin,
+                scope,
+            );
+
+            types.set_value_type(export.symbol, symbol_ty_id);
+
+            inferred_exports.push((
+                symbol_ty_id,
+                export.declarator_id.into_global_any(module.id),
+            ));
+        }
+
+        // infer initializer types and constrain export symbols
+        for export in export_inference {
+            let Some(value_id) = export.value_id else {
+                continue;
+            };
+
+            let Some(symbol_ty_id) = types.get_value_type_id(export.symbol) else {
+                continue;
+            };
+
+            let mut ctx = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
+            let inferred_ty_id = self
+                .infer_expression(module, value_id, tree, symbols, types, &mut infer, &mut ctx)?;
+
+            infer.push_constraint(Constraint::Subtype {
+                sub_type: inferred_ty_id,
+                super_type: symbol_ty_id,
+                variance: None,
+            });
+        }
+
+        // solve surface inference constraints before warning
+        if !infer.vars.is_empty() {
+            self.solve_infer_table(module, profile, symbols, &infer, types, &base_ctx.options);
+        }
+
+        // warn when exports remain unknown after surface inference
+        for (ty_id, node_id) in inferred_exports {
+            if matches!(
+                types.get_type(ty_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
+                }
+            ) {
+                self.warning(AnalyzeWarning::ExportTypeUnknown { node: node_id });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Find the declarator that defines a symbol.
+    fn declarator_for_symbol(
+        &self,
+        tree: &NodeTree,
+        primary_declaration: GlobalNodeIdAny,
+    ) -> Option<LocalNodeId<Declarator>> {
+        let mut current_id = primary_declaration.local_id;
+        loop {
+            if current_id.ty == NodeType::Declarator {
+                return Some(current_id.into_typed());
+            }
+
+            let parent = tree.get_parent(current_id.id)?;
+            current_id = parent;
+        }
+    }
+}
