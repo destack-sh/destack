@@ -1,7 +1,8 @@
 # Analyze
 
 Analyze transforms resolved DIR into fully typed and semantically validated DIR.
-It infers types, resolves overloads, and records the results for downstream passes.
+It elaborates type-level declarations, infers value types, resolves overloads, and records the
+results for downstream passes.
 
 # Overview
 
@@ -9,8 +10,9 @@ The goal is production-grade TypeScript compatibility with Destack extensions.
 Analyze infers types, checks assignability, resolves overloads, and records Instances and Resolutions.
 Flow-sensitive typing ensures narrowing matches TypeScript semantics.
 
-Analyze also evaluates **static expressions**—a restricted subset of expressions that can be folded without executing user code.
-These are needed for static parameters and other type-driven constructs that must be known during Analyze.
+Analyze also evaluates **static expressions**—a restricted subset of expressions that can be folded
+without executing user code. These are needed for static parameters and other type-driven constructs
+that must be known during Analyze.
 
 ## Pipeline
 
@@ -30,12 +32,10 @@ Analyze sits between Resolve and Elaborate in the per-profile pipeline.
 **Inputs**: Resolved DIR plus explicit type annotations.
 **Outputs**: Fully typed DIR plus Instances and Resolutions.
 
-The main tasks:
-1. Infer types and collect constraints
-2. Solve constraints and commit types
-3. Resolve member access and overloads
-4. Create Instances for generic uses
-5. Record flow narrowing
+Analyze runs in two internal stages with a clear contract:
+1. **Declare**: elaborate type-level declarations, build instance shapes, and infer declared surface
+   types for exports and type queries using local information only
+2. **Infer**: infer value types, resolve overloads, solve constraints, and apply flow narrowing
 
 # Outputs
 
@@ -55,8 +55,8 @@ Elaborate and Lower rely on these results and don't recompute anything.
 
 During analysis, we also maintain an **InferTable** with inference variables and constraints.
 This gets resolved before Elaborate and isn't consumed by later passes.
-Declared types come only from explicit annotations.
-Inferred types are computed for *all* reachable expressions (and some unreachable ones).
+Declared types come from explicit annotations and _local_ surface inference for exported values and
+type queries. Inferred types are computed for *all* reachable expressions (and some unreachable ones).
 
 # Type Inference
 
@@ -191,7 +191,8 @@ Lower needs this to produce specialized MIR.
 # TypeScript Compatibility
 
 Analyze supports TypeScript-style type operators and literal inference.
-Type operators include `keyof`, `typeof`, indexed access, conditional types, and mapped types; all the usual and fancy TS stuff is supported.
+Type operators include `keyof`, `typeof`, indexed access, conditional types, and mapped types; all
+the usual and fancy TS stuff is supported.
 
 # Builtin Types
 
@@ -201,10 +202,12 @@ This keeps TypeScript compatibility while preserving explicit module ownership.
 # Module Boundaries
 
 Analyze keeps a TypeTable per module.
-When an expression references a symbol from another module, Analyze copies the referenced type into the local TypeTable.
-Structural types are copied recursively; nominal references retain their GlobalSymbolId identity.
-Inference variables from remote modules are replaced with explicit `unknown` to keep inference local.
-(Exports should have declared types for stable cross-module typing).
+When an expression references a symbol from another module, Analyze copies the referenced declared
+type into the local TypeTable. Structural types are copied recursively; nominal references retain
+their GlobalSymbolId identity. Inference variables from remote modules are replaced with explicit
+`unknown` to keep inference local. Exported surfaces should have declared types for stable
+cross-module typing; if surface inference cannot resolve an export without cross-module inference,
+the export must be explicitly annotated or defaults to `unknown` with a diagnostic.
 
 # Tests
 

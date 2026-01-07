@@ -57,7 +57,7 @@ Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for
 | Import | `I` | Text | AST | — | Parse source into abstract syntax tree |
 | Bind | `B` | AST | base DIR | — | Create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
 | Resolve | `R` | base DIR | DIR | per-profile | Resolve symbol references (lexical binding, library resolution) |
-| Analyze | `A` | DIR | DIR | per-profile | Infer types, resolve overloads, validate semantics, record instances |
+| Analyze | `A` | DIR | DIR | per-profile | Elaborate type declarations, infer value types, resolve overloads, validate semantics, record instances |
 | Elaborate | `E` | DIR | canonical DIR | per-profile | Canonicalize DIR: patterns→decision trees, tree literals→calls, etc. |
 
 ### Middle-End
