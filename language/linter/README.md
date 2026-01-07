@@ -312,7 +312,6 @@ Subjective preferences for consistent coding style.
 | `LY048` | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | Safe | Prefer implicit returns in expression-bodied functions |
 | `LY049` | `prefer-inclusive-range` | Destack | AST | ✓ | ✅ | Safe | Prefer inclusive range syntax where applicable |
 | `LY050` | `prefer-loop` | Destack | AST | ✓ | ✅ | Safe | Prefer `loop` keyword over `while(true)` or `for(;;)` |
-| `LY051` | `prefer-map-or-else` | Destack | DIR | ✓ | 🔶 | Safe | Prefer `mapOrElse()` over `map().unwrap()` |
 | `LY052` | `prefer-named-extension` | Destack | AST | ✓ | ✅ | Unsafe | Prefer named extensions for foreign types |
 | `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer `??` over `\|\|` for default values |
 | `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer numeric literals over `parseInt()` |
@@ -325,7 +324,6 @@ Subjective preferences for consistent coding style.
 | `LY060` | `prefer-range-contains` | Destack | AST | ✓ | ✅ | Safe | Prefer range contains method over comparison chains |
 | `LY061` | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Safe | Prefer range literals over C-style for loops |
 | `LY062` | `prefer-readonly` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Prefer `readonly` for non-mutated fields |
-| `LY063` | `prefer-result-type` | Destack | DIR | ✓ | 🔶 | Suggestion | Prefer `Result<T, E>` return type over throwing |
 | `LY064` | `prefer-self-closing-tree` | Destack | AST | ✓ | ✅ | Safe | Prefer self-closing tree elements when possible |
 | `LY065` | `prefer-set-over-empty-map` | Destack | DIR | ✓ | 🔶 | Safe | Suggest `Set<K>` over `Map<K, void>` |
 | `LY066` | `prefer-struct` | Destack | AST | ✓ | ✅ | Unsafe | Prefer struct for data-only classes |
@@ -344,10 +342,10 @@ Subjective preferences for consistent coding style.
 | `LY079` | `symbol-description` | ESLint | DIR | ✓ | 🔶 | Suggestion | Require symbol descriptions |
 | `LY080` | `yoda` | ESLint | AST | ✓ | ✅ | Safe | Disallow Yoda conditions |
 | `LY082` | `prefer-array-some` | Unicorn | DIR | ✓ | ✅ | None | Prefer `some()` over `filter().length` or `findIndex()` comparisons |
-| `LY083` | `prefer-array-filter` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest `.filter()` over `forEach` with conditional push |
-| `LY084` | `prefer-array-find` | Unicorn | DIR | ✓ | 🔶 | Unsafe | Suggest `.find()` over `.filter()[0]` |
-| `LY085` | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest `.map()` over `forEach` with push |
-| `LY086` | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Safe | Suggest `.flatMap()` over `.map().flat()` |
+| `LY083` | `prefer-array-filter` | Destack | DIR | ✓ | ✅ | Unsafe | Suggest `.filter()` over `forEach` with conditional push |
+| `LY084` | `prefer-array-find` | Unicorn | DIR | ✓ | ✅ | Unsafe | Suggest `.find()` over `.filter()[0]` |
+| `LY085` | `prefer-array-map` | Destack | DIR | ✓ | ✅ | Unsafe | Suggest `.map()` over `forEach` with push |
+| `LY086` | `prefer-flat-map` | Unicorn | DIR | ✓ | ✅ | Safe | Suggest `.flatMap()` over `.map().flat()` |
 | `LY087` | `prefer-match` | Destack | AST | ✓ | ✅ | Unsafe | Suggest match expressions over complex if-else chains |
 
 ## Complexity (X)
@@ -360,9 +358,9 @@ Overly complex code that is harder to understand and maintain.
 |------|------|--------|-------|-------|--------|------------|-------------|
 | `LX001` | `cognitive-complexity` | Biome | AST | ✓ | ✅ | None | Enforce a maximum cognitive complexity |
 | `LX002` | `cyclomatic-complexity` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum cyclomatic complexity |
-| `LX003` | `max-branching-factor` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum branching factor in conditionals |
+| `LX003` | `max-branching-factor` | Destack | AST | ✓ | ✅ | None | Enforce a maximum branching factor in conditionals |
 | `LX004` | `max-depth` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested blocks |
-| `LX005` | `max-static-params` | Destack | AST | ✓ | 🔶 | None | Enforce a maximum number of static parameters |
+| `LX005` | `max-static-params` | Destack | AST | ✓ | ✅ | None | Enforce a maximum number of static parameters |
 | `LX006` | `max-lines` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per file |
 | `LX007` | `max-lines-per-function` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum number of lines per function |
 | `LX008` | `max-nested-callbacks` | ESLint | AST | ✓ | ✅ | None | Enforce a maximum depth of nested callbacks |
@@ -427,3 +425,4 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR034` | `no-wildcard-imports` | Destack | AST | ✓ | ✅ | Unsafe | Disallow wildcard imports |
 | `LR035` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Unsafe | Disallow truthy/falsy coercion in conditions |
 | `LR036` | `no-delete` | Destack | AST | ✓ | ✅ | None | Disallow the `delete` operator |
+| `LR037` | `no-exceptions` | Destack | DIR | ✓ | ✅ | None | Disallow `throw` and `try/catch` (use Result types) |

@@ -32,6 +32,7 @@ mod prefer_array_map;
 mod prefer_array_some;
 mod prefer_arrow_callback;
 mod prefer_as_const;
+mod prefer_const;
 mod prefer_exponentiation_operator;
 mod prefer_expression;
 mod prefer_flat_map;
@@ -42,6 +43,7 @@ mod prefer_inclusive_range;
 mod prefer_loop;
 mod prefer_match;
 mod prefer_named_extension;
+mod prefer_numeric_literals;
 mod prefer_object_spread;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
@@ -59,6 +61,7 @@ mod prefer_unary_negation;
 mod require_jsdoc;
 mod require_returns_doc;
 mod sort_imports;
+mod symbol_description;
 mod yoda;
 
 use crate::{BoxedLintRule, boxed};
@@ -97,6 +100,7 @@ pub use prefer_array_map::*;
 pub use prefer_array_some::*;
 pub use prefer_arrow_callback::*;
 pub use prefer_as_const::*;
+pub use prefer_const::*;
 pub use prefer_exponentiation_operator::*;
 pub use prefer_expression::*;
 pub use prefer_flat_map::*;
@@ -107,6 +111,7 @@ pub use prefer_inclusive_range::*;
 pub use prefer_loop::*;
 pub use prefer_match::*;
 pub use prefer_named_extension::*;
+pub use prefer_numeric_literals::*;
 pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
@@ -124,6 +129,7 @@ pub use prefer_unary_negation::*;
 pub use require_jsdoc::*;
 pub use require_returns_doc::*;
 pub use sort_imports::*;
+pub use symbol_description::*;
 pub use yoda::*;
 
 /// Get all style rules.
@@ -163,6 +169,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferArraySome),
         boxed(PreferArrowCallback),
         boxed(PreferAsConst),
+        boxed(PreferConst),
         boxed(PreferExponentiationOperator),
         boxed(PreferExpression),
         boxed(PreferFlatMap),
@@ -183,6 +190,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferTupleDestructure),
         boxed(PreferTupleSwap),
         boxed(PreferNamedExtension),
+        boxed(PreferNumericLiterals),
         boxed(PreferPreciseNumeric),
         boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
@@ -190,6 +198,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(RequireJsdoc),
         boxed(RequireReturnsDoc),
         boxed(SortImports),
+        boxed(SymbolDescription),
         boxed(Yoda),
     ]
 }
