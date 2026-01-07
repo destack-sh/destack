@@ -9,6 +9,7 @@ mod no_continue;
 mod no_default_export;
 mod no_delete;
 mod no_enum;
+mod no_exceptions;
 mod no_explicit_any;
 mod no_implicit_return;
 mod no_labels;
@@ -36,6 +37,7 @@ pub use no_continue::*;
 pub use no_default_export::*;
 pub use no_delete::*;
 pub use no_enum::*;
+pub use no_exceptions::*;
 pub use no_explicit_any::*;
 pub use no_implicit_return::*;
 pub use no_labels::*;
@@ -67,6 +69,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         Box::new(NoDefaultExport),
         Box::new(NoDelete),
         Box::new(NoEnum),
+        Box::new(NoExceptions),
         Box::new(NoImplicitReturn),
         Box::new(NoLabels),
         Box::new(NoMagicNumbers),
