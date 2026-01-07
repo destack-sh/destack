@@ -6,6 +6,7 @@ use smallvec::SmallVec;
 use crate::diagnostic::Error;
 use crate::memory::{ReferenceMeta, Value, ValueTag};
 
+use super::statistics::stat_inc;
 use super::threaded::{
     ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, ThreadedInstruction,
     ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT, is_invalid_value,
@@ -1550,7 +1551,7 @@ pub(super) fn handle_global_load(
     };
 
     // track loads
-    state.interpreter.statistics.loads += 1;
+    stat_inc!(state.interpreter.statistics, loads);
 
     // load global value directly
     let global_id = global_id(*global);
@@ -1584,7 +1585,7 @@ pub(super) fn handle_global_store(
     };
 
     // track stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // load value to store
     let val = state.get(*value);
@@ -2013,7 +2014,7 @@ pub(super) fn handle_field_store_inline(
     };
 
     // track stores
-    state.interpreter.statistics.stores += 1;
+    stat_inc!(state.interpreter.statistics, stores);
 
     // load aggregate and extract heap handle
     let agg = state.get(*aggregate);
@@ -4075,7 +4076,7 @@ pub(super) fn handle_branch(
     let is_truthy = cond.is_truthy();
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // handle truthy branch
     if is_truthy {
@@ -4118,7 +4119,7 @@ pub(super) fn handle_branch_bool(
     let is_truthy = cond.raw_data() != 0;
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // handle truthy branch
     if is_truthy {
@@ -4175,7 +4176,7 @@ pub(super) fn handle_compare_and_branch_int(
     };
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // branch based on comparison result
     if is_truthy {
@@ -4226,7 +4227,7 @@ pub(super) fn handle_compare_and_branch_uint(
     };
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // branch based on comparison result
     if is_truthy {
@@ -4279,7 +4280,7 @@ pub(super) fn handle_compare_and_branch_float(
     };
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // branch based on comparison result
     if is_truthy {
@@ -4344,7 +4345,7 @@ pub(super) fn handle_compare_and_branch(
     };
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // branch based on comparison result
     if is_truthy {
@@ -4382,7 +4383,7 @@ pub(super) fn handle_switch(
     let int_val = switch_val.as_int().unwrap_or(0);
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // find matching case
     let case_slice = state.switch_cases(*cases);
@@ -4426,7 +4427,7 @@ pub(super) fn handle_switch_int(
     let int_val = switch_val.raw_data() as i64;
 
     // update branch statistics
-    state.interpreter.statistics.branches += 1;
+    stat_inc!(state.interpreter.statistics, branches);
 
     // find matching case
     let case_slice = state.switch_cases(*cases);

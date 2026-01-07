@@ -11,6 +11,10 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[features]
+default = []
+stats = []
+
 [dependencies]
 # language
 destack_base = { workspace = true }

@@ -16,6 +16,10 @@ struct Args {
     #[arg(short, long)]
     stats: bool,
 
+    /// Use more samples for lower variance (repeat=7, min=500ms, warmup=200ms).
+    #[arg(short, long)]
+    precise: bool,
+
     /// Number of timing repeats.
     #[arg(long, default_value_t = 3)]
     repeat: u32,
@@ -52,12 +56,19 @@ fn main() {
             Some(args.filter)
         };
 
+        // select timing parameters
+        let (repeat, min_duration_ms, warmup_ms) = if args.precise {
+            (7, 500, 200)
+        } else {
+            (args.repeat, args.min_duration_ms, args.warmup_ms)
+        };
+
         // build benchmark options
         let options = program::BenchOptions::new(
             filter,
-            args.repeat,
-            Duration::from_millis(args.min_duration_ms),
-            Duration::from_millis(args.warmup_ms),
+            repeat,
+            Duration::from_millis(min_duration_ms),
+            Duration::from_millis(warmup_ms),
         );
 
         // run benchmarks
