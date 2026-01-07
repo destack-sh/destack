@@ -269,7 +269,19 @@ fn select_field_load_handler(value_kinds: &ValueKinds, aggregate: mir::Value) ->
 }
 
 /// Pick a field store handler based on inferred aggregate storage.
-fn select_field_store_handler(value_kinds: &ValueKinds, aggregate: mir::Value) -> ThreadedHandler {
+fn select_field_store_handler(
+    value_kinds: &ValueKinds,
+    aggregate: mir::Value,
+    field_count: u32,
+    index: u32,
+) -> ThreadedHandler {
+    // small managed aggregates (≤2 fields) use inline slot storage
+    if field_count > 0 && field_count <= 2 && index < field_count {
+        if let Some(ValueKind::Aggregate { .. }) = value_kinds.get(aggregate) {
+            return dispatch::handle_field_store_inline;
+        }
+    }
+
     match value_kinds.get(aggregate) {
         Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_store_aggregate,
         Some(ValueKind::Pointer {
@@ -639,7 +651,12 @@ fn try_fuse_addr_access(
                 )),
                 mir::Instruction::Store { pointer, value } if pointer == destination => Some((
                     ThreadedInstruction {
-                        handler: select_field_store_handler(value_kinds, *aggregate),
+                        handler: select_field_store_handler(
+                            value_kinds,
+                            *aggregate,
+                            field_count,
+                            *index,
+                        ),
                         data: ThreadedInstructionData::FieldStore {
                             aggregate: *aggregate,
                             index: *index,
@@ -692,6 +709,44 @@ fn try_fuse_addr_access(
                             value: *value,
                             reference: reference_meta_for_value(value_kinds, *destination),
                             array_length,
+                        },
+                    },
+                    2,
+                )),
+                _ => None,
+            }
+        }
+        mir::Instruction::GlobalAddr {
+            destination,
+            global,
+        } => {
+            if !can_fuse(*destination) {
+                return None;
+            }
+
+            let reference = reference_meta_for_value(value_kinds, *destination);
+
+            match next_inst {
+                mir::Instruction::Load {
+                    destination: load_dest,
+                    pointer,
+                } if pointer == destination => Some((
+                    ThreadedInstruction {
+                        handler: dispatch::handle_global_load,
+                        data: ThreadedInstructionData::GlobalLoad {
+                            dest: *load_dest,
+                            global: global.id,
+                        },
+                    },
+                    2,
+                )),
+                mir::Instruction::Store { pointer, value } if pointer == destination => Some((
+                    ThreadedInstruction {
+                        handler: dispatch::handle_global_store,
+                        data: ThreadedInstructionData::GlobalStore {
+                            global: global.id,
+                            value: *value,
+                            reference,
                         },
                     },
                     2,

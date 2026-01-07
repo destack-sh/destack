@@ -236,6 +236,16 @@ pub enum ThreadedInstructionData {
     /// Load global constant.
     GlobalConst { dest: mir::Value, global: u32 },
 
+    /// Fused global address + load.
+    GlobalLoad { dest: mir::Value, global: u32 },
+
+    /// Fused global address + store.
+    GlobalStore {
+        global: u32,
+        value: mir::Value,
+        reference: ReferenceMeta,
+    },
+
     /// Load from pointer.
     Load {
         dest: mir::Value,
