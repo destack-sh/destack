@@ -1,14 +1,15 @@
 use destack_dir::{
-    Argument, Block, CastOperator, CastSource, Declarator, EnumBackingType, Expression, IfKind,
-    LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType, SymbolTable, Type, TypeTable,
+    Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, EnumBackingType,
+    Expression, IfKind, LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType, Resolution,
+    SymbolTable, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::r#type::{
-    are_types_semantically_equal, is_any_type, is_integer_type, is_nullable_union, is_object_type,
-    is_pointer_type, is_scalar_literal_type, is_string_type, is_union_type, is_unknown_type,
-    numeric_cast_operator,
+    are_types_semantically_equal, common_numeric_type_id_for_binary, is_any_type, is_integer_type,
+    is_nullable_union, is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type,
+    is_union_type, is_unknown_type, numeric_cast_operator,
 };
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
@@ -446,6 +447,83 @@ impl Compiler {
         Ok(())
     }
 
+    /// Reify implicit casts in builtin binary expressions.
+    pub(super) fn reify_implicit_casts_in_binary(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+        right: LocalNodeId<Expression>,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        module: &Module,
+    ) -> ElaborateResult<()> {
+        // require builtin numeric operators
+        if !self.is_builtin_numeric_binary_operator(module_id, expression_id, operator, types) {
+            return Ok(());
+        }
+
+        // read operand type ids
+        let left_type_id = self
+            .value_type_id_for_expression(module_id, left, tree, types)
+            .ok_or(ElaborateError::UnsupportedConstruct {
+                node: left.into_global_any(module_id),
+            })?;
+        let right_type_id = self
+            .value_type_id_for_expression(module_id, right, tree, types)
+            .ok_or(ElaborateError::UnsupportedConstruct {
+                node: right.into_global_any(module_id),
+            })?;
+
+        // compute the common numeric type for both operands
+        let Some(target_type_id) =
+            common_numeric_type_id_for_binary(left_type_id, right_type_id, expression_id, types)
+        else {
+            return Ok(());
+        };
+
+        // wrap both operands when needed
+        let cast_left_id = self.wrap_value_with_cast_allow_literals(
+            module_id,
+            profile,
+            expression_id,
+            left,
+            target_type_id,
+            tree,
+            symbols,
+            types,
+            module,
+        )?;
+        let cast_right_id = self.wrap_value_with_cast_allow_literals(
+            module_id,
+            profile,
+            expression_id,
+            right,
+            target_type_id,
+            tree,
+            symbols,
+            types,
+            module,
+        )?;
+
+        // update the binary expression when either operand changes
+        if cast_left_id != left || cast_right_id != right {
+            tree.replace(
+                expression_id,
+                Expression::Binary {
+                    left: cast_left_id,
+                    operator,
+                    right: cast_right_id,
+                },
+            );
+        }
+
+        Ok(())
+    }
+
     /// Wrap a value in a cast when the target type differs.
     fn wrap_value_with_cast(
         &self,
@@ -454,6 +532,61 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         target_type_id: LocalTypeId,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        module: &Module,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        self.wrap_value_with_cast_internal(
+            module_id,
+            profile,
+            origin_id,
+            value_id,
+            target_type_id,
+            false,
+            tree,
+            symbols,
+            types,
+            module,
+        )
+    }
+
+    /// Wrap a value in a cast and allow numeric literal casts.
+    fn wrap_value_with_cast_allow_literals(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        module: &Module,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        self.wrap_value_with_cast_internal(
+            module_id,
+            profile,
+            origin_id,
+            value_id,
+            target_type_id,
+            true,
+            tree,
+            symbols,
+            types,
+            module,
+        )
+    }
+
+    /// Wrap a value in a cast with optional literal handling.
+    fn wrap_value_with_cast_internal(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+        allow_literal_casts: bool,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -511,10 +644,12 @@ impl Compiler {
             }
         }
 
-        // skip numeric casts for scalar literals
-        let value_type = types.get_type(value_type_id);
-        if is_scalar_literal_type(value_type) && is_numeric_cast_operator(operator) {
-            return Ok(value_id);
+        // skip numeric casts for scalar literals unless requested
+        if !allow_literal_casts {
+            let value_type = types.get_type(value_type_id);
+            if is_scalar_literal_type(value_type) && is_numeric_cast_operator(operator) {
+                return Ok(value_id);
+            }
         }
         if operator == CastOperator::Identity {
             return Ok(value_id);
@@ -707,6 +842,29 @@ impl Compiler {
             CastOperator::InstanceDowncast
         }
     }
+
+    /// Check whether a binary expression is a builtin numeric operator.
+    fn is_builtin_numeric_binary_operator(
+        &self,
+        module_id: ModuleId,
+        expression_id: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+        types: &TypeTable,
+    ) -> bool {
+        // require a builtin resolution
+        let Some(resolution_id) =
+            types.get_resolution_for_node(expression_id.into_global_any(module_id))
+        else {
+            return false;
+        };
+        let resolution = types.get_resolution(resolution_id);
+        if !matches!(resolution, Resolution::Builtin { .. }) {
+            return false;
+        }
+
+        // only numeric operators should be coerced here
+        is_numeric_binary_operator(operator)
+    }
 }
 
 /// Check whether a cast operator is numeric.
@@ -761,6 +919,42 @@ fn enum_backing_type_for_type(ty: &Type, types: &TypeTable) -> Option<EnumBackin
     };
 
     types.get_enum_backing_type(*symbol)
+}
+
+/// Check whether a binary operator is numeric.
+fn is_numeric_binary_operator(operator: BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::Multiply
+            | BinaryOperator::WrappingMultiply
+            | BinaryOperator::SaturatingMultiply
+            | BinaryOperator::Exponent
+            | BinaryOperator::WrappingExponent
+            | BinaryOperator::SaturatingExponent
+            | BinaryOperator::Divide
+            | BinaryOperator::Remainder
+            | BinaryOperator::Add
+            | BinaryOperator::WrappingAdd
+            | BinaryOperator::SaturatingAdd
+            | BinaryOperator::Subtract
+            | BinaryOperator::WrappingSubtract
+            | BinaryOperator::SaturatingSubtract
+            | BinaryOperator::ShiftLeft
+            | BinaryOperator::SaturatingShiftLeft
+            | BinaryOperator::ShiftRight
+            | BinaryOperator::UnsignedShiftRight
+            | BinaryOperator::ElementwiseAnd
+            | BinaryOperator::ElementwiseXor
+            | BinaryOperator::ElementwiseOr
+            | BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::EqualStrict
+            | BinaryOperator::NotEqualStrict
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterThanOrEqual
+    )
 }
 
 #[cfg(test)]
@@ -944,6 +1138,78 @@ function intValue(): int32 {
 
 function test(condition): float64 {
     return condition ? floatValue() : intValue() as float64;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_binary_comparison() {
+        // comparison expressions cast numeric literals
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(value: float): boolean {
+    return value < 2;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(value): boolean {
+    return value < 2 as float64;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_binary_arithmetic() {
+        // arithmetic expressions cast numeric literals
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(value: float): float {
+    return value - 1;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(value): float64 {
+    return value - 1 as float64;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_binary_left_literal() {
+        // numeric literals cast to the non literal side
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(value: float): float {
+    return 2 + value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(value): float64 {
+    return 2 as float64 + value;
 }
 "#,
         );

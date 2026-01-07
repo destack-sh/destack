@@ -4,7 +4,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -157,8 +157,31 @@ impl Compiler {
             }
 
             // operators to resolved method calls
-            Expression::Binary { .. } => {
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                self.reify_implicit_casts_in_binary(
+                    module_id,
+                    profile,
+                    expression_id,
+                    left,
+                    operator,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    module,
+                )?;
                 self.reify_operator_expression(expression_id, tree, symbols, types)?;
+            }
+
+            // assign binary should be desugared during bind
+            Expression::AssignBinary { .. } => {
+                return Err(ElaborateError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(module_id),
+                });
             }
 
             // range expressions to core range structs
