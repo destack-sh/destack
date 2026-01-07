@@ -75,6 +75,37 @@ impl BlockLowerer<'_, '_> {
                     message: format!("unsupported scalar literal '{value:?}'"),
                 })?,
             },
+            Expression::Cast {
+                operator,
+                value,
+                target_type: _,
+                source: _,
+            } => {
+                // capture the value expression id
+                let value_id = *value;
+
+                // lower the cast input first
+                let (value, _) = self.lower_value_expression(value_id)?;
+
+                // resolve the target type for the cast
+                let target_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
+                    LowerError::MissingType {
+                        node: expression_id.into_global_any(self.module_id),
+                    }
+                })?;
+
+                // pick the mir cast operator
+                let operator = self.lower_cast_operator(expression_id, *operator, value_id)?;
+
+                // emit the cast when needed
+                let value = if let Some(operator) = operator {
+                    self.builder.cast(operator, value, target_type)
+                } else {
+                    value
+                };
+
+                Ok((value, target_type))
+            }
             Expression::Binary {
                 left,
                 operator,
@@ -215,6 +246,74 @@ impl BlockLowerer<'_, '_> {
         };
 
         Ok(op)
+    }
+
+    /// Lower a cast operator into a MIR cast operator.
+    fn lower_cast_operator(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        operator: dir::CastOperator,
+        value_id: LocalNodeId<Expression>,
+    ) -> LowerResult<Option<mir::CastOperator>> {
+        // map no op casts to None
+        if operator == dir::CastOperator::Identity {
+            return Ok(None);
+        }
+
+        // read the source scalar kind when needed
+        let source_scalar_kind = self.scalar_kind_for_expression(value_id);
+
+        // read the target scalar kind when needed
+        let target_scalar_kind = self.scalar_kind_for_expression(expression_id);
+
+        // map dir operators to mir operators
+        let cast_operator = match operator {
+            dir::CastOperator::IntWiden => match source_scalar_kind {
+                Some(ScalarKind::SignedInt { .. }) => mir::CastOperator::SignExtend,
+                Some(ScalarKind::UnsignedInt { .. }) => mir::CastOperator::ZeroExtend,
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "unsupported int widen cast".to_string(),
+                    })?;
+                }
+            },
+            dir::CastOperator::IntNarrow => mir::CastOperator::Truncate,
+            dir::CastOperator::IntSignChange => mir::CastOperator::Bitcast,
+            dir::CastOperator::FloatWiden => mir::CastOperator::FloatExtend,
+            dir::CastOperator::FloatNarrow => mir::CastOperator::FloatTruncate,
+            dir::CastOperator::IntToFloat => match source_scalar_kind {
+                Some(ScalarKind::SignedInt { .. }) => mir::CastOperator::SignedIntToFloat,
+                Some(ScalarKind::UnsignedInt { .. }) => mir::CastOperator::UnsignedIntToFloat,
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "unsupported int to float cast".to_string(),
+                    })?;
+                }
+            },
+            dir::CastOperator::FloatToInt => match target_scalar_kind {
+                Some(ScalarKind::SignedInt { .. }) => mir::CastOperator::FloatToSignedInt,
+                Some(ScalarKind::UnsignedInt { .. }) => mir::CastOperator::FloatToUnsignedInt,
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "unsupported float to int cast".to_string(),
+                    })?;
+                }
+            },
+            dir::CastOperator::PointerToInt => mir::CastOperator::PointerToInt,
+            dir::CastOperator::IntToPointer => mir::CastOperator::IntToPointer,
+            dir::CastOperator::PointerCast => mir::CastOperator::Bitcast,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module_id),
+                    message: format!("unsupported cast operator '{operator:?}'"),
+                })?;
+            }
+        };
+
+        Ok(Some(cast_operator))
     }
 
     /// Resolve the MIR type for a typed expression.
