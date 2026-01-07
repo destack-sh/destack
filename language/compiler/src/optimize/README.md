@@ -236,7 +236,7 @@ Return `AnalysisPreservation.none()` if the CFG or values changed.
 The default pipeline runs passes in this order:
 
 ```
-O1+: ConstantFold → SimplifyCfg → DeadCodeEliminate
+O1+: ConstantFold → InstructionCombine → SimplifyCfg → DeadCodeEliminate
 O2+: (above) + Inline → (scalar cleanup) → StackPromote → Devirtualize
 O3+: (above) + LoopUnroll → LoopDistribute → LoopVectorize → SlpVectorize → FunctionSpecialize
 ```

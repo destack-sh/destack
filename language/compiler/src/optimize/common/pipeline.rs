@@ -6,7 +6,7 @@ use super::context::OptimizationContext;
 use super::pass::{
     BoxedFunctionPass, BoxedModulePass, FunctionPass, ModulePass, OptimizationLevel,
 };
-use crate::optimize::passes::{ConstantFold, DeadCodeEliminate, SimplifyCfg};
+use crate::optimize::passes::{ConstantFold, DeadCodeEliminate, InstructionCombine, SimplifyCfg};
 
 /// Optimization pipeline that runs passes in sequence.
 ///
@@ -134,6 +134,7 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
         }
         OptimizationLevel::O1 | OptimizationLevel::O2 | OptimizationLevel::O3 => {
             pipeline.add_function_pass(ConstantFold);
+            pipeline.add_function_pass(InstructionCombine);
             pipeline.add_function_pass(SimplifyCfg);
             pipeline.add_function_pass(DeadCodeEliminate);
         }
