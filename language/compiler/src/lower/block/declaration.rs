@@ -2,7 +2,7 @@ use destack_dir::{Declaration, LocalNodeId};
 
 use crate::{LowerError, LowerResult};
 
-use super::ModuleLowerer;
+use super::super::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower a declaration into MIR.
