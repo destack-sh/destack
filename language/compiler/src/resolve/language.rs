@@ -533,7 +533,7 @@ fn split_versioned_path(path: &str) -> Option<(String, String)> {
     // read base and version path segments
     let mut segments = path.split('/');
     let base = segments.next()?;
-    let version = segments.last()?;
+    let version = segments.next_back()?;
     let version = version.strip_prefix('v')?;
 
     // require a digit to treat as versioned
