@@ -146,640 +146,640 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     expression: &Expression,
 ) {
     destack_base::ensure_sufficient_stack(|| {
-    visitor.visit_any(tree, NodeType::Expression, id.id);
-    match expression {
-        Expression::Declaration {
-            declaration: declaration_id,
-        } => {
-            let declaration = tree.get(*declaration_id);
-            visitor.visit_declaration(tree, *declaration_id, declaration);
-        }
-        Expression::Block { block: block_id } => {
-            let block = tree.get(*block_id);
-            visitor.visit_block(tree, *block_id, block);
-        }
-        Expression::Statement {
-            statement: statement_id,
-        } => {
-            let statement = tree.get(*statement_id);
-            visitor.visit_expression(tree, *statement_id, statement);
-        }
-        Expression::Labelled {
-            label: _,
-            body,
-            symbol: _,
-        } => {
-            let body_expr = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expr);
-        }
-        Expression::UnresolvedImport {
-            source: _,
-            kind: _,
-            target: _,
-            items,
-            arguments,
-        } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
+        visitor.visit_any(tree, NodeType::Expression, id.id);
+        match expression {
+            Expression::Declaration {
+                declaration: declaration_id,
+            } => {
+                let declaration = tree.get(*declaration_id);
+                visitor.visit_declaration(tree, *declaration_id, declaration);
             }
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
+            Expression::Block { block: block_id } => {
+                let block = tree.get(*block_id);
+                visitor.visit_block(tree, *block_id, block);
+            }
+            Expression::Statement {
+                statement: statement_id,
+            } => {
+                let statement = tree.get(*statement_id);
+                visitor.visit_expression(tree, *statement_id, statement);
+            }
+            Expression::Labelled {
+                label: _,
+                body,
+                symbol: _,
+            } => {
+                let body_expr = tree.get(*body);
+                visitor.visit_expression(tree, *body, body_expr);
+            }
+            Expression::UnresolvedImport {
+                source: _,
+                kind: _,
+                target: _,
+                items,
+                arguments,
+            } => {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+            }
+            Expression::Import {
+                source: _,
+                kind: _,
+                target: _,
+                target_module: _,
+                items,
+                arguments,
+            } => {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+            }
+            Expression::UnresolvedReExport {
+                target: _,
+                kind: _,
+                items,
+            } => {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
+            }
+            Expression::ReExport {
+                target: _,
+                target_module: _,
+                kind: _,
+                items,
+            } => {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
+            }
+            Expression::Export { kind: _, items } => {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
+            }
+            Expression::ExportNamespace { name: _ } => {}
+            Expression::Let {
+                descriptor: _,
+                mutability: _,
+                declarators,
+            } => {
+                for declarator_id in declarators {
+                    let declarator = tree.get(*declarator_id);
+                    visitor.visit_declarator(tree, *declarator_id, declarator);
+                }
+            }
+            Expression::Using {
+                asynchrony: _,
+                descriptor: _,
+                declarators,
+            } => {
+                for declarator_id in declarators {
+                    let declarator = tree.get(*declarator_id);
+                    visitor.visit_declarator(tree, *declarator_id, declarator);
+                }
+            }
+            Expression::Cast {
+                operator: _,
+                source: _,
+                value,
+                target_type,
+            } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+                let target_expression = tree.get(*target_type);
+                visitor.visit_expression(tree, *target_type, target_expression);
+            }
+            Expression::OwnershipCast {
+                operator: _,
+                source: _,
+                value,
+            } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+            }
+            Expression::Unary { operator: _, right }
+            | Expression::ValueOf {
+                mutability: _,
+                variance: _,
+                right,
+            }
+            | Expression::ReferenceOf {
+                mutability: _,
+                variance: _,
+                right,
+            }
+            | Expression::PointerOf {
+                mutability: _,
+                right,
+            }
+            | Expression::TypeUnary { operator: _, right } => {
+                let right_expression = tree.get(*right);
+                visitor.visit_expression(tree, *right, right_expression);
+            }
+            Expression::Binary {
+                left,
+                operator: _,
+                right,
+            }
+            | Expression::TypeBinary {
+                left,
+                operator: _,
+                right,
+            }
+            | Expression::Assign { left, right }
+            | Expression::AssignBinary {
+                left,
+                operator: _,
+                right,
+            } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
+                let right_expression = tree.get(*right);
+                visitor.visit_expression(tree, *right, right_expression);
+            }
+            Expression::TypeConditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
+                let right_expression = tree.get(*right);
+                visitor.visit_expression(tree, *right, right_expression);
+                let then_expression = tree.get(*then_type);
+                visitor.visit_expression(tree, *then_type, then_expression);
+                let else_expression = tree.get(*else_type);
+                visitor.visit_expression(tree, *else_type, else_expression);
+            }
+            Expression::TypeMapped {
+                parameter,
+                modifiers: _,
+                value,
+            } => {
+                let constraint_expression = tree.get(parameter.constraint);
+                visitor.visit_expression(tree, parameter.constraint, constraint_expression);
+                if let Some(key_remap) = parameter.key_remap {
+                    let key_expression = tree.get(key_remap);
+                    visitor.visit_expression(tree, key_remap, key_expression);
+                }
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+            }
+            Expression::TypeIndex { left, index } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
+                let index_expression = tree.get(*index);
+                visitor.visit_expression(tree, *index, index_expression);
+            }
+            Expression::TypeTemplateLiteral { strings: _, spans } => {
+                for span_id in spans {
+                    let span_expression = tree.get(*span_id);
+                    visitor.visit_expression(tree, *span_id, span_expression);
+                }
+            }
+            Expression::TypeImport {
+                target: _,
+                qualifier: _,
+                static_arguments,
+            } => {
+                if let Some(static_arguments) = static_arguments {
+                    for argument_id in static_arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+            }
+            Expression::TypeInfer {
+                name: _,
+                constraint,
+            } => {
+                if let Some(constraint) = constraint {
+                    let constraint_expression = tree.get(*constraint);
+                    visitor.visit_expression(tree, *constraint, constraint_expression);
+                }
+            }
+            Expression::TypePredicate {
+                asserts: _,
+                subject: _,
+                target,
+            } => {
+                if let Some(target) = target {
+                    let target_expression = tree.get(*target);
+                    visitor.visit_expression(tree, *target, target_expression);
+                }
+            }
+            Expression::Member {
+                left,
+                name: _,
+                static_arguments,
+            } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
+                if let Some(static_arguments) = static_arguments {
+                    for argument_id in static_arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+            }
+            Expression::Call {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
+                if let Some(static_arguments) = static_arguments {
+                    for argument_id in static_arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+                for argument_id in dynamic_arguments {
                     let argument = tree.get(*argument_id);
                     visitor.visit_argument(tree, *argument_id, argument);
                 }
             }
-        }
-        Expression::Import {
-            source: _,
-            kind: _,
-            target: _,
-            target_module: _,
-            items,
-            arguments,
-        } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
-            }
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
+            Expression::New {
+                left: _,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                if let Some(static_arguments) = static_arguments {
+                    for argument_id in static_arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+                for argument_id in dynamic_arguments {
                     let argument = tree.get(*argument_id);
                     visitor.visit_argument(tree, *argument_id, argument);
                 }
             }
-        }
-        Expression::UnresolvedReExport {
-            target: _,
-            kind: _,
-            items,
-        } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
+            Expression::Delete { value } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
             }
-        }
-        Expression::ReExport {
-            target: _,
-            target_module: _,
-            kind: _,
-            items,
-        } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
-            }
-        }
-        Expression::Export { kind: _, items } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
-            }
-        }
-        Expression::ExportNamespace { name: _ } => {}
-        Expression::Let {
-            descriptor: _,
-            mutability: _,
-            declarators,
-        } => {
-            for declarator_id in declarators {
-                let declarator = tree.get(*declarator_id);
-                visitor.visit_declarator(tree, *declarator_id, declarator);
-            }
-        }
-        Expression::Using {
-            asynchrony: _,
-            descriptor: _,
-            declarators,
-        } => {
-            for declarator_id in declarators {
-                let declarator = tree.get(*declarator_id);
-                visitor.visit_declarator(tree, *declarator_id, declarator);
-            }
-        }
-        Expression::Cast {
-            operator: _,
-            source: _,
-            value,
-            target_type,
-        } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-            let target_expression = tree.get(*target_type);
-            visitor.visit_expression(tree, *target_type, target_expression);
-        }
-        Expression::OwnershipCast {
-            operator: _,
-            source: _,
-            value,
-        } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        Expression::Unary { operator: _, right }
-        | Expression::ValueOf {
-            mutability: _,
-            variance: _,
-            right,
-        }
-        | Expression::ReferenceOf {
-            mutability: _,
-            variance: _,
-            right,
-        }
-        | Expression::PointerOf {
-            mutability: _,
-            right,
-        }
-        | Expression::TypeUnary { operator: _, right } => {
-            let right_expression = tree.get(*right);
-            visitor.visit_expression(tree, *right, right_expression);
-        }
-        Expression::Binary {
-            left,
-            operator: _,
-            right,
-        }
-        | Expression::TypeBinary {
-            left,
-            operator: _,
-            right,
-        }
-        | Expression::Assign { left, right }
-        | Expression::AssignBinary {
-            left,
-            operator: _,
-            right,
-        } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-            let right_expression = tree.get(*right);
-            visitor.visit_expression(tree, *right, right_expression);
-        }
-        Expression::TypeConditional {
-            left,
-            right,
-            then_type,
-            else_type,
-        } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-            let right_expression = tree.get(*right);
-            visitor.visit_expression(tree, *right, right_expression);
-            let then_expression = tree.get(*then_type);
-            visitor.visit_expression(tree, *then_type, then_expression);
-            let else_expression = tree.get(*else_type);
-            visitor.visit_expression(tree, *else_type, else_expression);
-        }
-        Expression::TypeMapped {
-            parameter,
-            modifiers: _,
-            value,
-        } => {
-            let constraint_expression = tree.get(parameter.constraint);
-            visitor.visit_expression(tree, parameter.constraint, constraint_expression);
-            if let Some(key_remap) = parameter.key_remap {
-                let key_expression = tree.get(key_remap);
-                visitor.visit_expression(tree, key_remap, key_expression);
-            }
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        Expression::TypeIndex { left, index } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-            let index_expression = tree.get(*index);
-            visitor.visit_expression(tree, *index, index_expression);
-        }
-        Expression::TypeTemplateLiteral { strings: _, spans } => {
-            for span_id in spans {
-                let span_expression = tree.get(*span_id);
-                visitor.visit_expression(tree, *span_id, span_expression);
-            }
-        }
-        Expression::TypeImport {
-            target: _,
-            qualifier: _,
-            static_arguments,
-        } => {
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            Expression::Index { left, right } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
+                if let Some(right_id) = right {
+                    let right_expression = tree.get(*right_id);
+                    visitor.visit_expression(tree, *right_id, right_expression);
                 }
             }
-        }
-        Expression::TypeInfer {
-            name: _,
-            constraint,
-        } => {
-            if let Some(constraint) = constraint {
-                let constraint_expression = tree.get(*constraint);
-                visitor.visit_expression(tree, *constraint, constraint_expression);
+            Expression::Maybe { left } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
             }
-        }
-        Expression::TypePredicate {
-            asserts: _,
-            subject: _,
-            target,
-        } => {
-            if let Some(target) = target {
-                let target_expression = tree.get(*target);
-                visitor.visit_expression(tree, *target, target_expression);
+            Expression::Must { left } => {
+                let left_expression = tree.get(*left);
+                visitor.visit_expression(tree, *left, left_expression);
             }
-        }
-        Expression::Member {
-            left,
-            name: _,
-            static_arguments,
-        } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            Expression::UnresolvedPath {
+                path: _,
+                static_arguments,
+                space_order: _,
+            } => {
+                if let Some(static_arguments) = static_arguments {
+                    for argument_id in static_arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
                 }
             }
-        }
-        Expression::Call {
-            left,
-            static_arguments,
-            dynamic_arguments,
-        } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
+            Expression::LocalReference {
+                path: _,
+                static_arguments,
+                target_symbol: _,
+            }
+            | Expression::ModuleReference {
+                path: _,
+                static_arguments,
+                target_symbol: _,
+            }
+            | Expression::GlobalReference {
+                path: _,
+                static_arguments,
+                target_symbol: _,
+            } => {
+                if let Some(static_arguments) = static_arguments {
+                    for argument_id in static_arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
                 }
             }
-            for argument_id in dynamic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
+            Expression::ImportMeta | Expression::This => {
+                // nothing to do
             }
-        }
-        Expression::New {
-            left: _,
-            static_arguments,
-            dynamic_arguments,
-        } => {
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-            for argument_id in dynamic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
-            }
-        }
-        Expression::Delete { value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        Expression::Index { left, right } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-            if let Some(right_id) = right {
-                let right_expression = tree.get(*right_id);
-                visitor.visit_expression(tree, *right_id, right_expression);
-            }
-        }
-        Expression::Maybe { left } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-        }
-        Expression::Must { left } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-        }
-        Expression::UnresolvedPath {
-            path: _,
-            static_arguments,
-            space_order: _,
-        } => {
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-        }
-        Expression::LocalReference {
-            path: _,
-            static_arguments,
-            target_symbol: _,
-        }
-        | Expression::ModuleReference {
-            path: _,
-            static_arguments,
-            target_symbol: _,
-        }
-        | Expression::GlobalReference {
-            path: _,
-            static_arguments,
-            target_symbol: _,
-        } => {
-            if let Some(static_arguments) = static_arguments {
-                for argument_id in static_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-        }
-        Expression::ImportMeta | Expression::This => {
-            // nothing to do
-        }
 
-        Expression::Type { value: _ } => {
-            // nothing to do
-        }
-        Expression::ScalarLiteral { value: _ } => {
-            // nothing to do
-        }
-        Expression::TemplateExpression { value } => {
-            match value {
-                TemplateLiteral::String { .. } => {
-                    // nothing to do
-                }
-                TemplateLiteral::InterpolatedString { arguments, .. } => {
-                    for argument_id in arguments {
-                        let argument = tree.get(*argument_id);
-                        visitor.visit_argument(tree, *argument_id, argument);
+            Expression::Type { value: _ } => {
+                // nothing to do
+            }
+            Expression::ScalarLiteral { value: _ } => {
+                // nothing to do
+            }
+            Expression::TemplateExpression { value } => {
+                match value {
+                    TemplateLiteral::String { .. } => {
+                        // nothing to do
+                    }
+                    TemplateLiteral::InterpolatedString { arguments, .. } => {
+                        for argument_id in arguments {
+                            let argument = tree.get(*argument_id);
+                            visitor.visit_argument(tree, *argument_id, argument);
+                        }
                     }
                 }
             }
-        }
-        Expression::TaggedTemplateExpression { tag, value } => {
-            let tag_expression = tree.get(*tag);
-            visitor.visit_expression(tree, *tag, tag_expression);
-            match value {
-                TemplateLiteral::String { .. } => {
-                    // nothing to do
-                }
-                TemplateLiteral::InterpolatedString { arguments, .. } => {
-                    for argument_id in arguments {
-                        let argument = tree.get(*argument_id);
-                        visitor.visit_argument(tree, *argument_id, argument);
+            Expression::TaggedTemplateExpression { tag, value } => {
+                let tag_expression = tree.get(*tag);
+                visitor.visit_expression(tree, *tag, tag_expression);
+                match value {
+                    TemplateLiteral::String { .. } => {
+                        // nothing to do
+                    }
+                    TemplateLiteral::InterpolatedString { arguments, .. } => {
+                        for argument_id in arguments {
+                            let argument = tree.get(*argument_id);
+                            visitor.visit_argument(tree, *argument_id, argument);
+                        }
                     }
                 }
             }
-        }
-        Expression::TypeLiteral { value: _ } => {
-            // nothing to do
-        }
-        Expression::RangeExpression {
-            start,
-            end,
-            is_inclusive: _,
-        } => {
-            let start_expression = tree.get(*start);
-            visitor.visit_expression(tree, *start, start_expression);
-            let end_expression = tree.get(*end);
-            visitor.visit_expression(tree, *end, end_expression);
-        }
-        Expression::ArrayExpression { elements } => {
-            for element_id in elements {
-                let element = tree.get(*element_id);
-                visitor.visit_argument(tree, *element_id, element);
+            Expression::TypeLiteral { value: _ } => {
+                // nothing to do
             }
-        }
-        Expression::TupleExpression { elements } => {
-            for argument_id in elements {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
+            Expression::RangeExpression {
+                start,
+                end,
+                is_inclusive: _,
+            } => {
+                let start_expression = tree.get(*start);
+                visitor.visit_expression(tree, *start, start_expression);
+                let end_expression = tree.get(*end);
+                visitor.visit_expression(tree, *end, end_expression);
             }
-        }
-        Expression::SequenceExpression { expressions } => {
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
-            }
-        }
-        Expression::ObjectExpression { properties } => {
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
-            }
-        }
-        Expression::TreeExpression {
-            left,
-            arguments,
-            elements,
-        } => {
-            if let Some(left_id) = left {
-                let left_expression = tree.get(*left_id);
-                visitor.visit_expression(tree, *left_id, left_expression);
-            }
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
-            if let Some(elements) = elements {
+            Expression::ArrayExpression { elements } => {
                 for element_id in elements {
                     let element = tree.get(*element_id);
                     visitor.visit_argument(tree, *element_id, element);
                 }
             }
-        }
-        Expression::TaggedScalarExpression { ty, value } => {
-            let ty_node = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_node);
-            let value_node = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_node);
-        }
-        Expression::TaggedTupleExpression { ty, elements } => {
-            let ty_node = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_node);
-            for argument_id in elements {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
+            Expression::TupleExpression { elements } => {
+                for argument_id in elements {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
             }
-        }
-        Expression::TaggedObjectExpression { ty, properties } => {
-            let ty_node = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_node);
-            for property_id in properties {
-                let property = tree.get(*property_id);
-                visitor.visit_property(tree, *property_id, property);
+            Expression::SequenceExpression { expressions } => {
+                for expr_id in expressions {
+                    let expr = tree.get(*expr_id);
+                    visitor.visit_expression(tree, *expr_id, expr);
+                }
             }
-        }
-        Expression::Parenthesized { expression } => {
-            let expression_node = tree.get(*expression);
-            visitor.visit_expression(tree, *expression, expression_node);
-        }
+            Expression::ObjectExpression { properties } => {
+                for property_id in properties {
+                    let property = tree.get(*property_id);
+                    visitor.visit_property(tree, *property_id, property);
+                }
+            }
+            Expression::TreeExpression {
+                left,
+                arguments,
+                elements,
+            } => {
+                if let Some(left_id) = left {
+                    let left_expression = tree.get(*left_id);
+                    visitor.visit_expression(tree, *left_id, left_expression);
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
+                }
+                if let Some(elements) = elements {
+                    for element_id in elements {
+                        let element = tree.get(*element_id);
+                        visitor.visit_argument(tree, *element_id, element);
+                    }
+                }
+            }
+            Expression::TaggedScalarExpression { ty, value } => {
+                let ty_node = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_node);
+                let value_node = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_node);
+            }
+            Expression::TaggedTupleExpression { ty, elements } => {
+                let ty_node = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_node);
+                for argument_id in elements {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+            Expression::TaggedObjectExpression { ty, properties } => {
+                let ty_node = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_node);
+                for property_id in properties {
+                    let property = tree.get(*property_id);
+                    visitor.visit_property(tree, *property_id, property);
+                }
+            }
+            Expression::Parenthesized { expression } => {
+                let expression_node = tree.get(*expression);
+                visitor.visit_expression(tree, *expression, expression_node);
+            }
 
-        Expression::If {
-            kind: _,
-            condition,
-            then_expression,
-            else_expression,
-        } => {
-            let condition_expression = tree.get(*condition);
-            visitor.visit_expression(tree, *condition, condition_expression);
-            let then_expression_node = tree.get(*then_expression);
-            visitor.visit_expression(tree, *then_expression, then_expression_node);
-            if let Some(else_expression_id) = else_expression {
-                let else_expression = tree.get(*else_expression_id);
-                visitor.visit_expression(tree, *else_expression_id, else_expression);
-            }
-        }
-        Expression::Loop {
-            kind: _,
-            condition,
-            body,
-            scope: _,
-            symbol: _,
-        } => {
-            if let Some(condition_id) = condition {
-                let condition_expression = tree.get(*condition_id);
-                visitor.visit_expression(tree, *condition_id, condition_expression);
-            }
-            let body_block = tree.get(*body);
-            visitor.visit_block(tree, *body, body_block);
-        }
-        Expression::ForEach {
-            asynchrony: _,
-            kind: _,
-            binding,
-            iterator,
-            body,
-            scope: _,
-            symbol: _,
-        } => {
-            match binding {
-                ForEachBinding::Pattern { pattern } => {
-                    let pattern_node = tree.get(*pattern);
-                    visitor.visit_pattern(tree, *pattern, pattern_node);
-                }
-                ForEachBinding::Using {
-                    asynchrony: _,
-                    pattern,
-                } => {
-                    let pattern_node = tree.get(*pattern);
-                    visitor.visit_pattern(tree, *pattern, pattern_node);
+            Expression::If {
+                kind: _,
+                condition,
+                then_expression,
+                else_expression,
+            } => {
+                let condition_expression = tree.get(*condition);
+                visitor.visit_expression(tree, *condition, condition_expression);
+                let then_expression_node = tree.get(*then_expression);
+                visitor.visit_expression(tree, *then_expression, then_expression_node);
+                if let Some(else_expression_id) = else_expression {
+                    let else_expression = tree.get(*else_expression_id);
+                    visitor.visit_expression(tree, *else_expression_id, else_expression);
                 }
             }
-            let iterator_expression = tree.get(*iterator);
-            visitor.visit_expression(tree, *iterator, iterator_expression);
-            let body_block = tree.get(*body);
-            visitor.visit_block(tree, *body, body_block);
-        }
-        Expression::For {
-            initialization,
-            condition,
-            increment,
-            body,
-            scope: _,
-            symbol: _,
-        } => {
-            if let Some(initialization_id) = initialization {
-                let initialization_expression = tree.get(*initialization_id);
-                visitor.visit_expression(tree, *initialization_id, initialization_expression);
+            Expression::Loop {
+                kind: _,
+                condition,
+                body,
+                scope: _,
+                symbol: _,
+            } => {
+                if let Some(condition_id) = condition {
+                    let condition_expression = tree.get(*condition_id);
+                    visitor.visit_expression(tree, *condition_id, condition_expression);
+                }
+                let body_block = tree.get(*body);
+                visitor.visit_block(tree, *body, body_block);
             }
-            if let Some(condition_id) = condition {
-                let condition_expression = tree.get(*condition_id);
-                visitor.visit_expression(tree, *condition_id, condition_expression);
+            Expression::ForEach {
+                asynchrony: _,
+                kind: _,
+                binding,
+                iterator,
+                body,
+                scope: _,
+                symbol: _,
+            } => {
+                match binding {
+                    ForEachBinding::Pattern { pattern } => {
+                        let pattern_node = tree.get(*pattern);
+                        visitor.visit_pattern(tree, *pattern, pattern_node);
+                    }
+                    ForEachBinding::Using {
+                        asynchrony: _,
+                        pattern,
+                    } => {
+                        let pattern_node = tree.get(*pattern);
+                        visitor.visit_pattern(tree, *pattern, pattern_node);
+                    }
+                }
+                let iterator_expression = tree.get(*iterator);
+                visitor.visit_expression(tree, *iterator, iterator_expression);
+                let body_block = tree.get(*body);
+                visitor.visit_block(tree, *body, body_block);
             }
-            if let Some(increment_id) = increment {
-                let increment_expression = tree.get(*increment_id);
-                visitor.visit_expression(tree, *increment_id, increment_expression);
+            Expression::For {
+                initialization,
+                condition,
+                increment,
+                body,
+                scope: _,
+                symbol: _,
+            } => {
+                if let Some(initialization_id) = initialization {
+                    let initialization_expression = tree.get(*initialization_id);
+                    visitor.visit_expression(tree, *initialization_id, initialization_expression);
+                }
+                if let Some(condition_id) = condition {
+                    let condition_expression = tree.get(*condition_id);
+                    visitor.visit_expression(tree, *condition_id, condition_expression);
+                }
+                if let Some(increment_id) = increment {
+                    let increment_expression = tree.get(*increment_id);
+                    visitor.visit_expression(tree, *increment_id, increment_expression);
+                }
+                let body_block = tree.get(*body);
+                visitor.visit_block(tree, *body, body_block);
             }
-            let body_block = tree.get(*body);
-            visitor.visit_block(tree, *body, body_block);
-        }
-        Expression::Try {
-            try_expression,
-            catch_pattern,
-            catch_expression,
-            finally_expression,
-            scope: _,
-            symbol: _,
-        } => {
-            let try_expression_node = tree.get(*try_expression);
-            visitor.visit_expression(tree, *try_expression, try_expression_node);
-            if let Some(catch_pattern_id) = catch_pattern {
-                let catch_pattern_node = tree.get(*catch_pattern_id);
-                visitor.visit_pattern(tree, *catch_pattern_id, catch_pattern_node);
+            Expression::Try {
+                try_expression,
+                catch_pattern,
+                catch_expression,
+                finally_expression,
+                scope: _,
+                symbol: _,
+            } => {
+                let try_expression_node = tree.get(*try_expression);
+                visitor.visit_expression(tree, *try_expression, try_expression_node);
+                if let Some(catch_pattern_id) = catch_pattern {
+                    let catch_pattern_node = tree.get(*catch_pattern_id);
+                    visitor.visit_pattern(tree, *catch_pattern_id, catch_pattern_node);
+                }
+                if let Some(catch_expression_id) = catch_expression {
+                    let catch_expression_node = tree.get(*catch_expression_id);
+                    visitor.visit_expression(tree, *catch_expression_id, catch_expression_node);
+                }
+                if let Some(finally_expression_id) = finally_expression {
+                    let finally_expression_node = tree.get(*finally_expression_id);
+                    visitor.visit_expression(tree, *finally_expression_id, finally_expression_node);
+                }
             }
-            if let Some(catch_expression_id) = catch_expression {
-                let catch_expression_node = tree.get(*catch_expression_id);
-                visitor.visit_expression(tree, *catch_expression_id, catch_expression_node);
+            Expression::Match {
+                value,
+                cases,
+                source: _,
+                scope: _,
+                symbol: _,
+            } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+                for case_id in cases {
+                    let case = tree.get(*case_id);
+                    visitor.visit_match_case(tree, *case_id, case);
+                }
             }
-            if let Some(finally_expression_id) = finally_expression {
-                let finally_expression_node = tree.get(*finally_expression_id);
-                visitor.visit_expression(tree, *finally_expression_id, finally_expression_node);
+            Expression::Break {
+                target: _,
+                target_symbol: _,
+                value,
             }
-        }
-        Expression::Match {
-            value,
-            cases,
-            source: _,
-            scope: _,
-            symbol: _,
-        } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-            for case_id in cases {
-                let case = tree.get(*case_id);
-                visitor.visit_match_case(tree, *case_id, case);
+            | Expression::UnresolvedBreak { target: _, value } => {
+                if let Some(value_id) = value {
+                    let value_expression = tree.get(*value_id);
+                    visitor.visit_expression(tree, *value_id, value_expression);
+                }
             }
-        }
-        Expression::Break {
-            target: _,
-            target_symbol: _,
-            value,
-        }
-        | Expression::UnresolvedBreak { target: _, value } => {
-            if let Some(value_id) = value {
-                let value_expression = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_expression);
+            Expression::Continue {
+                target: _,
+                target_symbol: _,
             }
-        }
-        Expression::Continue {
-            target: _,
-            target_symbol: _,
-        }
-        | Expression::UnresolvedContinue { target: _ } => {}
-        Expression::Await { expression } => {
-            let expression_node = tree.get(*expression);
-            visitor.visit_expression(tree, *expression, expression_node);
-        }
-        Expression::AwaitMaybe { expression } => {
-            let expression_node = tree.get(*expression);
-            visitor.visit_expression(tree, *expression, expression_node);
-        }
-        Expression::Comptime { body } => {
-            let body_expr = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expr);
-        }
-        Expression::Yield {
-            cardinality: _,
-            value,
-        } => {
-            if let Some(value_id) = value {
-                let value_expression = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_expression);
+            | Expression::UnresolvedContinue { target: _ } => {}
+            Expression::Await { expression } => {
+                let expression_node = tree.get(*expression);
+                visitor.visit_expression(tree, *expression, expression_node);
             }
-        }
-        Expression::Throw { value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        Expression::Return { value } => {
-            if let Some(value_id) = value {
-                let value_expression = tree.get(*value_id);
-                visitor.visit_expression(tree, *value_id, value_expression);
+            Expression::AwaitMaybe { expression } => {
+                let expression_node = tree.get(*expression);
+                visitor.visit_expression(tree, *expression, expression_node);
             }
-        }
-        Expression::Debugger => {}
-        Expression::Stub => {}
-        Expression::Error => {}
+            Expression::Comptime { body } => {
+                let body_expr = tree.get(*body);
+                visitor.visit_expression(tree, *body, body_expr);
+            }
+            Expression::Yield {
+                cardinality: _,
+                value,
+            } => {
+                if let Some(value_id) = value {
+                    let value_expression = tree.get(*value_id);
+                    visitor.visit_expression(tree, *value_id, value_expression);
+                }
+            }
+            Expression::Throw { value } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
+            }
+            Expression::Return { value } => {
+                if let Some(value_id) = value {
+                    let value_expression = tree.get(*value_id);
+                    visitor.visit_expression(tree, *value_id, value_expression);
+                }
+            }
+            Expression::Debugger => {}
+            Expression::Stub => {}
+            Expression::Error => {}
         }
     });
 }
@@ -806,139 +806,139 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     declaration: &Declaration,
 ) {
     destack_base::ensure_sufficient_stack(|| {
-    visitor.visit_any(tree, NodeType::Declaration, id.id);
-    match declaration {
-        Declaration::Global {
-            descriptor: _,
-            expressions,
-            scope: _,
-        } => {
-            for expression_id in expressions {
-                let expression = tree.get(*expression_id);
-                visitor.visit_expression(tree, *expression_id, expression);
-            }
-        }
-        Declaration::Namespace {
-            descriptor: _,
-            generics,
-            expressions,
-            scope: _,
-        } => {
-            walk_generics(visitor, tree, generics);
-            for expression_id in expressions {
-                let expression = tree.get(*expression_id);
-                visitor.visit_expression(tree, *expression_id, expression);
-            }
-        }
-        Declaration::Type {
-            descriptor: _,
-            kind: _,
-            mutability: _,
-            static_parameters,
-            value,
-        } => {
-            if let Some(static_parameters) = static_parameters {
-                for parameter_id in static_parameters {
-                    let parameter = tree.get(*parameter_id);
-                    visitor.visit_parameter(tree, *parameter_id, parameter);
+        visitor.visit_any(tree, NodeType::Declaration, id.id);
+        match declaration {
+            Declaration::Global {
+                descriptor: _,
+                expressions,
+                scope: _,
+            } => {
+                for expression_id in expressions {
+                    let expression = tree.get(*expression_id);
+                    visitor.visit_expression(tree, *expression_id, expression);
                 }
             }
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        Declaration::Struct {
-            descriptor: _,
-            generics,
-            heritage,
-            members,
-            scope: _,
-        } => {
-            walk_generics(visitor, tree, generics);
-            walk_heritage(visitor, tree, heritage);
-            for member_id in members {
-                let member = tree.get(*member_id);
-                visitor.visit_member(tree, *member_id, member);
+            Declaration::Namespace {
+                descriptor: _,
+                generics,
+                expressions,
+                scope: _,
+            } => {
+                walk_generics(visitor, tree, generics);
+                for expression_id in expressions {
+                    let expression = tree.get(*expression_id);
+                    visitor.visit_expression(tree, *expression_id, expression);
+                }
             }
-        }
-        Declaration::Class {
-            descriptor: _,
-            generics,
-            heritage,
-            members,
-            scope: _,
-        } => {
-            walk_generics(visitor, tree, generics);
-            walk_heritage(visitor, tree, heritage);
-            for member_id in members {
-                let member = tree.get(*member_id);
-                visitor.visit_member(tree, *member_id, member);
+            Declaration::Type {
+                descriptor: _,
+                kind: _,
+                mutability: _,
+                static_parameters,
+                value,
+            } => {
+                if let Some(static_parameters) = static_parameters {
+                    for parameter_id in static_parameters {
+                        let parameter = tree.get(*parameter_id);
+                        visitor.visit_parameter(tree, *parameter_id, parameter);
+                    }
+                }
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
             }
-        }
-        Declaration::Enum {
-            descriptor: _,
-            kind: _,
-            generics,
-            heritage,
-            fields,
-            members,
-            scope: _,
-        } => {
-            walk_generics(visitor, tree, generics);
-            walk_heritage(visitor, tree, heritage);
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_enum_field(tree, *field_id, field);
+            Declaration::Struct {
+                descriptor: _,
+                generics,
+                heritage,
+                members,
+                scope: _,
+            } => {
+                walk_generics(visitor, tree, generics);
+                walk_heritage(visitor, tree, heritage);
+                for member_id in members {
+                    let member = tree.get(*member_id);
+                    visitor.visit_member(tree, *member_id, member);
+                }
             }
-            for member_id in members {
-                let member = tree.get(*member_id);
-                visitor.visit_member(tree, *member_id, member);
+            Declaration::Class {
+                descriptor: _,
+                generics,
+                heritage,
+                members,
+                scope: _,
+            } => {
+                walk_generics(visitor, tree, generics);
+                walk_heritage(visitor, tree, heritage);
+                for member_id in members {
+                    let member = tree.get(*member_id);
+                    visitor.visit_member(tree, *member_id, member);
+                }
             }
-        }
-        Declaration::Interface {
-            descriptor: _,
-            kind: _,
-            generics,
-            heritage,
-            members,
-            scope: _,
-        } => {
-            walk_generics(visitor, tree, generics);
-            walk_heritage(visitor, tree, heritage);
-            for member_id in members {
-                let member = tree.get(*member_id);
-                visitor.visit_member(tree, *member_id, member);
+            Declaration::Enum {
+                descriptor: _,
+                kind: _,
+                generics,
+                heritage,
+                fields,
+                members,
+                scope: _,
+            } => {
+                walk_generics(visitor, tree, generics);
+                walk_heritage(visitor, tree, heritage);
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    visitor.visit_enum_field(tree, *field_id, field);
+                }
+                for member_id in members {
+                    let member = tree.get(*member_id);
+                    visitor.visit_member(tree, *member_id, member);
+                }
             }
-        }
-        Declaration::Function {
-            descriptor: _,
-            signature,
-            body,
-            scope: _,
-        } => {
-            walk_function_signature(visitor, tree, signature);
-            if let Some(body) = body {
-                let body_expression = tree.get(*body);
-                visitor.visit_expression(tree, *body, body_expression);
+            Declaration::Interface {
+                descriptor: _,
+                kind: _,
+                generics,
+                heritage,
+                members,
+                scope: _,
+            } => {
+                walk_generics(visitor, tree, generics);
+                walk_heritage(visitor, tree, heritage);
+                for member_id in members {
+                    let member = tree.get(*member_id);
+                    visitor.visit_member(tree, *member_id, member);
+                }
             }
-        }
-        Declaration::Extension {
-            descriptor: _,
-            generics,
-            target_type,
-            target_symbol: _,
-            heritage,
-            members,
-            scope: _,
-        } => {
-            walk_generics(visitor, tree, generics);
-            let target_type_expr = tree.get(*target_type);
-            visitor.visit_expression(tree, *target_type, target_type_expr);
-            walk_heritage(visitor, tree, heritage);
-            for member_id in members {
-                let member = tree.get(*member_id);
-                visitor.visit_member(tree, *member_id, member);
+            Declaration::Function {
+                descriptor: _,
+                signature,
+                body,
+                scope: _,
+            } => {
+                walk_function_signature(visitor, tree, signature);
+                if let Some(body) = body {
+                    let body_expression = tree.get(*body);
+                    visitor.visit_expression(tree, *body, body_expression);
+                }
             }
-        }
+            Declaration::Extension {
+                descriptor: _,
+                generics,
+                target_type,
+                target_symbol: _,
+                heritage,
+                members,
+                scope: _,
+            } => {
+                walk_generics(visitor, tree, generics);
+                let target_type_expr = tree.get(*target_type);
+                visitor.visit_expression(tree, *target_type, target_type_expr);
+                walk_heritage(visitor, tree, heritage);
+                for member_id in members {
+                    let member = tree.get(*member_id);
+                    visitor.visit_member(tree, *member_id, member);
+                }
+            }
         }
     });
 }
@@ -1287,96 +1287,96 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     pattern: &Pattern,
 ) {
     destack_base::ensure_sufficient_stack(|| {
-    visitor.visit_any(tree, NodeType::Pattern, id.id);
-    match pattern {
-        Pattern::Wildcard => {}
-        Pattern::Must(inner) => {
-            let inner_pattern = tree.get(*inner);
-            visitor.visit_pattern(tree, *inner, inner_pattern);
-        }
-        Pattern::ReferenceOf {
-            right,
-            mutability: _,
-        } => {
-            let right_pattern = tree.get(*right);
-            visitor.visit_pattern(tree, *right, right_pattern);
-        }
-        Pattern::ValueOf {
-            right,
-            mutability: _,
-        } => {
-            let right_pattern = tree.get(*right);
-            visitor.visit_pattern(tree, *right, right_pattern);
-        }
-        Pattern::Binding {
-            mutability: _,
-            name: _,
-            pattern,
-            symbol: _,
-        } => {
-            if let Some(pattern_id) = pattern {
-                let pattern_node = tree.get(*pattern_id);
-                visitor.visit_pattern(tree, *pattern_id, pattern_node);
+        visitor.visit_any(tree, NodeType::Pattern, id.id);
+        match pattern {
+            Pattern::Wildcard => {}
+            Pattern::Must(inner) => {
+                let inner_pattern = tree.get(*inner);
+                visitor.visit_pattern(tree, *inner, inner_pattern);
             }
-        }
-        Pattern::Expression { value } => {
-            let value_expression = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expression);
-        }
-        Pattern::Range {
-            start,
-            end,
-            is_inclusive: _,
-        } => {
-            if let Some(start_id) = start {
-                let start_pattern = tree.get(*start_id);
-                visitor.visit_pattern(tree, *start_id, start_pattern);
+            Pattern::ReferenceOf {
+                right,
+                mutability: _,
+            } => {
+                let right_pattern = tree.get(*right);
+                visitor.visit_pattern(tree, *right, right_pattern);
             }
-            if let Some(end_id) = end {
-                let end_pattern = tree.get(*end_id);
-                visitor.visit_pattern(tree, *end_id, end_pattern);
+            Pattern::ValueOf {
+                right,
+                mutability: _,
+            } => {
+                let right_pattern = tree.get(*right);
+                visitor.visit_pattern(tree, *right, right_pattern);
             }
-        }
-        Pattern::Tuple { fields } => {
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_pattern_field(tree, *field_id, field);
+            Pattern::Binding {
+                mutability: _,
+                name: _,
+                pattern,
+                symbol: _,
+            } => {
+                if let Some(pattern_id) = pattern {
+                    let pattern_node = tree.get(*pattern_id);
+                    visitor.visit_pattern(tree, *pattern_id, pattern_node);
+                }
             }
-        }
-        Pattern::TaggedTuple { ty, fields } => {
-            let ty_expression = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_expression);
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_pattern_field(tree, *field_id, field);
+            Pattern::Expression { value } => {
+                let value_expression = tree.get(*value);
+                visitor.visit_expression(tree, *value, value_expression);
             }
-        }
-        Pattern::Array { fields } => {
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_pattern_field(tree, *field_id, field);
+            Pattern::Range {
+                start,
+                end,
+                is_inclusive: _,
+            } => {
+                if let Some(start_id) = start {
+                    let start_pattern = tree.get(*start_id);
+                    visitor.visit_pattern(tree, *start_id, start_pattern);
+                }
+                if let Some(end_id) = end {
+                    let end_pattern = tree.get(*end_id);
+                    visitor.visit_pattern(tree, *end_id, end_pattern);
+                }
             }
-        }
-        Pattern::Object { fields } => {
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_pattern_field(tree, *field_id, field);
+            Pattern::Tuple { fields } => {
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    visitor.visit_pattern_field(tree, *field_id, field);
+                }
             }
-        }
-        Pattern::TaggedObject { ty, fields } => {
-            let ty_expression = tree.get(*ty);
-            visitor.visit_expression(tree, *ty, ty_expression);
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                visitor.visit_pattern_field(tree, *field_id, field);
+            Pattern::TaggedTuple { ty, fields } => {
+                let ty_expression = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_expression);
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    visitor.visit_pattern_field(tree, *field_id, field);
+                }
             }
-        }
-        Pattern::Union { patterns } => {
-            for pattern_id in patterns {
-                let union_pattern = tree.get(*pattern_id);
-                visitor.visit_pattern(tree, *pattern_id, union_pattern);
+            Pattern::Array { fields } => {
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    visitor.visit_pattern_field(tree, *field_id, field);
+                }
             }
-        }
+            Pattern::Object { fields } => {
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    visitor.visit_pattern_field(tree, *field_id, field);
+                }
+            }
+            Pattern::TaggedObject { ty, fields } => {
+                let ty_expression = tree.get(*ty);
+                visitor.visit_expression(tree, *ty, ty_expression);
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    visitor.visit_pattern_field(tree, *field_id, field);
+                }
+            }
+            Pattern::Union { patterns } => {
+                for pattern_id in patterns {
+                    let union_pattern = tree.get(*pattern_id);
+                    visitor.visit_pattern(tree, *pattern_id, union_pattern);
+                }
+            }
         }
     });
 }
