@@ -1,4 +1,5 @@
 mod error;
+mod pass;
 mod task;
 mod warning;
 
@@ -105,4 +106,35 @@ pub fn define_warning(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DefineTask, attributes(phase, task))]
 pub fn define_task(input: TokenStream) -> TokenStream {
     task::define_task_impl(input)
+}
+
+/// Declare an optimization pass.
+///
+/// # Example
+///
+/// ```ignore
+/// declare_pass! {
+///     /// Fold constant expressions at compile time.
+///     ///
+///     /// Evaluates operations on constant values and replaces them with
+///     /// the computed result.
+///     #[pass(
+///         id = "constant-fold",
+///         requires = [],
+///         invalidates = [],
+///     )]
+///     pub ConstantFold,
+///     "Fold constant expressions"
+/// }
+/// ```
+///
+/// # Generated Code
+///
+/// This generates:
+/// - `pub struct ConstantFold;`
+/// - `pub static CONSTANT_FOLD: &PassMeta = &PassMeta { ... };`
+/// - `impl ConstantFold { pub const fn meta() -> &'static PassMeta { CONSTANT_FOLD } }`
+#[proc_macro]
+pub fn declare_pass(input: TokenStream) -> TokenStream {
+    pass::declare_pass_impl(input)
 }

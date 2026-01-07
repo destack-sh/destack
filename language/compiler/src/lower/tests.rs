@@ -53,7 +53,7 @@ function fibonacci(n: number): number {
     );
     test.lower_module(module_id, "native");
     test.compile_check_clean();
-    
+
     test.assert_mir(
         module_id,
         "native",
