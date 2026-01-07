@@ -170,6 +170,7 @@ pub(super) fn handle_binary(
 }
 
 /// Handle signed integer binary operation.
+#[inline(always)]
 pub(super) fn handle_binary_int(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -204,6 +205,7 @@ pub(super) fn handle_binary_int(
 }
 
 /// Handle unsigned integer binary operation.
+#[inline(always)]
 pub(super) fn handle_binary_uint(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -238,6 +240,7 @@ pub(super) fn handle_binary_uint(
 }
 
 /// Handle float32 binary operation.
+#[inline(always)]
 pub(super) fn handle_binary_float32(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -272,6 +275,7 @@ pub(super) fn handle_binary_float32(
 }
 
 /// Handle float64 binary operation.
+#[inline(always)]
 pub(super) fn handle_binary_float64(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -367,6 +371,7 @@ pub(super) fn handle_unary(
 }
 
 /// Handle signed integer unary operation.
+#[inline(always)]
 pub(super) fn handle_unary_int(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -394,6 +399,7 @@ pub(super) fn handle_unary_int(
 }
 
 /// Handle unsigned integer unary operation.
+#[inline(always)]
 pub(super) fn handle_unary_uint(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -421,6 +427,7 @@ pub(super) fn handle_unary_uint(
 }
 
 /// Handle float32 unary operation.
+#[inline(always)]
 pub(super) fn handle_unary_float32(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -448,6 +455,7 @@ pub(super) fn handle_unary_float32(
 }
 
 /// Handle float64 unary operation.
+#[inline(always)]
 pub(super) fn handle_unary_float64(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -606,6 +614,7 @@ pub(super) fn handle_call_indirect(
 }
 
 /// Handle local variable load.
+#[inline(always)]
 pub(super) fn handle_local_get(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -627,6 +636,7 @@ pub(super) fn handle_local_get(
 }
 
 /// Handle local variable store.
+#[inline(always)]
 pub(super) fn handle_local_set(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -702,6 +712,71 @@ pub(super) fn handle_global_const(
     next!(state, block, pc)
 }
 
+/// Handle fused global address + load.
+#[inline(always)]
+pub(super) fn handle_global_load(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::GlobalLoad { dest, global } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // track loads
+    state.interpreter.statistics.loads += 1;
+
+    // load global value directly
+    let global_id = global_id(*global);
+    let value = match state.interpreter.globals.get(global_id).copied() {
+        Some(v) => v,
+        None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
+    };
+
+    // store value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle fused global address + store.
+#[inline(always)]
+pub(super) fn handle_global_store(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::GlobalStore {
+        global,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // track stores
+    state.interpreter.statistics.stores += 1;
+
+    // load value to store
+    let val = state.get(*value);
+
+    // check mutability via reference metadata
+    let global_id = global_id(*global);
+    if reference.mutability() != Some(mir::Mutability::Mutable) {
+        return ControlFlow::Error(Error::ImmutableGlobalWrite { global: global_id });
+    }
+
+    // store to global directly
+    state.interpreter.globals.set(global_id, val);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle pointer load.
 pub(super) fn handle_load(
     state: &mut ThreadedState,
@@ -764,6 +839,7 @@ pub(super) fn handle_store(
 }
 
 /// Handle managed pointer load.
+#[inline(always)]
 pub(super) fn handle_load_managed(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -791,6 +867,7 @@ pub(super) fn handle_load_managed(
 }
 
 /// Handle raw pointer load.
+#[inline(always)]
 pub(super) fn handle_load_raw(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -818,6 +895,7 @@ pub(super) fn handle_load_raw(
 }
 
 /// Handle stack pointer load.
+#[inline(always)]
 pub(super) fn handle_load_stack(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -845,6 +923,7 @@ pub(super) fn handle_load_stack(
 }
 
 /// Handle global pointer load.
+#[inline(always)]
 pub(super) fn handle_load_global(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -872,6 +951,7 @@ pub(super) fn handle_load_global(
 }
 
 /// Handle managed pointer store.
+#[inline(always)]
 pub(super) fn handle_store_managed(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -906,6 +986,7 @@ pub(super) fn handle_store_managed(
 }
 
 /// Handle raw pointer store.
+#[inline(always)]
 pub(super) fn handle_store_raw(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -940,6 +1021,7 @@ pub(super) fn handle_store_raw(
 }
 
 /// Handle stack pointer store.
+#[inline(always)]
 pub(super) fn handle_store_stack(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -974,6 +1056,7 @@ pub(super) fn handle_store_stack(
 }
 
 /// Handle global pointer store.
+#[inline(always)]
 pub(super) fn handle_store_global(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -1080,6 +1163,55 @@ pub(super) fn handle_field_get_inline(
 
     // store result
     state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle field store on small managed aggregates (≤2 fields, inline storage).
+#[inline(always)]
+pub(super) fn handle_field_store_inline(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FieldStore {
+        aggregate,
+        index,
+        value,
+        reference: _,
+        field_count: _,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // track stores
+    state.interpreter.statistics.stores += 1;
+
+    // load aggregate and extract heap handle
+    let agg = state.get(*aggregate);
+    let handle = match agg.as_heap_handle() {
+        Some(h) => h,
+        None => return ControlFlow::Error(crate::diagnostic::Error::InvalidHeapHandle),
+    };
+
+    // reject null handles when enabled
+    if state.null_checks && handle.is_null() {
+        return ControlFlow::Error(crate::diagnostic::Error::NullPointerDereference);
+    }
+
+    // load value to store
+    let val = state.get(*value);
+
+    // fast path: directly access heap cell and inline slots
+    unsafe {
+        let cell = state.interpreter.managed_heap.get_unchecked_mut(handle);
+        let slot_index = handle.slot_index().wrapping_add(*index as usize);
+        // inline storage is guaranteed for field_count ≤ 2
+        *cell.slots.get_unchecked_mut(slot_index) = val;
+    }
 
     // continue to next instruction
     next!(state, block, pc)
@@ -3367,12 +3499,8 @@ pub(super) fn handle_compare_and_branch(
         mir::BinaryOperator::Equal => lhs.raw_data() == rhs.raw_data(),
         mir::BinaryOperator::NotEqual => lhs.raw_data() != rhs.raw_data(),
         mir::BinaryOperator::SignedLessThan => (lhs.raw_data() as i64) < (rhs.raw_data() as i64),
-        mir::BinaryOperator::SignedLessEqual => {
-            (lhs.raw_data() as i64) <= (rhs.raw_data() as i64)
-        }
-        mir::BinaryOperator::SignedGreaterThan => {
-            (lhs.raw_data() as i64) > (rhs.raw_data() as i64)
-        }
+        mir::BinaryOperator::SignedLessEqual => (lhs.raw_data() as i64) <= (rhs.raw_data() as i64),
+        mir::BinaryOperator::SignedGreaterThan => (lhs.raw_data() as i64) > (rhs.raw_data() as i64),
         mir::BinaryOperator::SignedGreaterEqual => {
             (lhs.raw_data() as i64) >= (rhs.raw_data() as i64)
         }
