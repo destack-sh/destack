@@ -70,7 +70,8 @@ impl BenchOptions {
 struct BenchSample {
     /// Measured throughput in mops per second.
     mops: f64,
-    /// Iterations performed.
+    /// Iterations performed (retained for debugging).
+    #[allow(dead_code)]
     iterations: u32,
 }
 
@@ -78,8 +79,6 @@ struct BenchSample {
 struct BenchSummary {
     /// Median mops for the sample set.
     median_mops: f64,
-    /// Iterations from the median sample.
-    median_iterations: u32,
     /// Minimum mops observed.
     min_mops: f64,
     /// Maximum mops observed.
@@ -92,7 +91,6 @@ fn summarize_samples(samples: &mut [BenchSample]) -> BenchSummary {
     if samples.is_empty() {
         return BenchSummary {
             median_mops: 0.0,
-            median_iterations: 0,
             min_mops: 0.0,
             max_mops: 0.0,
         };
@@ -105,23 +103,19 @@ fn summarize_samples(samples: &mut [BenchSample]) -> BenchSummary {
     let min_mops = samples.first().map(|s| s.mops).unwrap_or(0.0);
     let max_mops = samples.last().map(|s| s.mops).unwrap_or(0.0);
 
-    // select median sample
-    let median_index = samples.len() / 2;
-    let median_sample = &samples[median_index];
-
     // compute median mops
+    let median_index = samples.len() / 2;
     let median_mops = if samples.len() % 2 == 1 {
-        median_sample.mops
+        samples[median_index].mops
     } else {
         let lower = samples[median_index - 1].mops;
-        let upper = median_sample.mops;
+        let upper = samples[median_index].mops;
         (lower + upper) * 0.5
     };
 
     // return summary
     BenchSummary {
         median_mops,
-        median_iterations: median_sample.iterations,
         min_mops,
         max_mops,
     }
@@ -143,7 +137,7 @@ impl Program {
         let result = interp
             .run_function_by_name(self.entry, args)
             .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e));
-        result.statistics.instructions_executed
+        result.statistics.threaded_instructions_executed
     }
 
     /// Validate that the program produces expected output.
@@ -231,15 +225,15 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
     };
 
     // header
-    let table_width = 98;
+    let table_width = 100;
     println!();
     println!(
-        "{BOLD}{:<28} {:>7} {:>5} {:>9} {:>6} {:>5} {:>5} {:>6} {:>5} {:>13}{RESET}",
-        "Program", "Mops/s", "Iter", "Instrs", "Calls", "Stk", "Alloc", "Br", "Ld/St", "Range"
+        "{BOLD}{:<28}  {:>7}  {:>8} {:>8}  {:>6} {:>4} {:>5}  {:>6} {:>5}  {:>11}{RESET}",
+        "Program", "Mops/s", "MIR", "Threaded", "Calls", "Stk", "Alloc", "Br", "Mem", "Range"
     );
     if repeat > 1 {
         println!(
-            "{DIM}median of {repeat} runs, min {:.0}ms, warmup {:.0}ms{RESET}",
+            "{DIM}median of {repeat} samples · min {:.0}ms · warmup {:.0}ms{RESET}",
             min_duration.as_secs_f64() * 1000.0,
             options.warmup.as_secs_f64() * 1000.0
         );
@@ -298,8 +292,8 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                 }
                 let elapsed = run_start.elapsed();
 
-                // compute throughput
-                let total_instructions = stats.instructions_executed * iterations as u64;
+                // compute throughput (based on MIR instructions for fair comparison)
+                let total_instructions = stats.mir_instructions_executed * iterations as u64;
                 let mops = total_instructions as f64 / elapsed.as_secs_f64() / 1_000_000.0;
                 samples.push(BenchSample { mops, iterations });
             }
@@ -322,17 +316,17 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             };
 
             // print benchmark row
-            let ld_st = stats.loads + stats.stores;
+            let mem = stats.loads + stats.stores;
             println!(
-                "{CYAN}{full_name:<28}{RESET} {mops_color}{:>7.1}{RESET} {:>5} {DIM}{:>9} {:>6} {:>5} {:>5} {:>6} {:>5} {:>13}{RESET}",
+                "{CYAN}{full_name:<28}{RESET}  {mops_color}{:>7.1}{RESET}  {BOLD}{:>8}{RESET} {DIM}{:>8}  {:>6} {:>4} {:>5}  {:>6} {:>5}  {:>11}{RESET}",
                 summary.median_mops,
-                summary.median_iterations,
-                stats.instructions_executed,
+                stats.mir_instructions_executed,
+                stats.threaded_instructions_executed,
                 stats.calls_made,
                 stats.max_stack_depth,
                 stats.heap_allocations,
                 stats.branches,
-                ld_st,
+                mem,
                 range_label,
             );
 
@@ -347,9 +341,10 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
     println!("{DIM}{}{RESET}", "─".repeat(table_width));
     if count > 0 {
         println!(
-            "{BOLD}{:<28} {:>7.1}{RESET}                                           {DIM}in {:.2}s{RESET}",
+            "{BOLD}{:<28}  {:>7.1}{RESET}  {DIM}{:>55} in {:.2}s{RESET}",
             "Average",
             total_mops / count as f64,
+            "",
             total_elapsed.as_secs_f64()
         );
     } else {
@@ -416,10 +411,10 @@ pub(crate) fn print_stats() {
 
     println!();
     println!(
-        "{BOLD}{:<32} {:>12} {:>8} {:>6} {:>8}{RESET}",
-        "Program", "Instructions", "Calls", "Stack", "Heap"
+        "{BOLD}{:<32}  {:>10} {:>10}  {:>8} {:>6} {:>8}{RESET}",
+        "Program", "MIR", "Threaded", "Calls", "Stack", "Heap"
     );
-    println!("{DIM}{}{RESET}", "─".repeat(70));
+    println!("{DIM}{}{RESET}", "─".repeat(82));
 
     for (category, programs) in all_programs {
         for p in programs {
@@ -432,9 +427,10 @@ pub(crate) fn print_stats() {
 
             let stats = &result.statistics;
             println!(
-                "{CYAN}{:<32}{RESET} {:>12} {:>8} {:>6} {:>8}",
+                "{CYAN}{:<32}{RESET}  {:>10} {DIM}{:>10}{RESET}  {DIM}{:>8} {:>6} {:>8}{RESET}",
                 format!("{}/{}", category, p.name),
-                stats.instructions_executed,
+                stats.mir_instructions_executed,
+                stats.threaded_instructions_executed,
                 stats.calls_made,
                 stats.max_stack_depth,
                 stats.heap_allocations,

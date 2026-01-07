@@ -432,6 +432,8 @@ pub struct ThreadedBlock {
     pub parameters: ArgumentRange,
     /// Instructions including terminator.
     pub instructions: Vec<ThreadedInstruction>,
+    /// Original MIR instruction count (before fusion/threading).
+    pub mir_instruction_count: u32,
 }
 
 /// Threaded function with optimized dispatch.

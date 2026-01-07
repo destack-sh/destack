@@ -576,11 +576,15 @@ fn thread_block(
     // gather block parameters
     let parameters = push_argument_range(argument_pool, parameter_values);
 
+    // compute original MIR instruction count (instructions + terminator)
+    let mir_instruction_count = (block.instructions.len() + 1) as u32;
+
     // assemble block
     ThreadedBlock {
         mir_block,
         parameters,
         instructions,
+        mir_instruction_count,
     }
 }
 
