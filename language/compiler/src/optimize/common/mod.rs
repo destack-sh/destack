@@ -1,5 +1,6 @@
 mod analysis;
 mod block;
+mod constant;
 mod context;
 mod instruction;
 mod metrics;
@@ -10,6 +11,7 @@ pub(crate) mod tests;
 
 pub use analysis::*;
 pub use block::*;
+pub use constant::*;
 pub use context::*;
 pub use instruction::*;
 pub use metrics::*;
