@@ -1,8 +1,10 @@
 /// Statistics collected during interpreter execution.
 #[derive(Debug, Clone, Default)]
 pub struct Statistics {
-    /// Total number of instructions executed.
-    pub instructions_executed: u64,
+    /// Total number of MIR instructions executed (original IR).
+    pub mir_instructions_executed: u64,
+    /// Total number of threaded instructions executed (after decode/fusion).
+    pub threaded_instructions_executed: u64,
     /// Total number of function calls made.
     pub calls_made: u64,
     /// Maximum call stack depth reached.

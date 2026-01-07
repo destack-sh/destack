@@ -261,7 +261,7 @@ impl Interpreter {
         loop {
             // check step limit
             if let Some(max) = self.options.max_instructions
-                && self.statistics.instructions_executed >= max
+                && self.statistics.threaded_instructions_executed >= max
             {
                 return Err(self.make_error(Error::StepLimitExceeded));
             }
@@ -299,7 +299,12 @@ impl Interpreter {
             };
 
             // update statistics
-            self.statistics.instructions_executed += (block_len - start_pc) as u64;
+            self.statistics.threaded_instructions_executed += (block_len - start_pc) as u64;
+            // only count MIR instructions on first entry to block (start_pc == 0)
+            // to avoid double-counting when resuming after calls
+            if start_pc == 0 {
+                self.statistics.mir_instructions_executed += block.mir_instruction_count as u64;
+            }
 
             // handle control flow
             match control {
