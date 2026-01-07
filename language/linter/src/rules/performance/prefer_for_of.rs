@@ -236,24 +236,35 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             return right_expr.target_symbol() == Some(index_symbol);
         }
 
-        // match i += 1
-        if let dir::Expression::AssignBinary {
-            left,
-            operator: dir::AssignOperator::AddAssign,
-            right,
-        } = incr
-        {
+        // match i = i + 1 (desugared from i += 1)
+        if let dir::Expression::Assign { left, right } = incr {
             let left_expr = self.ctx.tree.get(*left);
             if left_expr.target_symbol() != Some(index_symbol) {
                 return false;
             }
+
             let right_expr = self.ctx.tree.get(*right);
-            return matches!(
-                right_expr,
-                dir::Expression::ScalarLiteral {
-                    value: dir::ScalarLiteral::Integer(1)
+            if let dir::Expression::Binary {
+                left: bin_left,
+                operator: dir::BinaryOperator::Add,
+                right: bin_right,
+            } = right_expr
+            {
+                // check that bin_left is i
+                let bin_left_expr = self.ctx.tree.get(*bin_left);
+                if bin_left_expr.target_symbol() != Some(index_symbol) {
+                    return false;
                 }
-            );
+
+                // check that bin_right is 1
+                let bin_right_expr = self.ctx.tree.get(*bin_right);
+                return matches!(
+                    bin_right_expr,
+                    dir::Expression::ScalarLiteral {
+                        value: dir::ScalarLiteral::Integer(1)
+                    }
+                );
+            }
         }
 
         false
@@ -268,7 +279,6 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     ) -> bool {
         // collect all uses of the index variable
         let mut collector = IndexUseCollector {
-            tree: self.ctx.tree,
             index_symbol,
             array_symbol,
             all_uses_are_indexing: true,
@@ -285,8 +295,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 }
 
 /// Collector to check how the index variable is used.
-struct IndexUseCollector<'a> {
-    tree: &'a dir::NodeTree,
+struct IndexUseCollector {
     index_symbol: GlobalSymbolId,
     array_symbol: GlobalSymbolId,
     all_uses_are_indexing: bool,
@@ -294,7 +303,7 @@ struct IndexUseCollector<'a> {
     options: NodeVisitorOptions,
 }
 
-impl NodeVisitor for IndexUseCollector<'_> {
+impl NodeVisitor for IndexUseCollector {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
