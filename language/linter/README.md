@@ -199,11 +199,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU054` | `no-useless-escape` | ESLint | AST | ✓ | ✅ | Safe | Disallow unnecessary escape characters |
 | `LU055` | `no-useless-rename` | ESLint | AST | ✓ | ✅ | Safe | Disallow renaming imports/exports to the same name |
 | `LU056` | `no-useless-return` | ESLint | AST | ✓ | ✅ | Safe | Disallow redundant return statements |
-| `LU057` | `prefer-array-filter` | Unicorn | DIR | ✓ | 🔶 | Unsafe | Suggest `.filter()` over manual filtering loops |
-| `LU058` | `prefer-array-find` | Unicorn | DIR | ✓ | 🔶 | Unsafe | Suggest `.find()` over manual search loops |
-| `LU059` | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest `.map()` over manual mapping loops |
-| `LU060` | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Safe | Suggest `.flatMap()` over `.map().flatten()` |
-| `LU061` | `prefer-match` | Destack | AST | ✓ | ✅ | Unsafe | Suggest match expressions over complex if-else chains or switch statements |
 | `LU062` | `require-await` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow async functions with no await expressions |
 | `LU063` | `require-else-in-if-chain` | Destack | AST | ✓ | ✅ | Suggestion | Require final else in if-else-if chains |
 | `LU064` | `require-yield` | ESLint | AST | ✓ | ✅ | None | Require generator functions to contain yield |
@@ -349,6 +344,11 @@ Subjective preferences for consistent coding style.
 | `LY079` | `symbol-description` | ESLint | DIR | ✓ | 🔶 | Suggestion | Require symbol descriptions |
 | `LY080` | `yoda` | ESLint | AST | ✓ | ✅ | Safe | Disallow Yoda conditions |
 | `LY082` | `prefer-array-some` | Unicorn | DIR | ✓ | ✅ | None | Prefer `some()` over `filter().length` or `findIndex()` comparisons |
+| `LY083` | `prefer-array-filter` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest `.filter()` over `forEach` with conditional push |
+| `LY084` | `prefer-array-find` | Unicorn | DIR | ✓ | 🔶 | Unsafe | Suggest `.find()` over `.filter()[0]` |
+| `LY085` | `prefer-array-map` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest `.map()` over `forEach` with push |
+| `LY086` | `prefer-flat-map` | Unicorn | DIR | ✓ | 🔶 | Safe | Suggest `.flatMap()` over `.map().flat()` |
+| `LY087` | `prefer-match` | Destack | AST | ✓ | ✅ | Unsafe | Suggest match expressions over complex if-else chains |
 
 ## Complexity (X)
 

@@ -37,7 +37,6 @@ mod no_useless_constructor;
 mod no_useless_escape;
 mod no_useless_rename;
 mod no_useless_return;
-mod prefer_match;
 mod require_await;
 mod require_else_in_if_chain;
 mod require_yield;
@@ -83,7 +82,6 @@ pub use no_useless_constructor::*;
 pub use no_useless_escape::*;
 pub use no_useless_rename::*;
 pub use no_useless_return::*;
-pub use prefer_match::*;
 pub use require_await::*;
 pub use require_else_in_if_chain::*;
 pub use require_yield::*;
@@ -130,7 +128,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoUselessEscape),
         boxed(NoUselessRename),
         boxed(NoUselessReturn),
-        boxed(PreferMatch),
         boxed(RequireAwait),
         boxed(RequireElseInIfChain),
         boxed(RequireYield),

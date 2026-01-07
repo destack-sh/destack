@@ -36,6 +36,7 @@ mod prefer_if_else_over_match_bool;
 mod prefer_implicit_return;
 mod prefer_inclusive_range;
 mod prefer_loop;
+mod prefer_match;
 mod prefer_named_extension;
 mod prefer_object_spread;
 mod prefer_pattern_over_guard;
@@ -96,6 +97,7 @@ pub use prefer_if_else_over_match_bool::*;
 pub use prefer_implicit_return::*;
 pub use prefer_inclusive_range::*;
 pub use prefer_loop::*;
+pub use prefer_match::*;
 pub use prefer_named_extension::*;
 pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
@@ -157,6 +159,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferImplicitReturn),
         boxed(PreferInclusiveRange),
         boxed(PreferLoop),
+        boxed(PreferMatch),
         boxed(PreferPatternOverGuard),
         boxed(PreferRangeContains),
         boxed(PreferSelfClosingTree),
