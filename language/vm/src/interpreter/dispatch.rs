@@ -3181,6 +3181,232 @@ pub(super) fn handle_branch_bool(
     }
 }
 
+/// Handle fused compare-and-branch for signed integers (most common).
+#[inline(always)]
+pub(super) fn handle_compare_and_branch_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranch {
+        left,
+        right,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands as signed integers
+    let lhs = state.get(*left).raw_data() as i64;
+    let rhs = state.get(*right).raw_data() as i64;
+
+    // perform comparison
+    let is_truthy = match operator {
+        mir::BinaryOperator::Equal => lhs == rhs,
+        mir::BinaryOperator::NotEqual => lhs != rhs,
+        mir::BinaryOperator::SignedLessThan => lhs < rhs,
+        mir::BinaryOperator::SignedLessEqual => lhs <= rhs,
+        mir::BinaryOperator::SignedGreaterThan => lhs > rhs,
+        mir::BinaryOperator::SignedGreaterEqual => lhs >= rhs,
+        _ => unreachable!(),
+    };
+
+    // update branch statistics
+    state.interpreter.statistics.branches += 1;
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
+/// Handle fused compare-and-branch for unsigned integers.
+#[inline(always)]
+pub(super) fn handle_compare_and_branch_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranch {
+        left,
+        right,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands as unsigned integers
+    let lhs = state.get(*left).raw_data();
+    let rhs = state.get(*right).raw_data();
+
+    // perform comparison
+    let is_truthy = match operator {
+        mir::BinaryOperator::UnsignedLessThan => lhs < rhs,
+        mir::BinaryOperator::UnsignedLessEqual => lhs <= rhs,
+        mir::BinaryOperator::UnsignedGreaterThan => lhs > rhs,
+        mir::BinaryOperator::UnsignedGreaterEqual => lhs >= rhs,
+        _ => unreachable!(),
+    };
+
+    // update branch statistics
+    state.interpreter.statistics.branches += 1;
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
+/// Handle fused compare-and-branch for floats.
+#[inline(always)]
+pub(super) fn handle_compare_and_branch_float(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranch {
+        left,
+        right,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands as floats
+    let lhs = state.get(*left).as_float64();
+    let rhs = state.get(*right).as_float64();
+
+    // perform comparison
+    let is_truthy = match operator {
+        mir::BinaryOperator::FloatEqual => lhs == rhs,
+        mir::BinaryOperator::FloatNotEqual => lhs != rhs,
+        mir::BinaryOperator::FloatLessThan => lhs < rhs,
+        mir::BinaryOperator::FloatLessEqual => lhs <= rhs,
+        mir::BinaryOperator::FloatGreaterThan => lhs > rhs,
+        mir::BinaryOperator::FloatGreaterEqual => lhs >= rhs,
+        _ => unreachable!(),
+    };
+
+    // update branch statistics
+    state.interpreter.statistics.branches += 1;
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
+/// Handle fused compare-and-branch (generic fallback).
+pub(super) fn handle_compare_and_branch(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranch {
+        left,
+        right,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = state.get(*right);
+
+    // perform comparison inline
+    let is_truthy = match operator {
+        mir::BinaryOperator::Equal => lhs.raw_data() == rhs.raw_data(),
+        mir::BinaryOperator::NotEqual => lhs.raw_data() != rhs.raw_data(),
+        mir::BinaryOperator::SignedLessThan => (lhs.raw_data() as i64) < (rhs.raw_data() as i64),
+        mir::BinaryOperator::SignedLessEqual => {
+            (lhs.raw_data() as i64) <= (rhs.raw_data() as i64)
+        }
+        mir::BinaryOperator::SignedGreaterThan => {
+            (lhs.raw_data() as i64) > (rhs.raw_data() as i64)
+        }
+        mir::BinaryOperator::SignedGreaterEqual => {
+            (lhs.raw_data() as i64) >= (rhs.raw_data() as i64)
+        }
+        mir::BinaryOperator::UnsignedLessThan => lhs.raw_data() < rhs.raw_data(),
+        mir::BinaryOperator::UnsignedLessEqual => lhs.raw_data() <= rhs.raw_data(),
+        mir::BinaryOperator::UnsignedGreaterThan => lhs.raw_data() > rhs.raw_data(),
+        mir::BinaryOperator::UnsignedGreaterEqual => lhs.raw_data() >= rhs.raw_data(),
+        mir::BinaryOperator::FloatEqual => lhs.as_float64() == rhs.as_float64(),
+        mir::BinaryOperator::FloatNotEqual => lhs.as_float64() != rhs.as_float64(),
+        mir::BinaryOperator::FloatLessThan => lhs.as_float64() < rhs.as_float64(),
+        mir::BinaryOperator::FloatLessEqual => lhs.as_float64() <= rhs.as_float64(),
+        mir::BinaryOperator::FloatGreaterThan => lhs.as_float64() > rhs.as_float64(),
+        mir::BinaryOperator::FloatGreaterEqual => lhs.as_float64() >= rhs.as_float64(),
+        // non-comparison operators should not reach here
+        _ => unreachable!("compare-and-branch with non-comparison operator"),
+    };
+
+    // update branch statistics
+    state.interpreter.statistics.branches += 1;
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
 /// Handle switch (exits tail-call chain).
 pub(super) fn handle_switch(
     state: &mut ThreadedState,

@@ -386,6 +386,17 @@ pub enum ThreadedInstructionData {
         else_copies: CopyRange,
     },
 
+    /// Fused compare and branch (icmp + branch).
+    CompareAndBranch {
+        left: mir::Value,
+        right: mir::Value,
+        operator: mir::BinaryOperator,
+        then_target: u32,
+        then_copies: CopyRange,
+        else_target: u32,
+        else_copies: CopyRange,
+    },
+
     /// Switch on integer.
     Switch {
         value: mir::Value,

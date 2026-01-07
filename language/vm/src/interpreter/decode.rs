@@ -549,16 +549,29 @@ fn thread_block(
         inst_index += 1;
     }
 
-    // append threaded terminator
-    let terminator = thread_terminator(
-        &block.terminator,
+    // try to fuse compare + branch
+    if let Some(fused) = try_fuse_compare_branch(
+        tree,
+        block,
+        &mut instructions,
         block_index_map,
         block_parameters,
-        value_kinds,
-        switch_case_pool,
+        value_uses,
         copy_pool,
-    );
-    instructions.push(terminator);
+    ) {
+        instructions.push(fused);
+    } else {
+        // append threaded terminator
+        let terminator = thread_terminator(
+            &block.terminator,
+            block_index_map,
+            block_parameters,
+            value_kinds,
+            switch_case_pool,
+            copy_pool,
+        );
+        instructions.push(terminator);
+    }
 
     // gather block parameters
     let parameters = push_argument_range(argument_pool, parameter_values);
@@ -683,6 +696,124 @@ fn try_fuse_addr_access(
             }
         }
         _ => None,
+    }
+}
+
+/// Try to fuse compare + branch into a single instruction.
+///
+/// If the terminator is a Branch whose condition comes from an icmp in the same block
+/// with only one use, we can fuse them into a CompareAndBranch.
+#[allow(clippy::too_many_arguments)]
+fn try_fuse_compare_branch(
+    tree: &mir::NodeTree,
+    block: &mir::Block,
+    instructions: &mut Vec<ThreadedInstruction>,
+    block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    block_parameters: &[Vec<mir::Value>],
+    value_uses: &[u32],
+    copy_pool: &mut Vec<CopyPair>,
+) -> Option<ThreadedInstruction> {
+    // only fuse Branch terminators
+    let mir::Terminator::Branch {
+        condition,
+        then_target,
+        then_arguments,
+        else_target,
+        else_arguments,
+    } = &block.terminator
+    else {
+        return None;
+    };
+
+    // the condition must have exactly one use (this branch)
+    if value_uses.get(condition.0 as usize).copied().unwrap_or(0) != 1 {
+        return None;
+    }
+
+    // the last instruction in the block must produce the condition
+    let last_inst_id = block.instructions.last()?;
+    let last_inst = tree.get(*last_inst_id);
+
+    // must be a binary comparison instruction
+    let mir::Instruction::Binary {
+        destination,
+        operator,
+        left,
+        right,
+    } = last_inst
+    else {
+        return None;
+    };
+
+    // operator must be a comparison
+    if !operator.is_comparison() {
+        return None;
+    }
+
+    // destination must match the branch condition
+    if *destination != *condition {
+        return None;
+    }
+
+    // remove the compare instruction (it's now fused)
+    instructions.pop();
+
+    // resolve branch target parameters
+    let then_index = block_index_map[then_target];
+    let else_index = block_index_map[else_target];
+    let then_parameters = block_parameters
+        .get(then_index)
+        .map(|params| params.as_slice())
+        .unwrap_or_default();
+    let else_parameters = block_parameters
+        .get(else_index)
+        .map(|params| params.as_slice())
+        .unwrap_or_default();
+    let then_copies = push_copy_range(copy_pool, then_parameters, then_arguments);
+    let else_copies = push_copy_range(copy_pool, else_parameters, else_arguments);
+
+    // select specialized handler based on operator
+    let handler = select_compare_branch_handler(*operator);
+
+    // emit fused compare-and-branch
+    Some(ThreadedInstruction {
+        handler,
+        data: ThreadedInstructionData::CompareAndBranch {
+            left: *left,
+            right: *right,
+            operator: *operator,
+            then_target: then_index as u32,
+            then_copies,
+            else_target: else_index as u32,
+            else_copies,
+        },
+    })
+}
+
+/// Pick a compare-and-branch handler based on operator type.
+fn select_compare_branch_handler(operator: mir::BinaryOperator) -> ThreadedHandler {
+    match operator {
+        // signed integer comparisons (most common in loops)
+        mir::BinaryOperator::Equal
+        | mir::BinaryOperator::NotEqual
+        | mir::BinaryOperator::SignedLessThan
+        | mir::BinaryOperator::SignedLessEqual
+        | mir::BinaryOperator::SignedGreaterThan
+        | mir::BinaryOperator::SignedGreaterEqual => dispatch::handle_compare_and_branch_int,
+        // unsigned integer comparisons
+        mir::BinaryOperator::UnsignedLessThan
+        | mir::BinaryOperator::UnsignedLessEqual
+        | mir::BinaryOperator::UnsignedGreaterThan
+        | mir::BinaryOperator::UnsignedGreaterEqual => dispatch::handle_compare_and_branch_uint,
+        // float comparisons
+        mir::BinaryOperator::FloatEqual
+        | mir::BinaryOperator::FloatNotEqual
+        | mir::BinaryOperator::FloatLessThan
+        | mir::BinaryOperator::FloatLessEqual
+        | mir::BinaryOperator::FloatGreaterThan
+        | mir::BinaryOperator::FloatGreaterEqual => dispatch::handle_compare_and_branch_float,
+        // fallback for non-comparison operators (should not happen)
+        _ => dispatch::handle_compare_and_branch,
     }
 }
 
