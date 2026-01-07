@@ -147,7 +147,6 @@ Code that is likely unintentional but may occasionally be intentional.
 |------|------|--------|-------|-------|--------|------------|-------------|
 | `LU001` | `guard-for-in` | ESLint | AST | ✓ | ✅ | Suggestion | Require `hasOwnProperty` guard in for-in loops |
 | `LU002` | `no-async-foreach` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `forEach` with async callback (doesn't await) |
-| `LU003` | `no-async-map-without-await` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow async callbacks in `.map()` without awaiting results |
 | `LU004` | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow assignment operators in conditional expressions |
 | `LU005` | `no-conflicting-decorators` | Destack | DIR | ✓ | 🔶 | None | Disallow decorator combinations that conflict |
 | `LU006` | `no-confusing-assignment` | Destack | AST | ✓ | ✅ | Suggestion | Warn on assignments that look like comparisons |
@@ -189,7 +188,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU043` | `no-throw-literal` | ESLint | DIR | ✓ | ✅ | Suggestion | Disallow throwing literals instead of Error objects |
 | `LU044` | `no-unnecessary-clone` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Warn on cloning values that are not used afterward |
 | `LU045` | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type assertions that do not change the type |
-| `LU047` | `no-unused-except-recursion` | Destack | DIR | ✓ | 🔶 | Suggestion | Warn on function arguments only used for recursion |
+| `LU047` | `no-unused-except-recursion` | Destack | DIR | ✗ | 🔶 | Suggestion | Warn on function arguments only used for recursion |
 | `LU048` | `no-useless-backreference` | ESLint | AST | ✓ | ✅ | Safe | Disallow useless backreferences in regular expressions |
 | `LU049` | `no-useless-cast` | Clippy | DIR | ✓ | 🔶 | Safe | Disallow casts that do not change the type |
 | `LU050` | `no-useless-catch` | ESLint | AST | ✓ | ✅ | Safe | Disallow catch clauses that only rethrow |
@@ -231,28 +230,26 @@ Correct code that could be faster or use less memory.
 
 | Code | Rule | Source | Level | Ready | Status | Fixability | Description |
 |------|------|--------|-------|-------|--------|------------|-------------|
-| `LP001` | `no-accumulating-spread` | Biome | DIR | ✓ | 🔶 | Unsafe | Disallow spreading in accumulators (causes O(n²) allocations) |
+| `LP001` | `no-accumulating-spread` | Biome | DIR | ✓ | ✅ | Unsafe | Disallow spreading in accumulators (causes O(n²) allocations) |
 | `LP002` | `no-alloc-in-loop` | Clippy | MIR | ✗ | 🔶 | None | Disallow heap allocations inside loops |
-| `LP003` | `no-array-for-each` | Unicorn | DIR | ✓ | 🔶 | Safe | Prefer for-of over `Array.forEach()` |
-| `LP004` | `no-array-unshift-loop` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow `unshift` in loops (causes O(n²) reallocations) |
+| `LP003` | `no-array-for-each` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer for-of over `Array.forEach()` |
+| `LP004` | `no-array-unshift-loop` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `unshift` in loops (causes O(n²) reallocations) |
 | `LP005` | `no-await-in-loop` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow await inside of loops |
 | `LP006` | `no-barrel-file` | Biome | AST | ✓ | ✅ | None | Disallow barrel files that re-export everything |
-| `LP007` | `no-intermediate-collect` | Clippy | DIR | ✓ | 🔶 | Suggestion | Disallow collecting only to immediately iterate once |
 | `LP008` | `no-json-clone` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `JSON.parse(JSON.stringify())` for cloning |
-| `LP009` | `no-nested-array-includes` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow `includes`/`indexOf` inside loops over another array |
-| `LP010` | `no-object-spread-in-reduce` | Destack | DIR | ✓ | 🔶 | Unsafe | Disallow object spread in reduce accumulators |
-| `LP011` | `no-regex-in-loop` | Destack | DIR | ✓ | 🔶 | Safe | Disallow `new RegExp()` inside loops |
+| `LP009` | `no-nested-array-includes` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `includes`/`indexOf` inside loops over another array |
+| `LP010` | `no-object-spread-in-reduce` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow object spread in reduce accumulators |
+| `LP011` | `no-regex-in-loop` | Destack | DIR | ✓ | ✅ | Safe | Disallow `new RegExp()` inside loops |
 | `LP012` | `no-sequential-independent-await` | Destack | DIR | ✗ | 🔶 | Safe | Suggest `Promise.all` for independent sequential awaits |
 | `LP013` | `no-string-concat-in-loop` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `+=` and `x = x + y` string concatenation in loops |
 | `LP014` | `no-super-linear-regex` | Destack | AST | ✓ | ✅ | None | Disallow regular expressions with catastrophic backtracking |
 | `LP015` | `prefer-array-every` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.every()` over `.filter().length === .length` |
-| `LP016` | `prefer-array-literal` | Destack | DIR | ✓ | 🔶 | Unsafe | Suggest using array literal instead of empty array followed by extend |
-| `LP018` | `prefer-for-of` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer for-of loops over index-based for loops |
+| `LP016` | `prefer-array-literal` | Destack | DIR | ✓ | ✅ | Unsafe | Suggest using array literal instead of empty array followed by extend |
+| `LP018` | `prefer-for-of` | TS-ESLint | DIR | ✓ | ✅ | Safe | Prefer for-of loops over index-based for loops |
 | `LP019` | `prefer-includes` | TS-ESLint | DIR | ✓ | ✅ | Safe | Prefer `.includes()` over `.indexOf() !== -1` | 
 | `LP020` | `prefer-reserve` | Clippy | DIR | ✗ | 🔶 | Suggestion | Prefer reserving capacity when the size is known |
 | `LP021` | `prefer-string-endswith` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.endsWith()` over `.slice(-n) === suffix` |
 | `LP022` | `prefer-string-startswith` | Unicorn | DIR | ✓ | ✅ | Safe | Prefer `.startsWith()` over `.indexOf() === 0` |
-| `LP023` | `prefer-typed-array` | Destack | DIR | ✗ | 🔶 | Unsafe | Suggest `TypedArray` for numeric buffers |
 | `LP024` | `require-unicode-regexp` | ESLint | AST | ✓ | ✅ | Safe | Require `u` or `v` flag on regular expressions |
 
 ## Style (Y)
@@ -271,7 +268,6 @@ Subjective preferences for consistent coding style.
 | `LY006` | `consistent-extension-style` | Destack | AST | ✓ | ✅ | Unsafe | Enforce consistent use of named or anonymous extensions |
 | `LY007` | `consistent-type-definitions` | TS-ESLint | AST | ✓ | ✅ | Safe | Enforce type definitions to use either `interface` or `type` |
 | `LY008` | `consistent-type-imports` | TS-ESLint | AST | ✓ | ✅ | Safe | Enforce consistent usage of type imports |
-| `LY009` | `consistent-visibility` | Destack | AST | ✓ | 🔶 | Suggestion | Enforce consistent visibility modifiers |
 | `LY010` | `default-param-last` | ESLint | AST | ✓ | ✅ | Unsafe | Enforce default parameters to be last |
 | `LY011` | `dot-notation` | ESLint | AST | ✓ | ✅ | Safe | Enforce dot notation whenever possible |
 | `LY012` | `eqeqeq` | ESLint | AST | ✓ | ✅ | Safe | Require `===` and `!==` |
@@ -302,11 +298,10 @@ Subjective preferences for consistent coding style.
 | `LY038` | `operator-assignment` | ESLint | AST | ✓ | ✅ | Safe | Require or disallow assignment operator shorthand |
 | `LY039` | `prefer-arrow-callback` | ESLint | AST | ✓ | ✅ | Safe | Require arrow functions as callbacks |
 | `LY040` | `prefer-as-const` | TS-ESLint | AST | ✓ | ✅ | Safe | Prefer `as const` over literal type assertions |
-| `LY041` | `prefer-const` | ESLint | DIR | ✓ | 🔶 | Safe | Require `const` declarations for never-reassigned variables |
+| `LY041` | `prefer-const` | ESLint | DIR | ✓ | ✅ | Safe | Require `const` declarations for never-reassigned variables |
 | `LY042` | `prefer-destructuring` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer destructuring from arrays and objects |
 | `LY043` | `prefer-exponentiation-operator` | ESLint | DIR | ✓ | ✅ | Safe | Prefer `**` over `Math.pow()` |
 | `LY044` | `prefer-expression` | Destack | AST | ✓ | ✅ | Safe | Prefer expression syntax for assignments |
-| `LY045` | `prefer-extension-method` | Destack | DIR | ✗ | 🔶 | Suggestion | Suggest converting functions to extension methods |
 | `LY046` | `prefer-fragment-shorthand` | Destack | AST | ✓ | ✅ | Safe | Prefer `<>` shorthand over `<Fragment>` |
 | `LY047` | `prefer-if-else-over-match-bool` | Destack | AST | ✓ | ✅ | Safe | Suggest using if/else instead of match on booleans |
 | `LY048` | `prefer-implicit-return` | Destack | AST | ✓ | ✅ | Safe | Prefer implicit returns in expression-bodied functions |
@@ -314,13 +309,13 @@ Subjective preferences for consistent coding style.
 | `LY050` | `prefer-loop` | Destack | AST | ✓ | ✅ | Safe | Prefer `loop` keyword over `while(true)` or `for(;;)` |
 | `LY052` | `prefer-named-extension` | Destack | AST | ✓ | ✅ | Unsafe | Prefer named extensions for foreign types |
 | `LY081` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Prefer `??` over `\|\|` for default values |
-| `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer numeric literals over `parseInt()` |
+| `LY053` | `prefer-numeric-literals` | ESLint | DIR | ✓ | ✅ | Safe | Prefer numeric literals over `parseInt()` |
 | `LY054` | `prefer-object-has-own` | ESLint | DIR | ✓ | 🔶 | Safe | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty` |
 | `LY055` | `prefer-object-spread` | ESLint | DIR | ✓ | ✅ | Safe | Prefer spread operator over `Object.assign()` |
 | `LY056` | `prefer-pattern-over-guard` | Destack | AST | ✓ | ✅ | Safe | Suggest moving match guards into the pattern |
 | `LY057` | `prefer-precise-numeric` | Destack | AST | ✓ | ✅ | Suggestion | Prefer precise numeric types over `number` |
 | `LY058` | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require Error objects in Promise rejections |
-| `LY059` | `prefer-propagate-operator` | Destack | DIR | ✓ | 🟡 | Safe | Prefer `?` propagation over manual Result matching |
+| `LY059` | `prefer-propagate-operator` | Destack | DIR | ✓ | 🔶 | Safe | Prefer `?` propagation over manual Result matching |
 | `LY060` | `prefer-range-contains` | Destack | AST | ✓ | ✅ | Safe | Prefer range contains method over comparison chains |
 | `LY061` | `prefer-range-literal` | Destack | AST | ✓ | ✅ | Safe | Prefer range literals over C-style for loops |
 | `LY062` | `prefer-readonly` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Prefer `readonly` for non-mutated fields |
