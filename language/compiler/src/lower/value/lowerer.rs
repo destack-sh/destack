@@ -264,7 +264,7 @@ impl BlockLowerer<'_, '_> {
     }
 
     /// Resolve the scalar kind for a typed expression.
-    fn scalar_kind_for_expression(
+    pub(crate) fn scalar_kind_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<ScalarKind> {
