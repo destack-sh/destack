@@ -3,15 +3,23 @@ use std::fmt;
 use destack_mir as mir;
 
 use super::context::OptimizationContext;
-use super::pass::{BoxedFunctionPass, FunctionPass, OptimizationLevel};
-use crate::optimize::passes::{ConstantFold, DeadCodeEliminate};
+use super::pass::{
+    BoxedFunctionPass, BoxedModulePass, FunctionPass, ModulePass, OptimizationLevel,
+};
+use crate::optimize::passes::{ConstantFold, DeadCodeEliminate, SimplifyCfg};
 
 /// Optimization pipeline that runs passes in sequence.
 ///
 /// The pipeline manages the order of passes and handles analysis invalidation
 /// between passes. It can be configured with different optimization levels
 /// to control which passes run.
+///
+/// Execution order:
+/// 1. Module passes (in order added)
+/// 2. Function passes on each function (in order added)
 pub struct Pipeline {
+    /// Module passes to run on the entire module.
+    module_passes: Vec<BoxedModulePass>,
     /// Function passes to run on each function.
     function_passes: Vec<BoxedFunctionPass>,
     /// Optimization level.
@@ -22,6 +30,7 @@ impl fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Pipeline")
             .field("level", &self.level)
+            .field("module_pass_count", &self.module_passes.len())
             .field("function_pass_count", &self.function_passes.len())
             .finish()
     }
@@ -31,6 +40,7 @@ impl Pipeline {
     /// Create a new empty pipeline.
     pub fn new(level: OptimizationLevel) -> Self {
         Self {
+            module_passes: Vec::new(),
             function_passes: Vec::new(),
             level,
         }
@@ -39,6 +49,11 @@ impl Pipeline {
     /// Get the optimization level.
     pub fn level(&self) -> OptimizationLevel {
         self.level
+    }
+
+    /// Add a module pass to the pipeline.
+    pub fn add_module_pass<P: ModulePass + 'static>(&mut self, pass: P) {
+        self.module_passes.push(Box::new(pass));
     }
 
     /// Add a function pass to the pipeline.
@@ -61,7 +76,13 @@ impl Pipeline {
 
     /// Run the pipeline on all functions in the tree.
     pub fn run_on_module(&self, tree: &mut mir::NodeTree, context: &OptimizationContext<'_>) {
-        // collect function IDs first to avoid borrow issues
+        // run module passes first
+        for pass in &self.module_passes {
+            let preserved = pass.run_on_module(tree, context);
+            context.invalidate(&preserved);
+        }
+
+        // then run function passes on each function
         let function_ids: Vec<_> = tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
@@ -86,6 +107,11 @@ impl Pipeline {
         }
     }
 
+    /// Get the number of module passes.
+    pub fn module_pass_count(&self) -> usize {
+        self.module_passes.len()
+    }
+
     /// Get the number of function passes.
     pub fn function_pass_count(&self) -> usize {
         self.function_passes.len()
@@ -107,8 +133,8 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             // no optimizations
         }
         OptimizationLevel::O1 | OptimizationLevel::O2 | OptimizationLevel::O3 => {
-            // basic passes for all optimization levels
             pipeline.add_function_pass(ConstantFold);
+            pipeline.add_function_pass(SimplifyCfg);
             pipeline.add_function_pass(DeadCodeEliminate);
         }
     }
