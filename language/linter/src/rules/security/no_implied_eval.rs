@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::{RequireLibSymbol, RequireWellKnownSymbol};
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_target_symbol,
-    unwrap_parenthesized_expression,
+    expression_unwrap_parenthesized,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -138,7 +138,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             return;
         };
         let argument = self.ctx.tree.get(*first_argument);
-        let argument_id = unwrap_parenthesized_expression(self.ctx.tree, argument.value());
+        let argument_id = expression_unwrap_parenthesized(self.ctx.tree, argument.value());
         if !self.is_string_like(argument_id) {
             return;
         }

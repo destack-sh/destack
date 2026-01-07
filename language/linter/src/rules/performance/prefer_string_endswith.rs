@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     const_i64, expression_target_symbol, is_string_type, string_literal_utf16_length,
-    unwrap_parenthesized_expression,
+    expression_unwrap_parenthesized,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -264,7 +264,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     /// Return the length for a string literal suffix.
     fn string_literal_length(&self, suffix_id: dir::LocalNodeId<dir::Expression>) -> Option<usize> {
         // unwrap parenthesized expressions
-        let suffix_id = unwrap_parenthesized_expression(self.ctx.tree, suffix_id);
+        let suffix_id = expression_unwrap_parenthesized(self.ctx.tree, suffix_id);
 
         // match string literals
         let expression = self.ctx.tree.get(suffix_id);

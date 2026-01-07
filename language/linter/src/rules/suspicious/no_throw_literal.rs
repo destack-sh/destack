@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::unwrap_parenthesized_expression;
+use crate::rules::common::expression_unwrap_parenthesized;
 use crate::{LintDiagnostic, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -42,7 +42,7 @@ impl LintRule for NoThrowLiteral {
             };
 
             // resolve the thrown expression
-            let thrown_id = unwrap_parenthesized_expression(ctx.tree, *value);
+            let thrown_id = expression_unwrap_parenthesized(ctx.tree, *value);
             let thrown = ctx.tree.get(thrown_id);
             if !is_literal_expression(thrown) {
                 continue;

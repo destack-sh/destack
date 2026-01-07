@@ -1,0 +1,271 @@
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_workspace::LintSeverity;
+
+use crate::rules::common::{expression_is_potentially_tainted, expression_target_symbol};
+use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
+
+declare_lint! {
+    /// Disallow tainted data in regular expression patterns.
+    ///
+    /// Using user-controlled input in `new RegExp()` can lead to:
+    /// - ReDoS (Regular Expression Denial of Service) attacks
+    /// - Regex injection where attackers craft malicious patterns
+    #[lint(
+        id = "no-regex-injection",
+        code = "LS008",
+        category = Security,
+        level = Dir,
+        requires_all = [],
+        requires_any = [],
+        fixable = No,
+        recommended = Strict,
+        stability = Stable
+    )]
+    pub NoRegexInjection,
+    "Disallow regex injection"
+}
+
+impl LintRule for NoRegexInjection {
+    fn meta(&self) -> &'static LintMeta {
+        NoRegexInjection::meta()
+    }
+
+    fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
+        let meta = self.meta();
+        let mut visitor = NoRegexInjectionVisitor::new(ctx, meta);
+        visitor.run();
+    }
+}
+
+/// Visitor that flags regex injection patterns.
+struct NoRegexInjectionVisitor<'a, 'b> {
+    /// The lint context.
+    ctx: &'a mut LintModuleDirContext<'b>,
+    /// The lint metadata.
+    meta: &'a LintMeta,
+    /// The RegExp symbol if available.
+    regexp_symbol: Option<dir::GlobalSymbolId>,
+    /// The visitor options.
+    options: NodeVisitorOptions,
+}
+
+impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
+    /// Build a new visitor.
+    fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
+        // intern and resolve regexp symbol
+        let regexp_name = ctx.program.strings.intern("RegExp");
+        let regexp_symbol = ctx.get_declared_lib_symbol(regexp_name);
+
+        Self {
+            ctx,
+            meta,
+            regexp_symbol,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Walk the module expression roots.
+    fn run(&mut self) {
+        let roots = self.ctx.roots.clone();
+        let tree = self.ctx.tree;
+
+        for root_id in roots {
+            let expression = tree.get(root_id);
+            self.visit_expression(tree, root_id, expression);
+        }
+    }
+
+    /// Check a new expression for RegExp injection.
+    fn check_new(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        // check if this is new RegExp()
+        if !self.is_regexp_constructor(left) {
+            return;
+        }
+
+        // must have at least one argument (the pattern)
+        let Some(first_arg) = arguments.first() else {
+            return;
+        };
+
+        // check if the pattern argument is potentially tainted
+        let argument = self.ctx.tree.get(*first_arg);
+        if !expression_is_potentially_tainted(self.ctx.tree, argument.value()) {
+            return;
+        }
+
+        self.report(expression_id);
+    }
+
+    /// Check a call expression for RegExp injection.
+    fn check_call(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
+        // RegExp can also be called without `new`
+        if !self.is_regexp_constructor(left) {
+            return;
+        }
+
+        // must have at least one argument
+        let Some(first_arg) = arguments.first() else {
+            return;
+        };
+
+        // check if the pattern argument is potentially tainted
+        let argument = self.ctx.tree.get(*first_arg);
+        if !expression_is_potentially_tainted(self.ctx.tree, argument.value()) {
+            return;
+        }
+
+        self.report(expression_id);
+    }
+
+    /// Return true when the expression is the RegExp constructor.
+    fn is_regexp_constructor(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        let Some(regexp_symbol) = self.regexp_symbol else {
+            return false;
+        };
+
+        expression_target_symbol(self.ctx.tree, expression_id) == Some(regexp_symbol)
+    }
+
+    /// Report a regex injection diagnostic.
+    fn report(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        // check effective severity
+        let severity = self.ctx.get_effective_severity(self.meta, expression_id);
+        if !severity.is_enabled() {
+            return;
+        }
+
+        // report
+        let span = self.ctx.get_span(expression_id);
+        self.ctx.report(
+            LintDiagnostic::new(
+                NO_REGEX_INJECTION.id,
+                NO_REGEX_INJECTION.code,
+                NO_REGEX_INJECTION.category,
+                severity,
+                "potential regex injection",
+                self.ctx.module.file_id,
+                span,
+            )
+            .with_label("user-controlled input in RegExp may cause ReDoS"),
+        );
+    }
+}
+
+impl NodeVisitor for NoRegexInjectionVisitor<'_, '_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        // check new RegExp()
+        if let dir::Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        {
+            self.check_new(id, *left, dynamic_arguments);
+        }
+
+        // check RegExp() call without new
+        if let dir::Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        {
+            self.check_call(id, *left, dynamic_arguments);
+        }
+
+        walk_expression(self, tree, id, expression);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linter::TestProgram;
+
+    /// Flag new RegExp with a variable pattern.
+    #[test]
+    fn test_flags_new_regexp_with_variable() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let pattern = getUserInput();
+let regex = new RegExp(pattern);
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
+    }
+
+    /// Flag RegExp call with a variable pattern.
+    #[test]
+    fn test_flags_regexp_call_with_variable() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let pattern = getUserInput();
+let regex = RegExp(pattern);
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
+    }
+
+    /// Flag new RegExp with string concatenation.
+    #[test]
+    fn test_flags_new_regexp_with_concatenation() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let input = "user";
+let regex = new RegExp("^" + input + "$");
+"#,
+        );
+        test.result(result).assert_lint("no-regex-injection");
+    }
+
+    /// Allow new RegExp with a string literal pattern.
+    #[test]
+    fn test_allows_literal_pattern() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let regex = new RegExp("^[a-z]+$");
+"#,
+        );
+        test.result(result).assert_no_lint("no-regex-injection");
+    }
+
+    /// Allow RegExp call with a string literal pattern.
+    #[test]
+    fn test_allows_literal_pattern_call() {
+        let test = TestProgram::for_rule_with_prelude(NoRegexInjection);
+        let result = test.lint_dir(
+            "test.ds",
+            r#"
+let regex = RegExp("\\d+");
+"#,
+        );
+        test.result(result).assert_no_lint("no-regex-injection");
+    }
+}
