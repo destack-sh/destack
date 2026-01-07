@@ -124,11 +124,7 @@ impl NodeVisitor for ComplexityVisitor {
             } if !args.is_empty() => {
                 self.current_depth += 1;
                 self.max_depth = self.max_depth.max(self.current_depth);
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.current_depth -= 1;
                 return;
             }
@@ -140,11 +136,7 @@ impl NodeVisitor for ComplexityVisitor {
             } if !args.is_empty() => {
                 self.current_depth += 1;
                 self.max_depth = self.max_depth.max(self.current_depth);
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.current_depth -= 1;
                 return;
             }
@@ -153,11 +145,7 @@ impl NodeVisitor for ComplexityVisitor {
             Expression::Index { .. } => {
                 self.current_depth += 1;
                 self.max_depth = self.max_depth.max(self.current_depth);
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.current_depth -= 1;
                 return;
             }
@@ -169,11 +157,7 @@ impl NodeVisitor for ComplexityVisitor {
             } => {
                 self.current_depth += 1;
                 self.max_depth = self.max_depth.max(self.current_depth);
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.current_depth -= 1;
                 return;
             }
@@ -185,11 +169,7 @@ impl NodeVisitor for ComplexityVisitor {
             } => {
                 self.current_depth += 1;
                 self.max_depth = self.max_depth.max(self.current_depth);
-
-                destack_base::ensure_sufficient_stack(|| {
-                    walk_expression(self, tree, id, expression)
-                });
-
+                walk_expression(self, tree, id, expression);
                 self.current_depth -= 1;
                 return;
             }
@@ -198,7 +178,7 @@ impl NodeVisitor for ComplexityVisitor {
         }
 
         // Default: walk children without incrementing depth
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        walk_expression(self, tree, id, expression);
     }
 }
 

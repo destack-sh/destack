@@ -151,7 +151,7 @@ impl NodeVisitor for ComplexityVisitor {
         }
 
         // walk children
-        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        walk_expression(self, tree, id, expression);
     }
 }
 

@@ -164,10 +164,10 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             return true;
         }
 
-        // match global qualified JSON references
+        // match global qualified JSON references (e.g., globalThis.JSON)
         expression_is_global_qualified_member(
             self.ctx.tree,
-            expression_id,
+            *left,
             &self.global_qualifiers,
             self.json_name,
         )

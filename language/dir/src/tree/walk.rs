@@ -145,6 +145,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
     id: LocalNodeId<Expression>,
     expression: &Expression,
 ) {
+    destack_base::ensure_sufficient_stack(|| {
     visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
         Expression::Declaration {
@@ -779,7 +780,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Debugger => {}
         Expression::Stub => {}
         Expression::Error => {}
-    }
+        }
+    });
 }
 
 /// Walk the Block.
@@ -803,6 +805,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
     id: LocalNodeId<Declaration>,
     declaration: &Declaration,
 ) {
+    destack_base::ensure_sufficient_stack(|| {
     visitor.visit_any(tree, NodeType::Declaration, id.id);
     match declaration {
         Declaration::Global {
@@ -936,7 +939,8 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 visitor.visit_member(tree, *member_id, member);
             }
         }
-    }
+        }
+    });
 }
 
 /// Walk the Declarator.
@@ -1282,6 +1286,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     id: LocalNodeId<Pattern>,
     pattern: &Pattern,
 ) {
+    destack_base::ensure_sufficient_stack(|| {
     visitor.visit_any(tree, NodeType::Pattern, id.id);
     match pattern {
         Pattern::Wildcard => {}
@@ -1372,7 +1377,8 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern(tree, *pattern_id, union_pattern);
             }
         }
-    }
+        }
+    });
 }
 
 /// Walk the PatternField.
