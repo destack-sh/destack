@@ -54,6 +54,7 @@ impl ManagedHeap {
     }
 
     /// Internal: allocate a cell, reusing free slots if available.
+    #[inline]
     fn allocate_cell(&mut self, cell: HeapCell) -> HeapHandle {
         if let Some(index) = self.free_list.pop() {
             self.cells[index] = Some(cell);

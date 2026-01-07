@@ -1,5 +1,7 @@
 use crate::diagnostic::Error;
-use crate::memory::{GlobalPointer, HeapHandle, RawPointer, StackPointer, Value, ValueTag};
+use crate::memory::{
+    GlobalPointer, HeapHandle, RawPointer, SlotStorage, StackPointer, Value, ValueTag,
+};
 
 use super::threaded::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
 
@@ -560,6 +562,17 @@ pub(super) fn load_field_managed(
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
 
+    // fast path for small known aggregates (e.g., overflow tuples)
+    // field_count ≤ 2 guarantees inline storage, index already validated
+    if field_count != UNKNOWN_FIELD_COUNT && field_count <= 2 {
+        let slot_index = handle.slot_index().wrapping_add(index as usize);
+        // inline storage is guaranteed for field_count ≤ INLINE_SLOT_CAP (2)
+        if let SlotStorage::Inline { slots, .. } = &cell.slots {
+            debug_assert!(slot_index < slots.len(), "inline slot out of bounds");
+            return Ok(unsafe { *slots.get_unchecked(slot_index) });
+        }
+    }
+
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
         cell.slots.len()
@@ -654,6 +667,18 @@ pub(super) fn store_field_managed(
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
+
+    // fast path for small known aggregates (e.g., overflow tuples)
+    // field_count ≤ 2 guarantees inline storage, index already validated
+    if field_count != UNKNOWN_FIELD_COUNT && field_count <= 2 {
+        let slot_index = handle.slot_index().wrapping_add(index as usize);
+        // inline storage is guaranteed for field_count ≤ INLINE_SLOT_CAP (2)
+        if let SlotStorage::Inline { slots, .. } = &mut cell.slots {
+            debug_assert!(slot_index < slots.len(), "inline slot out of bounds");
+            unsafe { *slots.get_unchecked_mut(slot_index) = value };
+            return Ok(());
+        }
+    }
 
     // select field count for diagnostics
     let field_count_for_error = if field_count == UNKNOWN_FIELD_COUNT {
@@ -2237,6 +2262,15 @@ fn get_heap_field(
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
 
+    // fast path for small inline cells (common: 2-slot tuples like overflow results)
+    if let SlotStorage::Inline { len, slots } = &cell.slots {
+        let slot_index = handle.slot_index().wrapping_add(index as usize);
+        if slot_index < *len as usize {
+            return Ok(unsafe { *slots.get_unchecked(slot_index) });
+        }
+        // fall through to error path if out of bounds
+    }
+
     // resolve the target slot
     let slot_index = if state.bounds_checks {
         handle
@@ -2290,6 +2324,16 @@ fn set_heap_field(
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
+
+    // fast path for small inline cells (common: 2-slot tuples like overflow results)
+    if let SlotStorage::Inline { len, slots } = &mut cell.slots {
+        let slot_index = handle.slot_index().wrapping_add(index as usize);
+        if slot_index < *len as usize {
+            unsafe { *slots.get_unchecked_mut(slot_index) = value };
+            return Ok(());
+        }
+        // fall through to error path if out of bounds
+    }
 
     // resolve the target slot
     let slot_index = if state.bounds_checks {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
+use crate::ThreadedHandler;
 use crate::memory::{ReferenceMeta, Value};
 
 use super::dispatch;
@@ -90,7 +91,7 @@ fn select_binary_handler(
     value_kinds: &ValueKinds,
     left: mir::Value,
     operator: mir::BinaryOperator,
-) -> super::threaded::ThreadedHandler {
+) -> ThreadedHandler {
     // resolve operand kind
     let kind = value_kinds.get(left);
 
@@ -117,7 +118,7 @@ fn select_unary_handler(
     value_kinds: &ValueKinds,
     argument: mir::Value,
     operator: mir::UnaryOperator,
-) -> super::threaded::ThreadedHandler {
+) -> ThreadedHandler {
     // resolve operand kind
     let kind = value_kinds.get(argument);
 
@@ -137,10 +138,7 @@ fn select_unary_handler(
 }
 
 /// Pick a load handler based on inferred pointer storage.
-fn select_load_handler(
-    value_kinds: &ValueKinds,
-    pointer: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_load_handler(value_kinds: &ValueKinds, pointer: mir::Value) -> ThreadedHandler {
     match value_kinds.get(pointer) {
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
@@ -163,10 +161,7 @@ fn select_load_handler(
 }
 
 /// Pick a store handler based on inferred pointer storage.
-fn select_store_handler(
-    value_kinds: &ValueKinds,
-    pointer: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_store_handler(value_kinds: &ValueKinds, pointer: mir::Value) -> ThreadedHandler {
     match value_kinds.get(pointer) {
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
@@ -188,11 +183,19 @@ fn select_store_handler(
     }
 }
 
+/// Pick a field get handler based on field count (inline optimization).
+fn select_field_get_handler(field_count: u32, index: u32) -> ThreadedHandler {
+    // small aggregates (≤2 fields) use inline slot storage
+    // only use fast path if index is known to be valid
+    if field_count > 0 && field_count <= 2 && index < field_count {
+        dispatch::handle_field_get_inline
+    } else {
+        dispatch::handle_field_get
+    }
+}
+
 /// Pick a field address handler based on inferred aggregate storage.
-fn select_field_addr_handler(
-    value_kinds: &ValueKinds,
-    aggregate: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_field_addr_handler(value_kinds: &ValueKinds, aggregate: mir::Value) -> ThreadedHandler {
     match value_kinds.get(aggregate) {
         Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_addr_aggregate,
         Some(ValueKind::Pointer {
@@ -216,10 +219,7 @@ fn select_field_addr_handler(
 }
 
 /// Pick an element address handler based on inferred array storage.
-fn select_element_addr_handler(
-    value_kinds: &ValueKinds,
-    array: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_element_addr_handler(value_kinds: &ValueKinds, array: mir::Value) -> ThreadedHandler {
     match value_kinds.get(array) {
         Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
             dispatch::handle_element_addr_aggregate
@@ -245,10 +245,7 @@ fn select_element_addr_handler(
 }
 
 /// Pick a field load handler based on inferred aggregate storage.
-fn select_field_load_handler(
-    value_kinds: &ValueKinds,
-    aggregate: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_field_load_handler(value_kinds: &ValueKinds, aggregate: mir::Value) -> ThreadedHandler {
     match value_kinds.get(aggregate) {
         Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_load_aggregate,
         Some(ValueKind::Pointer {
@@ -272,10 +269,7 @@ fn select_field_load_handler(
 }
 
 /// Pick a field store handler based on inferred aggregate storage.
-fn select_field_store_handler(
-    value_kinds: &ValueKinds,
-    aggregate: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_field_store_handler(value_kinds: &ValueKinds, aggregate: mir::Value) -> ThreadedHandler {
     match value_kinds.get(aggregate) {
         Some(ValueKind::Aggregate { .. }) => dispatch::handle_field_store_aggregate,
         Some(ValueKind::Pointer {
@@ -299,10 +293,7 @@ fn select_field_store_handler(
 }
 
 /// Pick an element load handler based on inferred array storage.
-fn select_element_load_handler(
-    value_kinds: &ValueKinds,
-    array: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_element_load_handler(value_kinds: &ValueKinds, array: mir::Value) -> ThreadedHandler {
     match value_kinds.get(array) {
         Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
             dispatch::handle_element_load_aggregate
@@ -328,10 +319,7 @@ fn select_element_load_handler(
 }
 
 /// Pick an element store handler based on inferred array storage.
-fn select_element_store_handler(
-    value_kinds: &ValueKinds,
-    array: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_element_store_handler(value_kinds: &ValueKinds, array: mir::Value) -> ThreadedHandler {
     match value_kinds.get(array) {
         Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
             dispatch::handle_element_store_aggregate
@@ -357,10 +345,7 @@ fn select_element_store_handler(
 }
 
 /// Pick a branch handler based on inferred condition kind.
-fn select_branch_handler(
-    value_kinds: &ValueKinds,
-    condition: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_branch_handler(value_kinds: &ValueKinds, condition: mir::Value) -> ThreadedHandler {
     // resolve condition kind
     match value_kinds.get(condition) {
         Some(ValueKind::Bool) => dispatch::handle_branch_bool,
@@ -369,10 +354,7 @@ fn select_branch_handler(
 }
 
 /// Pick a switch handler based on inferred value kind.
-fn select_switch_handler(
-    value_kinds: &ValueKinds,
-    value: mir::Value,
-) -> super::threaded::ThreadedHandler {
+fn select_switch_handler(value_kinds: &ValueKinds, value: mir::Value) -> ThreadedHandler {
     // resolve switch value kind
     match value_kinds.get(value) {
         Some(ValueKind::Int { .. }) => dispatch::handle_switch_int,
@@ -876,14 +858,21 @@ fn thread_instruction(
             destination,
             aggregate,
             index,
-        } => ThreadedInstruction {
-            handler: dispatch::handle_field_get,
-            data: ThreadedInstructionData::FieldGet {
-                dest: *destination,
-                aggregate: *aggregate,
-                index: *index,
-            },
-        },
+        } => {
+            let field_count = value_kinds
+                .get(*aggregate)
+                .and_then(|kind| field_count_from_kind(tree, kind))
+                .unwrap_or(UNKNOWN_FIELD_COUNT);
+            ThreadedInstruction {
+                handler: select_field_get_handler(field_count, *index),
+                data: ThreadedInstructionData::FieldGet {
+                    dest: *destination,
+                    aggregate: *aggregate,
+                    index: *index,
+                    field_count,
+                },
+            }
+        }
 
         mir::Instruction::FieldAddr {
             destination,
