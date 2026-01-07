@@ -14,6 +14,24 @@ declare_pass! {
     /// Evaluates operations on constant values and replaces them with the
     /// computed result. This includes arithmetic, comparisons, and logical
     /// operations where all operands are known constants.
+    ///
+    /// ```mir
+    /// function @before() -> i32 {
+    /// block0:
+    ///     v0 = iconst 2i32
+    ///     v1 = iconst 3i32
+    ///     v2 = iadd v0, v1
+    ///     return v2
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after() -> i32 {
+    /// block0:
+    ///     v0 = iconst 5i32
+    ///     return v0
+    /// }
+    /// ```
     #[pass(id = "constant-fold")]
     pub ConstantFold,
     "Fold constant expressions"

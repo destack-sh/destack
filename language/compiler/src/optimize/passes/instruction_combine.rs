@@ -21,6 +21,22 @@ declare_pass! {
     /// - `x - x = 0`, `x ^ x = 0`, `x & x = x`
     /// - `x == x = true`, `x != x = false`
     /// - `!!x = x`
+    ///
+    /// ```mir
+    /// function @before(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     v1 = iconst 0i32
+    ///     v2 = iadd v0, v1
+    ///     return v2
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     return v0
+    /// }
+    /// ```
     #[pass(id = "instruction-combine")]
     pub InstructionCombine,
     "Combine and simplify instructions"
