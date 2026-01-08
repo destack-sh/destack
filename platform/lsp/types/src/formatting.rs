@@ -8,8 +8,37 @@ use crate::{
 use std::collections::HashMap;
 
 pub type DocumentFormattingClientCapabilities = DynamicRegistrationClientCapabilities;
-pub type DocumentRangeFormattingClientCapabilities = DynamicRegistrationClientCapabilities;
 pub type DocumentOnTypeFormattingClientCapabilities = DynamicRegistrationClientCapabilities;
+
+/// Client capabilities for document range formatting.
+///
+/// @since 3.18.0 - `rangesSupport` added
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentRangeFormattingClientCapabilities {
+    /// Whether formatting supports dynamic registration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dynamic_registration: Option<bool>,
+
+    /// Whether the client supports formatting multiple ranges at once.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ranges_support: Option<bool>,
+}
+
+/// Document range formatting options.
+///
+/// @since 3.18.0 - `rangesSupport` added
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentRangeFormattingOptions {
+    /// Whether the server supports formatting multiple ranges at once.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ranges_support: Option<bool>,
+}
 
 /// Format document on type options
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -81,6 +110,25 @@ pub struct DocumentRangeFormattingParams {
     pub range: Range,
 
     /// The format options
+    pub options: FormattingOptions,
+
+    #[serde(flatten)]
+    pub work_done_progress_params: WorkDoneProgressParams,
+}
+
+/// Parameters for the `textDocument/rangesFormatting` request.
+///
+/// @since 3.18.0
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentRangesFormattingParams {
+    /// The document to format.
+    pub text_document: TextDocumentIdentifier,
+
+    /// The ranges to format.
+    pub ranges: Vec<Range>,
+
+    /// The format options.
     pub options: FormattingOptions,
 
     #[serde(flatten)]

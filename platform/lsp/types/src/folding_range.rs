@@ -99,6 +99,25 @@ pub struct FoldingRangeClientCapabilities {
     pub folding_range: Option<FoldingRangeCapability>,
 }
 
+/// Workspace client capabilities for folding ranges.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FoldingRangeWorkspaceClientCapabilities {
+    /// Whether the client implementation supports a refresh request sent from the
+    /// server to the client.
+    ///
+    /// Note that this event is global and will force the client to refresh all
+    /// folding ranges currently shown. It should be used with absolute care and is
+    /// useful for situations where a server detects a project wide change that
+    /// requires such a calculation.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refresh_support: Option<bool>,
+}
+
 /// Enum of known range kinds
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]

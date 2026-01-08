@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(missing_debug_implementations)]
 #![allow(dead_code)]
+#![allow(unreachable_pub)]
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::mutable_key_type)]
 #![forbid(unsafe_code)]
@@ -550,6 +551,45 @@ pub struct AnnotatedTextEdit {
 
     /// The actual annotation
     pub annotation_id: ChangeAnnotationIdentifier,
+}
+
+/// A string value used to represent a snippet template.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StringValue {
+    /// The kind is always 'snippet'.
+    pub kind: StringValueKind,
+
+    /// The snippet string.
+    pub value: String,
+}
+
+/// The kind of a string value.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StringValueKind {
+    Snippet,
+}
+
+/// A special text edit to provide an insert with a snippet string.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnippetTextEdit {
+    /// The range of the text document to be manipulated.
+    pub range: Range,
+
+    /// The snippet to be inserted.
+    pub snippet: StringValue,
+
+    /// The actual identifier of the snippet edit.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotation_id: Option<ChangeAnnotationIdentifier>,
 }
 
 /// Describes textual changes on a single text document. The text document is referred to as a
