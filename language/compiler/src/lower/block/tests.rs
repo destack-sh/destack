@@ -5,7 +5,6 @@ use crate::TestProgram;
 /// Lower a simple add function into MIR and execute it.
 #[test]
 fn test_lower_add_function() {
-    // setup module
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
@@ -15,12 +14,9 @@ function add(a: int32, b: int32): int32 {
 }
 "#,
     );
-
-    // lower and typecheck
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    // assert mir output
     test.assert_mir(
         module_id,
         "native",
@@ -46,7 +42,6 @@ block0:
 /// Lower fibonacci with recursion and execute it.
 #[test]
 fn test_lower_fibonacci_function() {
-    // setup module
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
@@ -59,12 +54,9 @@ function fibonacci(n: number): number {
 }
 "#,
     );
-
-    // lower and typecheck
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    // assert mir output
     test.assert_mir(
         module_id,
         "native",
@@ -91,8 +83,6 @@ block3:
 }
 "#,
     );
-
-    // assert execution
     test.assert_mir_function_output(
         module_id,
         "native",
@@ -105,7 +95,6 @@ block3:
 /// Lower local assignments and preserve expression results.
 #[test]
 fn test_lower_assign_return() {
-    // setup module
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
@@ -119,11 +108,8 @@ function assignReturn(x: number): number {
 "#,
     );
 
-    // lower and typecheck
     test.lower_module(module_id, "native");
     test.compile_check_clean();
-
-    // assert mir output
     test.assert_mir(
         module_id,
         "native",
@@ -139,8 +125,6 @@ block0:
 }
         "#,
     );
-
-    // assert execution
     test.assert_mir_function_output(
         module_id,
         "native",

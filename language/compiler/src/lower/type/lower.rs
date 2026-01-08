@@ -1,57 +1,85 @@
 use std::collections::HashMap;
 
+use destack_base::StringId;
 use destack_dir::GlobalNodeIdAny;
 use {destack_dir as dir, destack_mir as mir};
 
+use super::{
+    FieldInput, LayoutPolicy, StructLayout, compute_struct_layout, size_and_align_of_type,
+};
 use crate::{LowerError, LowerResult};
 
-/// Classify scalar types for lowering decisions.
+/// Convert a static key to a field name.
+///
+/// For name and number keys, returns the string directly.
+/// For symbol keys, generates a synthetic name with `@` prefix to avoid conflicts.
+fn static_key_to_field_name(key: &dir::StaticKey, builder: &mut mir::ModuleBuilder) -> StringId {
+    match key {
+        dir::StaticKey::Name(s) | dir::StaticKey::Number(s) => *s,
+        dir::StaticKey::Symbol(symbol_key) => {
+            let synthetic = match symbol_key {
+                dir::SymbolKey::WellKnown(well_known) => {
+                    format!("@{}", well_known.global_symbol_name())
+                }
+                dir::SymbolKey::Registry(s) => {
+                    let key_str = builder.strings().get(*s);
+                    format!("@Symbol.for:{}", &*key_str)
+                }
+                dir::SymbolKey::Unique(global_id) => {
+                    format!("@Symbol#{global_id:?}")
+                }
+            };
+            builder.intern(&synthetic)
+        }
+    }
+}
+
+/// Scalar type classification for lowering decisions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ScalarType {
-    /// Represent a boolean scalar.
+    /// Boolean scalar.
     Bool,
-    /// Represent a signed integer scalar.
+    /// Signed integer scalar.
     SignedInt {
-        /// Store the integer bit width.
+        /// Bit width.
         width: u16,
     },
-    /// Represent an unsigned integer scalar.
+    /// Unsigned integer scalar.
     UnsignedInt {
-        /// Store the integer bit width.
+        /// Bit width.
         width: u16,
     },
-    /// Represent a floating point scalar.
+    /// Floating point scalar.
     Float {
-        /// Store the float bit width.
+        /// Bit width.
         width: u16,
     },
 }
 
-/// Lower DIR types into MIR types with a shared cache.
+/// Lowers DIR types into MIR types with a shared cache.
 #[derive(Debug)]
 pub(crate) struct TypeLowerer {
-    /// Cache lowered MIR types by DIR type id.
+    /// Cached MIR types by DIR type id.
     type_cache: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
     /// Pointer width in bits for pointer-sized integers.
     pointer_width_bits: u16,
-    /// Cache the MIR void type.
+    /// Cached MIR void type.
     pub(crate) ty_void: mir::LocalNodeId<mir::Type>,
-    /// Cache the MIR bool type.
+    /// Cached MIR bool type.
     pub(crate) ty_bool: mir::LocalNodeId<mir::Type>,
-    /// Cache the MIR i32 type.
+    /// Cached MIR i32 type.
     pub(crate) ty_i32: mir::LocalNodeId<mir::Type>,
-    /// Cache the MIR i64 type.
+    /// Cached MIR i64 type.
     pub(crate) ty_i64: mir::LocalNodeId<mir::Type>,
-    /// Cache the MIR f32 type.
+    /// Cached MIR f32 type.
     pub(crate) ty_f32: mir::LocalNodeId<mir::Type>,
-    /// Cache the MIR f64 type.
+    /// Cached MIR f64 type.
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
 }
 
 impl TypeLowerer {
-    /// Create a new type lowerer with common MIR types initialized.
+    /// Create a new type lowerer with cached common types.
     pub(crate) fn new(builder: &mut mir::ModuleBuilder, pointer_bytes: u8) -> Self {
-        // compute pointer width from the target pointer size
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
 
         Self {
@@ -84,6 +112,26 @@ impl TypeLowerer {
             dir::Type::PointerOf { right, .. } => {
                 let pointee = self.lower_type(types, *right, module_id, node, builder)?;
                 builder.type_raw_pointer(pointee)
+            }
+            dir::Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                // skip types with call/construct/index signatures for now
+                if !call_signatures.is_empty()
+                    || !construct_signatures.is_empty()
+                    || !index_signatures.is_empty()
+                {
+                    return Err(LowerError::UnsupportedType {
+                        node,
+                        ty: type_id.into_global(module_id),
+                        message: "object types with call, construct, or index signatures are not yet supported".to_string(),
+                    });
+                }
+
+                self.lower_object_type(types, fields, module_id, node, builder)?
             }
             _ => self
                 .try_lower_type(dir_type, builder)
@@ -156,6 +204,69 @@ impl TypeLowerer {
         }
     }
 
+    /// Get the pointer size in bytes for this target.
+    pub(crate) fn pointer_bytes(&self) -> u8 {
+        (self.pointer_width_bits / 8) as u8
+    }
+
+    /// Create a MIR struct type from a computed layout.
+    ///
+    /// This creates the MIR `Type::Struct` with fields that have their offsets
+    /// already computed by `compute_struct_layout`.
+    pub(crate) fn create_struct_type(
+        &mut self,
+        layout: &StructLayout,
+        builder: &mut mir::ModuleBuilder,
+    ) -> mir::LocalNodeId<mir::Type> {
+        let mut mir_fields = Vec::with_capacity(layout.fields.len());
+
+        for field in &layout.fields {
+            let mir_field = builder.field(Some(field.name), field.ty, field.offset);
+            mir_fields.push(mir_field);
+        }
+
+        builder.type_struct(mir_fields)
+    }
+
+    /// Lower a DIR object type to a MIR struct type.
+    ///
+    /// This computes the layout for the struct fields and creates the MIR type.
+    fn lower_object_type(
+        &mut self,
+        types: &dir::TypeTable,
+        fields: &[dir::TypeField],
+        module_id: destack_source::ModuleId,
+        node: GlobalNodeIdAny,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let pointer_bytes = self.pointer_bytes();
+        let mut field_inputs = Vec::with_capacity(fields.len());
+
+        for (source_index, field) in fields.iter().enumerate() {
+            // convert the field key to a name (handles symbols with synthetic names)
+            let name = static_key_to_field_name(&field.key, builder);
+
+            // lower the field's type and compute size/alignment
+            let field_mir_type = self.lower_type(types, field.ty, module_id, node, builder)?;
+            let field_type = builder.tree().get(field_mir_type);
+            let (size, alignment) =
+                size_and_align_of_type(field_type, builder.tree(), pointer_bytes);
+
+            field_inputs.push(FieldInput {
+                name,
+                ty: field_mir_type,
+                size,
+                alignment,
+                source_index: source_index as u32,
+            });
+        }
+
+        // compute the layout and create the MIR struct type
+        let layout = compute_struct_layout(field_inputs, LayoutPolicy::default());
+
+        Ok(self.create_struct_type(&layout, builder))
+    }
+
     /// Resolve a scalar type for a given DIR type.
     pub(crate) fn scalar_type_for_dir_type(&self, dir_type: &dir::Type) -> Option<ScalarType> {
         match dir_type {
@@ -211,5 +322,57 @@ impl TypeLowerer {
             },
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Name keys return the string directly.
+    #[test]
+    fn test_static_key_name() {
+        let mut builder = mir::ModuleBuilder::new();
+        let name = builder.intern("foo");
+        let key = dir::StaticKey::Name(name);
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        assert_eq!(result, name);
+    }
+
+    /// Number keys return the string directly.
+    #[test]
+    fn test_static_key_number() {
+        let mut builder = mir::ModuleBuilder::new();
+        let num = builder.intern("42");
+        let key = dir::StaticKey::Number(num);
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        assert_eq!(result, num);
+    }
+
+    /// Well-known symbol keys get synthetic names with @ prefix.
+    #[test]
+    fn test_static_key_well_known_symbol() {
+        let mut builder = mir::ModuleBuilder::new();
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::WellKnown(
+            dir::WellKnownSymbolKey::SymbolIterator,
+        ));
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        let result_str = builder.strings().get(result);
+        assert_eq!(&*result_str, "@Symbol.iterator");
+    }
+
+    /// Registry symbol keys get synthetic names with @ prefix.
+    #[test]
+    fn test_static_key_registry_symbol() {
+        let mut builder = mir::ModuleBuilder::new();
+        let registry_key = builder.intern("myKey");
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(registry_key));
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        let result_str = builder.strings().get(result);
+        assert_eq!(&*result_str, "@Symbol.for:myKey");
     }
 }
