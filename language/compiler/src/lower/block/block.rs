@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use destack_base::StringPool;
-use destack_dir::{Declarator, Expression, GlobalSymbolId, LocalNodeId, Pattern};
+use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
-
-use crate::{LowerError, LowerResult};
 
 use super::super::TypeLowerer;
 
@@ -34,6 +32,15 @@ pub(crate) struct LocalBinding {
     pub(crate) ty: mir::LocalNodeId<mir::Type>,
 }
 
+/// Track loop context for break/continue resolution.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct LoopContext {
+    /// Block to jump to on continue (loop header or increment block).
+    pub(crate) continue_block: mir::LocalNodeId<mir::Block>,
+    /// Block to jump to on break (loop exit).
+    pub(crate) break_block: mir::LocalNodeId<mir::Block>,
+}
+
 /// Lower statement-level expressions into MIR blocks.
 pub(crate) struct BlockLowerer<'a, 'b> {
     /// Identify the module being lowered.
@@ -54,175 +61,8 @@ pub(crate) struct BlockLowerer<'a, 'b> {
     pub(crate) builder: &'b mut mir::FunctionBuilder<'a>,
     /// Track locals by symbol for variable resolution.
     pub(crate) locals_by_symbol: &'b mut HashMap<GlobalSymbolId, LocalBinding>,
-}
-
-impl<'a, 'b> BlockLowerer<'a, 'b> {
-    /// Lower a statement expression.
-    pub(crate) fn lower_statement_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> LowerResult<Terminates> {
-        match self.dir_tree.get(expression_id) {
-            Expression::Statement { statement } => self.lower_statement_expression(*statement),
-            Expression::Block { block } => {
-                let block = self.dir_tree.get(*block);
-                for expr_id in &block.expressions {
-                    let terminated = self.lower_statement_expression(*expr_id)?;
-                    if terminated.is_yes() {
-                        return Ok(Terminates::Yes);
-                    }
-                }
-                Ok(Terminates::No)
-            }
-            Expression::Let { declarators, .. } => {
-                self.lower_let_expression(expression_id, declarators)
-            }
-            Expression::Return { value } => {
-                let return_value = if let Some(value) = value {
-                    let (value, _) = self.lower_value_expression(*value)?;
-                    Some(value)
-                } else {
-                    None
-                };
-                self.builder.return_(return_value);
-                Ok(Terminates::Yes)
-            }
-            Expression::If {
-                condition,
-                then_expression,
-                else_expression,
-                ..
-            } => self.lower_if_statement(*condition, *then_expression, *else_expression),
-
-            _ => {
-                let _ = self.lower_value_expression(expression_id)?;
-                Ok(Terminates::No)
-            }
-        }
-    }
-
-    /// Lower a let binding statement into locals.
-    fn lower_let_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-        declarators: &[LocalNodeId<Declarator>],
-    ) -> LowerResult<Terminates> {
-        // lower each declarator in order
-        for declarator_id in declarators {
-            let declarator = self.dir_tree.get(*declarator_id);
-
-            // require an initializer for native lowering
-            let value_id = declarator
-                .value
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
-                    message: "missing let initializer".to_string(),
-                })?;
-
-            // lower the initializer value first
-            let (value, value_type) = self.lower_value_expression(value_id)?;
-
-            // lower the binding pattern
-            let pattern_id = declarator.pattern;
-            let pattern = self.dir_tree.get(pattern_id);
-            match pattern {
-                Pattern::Wildcard => {
-                    // wildcard bindings evaluate and discard the value
-                }
-                Pattern::Binding {
-                    symbol, pattern, ..
-                } => {
-                    // reject nested patterns for now
-                    if pattern.is_some() {
-                        return Err(LowerError::UnsupportedConstruct {
-                            node: pattern_id.into_global_any(self.module_id),
-                            message: "unsupported binding pattern".to_string(),
-                        })?;
-                    }
-
-                    // convert the symbol id for lookup
-                    let symbol_id = symbol.into_global(self.module_id);
-
-                    // reject duplicate bindings (#Incomplete?)
-                    if self.locals_by_symbol.contains_key(&symbol_id) {
-                        return Err(LowerError::UnsupportedConstruct {
-                            node: pattern_id.into_global_any(self.module_id),
-                            message: "duplicate local binding".to_string(),
-                        })?;
-                    }
-
-                    // allocate the mir variable
-                    let variable = self.builder.create_variable(value_type);
-
-                    // define the initial value
-                    self.builder.define_variable(variable, value);
-
-                    // record the binding for later references
-                    self.locals_by_symbol.insert(
-                        symbol_id,
-                        LocalBinding {
-                            variable,
-                            ty: value_type,
-                        },
-                    );
-                }
-                _ => {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: pattern_id.into_global_any(self.module_id),
-                        message: "unsupported let pattern".to_string(),
-                    })?;
-                }
-            }
-        }
-
-        Ok(Terminates::No)
-    }
-
-    /// Lower an if statement into blocks and branches.
-    fn lower_if_statement(
-        &mut self,
-        condition_id: LocalNodeId<Expression>,
-        then_id: LocalNodeId<Expression>,
-        else_id: Option<LocalNodeId<Expression>>,
-    ) -> LowerResult<Terminates> {
-        let (condition_value, condition_type) = self.lower_value_expression(condition_id)?;
-        if condition_type != self.type_lowerer.ty_bool {
-            return Err(LowerError::UnsupportedConstruct {
-                node: condition_id.into_global_any(self.module_id),
-                message: "condition type is not boolean".to_string(),
-            })?;
-        }
-
-        let then_block = self.builder.create_block();
-        let else_block = self.builder.create_block();
-        let join_block = self.builder.create_block();
-
-        // branch
-        self.builder.branch(condition_value, then_block, else_block);
-
-        // then branch
-        self.builder.switch_to_block(then_block);
-        let then_terminated = self.lower_statement_expression(then_id)?;
-        if !then_terminated.is_yes() {
-            self.builder.jump(join_block);
-        }
-
-        // else branch
-        self.builder.switch_to_block(else_block);
-        let else_terminated = if let Some(else_id) = else_id {
-            self.lower_statement_expression(else_id)?
-        } else {
-            Terminates::No
-        };
-        if !else_terminated.is_yes() {
-            self.builder.jump(join_block);
-        }
-
-        // join
-        if then_terminated.is_yes() && else_terminated.is_yes() {
-            return Ok(Terminates::Yes);
-        }
-        self.builder.switch_to_block(join_block);
-        Ok(Terminates::No)
-    }
+    /// Track loop contexts by symbol for labeled break/continue.
+    pub(crate) loops_by_symbol: &'b mut HashMap<GlobalSymbolId, LoopContext>,
+    /// Track loop nesting for unlabeled break/continue.
+    pub(crate) loop_stack: &'b mut Vec<LoopContext>,
 }
