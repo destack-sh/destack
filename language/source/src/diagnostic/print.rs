@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_base::pluralize;
+use destack_base::{Color, pluralize};
 
 use crate::{AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file};
 
@@ -119,9 +119,23 @@ pub fn print_diagnostics(
             }
         };
 
-        let body = annotate_file(&file, &diagnostic.primary_span, annotate_options);
+        let body = annotate_file(&file, &diagnostic.primary_span, annotate_options.clone());
         write_line(&options, &header);
         write_block(&options, &body);
+
+        // print secondary spans (e.g., "defined here", "previously declared here")
+        if let Some(ref secondary_spans) = diagnostic.secondary_spans {
+            let secondary_options = annotate_options
+                .clone()
+                .with_highlight_color(Color::BrightCyan)
+                .with_context_lines(1, 1);
+            for span in secondary_spans {
+                let secondary_file = files.get(span.span.file);
+                let secondary_body =
+                    annotate_file(&secondary_file, span, secondary_options.clone());
+                write_block(&options, &secondary_body);
+            }
+        }
     }
 
     // summary (skip if caller will print their own)

@@ -7,6 +7,15 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
+/// Success checkmark symbol.
+pub const SYMBOL_SUCCESS: &str = "✓";
+/// Failure cross symbol.
+pub const SYMBOL_FAILURE: &str = "✗";
+/// Arrow symbol for flow/continuation.
+pub const SYMBOL_ARROW: &str = "→";
+/// Bullet/dot separator.
+pub const SYMBOL_DOT: &str = "·";
+
 /// Output stream variants for color handling and fallbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stream {
@@ -145,6 +154,16 @@ pub fn yellow(text: &str) -> String {
 /// Render text in cyan.
 pub fn cyan(text: &str) -> String {
     color_for_stream(text, "36", Stream::Stderr)
+}
+
+/// Render a green success checkmark.
+pub fn success_icon() -> String {
+    green(SYMBOL_SUCCESS)
+}
+
+/// Render a red failure cross.
+pub fn failure_icon() -> String {
+    red(SYMBOL_FAILURE)
 }
 
 /// Render text with underline style.

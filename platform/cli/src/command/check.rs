@@ -332,7 +332,7 @@ pub fn print_stats_summary(
         let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
         // bold + bright red
         (
-            console::red("✗"),
+            console::failure_icon(),
             console::style_for_stream(&main, &["1", "91"], console::Stream::Stderr),
         )
     } else if summary.warnings > 0 {
@@ -340,14 +340,14 @@ pub fn print_stats_summary(
         let main = format!("{} {counts}{status} in {elapsed_str}", summary.verb);
         // bold + bright yellow
         (
-            console::green("✓"),
+            console::success_icon(),
             console::style_for_stream(&main, &["1", "93"], console::Stream::Stderr),
         )
     } else {
         let main = format!("{} {counts} in {elapsed_str}", summary.verb);
         // bold + green
         (
-            console::green("✓"),
+            console::success_icon(),
             console::style_for_stream(&main, &["1", "32"], console::Stream::Stderr),
         )
     };
@@ -401,9 +401,10 @@ pub fn print_stats_summary(
             }
         };
 
+        let arrow = console::SYMBOL_ARROW;
         let mir_line = format!(
-            "  {} optimized {} functions: {} → {} instructions ({}), {} → {} blocks ({})",
-            console::dim("→"),
+            "    {} optimized {} functions: {} {arrow} {} instructions ({}), {} {arrow} {} blocks ({})",
+            console::dim(console::SYMBOL_ARROW),
             stats.mir_functions_optimized,
             format_number(instr_before),
             format_number(instr_after),

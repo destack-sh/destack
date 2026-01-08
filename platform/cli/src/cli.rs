@@ -17,8 +17,6 @@ pub struct Cli {
     pub command: Command,
 }
 
-// FUGU: improve CLI styling & progress reporting, improve diagnostic formatting, ..
-
 #[derive(Parser, Debug)]
 pub enum Command {
     /// Check source files for type errors and lint issues.
