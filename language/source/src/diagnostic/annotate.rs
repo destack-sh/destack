@@ -7,10 +7,10 @@ use destack_base::Color;
 
 use crate::{File, LabeledSpan, Span};
 
-const HEADER_PREFIX: &str = "==>";
-const BODY_PREFIX: &str = " | ";
+const HEADER_PREFIX: &str = "──▶";
+const BODY_PREFIX: &str = " │ ";
 const HIGHLIGHT: char = '^';
-const ELIDE: &str = "..";
+const ELIDE: &str = "··";
 
 /// A function that colorizes a slice of source code.
 ///
@@ -273,10 +273,10 @@ fn write_source_line(
         } else {
             buffer.push_str(&options.color_dim.apply(&line_num));
         }
-        buffer.push_str(&options.color_meta.apply(" | "));
+        buffer.push_str(&options.color_meta.apply(" │ "));
     } else {
         buffer.push_str(&line_num);
-        buffer.push_str(" | ");
+        buffer.push_str(" │ ");
     }
 
     // content with elision markers
@@ -333,9 +333,9 @@ fn write_highlight_line(
         buffer.push(' ');
     }
     if use_color {
-        buffer.push_str(&color_meta.apply(" | "));
+        buffer.push_str(&color_meta.apply(" │ "));
     } else {
-        buffer.push_str(" | ");
+        buffer.push_str(" │ ");
     }
     for _ in 0..offset_spaces {
         buffer.push(' ');
@@ -554,14 +554,15 @@ mod tests {
         };
         let annotated = annotate_file(&source, &span, options);
 
-        let expected = r#"==> <test>:2:9
- | 
- | 1 | fn main() {
- | 2 |     let variable = 42;
- |   |         ^^^^^^^^ variable name
- | 3 | }
- | 
-"#;
+        let expected = concat!(
+            "──▶ <test>:2:9\n",
+            " │ \n",
+            " │ 1 │ fn main() {\n",
+            " │ 2 │     let variable = 42;\n",
+            " │   │         ^^^^^^^^ variable name\n",
+            " │ 3 │ }\n",
+            " │ \n",
+        );
 
         assert_eq!(annotated, expected);
     }
@@ -597,12 +598,13 @@ mod tests {
         };
         let annotated = annotate_file(&source, &span, options);
 
-        let expected = r#"==> <test>:1:151
- | 
- | 1 | ..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..
- |   |                                                        ^^^^^ tail
- | 
-"#;
+        let expected = concat!(
+            "──▶ <test>:1:151\n",
+            " │ \n",
+            " │ 1 │ ··aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa··\n",
+            " │   │                                                        ^^^^^ tail\n",
+            " │ \n",
+        );
 
         assert_eq!(annotated, expected);
     }
