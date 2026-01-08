@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use destack_base::StringPool;
 use destack_dir::{Declaration, GlobalNodeId, GlobalSymbolId};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
@@ -19,6 +20,8 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
+    /// Provide access to the program string pool for name resolution.
+    pub(crate) strings: &'a StringPool,
     /// Resolve direct calls for known function symbols.
     pub(crate) functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
     /// Lower and cache DIR types into MIR types.
@@ -29,6 +32,7 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer with the given builder.
     fn new(
@@ -36,6 +40,7 @@ impl<'a> FunctionLowerer<'a> {
         dir_tree: &'a dir::NodeTree,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
+        strings: &'a StringPool,
         functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
         type_lowerer: &'a TypeLowerer,
         builder: mir::FunctionBuilder<'a>,
@@ -45,6 +50,7 @@ impl<'a> FunctionLowerer<'a> {
             dir_tree,
             symbols,
             types,
+            strings,
             functions_by_symbol,
             type_lowerer,
             builder,
@@ -62,6 +68,7 @@ impl<'a> FunctionLowerer<'a> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            strings: self.strings,
             functions_by_symbol: self.functions_by_symbol,
             type_lowerer: self.type_lowerer,
             builder: &mut self.builder,
@@ -139,6 +146,7 @@ impl ModuleLowerer<'_> {
             self.dir_tree,
             self.symbols,
             self.types,
+            &self.compiler.program.strings,
             &self.functions_by_symbol,
             &self.type_lowerer,
             builder,

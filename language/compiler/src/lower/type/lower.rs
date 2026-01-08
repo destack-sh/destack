@@ -60,7 +60,7 @@ pub(crate) enum ScalarType {
 #[derive(Debug)]
 pub(crate) struct TypeLowerer {
     /// Cached MIR types by DIR type id.
-    type_cache: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
+    pub(crate) type_cache: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
     /// Pointer width in bits for pointer-sized integers.
     pointer_width_bits: u16,
     /// Cached MIR void type.
@@ -132,6 +132,12 @@ impl TypeLowerer {
                 }
 
                 self.lower_object_type(types, fields, module_id, node, builder)?
+            }
+            dir::Type::Tuple { elements } => {
+                self.lower_tuple_type(types, elements, module_id, node, builder)?
+            }
+            dir::Type::ArraySized { element, count } => {
+                self.lower_array_sized_type(types, *element, *count, module_id, node, builder)?
             }
             _ => self
                 .try_lower_type(dir_type, builder)
@@ -265,6 +271,78 @@ impl TypeLowerer {
         let layout = compute_struct_layout(field_inputs, LayoutPolicy::default());
 
         Ok(self.create_struct_type(&layout, builder))
+    }
+
+    /// Lower a DIR tuple type to a MIR tuple type.
+    fn lower_tuple_type(
+        &mut self,
+        types: &dir::TypeTable,
+        elements: &[dir::TypeElement],
+        module_id: destack_source::ModuleId,
+        node: GlobalNodeIdAny,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // reject optional and rest elements for now
+        for element in elements {
+            if element.is_optional {
+                return Err(LowerError::UnsupportedType {
+                    node,
+                    ty: element.ty.into_global(module_id),
+                    message: "optional tuple elements are not yet supported".to_string(),
+                });
+            }
+            if element.is_rest {
+                return Err(LowerError::UnsupportedType {
+                    node,
+                    ty: element.ty.into_global(module_id),
+                    message: "rest tuple elements are not yet supported".to_string(),
+                });
+            }
+        }
+
+        // lower each element type
+        let mut mir_elements = Vec::with_capacity(elements.len());
+        for element in elements {
+            let mir_type = self.lower_type(types, element.ty, module_id, node, builder)?;
+            mir_elements.push(mir_type);
+        }
+
+        Ok(builder.type_tuple(mir_elements))
+    }
+
+    /// Lower a DIR sized array type to a MIR array type.
+    fn lower_array_sized_type(
+        &mut self,
+        types: &dir::TypeTable,
+        element: dir::LocalTypeId,
+        count: dir::LocalNodeId<dir::Expression>,
+        module_id: destack_source::ModuleId,
+        node: GlobalNodeIdAny,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // lower the element type
+        let mir_element = self.lower_type(types, element, module_id, node, builder)?;
+
+        // get the inferred type of the count expression
+        let count_node = count.into_global_any(module_id);
+        let length = types
+            .get_declared_or_inferred_type_id(count_node)
+            .and_then(|type_id| {
+                let ty = types.get_type(type_id);
+                match ty {
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Integer(n)),
+                    } => Some(*n as u64),
+                    _ => None,
+                }
+            })
+            .ok_or_else(|| LowerError::UnsupportedType {
+                node,
+                ty: element.into_global(module_id),
+                message: "array size must be a constant integer".to_string(),
+            })?;
+
+        Ok(builder.type_array(mir_element, length))
     }
 
     /// Resolve a scalar type for a given DIR type.

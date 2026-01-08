@@ -118,6 +118,7 @@ impl Compiler {
             dir_tree: &dir_tree,
             symbols: &symbols,
             types: &types,
+            strings: &self.program.strings,
             type_lowerer: &type_lowerer,
             functions_by_symbol: &functions_by_symbol,
             builder: &mut function_builder,

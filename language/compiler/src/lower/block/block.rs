@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use destack_base::StringPool;
 use destack_dir::{Declarator, Expression, GlobalSymbolId, LocalNodeId, Pattern};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
@@ -43,6 +44,8 @@ pub(crate) struct BlockLowerer<'a, 'b> {
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
+    /// Provide access to the program string pool for name resolution.
+    pub(crate) strings: &'a StringPool,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: &'a TypeLowerer,
     /// Resolve direct calls for known function symbols.
