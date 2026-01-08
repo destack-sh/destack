@@ -17,6 +17,7 @@ pub struct CodeLensOptions {
     pub resolve_provider: Option<bool>,
 }
 
+/// Parameters for the `textDocument/codeLens` request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeLensParams {
@@ -51,6 +52,7 @@ pub struct CodeLens {
     pub data: Option<Value>,
 }
 
+/// Workspace-specific client capabilities for code lenses.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeLensWorkspaceClientCapabilities {

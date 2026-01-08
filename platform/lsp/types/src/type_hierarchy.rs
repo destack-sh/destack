@@ -6,52 +6,76 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 
+/// Client capabilities for the type hierarchy feature.
 pub type TypeHierarchyClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Server options for the type hierarchy feature.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct TypeHierarchyOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Registration options for the type hierarchy feature.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct TypeHierarchyRegistrationOptions {
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
+
+    /// Type hierarchy options.
     #[serde(flatten)]
     pub type_hierarchy_options: TypeHierarchyOptions,
+
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
 
+/// Parameters for the type hierarchy prepare request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct TypeHierarchyPrepareParams {
+    /// The text document and position.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
+
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
+/// Parameters for the type hierarchy supertypes request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct TypeHierarchySupertypesParams {
+    /// The hierarchy item to get supertypes for.
     pub item: TypeHierarchyItem,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
+
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
+/// Parameters for the type hierarchy subtypes request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct TypeHierarchySubtypesParams {
+    /// The hierarchy item to get subtypes for.
     pub item: TypeHierarchyItem,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
+
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
+/// Represents an item in a type hierarchy.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeHierarchyItem {

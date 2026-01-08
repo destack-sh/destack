@@ -52,6 +52,7 @@ pub struct DocumentOnTypeFormattingOptions {
     pub more_trigger_character: Option<Vec<String>>,
 }
 
+/// Parameters for a document formatting request.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentFormattingParams {
@@ -61,6 +62,7 @@ pub struct DocumentFormattingParams {
     /// The format options.
     pub options: FormattingOptions,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
@@ -92,26 +94,32 @@ pub struct FormattingOptions {
     pub trim_final_newlines: Option<bool>,
 }
 
+/// A formatting property value.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum FormattingProperty {
+    /// A boolean property.
     Bool(bool),
+    /// A numeric property.
     Number(i32),
+    /// A string property.
     String(String),
 }
 
+/// Parameters for a document range formatting request.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentRangeFormattingParams {
     /// The document to format.
     pub text_document: TextDocumentIdentifier,
 
-    /// The range to format
+    /// The range to format.
     pub range: Range,
 
-    /// The format options
+    /// The format options.
     pub options: FormattingOptions,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
@@ -131,10 +139,12 @@ pub struct DocumentRangesFormattingParams {
     /// The format options.
     pub options: FormattingOptions,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
+/// Parameters for a document on type formatting request.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentOnTypeFormattingParams {

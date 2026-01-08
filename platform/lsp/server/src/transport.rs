@@ -239,7 +239,7 @@ mod tests {
         (Cursor::new(mock_request()), Vec::new())
     }
 
-    // Simulates a still-live stdin that the client didn't drop.
+    // simulates a still-live stdin that the client didn't drop.
     struct DetachedCursor(Vec<u8>);
 
     impl AsyncRead for DetachedCursor {

@@ -4,6 +4,8 @@ use crate::{
     PartialResultParams, Position, Range, StaticTextDocumentRegistrationOptions,
     TextDocumentIdentifier, WorkDoneProgressOptions, WorkDoneProgressParams,
 };
+
+/// Client capabilities for selection range requests.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectionRangeClientCapabilities {
@@ -15,26 +17,35 @@ pub struct SelectionRangeClientCapabilities {
     pub dynamic_registration: Option<bool>,
 }
 
+/// Selection range options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct SelectionRangeOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Selection range registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct SelectionRangeRegistrationOptions {
+    /// Selection range options.
     #[serde(flatten)]
     pub selection_range_options: SelectionRangeOptions,
 
+    /// Registration options.
     #[serde(flatten)]
     pub registration_options: StaticTextDocumentRegistrationOptions,
 }
 
+/// Server capability for selection range support.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum SelectionRangeProviderCapability {
+    /// Simple boolean flag.
     Simple(bool),
+    /// Selection range options.
     Options(SelectionRangeOptions),
+    /// Selection range registration options.
     RegistrationOptions(SelectionRangeRegistrationOptions),
 }
 
@@ -66,9 +77,11 @@ pub struct SelectionRangeParams {
     /// The positions inside the text document.
     pub positions: Vec<Position>,
 
+    /// Work done progress params.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result params.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }

@@ -49,6 +49,7 @@ pub struct NotebookCell {
     pub execution_summary: Option<ExecutionSummary>,
 }
 
+/// Execution summary for a notebook cell.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionSummary {
@@ -62,6 +63,7 @@ pub struct ExecutionSummary {
     pub success: Option<bool>,
 }
 
+/// The kind of a notebook cell.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum NotebookCellKind {
@@ -163,9 +165,11 @@ pub struct NotebookCellTextDocumentFilter {
     pub language: Option<String>,
 }
 
+/// A notebook selector to specify which notebooks are synced.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum NotebookSelector {
+    /// Selector by notebook document.
     ByNotebook {
         /// The notebook to be synced. If a string
         /// value is provided it matches against the
@@ -175,6 +179,7 @@ pub enum NotebookSelector {
         #[serde(skip_serializing_if = "Option::is_none")]
         cells: Option<Vec<NotebookCellSelector>>,
     },
+    /// Selector by cells.
     ByCells {
         /// The notebook to be synced. If a string
         /// value is provided it matches against the
@@ -186,16 +191,21 @@ pub enum NotebookSelector {
     },
 }
 
+/// Selector for a notebook cell by language.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NotebookCellSelector {
+    /// The language of the cell.
     pub language: String,
 }
 
+/// A notebook identifier or filter.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Notebook {
+    /// A notebook type string or wildcard.
     String(String),
+    /// A notebook document filter.
     NotebookDocumentFilter(NotebookDocumentFilter),
 }
 
@@ -206,6 +216,7 @@ pub enum Notebook {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum NotebookDocumentFilter {
+    /// Filter by notebook type.
     ByType {
         /// The type of the enclosing notebook.
         notebook_type: String,
@@ -216,6 +227,7 @@ pub enum NotebookDocumentFilter {
         #[serde(skip_serializing_if = "Option::is_none")]
         pattern: Option<String>,
     },
+    /// Filter by Uri scheme.
     ByScheme {
         /// The type of the enclosing notebook.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -226,6 +238,7 @@ pub enum NotebookDocumentFilter {
         #[serde(skip_serializing_if = "Option::is_none")]
         pattern: Option<String>,
     },
+    /// Filter by glob pattern.
     ByPattern {
         /// The type of the enclosing notebook.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -312,6 +325,7 @@ mod notification_params {
         pub cells: Option<NotebookDocumentCellChange>,
     }
 
+    /// Changes to notebook cells.
     #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct NotebookDocumentCellChange {
@@ -330,13 +344,17 @@ mod notification_params {
         pub text_content: Option<Vec<NotebookDocumentChangeTextContent>>,
     }
 
+    /// Text content change in a notebook cell.
     #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct NotebookDocumentChangeTextContent {
+        /// The document that changed.
         pub document: VersionedTextDocumentIdentifier,
+        /// The content changes.
         pub changes: Vec<TextDocumentContentChangeEvent>,
     }
 
+    /// Structural changes to notebook cells.
     #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct NotebookDocumentCellChangeStructure {

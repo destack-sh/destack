@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::NumberOrString;
 
+/// A progress token, either a number or a string.
 pub type ProgressToken = NumberOrString;
 
 /// The progress notification is sent from the server to the client to ask
@@ -16,9 +17,11 @@ pub struct ProgressParams {
     pub value: ProgressParamsValue,
 }
 
+/// The value of progress params.
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum ProgressParamsValue {
+    /// Work done progress value.
     WorkDone(WorkDoneProgress),
 }
 
@@ -44,18 +47,21 @@ pub struct WorkDoneProgressCancelParams {
 #[derive(Debug, Eq, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct WorkDoneProgressOptions {
+    /// Whether work done progress is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub work_done_progress: Option<bool>,
 }
 
-/// An optional token that a server can use to report work done progress
+/// An optional token that a server can use to report work done progress.
 #[derive(Debug, Eq, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkDoneProgressParams {
+    /// The token used to report work done progress.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub work_done_token: Option<ProgressToken>,
 }
 
+/// Value to begin work done progress.
 #[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkDoneProgressBegin {
@@ -88,6 +94,7 @@ pub struct WorkDoneProgressBegin {
     pub percentage: Option<u32>,
 }
 
+/// Value to report work done progress.
 #[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkDoneProgressReport {
@@ -114,6 +121,7 @@ pub struct WorkDoneProgressReport {
     pub percentage: Option<u32>,
 }
 
+/// Value to signal the end of work done progress.
 #[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkDoneProgressEnd {
@@ -125,10 +133,14 @@ pub struct WorkDoneProgressEnd {
     pub message: Option<String>,
 }
 
+/// Work done progress value.
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum WorkDoneProgress {
+    /// Begin work done progress.
     Begin(WorkDoneProgressBegin),
+    /// Report work done progress.
     Report(WorkDoneProgressReport),
+    /// End work done progress.
     End(WorkDoneProgressEnd),
 }

@@ -18,12 +18,16 @@ where
 /// A JSON-RPC request or notification.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Request {
+    /// The JSON-RPC protocol version.
     jsonrpc: Version,
+    /// The name of the method to be invoked.
     #[serde(default)]
     method: Cow<'static, str>,
+    /// The method parameters, if any.
     #[serde(default, deserialize_with = "deserialize_some")]
     #[serde(skip_serializing_if = "Option::is_none")]
     params: Option<LSPAny>,
+    /// The request identifier, if this is a request (not a notification).
     #[serde(default, deserialize_with = "deserialize_some")]
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<Id>,
@@ -123,7 +127,7 @@ impl Display for Request {
         impl io::Write for WriterFormatter<'_, '_> {
             fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
                 fn io_error<E>(_: E) -> io::Error {
-                    // Error value does not matter because fmt::Display impl below just
+                    // error value does not matter because fmt::Display impl below just
                     // maps it to fmt::Error
                     io::Error::other("fmt error")
                 }
@@ -155,8 +159,11 @@ impl FromStr for Request {
 /// To construct a `RequestBuilder`, refer to [`Request::build`].
 #[derive(Debug)]
 pub struct RequestBuilder {
+    /// The name of the method to be invoked.
     method: Cow<'static, str>,
+    /// The method parameters, if any.
     params: Option<LSPAny>,
+    /// The request identifier, if this is a request (not a notification).
     id: Option<Id>,
 }
 

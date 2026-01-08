@@ -5,6 +5,7 @@ use crate::{
     TextDocumentRegistrationOptions, WorkDoneProgressOptions, WorkDoneProgressParams,
 };
 
+/// Client capabilities for hover requests.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HoverClientCapabilities {
@@ -22,24 +23,31 @@ pub struct HoverClientCapabilities {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HoverOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Registration options for hover requests.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HoverRegistrationOptions {
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Hover options.
     #[serde(flatten)]
     pub hover_options: HoverOptions,
 }
 
+/// Hover provider capability.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum HoverProviderCapability {
+    /// Simple boolean capability.
     Simple(bool),
+    /// Options-based capability.
     Options(HoverOptions),
 }
 
@@ -55,12 +63,15 @@ impl From<bool> for HoverProviderCapability {
     }
 }
 
+/// Parameters for a hover request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HoverParams {
+    /// Text document position parameters.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
@@ -80,7 +91,10 @@ pub struct Hover {
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HoverContents {
+    /// A single marked string.
     Scalar(MarkedString),
+    /// An array of marked strings.
     Array(Vec<MarkedString>),
+    /// Markup content.
     Markup(MarkupContent),
 }

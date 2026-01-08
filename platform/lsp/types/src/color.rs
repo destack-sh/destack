@@ -4,28 +4,37 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Client capabilities for document color requests.
 pub type DocumentColorClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Options for color provider.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ColorProviderOptions {}
 
+/// Static text document color provider options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaticTextDocumentColorProviderOptions {
-    /// A document selector to identify the scope of the registration. If set to null
-    /// the document selector provided on the client side will be used.
+    /// A document selector to identify the scope of the registration.
+    ///
+    /// If set to null the document selector provided on the client side will be used.
     pub document_selector: Option<DocumentSelector>,
 
+    /// An optional identifier.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
+/// Server capability for color provider.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ColorProviderCapability {
+    /// Simple boolean capability.
     Simple(bool),
+    /// Color provider options.
     ColorProvider(ColorProviderOptions),
+    /// Static text document color provider options.
     Options(StaticTextDocumentColorProviderOptions),
 }
 
@@ -47,19 +56,23 @@ impl From<bool> for ColorProviderCapability {
     }
 }
 
+/// Parameters for requesting document colors.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentColorParams {
-    /// The text document
+    /// The text document.
     pub text_document: TextDocumentIdentifier,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
+/// Information about a color in a document.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ColorInformation {
@@ -69,6 +82,7 @@ pub struct ColorInformation {
     pub color: Color,
 }
 
+/// A color in RGBA format.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct Color {
@@ -82,6 +96,7 @@ pub struct Color {
     pub alpha: f32,
 }
 
+/// Parameters for requesting color presentations.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ColorPresentationParams {
@@ -94,13 +109,16 @@ pub struct ColorPresentationParams {
     /// The range where the color would be inserted. Serves as a context.
     pub range: Range,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
+/// A presentation of a color.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ColorPresentation {

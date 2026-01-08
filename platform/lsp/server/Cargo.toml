@@ -27,5 +27,8 @@ tokio-util = { version = "0.7", features = ["codec"] }
 tower = { version = "0.5", default-features = false, features = ["util"] }
 tracing = { workspace = true }
 
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }
+
 [lints]
 workspace = true

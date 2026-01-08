@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use crate::{Range, Uri};
 
+/// The type of a message shown to the user.
 #[derive(Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct MessageType(i32);
@@ -56,6 +57,7 @@ pub struct ShowMessageRequestClientCapabilities {
     pub message_action_item: Option<MessageActionItemCapabilities>,
 }
 
+/// Capabilities specific to the `MessageActionItem` type.
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageActionItemCapabilities {
@@ -66,6 +68,7 @@ pub struct MessageActionItemCapabilities {
     pub additional_properties_support: Option<bool>,
 }
 
+/// An action item presented in a message request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageActionItem {
@@ -79,15 +82,21 @@ pub struct MessageActionItem {
     pub properties: HashMap<String, MessageActionItemProperty>,
 }
 
+/// Additional property values that can be attached to a message action item.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum MessageActionItemProperty {
+    /// A string property value.
     String(String),
+    /// A boolean property value.
     Boolean(bool),
+    /// An integer property value.
     Integer(i32),
+    /// An arbitrary JSON object property value.
     Object(Value),
 }
 
+/// Parameters for the `window/logMessage` notification.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct LogMessageParams {
     /// The message type. See {@link MessageType}
@@ -98,6 +107,7 @@ pub struct LogMessageParams {
     pub message: String,
 }
 
+/// Parameters for the `window/showMessage` notification.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ShowMessageParams {
     /// The message type. See {@link MessageType}.
@@ -108,6 +118,7 @@ pub struct ShowMessageParams {
     pub message: String,
 }
 
+/// Parameters for the `window/showMessageRequest` request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ShowMessageRequestParams {
     /// The message type. See {@link MessageType}

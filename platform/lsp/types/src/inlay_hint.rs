@@ -5,11 +5,16 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Server capabilities for inlay hints.
+///
+/// @since 3.17.0
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum InlayHintServerCapabilities {
+    /// Static inlay hint options.
     Options(InlayHintOptions),
+    /// Dynamic inlay hint registration options.
     RegistrationOptions(InlayHintRegistrationOptions),
 }
 
@@ -35,6 +40,7 @@ pub struct InlayHintClientCapabilities {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 
@@ -50,12 +56,15 @@ pub struct InlayHintOptions {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintRegistrationOptions {
+    /// Inlay hint options.
     #[serde(flatten)]
     pub inlay_hint_options: InlayHintOptions,
 
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
@@ -66,6 +75,7 @@ pub struct InlayHintRegistrationOptions {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintParams {
+    /// Work done progress params.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
@@ -136,10 +146,15 @@ pub struct InlayHint {
     pub data: Option<LSPAny>,
 }
 
+/// The label of an inlay hint.
+///
+/// @since 3.17.0
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InlayHintLabel {
+    /// A simple string label.
     String(String),
+    /// An array of label parts for interactive labels.
     LabelParts(Vec<InlayHintLabelPart>),
 }
 
@@ -157,10 +172,15 @@ impl From<Vec<InlayHintLabelPart>> for InlayHintLabel {
     }
 }
 
+/// The tooltip of an inlay hint.
+///
+/// @since 3.17.0
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InlayHintTooltip {
+    /// A simple string tooltip.
     String(String),
+    /// A markup content tooltip.
     MarkupContent(MarkupContent),
 }
 
@@ -214,10 +234,15 @@ pub struct InlayHintLabelPart {
     pub command: Option<Command>,
 }
 
+/// The tooltip of an inlay hint label part.
+///
+/// @since 3.17.0
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InlayHintLabelPartTooltip {
+    /// A simple string tooltip.
     String(String),
+    /// A markup content tooltip.
     MarkupContent(MarkupContent),
 }
 
@@ -278,4 +303,81 @@ pub struct InlayHintWorkspaceClientCapabilities {
     pub refresh_support: Option<bool>,
 }
 
-// TODO(sno2): add tests once stabilized
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Position;
+    use crate::tests::test_serialization;
+
+    #[test]
+    fn test_inlay_hint_kind() {
+        test_serialization(&InlayHintKind::TYPE, "1");
+        test_serialization(&InlayHintKind::PARAMETER, "2");
+    }
+
+    #[test]
+    fn test_inlay_hint_label_string() {
+        let label = InlayHintLabel::String("type".into());
+        let serialized = serde_json::to_string(&label).unwrap();
+        assert_eq!(serialized, r#""type""#);
+    }
+
+    #[test]
+    fn test_inlay_hint_label_parts() {
+        let label = InlayHintLabel::LabelParts(vec![InlayHintLabelPart {
+            value: "int".into(),
+            ..Default::default()
+        }]);
+        let serialized = serde_json::to_string(&label).unwrap();
+        assert_eq!(serialized, r#"[{"value":"int"}]"#);
+    }
+
+    #[test]
+    fn test_inlay_hint() {
+        let hint = InlayHint {
+            position: Position::new(1, 5),
+            label: InlayHintLabel::String(": int".into()),
+            kind: Some(InlayHintKind::TYPE),
+            text_edits: None,
+            tooltip: None,
+            padding_left: Some(true),
+            padding_right: None,
+            data: None,
+        };
+        let serialized = serde_json::to_string(&hint).unwrap();
+        assert_eq!(
+            serialized,
+            r#"{"position":{"line":1,"character":5},"label":": int","kind":1,"paddingLeft":true}"#
+        );
+    }
+
+    #[test]
+    fn test_inlay_hint_params() {
+        use crate::{Range, TextDocumentIdentifier, Uri, WorkDoneProgressParams};
+        use std::str::FromStr;
+
+        test_serialization(
+            &InlayHintParams {
+                work_done_progress_params: WorkDoneProgressParams::default(),
+                text_document: TextDocumentIdentifier {
+                    uri: Uri::from_str("file:///test.rs").unwrap(),
+                },
+                range: Range::new(Position::new(0, 0), Position::new(10, 0)),
+            },
+            r#"{"textDocument":{"uri":"file:///test.rs"},"range":{"start":{"line":0,"character":0},"end":{"line":10,"character":0}}}"#,
+        );
+    }
+
+    #[test]
+    fn test_inlay_hint_client_capabilities() {
+        test_serialization(
+            &InlayHintClientCapabilities {
+                dynamic_registration: Some(true),
+                resolve_support: Some(InlayHintResolveClientCapabilities {
+                    properties: vec!["tooltip".into(), "textEdits".into()],
+                }),
+            },
+            r#"{"dynamicRegistration":true,"resolveSupport":{"properties":["tooltip","textEdits"]}}"#,
+        );
+    }
+}

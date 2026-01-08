@@ -8,7 +8,7 @@ use tracing::{error, warn};
 use crate::jsonrpc::{Error, Result};
 
 macro_rules! rpc {
-    // Entrypoint
+    // entrypoint
     (
 
         $(#[doc = $trait_docs:literal])*
@@ -59,9 +59,9 @@ macro_rules! rpc {
                     );
                 )+
 
+                // this closure is never called
                 router.method(
                     "exit",
-                    // this closure is never called
                     |_: &S| std::future::ready(()),
                     layers::Exit::new(state.clone(), pending.clone(), client.clone()),
                 );
@@ -169,7 +169,7 @@ rpc! {
         #[rpc(name = "shutdown")]
         async fn shutdown(&self) -> Result<()>;
 
-        // Document Synchronization
+        // document synchronization
 
         /// The [`textDocument/didOpen`] notification is sent from the client to the server to signal
         /// that a new text document has been opened by the client.
@@ -251,7 +251,7 @@ rpc! {
             warn!("got a `textDocument/didClose` notification, but it is not implemented");
         }
 
-        // Notebook Document Synchronization
+        // notebook document synchronization
 
         /// The [`notebookDocument/didOpen`] notification is sent from the client to the server when a new notebook document is opened.
         /// It is only sent for notebooks selected by the `notebookDocumentSync` server capability.
@@ -293,7 +293,7 @@ rpc! {
             warn!("got a `notebookDocument/didClose` notification, but it is not implemented");
         }
 
-        // Language Features
+        // language features
 
         /// The [`textDocument/declaration`] request asks the server for the declaration location of a
         /// symbol at a given text document position.
@@ -1196,7 +1196,7 @@ rpc! {
             Err(Error::method_not_found())
         }
 
-        // Workspace Features
+        // workspace features
 
         /// The [`workspace/symbol`] request is sent from the client to the server to list project-wide
         /// symbols matching the given query string.
@@ -1389,7 +1389,19 @@ rpc! {
             Err(Error::method_not_found())
         }
 
-        // TODO: Add `work_done_progress_cancel()` here (since 3.15.0) when supported by `tower-lsp-server`
-        // https://github.com/ebkalderon/tower-lsp/issues/176
+        /// The [`window/workDoneProgress/cancel`] notification is sent from the client to the
+        /// server to cancel a progress initiated on the server side using the
+        /// `window/workDoneProgress/create` request.
+        ///
+        /// [`window/workDoneProgress/cancel`]: https://microsoft.github.io/language-server-protocol/specification#window_workDoneProgress_cancel
+        ///
+        /// # Compatibility
+        ///
+        /// This notification was introduced in specification version 3.15.0.
+        #[rpc(name = "window/workDoneProgress/cancel")]
+        async fn work_done_progress_cancel(&self, params: WorkDoneProgressCancelParams) {
+            let _ = params;
+            warn!("got a `window/workDoneProgress/cancel` notification, but it is not implemented");
+        }
     }
 }

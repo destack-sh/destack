@@ -1,10 +1,11 @@
 use crate::{Range, TextDocumentPositionParams, WorkDoneProgressOptions, WorkDoneProgressParams};
 use serde::{Deserialize, Serialize};
 
+/// Parameters for a rename request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenameParams {
-    /// Text Document and Position fields
+    /// Text document and position.
     #[serde(flatten)]
     pub text_document_position: TextDocumentPositionParams,
 
@@ -13,10 +14,12 @@ pub struct RenameParams {
     /// appropriate message set.
     pub new_name: String,
 
+    /// Work done progress params.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
+/// Rename options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenameOptions {
@@ -24,10 +27,12 @@ pub struct RenameOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prepare_provider: Option<bool>,
 
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Client capabilities for rename requests.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenameClientCapabilities {
@@ -61,6 +66,7 @@ pub struct RenameClientCapabilities {
     pub honors_change_annotations: Option<bool>,
 }
 
+/// The default behavior for prepare support.
 #[derive(Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PrepareSupportDefaultBehavior(i32);
@@ -72,17 +78,24 @@ impl PrepareSupportDefaultBehavior {
 }
 }
 
+/// Response for prepare rename request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[serde(rename_all = "camelCase")]
 pub enum PrepareRenameResponse {
+    /// A range to rename.
     Range(Range),
+    /// A range with a placeholder for the new name.
     RangeWithPlaceholder {
+        /// The range of the identifier to rename.
         range: Range,
+        /// The placeholder text for the new name.
         placeholder: String,
     },
+    /// Use default behavior.
     #[serde(rename_all = "camelCase")]
     DefaultBehavior {
+        /// Whether to use the default behavior.
         default_behavior: bool,
     },
 }

@@ -3,24 +3,32 @@ use crate::{
     WorkDoneProgressParams,
 };
 use serde::{Deserialize, Serialize};
+
+/// Parameters for a folding range request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FoldingRangeParams {
     /// The text document.
     pub text_document: TextDocumentIdentifier,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
+/// Folding range provider capability.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum FoldingRangeProviderCapability {
+    /// Simple boolean capability.
     Simple(bool),
+    /// Folding provider options.
     FoldingProvider(FoldingProviderOptions),
+    /// Static text document color provider options.
     Options(StaticTextDocumentColorProviderOptions),
 }
 
@@ -42,9 +50,11 @@ impl From<bool> for FoldingRangeProviderCapability {
     }
 }
 
+/// Options for a folding provider.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct FoldingProviderOptions {}
 
+/// Client capability for folding range kinds.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FoldingRangeKindCapability {
@@ -56,6 +66,7 @@ pub struct FoldingRangeKindCapability {
     pub value_set: Option<Vec<FoldingRangeKind>>,
 }
 
+/// Client capability for folding ranges.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FoldingRangeCapability {
@@ -67,6 +78,7 @@ pub struct FoldingRangeCapability {
     pub collapsed_text: Option<bool>,
 }
 
+/// Client capabilities for folding ranges.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FoldingRangeClientCapabilities {
@@ -118,15 +130,15 @@ pub struct FoldingRangeWorkspaceClientCapabilities {
     pub refresh_support: Option<bool>,
 }
 
-/// Enum of known range kinds
+/// Enum of known range kinds.
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum FoldingRangeKind {
-    /// Folding range for a comment
+    /// Folding range for a comment.
     Comment,
-    /// Folding range for a imports or includes
+    /// Folding range for imports or includes.
     Imports,
-    /// Folding range for a region (e.g. `#region`)
+    /// Folding range for a region (e.g. `#region`).
     Region,
 }
 

@@ -1,9 +1,13 @@
 use super::*;
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
+/// A trait representing an LSP notification.
 pub trait Notification {
+    /// The parameters type for this notification.
     type Params: DeserializeOwned + Serialize + Send + Sync + 'static;
+    /// The method name for this notification.
     const METHOD: &'static str;
 }
 
@@ -244,6 +248,8 @@ impl Notification for DidSaveTextDocument {
     const METHOD: &'static str = "textDocument/didSave";
 }
 
+/// The notebook document open notification is sent from the client to the server when
+/// a notebook document is opened.
 #[derive(Debug)]
 pub enum DidOpenNotebookDocument {}
 impl Notification for DidOpenNotebookDocument {
@@ -251,6 +257,8 @@ impl Notification for DidOpenNotebookDocument {
     const METHOD: &'static str = "notebookDocument/didOpen";
 }
 
+/// The notebook document change notification is sent from the client to the server when
+/// a notebook document changes.
 #[derive(Debug)]
 pub enum DidChangeNotebookDocument {}
 impl Notification for DidChangeNotebookDocument {
@@ -258,6 +266,8 @@ impl Notification for DidChangeNotebookDocument {
     const METHOD: &'static str = "notebookDocument/didChange";
 }
 
+/// The notebook document save notification is sent from the client to the server when
+/// a notebook document is saved.
 #[derive(Debug)]
 pub enum DidSaveNotebookDocument {}
 impl Notification for DidSaveNotebookDocument {
@@ -265,6 +275,8 @@ impl Notification for DidSaveNotebookDocument {
     const METHOD: &'static str = "notebookDocument/didSave";
 }
 
+/// The notebook document close notification is sent from the client to the server when
+/// a notebook document is closed.
 #[derive(Debug)]
 pub enum DidCloseNotebookDocument {}
 impl Notification for DidCloseNotebookDocument {

@@ -4,7 +4,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 use std::sync::Arc;
 
-use dashmap::{DashMap, mapref::entry::Entry};
+use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use futures::future::{self, Either};
 use tracing::{debug, info};
 
@@ -39,7 +40,7 @@ impl Pending {
             let requests = self.0.clone();
             Either::Left(async move {
                 let abort_result = handler_fut.await;
-                requests.remove(&id); // Remove abort handle now to avoid double cancellation.
+                requests.remove(&id); // remove abort handle now to avoid double cancellation
 
                 abort_result.unwrap_or_else(|_| {
                     Ok(Some(Response::from_error(id, Error::request_cancelled())))

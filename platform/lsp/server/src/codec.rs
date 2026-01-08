@@ -10,7 +10,8 @@ use std::str::Utf8Error;
 use bytes::buf::BufMut;
 use bytes::{Buf, BytesMut};
 use memchr::memmem;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use tracing::{trace, warn};
 
 use tokio_util::codec::{Decoder, Encoder};
@@ -116,8 +117,8 @@ impl<T: Serialize> Encoder<T> for LanguageServerCodec<T> {
         let msg = serde_json::to_string(&item)?;
         trace!("-> {}", msg);
 
-        // Reserve just enough space to hold the `Content-Length: ` and `\r\n\r\n` constants,
-        // the length of the message, and the message body.
+        // reserve just enough space to hold the `Content-Length: ` and `\r\n\r\n` constants,
+        // the length of the message, and the message body
         dst.reserve(msg.len() + number_of_digits(msg.len()) + 20);
         let mut writer = dst.writer();
         write!(writer, "Content-Length: {}\r\n\r\n{}", msg.len(), msg)?;
@@ -162,7 +163,7 @@ impl<T: DeserializeOwned> Decoder for LanguageServerCodec<T> {
             };
 
             src.advance(content_len);
-            self.content_len = None; // Reset state in preparation for parsing next message.
+            self.content_len = None; // reset state in preparation for parsing next message
 
             result
         } else {
@@ -177,7 +178,7 @@ impl<T: DeserializeOwned> Decoder for LanguageServerCodec<T> {
                 Ok(content_len) => {
                     src.advance(headers_len);
                     self.content_len = Some(content_len);
-                    self.decode(src) // Recurse right back in, now that `Content-Length` is known.
+                    self.decode(src) // recurse right back in, now that `Content-Length` is known
                 }
                 Err(err) => {
                     match err {
@@ -185,7 +186,7 @@ impl<T: DeserializeOwned> Decoder for LanguageServerCodec<T> {
                         _ => src.advance(headers_len),
                     }
 
-                    // Skip any garbage bytes by scanning ahead for another potential message.
+                    // skip any garbage bytes by scanning ahead for another potential message
                     src.advance(memmem::find(src, b"Content-Length").unwrap_or_default());
                     Err(err)
                 }

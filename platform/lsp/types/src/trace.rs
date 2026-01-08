@@ -14,11 +14,14 @@ pub struct SetTraceParams {
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum TraceValue {
-    /// The server should not send any `$/logTrace` notification
+    /// The server should not send any `$/logTrace` notification.
     #[default]
     Off,
-    /// The server should not add the 'verbose' field in the `LogTraceParams`
+
+    /// The server should not add the 'verbose' field in the `LogTraceParams`.
     Messages,
+
+    /// The server should include verbose trace information.
     Verbose,
 }
 

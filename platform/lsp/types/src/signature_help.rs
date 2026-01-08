@@ -199,9 +199,13 @@ pub struct ParameterInformation {
     pub documentation: Option<Documentation>,
 }
 
+/// The label of a parameter.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ParameterLabel {
+    /// A simple string label.
     Simple(String),
+
+    /// Label offsets as inclusive start and exclusive end.
     LabelOffsets([u32; 2]),
 }

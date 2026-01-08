@@ -6,19 +6,25 @@ use crate::{
     TextDocumentPositionParams, Uri, WorkDoneProgressOptions, WorkDoneProgressParams,
 };
 
+/// Client capabilities for call hierarchy requests.
 pub type CallHierarchyClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Options for call hierarchy support.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct CallHierarchyOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Server capability for call hierarchy.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize, Copy)]
 #[serde(untagged)]
 pub enum CallHierarchyServerCapability {
+    /// Simple boolean capability.
     Simple(bool),
+    /// Detailed options.
     Options(CallHierarchyOptions),
 }
 
@@ -34,16 +40,20 @@ impl From<bool> for CallHierarchyServerCapability {
     }
 }
 
+/// Parameters for preparing a call hierarchy request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CallHierarchyPrepareParams {
+    /// The text document and position.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
+/// An item in the call hierarchy.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CallHierarchyItem {
@@ -76,14 +86,18 @@ pub struct CallHierarchyItem {
     pub data: Option<Value>,
 }
 
+/// Parameters for requesting incoming calls.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CallHierarchyIncomingCallsParams {
+    /// The call hierarchy item to get incoming calls for.
     pub item: CallHierarchyItem,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
@@ -100,14 +114,18 @@ pub struct CallHierarchyIncomingCall {
     pub from_ranges: Vec<Range>,
 }
 
+/// Parameters for requesting outgoing calls.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CallHierarchyOutgoingCallsParams {
+    /// The call hierarchy item to get outgoing calls for.
     pub item: CallHierarchyItem,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
