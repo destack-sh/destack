@@ -2,18 +2,23 @@ mod analysis;
 mod block;
 mod constant;
 mod context;
+mod expression;
 mod instruction;
 mod metrics;
 mod pass;
 mod pipeline;
-#[cfg(test)]
-pub(crate) mod tests;
+mod r#type;
 
 pub use analysis::*;
 pub use block::*;
 pub use constant::*;
 pub use context::*;
+pub use expression::*;
 pub use instruction::*;
 pub use metrics::*;
 pub use pass::*;
 pub use pipeline::*;
+pub use r#type::*;
+
+#[cfg(test)]
+pub(crate) mod tests;

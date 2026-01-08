@@ -6,17 +6,16 @@ use super::context::OptimizationContext;
 use super::pass::{
     BoxedFunctionPass, BoxedModulePass, FunctionPass, ModulePass, OptimizationLevel,
 };
-use crate::optimize::passes::{ConstantFold, CopyPropagate, DeadCodeEliminate, InstructionCombine, Mem2Reg, SimplifyCfg};
+use crate::optimize::passes::{
+    ConstantFold, CopyPropagate, DeadCodeEliminate, GlobalValueNumbering, InstructionCombine,
+    LocalCse, Mem2Reg, SimplifyCfg,
+};
 
 /// Optimization pipeline that runs passes in sequence.
 ///
 /// The pipeline manages the order of passes and handles analysis invalidation
 /// between passes. It can be configured with different optimization levels
 /// to control which passes run.
-///
-/// Execution order:
-/// 1. Module passes (in order added)
-/// 2. Function passes on each function (in order added)
 pub struct Pipeline {
     /// Module passes to run on the entire module.
     module_passes: Vec<BoxedModulePass>,
@@ -30,8 +29,8 @@ impl fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Pipeline")
             .field("level", &self.level)
-            .field("module_pass_count", &self.module_passes.len())
-            .field("function_pass_count", &self.function_passes.len())
+            .field("module_passes", &self.module_passes.len())
+            .field("function_passes", &self.function_passes.len())
             .finish()
     }
 }
@@ -133,10 +132,19 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             // no optimizations
         }
         OptimizationLevel::O1 | OptimizationLevel::O2 | OptimizationLevel::O3 => {
+            // phase 1: initial simplifications
             pipeline.add_function_pass(ConstantFold);
             pipeline.add_function_pass(InstructionCombine);
-            pipeline.add_function_pass(CopyPropagate);
+
+            // phase 2: promote to SSA (enables better CSE)
             pipeline.add_function_pass(Mem2Reg);
+
+            // phase 3: redundancy elimination
+            pipeline.add_function_pass(LocalCse);
+            pipeline.add_function_pass(GlobalValueNumbering);
+            pipeline.add_function_pass(CopyPropagate);
+
+            // phase 4: cleanup
             pipeline.add_function_pass(SimplifyCfg);
             pipeline.add_function_pass(DeadCodeEliminate);
         }

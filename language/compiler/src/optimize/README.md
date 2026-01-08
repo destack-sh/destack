@@ -120,7 +120,6 @@ Pass categories follow standard compiler terminology (LLVM, GCC, Go, Rust):
 ### Scalar (S)
 
 Local and global optimizations within a single function.
-These form the foundation of the optimization pipeline.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|
@@ -131,17 +130,19 @@ These form the foundation of the optimization pipeline.
 | `copy-propagate` | CopyPropagate | function | O1 | ✓ | ✅ | — | Replace uses of `v1 = v0` with `v0` directly |
 | `local-cse` | LocalCse | function | O1 | ✓ | 🔶 | — | Eliminate redundant computations within a basic block |
 | `gvn` | GlobalValueNumbering | function | O2 | ✓ | 🔶 | domtree | Eliminate redundant computations across basic blocks |
+| `pre` | PartialRedundancyElim | function | O3 | ✗ | 🔶 | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `sccp` | SparseConditionalConstantProp | function | O2 | ✓ | 🔶 | cfg | Aggressive constant propagation with unreachable code detection |
 | `reassociate` | Reassociate | function | O2 | ✓ | 🔶 | — | Reorder associative operations for better constant folding |
 | `sink` | CodeSinking | function | O2 | ✗ | 🔶 | domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | ✓ | 🔶 | domtree | Move identical instructions to common dominator |
 | `tail-call-eliminate` | TailCallEliminate | function | O2 | ✓ | 🔶 | cfg | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | ✓ | 🔶 | domtree | Use dominating conditions to narrow value ranges |
+| `if-convert` | IfConvert | function | O2 | ✗ | 🔶 | cfg | Convert simple if-then-else diamonds to select/conditional-move |
+| `narrow` | Narrow | function | O2 | ✗ | 🔶 | — | Use narrower integer types when upper bits are unused |
 
 ### Interprocedural (I)
 
 Cross-function optimizations that require module-level analysis.
-These are some of the most impactful optimizations.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|
@@ -154,11 +155,13 @@ These are some of the most impactful optimizations.
 | `merge-functions` | MergeFunctions | module | O3 | ✓ | 🔶 | — | Merge identical function bodies |
 | `partial-inline` | PartialInline | module | O3 | ✗ | 🔶 | callgraph, loops | Inline only the hot path of a function |
 | `constant-merge` | ConstantMerge | module | O2 | ✓ | 🔶 | — | Deduplicate identical constants across module |
+| `global-opt` | GlobalOpt | module | O2 | ✗ | 🔶 | callgraph | Internalize globals, propagate constants, convert never-written to immutable |
+| `function-attrs` | FunctionAttrs | module | O2 | ✗ | 🔶 | callgraph | Deduce function attributes (nounwind, noreturn, readonly, noescape) |
+| `hot-cold-split` | HotColdSplit | module | O3 | ✗ | 🔶 | callgraph, loops | Split functions into hot and cold regions for better code layout |
 
 ### Memory (M)
 
 Optimizations for memory allocation and access patterns.
-These are critical for achieving Rust/Go-level performance.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|
@@ -173,7 +176,6 @@ These are critical for achieving Rust/Go-level performance.
 ### Loop (L)
 
 Loop-specific transformations.
-These provide significant speedups for compute-intensive code.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|

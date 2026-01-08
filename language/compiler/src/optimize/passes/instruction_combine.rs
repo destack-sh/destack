@@ -4,13 +4,13 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, UnaryOperator};
 
+use crate::AnalysisKind;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
     constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
     constant_is_one, constant_is_zero, constant_zero_like, instruction_substitute_uses,
     terminator_substitute_uses,
 };
-use crate::AnalysisKind;
 
 declare_pass! {
     /// Algebraic simplification of instructions.
@@ -111,13 +111,20 @@ impl FunctionPass for InstructionCombine {
                         operator,
                         left,
                         right,
-                    } => simplify_binary(*destination, *operator, *left, *right, &constants),
+                    } => {
+                        simplify_binary_operator(*destination, *operator, *left, *right, &constants)
+                    }
 
                     mir::Instruction::Unary {
                         destination,
                         operator,
                         argument,
-                    } => simplify_unary(*destination, *operator, *argument, &value_to_instruction),
+                    } => simplify_unary_operator(
+                        *destination,
+                        *operator,
+                        *argument,
+                        &value_to_instruction,
+                    ),
 
                     _ => None,
                 };
@@ -198,7 +205,7 @@ impl FunctionPass for InstructionCombine {
 }
 
 /// Try to simplify a binary operation using algebraic identities.
-fn simplify_binary(
+fn simplify_binary_operator(
     destination: mir::Value,
     operator: BinaryOperator,
     left: mir::Value,
@@ -210,7 +217,7 @@ fn simplify_binary(
 
     // same operand simplifications (x op x)
     if left == right {
-        return simplify_same_operand(destination, operator, left, constants);
+        return simplify_same_binary_operand(destination, operator, left, constants);
     }
 
     // identity and annihilator rules with constants
@@ -235,10 +242,14 @@ fn simplify_binary(
         // x * 0 = 0, 0 * x = 0, x * 1 = x, 1 * x = x
         BinaryOperator::Multiply => {
             if constant_is_zero(right_const) {
-                return Some(Simplification::Constant(constant_zero_like(right_const.unwrap())));
+                return Some(Simplification::Constant(constant_zero_like(
+                    right_const.unwrap(),
+                )));
             }
             if constant_is_zero(left_const) {
-                return Some(Simplification::Constant(constant_zero_like(left_const.unwrap())));
+                return Some(Simplification::Constant(constant_zero_like(
+                    left_const.unwrap(),
+                )));
             }
             if constant_is_one(right_const) {
                 return Some(Simplification::Substitute(left));
@@ -258,17 +269,23 @@ fn simplify_binary(
         // x % 1 = 0 (signed and unsigned)
         BinaryOperator::SignedRemainder | BinaryOperator::UnsignedRemainder => {
             if constant_is_one(right_const) {
-                return Some(Simplification::Constant(constant_zero_like(right_const.unwrap())));
+                return Some(Simplification::Constant(constant_zero_like(
+                    right_const.unwrap(),
+                )));
             }
         }
 
         // x & 0 = 0, 0 & x = 0
         BinaryOperator::And => {
             if constant_is_zero(right_const) {
-                return Some(Simplification::Constant(constant_zero_like(right_const.unwrap())));
+                return Some(Simplification::Constant(constant_zero_like(
+                    right_const.unwrap(),
+                )));
             }
             if constant_is_zero(left_const) {
-                return Some(Simplification::Constant(constant_zero_like(left_const.unwrap())));
+                return Some(Simplification::Constant(constant_zero_like(
+                    left_const.unwrap(),
+                )));
             }
             // x & all_ones = x
             if constant_is_all_ones(right_const) {
@@ -294,7 +311,9 @@ fn simplify_binary(
                 )));
             }
             if constant_is_all_ones(left_const) {
-                return Some(Simplification::Constant(constant_all_ones_like(left_const.unwrap())));
+                return Some(Simplification::Constant(constant_all_ones_like(
+                    left_const.unwrap(),
+                )));
             }
         }
 
@@ -317,7 +336,9 @@ fn simplify_binary(
             }
             // 0 << x = 0, 0 >> x = 0
             if constant_is_zero(left_const) {
-                return Some(Simplification::Constant(constant_zero_like(left_const.unwrap())));
+                return Some(Simplification::Constant(constant_zero_like(
+                    left_const.unwrap(),
+                )));
             }
         }
 
@@ -362,7 +383,7 @@ fn simplify_binary(
 }
 
 /// Simplify operations where both operands are the same value.
-fn simplify_same_operand(
+fn simplify_same_binary_operand(
     _destination: mir::Value,
     operator: BinaryOperator,
     operand: mir::Value,
@@ -435,7 +456,7 @@ fn resolve_substitution_chains(
 }
 
 /// Try to simplify a unary operation.
-fn simplify_unary(
+fn simplify_unary_operator(
     _destination: mir::Value,
     operator: UnaryOperator,
     argument: mir::Value,
@@ -463,7 +484,7 @@ mod tests {
 
     /// x + 0 simplifies to x (instruction removed, uses substituted).
     #[test]
-    fn test_add_zero() {
+    fn test_simplify_add_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -484,7 +505,7 @@ block0(v0: i32):
 
     /// 0 + x simplifies to x.
     #[test]
-    fn test_zero_add() {
+    fn test_simplify_zero_add() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -504,7 +525,7 @@ block0(v0: i32):
 
     /// x * 1 simplifies to x.
     #[test]
-    fn test_mul_one() {
+    fn test_simplify_mul_one() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -524,7 +545,7 @@ block0(v0: i32):
 
     /// x * 0 simplifies to 0.
     #[test]
-    fn test_mul_zero() {
+    fn test_simplify_mul_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -545,7 +566,7 @@ block0(v0: i32):
 
     /// x & 0 simplifies to 0.
     #[test]
-    fn test_and_zero() {
+    fn test_simplify_and_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -566,7 +587,7 @@ block0(v0: i32):
 
     /// x | 0 simplifies to x.
     #[test]
-    fn test_or_zero() {
+    fn test_simplify_or_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -586,7 +607,7 @@ block0(v0: i32):
 
     /// x ^ 0 simplifies to x.
     #[test]
-    fn test_xor_zero() {
+    fn test_simplify_xor_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -606,7 +627,7 @@ block0(v0: i32):
 
     /// x - x simplifies to 0 (when type info is available).
     #[test]
-    fn test_sub_self() {
+    fn test_simplify_sub_self() {
         // use a constant so we have type info
         let input = r#"function @test() -> i32 {
 block0:
@@ -628,7 +649,7 @@ block0:
 
     /// x ^ x simplifies to 0 (when type info is available).
     #[test]
-    fn test_xor_self() {
+    fn test_simplify_xor_self() {
         // use a constant so we have type info
         let input = r#"function @test() -> i32 {
 block0:
@@ -650,7 +671,7 @@ block0:
 
     /// x - x without type info is not simplified (conservative).
     #[test]
-    fn test_sub_self_no_type_info() {
+    fn test_preserve_sub_self_without_type_info() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = isub v0, v0
@@ -665,7 +686,7 @@ block0(v0: i32):
 
     /// x & x simplifies to x.
     #[test]
-    fn test_and_self() {
+    fn test_simplify_and_self() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = band v0, v0
@@ -683,7 +704,7 @@ block0(v0: i32):
 
     /// x | x simplifies to x.
     #[test]
-    fn test_or_self() {
+    fn test_simplify_or_self() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = bor v0, v0
@@ -701,7 +722,7 @@ block0(v0: i32):
 
     /// x == x simplifies to true.
     #[test]
-    fn test_eq_self() {
+    fn test_simplify_eq_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
     v1 = icmp_eq v0, v0
@@ -720,7 +741,7 @@ block0(v0: i32):
 
     /// x != x simplifies to false.
     #[test]
-    fn test_ne_self() {
+    fn test_simplify_ne_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
     v1 = icmp_ne v0, v0
@@ -739,7 +760,7 @@ block0(v0: i32):
 
     /// x < x simplifies to false.
     #[test]
-    fn test_lt_self() {
+    fn test_simplify_lt_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
     v1 = icmp_slt v0, v0
@@ -758,7 +779,7 @@ block0(v0: i32):
 
     /// x <= x simplifies to true.
     #[test]
-    fn test_le_self() {
+    fn test_simplify_le_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
     v1 = icmp_sle v0, v0
@@ -777,7 +798,7 @@ block0(v0: i32):
 
     /// x << 0 simplifies to x.
     #[test]
-    fn test_shl_zero() {
+    fn test_simplify_shl_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -797,7 +818,7 @@ block0(v0: i32):
 
     /// 0 << x simplifies to 0.
     #[test]
-    fn test_zero_shl() {
+    fn test_simplify_zero_shl() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -818,7 +839,7 @@ block0(v0: i32):
 
     /// x / 1 simplifies to x.
     #[test]
-    fn test_div_one() {
+    fn test_simplify_div_one() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -838,7 +859,7 @@ block0(v0: i32):
 
     /// x % 1 simplifies to 0.
     #[test]
-    fn test_rem_one() {
+    fn test_simplify_rem_one() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -874,7 +895,7 @@ block0(v0: i32):
 
     /// Chained simplifications work correctly.
     #[test]
-    fn test_chained_simplifications() {
+    fn test_apply_chained_simplifications() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -898,7 +919,7 @@ block0(v0: i32):
 
     /// Substitutions propagate through uses.
     #[test]
-    fn test_substitute_propagation() {
+    fn test_propagate_substitutions() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -923,7 +944,7 @@ block0(v0: i32):
 
     /// x & all_ones simplifies to x.
     #[test]
-    fn test_and_all_ones() {
+    fn test_simplify_and_all_ones() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst -1i32
@@ -943,7 +964,7 @@ block0(v0: i32):
 
     /// x | all_ones simplifies to all_ones.
     #[test]
-    fn test_or_all_ones() {
+    fn test_simplify_or_all_ones() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst -1i32
@@ -964,7 +985,7 @@ block0(v0: i32):
 
     /// x >> 0 (arithmetic) simplifies to x.
     #[test]
-    fn test_ashr_zero() {
+    fn test_simplify_ashr_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -984,7 +1005,7 @@ block0(v0: i32):
 
     /// x >> 0 (logical) simplifies to x.
     #[test]
-    fn test_lshr_zero() {
+    fn test_simplify_lshr_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1004,7 +1025,7 @@ block0(v0: i32):
 
     /// Unsigned x / 1 simplifies to x.
     #[test]
-    fn test_udiv_one() {
+    fn test_simplify_udiv_one() {
         let input = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
     v1 = iconst 1u32
@@ -1024,7 +1045,7 @@ block0(v0: u32):
 
     /// Unsigned x % 1 simplifies to 0.
     #[test]
-    fn test_urem_one() {
+    fn test_simplify_urem_one() {
         let input = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
     v1 = iconst 1u32
@@ -1045,7 +1066,7 @@ block0(v0: u32):
 
     /// Float x + 0.0 simplifies to x.
     #[test]
-    fn test_fadd_zero() {
+    fn test_simplify_fadd_zero() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
     v1 = iconst 0.0f32
@@ -1066,7 +1087,7 @@ block0(v0: f32):
 
     /// Float x * 1.0 simplifies to x.
     #[test]
-    fn test_fmul_one() {
+    fn test_simplify_fmul_one() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
     v1 = iconst 1.0f32
@@ -1087,7 +1108,7 @@ block0(v0: f32):
 
     /// Float x / 1.0 simplifies to x.
     #[test]
-    fn test_fdiv_one() {
+    fn test_simplify_fdiv_one() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
     v1 = iconst 1.0f32
@@ -1108,7 +1129,7 @@ block0(v0: f32):
 
     /// Float x - 0.0 simplifies to x.
     #[test]
-    fn test_fsub_zero() {
+    fn test_simplify_fsub_zero() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
     v1 = iconst 0.0f32
@@ -1129,7 +1150,7 @@ block0(v0: f32):
 
     /// Double negation !!x simplifies to x.
     #[test]
-    fn test_double_not() {
+    fn test_simplify_double_not() {
         let input = r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     v1 = bnot v0
