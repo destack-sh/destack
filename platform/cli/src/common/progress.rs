@@ -274,10 +274,8 @@ fn update_status(
     let progress_stats = read_progress_stats(state);
 
     // in detailed mode, print newly completed packages
-    if detailed {
-        if let Some(ref stats) = progress_stats {
-            print_new_packages(status, state, stats, label);
-        }
+    if detailed && let Some(ref stats) = progress_stats {
+        print_new_packages(status, state, stats, label);
     }
 
     // get active module for display
