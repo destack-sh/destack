@@ -1,0 +1,5 @@
+// core collections (ambient)
+export { Array, arrayOf, arrayFill } from "./array.ds";
+export { Slice, MutSlice } from "./slice.ds";
+export { Map, MapEntry, Record } from "./map.ds";
+export { Set } from "./set.ds";

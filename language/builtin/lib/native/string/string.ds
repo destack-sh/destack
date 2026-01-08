@@ -1,0 +1,162 @@
+/// Native UTF-8 string with cached UTF-16 length for TypeScript compatibility.
+struct String {
+    /// UTF-16 code unit count (for .length compatibility with JS/TS).
+    lengthUtf16: uint32,
+    /// Byte length of UTF-8 data.
+    lengthBytes: uint32,
+    /// Cached hash (0 = not yet computed).
+    hash: uint32,
+    /// Allocated capacity in bytes.
+    capacity: uint32,
+    /// Pointer to UTF-8 byte data.
+    data: *uint8,
+}
+
+/// Lowercase alias for TypeScript compatibility.
+type string = String;
+
+extension for String {
+    /// The length in UTF-16 code units (TypeScript-compatible).
+    get length(): number {
+        this.lengthUtf16 as number
+    }
+
+    /// Get the byte length of the UTF-8 representation.
+    get byteLength(): uint32 {
+        this.lengthBytes
+    }
+
+    /// Check if the string is empty.
+    get isEmpty(): boolean {
+        this.lengthBytes == 0
+    }
+
+    /// Get a character at the given UTF-16 index.
+    /// Returns undefined if index is out of bounds.
+    charAt(index: number): string | undefined {
+        // #Incomplete
+        undefined
+    }
+
+    /// Get the UTF-16 code unit at the given index.
+    charCodeAt(index: number): number | undefined {
+        // #Incomplete
+        undefined
+    }
+
+    /// Concatenate two strings.
+    concat(other: string): string {
+        // #Incomplete
+        this
+    }
+
+    /// Check if string includes a substring.
+    includes(search: string, position?: number): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Find the first index of a substring.
+    indexOf(search: string, position?: number): number {
+        // #Incomplete
+        -1
+    }
+
+    /// Find the last index of a substring.
+    lastIndexOf(search: string, position?: number): number {
+        // #Incomplete
+        -1
+    }
+
+    /// Check if string starts with a prefix.
+    startsWith(search: string, position?: number): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Check if string ends with a suffix.
+    endsWith(search: string, position?: number): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Extract a substring.
+    substring(start: number, end?: number): string {
+        // #Incomplete
+        this
+    }
+
+    /// Extract a slice of the string.
+    slice(start?: number, end?: number): string {
+        // #Incomplete
+        this
+    }
+
+    /// Convert to lowercase.
+    toLowerCase(): string {
+        // #Incomplete
+        this
+    }
+
+    /// Convert to uppercase.
+    toUpperCase(): string {
+        // #Incomplete
+        this
+    }
+
+    /// Remove leading and trailing whitespace.
+    trim(): string {
+        // #Incomplete
+        this
+    }
+
+    /// Remove leading whitespace.
+    trimStart(): string {
+        // #Incomplete
+        this
+    }
+
+    /// Remove trailing whitespace.
+    trimEnd(): string {
+        // #Incomplete
+        this
+    }
+
+    /// Repeat the string n times.
+    repeat(count: number): string {
+        // #Incomplete
+        this
+    }
+
+    /// Pad the start of the string.
+    padStart(targetLength: number, padString?: string): string {
+        // #Incomplete
+        this
+    }
+
+    /// Pad the end of the string.
+    padEnd(targetLength: number, padString?: string): string {
+        // #Incomplete
+        this
+    }
+
+    /// Split the string by a separator.
+    split(separator: string, limit?: number): Array<string> {
+        // #Incomplete
+        []
+    }
+
+    /// Equality comparison.
+    equal(other: String): boolean {
+        if this.lengthBytes != other.lengthBytes {
+            return false;
+        }
+        // #Incomplete: compare bytes
+        true
+    }
+
+    /// String concatenation via + operator.
+    add(other: String): String {
+        this.concat(other)
+    }
+}

@@ -1,0 +1,31 @@
+/// Copy memory (non-overlapping).
+@intrinsic
+declare function memcpy(dst: *unknown, src: *unknown, size: uint64): void;
+
+/// Copy memory (may overlap).
+@intrinsic
+declare function memmove(dst: *unknown, src: *unknown, size: uint64): void;
+
+/// Fill memory with a byte value.
+@intrinsic
+declare function memset(dst: *unknown, value: uint8, size: uint64): void;
+
+/// Compare memory regions.
+/// Returns negative if a < b, zero if equal, positive if a > b.
+@intrinsic
+declare function memcmp(a: *unknown, b: *unknown, size: uint64): int32;
+
+/// Get size of a type at compile time.
+declare function sizeOf<T>(): uint64;
+
+/// Get alignment of a type at compile time.
+declare function alignOf<T>(): uint64;
+
+/// Offset a pointer by bytes.
+declare function offsetPtr<T>(ptr: *T, bytes: int64): *T;
+
+/// Read from a raw pointer.
+declare function readPtr<T>(ptr: *T): T;
+
+/// Write to a raw pointer.
+declare function writePtr<T>(ptr: *T, value: T): void;

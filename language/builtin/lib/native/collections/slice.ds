@@ -1,0 +1,143 @@
+/// A borrowed view into contiguous memory.
+struct Slice<T> {
+    /// Pointer to the first element.
+    data: *T,
+    /// Number of elements in the slice.
+    length: uint32,
+}
+
+/// Mutable slice variant.
+struct MutSlice<T> {
+    /// Pointer to the first element.
+    data: *mut T,
+    /// Number of elements in the slice.
+    length: uint32,
+}
+
+extension<T> for Slice<T> implements Index<number, T>, Iterable<T> {
+    /// Get the length of the slice.
+    get length(): number {
+        this.length as number
+    }
+
+    /// Check if the slice is empty.
+    get isEmpty(): boolean {
+        this.length == 0
+    }
+
+    /// Get element at index (bounds checked).
+    index(i: number): T | undefined {
+        if i < 0 || i >= this.length as number {
+            return undefined;
+        }
+        // #Incomplete
+        undefined!
+    }
+
+    /// Get element at index (unchecked).
+    unsafeGet(i: uint32): T {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Get a sub-slice.
+    slice(start?: number, end?: number): Slice<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Get the first element.
+    first(): T | undefined {
+        if this.length == 0 {
+            return undefined;
+        }
+        this.index(0)
+    }
+
+    /// Get the last element.
+    last(): T | undefined {
+        if this.length == 0 {
+            return undefined;
+        }
+        this.index(this.length as number - 1)
+    }
+
+    /// Split at index into two slices.
+    splitAt(index: number): [Slice<T>, Slice<T>] {
+        // #Incomplete
+        [this, this]
+    }
+
+    /// Create an iterator.
+    [Symbol.iterator](): Iterator<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Copy slice contents to an owned array.
+    toArray(): Array<T> {
+        // #Incomplete
+        []
+    }
+}
+
+extension<T> for MutSlice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
+    /// Get the length of the slice.
+    get length(): number {
+        this.length as number
+    }
+
+    /// Check if the slice is empty.
+    get isEmpty(): boolean {
+        this.length == 0
+    }
+
+    /// Get element at index (bounds checked).
+    index(i: number): T | undefined {
+        if i < 0 || i >= this.length as number {
+            return undefined;
+        }
+        // #Incomplete
+        undefined!
+    }
+
+    /// Set element at index (bounds checked).
+    indexSet(i: number, value: T): void {
+        if i < 0 || i >= this.length as number {
+            return;
+        }
+        // #Incomplete
+    }
+
+    /// Fill the slice with a value.
+    fill(value: T): void {
+        // #Incomplete
+    }
+
+    /// Copy from another slice.
+    copyFrom(src: Slice<T>): void {
+        // #Incomplete
+    }
+
+    /// Swap two elements.
+    swap(i: number, j: number): void {
+        // #Incomplete
+    }
+
+    /// Reverse in place.
+    reverse(): void {
+        // #Incomplete
+    }
+
+    /// Create an iterator.
+    [Symbol.iterator](): Iterator<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Get as immutable slice.
+    asSlice(): Slice<T> {
+        // #Incomplete
+        undefined!
+    }
+}

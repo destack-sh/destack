@@ -2,6 +2,7 @@ mod bun;
 mod deno;
 mod dom;
 mod es;
+mod native;
 mod node;
 mod scripthost;
 mod undici_types;
@@ -13,6 +14,7 @@ pub use bun::*;
 pub use deno::*;
 pub use dom::*;
 pub use es::*;
+pub use native::*;
 pub use node::*;
 pub use scripthost::*;
 pub use undici_types::*;
@@ -120,6 +122,7 @@ pub const LIBS: &[BuiltinLib] = &[
     LIB_ESNEXT_ITERATOR,
     LIB_ESNEXT_PROMISE,
     LIB_ESNEXT_SHAREDMEMORY,
+    LIB_NATIVE,
     LIB_NODE,
     LIB_NODE_V18,
     LIB_NODE_V20,

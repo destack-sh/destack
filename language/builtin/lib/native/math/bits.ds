@@ -1,0 +1,27 @@
+/// Count leading zeros.
+@intrinsic
+declare function clz<T>(value: T): T;
+
+/// Count trailing zeros.
+@intrinsic
+declare function ctz<T>(value: T): T;
+
+/// Population count (number of set bits).
+@intrinsic
+declare function popcnt<T>(value: T): T;
+
+/// Byte swap (endianness conversion).
+@intrinsic
+declare function byteSwap<T>(value: T): T;
+
+/// Reverse all bits.
+@intrinsic
+declare function bitReverse<T>(value: T): T;
+
+/// Rotate bits left.
+@intrinsic
+declare function rotateLeft<T>(value: T, amount: T): T;
+
+/// Rotate bits right.
+@intrinsic
+declare function rotateRight<T>(value: T, amount: T): T;
