@@ -7,7 +7,7 @@ pub mod server;
 pub use query::*;
 pub use server::DestackLanguageServer;
 
-use tower_lsp_server::{LspService, Server};
+use destack_lsp_server::{LspService, Server};
 
 /// Run the language server over stdio.
 pub async fn run_stdio_server() -> Result<(), Box<dyn std::error::Error>> {

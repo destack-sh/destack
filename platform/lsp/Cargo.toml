@@ -22,6 +22,8 @@ destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
+destack_lsp_server = { path = "server" }
+destack_lsp_types = { path = "types" }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { workspace = true }
@@ -38,5 +40,4 @@ tokio = { version = "1", features = [
 	"io-std",
 	"sync",
 ] }
-tower-lsp-server = "0.22.1"
 tracing = { workspace = true }
