@@ -439,6 +439,63 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
+            Instruction::Struct {
+                destination,
+                ty,
+                fields,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = struct ");
+                self.write_colored(&self.format_type_id(*ty), Color::Magenta);
+                self.write("(");
+                let args = self.tree.get_arguments(*fields);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+            }
+
+            Instruction::Tuple {
+                destination,
+                ty,
+                elements,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tuple ");
+                self.write_colored(&self.format_type_id(*ty), Color::Magenta);
+                self.write("(");
+                let args = self.tree.get_arguments(*elements);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+            }
+
+            Instruction::Array {
+                destination,
+                ty,
+                elements,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = array ");
+                self.write_colored(&self.format_type_id(*ty), Color::Magenta);
+                self.write("(");
+                let args = self.tree.get_arguments(*elements);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+            }
+
             Instruction::Call {
                 destination,
                 function,

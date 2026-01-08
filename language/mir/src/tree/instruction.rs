@@ -206,6 +206,39 @@ pub enum Instruction {
         /// The value to insert at the index.
         value: Value,
     },
+    /// Construct a struct from field values.
+    ///
+    /// Fields must be provided in layout order.
+    Struct {
+        /// The SSA value to define with the constructed struct.
+        destination: Value,
+        /// The struct type to construct.
+        ty: LocalNodeId<Type>,
+        /// The field values (stored in NodeTree's argument buffer).
+        fields: ArgumentSlice,
+    },
+    /// Construct a tuple from element values.
+    ///
+    /// Elements must be provided in order.
+    Tuple {
+        /// The SSA value to define with the constructed tuple.
+        destination: Value,
+        /// The tuple type to construct.
+        ty: LocalNodeId<Type>,
+        /// The element values (stored in NodeTree's argument buffer).
+        elements: ArgumentSlice,
+    },
+    /// Construct an array from element values.
+    ///
+    /// Elements must be provided in index order.
+    Array {
+        /// The SSA value to define with the constructed array.
+        destination: Value,
+        /// The array type to construct.
+        ty: LocalNodeId<Type>,
+        /// The element values (stored in NodeTree's argument buffer).
+        elements: ArgumentSlice,
+    },
 
     // function calls (call, call.indirect)
     /// Call a function directly.
@@ -316,6 +349,9 @@ impl Instruction {
             Instruction::ElementGet { destination, .. } => Some(*destination),
             Instruction::ElementAddr { destination, .. } => Some(*destination),
             Instruction::ElementSet { destination, .. } => Some(*destination),
+            Instruction::Struct { destination, .. } => Some(*destination),
+            Instruction::Tuple { destination, .. } => Some(*destination),
+            Instruction::Array { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
             Instruction::ManagedAlloc { destination, .. } => Some(*destination),
@@ -357,7 +393,10 @@ impl Instruction {
                 value,
                 ..
             } => smallvec![*array, *index, *value],
-            // Arguments stored externally - return empty
+            // arguments stored externally - return empty
+            Instruction::Struct { .. } => smallvec![],
+            Instruction::Tuple { .. } => smallvec![],
+            Instruction::Array { .. } => smallvec![],
             Instruction::Call { .. } => smallvec![],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
             Instruction::ManagedAlloc { .. } => smallvec![],
@@ -372,10 +411,13 @@ impl Instruction {
 
     /// Get the argument slice for instructions that have externalized arguments.
     ///
-    /// Returns `Some(ArgumentSlice)` for Call, CallIndirect, and Intrinsic.
+    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallIndirect, and Intrinsic.
     /// Returns `None` for all other instructions.
     pub fn argument_slice(&self) -> Option<ArgumentSlice> {
         match self {
+            Instruction::Struct { fields, .. } => Some(*fields),
+            Instruction::Tuple { elements, .. } => Some(*elements),
+            Instruction::Array { elements, .. } => Some(*elements),
             Instruction::Call { arguments, .. } => Some(*arguments),
             Instruction::CallIndirect { arguments, .. } => Some(*arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),

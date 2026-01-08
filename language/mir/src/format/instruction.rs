@@ -330,6 +330,72 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::Struct {
+                destination,
+                ty,
+                fields,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("struct"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_arguments(*fields);
+                format_value_list(args, f)
+            }
+
+            Instruction::Tuple {
+                destination,
+                ty,
+                elements,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("tuple"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_arguments(*elements);
+                format_value_list(args, f)
+            }
+
+            Instruction::Array {
+                destination,
+                ty,
+                elements,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("array"),
+                        space(),
+                        ty,
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_arguments(*elements);
+                format_value_list(args, f)
+            }
+
             Instruction::Call {
                 destination,
                 function,

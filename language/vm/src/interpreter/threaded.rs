@@ -355,6 +355,12 @@ pub enum ThreadedInstructionData {
         value: mir::Value,
     },
 
+    /// Construct an aggregate (struct, tuple, or array) from element values.
+    Aggregate {
+        dest: mir::Value,
+        elements: ArgumentRange,
+    },
+
     /// Store an element through element.addr + store.
     ElementStore {
         array: mir::Value,

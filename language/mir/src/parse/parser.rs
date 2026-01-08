@@ -147,6 +147,26 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse an instruction opcode.
+    ///
+    /// Opcodes can be identifiers or the `struct` keyword (which conflicts
+    /// with the type keyword but is also a valid instruction name).
+    fn eat_opcode(&mut self) -> ParseResult<(&'a str, usize)> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("opcode", self.pos()))?;
+
+        match token.ty {
+            TokenType::Identifier | TokenType::Struct => {
+                let text = token.text;
+                let start = token.start;
+                self.bump();
+                Ok((text, start))
+            }
+            _ => Err(ParseError::unexpected("opcode", token.ty, token.start)),
+        }
+    }
+
     /// Get the text of the current token.
     fn span_str(&self) -> &'a str {
         self.peek().map(|t| t.text).unwrap_or("")
@@ -676,8 +696,8 @@ impl<'a> Parser<'a> {
         let destination = self.parse_value()?;
         self.eat_token(TokenType::Equals)?;
 
-        let opcode = self.eat_token(TokenType::Identifier)?;
-        let opcode_text = opcode.text;
+        // opcode can be an identifier or the `struct` keyword
+        let (opcode_text, opcode_start) = self.eat_opcode()?;
 
         let instruction = match opcode_text {
             // constant
@@ -823,6 +843,36 @@ impl<'a> Parser<'a> {
                     value,
                 }
             }
+            "struct" => {
+                let ty = self.parse_type()?;
+                let args = self.parse_call_arguments()?;
+                let fields = self.tree.add_arguments(&args);
+                Instruction::Struct {
+                    destination,
+                    ty,
+                    fields,
+                }
+            }
+            "tuple" => {
+                let ty = self.parse_type()?;
+                let args = self.parse_call_arguments()?;
+                let elements = self.tree.add_arguments(&args);
+                Instruction::Tuple {
+                    destination,
+                    ty,
+                    elements,
+                }
+            }
+            "array" => {
+                let ty = self.parse_type()?;
+                let args = self.parse_call_arguments()?;
+                let elements = self.tree.add_arguments(&args);
+                Instruction::Array {
+                    destination,
+                    ty,
+                    elements,
+                }
+            }
 
             // function calls
             "call" => {
@@ -881,7 +931,6 @@ impl<'a> Parser<'a> {
 
             // intrinsics: intrinsic.{name}(args) or intrinsic.{name}(args, ordering)
             _ if opcode_text.starts_with("intrinsic.") => {
-                let opcode_start = opcode.start;
                 let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
                 let (args, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
                 let arguments = self.tree.add_arguments(&args);
@@ -896,7 +945,7 @@ impl<'a> Parser<'a> {
             _ => {
                 return Err(ParseError::invalid(
                     &format!("instruction '{opcode_text}'"),
-                    opcode.start,
+                    opcode_start,
                 ));
             }
         };
@@ -908,6 +957,7 @@ impl<'a> Parser<'a> {
     fn eat_instruction_without_destination(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
         let opcode = self.eat_token(TokenType::Identifier)?;
         let opcode_text = opcode.text;
+        let opcode_start = opcode.start;
 
         let instruction = match opcode_text {
             // local operations
@@ -960,7 +1010,6 @@ impl<'a> Parser<'a> {
 
             // void intrinsics: intrinsic.{name}(args) or intrinsic.{name}(args, ordering)
             _ if opcode_text.starts_with("intrinsic.") => {
-                let opcode_start = opcode.start;
                 let intrinsic = parse_intrinsic_name(opcode_text, opcode_start)?;
                 let (args, ordering) = self.parse_intrinsic_arguments(intrinsic)?;
                 let arguments = self.tree.add_arguments(&args);
@@ -975,7 +1024,7 @@ impl<'a> Parser<'a> {
             _ => {
                 return Err(ParseError::invalid(
                     &format!("instruction '{opcode_text}'"),
-                    opcode.start,
+                    opcode_start,
                 ));
             }
         };
