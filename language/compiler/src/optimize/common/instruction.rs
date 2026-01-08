@@ -312,3 +312,421 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
     }
 }
+
+/// Maps for tracking where values are used and defined.
+#[derive(Debug)]
+pub struct UseDefMaps {
+    /// Maps each value to the blocks where it is used.
+    pub use_blocks: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
+    /// Maps each value to the block where it is defined.
+    pub def_block: HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+}
+
+/// Build maps from values to their use locations and definition blocks.
+///
+/// This is useful for sinking, code motion, and liveness analysis.
+/// Function parameters are not included in `def_block` (they have no defining block).
+pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> UseDefMaps {
+    let mut use_blocks: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>> = HashMap::new();
+    let mut def_block: HashMap<mir::Value, mir::LocalNodeId<mir::Block>> = HashMap::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // block parameters are defined in this block
+        for param in &block.parameters {
+            def_block.insert(param.value, block_id);
+        }
+
+        // instructions
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+
+            // record definition
+            if let Some(dest) = instruction.destination() {
+                def_block.insert(dest, block_id);
+            }
+
+            // record uses
+            for use_value in instruction.uses() {
+                use_blocks.entry(use_value).or_default().push(block_id);
+            }
+
+            // externalized arguments
+            if let Some(args_slice) = instruction.argument_slice() {
+                for &arg in tree.get_arguments(args_slice) {
+                    use_blocks.entry(arg).or_default().push(block_id);
+                }
+            }
+        }
+
+        // terminator uses
+        for use_value in block.terminator.uses() {
+            use_blocks.entry(use_value).or_default().push(block_id);
+        }
+    }
+
+    UseDefMaps {
+        use_blocks,
+        def_block,
+    }
+}
+
+/// Remap all values in an instruction according to the given map.
+///
+/// Unlike `instruction_substitute_uses`, this also remaps the destination and
+/// handles externalized arguments (Call, Intrinsic, etc.) by creating new
+/// argument slices in the tree.
+pub fn instruction_map(
+    instruction: &mir::Instruction,
+    value_map: &HashMap<mir::Value, mir::Value>,
+    tree: &mut mir::NodeTree,
+) -> mir::Instruction {
+    let remap = |v: mir::Value| -> mir::Value { *value_map.get(&v).unwrap_or(&v) };
+
+    match instruction {
+        mir::Instruction::Const { destination, value } => mir::Instruction::Const {
+            destination: remap(*destination),
+            value: value.clone(),
+        },
+        mir::Instruction::Binary {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::Binary {
+            destination: remap(*destination),
+            operator: *operator,
+            left: remap(*left),
+            right: remap(*right),
+        },
+        mir::Instruction::Unary {
+            destination,
+            operator,
+            argument,
+        } => mir::Instruction::Unary {
+            destination: remap(*destination),
+            operator: *operator,
+            argument: remap(*argument),
+        },
+        mir::Instruction::Cast {
+            destination,
+            operator,
+            argument,
+            to_type,
+        } => mir::Instruction::Cast {
+            destination: remap(*destination),
+            operator: *operator,
+            argument: remap(*argument),
+            to_type: *to_type,
+        },
+        mir::Instruction::Load {
+            destination,
+            pointer,
+        } => mir::Instruction::Load {
+            destination: remap(*destination),
+            pointer: remap(*pointer),
+        },
+        mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
+            pointer: remap(*pointer),
+            value: remap(*value),
+        },
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: remap(*value),
+        },
+        mir::Instruction::FieldGet {
+            destination,
+            aggregate,
+            index,
+        } => mir::Instruction::FieldGet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+        },
+        mir::Instruction::FieldAddr {
+            destination,
+            aggregate,
+            index,
+        } => mir::Instruction::FieldAddr {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+        },
+        mir::Instruction::FieldSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        } => mir::Instruction::FieldSet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+            value: remap(*value),
+        },
+        mir::Instruction::ElementGet {
+            destination,
+            array,
+            index,
+        } => mir::Instruction::ElementGet {
+            destination: remap(*destination),
+            array: remap(*array),
+            index: remap(*index),
+        },
+        mir::Instruction::ElementAddr {
+            destination,
+            array,
+            index,
+        } => mir::Instruction::ElementAddr {
+            destination: remap(*destination),
+            array: remap(*array),
+            index: remap(*index),
+        },
+        mir::Instruction::ElementSet {
+            destination,
+            array,
+            index,
+            value,
+        } => mir::Instruction::ElementSet {
+            destination: remap(*destination),
+            array: remap(*array),
+            index: remap(*index),
+            value: remap(*value),
+        },
+        mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
+            destination: remap(*destination),
+            local: *local,
+        },
+        mir::Instruction::LocalSet { local, value } => mir::Instruction::LocalSet {
+            local: *local,
+            value: remap(*value),
+        },
+        mir::Instruction::GlobalAddr {
+            destination,
+            global,
+        } => mir::Instruction::GlobalAddr {
+            destination: remap(*destination),
+            global: *global,
+        },
+        mir::Instruction::GlobalConst {
+            destination,
+            global,
+        } => mir::Instruction::GlobalConst {
+            destination: remap(*destination),
+            global: *global,
+        },
+        mir::Instruction::Struct {
+            destination,
+            ty,
+            fields,
+        } => {
+            let new_args: Vec<mir::Value> = tree
+                .get_arguments(*fields)
+                .iter()
+                .map(|&v| remap(v))
+                .collect();
+            let new_slice = tree.add_arguments(&new_args);
+            mir::Instruction::Struct {
+                destination: remap(*destination),
+                ty: *ty,
+                fields: new_slice,
+            }
+        }
+        mir::Instruction::Tuple {
+            destination,
+            ty,
+            elements,
+        } => {
+            let new_args: Vec<mir::Value> = tree
+                .get_arguments(*elements)
+                .iter()
+                .map(|&v| remap(v))
+                .collect();
+            let new_slice = tree.add_arguments(&new_args);
+            mir::Instruction::Tuple {
+                destination: remap(*destination),
+                ty: *ty,
+                elements: new_slice,
+            }
+        }
+        mir::Instruction::Array {
+            destination,
+            ty,
+            elements,
+        } => {
+            let new_args: Vec<mir::Value> = tree
+                .get_arguments(*elements)
+                .iter()
+                .map(|&v| remap(v))
+                .collect();
+            let new_slice = tree.add_arguments(&new_args);
+            mir::Instruction::Array {
+                destination: remap(*destination),
+                ty: *ty,
+                elements: new_slice,
+            }
+        }
+        mir::Instruction::Call {
+            destination,
+            function,
+            arguments,
+        } => {
+            let new_args: Vec<mir::Value> = tree
+                .get_arguments(*arguments)
+                .iter()
+                .map(|&v| remap(v))
+                .collect();
+            let new_slice = tree.add_arguments(&new_args);
+            mir::Instruction::Call {
+                destination: destination.map(remap),
+                function: *function,
+                arguments: new_slice,
+            }
+        }
+        mir::Instruction::CallIndirect {
+            destination,
+            callee,
+            arguments,
+        } => {
+            let new_args: Vec<mir::Value> = tree
+                .get_arguments(*arguments)
+                .iter()
+                .map(|&v| remap(v))
+                .collect();
+            let new_slice = tree.add_arguments(&new_args);
+            mir::Instruction::CallIndirect {
+                destination: destination.map(remap),
+                callee: remap(*callee),
+                arguments: new_slice,
+            }
+        }
+        mir::Instruction::ManagedAlloc {
+            destination,
+            layout,
+        } => mir::Instruction::ManagedAlloc {
+            destination: remap(*destination),
+            layout: *layout,
+        },
+        mir::Instruction::ManagedAllocArray {
+            destination,
+            element,
+            length,
+        } => mir::Instruction::ManagedAllocArray {
+            destination: remap(*destination),
+            element: *element,
+            length: remap(*length),
+        },
+        mir::Instruction::RawAlloc {
+            destination,
+            layout,
+        } => mir::Instruction::RawAlloc {
+            destination: remap(*destination),
+            layout: *layout,
+        },
+        mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
+            pointer: remap(*pointer),
+        },
+        mir::Instruction::StackAlloc {
+            destination,
+            layout,
+        } => mir::Instruction::StackAlloc {
+            destination: remap(*destination),
+            layout: *layout,
+        },
+        mir::Instruction::Intrinsic {
+            destination,
+            intrinsic,
+            arguments,
+            ordering,
+        } => {
+            let new_args: Vec<mir::Value> = tree
+                .get_arguments(*arguments)
+                .iter()
+                .map(|&v| remap(v))
+                .collect();
+            let new_slice = tree.add_arguments(&new_args);
+            mir::Instruction::Intrinsic {
+                destination: destination.map(remap),
+                intrinsic: *intrinsic,
+                arguments: new_slice,
+                ordering: *ordering,
+            }
+        }
+    }
+}
+
+/// Remap block targets and values in a terminator.
+///
+/// Block targets are remapped according to `block_map`, and values are remapped
+/// according to `value_map`. Values/blocks not in the maps are left unchanged.
+pub fn terminator_remap(
+    terminator: &mut mir::Terminator,
+    block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+    value_map: &HashMap<mir::Value, mir::Value>,
+) {
+    let remap_target = |t: &mut mir::LocalNodeId<mir::Block>| {
+        if let Some(&new_t) = block_map.get(t) {
+            *t = new_t;
+        }
+    };
+
+    let remap_value = |v: &mut mir::Value| {
+        if let Some(&new_v) = value_map.get(v) {
+            *v = new_v;
+        }
+    };
+
+    let remap_args = |args: &mut Vec<mir::Value>| {
+        for arg in args.iter_mut() {
+            remap_value(arg);
+        }
+    };
+
+    match terminator {
+        mir::Terminator::Jump { target, arguments } => {
+            remap_target(target);
+            remap_args(arguments);
+        }
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } => {
+            remap_value(condition);
+            remap_target(then_target);
+            remap_args(then_arguments);
+            remap_target(else_target);
+            remap_args(else_arguments);
+        }
+        mir::Terminator::Switch {
+            value,
+            default,
+            default_arguments,
+            cases,
+        } => {
+            remap_value(value);
+            remap_target(default);
+            remap_args(default_arguments);
+            for case in cases.iter_mut() {
+                remap_target(&mut case.target);
+                remap_args(&mut case.arguments);
+            }
+        }
+        mir::Terminator::Return { value } => {
+            if let Some(v) = value {
+                remap_value(v);
+            }
+        }
+        mir::Terminator::Yield {
+            value,
+            resume,
+            resume_arguments,
+        } => {
+            remap_value(value);
+            remap_target(resume);
+            remap_args(resume_arguments);
+        }
+        mir::Terminator::Unreachable => {}
+    }
+}
