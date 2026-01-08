@@ -8,7 +8,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{LowerError, LowerResult};
 
 use super::super::{ModuleLowerer, TypeLowerer};
-use super::block::{BlockLowerer, LocalBinding, Terminates};
+use super::block::{BlockLowerer, LocalBinding, LoopContext, Terminates};
 
 /// Lower a single function body into MIR.
 pub(crate) struct FunctionLowerer<'a> {
@@ -30,6 +30,10 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(crate) builder: mir::FunctionBuilder<'a>,
     /// Track locals by symbol for variable resolution.
     pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
+    /// Track loop contexts by symbol for labeled break/continue.
+    pub(crate) loops_by_symbol: HashMap<GlobalSymbolId, LoopContext>,
+    /// Track loop nesting for unlabeled break/continue.
+    pub(crate) loop_stack: Vec<LoopContext>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -55,6 +59,8 @@ impl<'a> FunctionLowerer<'a> {
             type_lowerer,
             builder,
             locals_by_symbol: HashMap::new(),
+            loops_by_symbol: HashMap::new(),
+            loop_stack: Vec::new(),
         }
     }
 
@@ -73,6 +79,8 @@ impl<'a> FunctionLowerer<'a> {
             type_lowerer: self.type_lowerer,
             builder: &mut self.builder,
             locals_by_symbol: &mut self.locals_by_symbol,
+            loops_by_symbol: &mut self.loops_by_symbol,
+            loop_stack: &mut self.loop_stack,
         };
 
         block_lowerer.lower_statement_expression(body_id)
