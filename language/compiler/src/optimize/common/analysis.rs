@@ -15,6 +15,8 @@ pub enum AnalysisKind {
     ControlFlowGraph,
     /// Dominator tree.
     DominatorTree,
+    /// Natural loop analysis.
+    LoopAnalysis,
 }
 
 /// A computed analysis over MIR.
