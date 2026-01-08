@@ -6,14 +6,14 @@ use destack_ast::NodeParentIndex;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
+use destack_lsp_types as lsp;
 use destack_parser::Parser;
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileSystem, FileType, LanguageType, OverlayFileSystem,
     PhysicalFileSystem, Span, Uri,
 };
 use destack_workspace::{FormatterOptions, Session, query};
-use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
-use destack_lsp_types as lsp;
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
