@@ -73,13 +73,12 @@ impl Compiler {
         let mut builder = mir::ModuleBuilder::new();
         // NOTE #Broken: comptime uses host pointer width until execute is target-aware
         let pointer_bytes = std::mem::size_of::<usize>() as u8;
-        self.validate_pointer_bytes(module.id, pointer_bytes).map_err(|error| {
-            ExecuteError::FailedLower {
+        self.validate_pointer_bytes(module.id, pointer_bytes)
+            .map_err(|error| ExecuteError::FailedLower {
                 module: module.id,
                 error: Box::new(error.clone()),
                 message: format!("{error}"),
-            }
-        })?;
+            })?;
         let mut type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
 
         // resolve the return type for the comptime expression
