@@ -181,7 +181,7 @@ block0(v0: i32, v1: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Commutative operands are recognized as equivalent (v0 + v1 == v1 + v0).
@@ -202,7 +202,7 @@ block0(v0: i32, v1: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Transitive chains of redundant expressions are all eliminated.
@@ -227,7 +227,7 @@ block0(v0: i32, v1: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Constants are not CSE'd by this pass (handled by constant folding).
@@ -298,7 +298,7 @@ block0(v0: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Multiple redundant expressions in sequence are all eliminated.
@@ -322,7 +322,7 @@ block0(v0: i32, v1: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Field accesses with same base and index are CSE'd.
@@ -343,7 +343,7 @@ block0(v0: (i32, i32)):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Different field indices are not CSE'd.
@@ -380,7 +380,7 @@ block0(v0: [i32; 10], v1: i64):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Casts to identical types are CSE'd.
@@ -401,7 +401,7 @@ block0(v0: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Unique expressions are preserved unchanged.
@@ -444,6 +444,6 @@ block2(v6: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 }

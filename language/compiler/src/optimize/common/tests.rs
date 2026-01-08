@@ -2,6 +2,7 @@
 
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
+use destack_source::{DiffOptions, print_diff};
 
 use crate::optimize::{FunctionPass, OptimizationContext};
 
@@ -51,6 +52,9 @@ impl TestProgram {
                 continue;
             }
 
+            // recompute next_value_id after parsing so passes can allocate fresh values
+            function.recompute_next_value_id(&self.tree);
+
             pass.run_on_function(&mut function, &mut self.tree, &context);
 
             // write function back
@@ -63,25 +67,21 @@ impl TestProgram {
         mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
     }
 
-    /// Get the formatted output.
-    pub(crate) fn output(&self) -> String {
-        self.format()
-    }
-
     /// Assert that the current MIR matches the expected output after formatting.
     #[track_caller]
-    pub(crate) fn assert_eq(&self, expected: &str) {
-        let output = self.format();
-        assert_eq!(
-            expected.trim(),
-            output.trim(),
-            "optimization output mismatch"
-        );
+    pub(crate) fn assert_output(&self, expected: &str) {
+        let actual = self.format();
+        let expected = expected.trim();
+        let actual = actual.trim();
+        if actual != expected {
+            print_diff(expected, actual, &DiffOptions::new());
+            panic!("optimization output mismatch");
+        }
     }
 
     /// Assert that the MIR is unchanged from the original source.
     #[track_caller]
     pub(crate) fn assert_unchanged(&self, original: &str) {
-        self.assert_eq(original);
+        self.assert_output(original);
     }
 }

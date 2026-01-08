@@ -90,7 +90,7 @@ Analysis results are shared across passes until invalidated.
 | `cfg` | ControlFlowGraph | function | ✓ | ✅ | — | Predecessors and successors for each block |
 | `domtree` | DominatorTree | function | ✓ | ✅ | cfg | Dominance relationships, immediate dominators |
 | `postdomtree` | PostDominatorTree | function | ✓ | 🔶 | cfg | Post-dominance for control dependence analysis |
-| `loops` | LoopAnalysis | function | ✓ | 🔶 | domtree | Natural loops, headers, back edges, nesting depth |
+| `loops` | LoopAnalysis | function | ✓ | ✅ | domtree | Natural loops, headers, latches, nesting depth |
 | `liveness` | LivenessAnalysis | function | ✓ | 🔶 | cfg | Which values are live at each program point |
 | `reaching-defs` | ReachingDefinitions | function | ✓ | 🔶 | cfg | Which Local definitions reach each use (pre-mem2reg) |
 | `available-exprs` | AvailableExpressions | function | ✓ | 🔶 | domtree | Which expressions are available at each point |
@@ -179,7 +179,7 @@ Loop-specific transformations.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|
-| `loop-simplify` | LoopSimplify | function | O1 | ✗ | 🔶 | loops | Canonicalize loops (single entry/exit, preheader) |
+| `loop-simplify` | LoopSimplify | function | O1 | ✓ | ✅ | loops | Canonicalize loops (preheader, single latch) |
 | `loop-rotate` | LoopRotate | function | O2 | ✗ | 🔶 | loops | Rotate loops to expose optimization opportunities |
 | `licm` | LoopInvariantCodeMotion | function | O2 | ✗ | 🔶 | loops, alias | Move loop-invariant computations outside the loop |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✗ | 🔶 | scalar-evolution | Simplify or eliminate derived induction variables |

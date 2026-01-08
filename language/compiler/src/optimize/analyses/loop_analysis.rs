@@ -166,7 +166,11 @@ impl LoopAnalysis {
         let mut loops = Vec::new();
         let mut header_to_loop = HashMap::new();
 
-        for (header, latches) in back_edges_by_header {
+        // sort by header block ID for deterministic iteration order
+        let mut sorted_entries: Vec<_> = back_edges_by_header.into_iter().collect();
+        sorted_entries.sort_by_key(|(header, _)| *header);
+
+        for (header, latches) in sorted_entries {
             // compute loop body via reverse reachability from latches
             let blocks = Self::compute_loop_body(header, &latches, cfg);
 

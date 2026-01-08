@@ -500,7 +500,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// 0 + x simplifies to x.
@@ -520,7 +520,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x * 1 simplifies to x.
@@ -540,7 +540,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x * 0 simplifies to 0.
@@ -561,7 +561,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x & 0 simplifies to 0.
@@ -582,7 +582,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x | 0 simplifies to x.
@@ -602,7 +602,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x ^ 0 simplifies to x.
@@ -622,7 +622,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x - x simplifies to 0 (when type info is available).
@@ -644,7 +644,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x ^ x simplifies to 0 (when type info is available).
@@ -666,7 +666,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x - x without type info is not simplified (conservative).
@@ -699,7 +699,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x | x simplifies to x.
@@ -717,7 +717,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x == x simplifies to true.
@@ -736,7 +736,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x != x simplifies to false.
@@ -755,7 +755,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x < x simplifies to false.
@@ -774,7 +774,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x <= x simplifies to true.
@@ -793,7 +793,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x << 0 simplifies to x.
@@ -813,7 +813,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// 0 << x simplifies to 0.
@@ -834,7 +834,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x / 1 simplifies to x.
@@ -854,7 +854,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x % 1 simplifies to 0.
@@ -875,7 +875,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Non-simplifiable operations are preserved.
@@ -914,7 +914,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Substitutions propagate through uses.
@@ -939,7 +939,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x & all_ones simplifies to x.
@@ -959,7 +959,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x | all_ones simplifies to all_ones.
@@ -980,7 +980,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x >> 0 (arithmetic) simplifies to x.
@@ -1000,7 +1000,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// x >> 0 (logical) simplifies to x.
@@ -1020,7 +1020,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Unsigned x / 1 simplifies to x.
@@ -1040,7 +1040,7 @@ block0(v0: u32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Unsigned x % 1 simplifies to 0.
@@ -1061,7 +1061,7 @@ block0(v0: u32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Float x + 0.0 simplifies to x.
@@ -1082,7 +1082,7 @@ block0(v0: f32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Float x * 1.0 simplifies to x.
@@ -1103,7 +1103,7 @@ block0(v0: f32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Float x / 1.0 simplifies to x.
@@ -1124,7 +1124,7 @@ block0(v0: f32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Float x - 0.0 simplifies to x.
@@ -1145,7 +1145,7 @@ block0(v0: f32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Double negation !!x simplifies to x.
@@ -1165,6 +1165,6 @@ block0(v0: bool):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 }

@@ -884,7 +884,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Local accessed across blocks via jump.
@@ -910,7 +910,7 @@ block1(v2: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Diamond CFG with block parameter needed at join point.
@@ -950,7 +950,7 @@ block3(v100: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Multiple locals, all promotable.
@@ -975,7 +975,7 @@ block0(v0: i32, v1: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// No locals to promote.
@@ -1049,7 +1049,7 @@ block3(v8: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Multiple definitions in the same block.
@@ -1072,7 +1072,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Existing block parameters should be preserved.
@@ -1101,7 +1101,7 @@ block1(v2: i32, v5: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Switch terminator with local.
@@ -1144,6 +1144,6 @@ block3(v5: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Mem2Reg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 }

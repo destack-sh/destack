@@ -4,6 +4,7 @@ mod dead_code_eliminate;
 mod gvn;
 mod instruction_combine;
 mod local_cse;
+mod loop_simplify;
 mod mem2reg;
 mod simplify_cfg;
 
@@ -13,5 +14,6 @@ pub use dead_code_eliminate::*;
 pub use gvn::*;
 pub use instruction_combine::*;
 pub use local_cse::*;
+pub use loop_simplify::*;
 pub use mem2reg::*;
 pub use simplify_cfg::*;
