@@ -1257,9 +1257,8 @@ impl<'a> Parser<'a> {
                 let result = self.parse_type()?;
                 Type::FunctionPointer { parameters, result }
             }
-            TokenType::Struct => {
+            TokenType::OpenBrace => {
                 self.bump();
-                self.eat_token(TokenType::OpenBrace)?;
                 let mut fields = Vec::new();
                 let mut offset = 0u32;
                 while !self.peek_token(TokenType::CloseBrace) {

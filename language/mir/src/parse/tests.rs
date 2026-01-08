@@ -385,8 +385,8 @@ block0(v0: fn(i32, i32) -> i64):
 fn test_roundtrip_struct_type() {
     // struct type in function signature
     roundtrip(
-        r#"function @structTest(v0: struct { i32, f64 }) -> struct { i32, f64 } {
-block0(v0: struct { i32, f64 }):
+        r#"function @structTest(v0: { i32, f64 }) -> { i32, f64 } {
+block0(v0: { i32, f64 }):
     return v0
 }"#,
     );
@@ -396,8 +396,8 @@ block0(v0: struct { i32, f64 }):
 fn test_roundtrip_struct_type_named_fields() {
     // struct type with field names in function signature
     roundtrip(
-        r#"function @structNamedTest(v0: struct { x: i32, y: f64 }) -> struct { x: i32, y: f64 } {
-block0(v0: struct { x: i32, y: f64 }):
+        r#"function @structNamedTest(v0: { x: i32, y: f64 }) -> { x: i32, y: f64 } {
+block0(v0: { x: i32, y: f64 }):
     return v0
 }"#,
     );
@@ -406,7 +406,7 @@ block0(v0: struct { x: i32, y: f64 }):
 #[test]
 fn test_roundtrip_type_alias() {
     roundtrip(
-        r#"type @Point = struct { i32, i32 }
+        r#"type @Point = { i32, i32 }
 function @usePoint(v0: ref<managed @Point>) -> ref<managed @Point> {
 block0(v0: ref<managed @Point>):
     return v0
@@ -430,9 +430,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
 fn test_roundtrip_struct() {
     // construct a struct from field values
     roundtrip(
-        r#"function @makePoint(v0: i32, v1: i32) -> struct { i32, i32 } {
+        r#"function @makePoint(v0: i32, v1: i32) -> { i32, i32 } {
 block0(v0: i32, v1: i32):
-    v2 = struct struct { i32, i32 } (v0, v1)
+    v2 = struct { i32, i32 } (v0, v1)
     return v2
 }"#,
     );
@@ -469,7 +469,7 @@ block0:
 fn test_roundtrip_struct_type_alias() {
     // construct a struct using a type alias
     roundtrip(
-        r#"type @Point = struct { i32, i32 }
+        r#"type @Point = { i32, i32 }
 function @makePoint(v0: i32, v1: i32) -> @Point {
 block0(v0: i32, v1: i32):
     v2 = struct @Point (v0, v1)
