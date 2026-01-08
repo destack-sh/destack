@@ -5,9 +5,37 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{build_use_def_maps, instruction_is_pure};
+use mir::Instruction;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
 };
+
+/// Check if an instruction is a memory read (load, local get).
+fn instruction_is_memory_read(instruction: &Instruction) -> bool {
+    matches!(
+        instruction,
+        Instruction::Load { .. } | Instruction::LocalGet { .. }
+    )
+}
+
+/// Check if an instruction may write memory or have other side effects
+/// that could affect a subsequent load.
+fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
+    matches!(
+        instruction,
+        Instruction::Store { .. }
+            | Instruction::LocalSet { .. }
+            | Instruction::Call { .. }
+            | Instruction::CallIndirect { .. }
+            | Instruction::Intrinsic { .. }
+            | Instruction::Drop { .. }
+            | Instruction::ManagedAlloc { .. }
+            | Instruction::ManagedAllocArray { .. }
+            | Instruction::RawAlloc { .. }
+            | Instruction::RawFree { .. }
+            | Instruction::StackAlloc { .. }
+    )
+}
 
 declare_pass! {
     /// Sink instructions closer to their uses.
@@ -43,13 +71,14 @@ declare_pass! {
     /// ```
     ///
     /// Restrictions:
-    /// - Only sinks pure instructions (no side effects AND no mutable state reads)
+    /// - Only sinks pure instructions OR memory reads with no intervening memory ops
     /// - Only sinks when ALL uses are in a single successor
     /// - Does not sink from outside a loop to inside (would increase execution frequency)
     /// - Does not sink into blocks with multiple predecessors
     ///
-    /// Note: Loads are NOT sunk because sinking past a store to the same address
-    /// would change the loaded value. This requires alias analysis to do safely.
+    /// Loads can be sunk when there are no intervening stores, calls, or other
+    /// memory-affecting operations between the load and the branch. This is safe
+    /// without alias analysis because the memory state cannot change.
     #[pass(id = "sink")]
     pub Sink,
     "Code sinking"
@@ -102,10 +131,23 @@ impl FunctionPass for Sink {
             for (idx, &instruction_id) in block.instructions.iter().enumerate() {
                 let instruction = tree.get(instruction_id);
 
-                // skip instructions that aren't pure (reads mutable state or has side effects)
-                // we need purity, not just side-effect-free, because sinking a load past
-                // a store to the same address would change the loaded value
-                if !instruction_is_pure(instruction) {
+                // determine if the instruction can be sunk
+                let can_sink = if instruction_is_pure(instruction) {
+                    // pure instructions can always be sunk
+                    true
+                } else if instruction_is_memory_read(instruction) {
+                    // memory reads (loads) can be sunk if there are no intervening
+                    // memory-affecting operations between this instruction and the terminator
+                    let has_intervening_memory_op = block.instructions[idx + 1..]
+                        .iter()
+                        .any(|&instr_id| instruction_may_affect_memory(tree.get(instr_id)));
+                    !has_intervening_memory_op
+                } else {
+                    // other instructions (stores, calls, etc.) cannot be sunk
+                    false
+                };
+
+                if !can_sink {
                     continue;
                 }
 
@@ -570,9 +612,9 @@ block3:
         program.assert_output(&before);
     }
 
-    /// Loads are not sunk (would require alias analysis to be safe).
+    /// Loads are not sunk when there's an intervening store.
     #[test]
-    fn test_preserve_load_not_sunk() {
+    fn test_preserve_load_with_intervening_store() {
         let input = r#"function @test(v0: ref<raw i32>, v1: bool, v2: i32) -> i32 {
 block0(v0: ref<raw i32>, v1: bool, v2: i32):
     v3 = load v0
@@ -583,13 +625,43 @@ block1:
 block2:
     return v2
 }"#;
-        // v3 is only used in block1, but it's a load
-        // sinking it past the store would change the loaded value
-        // without alias analysis, we conservatively preserve loads
+        // v3 is only used in block1, but there's a store after the load
+        // sinking past the store could change the loaded value
         let mut program = TestProgram::new(input);
         let before = program.format();
         program.run_pass(&Sink);
         program.assert_output(&before);
+    }
+
+    /// Loads CAN be sunk when there are no intervening memory operations.
+    #[test]
+    fn test_sink_load_no_intervening_ops() {
+        let input = r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
+block0(v0: ref<raw i32>, v1: bool):
+    v2 = load v0
+    v3 = iconst 0i32
+    branch v1, block1, block2
+block1:
+    return v2
+block2:
+    return v3
+}"#;
+        // v2 (load) is only used in block1, no intervening memory ops
+        // v3 (iconst) is only used in block2
+        // both are sunk to their respective successors
+        let expected = r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
+block0(v0: ref<raw i32>, v1: bool):
+    branch v1, block1, block2
+block1:
+    v2 = load v0
+    return v2
+block2:
+    v3 = iconst 0i32
+    return v3
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&Sink);
+        program.assert_output(expected);
     }
 
     /// Pure instructions can still be sunk past side-effectful instructions.
