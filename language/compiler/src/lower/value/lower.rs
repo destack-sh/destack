@@ -202,11 +202,199 @@ impl BlockLowerer<'_, '_> {
                 })?;
                 Ok((value, result_type))
             }
+            Expression::TupleExpression { elements } => {
+                self.lower_tuple_expression(expression_id, elements)
+            }
+            Expression::ArrayExpression { elements } => {
+                self.lower_array_expression(expression_id, elements)
+            }
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => {
+                if static_arguments.is_some() {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "static arguments on member access are not supported".to_string(),
+                    })?;
+                }
+                self.lower_member_expression(expression_id, *left, *name)
+            }
+            Expression::Index { left, right } => {
+                let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module_id),
+                    message: "missing index expression".to_string(),
+                })?;
+                self.lower_index_expression(expression_id, *left, index_expr)
+            }
             _ => Err(LowerError::UnsupportedConstruct {
                 node: expression_id.into_global_any(self.module_id),
                 message: format!("unsupported value expression '{}'", expression.kind_name()),
             })?,
         }
+    }
+
+    /// Lower a tuple expression to an aggregate value.
+    fn lower_tuple_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        elements: &[LocalNodeId<dir::Argument>],
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the tuple type
+        let tuple_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
+            LowerError::MissingType {
+                node: expression_id.into_global_any(self.module_id),
+            }
+        })?;
+
+        // lower each element value
+        let mut element_values = Vec::with_capacity(elements.len());
+        for element_id in elements {
+            let element = self.dir_tree.get(*element_id);
+            match element {
+                dir::Argument::Positional { value } | dir::Argument::Labeled { value, .. } => {
+                    let (value, _) = self.lower_value_expression(*value)?;
+                    element_values.push(value);
+                }
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "unsupported tuple element kind".to_string(),
+                    })?;
+                }
+            }
+        }
+
+        // construct the tuple
+        let value = self.builder.tuple(tuple_type, element_values);
+        Ok((value, tuple_type))
+    }
+
+    /// Lower an array expression to an array value.
+    fn lower_array_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        elements: &[LocalNodeId<dir::Argument>],
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the array type
+        let array_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
+            LowerError::MissingType {
+                node: expression_id.into_global_any(self.module_id),
+            }
+        })?;
+
+        // lower each element value
+        let mut element_values = Vec::with_capacity(elements.len());
+        for element_id in elements {
+            let element = self.dir_tree.get(*element_id);
+            match element {
+                dir::Argument::Positional { value } => {
+                    let (value, _) = self.lower_value_expression(*value)?;
+                    element_values.push(value);
+                }
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "unsupported array element kind".to_string(),
+                    })?;
+                }
+            }
+        }
+
+        // construct the array
+        let value = self.builder.array(array_type, element_values);
+        Ok((value, array_type))
+    }
+
+    /// Lower a member access expression to a field_get.
+    fn lower_member_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
+        field_name: destack_base::StringId,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // lower the aggregate value
+        let (aggregate_value, aggregate_type) = self.lower_value_expression(left_id)?;
+
+        // look up the field index in the MIR type
+        let aggregate_mir_type = self.builder.tree().get(aggregate_type);
+        let field_index = match aggregate_mir_type {
+            mir::Type::Struct { fields } => {
+                // find field by name - compare StringIds directly
+                let fields_clone = fields.clone();
+                fields_clone.iter().position(|field_id| {
+                    let field = self.builder.tree().get(*field_id);
+                    field.name == Some(field_name)
+                })
+            }
+            mir::Type::Tuple { elements } => {
+                // for tuples, resolve the field index from the inferred type
+                // the index is determined during type checking
+                self.resolve_tuple_field_index(expression_id, elements.len())
+            }
+            _ => None,
+        }
+        .ok_or_else(|| LowerError::UnsupportedConstruct {
+            node: expression_id.into_global_any(self.module_id),
+            message: "field not found in aggregate type".to_string(),
+        })?;
+
+        // get the result type
+        let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
+            LowerError::MissingType {
+                node: expression_id.into_global_any(self.module_id),
+            }
+        })?;
+
+        // emit field_get
+        let value = self.builder.field_get(aggregate_value, field_index as u32);
+        Ok((value, result_type))
+    }
+
+    /// Resolve a tuple field index from the member expression.
+    ///
+    /// For tuple member access like `tuple.0`, we need to parse the numeric index
+    /// from the field name. This is stored in the type table from type checking.
+    fn resolve_tuple_field_index(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tuple_len: usize,
+    ) -> Option<usize> {
+        // get the expression to find the field name
+        let expression = self.dir_tree.get(expression_id);
+        if let Expression::Member { name, .. } = expression {
+            // try to parse the field name as a numeric index
+            let name_str = self.strings.get(*name);
+            let index = name_str.parse::<usize>().ok()?;
+            if index < tuple_len {
+                return Some(index);
+            }
+        }
+        None
+    }
+
+    /// Lower an index expression to an element_get.
+    fn lower_index_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
+        index_id: LocalNodeId<Expression>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // lower the array value and index
+        let (array_value, _array_type) = self.lower_value_expression(left_id)?;
+        let (index_value, _index_type) = self.lower_value_expression(index_id)?;
+
+        // get the result type (element type)
+        let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
+            LowerError::MissingType {
+                node: expression_id.into_global_any(self.module_id),
+            }
+        })?;
+
+        // emit element_get
+        let value = self.builder.element_get(array_value, index_value);
+        Ok((value, result_type))
     }
 
     /// Lower a binary operator.
@@ -270,14 +458,21 @@ impl BlockLowerer<'_, '_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
-        match self.scalar_type_for_expression(expression_id)? {
-            ScalarType::Bool => Some(self.type_lowerer.ty_bool),
-            ScalarType::SignedInt { width: 32 } => Some(self.type_lowerer.ty_i32),
-            ScalarType::SignedInt { width: 64 } => Some(self.type_lowerer.ty_i64),
-            ScalarType::Float { width: 32 } => Some(self.type_lowerer.ty_f32),
-            ScalarType::Float { width: 64 } => Some(self.type_lowerer.ty_f64),
-            _ => None,
+        // first try scalar types
+        if let Some(scalar_type) = self.scalar_type_for_expression(expression_id) {
+            return match scalar_type {
+                ScalarType::Bool => Some(self.type_lowerer.ty_bool),
+                ScalarType::SignedInt { width: 32 } => Some(self.type_lowerer.ty_i32),
+                ScalarType::SignedInt { width: 64 } => Some(self.type_lowerer.ty_i64),
+                ScalarType::Float { width: 32 } => Some(self.type_lowerer.ty_f32),
+                ScalarType::Float { width: 64 } => Some(self.type_lowerer.ty_f64),
+                _ => None,
+            };
         }
+
+        // for non-scalar types, check the type cache
+        let type_id = self.dir_type_id_for_expression(expression_id)?;
+        self.type_lowerer.type_cache.get(&type_id).copied()
     }
 
     /// Resolve the scalar type for a typed expression.
