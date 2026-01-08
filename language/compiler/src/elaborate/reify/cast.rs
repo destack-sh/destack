@@ -129,8 +129,8 @@ impl Compiler {
         module: &Module,
     ) -> ElaborateResult<()> {
         // read the target type from the left hand side
-        let target_type_id = types
-            .get_declared_or_inferred_type_id(left.into_global_any(module_id))
+        let target_type_id = self
+            .value_type_id_for_expression(module_id, left, tree, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: left.into_global_any(module_id),
             })?;
