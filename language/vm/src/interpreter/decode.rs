@@ -1352,6 +1352,51 @@ fn thread_instruction(
             },
         },
 
+        mir::Instruction::Struct {
+            destination,
+            fields,
+            ..
+        } => {
+            let args = push_argument_range(argument_pool, tree.get_arguments(*fields));
+            ThreadedInstruction {
+                handler: dispatch::handle_aggregate,
+                data: ThreadedInstructionData::Aggregate {
+                    dest: *destination,
+                    elements: args,
+                },
+            }
+        }
+
+        mir::Instruction::Tuple {
+            destination,
+            elements,
+            ..
+        } => {
+            let args = push_argument_range(argument_pool, tree.get_arguments(*elements));
+            ThreadedInstruction {
+                handler: dispatch::handle_aggregate,
+                data: ThreadedInstructionData::Aggregate {
+                    dest: *destination,
+                    elements: args,
+                },
+            }
+        }
+
+        mir::Instruction::Array {
+            destination,
+            elements,
+            ..
+        } => {
+            let args = push_argument_range(argument_pool, tree.get_arguments(*elements));
+            ThreadedInstruction {
+                handler: dispatch::handle_aggregate,
+                data: ThreadedInstructionData::Aggregate {
+                    dest: *destination,
+                    elements: args,
+                },
+            }
+        }
+
         mir::Instruction::ManagedAlloc {
             destination,
             layout,
@@ -1652,6 +1697,9 @@ fn infer_instruction_kind(
             })
         }
         mir::Instruction::ElementSet { array, .. } => value_kinds.get(*array),
+        mir::Instruction::Struct { ty, .. } => Some(kind_from_type(tree, *ty)),
+        mir::Instruction::Tuple { ty, .. } => Some(kind_from_type(tree, *ty)),
+        mir::Instruction::Array { ty, .. } => Some(kind_from_type(tree, *ty)),
         mir::Instruction::ManagedAlloc { layout, .. } => Some(ValueKind::Pointer {
             pointee: *layout,
             storage: PointerStorage::Managed,

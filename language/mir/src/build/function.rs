@@ -120,6 +120,16 @@ impl<'a> FunctionBuilder<'a> {
         self.function_id
     }
 
+    /// Get a reference to the underlying node tree.
+    pub fn tree(&self) -> &NodeTree {
+        self.tree
+    }
+
+    /// Get a mutable reference to the underlying node tree.
+    pub fn tree_mut(&mut self) -> &mut NodeTree {
+        self.tree
+    }
+
     /// Allocate a new SSA value.
     fn allocate_value(&mut self) -> Value {
         let value = Value::new(self.next_value_id);
@@ -426,7 +436,12 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::ManagedAllocArray { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
                 }
-                Instruction::Call { .. } | Instruction::Intrinsic { .. } => {}
+                // arguments stored externally
+                Instruction::Struct { .. }
+                | Instruction::Tuple { .. }
+                | Instruction::Array { .. }
+                | Instruction::Call { .. }
+                | Instruction::Intrinsic { .. } => {}
             }
             argument_slice
         };
@@ -894,6 +909,48 @@ impl<'a> FunctionBuilder<'a> {
             array,
             index,
             value,
+        });
+        destination
+    }
+
+    /// Construct a struct from field values.
+    ///
+    /// Fields must be provided in layout order.
+    pub fn struct_(&mut self, ty: LocalNodeId<Type>, field_values: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        let fields = self.tree.add_arguments(&field_values);
+        self.insert_instruction(Instruction::Struct {
+            destination,
+            ty,
+            fields,
+        });
+        destination
+    }
+
+    /// Construct a tuple from element values.
+    ///
+    /// Elements must be provided in order.
+    pub fn tuple(&mut self, ty: LocalNodeId<Type>, element_values: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        let elements = self.tree.add_arguments(&element_values);
+        self.insert_instruction(Instruction::Tuple {
+            destination,
+            ty,
+            elements,
+        });
+        destination
+    }
+
+    /// Construct an array from element values.
+    ///
+    /// Elements must be provided in index order.
+    pub fn array(&mut self, ty: LocalNodeId<Type>, element_values: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        let elements = self.tree.add_arguments(&element_values);
+        self.insert_instruction(Instruction::Array {
+            destination,
+            ty,
+            elements,
         });
         destination
     }

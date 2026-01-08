@@ -4449,6 +4449,34 @@ pub(super) fn handle_switch_int(
     }
 }
 
+/// Handle aggregate construction.
+pub(super) fn handle_aggregate(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Aggregate { dest, elements } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // collect element values from the argument pool
+    let element_values: Vec<Value> = state
+        .argument_slice(*elements)
+        .iter()
+        .map(|v| state.get(*v))
+        .collect();
+
+    // allocate the aggregate on the heap
+    let result = state.interpreter.allocate_aggregate(element_values);
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle unreachable (errors).
 pub(super) fn handle_unreachable(
     _state: &mut ThreadedState,

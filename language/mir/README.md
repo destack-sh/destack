@@ -19,7 +19,7 @@ It knows pointer sizes and calling conventions, but doesn't commit to specific r
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL.
+MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL:
 
 ```mir
 block0:
@@ -42,6 +42,74 @@ block2(v3: i32):          // v3 is v1 or v2 depending on which edge
     ...
 ```
 
+## Design Philosophy
+
+MIR is a **hybrid IR** that combines:
+1. **SSA with block parameters** (like Cranelift, MLIR, Swift SIL) instead of phi nodes
+2. **Value-semantic aggregate operations** (like LLVM, Swift SIL) for constructing and destructuring
+3. **Memory-semantic aggregate operations** (like Cranelift) for pointer-based access
+
+This hybrid approach serves Destack's multi-backend architecture and mixed value/reference semantics.
+
+### Why Both Value and Memory Semantics?
+
+MIR has two ways to work with aggregates (structs, tuples, arrays):
+
+| Operation | Style | Use Case |
+|-----------|-------|----------|
+| `aggregate`, `field.get`, `field.set`, `element.get`, `element.set` | Value | Local, non-aliased data |
+| `field.addr`, `element.addr` + `load`/`store` | Memory | Data behind references, address-taking |
+
+**Value operations** treat aggregates as immutable SSA values:
+```mir
+v0 = aggregate (i32, i32) (v1, v2)   ; construct a tuple
+v3 = field.get v0, 0                  ; extract first element (new SSA value)
+v4 = field.set v0, 1, v5              ; "update" creates new tuple value
+```
+
+**Memory operations** compute addresses for load/store:
+```mir
+v0 = field.addr v1, 0                 ; get address of field 0
+v2 = load v0                          ; load through pointer
+store v0, v3                          ; store through pointer
+```
+
+### Comparison with Other IRs
+
+| IR | Block Params | Value Aggregates | Memory Aggregates | Notes |
+|----|--------------|------------------|-------------------|-------|
+| **LLVM** | No (phi nodes) | Yes (`extractvalue`, `insertvalue`) | Yes (`getelementptr`) | Maximum expressiveness |
+| **Cranelift** | Yes | No | Yes (stack slots + loads) | Simplicity for fast JIT |
+| **Swift SIL** | Yes | Yes (`struct_extract`, `tuple_extract`) | Yes (`struct_element_addr`) | Mixed semantics like Destack |
+| **MLIR** | Yes | Dialect-dependent | Dialect-dependent | Extensible framework |
+| **Destack MIR** | Yes | Yes | Yes | Matches source semantics |
+
+Cranelift chose memory-only to simplify their implementation—they're optimized for fast compilation as a JIT backend, not maximum optimization potential.
+LLVM and Swift SIL use the same hybrid approach as MIR because:
+- Value operations enable cleaner dataflow analysis (no aliasing concerns)
+- Memory operations are necessary when addresses are taken or data is behind references
+
+### When to Use Which
+
+**Use value operations when:**
+- Constructing fresh aggregates (`aggregate`)
+- Destructuring local values (`field.get`, `element.get`)
+- Transforming values without aliasing (`field.set`, `element.set`)
+- The aggregate is an SSA value, not behind a reference
+
+**Use memory operations when:**
+- Accessing through a reference (`&T`, `&mut T`, `^T`)
+- Taking the address of a field or element
+- The result needs to be a pointer (for passing to functions, etc.)
+
+### Benefits of the Hybrid Approach
+
+1. **VM execution**: The comptime interpreter can manipulate aggregate values directly without simulating memory.
+2. **Optimization**: Value-semantic operations have no aliasing—`aggregate` creates a fresh value, `field.set` produces a new value. SROA (scalar replacement of aggregates) is straightforward.
+3. **Backend flexibility**: Native codegen can lower large value aggregates to stack slots while keeping small ones in registers. The IR doesn't force a choice.
+4. **Source semantics**: TypeScript++ has both value types (tuples, small structs) and reference types (objects, classes). MIR naturally represents both.
+5. **Clear intent**: `field.get` on an SSA value vs `load` through `field.addr` communicates whether we're extracting a copy or accessing shared mutable state.
+
 ## Instructions
 
 Instructions produce SSA values and perform operations.
@@ -55,7 +123,7 @@ Each instruction defines at most one `Value`.
 | Local variables | `local.get`, `local.set` |
 | Globals | `global.addr`, `global.const` |
 | Memory | `load`, `store`, `drop` |
-| Aggregates | `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
+| Aggregates | `aggregate`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
 | Calls | `call`, `call.indirect` |
 | Allocation | `managed.alloc`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |

@@ -466,6 +466,17 @@ impl<'a> FunctionLowerer<'a> {
             // element_addr: no result in codegen type map
             mir::Instruction::ElementAddr { .. } => None,
 
+            // struct/tuple/array: result type is explicit
+            mir::Instruction::Struct {
+                destination, ty, ..
+            }
+            | mir::Instruction::Tuple {
+                destination, ty, ..
+            }
+            | mir::Instruction::Array {
+                destination, ty, ..
+            } => Some((*destination, *ty)),
+
             // call: look up the callee's return type
             mir::Instruction::Call {
                 destination,
@@ -1177,6 +1188,16 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::RawAlloc { .. } | mir::Instruction::RawFree { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require allocator support",
+                    instruction_id.into_any(),
+                ));
+            }
+
+            // struct/tuple/array: construct aggregate from components (#Incomplete)
+            mir::Instruction::Struct { .. }
+            | mir::Instruction::Tuple { .. }
+            | mir::Instruction::Array { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "aggregate construction",
                     instruction_id.into_any(),
                 ));
             }

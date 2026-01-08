@@ -827,3 +827,208 @@ block0:
 }";
     assert_eq!(output, expected);
 }
+
+/// Struct instruction for building structs.
+#[test]
+fn test_build_struct() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let f64_type = module.type_f64();
+
+    // create a struct type {i32, f64}
+    let field0 = module.field(None, i32_type, 0);
+    let field1 = module.field(None, f64_type, 8);
+    let struct_type = module.type_struct(vec![field0, field1]);
+
+    // build function that constructs a struct
+    let mut builder = module.function("make_point", &[i32_type, f64_type], struct_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    let x = builder.function_parameter(0);
+    let y = builder.function_parameter(1);
+    let point = builder.struct_(struct_type, vec![x, y]);
+    builder.return_(Some(point));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @make_point(v0: i32, v1: f64) -> struct { i32, f64 } {
+block0:
+    v2 = struct struct { i32, f64 } (v0, v1)
+    return v2
+}";
+    assert_eq!(output, expected);
+}
+
+/// Tuple instruction for building tuples.
+#[test]
+fn test_build_tuple() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let bool_type = module.type_bool();
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
+
+    // build function that constructs a tuple
+    let mut builder = module.function("make_pair", &[i32_type, bool_type], tuple_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    let a = builder.function_parameter(0);
+    let b = builder.function_parameter(1);
+    let pair = builder.tuple(tuple_type, vec![a, b]);
+    builder.return_(Some(pair));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @make_pair(v0: i32, v1: bool) -> (i32, bool) {
+block0:
+    v2 = tuple (i32, bool) (v0, v1)
+    return v2
+}";
+    assert_eq!(output, expected);
+}
+
+/// Array instruction for building arrays.
+#[test]
+fn test_build_array() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let array_type = module.type_array(i32_type, 3);
+
+    // build function that constructs an array
+    let mut builder = module.function("make_array", &[], array_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    let v0 = builder.iconst_i32(1);
+    let v1 = builder.iconst_i32(2);
+    let v2 = builder.iconst_i32(3);
+    let arr = builder.array(array_type, vec![v0, v1, v2]);
+    builder.return_(Some(arr));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @make_array() -> [i32; 3] {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = iconst 3i32
+    v3 = array [i32; 3] (v0, v1, v2)
+    return v3
+}";
+    assert_eq!(output, expected);
+}
+
+/// Extract a field from a struct using field_get.
+#[test]
+fn test_build_field_get_struct() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let f64_type = module.type_f64();
+    let field0 = module.field(None, i32_type, 0);
+    let field1 = module.field(None, f64_type, 8);
+    let struct_type = module.type_struct(vec![field0, field1]);
+
+    // build function that extracts the second field
+    let mut builder = module.function("get_y", &[struct_type], f64_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    let point = builder.function_parameter(0);
+    let y = builder.field_get(point, 1);
+    builder.return_(Some(y));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @get_y(v0: struct { i32, f64 }) -> f64 {
+block0:
+    v1 = field.get v0, 1
+    return v1
+}";
+    assert_eq!(output, expected);
+}
+
+/// Extract an element from a tuple using field_get.
+#[test]
+fn test_build_field_get_tuple() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let bool_type = module.type_bool();
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
+
+    // build function that extracts the first element
+    let mut builder = module.function("get_first", &[tuple_type], i32_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    let pair = builder.function_parameter(0);
+    let first = builder.field_get(pair, 0);
+    builder.return_(Some(first));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @get_first(v0: (i32, bool)) -> i32 {
+block0:
+    v1 = field.get v0, 0
+    return v1
+}";
+    assert_eq!(output, expected);
+}
+
+/// Extract an element from an array using element_get.
+#[test]
+fn test_build_element_get_array() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let i64_type = module.type_i64();
+    let array_type = module.type_array(i32_type, 3);
+
+    // build function that extracts an element at a given index
+    let mut builder = module.function("get_element", &[array_type, i64_type], i32_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+
+    let arr = builder.function_parameter(0);
+    let index = builder.function_parameter(1);
+    let element = builder.element_get(arr, index);
+    builder.return_(Some(element));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @get_element(v0: [i32; 3], v1: i64) -> i32 {
+block0:
+    v2 = element.get v0, v1
+    return v2
+}";
+    assert_eq!(output, expected);
+}
