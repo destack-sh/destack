@@ -777,6 +777,9 @@ fn substitute_instruction_uses(
         | Instruction::LocalGet { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::GlobalConst { .. }
+        | Instruction::Struct { .. }
+        | Instruction::Tuple { .. }
+        | Instruction::Array { .. }
         | Instruction::Call { .. }
         | Instruction::CallIndirect { .. }
         | Instruction::ManagedAlloc { .. }

@@ -242,11 +242,11 @@ impl BlockLowerer<'_, '_> {
         elements: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the tuple type
-        let tuple_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
-            LowerError::MissingType {
-                node: expression_id.into_global_any(self.module_id),
-            }
-        })?;
+        let tuple_type =
+            self.mir_type_for_expression(expression_id)
+                .ok_or_else(|| LowerError::MissingType {
+                    node: expression_id.into_global_any(self.module_id),
+                })?;
 
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
@@ -278,11 +278,11 @@ impl BlockLowerer<'_, '_> {
         elements: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the array type
-        let array_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
-            LowerError::MissingType {
-                node: expression_id.into_global_any(self.module_id),
-            }
-        })?;
+        let array_type =
+            self.mir_type_for_expression(expression_id)
+                .ok_or_else(|| LowerError::MissingType {
+                    node: expression_id.into_global_any(self.module_id),
+                })?;
 
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
@@ -341,11 +341,11 @@ impl BlockLowerer<'_, '_> {
         })?;
 
         // get the result type
-        let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
-            LowerError::MissingType {
-                node: expression_id.into_global_any(self.module_id),
-            }
-        })?;
+        let result_type =
+            self.mir_type_for_expression(expression_id)
+                .ok_or_else(|| LowerError::MissingType {
+                    node: expression_id.into_global_any(self.module_id),
+                })?;
 
         // emit field_get
         let value = self.builder.field_get(aggregate_value, field_index as u32);
@@ -386,11 +386,11 @@ impl BlockLowerer<'_, '_> {
         let (index_value, _index_type) = self.lower_value_expression(index_id)?;
 
         // get the result type (element type)
-        let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
-            LowerError::MissingType {
-                node: expression_id.into_global_any(self.module_id),
-            }
-        })?;
+        let result_type =
+            self.mir_type_for_expression(expression_id)
+                .ok_or_else(|| LowerError::MissingType {
+                    node: expression_id.into_global_any(self.module_id),
+                })?;
 
         // emit element_get
         let value = self.builder.element_get(array_value, index_value);
