@@ -35,6 +35,7 @@ impl Compiler {
         self.unwrap_single_expression_blocks(&mut tree)?;
 
         // 2. if-let → if + binding
+        // FUGU: decide/specify/implement if-let expressions (or drop them?)
         self.transform_if_let(&mut tree, &symbols, &types)?;
 
         // 3. match → decision trees (creates proper blocks)
@@ -54,7 +55,7 @@ impl Compiler {
         self.transform_drop_parenthesized(&mut tree)?;
 
         // 7. normalize value expressions into statement form
-        self.transform_normalize_value_expressions(&mut tree)?;
+        self.transform_normalize_value_expressions(&mut tree, module_id)?;
 
         Ok(())
     }

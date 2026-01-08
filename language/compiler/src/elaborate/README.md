@@ -391,14 +391,20 @@ function trunc(x: float64): int32 {
 
 ### Resolve operators to calls or builtin ops
 
-Operator reify uses Analyze resolutions.
-Builtins stay as builtin ops and all others become proper calls.
+Operator reify uses Analyze resolutions stored in TypeTable.
+The Resolution enum determines how to transform each operator expression:
+
+- `Resolution::Builtin` - Keep as builtin operator (primitives, no symbol needed)
+- `Resolution::Static` - Single target known at compile time, transform to method call
+- `Resolution::Dynamic` - Union type dispatch, transform to `is` type checks with branches
+
+#### Static resolution (single target)
 
 ```ds
 // source
 struct Vec2 { x: int32, y: int32 }
 
-extension Vec2 {
+extension for Vec2 implements Add<Vec2> {
     add(other: Vec2): Vec2 {
         Vec2 { x: this.x + other.x, y: this.y + other.y }
     }
@@ -411,18 +417,38 @@ function sum(a: Vec2, b: Vec2): Vec2 {
 
 ```ds
 // after reify
-struct Vec2 { x: int32, y: int32 }
-
-extension Vec2 {
-    add(other: Vec2): Vec2 {
-        Vec2 { x: this.x + other.x, y: this.y + other.y }
-    }
-}
-
 function sum(a: Vec2, b: Vec2): Vec2 {
     a.add(b)
 }
 ```
+
+#### Dynamic resolution (union dispatch)
+
+When the receiver is a union type with different implementations, we insert `is` type checks:
+
+```ds
+// source
+function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
+    a + b
+}
+```
+
+```ds
+// after reify
+function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
+    if (a is Vec2) {
+        a.add(b)  // Vec2.add
+    } else {
+        a.add(b)  // Vec3.add
+    }
+}
+```
+
+#### Special operator mappings
+
+- `NotEqual` → `!a.equal(b)` (wrap in unary not)
+- `<`, `<=`, `>`, `>=` → `a.compare(b)` and compare result to `Ordering` variants
+- Unary operators: `Negate` → `a.negate()`, `Plus` → `a.plus()`
 
 ### Reify nominal constructor calls into tagged expressions
 
