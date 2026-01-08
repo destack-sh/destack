@@ -143,7 +143,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU001` | `guard-for-in` | ESLint | AST | ✓ | ✅ | Suggestion | Require `hasOwnProperty` guard in for-in loops |
 | `LU002` | `no-async-foreach` | Destack | DIR | ✓ | ✅ | Unsafe | Disallow `forEach` with async callback (doesn't await) |
 | `LU004` | `no-cond-assign` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow assignment operators in conditional expressions |
-| `LU005` | `no-conflicting-decorators` | Destack | DIR | ✓ | 🔶 | None | Disallow decorator combinations that conflict |
 | `LU006` | `no-confusing-assignment` | Destack | AST | ✓ | ✅ | Suggestion | Warn on assignments that look like comparisons |
 | `LU007` | `no-confusing-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow non-null assertions after optional chain expressions |
 | `LU008` | `no-constant-assertion` | Destack | AST | ✓ | ✅ | Safe | Disallow assertions on constant values |
@@ -158,9 +157,8 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU017` | `no-empty-static-block` | ESLint | AST | ✓ | ✅ | Safe | Disallow empty static initialization blocks in classes |
 | `LU018` | `no-ex-assign` | ESLint | AST | ✓ | ✅ | None | Disallow reassigning exceptions in catch clauses |
 | `LU019` | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | ✅ | Safe | Disallow extra non-null assertions |
-| `LU020` | `no-global-assign` | ESLint | DIR | ✓ | 🔶 | None | Disallow assignments to native objects or read-only globals |
 | `LU021` | `no-identical-branches` | SonarQube | AST | ✓ | ✅ | Safe | Warn when all branches of if/switch have identical bodies |
-| `LU022` | `no-identical-functions` | SonarQube | DIR | ✓ | 🔶 | Suggestion | Warn on functions with identical implementations |
+| `LU022` | `no-identical-functions` | SonarQube | DIR | ✗ | 🔶 | Suggestion | Warn on functions with identical implementations |
 | `LU024` | `no-incomplete-range` | Destack | AST | ✓ | ✅ | Safe | Warn on exclusive ranges that are likely meant to be inclusive |
 | `LU025` | `no-inner-declarations` | ESLint | AST | ✓ | ✅ | None | Disallow variable or function declarations in nested blocks |
 | `LU026` | `no-large-try-block` | DeepSource | AST | ✓ | ✅ | None | Warn when try block contains much more than throwing code |
@@ -172,7 +170,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU032` | `no-prototype-builtins` | ESLint | DIR | ✓ | 🔶 | Safe | Disallow calling Object.prototype methods directly on objects |
 | `LU033` | `no-pointer-arithmetic` | Destack | DIR | ✓ | 🔶 | Suggestion | Warn on pointer arithmetic without explicit offset helpers |
 | `LU034` | `no-pointer-comparison` | Destack | DIR | ✓ | 🔶 | Suggestion | Warn on pointer comparisons outside explicit address checks |
-| `LU035` | `no-redundant-await` | Destack | DIR | ✓ | 🔶 | Safe | Disallow redundant `await` expressions |
 | `LU036` | `no-redundant-match-guard` | Destack | AST | ✓ | ✅ | Safe | Disallow match guards that are always true or false |
 | `LU037` | `no-redundant-pattern` | Destack | AST | ✓ | ✅ | Safe | Disallow patterns that bind nothing useful |
 | `LU038` | `no-return-assign` | ESLint | AST | ✓ | ✅ | None | Disallow assignment operators in return statements |
@@ -185,7 +182,7 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU045` | `no-unnecessary-type-assertion` | TS-ESLint | DIR | ✓ | 🔶 | Safe | Disallow type assertions that do not change the type |
 | `LU047` | `no-unused-except-recursion` | Destack | DIR | ✗ | 🔶 | Suggestion | Warn on function arguments only used for recursion |
 | `LU048` | `no-useless-backreference` | ESLint | AST | ✓ | ✅ | Safe | Disallow useless backreferences in regular expressions |
-| `LU049` | `no-useless-cast` | Clippy | DIR | ✓ | 🔶 | Safe | Disallow casts that do not change the type |
+| `LU049` | `no-useless-cast` | Clippy | DIR | ✗ | 🔶 | Safe | Disallow casts that do not change the type |
 | `LU050` | `no-useless-catch` | ESLint | AST | ✓ | ✅ | Safe | Disallow catch clauses that only rethrow |
 | `LU051` | `no-useless-computed-key` | ESLint | AST | ✓ | ✅ | Safe | Disallow unnecessary computed property keys |
 | `LU052` | `no-useless-concat` | ESLint | AST | ✓ | ✅ | Safe | Disallow unnecessary concatenation of literals |
@@ -329,7 +326,7 @@ Subjective preferences for consistent coding style.
 | `LY076` | `require-returns-doc` | ESLint | AST | ✓ | ✅ | Suggestion | Require return type documentation |
 | `LY077` | `restrict-template-expressions` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require template expressions to be strings or numbers |
 | `LY078` | `sort-imports` | ESLint | AST | ✓ | ✅ | Safe | Enforce sorted import declarations |
-| `LY079` | `symbol-description` | ESLint | DIR | ✓ | 🔶 | Suggestion | Require symbol descriptions |
+| `LY079` | `symbol-description` | ESLint | DIR | ✓ | ✅ | Suggestion | Require symbol descriptions |
 | `LY080` | `yoda` | ESLint | AST | ✓ | ✅ | Safe | Disallow Yoda conditions |
 | `LY082` | `prefer-array-some` | Unicorn | DIR | ✓ | ✅ | None | Prefer `some()` over `filter().length` or `findIndex()` comparisons |
 | `LY083` | `prefer-array-filter` | Destack | DIR | ✓ | ✅ | Unsafe | Suggest `.filter()` over `forEach` with conditional push |
