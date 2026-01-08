@@ -145,6 +145,16 @@ impl ModuleBuilder {
         self.tree.insert(Type::Struct { fields })
     }
 
+    /// Create a field definition for a struct type.
+    pub fn field(
+        &mut self,
+        name: Option<StringId>,
+        ty: LocalNodeId<Type>,
+        offset: u32,
+    ) -> LocalNodeId<Field> {
+        self.tree.insert(Field { name, ty, offset })
+    }
+
     /// Create a function pointer type.
     pub fn type_function_pointer(
         &mut self,
