@@ -8,15 +8,17 @@
 #[macro_use]
 extern crate bitflags;
 
-use std::{collections::HashMap, fmt::Debug};
+use std::collections::HashMap;
+use std::fmt::Debug;
 
-use serde::{de, de::Error, Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Serialize, de};
 use serde_json::Value;
 
 pub use uri::Uri;
 mod uri;
 
-// Large enough to contain any enumeration name defined in this crate
+// large enough to contain any enumeration name defined in this crate
 type PascalCaseBuf = [u8; 32];
 const fn fmt_pascal_case_const(name: &str) -> (PascalCaseBuf, usize) {
     let mut buf = [0; 32];
@@ -198,15 +200,19 @@ pub use trace::*;
 
 /* ----------------- Auxiliary types ----------------- */
 
+/// A number or string value.
 #[derive(Debug, Eq, Hash, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum NumberOrString {
+    /// A numeric value.
     Number(i32),
+    /// A string value.
     String(String),
 }
 
 /* ----------------- Cancel support ----------------- */
 
+/// Parameters for the cancel request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct CancelParams {
     /// The request id to cancel.
@@ -271,7 +277,9 @@ impl Range {
 /// Represents a location inside a resource, such as a line inside a text file.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize, Hash)]
 pub struct Location {
+    /// The resource URI.
     pub uri: Uri,
+    /// The range within the resource.
     pub range: Range,
 }
 
@@ -546,10 +554,11 @@ pub type ChangeAnnotationIdentifier = String;
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnotatedTextEdit {
+    /// The underlying text edit.
     #[serde(flatten)]
     pub text_edit: TextEdit,
 
-    /// The actual annotation
+    /// The actual annotation identifier.
     pub annotation_id: ChangeAnnotationIdentifier,
 }
 
@@ -767,14 +776,17 @@ pub struct WorkspaceEdit {
     pub change_annotations: Option<HashMap<ChangeAnnotationIdentifier, ChangeAnnotation>>,
 }
 
+/// Document changes for a workspace edit.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum DocumentChanges {
+    /// A list of text document edits.
     Edits(Vec<TextDocumentEdit>),
+    /// A list of document change operations.
     Operations(Vec<DocumentChangeOperation>),
 }
 
-// TODO: Once https://github.com/serde-rs/serde/issues/912 is solved
+// NOTE: once https://github.com/serde-rs/serde/issues/912 is solved
 // we can remove ResourceOp and switch to the following implementation
 // of DocumentChangeOperation:
 //
@@ -789,29 +801,40 @@ pub enum DocumentChanges {
 //     Edit(TextDocumentEdit),
 // }
 
+/// A document change operation.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged, rename_all = "lowercase")]
 pub enum DocumentChangeOperation {
+    /// A resource operation.
     Op(ResourceOp),
+    /// A text document edit.
     Edit(TextDocumentEdit),
 }
 
+/// A resource operation (create, rename, or delete).
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ResourceOp {
+    /// Create a file.
     Create(CreateFile),
+    /// Rename a file.
     Rename(RenameFile),
+    /// Delete a file.
     Delete(DeleteFile),
 }
 
+/// Client capabilities for did change configuration.
 pub type DidChangeConfigurationClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Parameters for the `workspace/configuration` request.
 #[derive(Debug, Default, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigurationParams {
+    /// The configuration items to request.
     pub items: Vec<ConfigurationItem>,
 }
 
+/// A configuration item to request.
 #[derive(Debug, Default, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigurationItem {
@@ -819,7 +842,7 @@ pub struct ConfigurationItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope_uri: Option<Uri>,
 
-    ///The configuration section asked for.
+    /// The configuration section asked for.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,
 }
@@ -838,8 +861,8 @@ impl WorkspaceEdit {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct TextDocumentIdentifier {
     // !!!!!! Note:
-    // In the spec VersionedTextDocumentIdentifier extends TextDocumentIdentifier
-    // This modelled by "mixing-in" TextDocumentIdentifier in VersionedTextDocumentIdentifier,
+    // in the spec VersionedTextDocumentIdentifier extends TextDocumentIdentifier
+    // this modelled by "mixing-in" TextDocumentIdentifier in VersionedTextDocumentIdentifier,
     // so any changes to this type must be effected in the sub-type as well.
     /// The text document's URI.
     pub uri: Uri,
@@ -883,7 +906,7 @@ impl TextDocumentItem {
 /// An identifier to denote a specific version of a text document. This information usually flows from the client to the server.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct VersionedTextDocumentIdentifier {
-    // This field was "mixed-in" from TextDocumentIdentifier
+    // this field was "mixed-in" from TextDocumentIdentifier
     /// The text document's URI.
     pub uri: Uri,
 
@@ -903,7 +926,7 @@ impl VersionedTextDocumentIdentifier {
 /// An identifier which optionally denotes a specific version of a text document. This information usually flows from the server to the client
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct OptionalVersionedTextDocumentIdentifier {
-    // This field was "mixed-in" from TextDocumentIdentifier
+    // this field was "mixed-in" from TextDocumentIdentifier
     /// The text document's URI.
     pub uri: Uri,
 
@@ -933,8 +956,8 @@ impl OptionalVersionedTextDocumentIdentifier {
 #[serde(rename_all = "camelCase")]
 pub struct TextDocumentPositionParams {
     // !!!!!! Note:
-    // In the spec ReferenceParams extends TextDocumentPositionParams
-    // This modelled by "mixing-in" TextDocumentPositionParams in ReferenceParams,
+    // in the spec ReferenceParams extends TextDocumentPositionParams
+    // this modelled by "mixing-in" TextDocumentPositionParams in ReferenceParams,
     // so any changes to this type must be effected in sub-type as well.
     /// The text document.
     pub text_document: TextDocumentIdentifier,
@@ -1042,6 +1065,7 @@ pub struct InitializeParams {
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
+/// Information about the client.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ClientInfo {
     /// The name of the client as defined by the client.
@@ -1051,39 +1075,51 @@ pub struct ClientInfo {
     pub version: Option<String>,
 }
 
+/// Parameters for the `initialized` notification.
 #[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize)]
 pub struct InitializedParams {}
 
+/// Generic registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct GenericRegistrationOptions {
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Generic options.
     #[serde(flatten)]
     pub options: GenericOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
 
+/// Generic options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct GenericOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Generic parameters.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct GenericParams {
+    /// Text document position parameters.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
+/// Client capabilities for dynamic registration.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DynamicRegistrationClientCapabilities {
@@ -1092,9 +1128,11 @@ pub struct DynamicRegistrationClientCapabilities {
     pub dynamic_registration: Option<bool>,
 }
 
+/// Client capabilities for goto requests.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GotoCapability {
+    /// Whether the client supports dynamic registration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_registration: Option<bool>,
 
@@ -1136,20 +1174,29 @@ pub struct WorkspaceEditClientCapabilities {
     pub change_annotation_support: Option<ChangeAnnotationWorkspaceEditClientCapabilities>,
 }
 
+/// The kind of resource operation.
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ResourceOperationKind {
+    /// Create a resource.
     Create,
+    /// Rename a resource.
     Rename,
+    /// Delete a resource.
     Delete,
 }
 
+/// The failure handling strategy.
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Copy, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum FailureHandlingKind {
+    /// Abort the operation.
     Abort,
+    /// All operations are transactional.
     Transactional,
+    /// Only text changes are transactional.
     TextOnlyTransactional,
+    /// Undo all operations.
     Undo,
 }
 
@@ -1159,31 +1206,57 @@ pub enum FailureHandlingKind {
 pub struct SymbolKind(i32);
 lsp_enum! {
 impl SymbolKind {
+    /// A file symbol.
     pub const FILE: SymbolKind = SymbolKind(1);
+    /// A module symbol.
     pub const MODULE: SymbolKind = SymbolKind(2);
+    /// A namespace symbol.
     pub const NAMESPACE: SymbolKind = SymbolKind(3);
+    /// A package symbol.
     pub const PACKAGE: SymbolKind = SymbolKind(4);
+    /// A class symbol.
     pub const CLASS: SymbolKind = SymbolKind(5);
+    /// A method symbol.
     pub const METHOD: SymbolKind = SymbolKind(6);
+    /// A property symbol.
     pub const PROPERTY: SymbolKind = SymbolKind(7);
+    /// A field symbol.
     pub const FIELD: SymbolKind = SymbolKind(8);
+    /// A constructor symbol.
     pub const CONSTRUCTOR: SymbolKind = SymbolKind(9);
+    /// An enum symbol.
     pub const ENUM: SymbolKind = SymbolKind(10);
+    /// An interface symbol.
     pub const INTERFACE: SymbolKind = SymbolKind(11);
+    /// A function symbol.
     pub const FUNCTION: SymbolKind = SymbolKind(12);
+    /// A variable symbol.
     pub const VARIABLE: SymbolKind = SymbolKind(13);
+    /// A constant symbol.
     pub const CONSTANT: SymbolKind = SymbolKind(14);
+    /// A string symbol.
     pub const STRING: SymbolKind = SymbolKind(15);
+    /// A number symbol.
     pub const NUMBER: SymbolKind = SymbolKind(16);
+    /// A boolean symbol.
     pub const BOOLEAN: SymbolKind = SymbolKind(17);
+    /// An array symbol.
     pub const ARRAY: SymbolKind = SymbolKind(18);
+    /// An object symbol.
     pub const OBJECT: SymbolKind = SymbolKind(19);
+    /// A key symbol.
     pub const KEY: SymbolKind = SymbolKind(20);
+    /// A null symbol.
     pub const NULL: SymbolKind = SymbolKind(21);
+    /// An enum member symbol.
     pub const ENUM_MEMBER: SymbolKind = SymbolKind(22);
+    /// A struct symbol.
     pub const STRUCT: SymbolKind = SymbolKind(23);
+    /// An event symbol.
     pub const EVENT: SymbolKind = SymbolKind(24);
+    /// An operator symbol.
     pub const OPERATOR: SymbolKind = SymbolKind(25);
+    /// A type parameter symbol.
     pub const TYPE_PARAMETER: SymbolKind = SymbolKind(26);
 }
 }
@@ -1278,6 +1351,18 @@ pub struct WorkspaceClientCapabilities {
     /// since 3.17.0
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostic: Option<DiagnosticWorkspaceClientCapabilities>,
+
+    /// Client workspace capabilities specific to text document content requests.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_document_content: Option<TextDocumentContentClientCapabilities>,
+
+    /// Capabilities specific to the folding range requests scoped to the workspace.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folding_range: Option<FoldingRangeWorkspaceClientCapabilities>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -1681,7 +1766,7 @@ pub struct InitializeError {
     pub retry: bool,
 }
 
-// The server can signal the following capabilities:
+// the server can signal the following capabilities:
 
 /// Defines how the host (editor) should sync document changes to the language server.
 #[derive(Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
@@ -1701,14 +1786,16 @@ impl TextDocumentSyncKind {
 }
 }
 
+/// Client capabilities for the `workspace/executeCommand` request.
 pub type ExecuteCommandClientCapabilities = DynamicRegistrationClientCapabilities;
 
 /// Execute command options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct ExecuteCommandOptions {
-    /// The commands to be executed on the server
+    /// The commands to be executed on the server.
     pub commands: Vec<String>,
 
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
@@ -1722,10 +1809,13 @@ pub struct SaveOptions {
     pub include_text: Option<bool>,
 }
 
+/// Save options for text document synchronization.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TextDocumentSyncSaveOptions {
+    /// A boolean flag indicating if save is supported.
     Supported(bool),
+    /// Save options.
     SaveOptions(SaveOptions),
 }
 
@@ -1741,6 +1831,7 @@ impl From<bool> for TextDocumentSyncSaveOptions {
     }
 }
 
+/// Text document synchronization options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TextDocumentSyncOptions {
@@ -1766,17 +1857,23 @@ pub struct TextDocumentSyncOptions {
     pub save: Option<TextDocumentSyncSaveOptions>,
 }
 
+/// A union of two types.
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum OneOf<A, B> {
+    /// The left variant.
     Left(A),
+    /// The right variant.
     Right(B),
 }
 
+/// Text document synchronization capability.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TextDocumentSyncCapability {
+    /// A sync kind.
     Kind(TextDocumentSyncKind),
+    /// Sync options.
     Options(TextDocumentSyncOptions),
 }
 
@@ -1792,10 +1889,13 @@ impl From<TextDocumentSyncKind> for TextDocumentSyncCapability {
     }
 }
 
+/// Implementation provider capability.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ImplementationProviderCapability {
+    /// A simple boolean flag.
     Simple(bool),
+    /// Registration options.
     Options(StaticTextDocumentRegistrationOptions),
 }
 
@@ -1811,10 +1911,13 @@ impl From<bool> for ImplementationProviderCapability {
     }
 }
 
+/// Type definition provider capability.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TypeDefinitionProviderCapability {
+    /// A simple boolean flag.
     Simple(bool),
+    /// Registration options.
     Options(StaticTextDocumentRegistrationOptions),
 }
 
@@ -2005,6 +2108,78 @@ pub struct WorkspaceServerCapabilities {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_operations: Option<WorkspaceFileOperationsServerCapabilities>,
+
+    /// The server provides content for text documents.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_document_content: Option<TextDocumentContentOptions>,
+}
+
+/// Client capabilities for the `workspace/textDocumentContent` request.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentContentClientCapabilities {
+    /// Whether the client supports dynamic registration for text document content.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dynamic_registration: Option<bool>,
+}
+
+/// Options for the `workspace/textDocumentContent` request.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentContentOptions {
+    /// The URI schemes the server provides content for.
+    pub schemes: Vec<String>,
+}
+
+/// Registration options for the `workspace/textDocumentContent` request.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentContentRegistrationOptions {
+    /// The URI schemes the server provides content for.
+    pub schemes: Vec<String>,
+
+    /// The id used to register the request. The id can be used to deregister
+    /// the request again.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+}
+
+/// Parameters for the `workspace/textDocumentContent` request.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentContentParams {
+    /// The URI of the text document.
+    pub uri: Uri,
+}
+
+/// Result for the `workspace/textDocumentContent` request.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentContentResult {
+    /// The text content of the document.
+    pub text: String,
+}
+
+/// Parameters for the `workspace/textDocumentContent/refresh` request.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentContentRefreshParams {
+    /// The URI of the text document to refresh.
+    pub uri: Uri,
 }
 
 /// General parameters to to register for a capability.
@@ -2023,8 +2198,10 @@ pub struct Registration {
     pub register_options: Option<Value>,
 }
 
+/// Parameters for the `client/registerCapability` request.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct RegistrationParams {
+    /// The registrations to register.
     pub registrations: Vec<Registration>,
 }
 
@@ -2038,69 +2215,90 @@ pub struct TextDocumentRegistrationOptions {
     pub document_selector: Option<DocumentSelector>,
 }
 
+/// Declaration capability.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum DeclarationCapability {
+    /// A simple boolean flag.
     Simple(bool),
+    /// Registration options.
     RegistrationOptions(DeclarationRegistrationOptions),
+    /// Declaration options.
     Options(DeclarationOptions),
 }
 
+/// Declaration registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclarationRegistrationOptions {
+    /// Declaration options.
     #[serde(flatten)]
     pub declaration_options: DeclarationOptions,
 
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
 
+/// Declaration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclarationOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Static registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaticRegistrationOptions {
+    /// The id used to register the request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
+/// Work done progress options.
 #[derive(Debug, Default, Eq, PartialEq, Clone, Deserialize, Serialize, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkDoneProgressOptions {
+    /// Whether work done progress is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub work_done_progress: Option<bool>,
 }
 
+/// Document formatting options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentFormattingOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Document range formatting options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentRangeFormattingOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Definition options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DefinitionOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Document symbol options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentSymbolOptions {
@@ -2111,27 +2309,34 @@ pub struct DocumentSymbolOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
 
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// References options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReferencesOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Document highlight options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentHighlightOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Workspace symbol options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSymbolOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 
@@ -2143,13 +2348,15 @@ pub struct WorkspaceSymbolOptions {
     pub resolve_provider: Option<bool>,
 }
 
+/// Static text document registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaticTextDocumentRegistrationOptions {
-    /// A document selector to identify the scope of the registration. If set to null
-    /// the document selector provided on the client side will be used.
+    /// A document selector to identify the scope of the registration.
+    /// If set to null the document selector provided on the client side will be used.
     pub document_selector: Option<DocumentSelector>,
 
+    /// The id used to register the request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
@@ -2165,11 +2372,14 @@ pub struct Unregistration {
     pub method: String,
 }
 
+/// Parameters for the `client/unregisterCapability` request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct UnregistrationParams {
+    /// The unregistrations to perform.
     pub unregisterations: Vec<Unregistration>,
 }
 
+/// Parameters for the `workspace/didChangeConfiguration` notification.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct DidChangeConfigurationParams {
     /// The actual changed settings
@@ -2423,12 +2633,13 @@ pub struct RelativePattern {
 pub type Pattern = String;
 
 bitflags! {
+/// The kind of file system events to watch.
 pub struct WatchKind: u8 {
     /// Interested in create events.
     const Create = 1;
-    /// Interested in change events
+    /// Interested in change events.
     const Change = 2;
-    /// Interested in delete events
+    /// Interested in delete events.
     const Delete = 4;
 }
 }
@@ -2454,6 +2665,7 @@ impl serde::Serialize for WatchKind {
     }
 }
 
+/// Parameters for the `textDocument/publishDiagnostics` notification.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct PublishDiagnosticsParams {
     /// The URI for which diagnostic information is reported.
@@ -2462,7 +2674,7 @@ pub struct PublishDiagnosticsParams {
     /// An array of diagnostic information items.
     pub diagnostics: Vec<Diagnostic>,
 
-    /// Optional the version number of the document the diagnostics are published for.
+    /// The version number of the document the diagnostics are published for.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<i32>,
 }
@@ -2481,10 +2693,13 @@ impl PublishDiagnosticsParams {
     }
 }
 
+/// Documentation content.
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum Documentation {
+    /// A plain string.
     String(String),
+    /// Markup content.
     MarkupContent(MarkupContent),
 }
 
@@ -2501,13 +2716,18 @@ pub enum Documentation {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum MarkedString {
+    /// A plain string.
     String(String),
+    /// A language-tagged code block.
     LanguageString(LanguageString),
 }
 
+/// A language string with a language identifier and value.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct LanguageString {
+    /// The language identifier.
     pub language: String,
+    /// The code block value.
     pub value: String,
 }
 
@@ -2524,25 +2744,32 @@ impl MarkedString {
     }
 }
 
+/// Parameters for the `textDocument/definition` request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GotoDefinitionParams {
+    /// Text document position parameters.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
-/// GotoDefinition response can be single location, or multiple Locations or a link.
+/// Response for goto definition, which can be single location, multiple locations or links.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum GotoDefinitionResponse {
+    /// A single location.
     Scalar(Location),
+    /// An array of locations.
     Array(Vec<Location>),
+    /// An array of location links.
     Link(Vec<LocationLink>),
 }
 
@@ -2564,6 +2791,7 @@ impl From<Vec<LocationLink>> for GotoDefinitionResponse {
     }
 }
 
+/// Parameters for the `workspace/executeCommand` request.
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct ExecuteCommandParams {
     /// The identifier of the actual command handler.
@@ -2572,6 +2800,7 @@ pub struct ExecuteCommandParams {
     #[serde(default)]
     pub arguments: Vec<Value>,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 }
@@ -2579,9 +2808,10 @@ pub struct ExecuteCommandParams {
 /// Execute command registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ExecuteCommandRegistrationOptions {
-    /// The commands to be executed on the server
+    /// The commands to be executed on the server.
     pub commands: Vec<String>,
 
+    /// Execute command options.
     #[serde(flatten)]
     pub execute_command_options: ExecuteCommandOptions,
 }
@@ -2627,9 +2857,9 @@ pub struct ApplyWorkspaceEditResponse {
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum MarkupKind {
-    /// Plain text is supported as a content format
+    /// Plain text is supported as a content format.
     PlainText,
-    /// Markdown is supported as a content format
+    /// Markdown is supported as a content format.
     Markdown,
 }
 
@@ -2658,7 +2888,9 @@ pub enum MarkupKind {
 /// remove HTML from the markdown to avoid script execution.
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 pub struct MarkupContent {
+    /// The markup kind.
     pub kind: MarkupKind,
+    /// The content value.
     pub value: String,
 }
 
@@ -2666,6 +2898,7 @@ pub struct MarkupContent {
 #[derive(Debug, Eq, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PartialResultParams {
+    /// An optional token that a server can use to report partial results.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub partial_result_token: Option<ProgressToken>,
 }

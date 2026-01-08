@@ -7,6 +7,7 @@ use crate::{SymbolTag, TagSupport};
 
 use serde::{Deserialize, Serialize};
 
+/// Client capabilities for document symbol requests.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentSymbolClientCapabilities {
@@ -35,10 +36,13 @@ pub struct DocumentSymbolClientCapabilities {
     pub tag_support: Option<TagSupport<SymbolTag>>,
 }
 
+/// Response for document symbol requests.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DocumentSymbolResponse {
+    /// Flat list of symbol information.
     Flat(Vec<SymbolInformation>),
+    /// Nested document symbols.
     Nested(Vec<DocumentSymbol>),
 }
 
@@ -54,15 +58,18 @@ impl From<Vec<DocumentSymbol>> for DocumentSymbolResponse {
     }
 }
 
+/// Parameters for requesting document symbols.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentSymbolParams {
     /// The text document.
     pub text_document: TextDocumentIdentifier,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }

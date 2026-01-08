@@ -8,10 +8,12 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures::future::{self, BoxFuture, FutureExt};
 use destack_lsp_types::LSPAny;
-use serde::{Serialize, de::DeserializeOwned};
-use tower::{Layer, Service, util::BoxService};
+use futures::future::{self, BoxFuture, FutureExt};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use tower::util::BoxService;
+use tower::{Layer, Service};
 
 use crate::jsonrpc::ErrorCode;
 
@@ -19,7 +21,9 @@ use super::{Error, Id, Request, Response};
 
 /// A modular JSON-RPC 2.0 request router service.
 pub struct Router<S, E = Infallible> {
+    /// The shared server state.
     server: Arc<S>,
+    /// The registered method handlers.
     methods: HashMap<&'static str, BoxService<Request, Option<Response>, E>>,
 }
 
@@ -100,7 +104,9 @@ impl<S, E: Send + 'static> Service<Request> for Router<S, E> {
 
 /// Opaque JSON-RPC method handler.
 pub struct MethodHandler<P, R, E> {
+    /// The boxed handler function.
     f: Box<dyn Fn(P) -> BoxFuture<'static, R> + Send>,
+    /// Phantom data for the error type.
     _marker: PhantomData<E>,
 }
 
@@ -213,9 +219,9 @@ impl FromParams for () {
     fn from_params(params: Option<LSPAny>) -> super::Result<Self> {
         match params {
             None
-            // See #40: allow lsp clients (e.g. `lsp4j`) to not precisely
+            // see #40: allow lsp clients (e.g. `lsp4j`) to not precisely
             // respect the specification and set `params` to `null` when it
-            // should not be present at all.
+            // should not be present at all
             | Some(LSPAny::Null) => Ok(()),
             Some(p) => Err(Error::invalid_params(format!("Unexpected params: {p}"))),
         }

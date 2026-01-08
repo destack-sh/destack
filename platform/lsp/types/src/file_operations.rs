@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+/// Client capabilities for file operations.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFileOperationsClientCapabilities {
@@ -33,6 +34,7 @@ pub struct WorkspaceFileOperationsClientCapabilities {
     pub will_delete: Option<bool>,
 }
 
+/// Server capabilities for file operations.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFileOperationsServerCapabilities {
@@ -156,6 +158,7 @@ pub struct CreateFilesParams {
     /// An array of all files/folders created in this operation.
     pub files: Vec<FileCreate>,
 }
+
 /// Represents information on a file/folder create.
 ///
 /// @since 3.16.0

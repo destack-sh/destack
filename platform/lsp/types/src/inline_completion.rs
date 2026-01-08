@@ -20,21 +20,25 @@ pub struct InlineCompletionClientCapabilities {
 /// @since 3.18.0
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineCompletionOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
 /// Inline completion options used during static or dynamic registration.
 ///
-// @since 3.18.0
+/// @since 3.18.0
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineCompletionRegistrationOptions {
+    /// Inline completion options.
     #[serde(flatten)]
     pub inline_completion_options: InlineCompletionOptions,
 
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
@@ -45,9 +49,11 @@ pub struct InlineCompletionRegistrationOptions {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineCompletionParams {
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Text document position parameters.
     #[serde(flatten)]
     pub text_document_position: TextDocumentPositionParams,
 
@@ -109,11 +115,13 @@ pub struct InlineCompletionContext {
     pub selected_completion_info: Option<SelectedCompletionInfo>,
 }
 
-/// InlineCompletion response can be multiple completion items, or a list of completion items
+/// InlineCompletion response can be multiple completion items, or a list of completion items.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum InlineCompletionResponse {
+    /// An array of inline completion items.
     Array(Vec<InlineCompletionItem>),
+    /// A list of inline completion items.
     List(InlineCompletionList),
 }
 

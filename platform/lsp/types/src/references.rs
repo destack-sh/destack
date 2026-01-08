@@ -15,7 +15,7 @@ pub struct ReferenceContext {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReferenceParams {
-    // Text Document and Position fields
+    // text document and position fields
     #[serde(flatten)]
     pub text_document_position: TextDocumentPositionParams,
 

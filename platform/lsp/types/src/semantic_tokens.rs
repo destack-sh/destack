@@ -104,6 +104,7 @@ impl From<&'static str> for SemanticTokenModifier {
     }
 }
 
+/// The format of the semantic token encoding.
 #[derive(Debug, Eq, PartialEq, Hash, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct TokenFormat(Cow<'static, str>);
 
@@ -145,10 +146,19 @@ pub struct SemanticTokensLegend {
 /// The actual tokens.
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Default)]
 pub struct SemanticToken {
+    /// The line delta relative to the previous token.
     pub delta_line: u32,
+
+    /// The start position delta relative to the previous token on the same line.
     pub delta_start: u32,
+
+    /// The length of the token.
     pub length: u32,
+
+    /// The index into the token types legend.
     pub token_type: u32,
+
+    /// A bitset of token modifiers.
     pub token_modifiers_bitset: u32,
 }
 
@@ -253,6 +263,7 @@ pub struct SemanticTokens {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensPartialResult {
+    /// The partial semantic tokens data.
     #[serde(
         deserialize_with = "SemanticToken::deserialize_tokens",
         serialize_with = "SemanticToken::serialize_tokens"
@@ -260,11 +271,15 @@ pub struct SemanticTokensPartialResult {
     pub data: Vec<SemanticToken>,
 }
 
+/// The result of a semantic tokens request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum SemanticTokensResult {
+    /// Full semantic tokens.
     Tokens(SemanticTokens),
+
+    /// Partial semantic tokens result.
     Partial(SemanticTokensPartialResult),
 }
 
@@ -284,9 +299,13 @@ impl From<SemanticTokensPartialResult> for SemanticTokensResult {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensEdit {
+    /// The start offset of the edit.
     pub start: u32,
+
+    /// The number of elements to remove.
     pub delete_count: u32,
 
+    /// The elements to insert.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -296,13 +315,22 @@ pub struct SemanticTokensEdit {
     pub data: Option<Vec<SemanticToken>>,
 }
 
+/// The result of a semantic tokens full delta request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum SemanticTokensFullDeltaResult {
+    /// Full semantic tokens.
     Tokens(SemanticTokens),
+
+    /// Delta semantic tokens.
     TokensDelta(SemanticTokensDelta),
-    PartialTokensDelta { edits: Vec<SemanticTokensEdit> },
+
+    /// Partial tokens delta with edits.
+    PartialTokensDelta {
+        /// The edits to apply.
+        edits: Vec<SemanticTokensEdit>,
+    },
 }
 
 impl From<SemanticTokens> for SemanticTokensFullDeltaResult {
@@ -390,6 +418,7 @@ pub struct SemanticTokensClientCapabilities {
     pub augments_syntax_tokens: Option<bool>,
 }
 
+/// Client capabilities for semantic tokens requests.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensClientCapabilitiesRequests {
@@ -402,11 +431,15 @@ pub struct SemanticTokensClientCapabilitiesRequests {
     pub full: Option<SemanticTokensFullOptions>,
 }
 
+/// Options for full semantic tokens requests.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum SemanticTokensFullOptions {
+    /// Whether full semantic tokens are supported.
     Bool(bool),
+
+    /// Delta options for full semantic tokens.
     Delta {
         /// The client will send the `textDocument/semanticTokens/full/delta` request if the server provides a corresponding handler.
         /// The server supports deltas for full documents.
@@ -435,24 +468,32 @@ pub struct SemanticTokensOptions {
     pub full: Option<SemanticTokensFullOptions>,
 }
 
+/// Registration options for semantic tokens.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensRegistrationOptions {
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Semantic tokens options.
     #[serde(flatten)]
     pub semantic_tokens_options: SemanticTokensOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
 
+/// Server capabilities for semantic tokens.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum SemanticTokensServerCapabilities {
+    /// Semantic tokens options.
     SemanticTokensOptions(SemanticTokensOptions),
+
+    /// Semantic tokens registration options.
     SemanticTokensRegistrationOptions(SemanticTokensRegistrationOptions),
 }
 
@@ -468,6 +509,7 @@ impl From<SemanticTokensRegistrationOptions> for SemanticTokensServerCapabilitie
     }
 }
 
+/// Workspace client capabilities for semantic tokens.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensWorkspaceClientCapabilities {
@@ -481,12 +523,15 @@ pub struct SemanticTokensWorkspaceClientCapabilities {
     pub refresh_support: Option<bool>,
 }
 
+/// Parameters for a semantic tokens request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensParams {
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 
@@ -494,12 +539,15 @@ pub struct SemanticTokensParams {
     pub text_document: TextDocumentIdentifier,
 }
 
+/// Parameters for a semantic tokens delta request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensDeltaParams {
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 
@@ -511,12 +559,15 @@ pub struct SemanticTokensDeltaParams {
     pub previous_result_id: String,
 }
 
+/// Parameters for a semantic tokens range request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensRangeParams {
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 
@@ -527,11 +578,15 @@ pub struct SemanticTokensRangeParams {
     pub range: Range,
 }
 
+/// The result of a semantic tokens range request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum SemanticTokensRangeResult {
+    /// Full semantic tokens.
     Tokens(SemanticTokens),
+
+    /// Partial semantic tokens result.
     Partial(SemanticTokensPartialResult),
 }
 

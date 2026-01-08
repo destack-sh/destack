@@ -225,6 +225,7 @@ impl LanguageServer for DestackLanguageServer {
                     will_rename: None,
                     will_delete: None,
                 }),
+                text_document_content: None,
             }),
             ..Default::default()
         };

@@ -55,6 +55,7 @@ impl CompletionItemKind {
 }
 }
 
+/// Client capabilities for completion items.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionItemCapability {
@@ -126,6 +127,7 @@ pub struct CompletionItemCapability {
     pub label_details_support: Option<bool>,
 }
 
+/// Capabilities for resolving completion item properties lazily.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionItemCapabilityResolveSupport {
@@ -133,6 +135,7 @@ pub struct CompletionItemCapabilityResolveSupport {
     pub properties: Vec<String>,
 }
 
+/// Client support for insert text modes.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InsertTextModeSupport {
@@ -166,6 +169,7 @@ impl InsertTextMode {
 }
 }
 
+/// Tags for completion items.
 #[derive(Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct CompletionItemTag(i32);
@@ -175,6 +179,7 @@ impl CompletionItemTag {
 }
 }
 
+/// Client capabilities for completion item kinds.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionItemKindCapability {
@@ -225,6 +230,7 @@ pub struct CompletionItemApplyKinds {
     pub data: Option<ApplyKind>,
 }
 
+/// Client capabilities for completion lists.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionListCapability {
@@ -250,6 +256,7 @@ pub struct CompletionListCapability {
     pub apply_kind_support: Option<bool>,
 }
 
+/// Client capabilities for text document completion.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionClientCapabilities {
@@ -301,10 +308,13 @@ pub struct InsertReplaceEdit {
     pub replace: Range,
 }
 
+/// A text edit for a completion item.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CompletionTextEdit {
+    /// A standard text edit.
     Edit(TextEdit),
+    /// An insert/replace text edit.
     InsertAndReplace(InsertReplaceEdit),
 }
 
@@ -364,6 +374,7 @@ pub struct CompletionOptions {
     pub completion_item: Option<CompletionOptionsCompletionItem>,
 }
 
+/// Server capabilities for completion items.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionOptionsCompletionItem {
@@ -376,6 +387,7 @@ pub struct CompletionOptionsCompletionItem {
     pub label_details_support: Option<bool>,
 }
 
+/// Registration options for completion requests.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct CompletionRegistrationOptions {
     #[serde(flatten)]
@@ -385,10 +397,13 @@ pub struct CompletionRegistrationOptions {
     pub completion_options: CompletionOptions,
 }
 
+/// The response to a completion request.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CompletionResponse {
+    /// An array of completion items.
     Array(Vec<CompletionItem>),
+    /// A completion list.
     List(CompletionList),
 }
 
@@ -404,10 +419,11 @@ impl From<CompletionList> for CompletionResponse {
     }
 }
 
+/// Parameters for a completion request.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionParams {
-    // This field was "mixed-in" from TextDocumentPositionParams
+    // this field was "mixed-in" from TextDocumentPositionParams
     #[serde(flatten)]
     pub text_document_position: TextDocumentPositionParams,
 
@@ -422,6 +438,7 @@ pub struct CompletionParams {
     pub context: Option<CompletionContext>,
 }
 
+/// Context information for a completion request.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionContext {
@@ -478,10 +495,7 @@ pub struct CompletionItemDefaults {
 #[serde(untagged)]
 pub enum CompletionItemDefaultsEditRange {
     Range(Range),
-    InsertReplace {
-        insert: Range,
-        replace: Range,
-    },
+    InsertReplace { insert: Range, replace: Range },
 }
 
 /// Represents a collection of [completion items](#CompletionItem) to be presented

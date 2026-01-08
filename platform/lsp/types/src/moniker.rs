@@ -5,27 +5,36 @@ use crate::{
     TextDocumentRegistrationOptions, WorkDoneProgressOptions, WorkDoneProgressParams,
 };
 
+/// Client capabilities for the moniker request.
 pub type MonikerClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Server capabilities for monikers.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum MonikerServerCapabilities {
+    /// Basic moniker options.
     Options(MonikerOptions),
+    /// Moniker registration options.
     RegistrationOptions(MonikerRegistrationOptions),
 }
 
+/// Moniker options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct MonikerOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
 
+/// Moniker registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonikerRegistrationOptions {
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Moniker options.
     #[serde(flatten)]
     pub moniker_options: MonikerOptions,
 }
@@ -59,15 +68,19 @@ pub enum MonikerKind {
     Local,
 }
 
+/// Parameters for the moniker request.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonikerParams {
+    /// Text document and position.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
 
+    /// Work done progress params.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result params.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }

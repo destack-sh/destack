@@ -5,17 +5,22 @@ use crate::{
     WorkDoneProgressParams,
 };
 
+/// Client capabilities for document highlight requests.
 pub type DocumentHighlightClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Parameters for requesting document highlights.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentHighlightParams {
+    /// The text document and position.
     #[serde(flatten)]
     pub text_document_position_params: TextDocumentPositionParams,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }

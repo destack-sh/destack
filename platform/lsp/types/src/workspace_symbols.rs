@@ -5,6 +5,7 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 
+/// Client capabilities for workspace symbols.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSymbolClientCapabilities {
@@ -39,16 +40,19 @@ pub struct WorkspaceSymbolClientCapabilities {
 /// The parameters of a Workspace Symbol Request.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct WorkspaceSymbolParams {
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
-    /// A non-empty query string
+    /// A non-empty query string.
     pub query: String,
 }
 
+/// Capabilities for workspace symbol resolve support.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct WorkspaceSymbolResolveSupportCapability {
     /// The properties that a client can resolve lazily. Usually
@@ -92,14 +96,19 @@ pub struct WorkspaceSymbol {
     pub data: Option<LSPAny>,
 }
 
+/// A workspace location containing only a URI.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct WorkspaceLocation {
+    /// The URI of the location.
     pub uri: Uri,
 }
 
+/// The response to a workspace symbol request.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorkspaceSymbolResponse {
+    /// A flat list of symbol information.
     Flat(Vec<SymbolInformation>),
+    /// A nested list of workspace symbols.
     Nested(Vec<WorkspaceSymbol>),
 }

@@ -9,8 +9,8 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures::future::{self, BoxFuture, FutureExt};
 use destack_lsp_types::LSPAny;
+use futures::future::{self, BoxFuture, FutureExt};
 use tower::Service;
 
 use crate::LanguageServer;
@@ -269,7 +269,7 @@ mod tests {
             Ok(())
         }
 
-        // This handler should never resolve...
+        // this handler should never resolve
         async fn code_action_resolve(&self, _: CodeAction) -> Result<CodeAction> {
             future::pending().await
         }

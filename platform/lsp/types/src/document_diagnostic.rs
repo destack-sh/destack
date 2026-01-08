@@ -23,6 +23,12 @@ pub struct DiagnosticClientCapabilities {
     /// Whether the clients supports related documents for document diagnostic pulls.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub related_document_support: Option<bool>,
+
+    /// Whether the client accepts diagnostics with `MarkupContent` in diagnostic messages.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub markup_message_support: Option<bool>,
 }
 
 /// Diagnostic options.
@@ -44,6 +50,13 @@ pub struct DiagnosticOptions {
     /// The server provides support for workspace diagnostics as well.
     pub workspace_diagnostics: bool,
 
+    /// Whether the server supports `MarkupContent` in diagnostic messages.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub markup_message_support: Option<bool>,
+
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
@@ -54,20 +67,26 @@ pub struct DiagnosticOptions {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticRegistrationOptions {
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Diagnostic options.
     #[serde(flatten)]
     pub diagnostic_options: DiagnosticOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
 
+/// Server capabilities for diagnostics.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum DiagnosticServerCapabilities {
+    /// Diagnostic options.
     Options(DiagnosticOptions),
+    /// Diagnostic registration options.
     RegistrationOptions(DiagnosticRegistrationOptions),
 }
 
@@ -86,9 +105,11 @@ pub struct DocumentDiagnosticParams {
     /// The result ID of a previous response if provided.
     pub previous_result_id: Option<String>,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
@@ -160,7 +181,8 @@ pub struct RelatedFullDocumentDiagnosticReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub related_documents: Option<HashMap<Uri, DocumentDiagnosticReportKind>>,
-    // relatedDocuments?: { [uri: string]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport; };
+
+    /// The full document diagnostic report.
     #[serde(flatten)]
     pub full_document_diagnostic_report: FullDocumentDiagnosticReport,
 }
@@ -181,7 +203,8 @@ pub struct RelatedUnchangedDocumentDiagnosticReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub related_documents: Option<HashMap<Uri, DocumentDiagnosticReportKind>>,
-    // relatedDocuments?: { [uri: string]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport; };
+
+    /// The unchanged document diagnostic report.
     #[serde(flatten)]
     pub unchanged_document_diagnostic_report: UnchangedDocumentDiagnosticReport,
 }
@@ -220,16 +243,19 @@ impl From<RelatedUnchangedDocumentDiagnosticReport> for DocumentDiagnosticReport
 #[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentDiagnosticReportPartialResult {
+    /// Diagnostics of related documents.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub related_documents: Option<HashMap<Uri, DocumentDiagnosticReportKind>>,
-    // relatedDocuments?: { [uri: string]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport; };
 }
 
+/// The result of a document diagnostic request.
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum DocumentDiagnosticReportResult {
+    /// A full diagnostic report.
     Report(DocumentDiagnosticReport),
+    /// A partial diagnostic report.
     Partial(DocumentDiagnosticReportPartialResult),
 }
 
@@ -253,6 +279,7 @@ impl From<DocumentDiagnosticReportPartialResult> for DocumentDiagnosticReportRes
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticServerCancellationData {
+    /// Whether the client should retrigger the request.
     pub retrigger_request: bool,
 }
 

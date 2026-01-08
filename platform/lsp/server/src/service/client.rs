@@ -7,10 +7,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::task::{Context, Poll};
 
+use destack_lsp_types::*;
 use futures::channel::mpsc::{self, Sender};
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
-use destack_lsp_types::*;
 use serde::Serialize;
 use tower::Service;
 use tracing::{error, trace};
@@ -76,7 +76,7 @@ impl Client {
 }
 
 impl Client {
-    // Lifecycle Messages
+    // lifecycle messages
 
     /// Registers a new capability with the client.
     ///
@@ -128,7 +128,7 @@ impl Client {
             .await
     }
 
-    // Window Features
+    // window features
 
     /// Notifies the client to display a particular message in the user interface.
     ///
@@ -213,8 +213,34 @@ impl Client {
         Ok(response.success)
     }
 
-    // TODO: Add `work_done_progress_create()` here (since 3.15.0) when supported by `tower-lsp`.
-    // https://github.com/ebkalderon/tower-lsp/issues/176
+    /// Sends a `window/workDoneProgress/create` request from the server to the client, asking
+    /// the client to create a work done progress UI element.
+    ///
+    /// This corresponds to the [`window/workDoneProgress/create`] request.
+    ///
+    /// [`window/workDoneProgress/create`]: https://microsoft.github.io/language-server-protocol/specification#window_workDoneProgress_create
+    ///
+    /// # Initialization
+    ///
+    /// If the request is sent to the client before the server has been initialized, this will
+    /// immediately return `Err` with JSON-RPC error code `-32002` ([read more]).
+    ///
+    /// [read more]: https://microsoft.github.io/language-server-protocol/specification#initialize
+    ///
+    /// # Compatibility
+    ///
+    /// This request was introduced in specification version 3.15.0.
+    ///
+    /// # Errors
+    ///
+    /// - The request to the client fails
+    pub async fn work_done_progress_create(
+        &self,
+        params: WorkDoneProgressCreateParams,
+    ) -> jsonrpc::Result<()> {
+        use destack_lsp_types::request::WorkDoneProgressCreate;
+        self.send_request::<WorkDoneProgressCreate>(params).await
+    }
 
     /// Notifies the client to log a telemetry event.
     ///
@@ -410,7 +436,7 @@ impl Client {
         .await;
     }
 
-    // Workspace Features
+    // workspace features
 
     /// Fetches configuration settings from the client.
     ///
@@ -681,8 +707,10 @@ impl Service<Request> for Client {
 mod tests {
     use std::future::Future;
 
+    use destack_lsp_types::notification::{
+        LogMessage, PublishDiagnostics, ShowMessage, TelemetryEvent,
+    };
     use futures::stream::StreamExt;
-    use destack_lsp_types::notification::{LogMessage, PublishDiagnostics, ShowMessage, TelemetryEvent};
     use serde_json::json;
 
     use super::*;

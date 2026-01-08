@@ -7,10 +7,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use std::borrow::Cow;
+
+/// Server capability for code actions.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CodeActionProviderCapability {
+    /// Simple boolean capability.
     Simple(bool),
+    /// Detailed options.
     Options(CodeActionOptions),
 }
 
@@ -26,12 +30,11 @@ impl From<bool> for CodeActionProviderCapability {
     }
 }
 
+/// Client capabilities for code actions.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionClientCapabilities {
-    ///
-    /// This capability supports dynamic registration.
-    ///
+    /// Whether this capability supports dynamic registration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_registration: Option<bool>,
 
@@ -89,6 +92,7 @@ pub struct CodeActionCapabilityResolveSupport {
     pub properties: Vec<String>,
 }
 
+/// Support for code action literals.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionLiteralSupport {
@@ -96,17 +100,19 @@ pub struct CodeActionLiteralSupport {
     pub code_action_kind: CodeActionKindLiteralSupport,
 }
 
+/// Support for code action kind literals.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionKindLiteralSupport {
-    /// The code action kind values the client supports. When this
-    /// property exists the client also guarantees that it will
+    /// The code action kind values the client supports.
+    ///
+    /// When this property exists the client also guarantees that it will
     /// handle values outside its set gracefully and falls back
     /// to a default value when unknown.
     pub value_set: Vec<String>,
 }
 
-/// Params for the CodeActionRequest
+/// Params for the CodeActionRequest.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionParams {
@@ -119,20 +125,25 @@ pub struct CodeActionParams {
     /// Context carrying additional information.
     pub context: CodeActionContext,
 
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
+    /// Partial result parameters.
     #[serde(flatten)]
     pub partial_result_params: PartialResultParams,
 }
 
-/// response for CodeActionRequest
+/// Response for CodeActionRequest.
 pub type CodeActionResponse = Vec<CodeActionOrCommand>;
 
+/// A code action or command.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CodeActionOrCommand {
+    /// A command.
     Command(Command),
+    /// A code action.
     CodeAction(CodeAction),
 }
 
@@ -148,6 +159,7 @@ impl From<CodeAction> for CodeActionOrCommand {
     }
 }
 
+/// The kind of a code action.
 #[derive(Debug, Eq, PartialEq, Hash, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct CodeActionKind(Cow<'static, str>);
 
@@ -212,10 +224,12 @@ impl CodeActionKind {
     /// @since 3.17.0
     pub const SOURCE_FIX_ALL: CodeActionKind = CodeActionKind::new("source.fixAll");
 
+    /// Create a new code action kind.
     pub const fn new(tag: &'static str) -> Self {
         CodeActionKind(Cow::Borrowed(tag))
     }
 
+    /// Return the string representation.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -233,6 +247,7 @@ impl From<&'static str> for CodeActionKind {
     }
 }
 
+/// A code action represents a change that can be performed in code.
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeAction {
@@ -294,6 +309,7 @@ pub struct CodeAction {
     pub data: Option<Value>,
 }
 
+/// Information about why a code action is disabled.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionDisabled {
@@ -344,6 +360,7 @@ pub struct CodeActionContext {
     pub trigger_kind: Option<CodeActionTriggerKind>,
 }
 
+/// Options for code action support.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionOptions {
@@ -354,6 +371,7 @@ pub struct CodeActionOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_action_kinds: Option<Vec<CodeActionKind>>,
 
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 

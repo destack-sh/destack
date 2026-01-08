@@ -3,7 +3,8 @@
 use std::fmt::{self, Debug, Formatter};
 use std::future::Future;
 
-use dashmap::{DashMap, mapref::entry::Entry};
+use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use futures::channel::oneshot;
 use tracing::warn;
 
@@ -54,7 +55,7 @@ impl Pending {
             }
             Entry::Occupied(mut entry) => {
                 let txs = entry.get_mut();
-                txs.reserve(1); // We assume concurrent waits are rare, so reserve one by one.
+                txs.reserve(1); // we assume concurrent waits are rare, so reserve one by one
                 txs.push(tx);
             }
         }

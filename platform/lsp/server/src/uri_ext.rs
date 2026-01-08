@@ -43,7 +43,7 @@ fn strict_canonicalize<P: AsRef<Path>>(path: P) -> std::io::Result<PathBuf> {
 
 #[cfg(windows)]
 fn capitalize_drive_letter(path: &str) -> String {
-    // Check if it's a Windows path starting with a drive letter like "c:/"
+    // windows path starting with a drive letter like "c:/"
     if path.len() >= 2 && path.chars().nth(1) == Some(':') {
         let mut chars = path.chars();
         let drive_letter = chars.next().unwrap().to_ascii_uppercase();
@@ -146,7 +146,7 @@ impl UriExt for destack_lsp_types::Uri {
         let raw_uri = {
             // we want to parse a triple-slash path for Windows paths
             // it's a shorthand for `file://localhost/C:/Windows` with the `localhost` omitted.
-            // We encode the driver Letter `C:` as well. LSP Specification allows it.
+            // we encode the driver letter `C:` as well, LSP specification allows it
             // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#uri
             format!(
                 "file:///{}",

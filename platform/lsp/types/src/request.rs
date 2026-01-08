@@ -1,10 +1,15 @@
 use super::*;
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
+/// Trait for LSP request types.
 pub trait Request {
+    /// The parameters for this request.
     type Params: DeserializeOwned + Serialize + Send + Sync + 'static;
+    /// The result type for this request.
     type Result: DeserializeOwned + Serialize + Send + Sync + 'static;
+    /// The method name for this request.
     const METHOD: &'static str;
 }
 
@@ -207,6 +212,12 @@ macro_rules! lsp_request {
     ("window/showDocument") => {
         $crate::request::ShowDocument
     };
+    ("workspace/textDocumentContent") => {
+        $crate::request::TextDocumentContentRequest
+    };
+    ("workspace/textDocumentContent/refresh") => {
+        $crate::request::TextDocumentContentRefreshRequest
+    };
 }
 
 /// The initialize request is sent as the first request from the client to the server.
@@ -321,13 +332,16 @@ impl Request for SignatureHelpRequest {
     const METHOD: &'static str = "textDocument/signatureHelp";
 }
 
-#[derive(Debug)]
-pub enum GotoDeclaration {}
-pub type GotoDeclarationParams = GotoDefinitionParams;
-pub type GotoDeclarationResponse = GotoDefinitionResponse;
-
 /// The goto declaration request is sent from the client to the server to resolve the declaration location of
 /// a symbol at a given text document position.
+#[derive(Debug)]
+pub enum GotoDeclaration {}
+
+/// Parameters for a goto declaration request.
+pub type GotoDeclarationParams = GotoDefinitionParams;
+
+/// Response for a goto declaration request.
+pub type GotoDeclarationResponse = GotoDefinitionResponse;
 impl Request for GotoDeclaration {
     type Params = GotoDeclarationParams;
     type Result = Option<GotoDeclarationResponse>;
@@ -362,7 +376,10 @@ impl Request for References {
 #[derive(Debug)]
 pub enum GotoTypeDefinition {}
 
+/// Parameters for a goto type definition request.
 pub type GotoTypeDefinitionParams = GotoDefinitionParams;
+
+/// Response for a goto type definition request.
 pub type GotoTypeDefinitionResponse = GotoDefinitionResponse;
 
 impl Request for GotoTypeDefinition {
@@ -377,7 +394,10 @@ impl Request for GotoTypeDefinition {
 #[derive(Debug)]
 pub enum GotoImplementation {}
 
+/// Parameters for a goto implementation request.
 pub type GotoImplementationParams = GotoTypeDefinitionParams;
+
+/// Response for a goto implementation request.
 pub type GotoImplementationResponse = GotoDefinitionResponse;
 
 impl Request for GotoImplementation {
@@ -729,6 +749,7 @@ impl Request for WorkDoneProgressCreate {
 ///
 /// Typically, but not necessary, selection ranges correspond to the nodes of the
 /// syntax tree.
+#[derive(Debug)]
 pub enum SelectionRangeRequest {}
 
 impl Request for SelectionRangeRequest {
@@ -737,6 +758,9 @@ impl Request for SelectionRangeRequest {
     const METHOD: &'static str = "textDocument/selectionRange";
 }
 
+/// The call hierarchy prepare request is sent from the client to the server to return a call
+/// hierarchy item for the language element at a given text document position.
+#[derive(Debug)]
 pub enum CallHierarchyPrepare {}
 
 impl Request for CallHierarchyPrepare {
@@ -745,6 +769,9 @@ impl Request for CallHierarchyPrepare {
     const METHOD: &'static str = "textDocument/prepareCallHierarchy";
 }
 
+/// The call hierarchy incoming calls request is sent from the client to the server to resolve
+/// incoming calls for a given call hierarchy item.
+#[derive(Debug)]
 pub enum CallHierarchyIncomingCalls {}
 
 impl Request for CallHierarchyIncomingCalls {
@@ -753,6 +780,9 @@ impl Request for CallHierarchyIncomingCalls {
     const METHOD: &'static str = "callHierarchy/incomingCalls";
 }
 
+/// The call hierarchy outgoing calls request is sent from the client to the server to resolve
+/// outgoing calls for a given call hierarchy item.
+#[derive(Debug)]
 pub enum CallHierarchyOutgoingCalls {}
 
 impl Request for CallHierarchyOutgoingCalls {
@@ -761,6 +791,9 @@ impl Request for CallHierarchyOutgoingCalls {
     const METHOD: &'static str = "callHierarchy/outgoingCalls";
 }
 
+/// The semantic tokens full request is sent from the client to the server to request
+/// semantic tokens for a full document.
+#[derive(Debug)]
 pub enum SemanticTokensFullRequest {}
 
 impl Request for SemanticTokensFullRequest {
@@ -769,6 +802,9 @@ impl Request for SemanticTokensFullRequest {
     const METHOD: &'static str = "textDocument/semanticTokens/full";
 }
 
+/// The semantic tokens full delta request is sent from the client to the server to request
+/// semantic token deltas for a full document.
+#[derive(Debug)]
 pub enum SemanticTokensFullDeltaRequest {}
 
 impl Request for SemanticTokensFullDeltaRequest {
@@ -777,6 +813,9 @@ impl Request for SemanticTokensFullDeltaRequest {
     const METHOD: &'static str = "textDocument/semanticTokens/full/delta";
 }
 
+/// The semantic tokens range request is sent from the client to the server to request
+/// semantic tokens for a range in a document.
+#[derive(Debug)]
 pub enum SemanticTokensRangeRequest {}
 
 impl Request for SemanticTokensRangeRequest {
@@ -790,6 +829,7 @@ impl Request for SemanticTokensRangeRequest {
 /// As a result the client should ask the server to recompute the semantic tokens for these editors.
 /// This is useful if a server detects a project wide configuration change which requires a re-calculation of all semantic tokens.
 /// Note that the client still has the freedom to delay the re-calculation of the semantic tokens if for example an editor is currently not visible.
+#[derive(Debug)]
 pub enum SemanticTokensRefresh {}
 
 impl Request for SemanticTokensRefresh {
@@ -803,6 +843,7 @@ impl Request for SemanticTokensRefresh {
 /// As a result the client should ask the server to recompute the code lenses for these editors.
 /// This is useful if a server detects a configuration change which requires a re-calculation of all code lenses.
 /// Note that the client still has the freedom to delay the re-calculation of the code lenses if for example an editor is currently not visible.
+#[derive(Debug)]
 pub enum CodeLensRefresh {}
 
 impl Request for CodeLensRefresh {
@@ -812,6 +853,7 @@ impl Request for CodeLensRefresh {
 }
 
 /// The will create files request is sent from the client to the server before files are actually created as long as the creation is triggered from within the client. The request can return a WorkspaceEdit which will be applied to workspace before the files are created. Please note that clients might drop results if computing the edit took too long or if a server constantly fails on this request. This is done to keep creates fast and reliable.
+#[derive(Debug)]
 pub enum WillCreateFiles {}
 
 impl Request for WillCreateFiles {
@@ -821,6 +863,7 @@ impl Request for WillCreateFiles {
 }
 
 /// The will rename files request is sent from the client to the server before files are actually renamed as long as the rename is triggered from within the client. The request can return a WorkspaceEdit which will be applied to workspace before the files are renamed. Please note that clients might drop results if computing the edit took too long or if a server constantly fails on this request. This is done to keep renames fast and reliable.
+#[derive(Debug)]
 pub enum WillRenameFiles {}
 
 impl Request for WillRenameFiles {
@@ -830,6 +873,7 @@ impl Request for WillRenameFiles {
 }
 
 /// The will delete files request is sent from the client to the server before files are actually deleted as long as the deletion is triggered from within the client. The request can return a WorkspaceEdit which will be applied to workspace before the files are deleted. Please note that clients might drop results if computing the edit took too long or if a server constantly fails on this request. This is done to keep deletes fast and reliable.
+#[derive(Debug)]
 pub enum WillDeleteFiles {}
 
 impl Request for WillDeleteFiles {
@@ -839,6 +883,7 @@ impl Request for WillDeleteFiles {
 }
 
 /// The show document request is sent from a server to a client to ask the client to display a particular document in the user interface.
+#[derive(Debug)]
 pub enum ShowDocument {}
 
 impl Request for ShowDocument {
@@ -847,6 +892,9 @@ impl Request for ShowDocument {
     const METHOD: &'static str = "window/showDocument";
 }
 
+/// The moniker request is sent from the client to the server to get the symbol monikers for a given
+/// text document position.
+#[derive(Debug)]
 pub enum MonikerRequest {}
 
 impl Request for MonikerRequest {
@@ -857,6 +905,7 @@ impl Request for MonikerRequest {
 
 /// The inlay hints request is sent from the client to the server to compute inlay hints for a given
 /// [text document, range] tuple that may be rendered in the editor in place with other text.
+#[derive(Debug)]
 pub enum InlayHintRequest {}
 
 impl Request for InlayHintRequest {
@@ -867,8 +916,9 @@ impl Request for InlayHintRequest {
 
 /// The `inlayHint/resolve` request is sent from the client to the server to resolve additional
 /// information for a given inlay hint. This is usually used to compute the tooltip, location or
-/// command properties of a inlay hint’s label part to avoid its unnecessary computation during the
+/// command properties of a inlay hint's label part to avoid its unnecessary computation during the
 /// `textDocument/inlayHint` request.
+#[derive(Debug)]
 pub enum InlayHintResolveRequest {}
 
 impl Request for InlayHintResolveRequest {
@@ -883,6 +933,7 @@ impl Request for InlayHintResolveRequest {
 /// detects a configuration change which requires a re-calculation of all inlay hints. Note that the
 /// client still has the freedom to delay the re-calculation of the inlay hints if for example an
 /// editor is currently not visible.
+#[derive(Debug)]
 pub enum InlayHintRefreshRequest {}
 
 impl Request for InlayHintRefreshRequest {
@@ -893,6 +944,7 @@ impl Request for InlayHintRefreshRequest {
 
 /// The inline value request is sent from the client to the server to compute inline values for a
 /// given text document that may be rendered in the editor at the end of lines.
+#[derive(Debug)]
 pub enum InlineValueRequest {}
 
 impl Request for InlineValueRequest {
@@ -907,6 +959,7 @@ impl Request for InlineValueRequest {
 /// a server detects a configuration change which requires a re-calculation of all inline values.
 /// Note that the client still has the freedom to delay the re-calculation of the inline values if
 /// for example an editor is currently not visible.
+#[derive(Debug)]
 pub enum InlineValueRefreshRequest {}
 
 impl Request for InlineValueRefreshRequest {
@@ -961,6 +1014,7 @@ impl Request for WorkspaceDiagnosticRefresh {
 ///
 /// 1. first a type hierarchy item is prepared for the given text document position.
 /// 2. for a type hierarchy item the supertype or subtype type hierarchy items are resolved.
+#[derive(Debug)]
 pub enum TypeHierarchyPrepare {}
 
 impl Request for TypeHierarchyPrepare {
@@ -970,10 +1024,11 @@ impl Request for TypeHierarchyPrepare {
 }
 
 /// The `typeHierarchy/supertypes` request is sent from the client to the server to resolve the
-/// supertypes for a given type hierarchy item. Will return null if the server couldn’t infer a
-/// valid type from item in the params. The request doesn’t define its own client and server
+/// supertypes for a given type hierarchy item. Will return null if the server couldn't infer a
+/// valid type from item in the params. The request doesn't define its own client and server
 /// capabilities. It is only issued if a server registers for the
 /// `textDocument/prepareTypeHierarchy` request.
+#[derive(Debug)]
 pub enum TypeHierarchySupertypes {}
 
 impl Request for TypeHierarchySupertypes {
@@ -983,15 +1038,42 @@ impl Request for TypeHierarchySupertypes {
 }
 
 /// The `typeHierarchy/subtypes` request is sent from the client to the server to resolve the
-/// subtypes for a given type hierarchy item. Will return null if the server couldn’t infer a valid
-/// type from item in the params. The request doesn’t define its own client and server capabilities.
+/// subtypes for a given type hierarchy item. Will return null if the server couldn't infer a valid
+/// type from item in the params. The request doesn't define its own client and server capabilities.
 /// It is only issued if a server registers for the textDocument/prepareTypeHierarchy request.
+#[derive(Debug)]
 pub enum TypeHierarchySubtypes {}
 
 impl Request for TypeHierarchySubtypes {
     type Params = TypeHierarchySubtypesParams;
     type Result = Option<Vec<TypeHierarchyItem>>;
     const METHOD: &'static str = "typeHierarchy/subtypes";
+}
+
+/// The `workspace/textDocumentContent` request is sent from the client to the server to request
+/// the content of a text document identified by the given URI.
+///
+/// @since 3.18.0
+#[derive(Debug)]
+pub enum TextDocumentContentRequest {}
+
+impl Request for TextDocumentContentRequest {
+    type Params = TextDocumentContentParams;
+    type Result = TextDocumentContentResult;
+    const METHOD: &'static str = "workspace/textDocumentContent";
+}
+
+/// The `workspace/textDocumentContent/refresh` request is sent from the server to the client.
+/// Servers can use it to ask clients to refresh the content of a specific text document.
+///
+/// @since 3.18.0
+#[derive(Debug)]
+pub enum TextDocumentContentRefreshRequest {}
+
+impl Request for TextDocumentContentRefreshRequest {
+    type Params = TextDocumentContentRefreshParams;
+    type Result = ();
+    const METHOD: &'static str = "workspace/textDocumentContent/refresh";
 }
 
 #[cfg(test)]
@@ -1075,6 +1157,8 @@ mod test {
         check_macro!("workspace/codeLens/refresh");
         check_macro!("workspace/inlayHint/refresh");
         check_macro!("workspace/inlineValue/refresh");
+        check_macro!("workspace/textDocumentContent");
+        check_macro!("workspace/textDocumentContent/refresh");
 
         check_macro!("callHierarchy/incomingCalls");
         check_macro!("callHierarchy/outgoingCalls");

@@ -6,19 +6,31 @@ use serde::{Deserialize, Serialize};
 
 use super::{Error, Id, Result, Version};
 
+/// The response payload indicating success or failure.
 #[derive(Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 enum Kind {
-    Ok { result: LSPAny },
-    Err { error: Error },
+    /// A successful response containing a result value.
+    Ok {
+        /// The result value.
+        result: LSPAny,
+    },
+    /// A failed response containing an error object.
+    Err {
+        /// The error object.
+        error: Error,
+    },
 }
 
 /// A successful or failed JSON-RPC response.
 #[derive(Clone, PartialEq, Deserialize, Serialize)]
 pub struct Response {
+    /// The JSON-RPC protocol version.
     jsonrpc: Version,
+    /// The response payload.
     #[serde(flatten)]
     kind: Kind,
+    /// The request identifier this response corresponds to.
     id: Id,
 }
 

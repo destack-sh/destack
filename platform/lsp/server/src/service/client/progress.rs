@@ -3,9 +3,10 @@
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
+use destack_lsp_types::notification::Progress as ProgressNotification;
 use destack_lsp_types::{
     ProgressParams, ProgressParamsValue, ProgressToken, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressReport, notification::Progress as ProgressNotification,
+    WorkDoneProgressReport,
 };
 
 use super::Client;

@@ -5,12 +5,16 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Client capabilities for inline values.
 pub type InlineValueClientCapabilities = DynamicRegistrationClientCapabilities;
 
+/// Server capabilities for inline values.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InlineValueServerCapabilities {
+    /// Options-based capability.
     Options(InlineValueOptions),
+    /// Registration options capability.
     RegistrationOptions(InlineValueRegistrationOptions),
 }
 
@@ -19,6 +23,7 @@ pub enum InlineValueServerCapabilities {
 /// @since 3.17.0
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineValueOptions {
+    /// Work done progress options.
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 }
@@ -28,12 +33,15 @@ pub struct InlineValueOptions {
 /// @since 3.17.0
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineValueRegistrationOptions {
+    /// Inline value options.
     #[serde(flatten)]
     pub inline_value_options: InlineValueOptions,
 
+    /// Text document registration options.
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
 
+    /// Static registration options.
     #[serde(flatten)]
     pub static_registration_options: StaticRegistrationOptions,
 }
@@ -44,6 +52,7 @@ pub struct InlineValueRegistrationOptions {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueParams {
+    /// Work done progress parameters.
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
@@ -58,6 +67,8 @@ pub struct InlineValueParams {
     pub context: InlineValueContext,
 }
 
+/// Context for inline value requests.
+///
 /// @since 3.17.0
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -139,8 +150,11 @@ pub struct InlineValueEvaluatableExpression {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InlineValue {
+    /// Text inline value.
     Text(InlineValueText),
+    /// Variable lookup inline value.
     VariableLookup(InlineValueVariableLookup),
+    /// Evaluatable expression inline value.
     EvaluatableExpression(InlineValueEvaluatableExpression),
 }
 
@@ -166,9 +180,9 @@ impl From<InlineValueEvaluatableExpression> for InlineValue {
 }
 
 /// Client workspace capabilities specific to inline values.
-#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 ///
 /// @since 3.17.0
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueWorkspaceClientCapabilities {
     /// Whether the client implementation supports a refresh request sent from
@@ -185,8 +199,8 @@ pub struct InlineValueWorkspaceClientCapabilities {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::test_serialization;
     use crate::Position;
+    use crate::tests::test_serialization;
 
     #[test]
     fn inline_values() {
