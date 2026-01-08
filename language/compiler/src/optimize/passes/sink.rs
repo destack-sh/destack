@@ -5,10 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{build_use_def_maps, instruction_is_pure};
-use mir::Instruction;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
 };
+use mir::Instruction;
 
 /// Check if an instruction is a memory read (load, local get).
 fn instruction_is_memory_read(instruction: &Instruction) -> bool {
@@ -272,8 +272,10 @@ impl FunctionPass for Sink {
         // apply sinking
         for (from_block, work_items) in by_block {
             // collect instructions to sink (indices are already sorted descending)
-            let mut to_sink: Vec<(mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>)> =
-                Vec::new();
+            let mut to_sink: Vec<(
+                mir::LocalNodeId<mir::Instruction>,
+                mir::LocalNodeId<mir::Block>,
+            )> = Vec::new();
 
             let from = tree.get(from_block);
             for w in &work_items {

@@ -20,6 +20,17 @@ impl<'a> OptimizationContext<'a> {
         }
     }
 
+    /// Create a new optimization context with strict borrow mode.
+    pub fn with_strict_borrow_mode(
+        strings: &'a destack_base::StringPool,
+        strict_borrow_mode: bool,
+    ) -> Self {
+        Self {
+            strings,
+            analyses: AnalysisCache::with_strict_borrow_mode(strict_borrow_mode),
+        }
+    }
+
     /// Clear cached analyses (call between functions or when CFG changes).
     pub fn clear_analyses(&self) {
         self.analyses.clear();

@@ -183,9 +183,10 @@ fn find_deletable_loop(
     } else if lp.exit_blocks.len() > 1 {
         // multiple exits: only allow if ALL exit blocks have no parameters
         // (otherwise we'd need to compute consistent arguments for each)
-        let all_parameterless = lp.exit_blocks.iter().all(|&eb| {
-            tree.get(eb).parameters.is_empty()
-        });
+        let all_parameterless = lp
+            .exit_blocks
+            .iter()
+            .all(|&eb| tree.get(eb).parameters.is_empty());
         if !all_parameterless {
             return None;
         }
@@ -366,7 +367,11 @@ fn find_exit_arguments(
 
     // build substitution map: header param -> preheader arg (initial value)
     let mut initial_values: HashMap<mir::Value, mir::Value> = HashMap::new();
-    for (param, arg) in header_block.parameters.iter().zip(preheader_to_header_args.iter()) {
+    for (param, arg) in header_block
+        .parameters
+        .iter()
+        .zip(preheader_to_header_args.iter())
+    {
         initial_values.insert(param.value, *arg);
     }
 

@@ -1,0 +1,377 @@
+use std::collections::HashMap;
+
+use destack_mir as mir;
+
+use crate::optimize::common::{MemoryLocation, PointerBase, PointerDecomposer};
+
+use super::result::AliasResult;
+
+/// Scoped noalias analysis for Destack's ownership system.
+///
+/// Currently handles:
+/// - `&mut T` in strict borrow mode: exclusive mutable borrow, noalias
+///
+/// NOTE #Incomplete: could also handle:
+/// - `^T` ownership transfer: caller loses all references
+/// - `@noManaged` functions: cannot access managed heap
+/// - `@stackOnly` functions: cannot access any heap
+///
+/// This analysis is only effective when strict borrow mode is enabled.
+#[derive(Debug, Default)]
+pub(crate) struct ScopedNoAliasAA {
+    /// Parameters with noalias semantics (exclusive borrows in strict mode).
+    noalias_params: Vec<bool>,
+    /// Whether strict borrow mode is enabled.
+    strict_borrow_mode: bool,
+    /// Map from value to constant integer.
+    constants: HashMap<mir::Value, i64>,
+    /// Map from value to defining instruction.
+    definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    /// Function parameters.
+    parameters: Vec<mir::TypedValue>,
+}
+
+impl ScopedNoAliasAA {
+    /// Build ScopedNoAliasAA for a function.
+    pub(super) fn build(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        strict_borrow_mode: bool,
+    ) -> Self {
+        let mut constants = HashMap::new();
+        let mut definitions = HashMap::new();
+
+        // imports have no body
+        if function.entry.is_none() {
+            return Self {
+                noalias_params: Vec::new(),
+                strict_borrow_mode,
+                constants,
+                definitions,
+                parameters: Vec::new(),
+            };
+        }
+
+        // collect definitions and constants
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            for &instruction_id in &block.instructions {
+                let inst = tree.get(instruction_id);
+
+                if let Some(dest) = inst.destination() {
+                    definitions.insert(dest, instruction_id);
+                }
+
+                if let mir::Instruction::Const { destination, value } = inst
+                    && let mir::Constant::Int { value: v, .. } = value
+                {
+                    constants.insert(*destination, *v);
+                }
+            }
+        }
+
+        // determine which parameters have noalias semantics
+        let noalias_params = function
+            .parameters
+            .iter()
+            .map(|p| Self::is_noalias_parameter(p, tree, strict_borrow_mode))
+            .collect();
+
+        Self {
+            noalias_params,
+            strict_borrow_mode,
+            constants,
+            definitions,
+            parameters: function.parameters.clone(),
+        }
+    }
+
+    /// Check if a parameter has noalias semantics.
+    fn is_noalias_parameter(
+        parameter: &mir::TypedValue,
+        tree: &mir::NodeTree,
+        strict: bool,
+    ) -> bool {
+        if !strict {
+            return false;
+        }
+
+        // check if the parameter type is a mutable borrow
+        let ty = tree.get(parameter.ty);
+        matches!(
+            ty,
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Borrowed,
+                mutability: mir::Mutability::Mutable,
+                ..
+            }
+        )
+    }
+
+    /// Query if two memory locations may alias.
+    pub(super) fn alias(
+        &self,
+        loc_a: &MemoryLocation,
+        loc_b: &MemoryLocation,
+        tree: &mir::NodeTree,
+    ) -> AliasResult {
+        if !self.strict_borrow_mode {
+            return AliasResult::MayAlias;
+        }
+
+        // decompose pointers to find their bases
+        let mut decomposer = PointerDecomposer::new(
+            &self.constants,
+            &self.definitions,
+            tree,
+            &self.parameters,
+            self.strict_borrow_mode,
+        );
+
+        let ptr_a = decomposer.decompose(loc_a.ptr);
+        let ptr_b = decomposer.decompose(loc_b.ptr);
+
+        // check noalias parameter rules
+        match (&ptr_a.base, &ptr_b.base) {
+            // two different noalias parameters cannot alias
+            (
+                PointerBase::Parameter { index: index_a, .. },
+                PointerBase::Parameter { index: index_b, .. },
+            ) if index_a != index_b => {
+                let a_noalias = self
+                    .noalias_params
+                    .get(*index_a as usize)
+                    .copied()
+                    .unwrap_or(false);
+                let b_noalias = self
+                    .noalias_params
+                    .get(*index_b as usize)
+                    .copied()
+                    .unwrap_or(false);
+
+                if a_noalias && b_noalias {
+                    return AliasResult::NoAlias;
+                }
+
+                // one noalias param doesn't alias non-noalias params
+                // (the noalias one is exclusive, the other might alias it, but we're safe)
+                if a_noalias || b_noalias {
+                    return AliasResult::NoAlias;
+                }
+            }
+
+            // noalias param doesn't alias local allocations
+            (PointerBase::Parameter { index, .. }, base)
+            | (base, PointerBase::Parameter { index, .. })
+                if base.is_local_alloc() =>
+            {
+                let is_noalias = self
+                    .noalias_params
+                    .get(*index as usize)
+                    .copied()
+                    .unwrap_or(false);
+                if is_noalias {
+                    return AliasResult::NoAlias;
+                }
+            }
+
+            _ => {}
+        }
+
+        AliasResult::MayAlias
+    }
+
+    /// Check if strict borrow mode is enabled.
+    #[allow(dead_code)]
+    pub(super) fn is_strict_mode(&self) -> bool {
+        self.strict_borrow_mode
+    }
+
+    /// Check if a parameter index has noalias semantics.
+    #[allow(dead_code)]
+    pub(super) fn is_parameter_noalias(&self, index: usize) -> bool {
+        self.noalias_params.get(index).copied().unwrap_or(false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    #[test]
+    fn test_non_strict_mode_may_alias() {
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> void {
+block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    store v1, v2
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        // non-strict mode: &mut doesn't guarantee noalias
+        let aa = ScopedNoAliasAA::build(function, &program.tree, false);
+
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::MayAlias);
+    }
+
+    #[test]
+    fn test_strict_mode_mut_borrows_no_alias() {
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> void {
+block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    store v1, v2
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        // strict mode: &mut T parameters are noalias
+        let aa = ScopedNoAliasAA::build(function, &program.tree, true);
+
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::NoAlias);
+    }
+
+    #[test]
+    fn test_mut_borrow_vs_local_no_alias() {
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<borrowed mut i32>) -> void {
+block0(v0: ref<borrowed mut i32>):
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v0, v2
+    store v1, v2
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        // strict mode: &mut param doesn't alias local allocations
+        let aa = ScopedNoAliasAA::build(function, &program.tree, true);
+
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::NoAlias);
+    }
+
+    #[test]
+    fn test_immutable_borrow_may_alias() {
+        // even in strict mode, immutable borrows may alias each other
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> void {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    v2 = load v0
+    v3 = load v1
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        // strict mode, but immutable borrows can alias
+        let aa = ScopedNoAliasAA::build(function, &program.tree, true);
+
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        // immutable refs are NOT noalias
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::MayAlias);
+    }
+
+    #[test]
+    fn test_mut_borrow_vs_immutable_borrow_no_alias() {
+        // in strict mode, mut borrow doesn't alias immutable borrow
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>) -> void {
+block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = load v1
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        // strict mode: &mut is noalias, so it doesn't alias &
+        let aa = ScopedNoAliasAA::build(function, &program.tree, true);
+
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        // mut borrow is noalias, so doesn't alias other param
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::NoAlias);
+    }
+
+    #[test]
+    fn test_derived_pointer_from_noalias_param() {
+        // field.addr from noalias param should still not alias other params
+        let program = TestProgram::new(
+            r#"type @Point = { i32, i32 }
+function @test(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>) -> void {
+block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
+    v2 = field.addr v0, 0
+    v3 = iconst 1i32
+    store v2, v3
+    store v1, v3
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        let aa = ScopedNoAliasAA::build(function, &program.tree, true);
+
+        // v2 is derived from noalias param v0, v1 is different noalias param
+        let loc2 = MemoryLocation::from_ptr(mir::Value::new(2));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        // derived from different noalias params should not alias
+        assert_eq!(aa.alias(&loc2, &loc1, &program.tree), AliasResult::NoAlias);
+    }
+
+    #[test]
+    fn test_same_mut_borrow_may_alias_self() {
+        // same noalias param accessed twice should may-alias (itself)
+        let program = TestProgram::new(
+            r#"function @test(v0: ref<borrowed mut i32>) -> void {
+block0(v0: ref<borrowed mut i32>):
+    v1 = iconst 1i32
+    store v0, v1
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        let aa = ScopedNoAliasAA::build(function, &program.tree, true);
+
+        let loc0_a = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc0_b = MemoryLocation::from_ptr(mir::Value::new(0));
+
+        // same pointer, same param index, should alias
+        assert!(aa.alias(&loc0_a, &loc0_b, &program.tree).may_alias());
+    }
+}

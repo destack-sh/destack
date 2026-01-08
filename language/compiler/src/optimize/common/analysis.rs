@@ -43,6 +43,8 @@ pub trait Analysis: 'static + Sized + Send + Sync {
 pub struct AnalysisCache {
     /// Cached analysis results, keyed by AnalysisKind.
     cache: RefCell<HashMap<AnalysisKind, Arc<dyn Any + Send + Sync>>>,
+    /// Whether strict borrow mode is enabled (`&mut T` has noalias semantics).
+    strict_borrow_mode: bool,
 }
 
 impl AnalysisCache {
@@ -50,7 +52,21 @@ impl AnalysisCache {
     pub fn new() -> Self {
         Self {
             cache: RefCell::new(HashMap::new()),
+            strict_borrow_mode: false,
         }
+    }
+
+    /// Create a new cache with the specified strict borrow mode.
+    pub fn with_strict_borrow_mode(strict_borrow_mode: bool) -> Self {
+        Self {
+            cache: RefCell::new(HashMap::new()),
+            strict_borrow_mode,
+        }
+    }
+
+    /// Whether strict borrow mode is enabled (`&mut T` has noalias semantics).
+    pub fn strict_borrow_mode(&self) -> bool {
+        self.strict_borrow_mode
     }
 
     /// Get or compute an analysis for a function.
