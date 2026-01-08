@@ -1,0 +1,119 @@
+/// Native hash map using open addressing with Robin Hood hashing.
+struct Map<K, V> {
+    /// Number of entries in the map.
+    length: uint32,
+    /// Number of allocated buckets.
+    capacity: uint32,
+    /// Control bytes for SIMD-friendly probing (like Swiss Table).
+    ctrl: *uint8,
+    /// Pointer to bucket storage.
+    buckets: *MapEntry<K, V>,
+}
+
+/// Internal entry structure.
+struct MapEntry<K, V> {
+    key: K,
+    value: V,
+}
+
+/// TypeScript-compatible Record type alias.
+/// In native, Record<K, V> is a Map<K, V>.
+type Record<K, V> = Map<K, V>;
+
+extension<K, V> for Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K, V]> {
+    /// Get the number of entries.
+    get size(): number {
+        this.length as number
+    }
+
+    /// Check if the map is empty.
+    get isEmpty(): boolean {
+        this.length == 0
+    }
+
+    /// Get a value by key.
+    get(key: K): V | undefined {
+        // #Incomplete
+        undefined
+    }
+
+    /// Index operator for get.
+    index(key: K): V | undefined {
+        this.get(key)
+    }
+
+    /// Set a key-value pair.
+    set(key: K, value: V): Map<K, V> {
+        // #Incomplete
+        this
+    }
+
+    /// Index operator for set.
+    indexSet(key: K, value: V): void {
+        this.set(key, value);
+    }
+
+    /// Check if a key exists.
+    has(key: K): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Delete a key-value pair.
+    delete(key: K): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Clear all entries.
+    clear(): void {
+        // #Incomplete
+        this.length = 0;
+    }
+
+    /// Get all keys.
+    keys(): Iterator<K> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Get all values.
+    values(): Iterator<V> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Get all entries.
+    entries(): Iterator<[K, V]> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Iterate over entries.
+    [Symbol.iterator](): Iterator<[K, V]> {
+        this.entries()
+    }
+
+    /// Execute function for each entry.
+    forEach(f: (value: V, key: K, map: Map<K, V>) => void): void {
+        // #Incomplete
+    }
+
+    /// Create a new map from entries.
+    static from<K, V>(entries: Iterable<[K, V]>): Map<K, V> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create an empty map.
+    static new<K, V>(): Map<K, V> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create a map with pre-allocated capacity.
+    static withCapacity<K, V>(capacity: uint32): Map<K, V> {
+        // #Incomplete
+        undefined!
+    }
+}

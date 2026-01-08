@@ -1,0 +1,56 @@
+/// Memory ordering for atomic operations.
+enum MemoryOrdering {
+    /// No ordering constraints.
+    Relaxed,
+    /// Acquire ordering (loads).
+    Acquire,
+    /// Release ordering (stores).
+    Release,
+    /// Acquire-release ordering.
+    AcqRel,
+    /// Sequentially consistent ordering.
+    SeqCst,
+}
+
+/// Atomic load.
+@intrinsic
+declare function atomicLoad<T>(ptr: *T, order: MemoryOrdering): T;
+
+/// Atomic store.
+@intrinsic
+declare function atomicStore<T>(ptr: *T, value: T, order: MemoryOrdering): void;
+
+/// Atomic compare-and-swap.
+/// Returns the previous value and whether the swap succeeded.
+@intrinsic
+declare function atomicCas<T>(
+    ptr: *T,
+    expected: T,
+    desired: T,
+    successOrder: MemoryOrdering,
+    failureOrder: MemoryOrdering
+): { success: boolean, value: T };
+
+/// Atomic fetch-and-add.
+@intrinsic
+declare function atomicFetchAdd<T>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-sub.
+@intrinsic
+declare function atomicFetchSub<T>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-or.
+@intrinsic
+declare function atomicFetchOr<T>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-and.
+@intrinsic
+declare function atomicFetchAnd<T>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-xor.
+@intrinsic
+declare function atomicFetchXor<T>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Memory fence.
+@intrinsic
+declare function atomicFence(order: MemoryOrdering): void;

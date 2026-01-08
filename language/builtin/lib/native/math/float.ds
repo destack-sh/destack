@@ -1,0 +1,91 @@
+/// Square root.
+@intrinsic
+declare function sqrt<T>(value: T): T;
+
+/// Absolute value.
+@intrinsic
+declare function abs<T>(value: T): T;
+
+/// Fused multiply-add: (a * b) + c with single rounding.
+@intrinsic
+declare function fma<T>(a: T, b: T, c: T): T;
+
+/// Copy sign from y to x.
+@intrinsic
+declare function copysign<T>(x: T, y: T): T;
+
+/// Minimum of two values.
+@intrinsic
+declare function min<T>(a: T, b: T): T;
+
+/// Maximum of two values.
+@intrinsic
+declare function max<T>(a: T, b: T): T;
+
+/// Sine.
+@intrinsic
+declare function sin<T>(value: T): T;
+
+/// Cosine.
+@intrinsic
+declare function cos<T>(value: T): T;
+
+/// Tangent.
+@intrinsic
+declare function tan<T>(value: T): T;
+
+/// Arc sine.
+@intrinsic
+declare function asin<T>(value: T): T;
+
+/// Arc cosine.
+@intrinsic
+declare function acos<T>(value: T): T;
+
+/// Arc tangent.
+@intrinsic
+declare function atan<T>(value: T): T;
+
+/// Arc tangent of y/x (two-argument).
+@intrinsic
+declare function atan2<T>(y: T, x: T): T;
+
+/// Natural exponential (e^x).
+@intrinsic
+declare function exp<T>(value: T): T;
+
+/// Base-2 exponential (2^x).
+@intrinsic
+declare function exp2<T>(value: T): T;
+
+/// Natural logarithm.
+@intrinsic
+declare function log<T>(value: T): T;
+
+/// Base-2 logarithm.
+@intrinsic
+declare function log2<T>(value: T): T;
+
+/// Base-10 logarithm.
+@intrinsic
+declare function log10<T>(value: T): T;
+
+/// Power (base^exponent).
+@intrinsic
+declare function pow<T>(base: T, exponent: T): T;
+
+/// Round toward negative infinity.
+@intrinsic
+declare function floor<T>(value: T): T;
+
+/// Round toward positive infinity.
+@intrinsic
+declare function ceil<T>(value: T): T;
+
+/// Round toward zero (truncate).
+@intrinsic
+declare function trunc<T>(value: T): T;
+
+/// Round to nearest integer, ties to even.
+@intrinsic
+declare function round<T>(value: T): T;

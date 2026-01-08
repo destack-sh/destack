@@ -1,0 +1,125 @@
+/// Native hash set using open addressing with Robin Hood hashing.
+struct Set<T> {
+    /// Number of elements in the set.
+    length: uint32,
+    /// Number of allocated buckets.
+    capacity: uint32,
+    /// Control bytes for SIMD-friendly probing.
+    ctrl: *uint8,
+    /// Pointer to element storage.
+    buckets: *T,
+}
+
+extension<T> for Set<T> implements Iterable<T> {
+    /// Get the number of elements.
+    get size(): number {
+        this.length as number
+    }
+
+    /// Check if the set is empty.
+    get isEmpty(): boolean {
+        this.length == 0
+    }
+
+    /// Add an element.
+    add(value: T): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Check if an element exists.
+    has(value: T): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Delete an element.
+    delete(value: T): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Clear all elements.
+    clear(): void {
+        // #Incomplete
+        this.length = 0;
+    }
+
+    /// Get all values (same as elements for sets).
+    values(): Iterator<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Iterate over elements.
+    [Symbol.iterator](): Iterator<T> {
+        this.values()
+    }
+
+    /// Execute function for each element.
+    forEach(f: (value: T, value2: T, set: Set<T>) => void): void {
+        // #Incomplete
+    }
+
+    // --- set operations ---
+
+    /// Union of two sets.
+    union(other: Set<T>): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Intersection of two sets.
+    intersection(other: Set<T>): Set<T> {
+        // #Incomplete
+        Set.new()
+    }
+
+    /// Difference (this - other).
+    difference(other: Set<T>): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Symmetric difference.
+    symmetricDifference(other: Set<T>): Set<T> {
+        // #Incomplete
+        this
+    }
+
+    /// Check if this is a subset of other.
+    isSubsetOf(other: Set<T>): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Check if this is a superset of other.
+    isSupersetOf(other: Set<T>): boolean {
+        // #Incomplete
+        false
+    }
+
+    /// Check if sets are disjoint.
+    isDisjointFrom(other: Set<T>): boolean {
+        // #Incomplete
+        true
+    }
+
+    /// Create a new set from values.
+    static from<T>(values: Iterable<T>): Set<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create an empty set.
+    static new<T>(): Set<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create a set with pre-allocated capacity.
+    static withCapacity<T>(capacity: uint32): Set<T> {
+        // #Incomplete
+        undefined!
+    }
+}

@@ -1,0 +1,76 @@
+// core types (ambient)
+export { String, string } from "./string/index.ds";
+export { Array, arrayOf, arrayFill } from "./collections/index.ds";
+export { Slice, MutSlice } from "./collections/index.ds";
+export { Map, Record } from "./collections/index.ds";
+export { Set } from "./collections/index.ds";
+
+// low-level primitives (not ambient, must be imported explicitly)
+export {
+    rawAlloc,
+    rawFree,
+    rawRealloc,
+    memcpy,
+    memmove,
+    memset,
+    memcmp,
+    sizeOf,
+    alignOf,
+    RawBuffer,
+} from "./memory/index.ds";
+
+export {
+    MemoryOrdering,
+    atomicLoad,
+    atomicStore,
+    atomicCas,
+    atomicFetchAdd,
+    atomicFetchSub,
+    atomicFetchOr,
+    atomicFetchAnd,
+    atomicFetchXor,
+    atomicFence,
+} from "./sync/index.ds";
+
+// math (not ambient)
+export {
+    // bit manipulation
+    clz,
+    ctz,
+    popcnt,
+    byteSwap,
+    bitReverse,
+    rotateLeft,
+    rotateRight,
+    // float math
+    sqrt,
+    abs,
+    fma,
+    copysign,
+    min,
+    max,
+    sin,
+    cos,
+    tan,
+    asin,
+    acos,
+    atan,
+    atan2,
+    exp,
+    exp2,
+    log,
+    log2,
+    log10,
+    pow,
+    floor,
+    ceil,
+    trunc,
+    round,
+    // checked arithmetic (aliases)
+    OverflowResult,
+    addOverflow,
+    subOverflow,
+    mulOverflow,
+    satAdd,
+    satSub,
+} from "./math/index.ds";
