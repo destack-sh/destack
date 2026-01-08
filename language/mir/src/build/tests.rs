@@ -1032,3 +1032,179 @@ block0:
 }";
     assert_eq!(output, expected);
 }
+
+/// SSA construction with variable pass-through intermediate block.
+///
+/// Tests the case where:
+/// - block0: defines x, jumps to block1
+/// - block1 (loop header): uses x, branches to block2 or block4
+/// - block2 (body): updates x, jumps to block3
+/// - block3 (intermediate): does NOT use x, jumps back to block1
+/// - block4 (exit): returns x
+///
+/// The updated x from block2 must flow through block3 to block1.
+#[test]
+fn test_ssa_passthrough_intermediate_block() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let bool_type = module.type_bool();
+
+    // build function
+    let mut builder = module.function("passthrough", &[bool_type], i32_type);
+
+    // create blocks
+    let block0 = builder.create_block(); // init
+    let block1 = builder.create_block(); // loop header
+    let block2 = builder.create_block(); // body (updates x)
+    let block3 = builder.create_block(); // intermediate (pass-through)
+    let block4 = builder.create_block(); // exit
+
+    // create variable
+    let x_var = builder.create_variable(i32_type);
+
+    // block0: define x = 1, jump to header
+    builder.switch_to_block(block0);
+    let init_value = builder.iconst_i32(1);
+    builder.define_variable(x_var, init_value);
+    builder.jump(block1);
+    builder.seal_block(block0);
+
+    // block1 (header): use x, branch based on condition
+    builder.switch_to_block(block1);
+    let cond = builder.function_parameter(0);
+    let _x_header = builder.use_variable(x_var); // use x in header
+    builder.branch(cond, block2, block4);
+    // don't seal yet - has back edge from block3
+
+    // block2 (body): update x = x + 10
+    builder.switch_to_block(block2);
+    let x_body = builder.use_variable(x_var);
+    let ten = builder.iconst_i32(10);
+    let x_new = builder.iadd(x_body, ten);
+    builder.define_variable(x_var, x_new);
+    builder.jump(block3);
+    builder.seal_block(block2);
+
+    // block3 (intermediate): does NOT touch x, just jumps back to header
+    builder.switch_to_block(block3);
+    // intentionally no use or define of x_var here
+    builder.jump(block1);
+    builder.seal_block(block3);
+
+    // now seal block1 (all predecessors known: block0, block3)
+    builder.seal_block(block1);
+
+    // block4 (exit): return x
+    builder.switch_to_block(block4);
+    let x_exit = builder.use_variable(x_var);
+    builder.return_(Some(x_exit));
+    builder.seal_block(block4);
+
+    builder.finish();
+
+    // verify output
+    // the key check: block3 must pass the updated x to block1
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+
+    // expected: block3 passes the updated x (v5) from block2 to block1
+    // note: v3 is "skipped" because a trivial phi was allocated and removed for block3
+    // note: block3 has no block parameter since it has only one predecessor
+    let expected = "\
+function @passthrough(v0: bool) -> i32 {
+block0:
+    v1 = iconst 1i32
+    jump block1(v1)
+block1(v2: i32):
+    branch v0, block2, block4
+block2:
+    v4 = iconst 10i32
+    v5 = iadd v2, v4
+    jump block3
+block3:
+    jump block1(v5)
+block4:
+    return v2
+}";
+    assert_eq!(output, expected);
+}
+
+/// SSA construction with multiple variables needing phis at the same merge point.
+///
+/// Tests that block parameter and argument ordering is correct when multiple
+/// variables need phis at the same block.
+#[test]
+fn test_ssa_multiple_phis_at_merge() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let bool_type = module.type_bool();
+    let i32_type = module.type_i32();
+
+    // build function
+    let mut builder = module.function("multi_phi", &[bool_type], i32_type);
+
+    // create blocks: diamond CFG
+    let entry = builder.create_block();
+    let then_block = builder.create_block();
+    let else_block = builder.create_block();
+    let merge = builder.create_block();
+
+    // create two variables
+    let x_var = builder.create_variable(i32_type);
+    let y_var = builder.create_variable(i32_type);
+
+    // entry: branch
+    builder.switch_to_block(entry);
+    let cond = builder.function_parameter(0);
+    builder.branch(cond, then_block, else_block);
+    builder.seal_block(entry);
+
+    // then: x = 1, y = 10
+    builder.switch_to_block(then_block);
+    let x_then = builder.iconst_i32(1);
+    let y_then = builder.iconst_i32(10);
+    builder.define_variable(x_var, x_then);
+    builder.define_variable(y_var, y_then);
+    builder.jump(merge);
+    builder.seal_block(then_block);
+
+    // else: x = 2, y = 20
+    builder.switch_to_block(else_block);
+    let x_else = builder.iconst_i32(2);
+    let y_else = builder.iconst_i32(20);
+    builder.define_variable(x_var, x_else);
+    builder.define_variable(y_var, y_else);
+    builder.jump(merge);
+    builder.seal_block(else_block);
+
+    // merge: use x and y, return x + y
+    builder.switch_to_block(merge);
+    builder.seal_block(merge);
+    let x_val = builder.use_variable(x_var);
+    let y_val = builder.use_variable(y_var);
+    let sum = builder.iadd(x_val, y_val);
+    builder.return_(Some(sum));
+    builder.finish();
+
+    // verify output: two block parameters, arguments in correct order
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @multi_phi(v0: bool) -> i32 {
+block0:
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1i32
+    v2 = iconst 10i32
+    jump block3(v1, v2)
+block2:
+    v3 = iconst 2i32
+    v4 = iconst 20i32
+    jump block3(v3, v4)
+block3(v5: i32, v6: i32):
+    v7 = iadd v5, v6
+    return v7
+}";
+    assert_eq!(output, expected);
+}

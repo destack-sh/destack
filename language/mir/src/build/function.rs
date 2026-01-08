@@ -314,8 +314,13 @@ impl<'a> FunctionBuilder<'a> {
             // phi is trivial: remove the block parameter and use the single value
             self.remove_block_parameter(block, phi_value);
             self.replace_value(phi_value, replacement);
-            self.variable_definitions
-                .insert((block, variable), replacement);
+
+            // only update the definition if it still points to the phi we're removing
+            // (a later define_variable may have overwritten it with a new value)
+            if self.variable_definitions.get(&(block, variable)) == Some(&phi_value) {
+                self.variable_definitions
+                    .insert((block, variable), replacement);
+            }
             replacement
         } else {
             // phi is needed: add jump arguments from predecessors
