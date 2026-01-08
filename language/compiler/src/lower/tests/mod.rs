@@ -1,3 +1,4 @@
+mod aggregate;
 mod arithmetic;
 mod bindings;
 mod bitwise;

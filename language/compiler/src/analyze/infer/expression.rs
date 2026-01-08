@@ -1597,7 +1597,8 @@ impl Compiler {
                         }
                     }
                 }
-                ty_id
+                // unwrap Type::Value to get the actual instance type
+                self.expected_value_type(Some(ty_id), types).unwrap_or(ty_id)
             }
 
             // tree expression (JSX like)

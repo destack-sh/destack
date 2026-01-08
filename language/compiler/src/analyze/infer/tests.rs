@@ -948,10 +948,8 @@ let result = builder.combine(other);
         .get_value_type_id(result_symbol)
         .expect("expected result type");
 
-    assert_type!(types, result_ty_id, Type::Value { value } => {
-        assert_type!(types, *value, Type::Reference { symbol, .. } => {
-            assert_eq!(*symbol, builder_symbol);
-        });
+    assert_type!(types, result_ty_id, Type::Reference { symbol, .. } => {
+        assert_eq!(*symbol, builder_symbol);
     });
 }
 
