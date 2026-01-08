@@ -83,7 +83,7 @@ impl FunctionPass for Mem2Reg {
 
         // compute where block parameters are needed (dominance frontier + live uses)
         let param_placements =
-            compute_param_placements(&promotable, &def_blocks, &frontiers, function, tree);
+            compute_parameter_placements(&promotable, &def_blocks, &frontiers, function, tree);
 
         // insert block parameters for locals
         let block_params = insert_block_parameters(&param_placements, &promotable, function, tree);
@@ -216,7 +216,7 @@ fn find_definition_blocks(
 /// A block needs a parameter for a local if:
 /// 1. It's at a dominance frontier (multiple definitions can reach it)
 /// 2. It uses the local (LocalGet before LocalSet) and is not the entry block
-fn compute_param_placements(
+fn compute_parameter_placements(
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     def_blocks: &HashMap<mir::LocalNodeId<mir::Local>, HashSet<mir::LocalNodeId<mir::Block>>>,
     frontiers: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
@@ -338,7 +338,10 @@ fn insert_block_parameters(
 /// Rename variables: replace LocalGet with SSA values, LocalSet with assignments.
 fn rename_variables(
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
-    block_params: &HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value>,
+    block_params: &HashMap<
+        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
+        mir::Value,
+    >,
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     _cfg: &ControlFlowGraph,
@@ -357,7 +360,6 @@ fn rename_variables(
 
     // DFS in dominator tree order
     let mut worklist: Vec<RenameWorklistEntry> = vec![(entry, Vec::new())];
-
     while let Some((block_id, stack_depths)) = worklist.pop() {
         // restore stack depths from when we entered this block
         for (local, depth) in &stack_depths {
@@ -380,20 +382,19 @@ fn rename_variables(
         // process instructions in this block
         let block = tree.get(block_id);
         let instruction_ids: Vec<_> = block.instructions.clone();
-
         for instruction_id in instruction_ids {
             let instruction = tree.get(instruction_id);
-
             match instruction {
                 Instruction::LocalGet { destination, local } => {
                     if promotable.contains_key(local) {
                         // replace with current value
-                        let current_value = value_stacks[local].last().copied().unwrap_or_else(|| {
-                            panic!(
-                                "use of undefined local in block {block_id:?} \
-                                 (local was read before being written - this is a bug in the MIR)"
-                            )
-                        });
+                        let current_value =
+                            value_stacks[local].last().copied().unwrap_or_else(|| {
+                                panic!(
+                                    "use of undefined local in block {block_id:?} \
+                                 (local was read before being written, this is invalid MIR)"
+                                )
+                            });
                         substitutions.insert(*destination, current_value);
                         instructions_to_remove.insert(instruction_id);
                     }
@@ -438,7 +439,6 @@ fn rename_variables(
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         let instruction_ids: Vec<_> = block.instructions.clone();
-
         for instruction_id in instruction_ids {
             if instructions_to_remove.contains(&instruction_id) {
                 continue;
@@ -495,14 +495,22 @@ fn resolve_value(value: mir::Value, substitutions: &HashMap<mir::Value, mir::Val
 fn update_terminator_arguments(
     terminator: &Terminator,
     _block_id: mir::LocalNodeId<mir::Block>,
-    block_params: &HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value>,
+    block_params: &HashMap<
+        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
+        mir::Value,
+    >,
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> Terminator {
     match terminator {
         Terminator::Jump { target, arguments } => {
-            let new_args =
-                extend_arguments(*target, arguments, block_params, value_stacks, substitutions);
+            let new_args = extend_arguments(
+                *target,
+                arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            );
             Terminator::Jump {
                 target: *target,
                 arguments: new_args,
@@ -600,7 +608,10 @@ fn update_terminator_arguments(
 fn extend_arguments(
     target: mir::LocalNodeId<mir::Block>,
     existing: &[mir::Value],
-    block_params: &HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value>,
+    block_params: &HashMap<
+        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>),
+        mir::Value,
+    >,
     value_stacks: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> Vec<mir::Value> {
@@ -858,7 +869,7 @@ mod tests {
 
     /// Simple case: single local with set then get.
     #[test]
-    fn test_mem2reg_simple() {
+    fn test_promote_simple_local() {
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -878,7 +889,7 @@ block0(v0: i32):
 
     /// Local accessed across blocks via jump.
     #[test]
-    fn test_mem2reg_cross_block() {
+    fn test_promote_across_blocks() {
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -904,7 +915,7 @@ block1(v2: i32):
 
     /// Diamond CFG with block parameter needed at join point.
     #[test]
-    fn test_mem2reg_diamond() {
+    fn test_promote_in_diamond_cfg() {
         let input = r#"function @test(v0: bool, v99: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: bool, v99: i32):
@@ -944,7 +955,7 @@ block3(v100: i32):
 
     /// Multiple locals, all promotable.
     #[test]
-    fn test_mem2reg_multiple_locals() {
+    fn test_promote_multiple_locals() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
     local0: i32 ; owned, mut
     local1: i32 ; owned, mut
@@ -969,7 +980,7 @@ block0(v0: i32, v1: i32):
 
     /// No locals to promote.
     #[test]
-    fn test_mem2reg_no_locals() {
+    fn test_preserve_without_locals() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -983,7 +994,7 @@ block0(v0: i32):
     /// Local only read (never written) - should panic.
     #[test]
     #[should_panic(expected = "use of undefined local")]
-    fn test_mem2reg_undefined_read() {
+    fn test_panic_on_undefined_read() {
         let input = r#"function @test() -> i32 {
     local0: i32 ; owned, mut
 block0:
@@ -997,7 +1008,7 @@ block0:
 
     /// Loop with local - block parameter needed at loop header.
     #[test]
-    fn test_mem2reg_loop() {
+    fn test_promote_in_loop() {
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -1043,7 +1054,7 @@ block3(v8: i32):
 
     /// Multiple definitions in the same block.
     #[test]
-    fn test_mem2reg_multiple_defs_same_block() {
+    fn test_promote_with_multiple_defs() {
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -1066,7 +1077,7 @@ block0(v0: i32):
 
     /// Existing block parameters should be preserved.
     #[test]
-    fn test_mem2reg_preserve_existing_params() {
+    fn test_preserve_existing_block_params() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32, v1: i32):
@@ -1095,7 +1106,7 @@ block1(v2: i32, v5: i32):
 
     /// Switch terminator with local.
     #[test]
-    fn test_mem2reg_switch() {
+    fn test_promote_with_switch() {
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):

@@ -378,7 +378,7 @@ mod tests {
 
     /// Block parameter that receives the same value from all predecessors is eliminated.
     #[test]
-    fn test_copy_propagate_simple() {
+    fn test_propagate_uniform_incoming_value() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     branch v0, block1, block2
@@ -408,7 +408,7 @@ block3:
 
     /// Block parameter with different values from predecessors is NOT eliminated.
     #[test]
-    fn test_copy_propagate_different_values() {
+    fn test_preserve_varying_incoming_values() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -429,7 +429,7 @@ block3(v2: i32):
 
     /// Single predecessor block parameter is a trivial copy.
     #[test]
-    fn test_copy_propagate_single_predecessor() {
+    fn test_propagate_single_predecessor() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
@@ -450,7 +450,7 @@ block1:
 
     /// Chained copies are resolved transitively.
     #[test]
-    fn test_copy_propagate_chain() {
+    fn test_propagate_through_chain() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
@@ -476,7 +476,7 @@ block2:
 
     /// Multiple parameters, only some are copies.
     #[test]
-    fn test_copy_propagate_partial() {
+    fn test_propagate_partial_copies() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     branch v0, block1, block2
@@ -512,7 +512,7 @@ block3(v5: i32):
 
     /// No copies means no changes.
     #[test]
-    fn test_copy_propagate_no_copies() {
+    fn test_preserve_without_copies() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
