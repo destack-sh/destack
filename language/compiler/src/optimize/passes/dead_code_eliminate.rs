@@ -165,7 +165,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Instructions used in return chain are preserved.
@@ -205,7 +205,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Calls have side effects and are preserved even when result is unused.
@@ -256,7 +256,7 @@ block2:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Values used in branch terminators are preserved.
@@ -300,7 +300,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Values passed as block arguments are preserved.
@@ -327,7 +327,7 @@ block1(v4: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// All instructions are eliminated when none are used by terminator.
@@ -347,7 +347,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Dead code inside loops is eliminated.
@@ -387,7 +387,7 @@ block3:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Dead code in diamond CFG branches is eliminated.
@@ -424,7 +424,7 @@ block3(v6: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Multiple side-effect calls are all preserved.

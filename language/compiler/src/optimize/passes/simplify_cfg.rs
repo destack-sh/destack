@@ -472,7 +472,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Chains of unreachable blocks are all eliminated.
@@ -496,7 +496,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Branch on constant true folds to unconditional jump to then target.
@@ -525,7 +525,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Branch on constant false folds to unconditional jump to else target.
@@ -554,7 +554,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Branch on non-constant condition is preserved.
@@ -602,7 +602,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Loop back-edges keep loop blocks reachable.
@@ -676,7 +676,7 @@ block1:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Diamond CFG with non-constant condition is preserved.
@@ -726,7 +726,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Constant branch with block arguments preserves arguments on folded jump.
@@ -752,7 +752,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Jump through empty block is threaded to final target.
@@ -777,7 +777,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Chain of empty jump blocks all thread to final target.
@@ -804,7 +804,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Block with instructions is not threaded through, but its successor can be.
@@ -832,7 +832,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Branch targets through empty blocks are threaded.
@@ -865,7 +865,7 @@ block2:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Block with parameters threads through its empty successor to a return.
@@ -894,6 +894,6 @@ block1(v3: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 }

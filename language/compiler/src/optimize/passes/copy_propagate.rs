@@ -403,7 +403,7 @@ block3:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Block parameter with different values from predecessors is NOT eliminated.
@@ -445,7 +445,7 @@ block1:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Chained copies are resolved transitively.
@@ -471,7 +471,7 @@ block2:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Multiple parameters, only some are copies.
@@ -507,7 +507,7 @@ block3(v5: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// No copies means no changes.

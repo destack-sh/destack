@@ -338,7 +338,7 @@ block2:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Expression in block1 is not available in block2 (not dominated).
@@ -390,7 +390,7 @@ block2:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Commutative operands (v0 + v1 and v1 + v0) are recognized as equivalent.
@@ -415,7 +415,7 @@ block1:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Substitutions are applied transitively through multiple redundancies.
@@ -451,7 +451,7 @@ block2:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// GVN also handles local redundancies within a single block.
@@ -472,7 +472,7 @@ block0(v0: i32, v1: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Deeply nested dominator tree is handled correctly.
@@ -504,7 +504,7 @@ block3:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Diamond CFG with expressions in both branches.
@@ -537,7 +537,7 @@ block3(v6: i32):
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Unique expressions are preserved unchanged.
@@ -581,7 +581,7 @@ block1:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Field access is properly GVN'd across blocks.
@@ -606,7 +606,7 @@ block1:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Multiple independent expressions are all handled.
@@ -635,6 +635,6 @@ block1:
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 }

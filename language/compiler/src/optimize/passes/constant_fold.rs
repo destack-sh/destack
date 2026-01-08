@@ -466,7 +466,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Chained arithmetic operations fold through intermediate results.
@@ -494,7 +494,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Comparison of constants folds to boolean result.
@@ -517,7 +517,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Operations with non-constant operands are not folded.
@@ -554,7 +554,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Boolean not folds true to false.
@@ -575,7 +575,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Unsigned integer division folds correctly.
@@ -598,7 +598,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Division by zero is not folded to avoid compile-time UB.
@@ -647,7 +647,7 @@ block2:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Bitwise and, or, xor fold correctly on integer constants.
@@ -675,7 +675,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Shift left and arithmetic shift right fold correctly.
@@ -701,7 +701,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 
     /// Boolean and/or operations fold correctly.
@@ -727,6 +727,6 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
-        program.assert_eq(expected);
+        program.assert_output(expected);
     }
 }
