@@ -72,7 +72,7 @@ pub enum RuntimePolicy {
 
 /// Borrow checking mode for owned and borrowed references.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum BorrowCheckMode {
+pub enum BorrowMode {
     /// Record violations as hints.
     #[default]
     Hint,
@@ -90,7 +90,7 @@ pub struct MachineOptions {
     pub runtime_policy: RuntimePolicy,
 
     /// The borrow checking mode for owned and borrowed references.
-    pub borrow_mode: BorrowCheckMode,
+    pub borrow_mode: BorrowMode,
 
     /// The bounds check policy for aggregate and array access.
     pub bounds_checks: CheckPolicy,
@@ -126,7 +126,7 @@ impl Default for MachineOptions {
         Self {
             execution_mode: ExecutionMode::default(),
             runtime_policy: RuntimePolicy::default(),
-            borrow_mode: BorrowCheckMode::default(),
+            borrow_mode: BorrowMode::default(),
             bounds_checks: CheckPolicy::default(),
             null_checks: CheckPolicy::default(),
             external_calls: ExternalCallPolicy::default(),
@@ -154,7 +154,7 @@ impl MachineOptions {
         // use strict settings with tighter resource limits
         Self {
             execution_mode: ExecutionMode::Debug,
-            borrow_mode: BorrowCheckMode::Strict,
+            borrow_mode: BorrowMode::Strict,
             max_stack_depth: 100,
             max_heap_cells: 1000,
             max_instructions: Some(100_000),
@@ -169,7 +169,7 @@ impl MachineOptions {
         // use strict runtime checks with protected externals
         Self {
             execution_mode: ExecutionMode::Debug,
-            borrow_mode: BorrowCheckMode::Strict,
+            borrow_mode: BorrowMode::Strict,
             external_calls: ExternalCallPolicy::Protected,
             enforce_reference_kinds: true,
             enforce_reference_mutability: true,
