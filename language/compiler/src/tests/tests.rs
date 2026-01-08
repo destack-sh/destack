@@ -19,7 +19,7 @@ use destack_source::{
     print_diagnostics, print_diff,
 };
 use destack_vm::{Interpreter, MachineOptions, Value};
-use destack_workspace::{Module, ProfileId, Program, Session, TargetId};
+use destack_workspace::{Module, ProfileId, Program, Session, Target, TargetId};
 use parking_lot::RwLock;
 
 use crate::{
@@ -397,6 +397,22 @@ impl TestProgram {
     pub fn execute_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
         self.enqueue(ExecuteTask::ExecuteModulePatch { module, profile });
+    }
+
+    /// Add a build target to the package containing the given module.
+    ///
+    /// Uses `Target::implicit_for_name()` for known target names like "native", "js", "wasm".
+    /// Must be called before `lower_module()` for that target.
+    pub fn add_target(&self, module: ModuleId, name: &str) {
+        let module_ref = self.program.modules.get(module);
+        let package_id = module_ref.read().package_id;
+        let target_id = TargetId::new(package_id, name);
+        let target_config = Target::implicit_for_name(name)
+            .unwrap_or_else(|| panic!("unknown implicit target '{name}'"));
+
+        let package = self.program.packages.get(package_id);
+        let mut package = package.write();
+        package.targets.insert(target_id, target_config);
     }
 
     /// Enqueue Lower task for a module.
