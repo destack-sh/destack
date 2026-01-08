@@ -20,7 +20,10 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::Cast { .. } => true,
 
         // pure aggregate operations (value semantics)
-        Instruction::FieldGet { .. }
+        Instruction::Struct { .. }
+        | Instruction::Tuple { .. }
+        | Instruction::Array { .. }
+        | Instruction::FieldGet { .. }
         | Instruction::FieldAddr { .. }
         | Instruction::FieldSet { .. }
         | Instruction::ElementGet { .. }
@@ -67,6 +70,9 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::Binary { .. }
         | Instruction::Unary { .. }
         | Instruction::Cast { .. }
+        | Instruction::Struct { .. }
+        | Instruction::Tuple { .. }
+        | Instruction::Array { .. }
         | Instruction::FieldGet { .. }
         | Instruction::FieldAddr { .. }
         | Instruction::ElementGet { .. }
@@ -296,6 +302,9 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
+        | mir::Instruction::Struct { .. }
+        | mir::Instruction::Tuple { .. }
+        | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
         | mir::Instruction::ManagedAlloc { .. }
         | mir::Instruction::RawAlloc { .. }

@@ -140,6 +140,9 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::StackAlloc { .. }
+        | mir::Instruction::Struct { .. }
+        | mir::Instruction::Tuple { .. }
+        | mir::Instruction::Array { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }
