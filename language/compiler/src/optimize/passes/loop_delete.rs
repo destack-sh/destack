@@ -190,8 +190,8 @@ fn find_deletable_loop(
         if !all_parameterless {
             return None;
         }
-        // pick the first exit block (they're all equivalent for deletion purposes)
-        lp.exit_blocks[0]
+        // pick the smallest exit block ID for determinism (they're all equivalent)
+        *lp.exit_blocks.iter().min().unwrap()
     } else {
         // no exits (infinite loop) - can't delete
         return None;

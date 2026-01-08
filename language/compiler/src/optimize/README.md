@@ -167,10 +167,9 @@ Optimizations for memory allocation and access patterns.
 |----|------|-------|-------|------|----------|-------------|
 | `mem2reg` | Mem2Reg | function | O1 | ✓ | domtree | Promote stack allocations to SSA values |
 | `sroa` | ScalarReplacementOfAggregates | function | O2 | | — | Break aggregates into individual scalar values |
-| `load-store-forward` | LoadStoreForwarding | function | O2 | | alias | Forward stored values to subsequent loads |
+| `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias | Forward stored values to subsequent loads |
 | `dead-store-eliminate` | DeadStoreEliminate | function | O2 | | alias, liveness | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
-| `memcpy-optimize` | MemcpyOptimize | function | O2 | | alias | Optimize memory copy patterns |
 | `write-barrier-eliminate` | WriteBarrierEliminate | function | O2 | | alias, escape | Remove redundant GC write barriers |
 
 ### Loop (L)
@@ -185,7 +184,6 @@ Loop-specific transformations.
 | `induction-simplify` | InductionVariableSimplify | function | O2 | | scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | | scalar-evolution | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops | Delete loops that compute nothing useful |
-| `loop-idiom` | LoopIdiom | function | O2 | | loops, alias | Recognize memset/memcpy patterns in loops |
 | `loop-unroll` | LoopUnroll | function | O3 | | scalar-evolution | Unroll loops with known or small trip counts |
 | `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops | Move loop-invariant conditionals outside the loop |
 | `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
