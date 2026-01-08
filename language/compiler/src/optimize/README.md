@@ -179,9 +179,9 @@ Loop-specific transformations.
 
 | ID | Name | Scope | Level | Ready | Status | Requires | Description |
 |----|------|-------|-------|-------|--------|----------|-------------|
-| `loop-simplify` | LoopSimplify | function | O1 | ✓ | ✅ | loops | Canonicalize loops (preheader, single latch) |
-| `loop-rotate` | LoopRotate | function | O2 | ✗ | 🔶 | loops | Rotate loops to expose optimization opportunities |
-| `licm` | LoopInvariantCodeMotion | function | O2 | ✗ | 🔶 | loops, alias | Move loop-invariant computations outside the loop |
+| `loop-simplify` | LoopSimplify | function | O1 | ✓ | ✅ | loops | Canonicalize loops (preheader, single latch, dedicated exits) |
+| `loop-rotate` | LoopRotate | function | O2 | ✓ | ✅ | loops | Rotate simple loops (header with no instructions) |
+| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | ✅ | loops, domtree | Move pure loop-invariant computations to preheader |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✗ | 🔶 | scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✗ | 🔶 | scalar-evolution | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✗ | 🔶 | loops | Delete loops that compute nothing useful |
