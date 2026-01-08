@@ -8,7 +8,8 @@ use super::pass::{
 };
 use crate::optimize::passes::{
     ConstantFold, CopyPropagate, DeadCodeEliminate, GlobalValueNumbering, InstructionCombine,
-    LocalCse, Mem2Reg, SimplifyCfg,
+    Licm, LocalCse, LoopDelete, LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, SimplifyCfg,
+    Sink,
 };
 
 /// Optimization pipeline that runs passes in sequence.
@@ -136,7 +137,7 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             pipeline.add_function_pass(ConstantFold);
             pipeline.add_function_pass(InstructionCombine);
 
-            // phase 2: promote to SSA (enables better CSE)
+            // phase 2: promote to SSA (enables better optimizations)
             pipeline.add_function_pass(Mem2Reg);
 
             // phase 3: redundancy elimination
@@ -144,7 +145,17 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             pipeline.add_function_pass(GlobalValueNumbering);
             pipeline.add_function_pass(CopyPropagate);
 
-            // phase 4: cleanup
+            // phase 4: loop optimizations
+            pipeline.add_function_pass(LoopSimplify);
+            pipeline.add_function_pass(Licm);
+            pipeline.add_function_pass(LoopRotate);
+            pipeline.add_function_pass(LoopUnswitch);
+            pipeline.add_function_pass(LoopDelete);
+
+            // phase 5: code placement
+            pipeline.add_function_pass(Sink);
+
+            // phase 6: cleanup
             pipeline.add_function_pass(SimplifyCfg);
             pipeline.add_function_pass(DeadCodeEliminate);
         }

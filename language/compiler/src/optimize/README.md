@@ -126,14 +126,14 @@ Local and global optimizations within a single function.
 | `constant-fold` | ConstantFold | function | O1 | ✓ | ✅ | — | Evaluate operations on constants at compile time |
 | `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | ✅ | — | Branch folding, jump threading, block merging, unreachable elimination |
 | `dead-code-eliminate` | DeadCodeEliminate | function | O1 | ✓ | ✅ | — | Remove dead instructions via backwards liveness (ADCE) |
-| `instruction-combine` | InstructionCombine | function | O1 | ✓ | 🔶 | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
+| `instruction-combine` | InstructionCombine | function | O1 | ✓ | ✅ | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
 | `copy-propagate` | CopyPropagate | function | O1 | ✓ | ✅ | — | Replace uses of `v1 = v0` with `v0` directly |
-| `local-cse` | LocalCse | function | O1 | ✓ | 🔶 | — | Eliminate redundant computations within a basic block |
-| `gvn` | GlobalValueNumbering | function | O2 | ✓ | 🔶 | domtree | Eliminate redundant computations across basic blocks |
+| `local-cse` | LocalCse | function | O1 | ✓ | ✅ | — | Eliminate redundant computations within a basic block |
+| `gvn` | GlobalValueNumbering | function | O2 | ✓ | ✅ | domtree | Eliminate redundant computations across basic blocks |
 | `pre` | PartialRedundancyElim | function | O3 | ✗ | 🔶 | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `sccp` | SparseConditionalConstantProp | function | O2 | ✓ | 🔶 | cfg | Aggressive constant propagation with unreachable code detection |
 | `reassociate` | Reassociate | function | O2 | ✓ | 🔶 | — | Reorder associative operations for better constant folding |
-| `sink` | CodeSinking | function | O2 | ✗ | 🔶 | domtree, loops | Move instructions closer to their uses |
+| `sink` | CodeSinking | function | O2 | ✓ | ✅ | domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | ✓ | 🔶 | domtree | Move identical instructions to common dominator |
 | `tail-call-eliminate` | TailCallEliminate | function | O2 | ✓ | 🔶 | cfg | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | ✓ | 🔶 | domtree | Use dominating conditions to narrow value ranges |
@@ -184,10 +184,10 @@ Loop-specific transformations.
 | `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | ✅ | loops, domtree | Move pure loop-invariant computations to preheader |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✗ | 🔶 | scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✗ | 🔶 | scalar-evolution | Replace expensive ops (mul) with cheaper ones (add) |
-| `loop-delete` | LoopDelete | function | O2 | ✗ | 🔶 | loops | Delete loops that compute nothing useful |
+| `loop-delete` | LoopDelete | function | O2 | ✓ | ✅ | loops | Delete loops that compute nothing useful |
 | `loop-idiom` | LoopIdiom | function | O2 | ✗ | 🔶 | loops, alias | Recognize memset/memcpy patterns in loops |
 | `loop-unroll` | LoopUnroll | function | O3 | ✗ | 🔶 | scalar-evolution | Unroll loops with known or small trip counts |
-| `loop-unswitch` | LoopUnswitch | function | O3 | ✗ | 🔶 | loops | Move loop-invariant conditionals outside the loop |
+| `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | ✅ | loops | Move loop-invariant conditionals outside the loop |
 | `loop-fusion` | LoopFusion | function | O3 | ✗ | 🔶 | dependence | Merge adjacent loops with same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | ✗ | 🔶 | dependence | Swap loop nesting order for cache locality |
 | `loop-distribute` | LoopDistribute | function | O3 | ✗ | 🔶 | dependence | Split loops to enable partial vectorization |
