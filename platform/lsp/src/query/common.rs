@@ -3,7 +3,7 @@ use std::cmp;
 use destack_ast::TokenSpan;
 use destack_source::{File, Span};
 use destack_workspace::{Session, query};
-use tower_lsp_server::lsp_types as lsp;
+use destack_lsp_types as lsp;
 
 /// Convert byte span to LSP range.
 pub fn byte_span_to_range(source: &File, span: Span) -> lsp::Range {

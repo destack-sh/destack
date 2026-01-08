@@ -30,6 +30,8 @@ members = [
 	"platform/cli",
 	"platform/daemon",
 	"platform/lsp",
+	"platform/lsp/server",
+	"platform/lsp/types",
 	"platform/vscode",
 ]
 
@@ -72,6 +74,8 @@ destack_napi = { path = "library/napi" }
 destack_cli = { path = "platform/cli" }
 destack_daemon = { path = "platform/daemon" }
 destack_lsp = { path = "platform/lsp" }
+destack_lsp_server = { path = "platform/lsp/server" }
+destack_lsp_types = { path = "platform/lsp/types" }
 destack_vscode = { path = "platform/vscode" }
 
 # codegen

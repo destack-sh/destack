@@ -12,7 +12,8 @@ use destack_source::{
     PhysicalFileSystem, Span, Uri,
 };
 use destack_workspace::{FormatterOptions, Session, query};
-use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
+use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
+use destack_lsp_types as lsp;
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
@@ -238,6 +239,7 @@ impl LanguageServer for DestackLanguageServer {
                 name: "destack".to_string(),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
+            offset_encoding: None,
         })
     }
 
