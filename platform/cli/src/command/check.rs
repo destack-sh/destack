@@ -393,9 +393,9 @@ pub fn print_stats_summary(
         // format delta with sign and color
         let format_delta = |delta: i32| -> String {
             if delta < 0 {
-                console::green(&format!("{}%", delta))
+                console::green(&format!("{delta}%"))
             } else if delta > 0 {
-                console::yellow(&format!("+{}%", delta))
+                console::yellow(&format!("+{delta}%"))
             } else {
                 console::dim("0%")
             }
