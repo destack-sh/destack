@@ -155,7 +155,13 @@ just test
 
 ## Commits
 
-Typically, agents aren't supposed to commit code directly, but for reference:
+Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
+We follow the conventional commit message format with some nuances:
  - Follow `type(scope): summary` (≤100 chars, imperative).
  - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
  - Example: `feat(language): improve error span precision (to sub-token granularity)`
+We do not mention non-human authors / contributors in the commit (it's irrelevant).
+
+We typically work with branches and worktrees off a main branch.
+We try to frequently rebase of main and merge back into main.
+When merging into main, try to fast-forward or cherry-pick to retain the commit history.
