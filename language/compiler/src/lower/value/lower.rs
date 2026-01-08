@@ -107,20 +107,33 @@ impl BlockLowerer<'_, '_> {
                 operator,
                 right,
             } => {
+                // short-circuit logical operators need special control flow
+                if matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
+                    return self.lower_logical_operator(expression_id, *operator, *left, *right);
+                }
+
+                // lower operands
                 let (left_value, _) = self.lower_value_expression(*left)?;
                 let (right_value, _) = self.lower_value_expression(*right)?;
+
+                // get result type
                 let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
                     LowerError::MissingType {
                         node: expression_id.into_global_any(self.module_id),
                     }
                 })?;
+
+                // emit binary operation
                 let op = self.lower_binary_operator(expression_id, *operator, *left)?;
                 let value = self.builder.binary_op(op, left_value, right_value);
+
+                // comparisons produce bool, others preserve operand type
                 let ty = if op.is_comparison() {
                     self.type_lowerer.ty_bool
                 } else {
                     result_type
                 };
+
                 Ok((value, ty))
             }
             Expression::Assign { left, right } => {
@@ -227,6 +240,21 @@ impl BlockLowerer<'_, '_> {
                     message: "missing index expression".to_string(),
                 })?;
                 self.lower_index_expression(expression_id, *left, index_expr)
+            }
+            Expression::Unary { operator, right } => {
+                // lower operand and emit unary operation
+                let (operand_value, operand_type) = self.lower_value_expression(*right)?;
+                let op = self.lower_unary_operator(expression_id, *operator, *right)?;
+                let value = self.builder.unary_op(op, operand_value);
+
+                // logical NOT produces bool, other unary ops preserve type
+                let ty = if matches!(operator, dir::UnaryOperator::Not) {
+                    self.type_lowerer.ty_bool
+                } else {
+                    operand_type
+                };
+
+                Ok((value, ty))
             }
             _ => Err(LowerError::UnsupportedConstruct {
                 node: expression_id.into_global_any(self.module_id),
@@ -413,15 +441,36 @@ impl BlockLowerer<'_, '_> {
         let is_signed = matches!(scalar_type, ScalarType::SignedInt { .. });
 
         let op = match (operator, is_float, is_signed) {
+            // integer arithmetic
             (dir::BinaryOperator::Add, false, _) => mir::BinaryOperator::Add,
             (dir::BinaryOperator::Subtract, false, _) => mir::BinaryOperator::Subtract,
             (dir::BinaryOperator::Multiply, false, _) => mir::BinaryOperator::Multiply,
             (dir::BinaryOperator::Divide, false, true) => mir::BinaryOperator::SignedDivide,
             (dir::BinaryOperator::Divide, false, false) => mir::BinaryOperator::UnsignedDivide,
+            (dir::BinaryOperator::Remainder, false, true) => mir::BinaryOperator::SignedRemainder,
+            (dir::BinaryOperator::Remainder, false, false) => {
+                mir::BinaryOperator::UnsignedRemainder
+            }
+
+            // float arithmetic
             (dir::BinaryOperator::Add, true, _) => mir::BinaryOperator::FloatAdd,
             (dir::BinaryOperator::Subtract, true, _) => mir::BinaryOperator::FloatSubtract,
             (dir::BinaryOperator::Multiply, true, _) => mir::BinaryOperator::FloatMultiply,
             (dir::BinaryOperator::Divide, true, _) => mir::BinaryOperator::FloatDivide,
+
+            // bitwise operators (integers only)
+            (dir::BinaryOperator::ElementwiseAnd, false, _) => mir::BinaryOperator::And,
+            (dir::BinaryOperator::ElementwiseOr, false, _) => mir::BinaryOperator::Or,
+            (dir::BinaryOperator::ElementwiseXor, false, _) => mir::BinaryOperator::Xor,
+
+            // shift operators (integers only)
+            (dir::BinaryOperator::ShiftLeft, false, _) => mir::BinaryOperator::ShiftLeft,
+            (dir::BinaryOperator::ShiftRight, false, _) => mir::BinaryOperator::ArithmeticShiftRight,
+            (dir::BinaryOperator::UnsignedShiftRight, false, _) => {
+                mir::BinaryOperator::LogicalShiftRight
+            }
+
+            // integer comparison
             (dir::BinaryOperator::Equal, false, _) => mir::BinaryOperator::Equal,
             (dir::BinaryOperator::NotEqual, false, _) => mir::BinaryOperator::NotEqual,
             (dir::BinaryOperator::LessThan, false, true) => mir::BinaryOperator::SignedLessThan,
@@ -434,6 +483,18 @@ impl BlockLowerer<'_, '_> {
             (dir::BinaryOperator::GreaterThanOrEqual, false, true) => {
                 mir::BinaryOperator::SignedGreaterEqual
             }
+            (dir::BinaryOperator::LessThan, false, false) => mir::BinaryOperator::UnsignedLessThan,
+            (dir::BinaryOperator::LessThanOrEqual, false, false) => {
+                mir::BinaryOperator::UnsignedLessEqual
+            }
+            (dir::BinaryOperator::GreaterThan, false, false) => {
+                mir::BinaryOperator::UnsignedGreaterThan
+            }
+            (dir::BinaryOperator::GreaterThanOrEqual, false, false) => {
+                mir::BinaryOperator::UnsignedGreaterEqual
+            }
+
+            // float comparison
             (dir::BinaryOperator::Equal, true, _) => mir::BinaryOperator::FloatEqual,
             (dir::BinaryOperator::NotEqual, true, _) => mir::BinaryOperator::FloatNotEqual,
             (dir::BinaryOperator::LessThan, true, _) => mir::BinaryOperator::FloatLessThan,
@@ -442,10 +503,42 @@ impl BlockLowerer<'_, '_> {
             (dir::BinaryOperator::GreaterThanOrEqual, true, _) => {
                 mir::BinaryOperator::FloatGreaterEqual
             }
+
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id.into_global_any(self.module_id),
                     message: format!("unsupported binary operator '{operator:?}'"),
+                });
+            }
+        };
+
+        Ok(op)
+    }
+
+    /// Lower a unary operator.
+    fn lower_unary_operator(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        operator: dir::UnaryOperator,
+        operand_id: LocalNodeId<Expression>,
+    ) -> LowerResult<mir::UnaryOperator> {
+        let scalar_type = self.scalar_type_for_expression(operand_id);
+        let is_float = matches!(scalar_type, Some(ScalarType::Float { .. }));
+
+        let op = match (operator, is_float) {
+            // negation
+            (dir::UnaryOperator::Negate, false) => mir::UnaryOperator::Negate,
+            (dir::UnaryOperator::Negate, true) => mir::UnaryOperator::FloatNegate,
+
+            // bitwise NOT (~) and logical NOT (!) both use the same MIR op
+            (dir::UnaryOperator::ElementwiseNot, _) | (dir::UnaryOperator::Not, _) => {
+                mir::UnaryOperator::Not
+            }
+
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module_id),
+                    message: format!("unsupported unary operator '{operator:?}'"),
                 });
             }
         };
@@ -533,5 +626,87 @@ impl BlockLowerer<'_, '_> {
         })?;
 
         Ok(*binding)
+    }
+
+    /// Lower a short-circuit logical operator (&& or ||).
+    ///
+    /// Short-circuit evaluation means:
+    /// - `a && b`: if `a` is false, result is false without evaluating `b`
+    /// - `a || b`: if `a` is true, result is true without evaluating `b`
+    fn lower_logical_operator(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        operator: dir::BinaryOperator,
+        left_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // evaluate LHS first
+        let (lhs_value, lhs_type) = self.lower_value_expression(left_id)?;
+
+        // verify LHS is boolean
+        if lhs_type != self.type_lowerer.ty_bool {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id.into_global_any(self.module_id),
+                message: "logical operator requires boolean operands".to_string(),
+            });
+        }
+
+        // create blocks for short-circuit evaluation
+        let shortcircuit_block = self.builder.create_block();
+        let rhs_block = self.builder.create_block();
+        let merge_block = self.builder.create_block();
+
+        // create a variable to hold the result (SSA construction will merge)
+        let result_variable = self.builder.create_variable(self.type_lowerer.ty_bool);
+
+        // branch based on operator semantics
+        match operator {
+            dir::BinaryOperator::And => {
+                // a && b: if a is true, evaluate b; else short-circuit to false
+                self.builder.branch(lhs_value, rhs_block, shortcircuit_block);
+            }
+            dir::BinaryOperator::Or => {
+                // a || b: if a is true, short-circuit to true; else evaluate b
+                self.builder.branch(lhs_value, shortcircuit_block, rhs_block);
+            }
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module_id),
+                    message: format!("unexpected logical operator '{operator:?}'"),
+                });
+            }
+        }
+
+        // short-circuit block: set result to constant and jump to merge
+        self.builder.switch_to_block(shortcircuit_block);
+        let shortcircuit_value = match operator {
+            dir::BinaryOperator::And => self.builder.bconst(false),
+            dir::BinaryOperator::Or => self.builder.bconst(true),
+            _ => unreachable!(),
+        };
+        self.builder.define_variable(result_variable, shortcircuit_value);
+        self.builder.jump(merge_block);
+
+        // rhs block: evaluate rhs, set result, jump to merge
+        self.builder.switch_to_block(rhs_block);
+        let (rhs_value, rhs_type) = self.lower_value_expression(right_id)?;
+
+        // verify RHS is boolean
+        if rhs_type != self.type_lowerer.ty_bool {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id.into_global_any(self.module_id),
+                message: "logical operator requires boolean operands".to_string(),
+            });
+        }
+
+        // set result and jump to merge
+        self.builder.define_variable(result_variable, rhs_value);
+        self.builder.jump(merge_block);
+
+        // merge block: use the result variable (SSA will create block parameter)
+        self.builder.switch_to_block(merge_block);
+        let result_value = self.builder.use_variable(result_variable);
+
+        Ok((result_value, self.type_lowerer.ty_bool))
     }
 }

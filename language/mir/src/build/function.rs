@@ -778,6 +778,11 @@ impl<'a> FunctionBuilder<'a> {
 
     // instruction builders: unary operations
 
+    /// Insert a unary operation with an explicit operator.
+    pub fn unary_op(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
+        self.unary(operator, argument_value)
+    }
+
     /// Insert a unary operation.
     fn unary(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
         let destination = self.allocate_value();
