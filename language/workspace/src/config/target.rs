@@ -434,6 +434,11 @@ pub enum BorrowMode {
 }
 
 impl BorrowMode {
+    /// Whether this mode is strict (errors on violations, `&mut T` has noalias semantics).
+    pub fn is_strict(self) -> bool {
+        matches!(self, BorrowMode::Strict)
+    }
+
     /// Whether this mode is stricter than another mode.
     pub fn is_stricter_than(self, other: BorrowMode) -> bool {
         matches!((self, other), (BorrowMode::Strict, BorrowMode::Hint))

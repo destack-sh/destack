@@ -58,11 +58,17 @@ impl Compiler {
         let mut tree = mir.tree.write();
         let strings = mir.strings.clone();
 
+        // get borrow mode from dsconfig
+        let strict_borrow_mode = self
+            .program
+            .with_dsconfig_options(&module_guard, |opts| opts.compiler.borrow_mode.is_strict())
+            .unwrap_or(false);
+
         // count MIR size before optimization
         let before = count_mir_size(&tree);
 
         // create optimization context
-        let context = OptimizationContext::new(&strings);
+        let context = OptimizationContext::with_strict_borrow_mode(&strings, strict_borrow_mode);
 
         // run the pipeline on all functions
         pipeline.run_on_module(&mut tree, &context);

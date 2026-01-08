@@ -188,7 +188,7 @@ impl Compiler {
             // execute the MIR with the interpreter
             let mut interpreter = vm::Interpreter::with_options(
                 mir_tree,
-                strings.into_immutable(), // NOTE #Performance: avoid cloning the string pool
+                strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
                 vm::MachineOptions::comptime(),
             );
             let output = interpreter

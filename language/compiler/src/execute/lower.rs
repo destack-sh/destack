@@ -2,7 +2,7 @@ use crate::{
     BlockLowerer, Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer, TypeLowerer,
 };
 
-use destack_workspace::TargetId;
+use destack_workspace::{Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 #[allow(dead_code)]
@@ -10,14 +10,15 @@ impl Compiler {
     /// Lower a module to MIR for comptime execution.
     pub(crate) fn lower_comptime_module(
         &self,
-        module: &std::sync::Arc<parking_lot::RwLock<destack_workspace::Module>>,
-        profile: destack_workspace::ProfileId,
+        module: &std::sync::Arc<parking_lot::RwLock<Module>>,
+        profile: ProfileId,
         target_id: &TargetId,
     ) -> ExecuteResult<(mir::NodeTree, destack_base::StringPool)> {
         // snapshot DIR inputs for lowering
         let module_guard = module.read();
         let dir = module_guard.dir(profile);
         let module_id = module_guard.id;
+        // TODO #Performance: avoid cloning whole node dir tree for comptime
         let dir_tree = dir.tree.read().clone();
         let dir_roots = dir.roots.clone();
         let symbols = dir.symbols.read().clone();
@@ -71,7 +72,7 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let types = dir.types.read();
         let mut builder = mir::ModuleBuilder::new();
-        // NOTE #Broken: comptime uses host pointer width until execute is target-aware
+        // NOTE #Broken: comptime uses host pointer width (until execute is target-aware? should it?)
         let pointer_bytes = std::mem::size_of::<usize>() as u8;
         self.validate_pointer_bytes(module.id, pointer_bytes)
             .map_err(|error| ExecuteError::FailedLower {

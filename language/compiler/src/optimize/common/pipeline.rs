@@ -7,9 +7,8 @@ use super::pass::{
     BoxedFunctionPass, BoxedModulePass, FunctionPass, ModulePass, OptimizationLevel,
 };
 use crate::optimize::passes::{
-    ConstantFold, CopyPropagate, DeadCodeEliminate, GlobalValueNumbering, InstructionCombine,
-    Licm, LocalCse, LoopDelete, LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, SimplifyCfg,
-    Sink,
+    ConstantFold, CopyPropagate, DeadCodeEliminate, GlobalValueNumbering, InstructionCombine, Licm,
+    LocalCse, LoopDelete, LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, SimplifyCfg, Sink,
 };
 
 /// Optimization pipeline that runs passes in sequence.
