@@ -17,6 +17,8 @@ pub enum AnalysisKind {
     DominatorTree,
     /// Natural loop analysis.
     LoopAnalysis,
+    /// Alias analysis (memory aliasing).
+    AliasAnalysis,
 }
 
 /// A computed analysis over MIR.
