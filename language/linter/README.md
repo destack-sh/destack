@@ -84,53 +84,53 @@ High-confidence issues that are almost always wrong.
 
 [`src/rules/correctness/`](src/rules/correctness/)
 
-| Code | Rule | Source | Level | Ready | Status | Fixability | Description |
-|------|------|--------|-------|-------|--------|------------|-------------|
-| `LC001` | `await-holding-lock` | Clippy | DIR | ✗ | 🔶 | None | Disallow holding a mutex lock across an await point |
-| `LC002` | `for-direction` | ESLint | AST | ✓ | ✅ | None | Enforce for loop update clause moving in the correct direction |
-| `LC003` | `no-approx-constant` | Destack | AST | ✓ | ✅ | Safe | Disallow approximate representations of mathematical constants |
-| `LC004` | `no-arguments-order-mismatch` | SonarQube | DIR | ✗ | 🔶 | Suggestion | Disallow arguments that appear swapped based on parameter names |
-| `LC005` | `no-array-constructor` | ESLint | DIR | ✓ | ✅ | Safe | Disallow `new Array()` (confusing behavior) |
-| `LC006` | `no-array-delete` | TS-ESLint | DIR | ✓ | ✅ | None | Disallow `delete` on arrays (creates holes) |
-| `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | ✅ | Unsafe | Disallow async functions as Promise executor |
-| `LC008` | `no-base-to-string` | TS-ESLint | DIR | ✓ | ✅ | Suggestion | Disallow `.toString()` on objects without useful representation |
-| `LC011` | `no-compare-neg-zero` | ESLint | AST | ✓ | ✅ | Safe | Disallow comparing against negative zero |
-| `LC013` | `no-constant-binary-expression` | ESLint | AST | ✓ | ✅ | Unsafe | Disallow expressions where the operation doesn't affect the value |
-| `LC014` | `no-constant-condition` | ESLint | AST | ✓ | ✅ | None | Disallow constant expressions in conditions |
-| `LC015` | `no-control-regex` | ESLint | AST | ✓ | ✅ | None | Disallow control characters in regular expressions |
-| `LC016` | `no-deprecated` | TS-ESLint | DIR | ✗ | 🔶 | Suggestion | Disallow use of `@deprecated` APIs |
-| `LC018` | `no-duplicate-case` | ESLint | AST | ✓ | ✅ | None | Disallow duplicate case labels |
-| `LC019` | `no-floating-point-equality` | Clippy | DIR | ✓ | ✅ | Suggestion | Disallow direct `==` comparison of floats |
-| `LC020` | `no-empty-range` | Destack | AST | ✓ | ✅ | None | Disallow empty ranges where start > end |
-| `LC021` | `no-fallthrough` | ESLint | AST | ✓ | ✅ | Suggestion | Disallow fallthrough of case statements |
-| `LC022` | `no-floating-promises` | TS-ESLint | DIR | ✓ | 🔶 | Suggestion | Require Promises to be awaited or returned |
-| `LC023` | `no-for-in-array` | TS-ESLint | DIR | ✓ | ✅ | None | Disallow iterating over arrays with for-in |
-| `LC025` | `no-implicit-any-in-export` | Destack | DIR | ✓ | 🔶 | Suggestion | Disallow implicit `any` in public APIs |
-| `LC026` | `no-index-out-of-bounds` | Destack | DIR | ✗ | 🔶 | None | Disallow array access where index is not proven in bounds |
-| `LC027` | `no-infinite-iterator` | Destack | DIR | ✗ | 🔶 | None | Disallow using methods that produce infinite iterators |
-| `LC028` | `no-infinite-recursion` | ErrorProne | DIR | ✓ | ✅ | None | Disallow functions that unconditionally call themselves |
-| `LC029` | `no-invalid-regexp` | ESLint | AST | ✓ | ✅ | None | Disallow invalid regular expression strings |
-| `LC030` | `no-iterator-invalidation` | Destack | DIR | ✓ | ✅ | None | Disallow modifying a collection while iterating over it |
-| `LC031` | `no-loop-single-iteration` | SonarQube | AST | ✓ | ✅ | Suggestion | Disallow loops that execute at most once |
-| `LC032` | `no-misused-promises` | TS-ESLint | DIR | ✓ | 🔶 | None | Disallow Promises in places not designed to handle them |
-| `LC033` | `no-misused-spread` | TS-ESLint | DIR | ✓ | ✅ | None | Disallow spread syntax in contexts where it's incorrect |
-| `LC036` | `no-overlapping-match-arms` | Destack | DIR | ✓ | 🔶 | Safe | Disallow match patterns that subsume later arms |
-| `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | ✅ | Safe | Disallow returning values from Promise executor |
-| `LC038` | `no-self-compare` | ESLint | AST | ✓ | ✅ | None | Disallow comparisons where both sides are exactly the same |
-| `LC039` | `no-sparse-arrays` | ESLint | AST | ✓ | ✅ | None | Disallow sparse arrays with holes |
-| `LC040` | `no-struct-identity-compare` | Destack | DIR | ✓ | ✅ | Safe | Disallow identity comparison on value types |
-| `LC042` | `no-throw-in-result-function` | Destack | DIR | ✓ | ✅ | None | Disallow `throw` in functions returning `Result` |
-| `LC043` | `no-unchecked-overflow` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow arithmetic that may overflow without explicit handling |
-| `LC044` | `no-unchecked-pointer-deref` | Destack | DIR | ✗ | 🔶 | None | Disallow dereferencing pointers without a proven non-null guard |
-| `LC047` | `no-unsafe-finally` | ESLint | AST | ✓ | ✅ | Safe | Disallow control flow statements in finally blocks |
-| `LC048` | `no-unsafe-negation` | ESLint | AST | ✓ | ✅ | Safe | Disallow negating the left operand of relational operators |
-| `LC049` | `no-unknown-rule-decorator` | Destack | AST | ✓ | ✅ | None | Disallow unknown rule decorators |
-| `LC051` | `no-useless-assignment` | ESLint | DIR | ✓ | ✅ | Safe | Disallow assignments that are immediately overwritten |
-| `LC052` | `no-useless-increment` | SonarQube | DIR | ✓ | ✅ | Safe | Disallow incrementing a value that is never used afterward |
-| `LC053` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | ✅ | Suggestion | Require comparison function for `.sort()` |
-| `LC055` | `unbound-method` | TS-ESLint | DIR | ✗ | 🔶 | Safe | Disallow unbound methods as callbacks |
-| `LC056` | `unused-must-use` | Destack | DIR | ✗ | 🔶 | Suggestion | Disallow ignoring return values of `@mustUse` functions |
-| `LC057` | `use-isnan` | ESLint | AST | ✓ | ✅ | Safe | Require `Number.isNaN()` instead of comparisons with `NaN` |
+| Code | Rule | Source | Level | Status | Fixability | Description |
+|------|------|--------|-------|--------|------------|-------------|
+| `LC001` | `await-holding-lock` | Clippy | DIR |  | None | Disallow holding a mutex lock across an await point |
+| `LC002` | `for-direction` | ESLint | AST | ✓ | None | Enforce for loop update clause moving in the correct direction |
+| `LC003` | `no-approx-constant` | Destack | AST | ✓ | Safe | Disallow approximate representations of mathematical constants |
+| `LC004` | `no-arguments-order-mismatch` | SonarQube | DIR |  | Suggestion | Disallow arguments that appear swapped based on parameter names |
+| `LC005` | `no-array-constructor` | ESLint | DIR | ✓ | Safe | Disallow `new Array()` (confusing behavior) |
+| `LC006` | `no-array-delete` | TS-ESLint | DIR | ✓ | None | Disallow `delete` on arrays (creates holes) |
+| `LC007` | `no-async-promise-executor` | ESLint | DIR | ✓ | Unsafe | Disallow async functions as Promise executor |
+| `LC008` | `no-base-to-string` | TS-ESLint | DIR | ✓ | Suggestion | Disallow `.toString()` on objects without useful representation |
+| `LC011` | `no-compare-neg-zero` | ESLint | AST | ✓ | Safe | Disallow comparing against negative zero |
+| `LC013` | `no-constant-binary-expression` | ESLint | AST | ✓ | Unsafe | Disallow expressions where the operation doesn't affect the value |
+| `LC014` | `no-constant-condition` | ESLint | AST | ✓ | None | Disallow constant expressions in conditions |
+| `LC015` | `no-control-regex` | ESLint | AST | ✓ | None | Disallow control characters in regular expressions |
+| `LC016` | `no-deprecated` | TS-ESLint | DIR |  | Suggestion | Disallow use of `@deprecated` APIs |
+| `LC018` | `no-duplicate-case` | ESLint | AST | ✓ | None | Disallow duplicate case labels |
+| `LC019` | `no-floating-point-equality` | Clippy | DIR | ✓ | Suggestion | Disallow direct `==` comparison of floats |
+| `LC020` | `no-empty-range` | Destack | AST | ✓ | None | Disallow empty ranges where start > end |
+| `LC021` | `no-fallthrough` | ESLint | AST | ✓ | Suggestion | Disallow fallthrough of case statements |
+| `LC022` | `no-floating-promises` | TS-ESLint | DIR |  | Suggestion | Require Promises to be awaited or returned |
+| `LC023` | `no-for-in-array` | TS-ESLint | DIR | ✓ | None | Disallow iterating over arrays with for-in |
+| `LC025` | `no-implicit-any-in-export` | Destack | DIR |  | Suggestion | Disallow implicit `any` in public APIs |
+| `LC026` | `no-index-out-of-bounds` | Destack | DIR |  | None | Disallow array access where index is not proven in bounds |
+| `LC027` | `no-infinite-iterator` | Destack | DIR |  | None | Disallow using methods that produce infinite iterators |
+| `LC028` | `no-infinite-recursion` | ErrorProne | DIR | ✓ | None | Disallow functions that unconditionally call themselves |
+| `LC029` | `no-invalid-regexp` | ESLint | AST | ✓ | None | Disallow invalid regular expression strings |
+| `LC030` | `no-iterator-invalidation` | Destack | DIR | ✓ | None | Disallow modifying a collection while iterating over it |
+| `LC031` | `no-loop-single-iteration` | SonarQube | AST | ✓ | Suggestion | Disallow loops that execute at most once |
+| `LC032` | `no-misused-promises` | TS-ESLint | DIR |  | None | Disallow Promises in places not designed to handle them |
+| `LC033` | `no-misused-spread` | TS-ESLint | DIR | ✓ | None | Disallow spread syntax in contexts where it's incorrect |
+| `LC036` | `no-overlapping-match-arms` | Destack | DIR |  | Safe | Disallow match patterns that subsume later arms |
+| `LC037` | `no-promise-executor-return` | ESLint | DIR | ✓ | Safe | Disallow returning values from Promise executor |
+| `LC038` | `no-self-compare` | ESLint | AST | ✓ | None | Disallow comparisons where both sides are exactly the same |
+| `LC039` | `no-sparse-arrays` | ESLint | AST | ✓ | None | Disallow sparse arrays with holes |
+| `LC040` | `no-struct-identity-compare` | Destack | DIR | ✓ | Safe | Disallow identity comparison on value types |
+| `LC042` | `no-throw-in-result-function` | Destack | DIR | ✓ | None | Disallow `throw` in functions returning `Result` |
+| `LC043` | `no-unchecked-overflow` | Destack | DIR |  | Suggestion | Disallow arithmetic that may overflow without explicit handling |
+| `LC044` | `no-unchecked-pointer-deref` | Destack | DIR |  | None | Disallow dereferencing pointers without a proven non-null guard |
+| `LC047` | `no-unsafe-finally` | ESLint | AST | ✓ | Safe | Disallow control flow statements in finally blocks |
+| `LC048` | `no-unsafe-negation` | ESLint | AST | ✓ | Safe | Disallow negating the left operand of relational operators |
+| `LC049` | `no-unknown-rule-decorator` | Destack | AST | ✓ | None | Disallow unknown rule decorators |
+| `LC051` | `no-useless-assignment` | ESLint | DIR | ✓ | Safe | Disallow assignments that are immediately overwritten |
+| `LC052` | `no-useless-increment` | SonarQube | DIR | ✓ | Safe | Disallow incrementing a value that is never used afterward |
+| `LC053` | `require-array-sort-compare` | TS-ESLint | DIR | ✓ | Suggestion | Require comparison function for `.sort()` |
+| `LC055` | `unbound-method` | TS-ESLint | DIR |  | Safe | Disallow unbound methods as callbacks |
+| `LC056` | `unused-must-use` | Destack | DIR |  | Suggestion | Disallow ignoring return values of `@mustUse` functions |
+| `LC057` | `use-isnan` | ESLint | AST | ✓ | Safe | Require `Number.isNaN()` instead of comparisons with `NaN` |
 
 ## Suspicious (U)
 
