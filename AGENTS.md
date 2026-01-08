@@ -142,6 +142,7 @@ Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 - Prefer re-defining variables if we're just transforming them about
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
 - Fix all the lints from `cargo check --release -p <crate>` and `cargo clippy --release -p <crate>`
+- Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
 
 
 ## Commands
