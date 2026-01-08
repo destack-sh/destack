@@ -582,6 +582,19 @@ impl Request for RangeFormatting {
     const METHOD: &'static str = "textDocument/rangeFormatting";
 }
 
+/// The document ranges formatting request is sent from the client to the server to format
+/// multiple ranges in a document at once.
+///
+/// @since 3.18.0
+#[derive(Debug)]
+pub enum RangesFormatting {}
+
+impl Request for RangesFormatting {
+    type Params = DocumentRangesFormattingParams;
+    type Result = Option<Vec<TextEdit>>;
+    const METHOD: &'static str = "textDocument/rangesFormatting";
+}
+
 /// The document on type formatting request is sent from the client to the server to format parts of
 /// the document during typing.
 #[derive(Debug)]
@@ -647,6 +660,19 @@ impl Request for FoldingRangeRequest {
     type Params = FoldingRangeParams;
     type Result = Option<Vec<FoldingRange>>;
     const METHOD: &'static str = "textDocument/foldingRange";
+}
+
+/// The `workspace/foldingRange/refresh` request is sent from the server to the client.
+/// Servers can use it to ask clients to refresh the folding ranges currently shown in editors.
+///
+/// @since 3.18.0
+#[derive(Debug)]
+pub enum FoldingRangeRefreshRequest {}
+
+impl Request for FoldingRangeRefreshRequest {
+    type Params = ();
+    type Result = ();
+    const METHOD: &'static str = "workspace/foldingRange/refresh";
 }
 
 /// The prepare rename request is sent from the client to the server to setup and test the validity of a rename operation

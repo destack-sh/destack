@@ -190,6 +190,41 @@ pub struct CompletionItemKindCapability {
     pub value_set: Option<Vec<CompletionItemKind>>,
 }
 
+/// Defines how values from a set of defaults and an individual item will be merged.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct ApplyKind(pub i32);
+
+impl ApplyKind {
+    /// The value from the individual item (if provided and not `null`) will be
+    /// used instead of the default.
+    pub const REPLACE: ApplyKind = ApplyKind(1);
+
+    /// The value from the item will be merged with the default value.
+    ///
+    /// The specific rules for mergeing are defined against each field
+    /// that supports merging.
+    pub const MERGE: ApplyKind = ApplyKind(2);
+}
+
+/// Specifies how fields from completion items are combined with those
+/// from `completionList.itemDefaults`.
+///
+/// @since 3.18.0
+#[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletionItemApplyKinds {
+    /// Specifies how `commitCharacters` is applied.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit_characters: Option<ApplyKind>,
+
+    /// Specifies how `data` is applied.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<ApplyKind>,
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionListCapability {
@@ -203,6 +238,16 @@ pub struct CompletionListCapability {
     /// @since 3.17.0
     #[serde(skip_serializing_if = "Option::is_none")]
     pub item_defaults: Option<Vec<String>>,
+
+    /// Specifies whether the client supports `completionList.applyKind` to
+    /// indicate how supported values from `completionList.itemDefaults`
+    /// and `completion` will be combined.
+    ///
+    /// If absent the client behavior is as if the value is `false`.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apply_kind_support: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -401,6 +446,44 @@ impl CompletionTriggerKind {
 }
 }
 
+/// Default values for completion items.
+///
+/// @since 3.17.0
+#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletionItemDefaults {
+    /// A default commit character set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit_characters: Option<Vec<String>>,
+
+    /// A default edit range.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edit_range: Option<CompletionItemDefaultsEditRange>,
+
+    /// A default insert text format.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub insert_text_format: Option<InsertTextFormat>,
+
+    /// A default insert text mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub insert_text_mode: Option<InsertTextMode>,
+
+    /// A default data value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+}
+
+/// The edit range for completion item defaults.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum CompletionItemDefaultsEditRange {
+    Range(Range),
+    InsertReplace {
+        insert: Range,
+        replace: Range,
+    },
+}
+
 /// Represents a collection of [completion items](#CompletionItem) to be presented
 /// in the editor.
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -409,6 +492,29 @@ pub struct CompletionList {
     /// This list it not complete. Further typing should result in recomputing
     /// this list.
     pub is_incomplete: bool,
+
+    /// In many cases the items of an actual completion result share the same
+    /// value for properties like `commitCharacters` or the range of a text
+    /// edit. A completion list can therefore define item defaults which will
+    /// be used if a completion item itself doesn't specify the value.
+    ///
+    /// If a completion list specifies a default value and a completion item
+    /// also specifies a corresponding value, the rules for combining these are
+    /// defined by `applyKinds` (if the server provided one) or by the client
+    /// (e.g. "always use the item's value").
+    ///
+    /// @since 3.17.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_defaults: Option<CompletionItemDefaults>,
+
+    /// Specifies how fields from `itemDefaults` and the completion items are
+    /// combined.
+    ///
+    /// If unspecified, all fields will use the `replace` behavior.
+    ///
+    /// @since 3.18.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apply_kind: Option<CompletionItemApplyKinds>,
 
     /// The completion items.
     pub items: Vec<CompletionItem>,
