@@ -857,9 +857,9 @@ fn test_build_struct() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @make_point(v0: i32, v1: f64) -> struct { i32, f64 } {
+function @make_point(v0: i32, v1: f64) -> { i32, f64 } {
 block0:
-    v2 = struct struct { i32, f64 } (v0, v1)
+    v2 = struct { i32, f64 } (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
@@ -960,7 +960,7 @@ fn test_build_field_get_struct() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @get_y(v0: struct { i32, f64 }) -> f64 {
+function @get_y(v0: { i32, f64 }) -> f64 {
 block0:
     v1 = field.get v0, 1
     return v1

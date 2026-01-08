@@ -105,7 +105,7 @@ fn format_type_inner<'a>(
             write!(f, [token(")")])
         }
         Type::Struct { fields } => {
-            write!(f, [token("struct"), space(), token("{"), space()])?;
+            write!(f, [token("{"), space()])?;
             for (i, field_id) in fields.iter().enumerate() {
                 if i > 0 {
                     write!(f, [token(","), space()])?;

@@ -220,7 +220,7 @@ Mutability can be encoded for any reference kind, but is only relevant semantica
 Field names are optional in MIR types and are for readability only:
 
 ```mir
-type @Point = struct { x: f32, y: f32 }
+type @Point = { x: f32, y: f32 }
 ```
 
 ### Debug Info
@@ -244,7 +244,7 @@ The MIR text format supports named type aliases for readability.
 Aliases are purely syntactic sugar over concrete layouts.
 
 ```mir
-type @Point = struct { i32, i32 }
+type @Point = { i32, i32 }
 type @PointRef = ref<managed @Point>
 
 function @use_point(v0: ref<managed @Point>) -> ref<managed @Point> {
