@@ -15,7 +15,9 @@ declare_pass! {
     /// A loop can be deleted if:
     /// 1. It has no side effects (no stores, calls, etc.)
     /// 2. No values defined in the loop are used outside the loop
-    /// 3. The loop has a single exit (required for simple replacement)
+    /// 3. The loop has exit(s) that can be redirected to:
+    ///    - Single exit: always OK
+    ///    - Multiple exits: OK if all exit blocks have no parameters
     ///
     /// When deleted, the loop is replaced with a direct jump from the preheader
     /// to the exit block, passing the initial values of any exit block parameters.
@@ -174,11 +176,25 @@ fn find_deletable_loop(
         return None;
     }
 
-    // need exactly one exit block for simple replacement
-    if lp.exit_blocks.len() != 1 {
+    // determine the exit block
+    // prefer single exit, but allow multiple exits if they all have no parameters
+    let exit_block = if lp.exit_blocks.len() == 1 {
+        lp.exit_blocks[0]
+    } else if lp.exit_blocks.len() > 1 {
+        // multiple exits: only allow if ALL exit blocks have no parameters
+        // (otherwise we'd need to compute consistent arguments for each)
+        let all_parameterless = lp.exit_blocks.iter().all(|&eb| {
+            tree.get(eb).parameters.is_empty()
+        });
+        if !all_parameterless {
+            return None;
+        }
+        // pick the first exit block (they're all equivalent for deletion purposes)
+        lp.exit_blocks[0]
+    } else {
+        // no exits (infinite loop) - can't delete
         return None;
-    }
-    let exit_block = lp.exit_blocks[0];
+    };
 
     // check for side effects in all loop blocks
     for &block_id in &lp.blocks {
@@ -528,9 +544,9 @@ block2(v6: i32):
         program.assert_output(&before);
     }
 
-    /// Loop with multiple exits is preserved (conservative).
+    /// Loop with multiple parameterless exits is deleted.
     #[test]
-    fn test_preserve_multiple_exits() {
+    fn test_delete_multiple_parameterless_exits() {
         let input = r#"function @test(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
     jump block1
@@ -543,6 +559,38 @@ block3:
 block4:
     return
 }"#;
+        // both exits (block3, block4) have no parameters, so loop can be deleted
+        let expected = r#"function @test(v0: bool, v1: bool) -> void {
+block0(v0: bool, v1: bool):
+    jump block1
+block1:
+    return
+block2:
+    return
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopDelete);
+        program.assert_output(expected);
+    }
+
+    /// Loop with multiple exits where some have parameters is preserved.
+    #[test]
+    fn test_preserve_multiple_exits_with_params() {
+        let input = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
+block0(v0: bool, v1: bool, v2: i32):
+    jump block1
+block1:
+    branch v0, block2, block3
+block2:
+    branch v1, block1, block4(v2)
+block3:
+    v3 = iconst 0i32
+    return v3
+block4(v4: i32):
+    return v4
+}"#;
+        // block4 has a parameter, so we can't delete with multiple exits
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
         let before = program.format();

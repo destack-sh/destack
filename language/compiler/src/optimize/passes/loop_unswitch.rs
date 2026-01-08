@@ -46,8 +46,7 @@ declare_pass! {
     /// ```
     ///
     /// Restrictions:
-    /// - Only unswitches loops with a branch in the header
-    /// - Only unswitches when the condition is loop-invariant
+    /// - Only unswitches branches with loop-invariant conditions
     /// - Only unswitches small loops to avoid excessive code growth
     /// - Requires canonical loop form from LoopSimplify
     #[pass(id = "loop-unswitch")]
@@ -109,8 +108,10 @@ impl FunctionPass for LoopUnswitch {
 struct UnswitchCandidate {
     /// The preheader block.
     preheader: mir::LocalNodeId<mir::Block>,
-    /// The loop header (contains the invariant branch).
+    /// The loop header.
     header: mir::LocalNodeId<mir::Block>,
+    /// The block containing the invariant branch (may be header or another block).
+    branch_block: mir::LocalNodeId<mir::Block>,
     /// The invariant condition value.
     condition: mir::Value,
     /// The "then" successor of the branch.
@@ -140,26 +141,7 @@ fn find_unswitchable_loop(
         return None;
     }
 
-    // header must have a branch terminator
     let header = lp.header;
-    let header_block = tree.get(header);
-    let (condition, then_target, then_arguments, else_target, else_arguments) =
-        match &header_block.terminator {
-            mir::Terminator::Branch {
-                condition,
-                then_target,
-                then_arguments,
-                else_target,
-                else_arguments,
-            } => (
-                *condition,
-                *then_target,
-                then_arguments.clone(),
-                *else_target,
-                else_arguments.clone(),
-            ),
-            _ => return None,
-        };
 
     // check loop size
     let loop_size: usize = lp
@@ -171,23 +153,8 @@ fn find_unswitchable_loop(
         return None;
     }
 
-    // condition must be loop-invariant
+    // collect invariant values (defined outside the loop)
     let invariant_values = collect_invariant_values(lp, function, tree);
-    if !invariant_values.contains(&condition) {
-        return None;
-    }
-
-    // both targets must be different (otherwise branch is effectively a jump)
-    if then_target == else_target {
-        return None;
-    }
-
-    // at least one branch must stay in the loop
-    let then_in_loop = lp.blocks.contains(&then_target);
-    let else_in_loop = lp.blocks.contains(&else_target);
-    if !then_in_loop && !else_in_loop {
-        return None;
-    }
 
     // get preheader to header arguments
     let preheader_block = tree.get(preheader);
@@ -196,17 +163,69 @@ fn find_unswitchable_loop(
         _ => return None,
     };
 
-    Some(UnswitchCandidate {
-        preheader,
-        header,
-        condition,
-        then_target,
-        then_arguments,
-        else_target,
-        else_arguments,
-        loop_blocks: lp.blocks.clone(),
-        preheader_to_header_args,
-    })
+    // scan all loop blocks for an invariant branch (prefer header first for stability)
+    let mut sorted_blocks: Vec<_> = lp.blocks.iter().copied().collect();
+    sorted_blocks.sort();
+    // put header first if present
+    if let Some(pos) = sorted_blocks.iter().position(|&b| b == header) {
+        sorted_blocks.remove(pos);
+        sorted_blocks.insert(0, header);
+    }
+
+    for &block_id in &sorted_blocks {
+        let block = tree.get(block_id);
+
+        // must have a branch terminator
+        let (condition, then_target, then_arguments, else_target, else_arguments) =
+            match &block.terminator {
+                mir::Terminator::Branch {
+                    condition,
+                    then_target,
+                    then_arguments,
+                    else_target,
+                    else_arguments,
+                } => (
+                    *condition,
+                    *then_target,
+                    then_arguments.clone(),
+                    *else_target,
+                    else_arguments.clone(),
+                ),
+                _ => continue,
+            };
+
+        // condition must be loop-invariant
+        if !invariant_values.contains(&condition) {
+            continue;
+        }
+
+        // both targets must be different (otherwise branch is effectively a jump)
+        if then_target == else_target {
+            continue;
+        }
+
+        // at least one branch must stay in the loop
+        let then_in_loop = lp.blocks.contains(&then_target);
+        let else_in_loop = lp.blocks.contains(&else_target);
+        if !then_in_loop && !else_in_loop {
+            continue;
+        }
+
+        return Some(UnswitchCandidate {
+            preheader,
+            header,
+            branch_block: block_id,
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+            loop_blocks: lp.blocks.clone(),
+            preheader_to_header_args,
+        });
+    }
+
+    None
 }
 
 /// Collect all values that are invariant (defined outside the loop).
@@ -253,19 +272,20 @@ fn unswitch_loop(
     // clone all loop blocks with fresh IDs and values
     let (block_map, value_map) = clone_loop_blocks(&candidate.loop_blocks, function, tree);
 
-    // get the cloned header
+    // get the cloned header and cloned branch block
     let cloned_header = block_map[&candidate.header];
+    let cloned_branch_block = block_map[&candidate.branch_block];
 
-    // modify original header: always take the "then" branch
-    let mut header = tree.get(candidate.header).clone();
-    header.terminator = mir::Terminator::Jump {
+    // modify original branch block: always take the "then" branch
+    let mut branch_block = tree.get(candidate.branch_block).clone();
+    branch_block.terminator = mir::Terminator::Jump {
         target: candidate.then_target,
         arguments: candidate.then_arguments.clone(),
     };
-    tree.replace(candidate.header, header);
+    tree.replace(candidate.branch_block, branch_block);
 
-    // modify cloned header: always take the "else" branch
-    let mut cloned = tree.get(cloned_header).clone();
+    // modify cloned branch block: always take the "else" branch
+    let mut cloned = tree.get(cloned_branch_block).clone();
     let else_target = if candidate.loop_blocks.contains(&candidate.else_target) {
         block_map[&candidate.else_target]
     } else {
@@ -280,7 +300,7 @@ fn unswitch_loop(
         target: else_target,
         arguments: else_arguments,
     };
-    tree.replace(cloned_header, cloned);
+    tree.replace(cloned_branch_block, cloned);
 
     // modify preheader: branch based on condition
     let mut preheader = tree.get(candidate.preheader).clone();
@@ -293,9 +313,9 @@ fn unswitch_loop(
     };
     tree.replace(candidate.preheader, preheader);
 
-    // remap terminators in cloned blocks (except header which we already handled)
+    // remap terminators in cloned blocks (except the branch block which we already handled)
     for (&original, &cloned_id) in &block_map {
-        if original == candidate.header {
+        if original == candidate.branch_block {
             continue;
         }
 
@@ -513,9 +533,9 @@ block4:
         program.assert_output(&before);
     }
 
-    /// Loop without branch in header is preserved.
+    /// Loop with invariant branch NOT in header is still unswitched.
     #[test]
-    fn test_preserve_jump_header() {
+    fn test_unswitch_non_header_branch() {
         let input = r#"function @test(v0: bool) -> void {
 block0(v0: bool):
     jump block1
@@ -526,11 +546,26 @@ block2:
 block3:
     return
 }"#;
+        // branch is in block2 (not header), but v0 is invariant
+        // so we unswitch on the non-header branch
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    branch v0, block1, block4
+block1:
+    jump block2
+block2:
+    jump block1
+block3:
+    return
+block4:
+    jump block5
+block5:
+    jump block3
+}"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
-        let before = program.format();
         program.run_pass(&LoopUnswitch);
-        program.assert_output(&before);
+        program.assert_output(expected);
     }
 
     /// Loop where both branch targets exit is preserved.
@@ -553,9 +588,31 @@ block3:
         program.assert_output(&before);
     }
 
-    /// Loop with identical branch targets is preserved.
+    /// Loop with identical branch targets (all branches) is preserved.
     #[test]
     fn test_preserve_same_branch_targets() {
+        // all branches in the loop have identical targets (effectively jumps)
+        let input = r#"function @test(v0: bool, v1: bool) -> void {
+block0(v0: bool, v1: bool):
+    jump block1
+block1:
+    branch v0, block2, block2
+block2:
+    branch v1, block1, block1
+block3:
+    return
+}"#;
+        // no unswitchable branch: both have same targets
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        let before = program.format();
+        program.run_pass(&LoopUnswitch);
+        program.assert_output(&before);
+    }
+
+    /// Non-header branch is unswitched when header branch has same targets.
+    #[test]
+    fn test_unswitch_skips_same_targets_finds_other() {
         let input = r#"function @test(v0: bool) -> void {
 block0(v0: bool):
     jump block1
@@ -566,11 +623,26 @@ block2:
 block3:
     return
 }"#;
+        // block1's branch has same targets (skipped)
+        // block2's branch has different targets and invariant condition (unswitched)
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    branch v0, block1, block4
+block1:
+    branch v0, block2, block2
+block2:
+    jump block1
+block3:
+    return
+block4:
+    branch v0, block5, block5
+block5:
+    jump block3
+}"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
-        let before = program.format();
         program.run_pass(&LoopUnswitch);
-        program.assert_output(&before);
+        program.assert_output(expected);
     }
 
     /// Function without loops is unchanged.
