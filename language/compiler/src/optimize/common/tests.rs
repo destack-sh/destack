@@ -63,7 +63,7 @@ impl TestProgram {
     }
 
     /// Format the MIR back to text.
-    fn format(&self) -> String {
+    pub(crate) fn format(&self) -> String {
         mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
     }
 

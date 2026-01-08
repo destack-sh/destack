@@ -3,6 +3,59 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 use mir::Instruction;
 
+/// Check if an instruction is pure (result depends only on operands).
+///
+/// A pure instruction has no side effects AND does not read mutable state.
+/// This is stricter than `!instruction_has_side_effects`:
+/// - `Load`/`LocalGet` have no side effects (can be removed if unused)
+/// - But they read mutable state (cannot be hoisted out of a loop)
+///
+/// Use this for LICM, code motion, and speculation optimizations.
+pub fn instruction_is_pure(instruction: &Instruction) -> bool {
+    match instruction {
+        // pure computations
+        Instruction::Const { .. }
+        | Instruction::Binary { .. }
+        | Instruction::Unary { .. }
+        | Instruction::Cast { .. } => true,
+
+        // pure aggregate operations (value semantics)
+        Instruction::FieldGet { .. }
+        | Instruction::FieldAddr { .. }
+        | Instruction::FieldSet { .. }
+        | Instruction::ElementGet { .. }
+        | Instruction::ElementAddr { .. }
+        | Instruction::ElementSet { .. } => true,
+
+        // immutable global references
+        Instruction::GlobalConst { .. } | Instruction::GlobalAddr { .. } => true,
+
+        // reads mutable state, not speculatable
+        Instruction::LocalGet { .. } | Instruction::Load { .. } => false,
+
+        // writes have side effects
+        Instruction::LocalSet { .. } | Instruction::Store { .. } => false,
+
+        // drops run destructors
+        Instruction::Drop { .. } => false,
+
+        // calls may have side effects
+        Instruction::Call { .. } | Instruction::CallIndirect { .. } => false,
+
+        // allocations have side effects
+        Instruction::ManagedAlloc { .. }
+        | Instruction::ManagedAllocArray { .. }
+        | Instruction::RawAlloc { .. }
+        | Instruction::StackAlloc { .. } => false,
+
+        // deallocation has side effects
+        Instruction::RawFree { .. } => false,
+
+        // intrinsics may have side effects
+        Instruction::Intrinsic { .. } => false,
+    }
+}
+
 /// Check if an instruction has side effects and cannot be removed even if unused.
 ///
 /// Instructions with side effects must be preserved regardless of whether their
