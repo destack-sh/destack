@@ -125,13 +125,19 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let element_ty = tree.get(*element);
             visitor.visit_type(tree, *element, element_ty);
         }
-        Type::Tuple { elements, copyability: _ } => {
+        Type::Tuple {
+            elements,
+            copyability: _,
+        } => {
             for element_id in elements {
                 let element_ty = tree.get(*element_id);
                 visitor.visit_type(tree, *element_id, element_ty);
             }
         }
-        Type::Struct { fields, copyability: _ } => {
+        Type::Struct {
+            fields,
+            copyability: _,
+        } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_field(tree, *field_id, field);

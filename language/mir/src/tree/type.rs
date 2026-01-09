@@ -42,7 +42,7 @@ pub enum Copyability {
     #[default]
     Trivial,
     /// Each use consumes the value (linear/move-only).
-    /// Required for types that own resources (owned/managed references).
+    /// Required for types that own "resources" (like owned/managed references).
     Linear,
 }
 

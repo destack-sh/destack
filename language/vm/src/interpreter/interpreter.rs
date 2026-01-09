@@ -244,7 +244,10 @@ impl Interpreter {
                 }
             }
             mir::Type::Boolean => Value::bool(false),
-            mir::Type::Tuple { elements, copyability: _ } => {
+            mir::Type::Tuple {
+                elements,
+                copyability: _,
+            } => {
                 let values: Vec<Value> = elements
                     .iter()
                     .map(|e| Self::zero_value(tree, heap, *e))
@@ -252,7 +255,11 @@ impl Interpreter {
                 let handle = heap.allocate_with_values(values);
                 Value::aggregate(handle)
             }
-            mir::Type::Array { element, length, copyability: _ } => {
+            mir::Type::Array {
+                element,
+                length,
+                copyability: _,
+            } => {
                 let elem_zero = Self::zero_value(tree, heap, *element);
                 let values: Vec<Value> = (0..*length).map(|_| elem_zero).collect();
                 let handle = heap.allocate_with_values(values);

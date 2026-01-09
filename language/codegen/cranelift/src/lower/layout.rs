@@ -85,17 +85,27 @@ pub(crate) fn compute_type_layout(
         }
 
         // arrays: size = element_size * length, alignment = element alignment
-        mir::Type::Array { element, length, copyability: _ } => {
+        mir::Type::Array {
+            element,
+            length,
+            copyability: _,
+        } => {
             let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
             let size = element_layout.size * (*length as u32);
             Ok(TypeLayout::new(size, element_layout.alignment))
         }
 
         // tuples: laid out like a struct with sequential fields
-        mir::Type::Tuple { elements, copyability: _ } => compute_tuple_layout(tree, elements, pointer_bytes),
+        mir::Type::Tuple {
+            elements,
+            copyability: _,
+        } => compute_tuple_layout(tree, elements, pointer_bytes),
 
         // structs: fields have explicit offsets, but we still need to compute size/alignment
-        mir::Type::Struct { fields, copyability: _ } => compute_struct_layout(tree, fields, pointer_bytes),
+        mir::Type::Struct {
+            fields,
+            copyability: _,
+        } => compute_struct_layout(tree, fields, pointer_bytes),
     }
 }
 

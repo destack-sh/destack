@@ -163,8 +163,14 @@ impl<'a> Dumper<'a> {
                 format!("{ref_prefix}<{kind_label}{mutability_label}>")
             }
             Type::Array { length, .. } => format!("[_; {length}]"),
-            Type::Tuple { elements, copyability: _ } => format!("({})", elements.len()),
-            Type::Struct { fields, copyability: _ } => format!("struct{{{}}}", fields.len()),
+            Type::Tuple {
+                elements,
+                copyability: _,
+            } => format!("({})", elements.len()),
+            Type::Struct {
+                fields,
+                copyability: _,
+            } => format!("struct{{{}}}", fields.len()),
             Type::FunctionPointer { parameters, .. } => format!("fn({})", parameters.len()),
         }
     }

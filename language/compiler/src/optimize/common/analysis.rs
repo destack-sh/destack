@@ -23,6 +23,10 @@ pub enum AnalysisKind {
     AliasAnalysis,
     /// Liveness analysis (live variables).
     LivenessAnalysis,
+    /// Ownership analysis (move tracking).
+    OwnershipAnalysis,
+    /// Borrow analysis (active borrows tracking).
+    BorrowAnalysis,
 }
 
 /// A computed analysis over MIR.

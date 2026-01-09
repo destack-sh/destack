@@ -52,6 +52,13 @@ pub enum OptimizeError {
         moved_at: mir::AnchoredGlobalNodeId,
     },
 
+    /// Value may have been moved (moved on some control flow paths but not others).
+    #[error(code = "EO104", message = "value may have been moved")]
+    MaybeUseAfterMove {
+        node: mir::AnchoredGlobalNodeId,
+        moved_at: mir::AnchoredGlobalNodeId,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: Borrow errors
     // -------------------------------------------------------------------------

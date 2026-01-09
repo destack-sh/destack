@@ -1008,6 +1008,17 @@ impl Intrinsic {
             _ => IntrinsicResultType::SameAsArgument(0),
         }
     }
+
+    /// Returns indices of arguments that are consumed (moved) by this intrinsic.
+    ///
+    /// Most intrinsics operate on primitives or through pointers, so nothing is consumed.
+    /// Transmute consumes its input to produce a reinterpreted output.
+    pub fn consumed_arguments(self) -> &'static [u8] {
+        match self {
+            Intrinsic::Transmute => &[0],
+            _ => &[],
+        }
+    }
 }
 
 /// Describes how to compute an intrinsic's result type from its argument types.

@@ -1586,8 +1586,6 @@ For the default (`T`), the compiler optimizes automatically:
 - Large values are GC-managed references
 - Escape analysis promotes heap to stack when safe
 
-### Explicit Ownership (^T)
-
 `T` is not owned by anyone, it is implicitly GC-managed and freed whenever all references to it are gone.
 Many people can hold and mutate `T` as long as they like.
 `^T` is for when there should only be one owner.
@@ -1601,8 +1599,7 @@ consume(^d)    // ownership transferred
 print(d.value) // ERROR: use after ownership transfer
 ```
 
-Use-after-move is an error by default (suppressible to warning?).
-
+Use-after-move is an error.
 When a `^T` value reaches its **last proven use** without being transferred, it is **dropped**:
 
 ```
@@ -1613,9 +1610,9 @@ function process() {
 }
 ```
 
-`Drop` is a marker interface that opts a type into last-use cleanup.
-Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
-Optimize inserts drops at last-use points (non-lexical) after lowering, including before
+`Drop` is a marker interface that opts a type into last-use cleanup when possible.
+(Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue).
+The compiler inserts drops at last-use points (non-lexical) after lowering, including before
 control-flow merges and before coroutine suspension when the value is not
 used after resume.
 
@@ -1630,13 +1627,6 @@ async function example(flag: bool) {
     await sleep(10)  // data can be dropped before the await
 }
 ```
-
-**Ownership transfer enables:**
-- Clear API contracts ("this function takes ownership")
-- RAII (files close, locks release, resources clean up)
-- Arena integration (transfer into arena)
-- Optimization (compiler knows no aliasing)
-- Stack allocation without GC overhead
 
 ### Ownership in Fields (Mixing)
 
