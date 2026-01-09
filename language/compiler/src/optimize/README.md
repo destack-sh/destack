@@ -91,7 +91,7 @@ Analysis results are shared across passes until invalidated.
 | `domtree` | DominatorTree | function | ✓ | cfg | Dominance relationships, immediate dominators |
 | `postdomtree` | PostDominatorTree | function | | cfg | Post-dominance for control dependence analysis |
 | `loops` | LoopAnalysis | function | ✓ | domtree | Natural loops, headers, latches, nesting depth |
-| `liveness` | LivenessAnalysis | function | | cfg | Which values are live at each program point |
+| `liveness` | LivenessAnalysis | function | ✓ | cfg | Which values are live at each program point |
 | `reaching-defs` | ReachingDefinitions | function | | cfg | Which Local definitions reach each use (pre-mem2reg) |
 | `available-exprs` | AvailableExpressions | function | | domtree | Which expressions are available at each point |
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
@@ -166,11 +166,10 @@ Optimizations for memory allocation and access patterns.
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `mem2reg` | Mem2Reg | function | O1 | ✓ | domtree | Promote stack allocations to SSA values |
-| `sroa` | ScalarReplacementOfAggregates | function | O2 | | — | Break aggregates into individual scalar values |
+| `sroa` | ScalarReplacementOfAggregates | function | O2 | ✓ | — | Break aggregates into individual scalar values |
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias | Forward stored values to subsequent loads |
-| `dead-store-eliminate` | DeadStoreEliminate | function | O2 | | alias, liveness | Remove stores that are overwritten before being read |
+| `dead-store-eliminate` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
-| `write-barrier-eliminate` | WriteBarrierEliminate | function | O2 | | alias, escape | Remove redundant GC write barriers |
 
 ### Loop (L)
 

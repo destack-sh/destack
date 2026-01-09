@@ -21,6 +21,8 @@ declare_pass! {
     /// - `x - x = 0`, `x ^ x = 0`, `x & x = x`
     /// - `x == x = true`, `x != x = false`
     /// - `!!x = x`
+    /// - `field.get(tuple/struct(...), i)` = operand i
+    /// - `element.get(array(...), const_i)` = operand i
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -69,6 +71,9 @@ impl FunctionPass for InstructionCombine {
         // build map of value -> instruction for unary simplifications
         let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
 
+        // track aggregate construction operands: dest -> operand list
+        let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
+
         // scan all blocks for constant definitions and build value map
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
@@ -78,6 +83,32 @@ impl FunctionPass for InstructionCombine {
                 // track constants
                 if let mir::Instruction::Const { destination, value } = instruction {
                     constants.insert(*destination, value.clone());
+                }
+
+                // track aggregate constructions
+                match instruction {
+                    mir::Instruction::Struct {
+                        destination,
+                        fields,
+                        ..
+                    } => {
+                        let args = tree.get_arguments(*fields);
+                        aggregate_operands.insert(*destination, args.to_vec());
+                    }
+                    mir::Instruction::Tuple {
+                        destination,
+                        elements,
+                        ..
+                    }
+                    | mir::Instruction::Array {
+                        destination,
+                        elements,
+                        ..
+                    } => {
+                        let args = tree.get_arguments(*elements);
+                        aggregate_operands.insert(*destination, args.to_vec());
+                    }
+                    _ => {}
                 }
 
                 // track all instructions by destination
@@ -125,6 +156,39 @@ impl FunctionPass for InstructionCombine {
                         *argument,
                         &value_to_instruction,
                     ),
+
+                    // field.get(struct/tuple(...), i) -> operand i
+                    mir::Instruction::FieldGet {
+                        aggregate, index, ..
+                    } => {
+                        if let Some(operands) = aggregate_operands.get(aggregate) {
+                            if let Some(&operand) = operands.get(*index as usize) {
+                                Some(Simplification::Substitute(operand))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+
+                    // element.get(array(...), const_i) -> operand i
+                    mir::Instruction::ElementGet { array, index, .. } => {
+                        if let Some(operands) = aggregate_operands.get(array) {
+                            // index must be a constant for this simplification
+                            if let Some(Constant::Int { value: idx, .. }) = constants.get(index) {
+                                if let Some(&operand) = operands.get(*idx as usize) {
+                                    Some(Simplification::Substitute(operand))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
 
                     _ => None,
                 };
@@ -1166,5 +1230,123 @@ block0(v0: bool):
         let mut program = TestProgram::new(input);
         program.run_pass(&InstructionCombine);
         program.assert_output(expected);
+    }
+
+    /// field.get(tuple(...), i) simplifies to the i-th operand.
+    #[test]
+    fn test_simplify_field_get_tuple() {
+        let input = r#"function @test(v0: i32, v1: i64) -> i32 {
+block0(v0: i32, v1: i64):
+    v2 = tuple (i32, i64) (v0, v1)
+    v3 = field.get v2, 0
+    return v3
+}"#;
+        let expected = r#"function @test(v0: i32, v1: i64) -> i32 {
+block0(v0: i32, v1: i64):
+    v2 = tuple (i32, i64) (v0, v1)
+    return v0
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InstructionCombine);
+        program.assert_output(expected);
+    }
+
+    /// field.get(tuple(...), 1) simplifies to the second operand.
+    #[test]
+    fn test_simplify_field_get_tuple_second() {
+        let input = r#"function @test(v0: i32, v1: i64) -> i64 {
+block0(v0: i32, v1: i64):
+    v2 = tuple (i32, i64) (v0, v1)
+    v3 = field.get v2, 1
+    return v3
+}"#;
+        let expected = r#"function @test(v0: i32, v1: i64) -> i64 {
+block0(v0: i32, v1: i64):
+    v2 = tuple (i32, i64) (v0, v1)
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InstructionCombine);
+        program.assert_output(expected);
+    }
+
+    /// field.get(struct(...), i) simplifies to the i-th field value.
+    #[test]
+    fn test_simplify_field_get_struct() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = struct @Point (v0, v1)
+    v3 = field.get v2, 0
+    v4 = field.get v2, 1
+    v5 = iadd v3, v4
+    return v5
+}"#;
+        // both field.get replaced with direct operands
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = struct @Point (v0, v1)
+    v5 = iadd v0, v1
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InstructionCombine);
+        program.assert_output(expected);
+    }
+
+    /// element.get(array(...), const_i) simplifies to the i-th element.
+    #[test]
+    fn test_simplify_element_get_array() {
+        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = array [i32; 3] (v0, v1, v2)
+    v4 = iconst 1i64
+    v5 = element.get v3, v4
+    return v5
+}"#;
+        // element.get with constant index 1 replaced with v1
+        let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = array [i32; 3] (v0, v1, v2)
+    v4 = iconst 1i64
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InstructionCombine);
+        program.assert_output(expected);
+    }
+
+    /// element.get with non-constant index is not simplified.
+    #[test]
+    fn test_preserve_element_get_non_constant_index() {
+        let input = r#"function @test(v0: i32, v1: i32, v2: i64) -> i32 {
+block0(v0: i32, v1: i32, v2: i64):
+    v3 = array [i32; 2] (v0, v1)
+    v4 = element.get v3, v2
+    return v4
+}"#;
+        // v2 is not a constant, cannot simplify
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InstructionCombine);
+        program.assert_unchanged(input);
+    }
+
+    /// field.get from non-aggregate source is not simplified.
+    #[test]
+    fn test_preserve_field_get_unknown_source() {
+        let input = r#"function @test(v0: (i32, i32)) -> i32 {
+block0(v0: (i32, i32)):
+    v1 = field.get v0, 0
+    return v1
+}"#;
+        // v0 is a parameter, not from tuple/struct instruction
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InstructionCombine);
+        program.assert_unchanged(input);
     }
 }

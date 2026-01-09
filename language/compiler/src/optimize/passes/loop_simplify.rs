@@ -49,11 +49,15 @@ impl FunctionPass for LoopSimplify {
         };
 
         // get analyses
-        let loops = context.analyses.get::<LoopAnalysis>(function, tree);
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, tree, context);
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let cfg = context.analyses.get::<ControlFlowGraph>(function, tree);
+        let cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
 
         // collect work items using loop indices (avoids cloning)
         let mut preheader_work: Vec<usize> = Vec::new();

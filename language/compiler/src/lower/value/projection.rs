@@ -20,7 +20,12 @@ impl BlockLowerer<'_, '_> {
         // resolve field index through the type lowerer
         let field_index = self
             .type_lowerer
-            .field_index_for_type(aggregate_type, field_name, self.strings, self.builder.tree())
+            .field_index_for_type(
+                aggregate_type,
+                field_name,
+                self.strings,
+                self.builder.tree(),
+            )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id.into_global_any(self.module_id),
                 message: "field not found in aggregate type".to_string(),

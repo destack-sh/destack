@@ -19,6 +19,10 @@ declare_pass! {
     /// powerful than local CSE because it can eliminate an expression in a block if
     /// the same expression was computed in a dominating block.
     ///
+    /// Also performs cross-block aggregate forwarding: if a tuple/struct is constructed
+    /// in a dominating block, field extractions in dominated blocks are replaced with
+    /// the original operands.
+    ///
     /// ```mir
     /// function @before(v0: i32, v1: i32, v2: bool) -> i32 {
     /// block0(v0: i32, v1: i32, v2: bool):
@@ -68,7 +72,9 @@ impl FunctionPass for GlobalValueNumbering {
         };
 
         // get dominator tree for this function
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
 
         // build dominator tree children map for traversal
         let dom_children = build_dominator_children(function, &domtree);
@@ -118,6 +124,8 @@ fn build_dominator_children(
 struct ScopedValueTable {
     /// Stack of scopes, each mapping expression keys to values.
     scopes: Vec<HashMap<ExpressionKey, mir::Value>>,
+    /// Stack of scopes for aggregate operands (value -> operand list).
+    aggregate_scopes: Vec<HashMap<mir::Value, Vec<mir::Value>>>,
 }
 
 impl ScopedValueTable {
@@ -125,18 +133,21 @@ impl ScopedValueTable {
     fn new() -> Self {
         Self {
             scopes: vec![HashMap::new()],
+            aggregate_scopes: vec![HashMap::new()],
         }
     }
 
     /// Push a new scope (entering a dominated subtree).
     fn push_scope(&mut self) {
         self.scopes.push(HashMap::new());
+        self.aggregate_scopes.push(HashMap::new());
     }
 
     /// Pop the current scope (leaving a dominated subtree).
     fn pop_scope(&mut self) {
         if self.scopes.len() > 1 {
             self.scopes.pop();
+            self.aggregate_scopes.pop();
         }
     }
 
@@ -154,6 +165,23 @@ impl ScopedValueTable {
     fn insert(&mut self, key: ExpressionKey, value: mir::Value) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(key, value);
+        }
+    }
+
+    /// Look up aggregate operands in all scopes.
+    fn get_aggregate(&self, value: &mir::Value) -> Option<&Vec<mir::Value>> {
+        for scope in self.aggregate_scopes.iter().rev() {
+            if let Some(operands) = scope.get(value) {
+                return Some(operands);
+            }
+        }
+        None
+    }
+
+    /// Record aggregate construction operands.
+    fn insert_aggregate(&mut self, value: mir::Value, operands: Vec<mir::Value>) {
+        if let Some(scope) = self.aggregate_scopes.last_mut() {
+            scope.insert(value, operands);
         }
     }
 }
@@ -230,6 +258,65 @@ fn process_block(
 
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
+
+        // track aggregate construction operands for cross-block forwarding
+        match instruction {
+            mir::Instruction::Struct {
+                destination,
+                fields,
+                ..
+            } => {
+                let args = tree.get_arguments(*fields);
+                value_table.insert_aggregate(*destination, args.to_vec());
+            }
+            mir::Instruction::Tuple {
+                destination,
+                elements,
+                ..
+            }
+            | mir::Instruction::Array {
+                destination,
+                elements,
+                ..
+            } => {
+                let args = tree.get_arguments(*elements);
+                value_table.insert_aggregate(*destination, args.to_vec());
+            }
+            _ => {}
+        }
+
+        // check for aggregate field/element extraction simplification
+        let aggregate_simplification = match instruction {
+            mir::Instruction::FieldGet {
+                destination,
+                aggregate,
+                index,
+                ..
+            } => {
+                // resolve through any existing substitutions
+                let agg = substitutions.get(aggregate).copied().unwrap_or(*aggregate);
+                if let Some(operands) = value_table.get_aggregate(&agg) {
+                    if let Some(&operand) = operands.get(*index as usize) {
+                        Some((*destination, operand, instruction_id))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            mir::Instruction::ElementGet { .. } => {
+                // #Incomplete: GVN needs constant propagation for ElementGet (?)
+                None
+            }
+            _ => None,
+        };
+
+        if let Some((dest, replacement, inst_id)) = aggregate_simplification {
+            substitutions.insert(dest, replacement);
+            to_remove.insert(inst_id);
+            continue;
+        }
 
         // skip instructions with side effects
         if instruction_has_side_effects(instruction) {
@@ -631,6 +718,197 @@ block0(v0: i32, v1: i32):
     jump block1
 block1:
     v6 = iadd v2, v3
+    return v6
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Tuple field extraction is forwarded across blocks.
+    #[test]
+    fn test_aggregate_tuple_cross_block() {
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = tuple (i32, i32) (v0, v1)
+    jump block1
+block1:
+    v3 = field.get v2, 0
+    v4 = field.get v2, 1
+    v5 = iadd v3, v4
+    return v5
+}"#;
+        // v3 -> v0, v4 -> v1
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = tuple (i32, i32) (v0, v1)
+    jump block1
+block1:
+    v5 = iadd v0, v1
+    return v5
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Struct field extraction is forwarded across blocks.
+    #[test]
+    fn test_aggregate_struct_cross_block() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = struct @Point (v0, v1)
+    jump block1
+block1:
+    v3 = field.get v2, 0
+    v4 = field.get v2, 1
+    v5 = iadd v3, v4
+    return v5
+}"#;
+        // v3 -> v0, v4 -> v1
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = struct @Point (v0, v1)
+    jump block1
+block1:
+    v5 = iadd v0, v1
+    return v5
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Aggregate forwarding through deep dominator chain.
+    #[test]
+    fn test_aggregate_through_deep_chain() {
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = tuple (i32, i32) (v0, v1)
+    jump block1
+block1:
+    jump block2
+block2:
+    jump block3
+block3:
+    v3 = field.get v2, 1
+    return v3
+}"#;
+        // v3 -> v1 through the dominator chain
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = tuple (i32, i32) (v0, v1)
+    jump block1
+block1:
+    jump block2
+block2:
+    jump block3
+block3:
+    return v1
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Aggregate in non-dominating block is not forwarded.
+    #[test]
+    fn test_aggregate_skip_non_dominating() {
+        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    branch v2, block1, block2
+block1:
+    v3 = tuple (i32, i32) (v0, v1)
+    jump block3(v3)
+block2:
+    v4 = tuple (i32, i32) (v1, v0)
+    v5 = field.get v4, 0
+    jump block3(v4)
+block3(v6: (i32, i32)):
+    v7 = field.get v6, 0
+    return v7
+}"#;
+        // block1 doesn't dominate block2, so v3's tuple construction
+        // shouldn't affect the field.get in block2
+        // v5 should still be simplified to v1 (local simplification via InstructionCombine,
+        // but GVN should leave the non-dominated one alone)
+        // v7 cannot be simplified because v6 is a block parameter
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        // v5 should be simplified to v1 since v4 is constructed in same scope
+        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    branch v2, block1, block2
+block1:
+    v3 = tuple (i32, i32) (v0, v1)
+    jump block3(v3)
+block2:
+    v4 = tuple (i32, i32) (v1, v0)
+    jump block3(v4)
+block3(v6: (i32, i32)):
+    v7 = field.get v6, 0
+    return v7
+}"#;
+        program.assert_output(expected);
+    }
+
+    /// Diamond CFG with aggregate extraction in both branches.
+    #[test]
+    fn test_aggregate_diamond_cfg() {
+        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    v3 = tuple (i32, i32) (v0, v1)
+    branch v2, block1, block2
+block1:
+    v4 = field.get v3, 0
+    jump block3(v4)
+block2:
+    v5 = field.get v3, 1
+    jump block3(v5)
+block3(v6: i32):
+    return v6
+}"#;
+        // v4 -> v0, v5 -> v1
+        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    v3 = tuple (i32, i32) (v0, v1)
+    branch v2, block1, block2
+block1:
+    jump block3(v0)
+block2:
+    jump block3(v1)
+block3(v6: i32):
+    return v6
+}"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Aggregate forwarding combined with regular GVN.
+    #[test]
+    fn test_aggregate_combined_with_gvn() {
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    v3 = tuple (i32, i32) (v2, v1)
+    jump block1
+block1:
+    v4 = iadd v0, v1
+    v5 = field.get v3, 0
+    v6 = iadd v4, v5
+    return v6
+}"#;
+        // v4 -> v2 (regular GVN), v5 -> v2 (aggregate forwarding)
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    v3 = tuple (i32, i32) (v2, v1)
+    jump block1
+block1:
+    v6 = iadd v2, v2
     return v6
 }"#;
         let mut program = TestProgram::new(input);

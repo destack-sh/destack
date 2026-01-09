@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use destack_mir as mir;
 
 use crate::optimize::common::{MemoryLocation, PointerBase, PointerDecomposer};
 
+use super::common::FunctionAA;
 use super::result::AliasResult;
 
 /// Scoped noalias analysis for Destack's ownership system.
@@ -23,12 +22,8 @@ pub(crate) struct ScopedNoAliasAA {
     noalias_params: Vec<bool>,
     /// Whether strict borrow mode is enabled.
     strict_borrow_mode: bool,
-    /// Map from value to constant integer.
-    constants: HashMap<mir::Value, i64>,
-    /// Map from value to defining instruction.
-    definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    /// Function parameters.
-    parameters: Vec<mir::TypedValue>,
+    /// Common function information (constants, definitions, parameters).
+    function: FunctionAA,
 }
 
 impl ScopedNoAliasAA {
@@ -38,37 +33,7 @@ impl ScopedNoAliasAA {
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
     ) -> Self {
-        let mut constants = HashMap::new();
-        let mut definitions = HashMap::new();
-
-        // imports have no body
-        if function.entry.is_none() {
-            return Self {
-                noalias_params: Vec::new(),
-                strict_borrow_mode,
-                constants,
-                definitions,
-                parameters: Vec::new(),
-            };
-        }
-
-        // collect definitions and constants
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let inst = tree.get(instruction_id);
-
-                if let Some(dest) = inst.destination() {
-                    definitions.insert(dest, instruction_id);
-                }
-
-                if let mir::Instruction::Const { destination, value } = inst
-                    && let mir::Constant::Int { value: v, .. } = value
-                {
-                    constants.insert(*destination, *v);
-                }
-            }
-        }
+        let info = FunctionAA::collect(function, tree);
 
         // determine which parameters have noalias semantics
         let noalias_params = function
@@ -80,9 +45,7 @@ impl ScopedNoAliasAA {
         Self {
             noalias_params,
             strict_borrow_mode,
-            constants,
-            definitions,
-            parameters: function.parameters.clone(),
+            function: info,
         }
     }
 
@@ -121,10 +84,10 @@ impl ScopedNoAliasAA {
 
         // decompose pointers to find their bases
         let mut decomposer = PointerDecomposer::new(
-            &self.constants,
-            &self.definitions,
+            &self.function.constants,
+            &self.function.definitions,
             tree,
-            &self.parameters,
+            &self.function.parameters,
             self.strict_borrow_mode,
         );
 

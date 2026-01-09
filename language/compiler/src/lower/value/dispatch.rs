@@ -21,9 +21,7 @@ impl BlockLowerer<'_, '_> {
                 let value = self.builder.use_variable(binding.variable);
                 Ok((value, binding.ty))
             }
-            Expression::ScalarLiteral { value } => {
-                self.lower_scalar_literal(expression_id, value)
-            }
+            Expression::ScalarLiteral { value } => self.lower_scalar_literal(expression_id, value),
             Expression::Cast {
                 operator,
                 value,

@@ -74,11 +74,15 @@ impl FunctionPass for LoopUnswitch {
             return AnalysisPreservation::all();
         }
 
-        let loops = context.analyses.get::<LoopAnalysis>(function, tree);
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, tree, context);
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
 
         // find first unswitchable loop (innermost first)
         let mut candidate: Option<UnswitchCandidate> = None;

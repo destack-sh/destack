@@ -4,7 +4,9 @@ use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
 use destack_workspace::TargetId;
 
-use super::{OptimizationContext, OptimizationLevel, count_mir_size, default_pipeline};
+use super::{
+    OptimizationContext, OptimizationLevel, OptimizeOptions, count_mir_size, default_pipeline,
+};
 
 /// Task to optimize something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -58,17 +60,22 @@ impl Compiler {
         let mut tree = mir.tree.write();
         let strings = mir.strings.clone();
 
-        // get borrow mode from dsconfig
+        // get options from dsconfig
         let strict_borrow_mode = self
             .program
             .with_dsconfig_options(&module_guard, |opts| opts.compiler.borrow_mode.is_strict())
             .unwrap_or(false);
 
+        let options = OptimizeOptions {
+            strict_borrow_mode,
+            ..Default::default()
+        };
+
         // count MIR size before optimization
         let before = count_mir_size(&tree);
 
         // create optimization context
-        let context = OptimizationContext::with_strict_borrow_mode(&strings, strict_borrow_mode);
+        let context = OptimizationContext::new(&strings, options);
 
         // run the pipeline on all functions
         pipeline.run_on_module(&mut tree, &context);
