@@ -138,7 +138,7 @@ Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 - Prefer multiline raw strings for longer strings
 - Prefer using `--release` for build, test, check, etc. (it's faster)
 - Just use `pub use submodule::*` for public exports, we use `pub` properly
-- Relatedly, we like to just use `use crate::x` directly (when possible)
+- Relatedly, we like to just use `use crate::x` directly at the top level (when possible)
 - Prefer re-defining variables if we're just transforming them about
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
 - Fix all the lints from `cargo check --release -p <crate>` and `cargo clippy --release -p <crate>`
