@@ -113,7 +113,8 @@ impl LoopAnalysis {
         let back_edges_by_header = Self::find_back_edges(function, tree, domtree);
 
         // build loop structures from back edges
-        let (mut loops, header_to_loop) = Self::build_loops(back_edges_by_header, tree, cfg);
+        let (mut loops, header_to_loop) =
+            Self::build_loops(back_edges_by_header, tree, cfg, domtree);
 
         // establish parent/child relationships and compute depths
         Self::compute_nesting(&mut loops, &header_to_loop, domtree);
@@ -162,6 +163,7 @@ impl LoopAnalysis {
         >,
         tree: &mir::NodeTree,
         cfg: &ControlFlowGraph,
+        domtree: &DominatorTree,
     ) -> (Vec<Loop>, HashMap<mir::LocalNodeId<mir::Block>, usize>) {
         let mut loops = Vec::new();
         let mut header_to_loop = HashMap::new();
@@ -172,7 +174,7 @@ impl LoopAnalysis {
 
         for (header, latches) in sorted_entries {
             // compute loop body via reverse reachability from latches
-            let blocks = Self::compute_loop_body(header, &latches, cfg);
+            let blocks = Self::compute_loop_body(header, &latches, cfg, domtree);
 
             // find exiting blocks and exit blocks
             let (exiting_blocks, exit_blocks) = Self::compute_exits(&blocks, tree);
@@ -201,6 +203,7 @@ impl LoopAnalysis {
         header: mir::LocalNodeId<mir::Block>,
         latches: &[mir::LocalNodeId<mir::Block>],
         cfg: &ControlFlowGraph,
+        domtree: &DominatorTree,
     ) -> HashSet<mir::LocalNodeId<mir::Block>> {
         let mut body = HashSet::new();
         body.insert(header);
@@ -217,6 +220,10 @@ impl LoopAnalysis {
         // reverse DFS: add predecessors that aren't the header
         while let Some(block) = worklist.pop() {
             for &predecessor in cfg.predecessors(block) {
+                if !domtree.dominates(header, predecessor) {
+                    continue;
+                }
+
                 if body.insert(predecessor) {
                     worklist.push(predecessor);
                 }
@@ -253,7 +260,10 @@ impl LoopAnalysis {
             }
         }
 
-        let exit_blocks: Vec<_> = exit_blocks_set.into_iter().collect();
+        let mut exit_blocks: Vec<_> = exit_blocks_set.into_iter().collect();
+
+        exiting_blocks.sort_by_key(|block| block.id);
+        exit_blocks.sort_by_key(|block| block.id);
 
         (exiting_blocks, exit_blocks)
     }
@@ -433,6 +443,37 @@ block1:
         assert_eq!(lp.blocks.len(), 1);
         assert_eq!(lp.depth, 0);
         assert!(lp.has_single_latch());
+    }
+
+    /// Self-loop with an outside predecessor does not pull the predecessor into the loop body.
+    #[test]
+    fn test_self_loop_excludes_predecessor() {
+        let program = TestProgram::new(
+            r#"function @self_loop_entry(v0: bool) -> void {
+block0(v0: bool):
+    jump block1
+block1:
+    branch v0, block1, block2
+block2:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let analysis = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+
+        assert_eq!(analysis.num_loops(), 1);
+
+        let block0 = function.blocks[0];
+        let block1 = function.blocks[1];
+
+        let lp = analysis.loop_for_header(block1).unwrap();
+        assert!(lp.contains(block1));
+        assert!(!lp.contains(block0));
     }
 
     /// While-style loop with separate header and latch is detected.

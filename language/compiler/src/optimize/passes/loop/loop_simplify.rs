@@ -136,6 +136,8 @@ impl FunctionPass for LoopSimplify {
             return AnalysisPreservation::all();
         }
 
+        function.recompute_next_value_id(tree);
+
         let mut changed = false;
 
         // phase 1: insert preheaders
@@ -382,6 +384,22 @@ fn redirect_terminator(
                     },
                     default_arguments: default_arguments.clone(),
                     cases: new_cases,
+                })
+            } else {
+                None
+            }
+        }
+
+        mir::Terminator::Yield {
+            value,
+            resume,
+            resume_arguments,
+        } => {
+            if *resume == old_target {
+                Some(mir::Terminator::Yield {
+                    value: *value,
+                    resume: new_target,
+                    resume_arguments: resume_arguments.clone(),
                 })
             } else {
                 None
