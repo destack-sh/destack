@@ -7,6 +7,17 @@ use {destack_dir as dir, destack_mir as mir};
 
 use super::super::TypeLowerer;
 
+/// Track a lowered global binding for value expressions.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GlobalBinding {
+    /// The MIR global holding the binding value.
+    pub(crate) global: mir::LocalNodeId<mir::Global>,
+    /// The MIR type of the binding.
+    pub(crate) ty: mir::LocalNodeId<mir::Type>,
+    /// The mutability of the global.
+    pub(crate) mutability: mir::Mutability,
+}
+
 /// Track whether a statement terminates control flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Terminates {
@@ -57,6 +68,8 @@ pub(crate) struct BlockLowerer<'a, 'b> {
     pub(crate) type_lowerer: &'a TypeLowerer,
     /// Resolve direct calls for known function symbols.
     pub(crate) functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+    /// Resolve globals by symbol for module-level variable references.
+    pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
     /// Emit MIR into the current function builder.
     pub(crate) builder: &'b mut mir::FunctionBuilder<'a>,
     /// Track locals by symbol for variable resolution.

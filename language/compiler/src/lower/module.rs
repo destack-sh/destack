@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use destack_base::StringPool;
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId};
 use destack_source::ModuleId;
 use destack_workspace::{Module, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, LowerError, LowerResult};
 
-use super::TypeLowerer;
+use super::{GlobalBinding, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
 #[derive(Debug)]
@@ -35,6 +35,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) builder: mir::ModuleBuilder,
     /// Map DIR symbols to MIR function ids.
     pub(crate) functions_by_symbol: HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+    /// Map DIR symbols to MIR global bindings.
+    pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
 }
@@ -66,6 +68,7 @@ impl<'a> ModuleLowerer<'a> {
             target,
             builder,
             functions_by_symbol: HashMap::new(),
+            globals_by_symbol: HashMap::new(),
             type_lowerer,
         }
     }
@@ -78,27 +81,29 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Lower a root expression.
-    pub(crate) fn lower_root_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> LowerResult<()> {
-        let expression = self.dir_tree.get(expression_id);
-        match expression {
-            Expression::Declaration { declaration } => {
-                let declaration_id = *declaration;
-                let declaration = self.dir_tree.get(declaration_id);
-                self.lower_declaration(declaration_id, declaration)
-            }
-            _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
-                message: format!("unsupported root expression `{}`", expression.kind_name()),
-            })?,
-        }
-    }
-
     /// Finish the module lowering process and return the resulting MIR tree and string pool.
     pub(crate) fn finish(self) -> (mir::NodeTree, StringPool) {
         self.builder.finish_mutable()
+    }
+
+    /// Get the name of a symbol as a String.
+    pub(crate) fn get_symbol_name(&self, symbol_id: LocalSymbolId) -> Option<String> {
+        let symbol = self.symbols.get_symbol(symbol_id);
+        symbol
+            .name()
+            .map(|n| self.compiler.program.strings.get(n).to_string())
+    }
+
+    /// Get the name of a symbol, returning an error if it has no name.
+    pub(crate) fn symbol_name(
+        &self,
+        symbol_id: LocalSymbolId,
+        node: GlobalNodeIdAny,
+    ) -> LowerResult<String> {
+        self.get_symbol_name(symbol_id)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "symbol must have a name".to_string(),
+            })
     }
 }

@@ -17,9 +17,29 @@ impl BlockLowerer<'_, '_> {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
-                let binding = self.local_binding_for_symbol(expression_id, *target_symbol)?;
-                let value = self.builder.use_variable(binding.variable);
-                Ok((value, binding.ty))
+                // first check locals, then check globals
+                if let Some(binding) = self.locals_by_symbol.get(target_symbol) {
+                    let value = self.builder.use_variable(binding.variable);
+                    Ok((value, binding.ty))
+                }
+                // use global_const for immutable, global_addr + load for mutable
+                else if let Some(global_binding) = self.globals_by_symbol.get(target_symbol) {
+                    if global_binding.mutability == mir::Mutability::Mutable {
+                        let addr = self.builder.global_addr(global_binding.global);
+                        let value = self.builder.load(addr);
+                        Ok((value, global_binding.ty))
+                    } else {
+                        let value = self.builder.global_const(global_binding.global);
+                        Ok((value, global_binding.ty))
+                    }
+                }
+                // some unresolved symbol reference
+                else {
+                    Err(LowerError::UnsupportedConstruct {
+                        node: expression_id.into_global_any(self.module_id),
+                        message: "unresolved symbol reference".to_string(),
+                    })
+                }
             }
             Expression::ScalarLiteral { value } => self.lower_scalar_literal(expression_id, value),
             Expression::Cast {

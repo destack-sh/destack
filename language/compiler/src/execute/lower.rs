@@ -111,11 +111,12 @@ impl Compiler {
         let entry_block = function_builder.create_block();
         function_builder.switch_to_block(entry_block);
 
-        // track locals, functions, and loops by symbol
+        // track locals, functions, globals, and loops by symbol
         let mut locals_by_symbol = std::collections::HashMap::new();
         let mut loops_by_symbol = std::collections::HashMap::new();
         let mut loop_stack = Vec::new();
         let functions_by_symbol = std::collections::HashMap::new();
+        let globals_by_symbol = std::collections::HashMap::new();
         let mut block_lowerer = BlockLowerer {
             module_id: module.id,
             dir_tree: &dir_tree,
@@ -124,6 +125,7 @@ impl Compiler {
             strings: &self.program.strings,
             type_lowerer: &type_lowerer,
             functions_by_symbol: &functions_by_symbol,
+            globals_by_symbol: &globals_by_symbol,
             builder: &mut function_builder,
             locals_by_symbol: &mut locals_by_symbol,
             loops_by_symbol: &mut loops_by_symbol,

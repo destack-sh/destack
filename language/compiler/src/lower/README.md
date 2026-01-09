@@ -19,13 +19,13 @@ AOT compilation provides predictable performance without warmup, but lots of eng
 Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime anymore.
 
 Specifically, Destack lowering is focused on:
-1. **TypeScript semantics**: TS and Destack code behaves identically in native*
-2. **Comptime**: Full compile-time evaluation
+1. **TypeScript semantics**: TS and Destack code behaves identically^x
+2. **Comptime**: Full compile-time evaluation   
 3. **Reflection**: Types-as-values for comptime and runtime reflection
 4. **Ownership**: Manual memory or GC as needed
 5. **Erasure**: Clean codegen to JS/TS
 
-*Where behavior differs between JS/TS runtimes and native, this difference should be obvious and misuse should have loud diagnostics. Perfect semantic equivalence in all scenarios is not required or even possible, since that would require emulating _all_ the non-standard dynamic quirks of common JS runtimes (like optimizer behavior, scheduling, etc.).
+x=Where behavior differs between JS/TS runtimes and native, this difference should be obvious and misuse should have loud diagnostics. Perfect semantic equivalence in all scenarios is not required or even possible, since that would require emulating _all_ the non-standard dynamic quirks of common JS runtimes (like optimizer behavior, scheduling, etc.).
 
 ### Performance
 

@@ -113,7 +113,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                     // wildcard bindings evaluate and discard the value
                 }
                 Pattern::Binding {
-                    symbol, pattern, ..
+                    symbol: symbol_id,
+                    pattern,
+                    ..
                 } => {
                     // reject nested patterns for now
                     if pattern.is_some() {
@@ -124,10 +126,10 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                     }
 
                     // convert the symbol id for lookup
-                    let symbol_id = symbol.into_global(self.module_id);
+                    let global_symbol_id = symbol_id.into_global(self.module_id);
 
                     // reject duplicate bindings (#Incomplete?)
-                    if self.locals_by_symbol.contains_key(&symbol_id) {
+                    if self.locals_by_symbol.contains_key(&global_symbol_id) {
                         return Err(LowerError::UnsupportedConstruct {
                             node: pattern_id.into_global_any(self.module_id),
                             message: "duplicate local binding".to_string(),
@@ -142,7 +144,7 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
 
                     // record the binding for later references
                     self.locals_by_symbol.insert(
-                        symbol_id,
+                        global_symbol_id,
                         LocalBinding {
                             variable,
                             ty: value_type,
@@ -210,19 +212,19 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
         kind: dir::LoopKind,
         condition: Option<LocalNodeId<Expression>>,
         body_id: LocalNodeId<dir::Block>,
-        symbol: dir::LocalSymbolId,
+        loop_symbol_id: dir::LocalSymbolId,
     ) -> LowerResult<Terminates> {
         let header_block = self.builder.create_block();
         let body_block = self.builder.create_block();
         let exit_block = self.builder.create_block();
 
         // register loop context for break/continue
-        let symbol_id = symbol.into_global(self.module_id);
+        let global_loop_symbol_id = loop_symbol_id.into_global(self.module_id);
         let loop_context = LoopContext {
             continue_block: header_block,
             break_block: exit_block,
         };
-        self.loops_by_symbol.insert(symbol_id, loop_context);
+        self.loops_by_symbol.insert(global_loop_symbol_id, loop_context);
         self.loop_stack.push(loop_context);
 
         match kind {
@@ -284,7 +286,7 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
 
         // cleanup loop context
         self.loop_stack.pop();
-        self.loops_by_symbol.remove(&symbol_id);
+        self.loops_by_symbol.remove(&global_loop_symbol_id);
 
         // continue after the loop
         self.builder.switch_to_block(exit_block);
@@ -298,7 +300,7 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
         condition: Option<LocalNodeId<Expression>>,
         increment: Option<LocalNodeId<Expression>>,
         body_id: LocalNodeId<dir::Block>,
-        symbol: dir::LocalSymbolId,
+        loop_symbol_id: dir::LocalSymbolId,
     ) -> LowerResult<Terminates> {
         // lower initialization in current block
         if let Some(init_id) = initialization {
@@ -311,12 +313,12 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
         let exit_block = self.builder.create_block();
 
         // register loop context: continue goes to increment block, break goes to exit
-        let symbol_id = symbol.into_global(self.module_id);
+        let global_loop_symbol_id = loop_symbol_id.into_global(self.module_id);
         let loop_context = LoopContext {
             continue_block: increment_block,
             break_block: exit_block,
         };
-        self.loops_by_symbol.insert(symbol_id, loop_context);
+        self.loops_by_symbol.insert(global_loop_symbol_id, loop_context);
         self.loop_stack.push(loop_context);
 
         // jump to header to start loop
@@ -349,7 +351,7 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
 
         // cleanup loop context
         self.loop_stack.pop();
-        self.loops_by_symbol.remove(&symbol_id);
+        self.loops_by_symbol.remove(&global_loop_symbol_id);
 
         // continue after the loop
         self.builder.switch_to_block(exit_block);
