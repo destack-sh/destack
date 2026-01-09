@@ -426,6 +426,17 @@ impl TestProgram {
         });
     }
 
+    /// Enqueue Optimize task for a module.
+    pub fn optimize_module(&self, module: ModuleId, target: &str) {
+        let module_ref = self.program.modules.get(module);
+        let package_id = module_ref.read().package_id;
+        let target_id = TargetId::new(package_id, target);
+        self.enqueue(crate::OptimizeTask::OptimizeModule {
+            module,
+            target: target_id,
+        });
+    }
+
     /// Enqueue a task (does not run it).
     pub fn enqueue<T: Into<Task>>(&self, task: T) {
         self.compiler.enqueue(task);
