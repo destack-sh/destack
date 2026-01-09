@@ -8,7 +8,7 @@ use destack_dir::{
     NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral,
     TypeTable, WhereClause,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -175,7 +175,8 @@ impl Compiler {
 
                 // infer and record the enum backing type
                 let enum_symbol = descriptor.symbol.into_global(module.id);
-                let backing_type = self.infer_enum_backing_type(module, fields, tree, types)?;
+                let backing_type =
+                    self.infer_enum_backing_type(module, ctx.profile, fields, tree, types)?;
                 types.set_enum_backing_type(enum_symbol, backing_type);
 
                 // resolve the instance type for `this`
@@ -320,7 +321,9 @@ impl Compiler {
                             ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
-                                node: body.into_global_any(module.id),
+                                node: body
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(ctx.profile)),
                                 expected_ty: return_ty_id.into_global(module.id),
                                 actual_ty: body_ty_id.into_global(module.id),
                             });
@@ -548,7 +551,9 @@ impl Compiler {
                             ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
-                                node: body.into_global_any(module.id),
+                                node: body
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(ctx.profile)),
                                 expected_ty: return_ty_id.into_global(module.id),
                                 actual_ty: body_ty_id.into_global(module.id),
                             });
@@ -930,6 +935,7 @@ impl Compiler {
     pub(super) fn infer_enum_backing_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         fields: &[LocalNodeId<EnumField>],
         tree: &NodeTree,
         types: &TypeTable,
@@ -948,7 +954,9 @@ impl Compiler {
             let value_type_id = types
                 .get_declared_or_inferred_type_id(value_id.into_global_any(module.id))
                 .ok_or(AnalyzeError::MissingType {
-                    node: value_id.into_global_any(module.id),
+                    node: value_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
                 })?;
             let value_type = types.get_type(value_type_id);
 
@@ -977,7 +985,9 @@ impl Compiler {
 
             let Some(field_backing_type) = field_backing_type else {
                 return Err(AnalyzeError::InvalidEnumBackingType {
-                    node: value_id.into_global_any(module.id),
+                    node: value_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
                     ty: value_type_id.into_global(module.id),
                 });
             };
@@ -992,7 +1002,9 @@ impl Compiler {
 
                 if !matches {
                     return Err(AnalyzeError::InvalidEnumBackingType {
-                        node: value_id.into_global_any(module.id),
+                        node: value_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
                         ty: value_type_id.into_global(module.id),
                     });
                 }

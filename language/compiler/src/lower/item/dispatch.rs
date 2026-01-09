@@ -27,7 +27,9 @@ impl ModuleLowerer<'_> {
                 ..
             } => self.lower_module_let(expression_id, *mutability, declarators),
             _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: format!("unsupported root expression `{}`", expression.kind_name()),
             })?,
         }

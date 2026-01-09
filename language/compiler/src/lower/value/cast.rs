@@ -31,7 +31,9 @@ impl BlockLowerer<'_, '_> {
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::ZeroExtend,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported int widen cast".to_string(),
                     })?;
                 }
@@ -45,7 +47,9 @@ impl BlockLowerer<'_, '_> {
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::UnsignedIntToFloat,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported int to float cast".to_string(),
                     })?;
                 }
@@ -55,7 +59,9 @@ impl BlockLowerer<'_, '_> {
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::FloatToUnsignedInt,
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported float to int cast".to_string(),
                     })?;
                 }
@@ -65,7 +71,9 @@ impl BlockLowerer<'_, '_> {
             dir::CastOperator::PointerCast => mir::CastOperator::Bitcast,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: format!("unsupported cast operator '{operator:?}'"),
                 })?;
             }

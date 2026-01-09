@@ -98,7 +98,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
             let value_id = declarator
                 .value
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "missing let initializer".to_string(),
                 })?;
 
@@ -120,7 +122,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                     // reject nested patterns for now
                     if pattern.is_some() {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: pattern_id.into_global_any(self.module_id),
+                            node: pattern_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "unsupported binding pattern".to_string(),
                         })?;
                     }
@@ -131,7 +135,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                     // reject duplicate bindings (#Incomplete?)
                     if self.locals_by_symbol.contains_key(&global_symbol_id) {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: pattern_id.into_global_any(self.module_id),
+                            node: pattern_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "duplicate local binding".to_string(),
                         })?;
                     }
@@ -153,7 +159,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: pattern_id.into_global_any(self.module_id),
+                        node: pattern_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported let pattern".to_string(),
                     })?;
                 }
@@ -246,7 +254,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 // header: evaluate condition and branch
                 self.builder.switch_to_block(header_block);
                 let condition_id = condition.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: body_id.into_global_any(self.module_id),
+                    node: body_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "while loop missing condition".to_string(),
                 })?;
                 let (condition_value, condition_type) =
@@ -275,7 +285,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 // header: evaluate condition and branch back or exit
                 self.builder.switch_to_block(header_block);
                 let condition_id = condition.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: body_id.into_global_any(self.module_id),
+                    node: body_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "do-while loop missing condition".to_string(),
                 })?;
                 let (condition_value, condition_type) =
@@ -395,7 +407,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
         };
 
         context.ok_or_else(|| LowerError::UnsupportedConstruct {
-            node: expression_id.into_global_any(self.module_id),
+            node: expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile)),
             message: "break/continue outside of loop".to_string(),
         })
     }
@@ -439,7 +453,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 MatchSelector::Default => {
                     if default_index.is_some() {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "multiple default cases".to_string(),
                         });
                     }
@@ -465,7 +481,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
             // guards not supported
             if guard.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "match guards not supported".to_string(),
                 });
             }
@@ -500,7 +518,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported match pattern".to_string(),
                     });
                 }
@@ -573,7 +593,9 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
     ) -> LowerResult<()> {
         if ty != self.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
-                node: node_id.into_global_any(self.module_id),
+                node: node_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: format!("{context} requires boolean"),
             });
         }

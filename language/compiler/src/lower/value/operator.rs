@@ -16,7 +16,9 @@ impl BlockLowerer<'_, '_> {
         let scalar_type =
             self.scalar_type_for_expression(operand_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
         let is_float = matches!(scalar_type, ScalarType::Float { .. });
         let is_signed = matches!(scalar_type, ScalarType::SignedInt { .. });
@@ -89,7 +91,9 @@ impl BlockLowerer<'_, '_> {
 
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: format!("unsupported binary operator '{operator:?}'"),
                 });
             }
@@ -120,7 +124,9 @@ impl BlockLowerer<'_, '_> {
 
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: format!("unsupported unary operator '{operator:?}'"),
                 });
             }
@@ -147,7 +153,9 @@ impl BlockLowerer<'_, '_> {
         // verify LHS is boolean
         if lhs_type != self.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: "logical operator requires boolean operands".to_string(),
             });
         }
@@ -174,7 +182,9 @@ impl BlockLowerer<'_, '_> {
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: format!("unexpected logical operator '{operator:?}'"),
                 });
             }
@@ -198,7 +208,9 @@ impl BlockLowerer<'_, '_> {
         // verify RHS is boolean
         if rhs_type != self.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: "logical operator requires boolean operands".to_string(),
             });
         }

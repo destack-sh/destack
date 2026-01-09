@@ -6,61 +6,8 @@ use dashmap::DashMap;
 
 use crate::{DsConfigCompilerOptions, Platform, Runtime};
 
-/// Unique identifier for profiles.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ProfileId(pub u32);
-
-impl std::fmt::Debug for ProfileId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-impl std::fmt::Display for ProfileId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-impl ProfileId {
-    /// Wrap an id as a ProfileId.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-}
-
-/// Version of a profile's compiled state (increments on recomputation).
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct ProfileVersion(pub u64);
-
-impl std::fmt::Debug for ProfileVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl std::fmt::Display for ProfileVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl ProfileVersion {
-    /// Initial version.
-    pub const INITIAL: Self = Self(0);
-
-    /// Create a new ProfileVersion.
-    pub fn new(version: u64) -> Self {
-        Self(version)
-    }
-
-    /// Increment the version, returning the new value.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
-    }
-}
+// Re-export ProfileId and ProfileVersion from destack_source
+pub use destack_source::{ProfileId, ProfileVersion};
 
 /// Comptime environment snapshot used for profile identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

@@ -122,7 +122,7 @@ impl Compiler {
             let dir = module.dir(profile_id);
             let mut tree = dir.tree.write();
             for patch in patches {
-                self.apply_comptime_patch(module_id, &mut tree, patch);
+                self.apply_comptime_patch(module_id, profile_id, &mut tree, patch);
             }
         }
 
@@ -138,12 +138,16 @@ impl Compiler {
     ) -> ExecuteResult<()> {
         // ensure the expression belongs to the target module
         if module_id != expression.module_id {
-            return Err(ExecuteError::UnsupportedConstruct { node: expression });
+            return Err(ExecuteError::UnsupportedConstruct {
+                node: expression.into_anchored(Some(profile_id)),
+            });
         }
         let expression_id = expression
             .local_id
             .try_into_typed::<dir::Expression>()
-            .map_err(|_| ExecuteError::UnsupportedConstruct { node: expression })?;
+            .map_err(|_| ExecuteError::UnsupportedConstruct {
+                node: expression.into_anchored(Some(profile_id)),
+            })?;
 
         // ensure module comptime state exists
         self.require_execute_module_prepare(module_id, profile_id)?;

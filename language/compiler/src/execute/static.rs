@@ -1,9 +1,11 @@
 use crate::{Compiler, ExecuteError, ExecuteResult};
 
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 use {destack_dir as dir, destack_vm as vm};
 
 #[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Convert a static expression into a VM value.
     pub(crate) fn static_expression_to_value(
@@ -50,6 +52,7 @@ impl Compiler {
         &self,
         tree: &mut dir::NodeTree,
         module_id: ModuleId,
+        profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,
         parent_id: dir::LocalNodeIdAny,
         scope: (dir::LocalScopeId, dir::LocalScopeMark),
@@ -72,14 +75,14 @@ impl Compiler {
                 let start_any =
                     tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let start_expression = self.static_expression_to_expression(
-                    tree, module_id, anchor_id, start_any, scope, start,
+                    tree, module_id, profile_id, anchor_id, start_any, scope, start,
                 )?;
                 let start_id = tree.insert(start_any, start_expression);
 
                 let end_any =
                     tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let end_expression = self.static_expression_to_expression(
-                    tree, module_id, anchor_id, end_any, scope, end,
+                    tree, module_id, profile_id, anchor_id, end_any, scope, end,
                 )?;
                 let end_id = tree.insert(end_any, end_expression);
 
@@ -106,7 +109,7 @@ impl Compiler {
                         Some(argument_any),
                     );
                     let value_expression = self.static_expression_to_expression(
-                        tree, module_id, anchor_id, value_any, scope, element,
+                        tree, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
                     let argument = dir::Argument::Positional { value: value_id };
@@ -135,7 +138,7 @@ impl Compiler {
                         Some(argument_any),
                     );
                     let value_expression = self.static_expression_to_expression(
-                        tree, module_id, anchor_id, value_any, scope, element,
+                        tree, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
                     let argument = dir::Argument::Positional { value: value_id };
@@ -160,6 +163,7 @@ impl Compiler {
                     let property = self.static_property_to_property(
                         tree,
                         module_id,
+                        profile_id,
                         anchor_id,
                         property_any,
                         scope,
@@ -174,7 +178,9 @@ impl Compiler {
                 })
             }
             _ => Err(ExecuteError::UnsupportedConstruct {
-                node: anchor_id.into_global(module_id),
+                node: anchor_id
+                    .into_global(module_id)
+                    .into_anchored(Some(profile_id)),
             }),
         }
     }
@@ -184,6 +190,7 @@ impl Compiler {
         &self,
         tree: &mut dir::NodeTree,
         module_id: ModuleId,
+        profile_id: ProfileId,
         anchor_id: dir::LocalNodeIdAny,
         parent_id: dir::LocalNodeIdAny,
         scope: (dir::LocalScopeId, dir::LocalScopeMark),
@@ -201,7 +208,7 @@ impl Compiler {
                 let value_any =
                     tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let value_expression = self.static_expression_to_expression(
-                    tree, module_id, anchor_id, value_any, scope, value,
+                    tree, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;
                 let value_id = tree.insert(value_any, value_expression);
 
@@ -217,6 +224,7 @@ impl Compiler {
                         let default_expression = self.static_expression_to_expression(
                             tree,
                             module_id,
+                            profile_id,
                             anchor_id,
                             default_any,
                             scope,
@@ -246,7 +254,7 @@ impl Compiler {
                 let body_any =
                     tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let body_expression = self.static_expression_to_expression(
-                    tree, module_id, anchor_id, body_any, scope, body,
+                    tree, module_id, profile_id, anchor_id, body_any, scope, body,
                 )?;
                 let body_id = tree.insert(body_any, body_expression);
 
@@ -259,7 +267,9 @@ impl Compiler {
                 })
             }
             dir::StaticProperty::Unevaluated { .. } => Err(ExecuteError::UnsupportedConstruct {
-                node: anchor_id.into_global(module_id),
+                node: anchor_id
+                    .into_global(module_id)
+                    .into_anchored(Some(profile_id)),
             }),
         }
     }

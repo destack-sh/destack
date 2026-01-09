@@ -27,7 +27,9 @@ impl BlockLowerer<'_, '_> {
                 self.builder.tree(),
             )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: "field not found in aggregate type".to_string(),
             })?;
 
@@ -35,7 +37,9 @@ impl BlockLowerer<'_, '_> {
         let result_type =
             self.mir_type_for_expression(expression_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
 
         // emit field_get
@@ -58,7 +62,9 @@ impl BlockLowerer<'_, '_> {
         let result_type =
             self.mir_type_for_expression(expression_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
 
         // emit element_get

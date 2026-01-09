@@ -60,15 +60,15 @@ impl Compiler {
                     };
                     let error = if symbol.export.is_some() && other_symbol.export.is_some() {
                         ImportError::ConflictingExport {
-                            node: primary_declaration,
-                            other_node: other_primary_declaration,
+                            node: primary_declaration.into_anchored(None),
+                            other_node: other_primary_declaration.into_anchored(None),
                             module: module.id,
                             name: Some(*key),
                         }
                     } else {
                         ImportError::ConflictingBinding {
-                            node: primary_declaration,
-                            other_node: other_primary_declaration,
+                            node: primary_declaration.into_anchored(None),
+                            other_node: other_primary_declaration.into_anchored(None),
                             scope: symbol.scope.0.into_global(module.id),
                             name: Some(*key),
                         }

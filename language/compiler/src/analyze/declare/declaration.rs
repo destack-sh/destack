@@ -1083,7 +1083,9 @@ impl Compiler {
                     value: TypeLiteral::Unknown
                 }
             ) {
-                self.warning(AnalyzeWarning::ExportTypeUnknown { node: node_id });
+                self.warning(AnalyzeWarning::ExportTypeUnknown {
+                    node: node_id.into_anchored(Some(profile)),
+                });
             }
         }
 

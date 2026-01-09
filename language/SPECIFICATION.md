@@ -2,7 +2,7 @@
 
 The Destack language is "TypeScript++" for building optimal, correct, integrated full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
-`.ts` and `.js` files work exactly the same as before.
+`.ts` and `.js` files work exactly the same as before (for modern strict mode).
 **Copy-pasting from `.js` or `.ts` into `.ds` works** for real-world code—see [Compatibility](DESIGN.md#compatibility) for rare edge cases.
 See [DESIGN.md](DESIGN.md) for design and motivation.
 

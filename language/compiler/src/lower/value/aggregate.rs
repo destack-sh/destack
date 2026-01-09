@@ -16,7 +16,9 @@ impl BlockLowerer<'_, '_> {
         let tuple_type =
             self.mir_type_for_expression(expression_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
 
         // lower each element value
@@ -30,7 +32,9 @@ impl BlockLowerer<'_, '_> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported tuple element kind".to_string(),
                     })?;
                 }
@@ -52,7 +56,9 @@ impl BlockLowerer<'_, '_> {
         let array_type =
             self.mir_type_for_expression(expression_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
 
         // lower each element value
@@ -66,7 +72,9 @@ impl BlockLowerer<'_, '_> {
                 }
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unsupported array element kind".to_string(),
                     })?;
                 }
@@ -89,7 +97,9 @@ impl BlockLowerer<'_, '_> {
         let struct_type =
             self.mir_type_for_expression(expression_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
 
         // get the cached layout for this struct type
@@ -97,7 +107,9 @@ impl BlockLowerer<'_, '_> {
             .type_lowerer
             .layout_for_type(struct_type)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: "missing struct layout".to_string(),
             })?;
 
@@ -114,7 +126,9 @@ impl BlockLowerer<'_, '_> {
                     let key = key
                         .as_ref()
                         .ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "struct field missing key".to_string(),
                         })?;
 
@@ -124,7 +138,9 @@ impl BlockLowerer<'_, '_> {
 
                     // get the initializer value
                     let value_expr = value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "struct field missing initializer".to_string(),
                     })?;
 
@@ -134,7 +150,9 @@ impl BlockLowerer<'_, '_> {
                     // check for duplicate field
                     if field_values[field_index].is_some() {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "duplicate struct field".to_string(),
                         });
                     }
@@ -143,13 +161,17 @@ impl BlockLowerer<'_, '_> {
                 }
                 dir::Property::Spread { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "spread properties not yet supported".to_string(),
                     });
                 }
                 dir::Property::Method { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "method properties in object literals not supported".to_string(),
                     });
                 }
@@ -162,7 +184,9 @@ impl BlockLowerer<'_, '_> {
             .enumerate()
             .map(|(i, v)| {
                 v.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: format!("struct field {i} not initialized"),
                 })
             })
@@ -187,7 +211,9 @@ impl BlockLowerer<'_, '_> {
                     .field_index(*name)
                     .map(|i| i as usize)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "struct field not found".to_string(),
                     })
             }
@@ -198,20 +224,26 @@ impl BlockLowerer<'_, '_> {
                     index_str
                         .parse()
                         .map_err(|_| LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "invalid numeric field key".to_string(),
                         })?;
                 layout
                     .field_index_by_source(source_index)
                     .map(|i| i as usize)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "field index out of bounds".to_string(),
                     })
             }
             dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => {
                 Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "computed property keys not supported".to_string(),
                 })
             }

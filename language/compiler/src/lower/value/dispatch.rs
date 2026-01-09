@@ -36,7 +36,9 @@ impl BlockLowerer<'_, '_> {
                 // some unresolved symbol reference
                 else {
                     Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "unresolved symbol reference".to_string(),
                     })
                 }
@@ -57,7 +59,9 @@ impl BlockLowerer<'_, '_> {
                 // resolve the target type for the cast
                 let target_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
                     LowerError::MissingType {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                     }
                 })?;
 
@@ -90,7 +94,9 @@ impl BlockLowerer<'_, '_> {
                 // get result type
                 let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
                     LowerError::MissingType {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                     }
                 })?;
 
@@ -113,7 +119,9 @@ impl BlockLowerer<'_, '_> {
                     Expression::LocalReference { target_symbol, .. } => *target_symbol,
                     _ => {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "unsupported assignment target".to_string(),
                         })?;
                     }
@@ -135,7 +143,9 @@ impl BlockLowerer<'_, '_> {
             } => {
                 if static_arguments.is_some() {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "static arguments are not supported".to_string(),
                     })?;
                 }
@@ -146,7 +156,9 @@ impl BlockLowerer<'_, '_> {
                     | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
                     _ => {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "unsupported call expression target".to_string(),
                         })?;
                     }
@@ -156,7 +168,9 @@ impl BlockLowerer<'_, '_> {
                         .functions_by_symbol
                         .get(&callee_symbol)
                         .ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "missing function symbol".to_string(),
                         })?;
 
@@ -165,7 +179,9 @@ impl BlockLowerer<'_, '_> {
                     let argument = self.dir_tree.get(*argument_id);
                     if !matches!(argument, dir::Argument::Positional { .. }) {
                         return Err(LowerError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module_id),
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
                             message: "unsupported non-positional argument".to_string(),
                         })?;
                     }
@@ -175,12 +191,16 @@ impl BlockLowerer<'_, '_> {
 
                 let result_type = self.mir_type_for_expression(expression_id).ok_or_else(|| {
                     LowerError::MissingType {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                     }
                 })?;
                 let value = self.builder.call(function_id, arguments).ok_or_else(|| {
                     LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "missing function call result type".to_string(),
                     }
                 })?;
@@ -199,7 +219,9 @@ impl BlockLowerer<'_, '_> {
             } => {
                 if static_arguments.is_some() {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: expression_id.into_global_any(self.module_id),
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "static arguments on member access are not supported".to_string(),
                     })?;
                 }
@@ -207,7 +229,9 @@ impl BlockLowerer<'_, '_> {
             }
             Expression::Index { left, right } => {
                 let index_expr = right.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "missing index expression".to_string(),
                 })?;
                 self.lower_index_expression(expression_id, *left, index_expr)
@@ -242,7 +266,9 @@ impl BlockLowerer<'_, '_> {
                 self.lower_tagged_object_expression(expression_id, *ty, properties)
             }
             _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: format!("unsupported value expression '{}'", expression.kind_name()),
             })?,
         }

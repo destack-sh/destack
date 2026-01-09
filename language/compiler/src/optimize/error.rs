@@ -1,14 +1,18 @@
+use destack_compiler_macros::DefineError;
+use destack_mir as mir;
+use destack_workspace::Program;
+
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
 };
-use destack_compiler_macros::DefineError;
-use destack_dir::GlobalNodeIdAny;
-use destack_workspace::Program;
 
 /// Errors during the optimize phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
 #[phase(Optimize)]
 pub enum OptimizeError {
+    // -------------------------------------------------------------------------
+    // 0xx: Yield / dependency
+    // -------------------------------------------------------------------------
     /// Wait for task dependency.
     #[error(code = "EO000", r#yield)]
     Yield { dependency: TaskDependency },
@@ -17,18 +21,101 @@ pub enum OptimizeError {
     #[error(code = "EO001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
 
-    /// Optimization is impossible for this node.
-    #[error(code = "EO002", message = "unsupported construct")]
-    UnsupportedConstruct { node: GlobalNodeIdAny },
+    // -------------------------------------------------------------------------
+    // 1xx: Move / ownership errors
+    // -------------------------------------------------------------------------
+    /// Value used after ownership was transferred.
+    #[error(code = "EO100", message = "use of moved value")]
+    UseAfterMove {
+        node: mir::AnchoredGlobalNodeId,
+        moved_at: mir::AnchoredGlobalNodeId,
+    },
 
-    /// Unsupported optimization.
-    #[error(code = "EO003", message = "unsupported optimization")]
-    UnsupportedOptimization { node: GlobalNodeIdAny },
+    /// Value moved multiple times.
+    #[error(code = "EO101", message = "value moved twice")]
+    DoubleMove {
+        node: mir::AnchoredGlobalNodeId,
+        first_move: mir::AnchoredGlobalNodeId,
+    },
 
-    /// Undefined behavior possible.
-    #[error(code = "EO004", message = "possible undefined behavior: {behavior}")]
-    PossibleUndefinedBehavior {
-        node: GlobalNodeIdAny,
-        behavior: String,
+    /// Cannot move a value that is currently borrowed.
+    #[error(code = "EO102", message = "cannot move while borrowed")]
+    MoveOfBorrowedValue {
+        node: mir::AnchoredGlobalNodeId,
+        borrowed_at: mir::AnchoredGlobalNodeId,
+    },
+
+    /// Using a partially-moved aggregate (field was moved, then whole struct used).
+    #[error(code = "EO103", message = "use of partially moved value")]
+    PartialMove {
+        node: mir::AnchoredGlobalNodeId,
+        moved_at: mir::AnchoredGlobalNodeId,
+    },
+
+    // -------------------------------------------------------------------------
+    // 2xx: Borrow errors
+    // -------------------------------------------------------------------------
+    /// Mutable borrow conflicts with existing borrow.
+    #[error(code = "EO200", message = "cannot borrow as mutable: already borrowed")]
+    ConflictingBorrow {
+        node: mir::AnchoredGlobalNodeId,
+        existing_borrow: mir::AnchoredGlobalNodeId,
+        existing_is_mutable: bool,
+    },
+
+    /// Reference used after the borrowed value was mutated through another path.
+    #[error(code = "EO201", message = "borrow invalidated by mutation")]
+    InvalidatedReference {
+        node: mir::AnchoredGlobalNodeId,
+        invalidated_by: mir::AnchoredGlobalNodeId,
+    },
+
+    /// Borrow outlives the value it borrows from.
+    #[error(code = "EO202", message = "borrow escapes scope")]
+    BorrowEscapesScope {
+        node: mir::AnchoredGlobalNodeId,
+        escapes_at: mir::AnchoredGlobalNodeId,
+    },
+
+    /// Attempting to borrow a value that was already moved.
+    #[error(code = "EO203", message = "cannot borrow: value was moved")]
+    BorrowOfMovedValue {
+        node: mir::AnchoredGlobalNodeId,
+        moved_at: mir::AnchoredGlobalNodeId,
+    },
+
+    // -------------------------------------------------------------------------
+    // 3xx: Lifetime errors
+    // -------------------------------------------------------------------------
+    /// Returning a reference to a local variable.
+    #[error(code = "EO300", message = "cannot return reference to local")]
+    ReturnReferenceToLocal { node: mir::AnchoredGlobalNodeId },
+
+    /// Reference to local stored in longer-lived location.
+    #[error(code = "EO301", message = "reference to local escapes function")]
+    LocalReferenceEscapes { node: mir::AnchoredGlobalNodeId },
+
+    // -------------------------------------------------------------------------
+    // 4xx: Drop errors
+    // -------------------------------------------------------------------------
+    /// Dropping a value while it is borrowed.
+    #[error(code = "EO400", message = "cannot drop: value is borrowed")]
+    DropWhileBorrowed {
+        node: mir::AnchoredGlobalNodeId,
+        borrowed_at: mir::AnchoredGlobalNodeId,
+    },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Unsupported / internal
+    // -------------------------------------------------------------------------
+    /// Unsupported MIR construct encountered during optimization.
+    #[error(code = "EO900", message = "unsupported MIR construct")]
+    UnsupportedConstruct { node: mir::AnchoredGlobalNodeId },
+
+    /// Internal optimization error.
+    #[error(code = "EO901", message = "internal optimization error: {message}")]
+    InternalError {
+        node: mir::AnchoredGlobalNodeId,
+        message: String,
     },
 }

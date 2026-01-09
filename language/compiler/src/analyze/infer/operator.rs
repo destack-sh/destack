@@ -65,7 +65,9 @@ impl Compiler {
         // require explicit operator interface implementation
         if !self.is_interface_implemented(&right_ty, operator_item, types) {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: right_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -91,7 +93,9 @@ impl Compiler {
         )?
         else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -109,7 +113,9 @@ impl Compiler {
                 types,
             );
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: right_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -121,7 +127,9 @@ impl Compiler {
         // unary operators expect no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: right_ty_id.into_global(module.id),
             });
         }
@@ -181,7 +189,9 @@ impl Compiler {
 
             if let Some(struct_ty_id) = struct_ty_id {
                 self.error(AnalyzeError::InvalidStrictEquality {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                     ty: struct_ty_id.into_global(module.id),
                 });
             }
@@ -227,7 +237,9 @@ impl Compiler {
         // require explicit operator interface implementation
         if !self.is_interface_implemented(&left_ty, operator_item, types) {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -253,7 +265,9 @@ impl Compiler {
         )?
         else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -265,7 +279,9 @@ impl Compiler {
         if !resolved.has_member {
             self.record_member_call_resolution(module, expression_id, left_ty_id, &resolved, types);
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -278,7 +294,9 @@ impl Compiler {
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
         }
@@ -304,7 +322,9 @@ impl Compiler {
                 ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                     expected_ty: parameter_ty_id.into_global(module.id),
                     actual_ty: right_ty_id.into_global(module.id),
                 });
@@ -392,7 +412,9 @@ impl Compiler {
             ) == Assignability::NotAssignable
         {
             return Err(AnalyzeError::UnassignableType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 expected_ty: left_ty_id.into_global(module.id),
                 actual_ty: right_ty_id.into_global(module.id),
             });
@@ -463,7 +485,9 @@ impl Compiler {
 
             if !branch.has_member {
                 self.error(AnalyzeError::NoOverload {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                     receiver_ty: left_ty_id.into_global(module.id),
                 });
                 let ty = Type::TypeLiteral {
@@ -474,7 +498,9 @@ impl Compiler {
 
             let Some(value_ty_id) = branch.value_type_id else {
                 self.error(AnalyzeError::MissingType {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                 });
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
@@ -560,7 +586,9 @@ impl Compiler {
 
         if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::Index, types) {
             self.error(AnalyzeError::NonIndexable {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -585,7 +613,9 @@ impl Compiler {
         )?
         else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -603,7 +633,9 @@ impl Compiler {
                 types,
             );
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: receiver_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -616,7 +648,9 @@ impl Compiler {
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: receiver_ty_id.into_global(module.id),
             });
         }
@@ -642,7 +676,9 @@ impl Compiler {
                 ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                     expected_ty: parameter_ty_id.into_global(module.id),
                     actual_ty: index_ty_id.into_global(module.id),
                 });
@@ -735,7 +771,9 @@ impl Compiler {
                 ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                     expected_ty: builtin_value_ty_id.into_global(module.id),
                     actual_ty: value_ty_id.into_global(module.id),
                 });
@@ -755,7 +793,9 @@ impl Compiler {
 
         if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::IndexSet, types) {
             self.error(AnalyzeError::NonIndexable {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
@@ -780,7 +820,9 @@ impl Compiler {
         )?
         else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
@@ -798,7 +840,9 @@ impl Compiler {
                 types,
             );
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: receiver_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -812,7 +856,9 @@ impl Compiler {
         let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
         if resolved.signature.dynamic_parameters.len() != 2 {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: receiver_ty_id.into_global(module.id),
             });
         }
@@ -859,7 +905,9 @@ impl Compiler {
                 ) == Assignability::NotAssignable
             {
                 return Err(AnalyzeError::UnassignableType {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                     expected_ty: value_param_ty_id.into_global(module.id),
                     actual_ty: value_ty_id.into_global(module.id),
                 });
@@ -893,7 +941,9 @@ impl Compiler {
 
         if !self.is_interface_implemented(&left_ty, LanguageSymbol::Try, types) {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -918,7 +968,9 @@ impl Compiler {
 
         if !branch.has_member {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
@@ -929,7 +981,9 @@ impl Compiler {
 
         let Some(value_ty_id) = branch.value_type_id else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -974,7 +1028,9 @@ impl Compiler {
         )?
         else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
             });
             return Ok(TryBranchResolution {
                 value_type_id: None,
@@ -997,7 +1053,9 @@ impl Compiler {
         // branch expects no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
             self.error(AnalyzeError::NoOverload {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
                 receiver_ty: receiver_ty_id.into_global(module.id),
             });
         }

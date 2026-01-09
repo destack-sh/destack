@@ -142,14 +142,20 @@ impl Compiler {
 
         // emit unreachable warnings when enabled
         if !context.options.allow_unreachable_code {
-            self.warn_unreachable_blocks(module, graph, &flow);
+            self.warn_unreachable_blocks(module, context.profile, graph, &flow);
         }
 
         Ok(flow)
     }
 
     /// Emit warnings for unreachable blocks when diagnostics are enabled.
-    fn warn_unreachable_blocks(&self, module: &Module, graph: &FlowGraph, flow: &FlowTable) {
+    fn warn_unreachable_blocks(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        graph: &FlowGraph,
+        flow: &FlowTable,
+    ) {
         for block in &graph.blocks {
             // skip the entry block
             if block.id == graph.entry_block {
@@ -171,7 +177,7 @@ impl Compiler {
             }
 
             self.warning(AnalyzeWarning::UnreachableCode {
-                node: node_id.into_global(module.id),
+                node: node_id.into_global(module.id).into_anchored(Some(profile)),
             });
         }
     }

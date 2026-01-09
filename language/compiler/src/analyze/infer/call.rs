@@ -343,7 +343,9 @@ impl Compiler {
                     call_has_static_arguments && member_has_static_arguments;
                 if has_static_argument_conflict {
                     self.error(AnalyzeError::ConflictingStaticArguments {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
                     });
                 }
 
@@ -493,7 +495,7 @@ impl Compiler {
                         .map(|id| id.into_global_any(module.id))
                         .unwrap_or_else(|| expression_id.into_global_any(module.id));
                     return Err(AnalyzeError::UnassignableType {
-                        node: argument_node,
+                        node: argument_node.into_anchored(Some(ctx.profile)),
                         expected_ty: param_ty_id.into_global(module.id),
                         actual_ty: argument_ty_id.into_global(module.id),
                     });
@@ -666,7 +668,9 @@ impl Compiler {
             if let Some(argument_ids) = static_argument_ids {
                 for argument_id in argument_ids {
                     self.error(AnalyzeError::MissingType {
-                        node: argument_id.into_global_any(module.id),
+                        node: argument_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
                     });
                 }
             }
@@ -722,6 +726,7 @@ impl Compiler {
             .collect::<Vec<_>>();
         let assigned_arguments = self.assign_static_argument_values(
             module.id,
+            profile,
             node_id,
             &argument_values,
             &static_parameters,
@@ -758,6 +763,7 @@ impl Compiler {
                 Some(argument) => argument,
                 None => self.missing_static_argument_for_function(
                     module,
+                    profile,
                     node_id,
                     owner_symbol,
                     static_parameter,

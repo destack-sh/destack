@@ -1,6 +1,6 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
 use destack_compiler_macros::DefineWarning;
-use destack_dir::GlobalNodeIdAny;
+use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
@@ -8,22 +8,37 @@ use destack_workspace::Program;
 #[derive(Debug, Clone, PartialEq, DefineWarning)]
 #[phase(Import)]
 pub enum ImportWarning {
+    // -------------------------------------------------------------------------
+    // 1xx: File / size warnings
+    // -------------------------------------------------------------------------
     /// Huge file.
-    #[warning(code = "WI001", message = "oversized file ({len} bytes)")]
+    #[warning(code = "WI100", message = "oversized file ({len} bytes)")]
     OversizedFile { module: ModuleId, len: usize },
 
+    // -------------------------------------------------------------------------
+    // 2xx: Target / config warnings
+    // -------------------------------------------------------------------------
     /// Use of deprecated target / CPU / ABI.
-    #[warning(code = "WI002", message = "deprecated target")]
-    DeprecatedTarget { node: GlobalNodeIdAny },
+    #[warning(code = "WI200", message = "deprecated target")]
+    DeprecatedTarget { node: AnchoredGlobalNodeId },
 
+    // -------------------------------------------------------------------------
+    // 3xx: Symbol warnings
+    // -------------------------------------------------------------------------
     /// Weak/duplicate symbol but one chosen deterministically (e.g. ODR violation that's survivable).
-    #[warning(code = "WI003", message = "weak symbol")]
+    #[warning(code = "WI300", message = "weak symbol")]
     WeakSymbol {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         symbol: String,
     },
 
+    // -------------------------------------------------------------------------
+    // 4xx: Size warnings
+    // -------------------------------------------------------------------------
     /// Large binary / large static data section ("binary size exceeded X MB").
-    #[warning(code = "WI004", message = "large binary")]
-    LargeBinary { node: GlobalNodeIdAny, size_mb: u64 },
+    #[warning(code = "WI400", message = "large binary")]
+    LargeBinary {
+        node: AnchoredGlobalNodeId,
+        size_mb: u64,
+    },
 }

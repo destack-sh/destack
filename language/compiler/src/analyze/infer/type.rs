@@ -1114,7 +1114,9 @@ impl Compiler {
                 {
                     // neither direction works: illegal cast
                     self.error(AnalyzeError::InvalidCast {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
                         from_ty: left_ty_id.into_global(module.id),
                         to_ty: right_ty_id.into_global(module.id),
                     });
@@ -1145,7 +1147,9 @@ impl Compiler {
                 ) == Assignability::NotAssignable
                 {
                     self.error(AnalyzeError::UnsatisfiedType {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
                         expected_ty: target_ty_id.into_global(module.id),
                         actual_ty: actual_ty_id.into_global(module.id),
                     });

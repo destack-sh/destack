@@ -9,8 +9,10 @@ use std::path::PathBuf;
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
+    self as dir, FunctionAbstraction, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StaticKey,
+    Visibility,
 };
+use destack_mir as mir;
 use destack_source::{FileType, ModuleId, PackageId, Uri};
 use destack_workspace::{ProfileId, Program, TargetId};
 
@@ -125,6 +127,18 @@ impl DiagnosticFormat for ProfileId {
 impl DiagnosticFormat for GlobalNodeIdAny {
     fn diagnostic_fmt(&self, _program: &Program) -> String {
         self.local_id.ty.name().to_string()
+    }
+}
+
+impl DiagnosticFormat for dir::AnchoredGlobalNodeId {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        self.node_id.diagnostic_fmt(program)
+    }
+}
+
+impl DiagnosticFormat for mir::AnchoredGlobalNodeId {
+    fn diagnostic_fmt(&self, _program: &Program) -> String {
+        self.node_id.local_id.ty.name().to_string()
     }
 }
 

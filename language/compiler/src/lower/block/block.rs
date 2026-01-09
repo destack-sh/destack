@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use destack_base::StringPool;
 use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 use {destack_dir as dir, destack_mir as mir};
 
 use super::super::TypeLowerer;
@@ -56,6 +57,8 @@ pub(crate) struct LoopContext {
 pub(crate) struct BlockLowerer<'a, 'b> {
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
+    /// Identify the profile used for DIR access.
+    pub(crate) profile: ProfileId,
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::NodeTree,
     /// Provide access to symbol metadata for type resolution.

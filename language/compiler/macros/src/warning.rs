@@ -296,7 +296,7 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
         .map(|v| {
             let name = &v.name;
             let code_str = v.code.value();
-            let sub_code: u8 = code_str[2..].parse().unwrap_or(0);
+            let sub_code: u16 = code_str[2..].parse().unwrap_or(0);
             quote! { Self::#name { .. } => #sub_code }
         })
         .collect();
@@ -318,7 +318,7 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
                     .unwrap()
                     .attrs,
             );
-            let sub_code: u8 = code[2..].parse().unwrap_or(0);
+            let sub_code: u16 = code[2..].parse().unwrap_or(0);
             quote! {
                 DiagnosticDefinition {
                     code: #code,
@@ -329,6 +329,9 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
             }
         })
         .collect();
+
+    // determine if this phase uses MIR nodes (Optimize and Link do)
+    let uses_mir = phase_str == "Optimize" || phase_str == "Link";
 
     // generate anchor match arms
     let anchor_arms: Vec<TokenStream2> = variants
@@ -345,14 +348,27 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
 
             if has_module && node_is_option {
                 // both module and optional node: use node if present, otherwise module
-                quote! {
-                    Self::#name { node, module, .. } => match node {
-                        Some(n) => DiagnosticAnchor::Node(*n),
-                        None => DiagnosticAnchor::Module(*module),
+                if uses_mir {
+                    quote! {
+                        Self::#name { node, module, .. } => match node {
+                            Some(n) => DiagnosticAnchor::MirNode(n.clone()),
+                            None => DiagnosticAnchor::Module(*module),
+                        }
+                    }
+                } else {
+                    quote! {
+                        Self::#name { node, module, .. } => match node {
+                            Some(n) => DiagnosticAnchor::DirNode((*n).into()),
+                            None => DiagnosticAnchor::Module(*module),
+                        }
                     }
                 }
             } else if v.fields.iter().any(|(n, _)| n == "node") {
-                quote! { Self::#name { node, .. } => DiagnosticAnchor::Node(*node) }
+                if uses_mir {
+                    quote! { Self::#name { node, .. } => DiagnosticAnchor::MirNode(node.clone()) }
+                } else {
+                    quote! { Self::#name { node, .. } => DiagnosticAnchor::DirNode((*node).into()) }
+                }
             } else if v.fields.iter().any(|(n, _)| n == "span") {
                 quote! { Self::#name { span, .. } => DiagnosticAnchor::File(span.file) }
             } else if v.fields.iter().any(|(n, _)| n == "package") {
@@ -425,7 +441,7 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
 
             /// Get the numeric sub-code of the warning.
             #[inline]
-            pub fn sub_code(&self) -> u8 {
+            pub fn sub_code(&self) -> u16 {
                 match self {
                     #(#sub_code_arms),*
                 }

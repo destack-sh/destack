@@ -463,7 +463,7 @@ impl TaskDependency {
     /// Get the anchor for this dependency.
     pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
-            Self::Complete { anchor, .. } => *anchor,
+            Self::Complete { anchor, .. } => anchor.clone(),
             Self::CompleteAll { dependencies } => dependencies
                 .first()
                 .map(|dependency| dependency.anchor())
@@ -478,7 +478,7 @@ impl TaskDependency {
     /// Get all anchors involved in this dependency.
     pub fn anchors(&self) -> Vec<DiagnosticAnchor> {
         match self {
-            Self::Complete { anchor, .. } => vec![*anchor],
+            Self::Complete { anchor, .. } => vec![anchor.clone()],
             Self::CompleteAll { dependencies } => dependencies
                 .iter()
                 .flat_map(|dependency| dependency.anchors())

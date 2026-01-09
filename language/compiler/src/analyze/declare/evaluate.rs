@@ -761,7 +761,9 @@ impl Compiler {
             // sequence expression (comma operator)
             Expression::SequenceExpression { .. } => {
                 return Err(AnalyzeError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module.id),
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
                 });
             }
             // object (anonymous)
@@ -812,7 +814,9 @@ impl Compiler {
                                 self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
                             }) else {
                                 return Err(AnalyzeError::UnsupportedConstruct {
-                                    node: property_id.into_global_any(module.id),
+                                    node: property_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
                                 });
                             };
 
@@ -880,7 +884,9 @@ impl Compiler {
                                 self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
                             }) else {
                                 return Err(AnalyzeError::UnsupportedConstruct {
-                                    node: property_id.into_global_any(module.id),
+                                    node: property_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
                                 });
                             };
 
@@ -912,7 +918,9 @@ impl Compiler {
                         Property::Spread { .. } => {
                             // #Incomplete: spread properties into types
                             return Err(AnalyzeError::UnsupportedConstruct {
-                                node: property_id.into_global_any(module.id),
+                                node: property_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
                             });
                         }
                     };

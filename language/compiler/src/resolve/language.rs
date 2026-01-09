@@ -662,7 +662,7 @@ mod tests {
         test.resolve_builtins();
         test.resolve_libs();
         test.compile();
-        test.check_has_diagnostic("ER015");
+        test.check_has_diagnostic("ER402");
     }
 
     /// Resolve well known symbols from builtin libs.

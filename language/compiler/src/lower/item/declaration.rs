@@ -26,14 +26,18 @@ impl ModuleLowerer<'_> {
                         self.types,
                         instance_type_id,
                         self.module_id,
-                        declaration_id.into_global_any(self.module_id),
+                        declaration_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         &mut self.builder,
                     )?;
                 }
                 Ok(())
             }
             _ => Err(LowerError::UnsupportedConstruct {
-                node: declaration_id.into_global_any(self.module_id),
+                node: declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: "unsupported declaration".to_string(),
             }),
         }

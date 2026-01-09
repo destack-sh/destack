@@ -38,17 +38,17 @@ impl Compiler {
 
         // validate declarations
         for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-            self.validate_declaration(&module, &types, id, declaration);
+            self.validate_declaration(&module, profile, &types, id, declaration);
         }
 
         // validate parameters
         for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
-            self.validate_parameter(&module, &tree, id, parameter);
+            self.validate_parameter(&module, profile, &tree, id, parameter);
         }
 
         // validate members
         for (id, member) in tree.iter_nodes_of_type::<Member>() {
-            self.validate_member(&module, &tree, id, member);
+            self.validate_member(&module, profile, &tree, id, member);
         }
 
         Ok(())

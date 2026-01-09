@@ -3,7 +3,7 @@ use destack_dir::{
     BindingModifier, Declaration, FunctionMode, GlobalNodeIdAny, LocalNodeId, Member, Mutability,
     NodeTree, NodeType, Parameter, Property,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::collapsible_match)]
 impl Compiler {
@@ -50,6 +50,7 @@ impl Compiler {
     pub(super) fn validate_parameter(
         &self,
         module: &Module,
+        profile: ProfileId,
         tree: &NodeTree,
         id: LocalNodeId<Parameter>,
         parameter: &Parameter,
@@ -60,7 +61,7 @@ impl Compiler {
             && !self.is_in_constructor(tree, id)
         {
             self.error(AnalyzeError::InvalidParameterProperty {
-                node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                node: GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile)),
             });
         }
     }

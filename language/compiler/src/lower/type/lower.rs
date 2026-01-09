@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use destack_ast::{StringId, StringPool};
-use destack_dir::GlobalNodeIdAny;
+use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -111,7 +111,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         if let Some(mir_type) = self.type_cache.get(&type_id) {

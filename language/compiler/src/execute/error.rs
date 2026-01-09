@@ -3,7 +3,7 @@ use crate::{
     TaskError,
 };
 use destack_compiler_macros::DefineError;
-use destack_dir::GlobalNodeIdAny;
+use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
@@ -11,6 +11,9 @@ use destack_workspace::Program;
 #[derive(Debug, Clone, PartialEq, DefineError)]
 #[phase(Execute)]
 pub enum ExecuteError {
+    // -------------------------------------------------------------------------
+    // 0xx: Yield / dependency
+    // -------------------------------------------------------------------------
     /// Wait for task dependency.
     #[error(code = "EX000", r#yield)]
     Yield { dependency: TaskDependency },
@@ -19,15 +22,11 @@ pub enum ExecuteError {
     #[error(code = "EX001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
 
-    /// Unsupported construct for comptime execution.
-    #[error(
-        code = "EX002",
-        message = "unsupported construct for comptime execution"
-    )]
-    UnsupportedConstruct { node: GlobalNodeIdAny },
-
+    // -------------------------------------------------------------------------
+    // 1xx: Comptime execution errors
+    // -------------------------------------------------------------------------
     /// Comptime lowering failed.
-    #[error(code = "EX003", message = "comptime lowering failed: {message}")]
+    #[error(code = "EX100", message = "comptime lowering failed: {message}")]
     FailedLower {
         /// Anchor the error to a module.
         module: ModuleId,
@@ -36,12 +35,23 @@ pub enum ExecuteError {
         /// Describe the lowering failure.
         message: String,
     },
+
     /// Comptime execution failed.
-    #[error(code = "EX004", message = "comptime execution failed: {message}")]
+    #[error(code = "EX101", message = "comptime execution failed: {message}")]
     FailedExecution {
         /// Anchor the error to a module.
         module: ModuleId,
         /// Describe the execution failure.
         message: String,
     },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Unsupported / internal
+    // -------------------------------------------------------------------------
+    /// Unsupported construct for comptime execution.
+    #[error(
+        code = "EX900",
+        message = "unsupported construct for comptime execution"
+    )]
+    UnsupportedConstruct { node: AnchoredGlobalNodeId },
 }

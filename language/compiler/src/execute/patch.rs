@@ -2,7 +2,7 @@ use crate::{Compiler, ExecuteError};
 
 use destack_dir as dir;
 use destack_source::{FileContent, ModuleId};
-use destack_workspace::ComptimeOutput;
+use destack_workspace::{ComptimeOutput, ProfileId};
 
 /// Patch information for a single comptime slot.
 #[derive(Debug, Clone)]
@@ -18,6 +18,7 @@ impl Compiler {
     pub(crate) fn apply_comptime_patch(
         &self,
         module_id: ModuleId,
+        profile_id: ProfileId,
         tree: &mut dir::NodeTree,
         patch: ComptimePatch,
     ) {
@@ -26,7 +27,10 @@ impl Compiler {
             .expression_id
             .try_into_typed::<dir::Expression>()
             .map_err(|_| ExecuteError::UnsupportedConstruct {
-                node: patch.expression_id.into_global(module_id),
+                node: patch
+                    .expression_id
+                    .into_global(module_id)
+                    .into_anchored(Some(profile_id)),
             });
         let expression_id = match expression_id {
             Ok(expression_id) => expression_id,
@@ -44,7 +48,10 @@ impl Compiler {
         // skip results that lack a dir value
         let Some(static_value) = output.dir.as_ref() else {
             self.error(ExecuteError::UnsupportedConstruct {
-                node: patch.expression_id.into_global(module_id),
+                node: patch
+                    .expression_id
+                    .into_global(module_id)
+                    .into_anchored(Some(profile_id)),
             });
             return;
         };
@@ -54,6 +61,7 @@ impl Compiler {
         let replacement = match self.static_expression_to_expression(
             tree,
             module_id,
+            profile_id,
             expression_id.into_any(),
             expression_id.into_any(),
             scope,

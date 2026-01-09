@@ -43,7 +43,7 @@ impl Compiler {
                     && module.is_user()
                 {
                     self.error(ImportError::ReservedIdentifier {
-                        node: primary_declaration,
+                        node: primary_declaration.into_anchored(None),
                         name: *name,
                     });
                 }

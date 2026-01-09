@@ -35,6 +35,7 @@ impl Compiler {
         let mut lowerer = ModuleLowerer::new(
             self,
             &module_guard,
+            profile,
             &dir_tree,
             &dir_roots,
             &symbols,
@@ -88,7 +89,9 @@ impl Compiler {
                 .ok_or_else(|| ExecuteError::FailedLower {
                     module: module.id,
                     error: Box::new(LowerError::MissingType {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
                     }),
                     message: "missing type".to_string(),
                 })?;
@@ -97,7 +100,9 @@ impl Compiler {
                 &types,
                 return_type_id,
                 module.id,
-                expression_id.into_global_any(module.id),
+                expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
                 &mut builder,
             )
             .map_err(|error| ExecuteError::FailedLower {
@@ -119,6 +124,7 @@ impl Compiler {
         let globals_by_symbol = std::collections::HashMap::new();
         let mut block_lowerer = BlockLowerer {
             module_id: module.id,
+            profile,
             dir_tree: &dir_tree,
             symbols: &symbols,
             types: &types,

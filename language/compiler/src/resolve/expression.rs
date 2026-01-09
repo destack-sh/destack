@@ -90,6 +90,7 @@ impl Compiler {
             Expression::UnresolvedBreak { target, value } => {
                 let symbol_id = self.resolve_label_symbol(
                     module,
+                    profile,
                     expression_id.into_global_any(module.id),
                     scope,
                     *target,
@@ -105,6 +106,7 @@ impl Compiler {
             Expression::UnresolvedContinue { target } => {
                 let symbol_id = self.resolve_label_symbol(
                     module,
+                    profile,
                     expression_id.into_global_any(module.id),
                     scope,
                     *target,

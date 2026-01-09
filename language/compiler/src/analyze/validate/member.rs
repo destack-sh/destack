@@ -3,13 +3,14 @@ use destack_dir::{
     Declaration, DeclarationAbstraction, FunctionAbstraction, FunctionMode, GlobalNodeIdAny,
     LocalNodeId, Member, NodeTree, NodeType,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Validate a member.
     pub(super) fn validate_member(
         &self,
         module: &Module,
+        profile: ProfileId,
         tree: &NodeTree,
         id: LocalNodeId<Member>,
         member: &Member,
@@ -29,7 +30,8 @@ impl Compiler {
                         .is_some_and(|mode| mode == FunctionMode::Constructor)
                 {
                     self.error(AnalyzeError::InvalidConstructor {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                     });
                 }
 
@@ -42,7 +44,8 @@ impl Compiler {
                 // abstract methods cannot have a body
                 if is_abstract && body.is_some() {
                     self.error(AnalyzeError::InvalidMethod {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                         abstraction: signature.abstraction,
                     });
                 }
@@ -50,7 +53,8 @@ impl Compiler {
                 // abstract methods can only appear in abstract classes
                 if is_abstract && !self.is_in_abstract_class(tree, id) {
                     self.error(AnalyzeError::InvalidMethod {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                         abstraction: signature.abstraction,
                     });
                 }
@@ -66,7 +70,8 @@ impl Compiler {
                         || m.accessor.is_some();
                     if has_invalid_modifier {
                         self.error(AnalyzeError::InvalidStaticBlockModifier {
-                            node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                            node: GlobalNodeIdAny::new(module.id, id.into_any())
+                                .into_anchored(Some(profile)),
                         });
                     }
                 }

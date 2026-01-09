@@ -37,7 +37,9 @@ impl BlockLowerer<'_, '_> {
                     Ok((value, ty))
                 }
                 _ => Err(LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: format!("unsupported scalar literal '{value:?}'"),
                 })?,
             },
@@ -55,7 +57,9 @@ impl BlockLowerer<'_, '_> {
                 Ok((value, ty))
             }
             _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: format!("unsupported scalar literal '{value:?}'"),
             })?,
         }

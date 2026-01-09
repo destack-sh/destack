@@ -125,7 +125,7 @@ Pass categories:
 ### Verify (V)
 
 Verification passes ensure semantic correctness and insert required operations.
-These run before optimization passes and are not optional.
+These always run before optimization passes (even at optimization level 0).
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
