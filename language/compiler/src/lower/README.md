@@ -90,6 +90,30 @@ MIR is generated per-target with target-specific decisions:
 - Calling conventions (C, System, etc.)
 - Alignment requirements
 
+### Native Runtime Library
+
+Lower doesn't special-case types like `String` or `Array<T>`.
+These are defined in `language/builtin/lib/native/` as regular Destack structs (with some intrinsics).
+Lower treats them basically like any other user-defined type.
+
+```
+language/builtin/
+├── core/       # Operator interfaces (Add, Index, etc.) - compiler desugars to these
+├── std/        # Universal extensions
+└── lib/
+    ├── native/ # Native target types: String, Array, Map, etc.
+    ├── es/     # JS target types (uses JS-defined built-ins)
+    └── ...
+```
+
+**Intrinsics** are functions that Lower recognizes and emits as MIR instructions or inline sequences rather than function calls:
+
+| Category | Examples | MIR |
+|----------|----------|-----|
+| Memory | `memcpy`, `memset`, `alloc`, `free` | `Intrinsic::Memcpy`, etc. |
+| Arithmetic | `wrapping_add`, `saturating_mul` | `Intrinsic::WrappingAdd`, etc. |
+| Atomics | `atomic_load`, `atomic_cas` | `Intrinsic::AtomicLoad`, etc. |
+
 # Interoperability
 
 Destack aims for full **modern TypeScript** compatibility. 
