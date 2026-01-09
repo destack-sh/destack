@@ -479,6 +479,45 @@ Owned values are dropped at their last proven use unless `using` is specified.
 Combine `using` with `^T` for deterministic cleanup of owned values.
 `using` can wrap managed values to enforce scope-based cleanup when they implement `Symbol.dispose`.
 
+**Allocation and drop:**
+
+Ownership modifiers determine allocation strategy:
+
+| Modifier | Allocation | Drop Instruction | Semantics |
+|----------|------------|------------------|-----------|
+| `T` | `managed.alloc` | none | GC handles cleanup |
+| `^T` | `raw.alloc` | `raw.drop` | dispose + deallocate |
+| `&T` | none | none | borrows existing memory |
+
+The `raw.drop` instruction performs **drop glue**:
+1. Drop owned fields in reverse declaration order (LIFO)
+2. Call `Symbol.dispose` if the type implements `Drop`
+3. Deallocate the memory
+
+The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis.
+Stack-allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
+For manual deallocation without dispose (FFI), use `raw.free` directly.
+
+**Nested ownership:**
+
+Ownership is at the usage site, not the definition site.
+Structs can contain `^T` fields regardless of how the struct itself is allocated:
+
+```
+struct Container { data: ^Data }
+
+const managed: Container = ...        // GC-managed container
+const owned: ^Container = ...         // manually owned container
+```
+
+When the container is `^Container`:
+- Drop is deterministic
+- Fields drop in reverse declaration order, then the container
+
+When the container is `Container` (managed):
+- Drop is nondeterministic (GC finalizer)
+- A warning is emitted in strict mode for `^T` fields in managed types
+
 Strings follow the same ownership spectrum: `string` is GC-managed by default,
 `&string` is a borrowed view, and `^string` is explicitly owned.
 Similarly, `Slice` is an explicit view type with a pointer and length.
