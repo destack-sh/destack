@@ -290,10 +290,16 @@ impl<'a> FunctionLowerer<'a> {
                     _ => *aggregate_type_id,
                 };
                 let field_type_id = match self.tree.get(aggregate_type_id) {
-                    mir::Type::Struct { fields, copyability: _ } => fields
+                    mir::Type::Struct {
+                        fields,
+                        copyability: _,
+                    } => fields
                         .get(*index as usize)
                         .map(|field_id| self.tree.get(*field_id).ty),
-                    mir::Type::Tuple { elements, copyability: _ } => elements.get(*index as usize).copied(),
+                    mir::Type::Tuple {
+                        elements,
+                        copyability: _,
+                    } => elements.get(*index as usize).copied(),
                     _ => None,
                 };
                 if let Some(field_type_id) = field_type_id {
@@ -418,13 +424,19 @@ impl<'a> FunctionLowerer<'a> {
                 if let Some(aggregate_type_id) = type_map.get(aggregate) {
                     let aggregate_type = self.tree.get(*aggregate_type_id);
                     match aggregate_type {
-                        mir::Type::Struct { fields, copyability: _ } => {
+                        mir::Type::Struct {
+                            fields,
+                            copyability: _,
+                        } => {
                             if let Some(field_id) = fields.get(*index as usize) {
                                 let field = self.tree.get(*field_id);
                                 return Some((*destination, field.ty));
                             }
                         }
-                        mir::Type::Tuple { elements, copyability: _ } => {
+                        mir::Type::Tuple {
+                            elements,
+                            copyability: _,
+                        } => {
                             if let Some(&ty) = elements.get(*index as usize) {
                                 return Some((*destination, ty));
                             }
@@ -793,7 +805,10 @@ impl<'a> FunctionLowerer<'a> {
 
                 // field offset and type
                 let (field_offset, field_type_id) = match aggregate_type {
-                    mir::Type::Struct { fields, copyability: _ } => {
+                    mir::Type::Struct {
+                        fields,
+                        copyability: _,
+                    } => {
                         let field_id = fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
@@ -804,7 +819,10 @@ impl<'a> FunctionLowerer<'a> {
                         let field = self.tree.get(*field_id);
                         (field.offset, field.ty)
                     }
-                    mir::Type::Tuple { elements, copyability: _ } => {
+                    mir::Type::Tuple {
+                        elements,
+                        copyability: _,
+                    } => {
                         let element_type_id = elements.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
@@ -861,7 +879,10 @@ impl<'a> FunctionLowerer<'a> {
 
                 // field offset and type
                 let field_offset = match aggregate_layout {
-                    mir::Type::Struct { fields, copyability: _ } => {
+                    mir::Type::Struct {
+                        fields,
+                        copyability: _,
+                    } => {
                         let field_id = fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
@@ -872,7 +893,10 @@ impl<'a> FunctionLowerer<'a> {
                         let field = self.tree.get(*field_id);
                         field.offset
                     }
-                    mir::Type::Tuple { elements, copyability: _ } => compute_tuple_element_offset(
+                    mir::Type::Tuple {
+                        elements,
+                        copyability: _,
+                    } => compute_tuple_element_offset(
                         self.tree,
                         elements,
                         *index,
@@ -914,7 +938,10 @@ impl<'a> FunctionLowerer<'a> {
 
                 // field
                 let field_offset = match aggregate_type {
-                    mir::Type::Struct { fields, copyability: _ } => {
+                    mir::Type::Struct {
+                        fields,
+                        copyability: _,
+                    } => {
                         let field_id = fields.get(*index as usize).ok_or_else(|| {
                             CodegenCraneliftError::out_of_bounds(
                                 instruction_id.into_any(),
@@ -925,7 +952,10 @@ impl<'a> FunctionLowerer<'a> {
                         let field = self.tree.get(*field_id);
                         field.offset
                     }
-                    mir::Type::Tuple { elements, copyability: _ } => compute_tuple_element_offset(
+                    mir::Type::Tuple {
+                        elements,
+                        copyability: _,
+                    } => compute_tuple_element_offset(
                         self.tree,
                         elements,
                         *index,

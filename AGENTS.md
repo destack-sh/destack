@@ -118,6 +118,8 @@ Prefer property-based testing and roundtrip testing where possible.
 
 If there is an opportunity to test "the entire thing" vs "part of it", prefer complete asserts.
 (For example, if we're generating string output, compare the entire output, not just "contains").
+More generally, we should always test *specific outcomes* like "these two errors with that message" rather than "expect failed" or "any two errors".
+Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
 
 ### Formatting
 

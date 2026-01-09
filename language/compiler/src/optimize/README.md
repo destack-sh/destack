@@ -129,10 +129,10 @@ These always run before optimization passes (even at optimization level 0).
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `borrow-check` | BorrowCheck | function | V | | cfg, alias | Verify borrow rules: exclusive `&mut`, no aliasing violations (strict mode) |
-| `move-check` | MoveCheck | function | V | | cfg, liveness | Verify move semantics: no use-after-move for `^T` owned values |
-| `drop-insert` | DropInsert | function | V | | cfg, liveness | Insert drops at last-use points for `Drop` types (non-lexical lifetimes) |
-| `stack-check` | StackCheck | function | V | | cfg | Verify stack safety: no returns of references to locals, valid stack lifetimes |
+| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness | Verify borrow rules: exclusive `&mut`, no aliasing violations, move-while-borrowed, local.set while borrowed |
+| `move-check` | MoveCheck | function | V | ✓ | cfg, liveness | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
+| `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness | Insert drops at last-use points for owned/managed refs (non-lexical lifetimes) |
+| `stack-check` | StackCheck | function | V | ✓ | cfg | Verify stack safety: no returns of references to locals, no stack pointer escapes |
 
 ### Scalar (S)
 
