@@ -59,8 +59,7 @@ DIR (elaborated, canonical, profile-dependent)
       │
       MIR (monomorphized, typed, target-specific)
        │
-       ├─→ Verify: validate control flow, types, safety
-       ├─→ Optimize: inline, eliminate dead code, etc.
+       ├─→ Optimize: verify, then inline, eliminate dead code, etc.
        │
        └─→ Generate
             └─→ Cranelift → native binary (.exe, .dylib)
@@ -1592,7 +1591,7 @@ function process() {
 
 `Drop` is a marker interface that opts a type into last-use cleanup.
 Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
-Verify inserts drops at last-use points (non-lexical) after lowering, including before
+Optimize inserts drops at last-use points (non-lexical) after lowering, including before
 control-flow merges and before coroutine suspension when the value is not
 used after resume.
 

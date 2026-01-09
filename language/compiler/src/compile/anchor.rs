@@ -3,10 +3,10 @@ use destack_source::{FileId, ModuleId, PackageId, Span};
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeError, AnalyzeWarning, BindError, BindWarning, ElaborateError, ElaborateWarning,
-    EmitError, EmitWarning, ExecuteError, ExecuteWarning, GenerateError, GenerateWarning,
-    ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, OptimizeError,
-    OptimizeWarning, ResolveError, ResolveWarning, VerifyError, VerifyWarning,
+    AnalyzeError, AnalyzeWarning, ElaborateError, ElaborateWarning, EmitError, EmitWarning,
+    ExecuteError, ExecuteWarning, GenerateError, GenerateWarning, ImportError, ImportWarning,
+    LinkError, LinkWarning, LowerError, LowerWarning, OptimizeError, OptimizeWarning, ResolveError,
+    ResolveWarning,
 };
 
 /// Static metadata about a diagnostic variant.
@@ -163,13 +163,11 @@ impl DiagnosticRegistry {
     /// All error definitions from all phases.
     pub const ALL_ERRORS: &'static [&'static [DiagnosticDefinition]] = &[
         ImportError::ALL,
-        BindError::ALL,
         ResolveError::ALL,
         AnalyzeError::ALL,
         ElaborateError::ALL,
-        LowerError::ALL,
-        VerifyError::ALL,
         ExecuteError::ALL,
+        LowerError::ALL,
         OptimizeError::ALL,
         GenerateError::ALL,
         LinkError::ALL,
@@ -179,13 +177,11 @@ impl DiagnosticRegistry {
     /// All warning definitions from all phases.
     pub const ALL_WARNINGS: &'static [&'static [DiagnosticDefinition]] = &[
         ImportWarning::ALL,
-        BindWarning::ALL,
         ResolveWarning::ALL,
         AnalyzeWarning::ALL,
         ElaborateWarning::ALL,
-        LowerWarning::ALL,
-        VerifyWarning::ALL,
         ExecuteWarning::ALL,
+        LowerWarning::ALL,
         OptimizeWarning::ALL,
         GenerateWarning::ALL,
         LinkWarning::ALL,
@@ -195,13 +191,11 @@ impl DiagnosticRegistry {
     /// Check if an error code is valid.
     pub fn is_valid_error_code(code: &str) -> bool {
         ImportError::is_valid_code(code)
-            || BindError::is_valid_code(code)
             || ResolveError::is_valid_code(code)
             || AnalyzeError::is_valid_code(code)
             || ElaborateError::is_valid_code(code)
-            || LowerError::is_valid_code(code)
-            || VerifyError::is_valid_code(code)
             || ExecuteError::is_valid_code(code)
+            || LowerError::is_valid_code(code)
             || OptimizeError::is_valid_code(code)
             || GenerateError::is_valid_code(code)
             || LinkError::is_valid_code(code)
@@ -211,13 +205,11 @@ impl DiagnosticRegistry {
     /// Check if a warning code is valid.
     pub fn is_valid_warning_code(code: &str) -> bool {
         ImportWarning::is_valid_code(code)
-            || BindWarning::is_valid_code(code)
             || ResolveWarning::is_valid_code(code)
             || AnalyzeWarning::is_valid_code(code)
             || ElaborateWarning::is_valid_code(code)
-            || LowerWarning::is_valid_code(code)
-            || VerifyWarning::is_valid_code(code)
             || ExecuteWarning::is_valid_code(code)
+            || LowerWarning::is_valid_code(code)
             || OptimizeWarning::is_valid_code(code)
             || GenerateWarning::is_valid_code(code)
             || LinkWarning::is_valid_code(code)
@@ -234,13 +226,11 @@ impl DiagnosticRegistry {
     pub fn error_codes_for_phase(letter: char) -> &'static [&'static str] {
         match letter {
             'I' => ImportError::ALL_CODES,
-            'B' => BindError::ALL_CODES,
             'R' => ResolveError::ALL_CODES,
             'A' => AnalyzeError::ALL_CODES,
             'E' => ElaborateError::ALL_CODES,
-            'M' => LowerError::ALL_CODES,
-            'V' => VerifyError::ALL_CODES,
             'X' => ExecuteError::ALL_CODES,
+            'M' => LowerError::ALL_CODES,
             'O' => OptimizeError::ALL_CODES,
             'G' => GenerateError::ALL_CODES,
             'K' => LinkError::ALL_CODES,
@@ -253,13 +243,11 @@ impl DiagnosticRegistry {
     pub fn warning_codes_for_phase(letter: char) -> &'static [&'static str] {
         match letter {
             'I' => ImportWarning::ALL_CODES,
-            'B' => BindWarning::ALL_CODES,
             'R' => ResolveWarning::ALL_CODES,
             'A' => AnalyzeWarning::ALL_CODES,
             'E' => ElaborateWarning::ALL_CODES,
-            'M' => LowerWarning::ALL_CODES,
-            'V' => VerifyWarning::ALL_CODES,
             'X' => ExecuteWarning::ALL_CODES,
+            'M' => LowerWarning::ALL_CODES,
             'O' => OptimizeWarning::ALL_CODES,
             'G' => GenerateWarning::ALL_CODES,
             'K' => LinkWarning::ALL_CODES,

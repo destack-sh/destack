@@ -66,16 +66,18 @@ impl ModuleLowerer<'_> {
             )?;
 
             // constant initializer
-            let initializer =
-                self.lower_const_initializer(value_id, mir_type)
-                    .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        node: value_id.into_global_any(self.module_id),
-                        message: "module-level binding requires constant initializer".to_string(),
-                    })?;
+            let initializer = self
+                .lower_const_initializer(value_id, mir_type)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: value_id.into_global_any(self.module_id),
+                    message: "module-level binding requires constant initializer".to_string(),
+                })?;
 
             // MIR global
             let mir_mutability = lower_mutability(mutability);
-            let global_id = self.builder.global(&name, mir_type, mir_mutability, initializer);
+            let global_id = self
+                .builder
+                .global(&name, mir_type, mir_mutability, initializer);
             let global_symbol_id = symbol_id.into_global(self.module_id);
             self.globals_by_symbol.insert(
                 global_symbol_id,
@@ -104,19 +106,27 @@ impl ModuleLowerer<'_> {
                     (dir::ScalarLiteral::Boolean(b), mir::Type::Boolean) => {
                         mir::Constant::boolean(*b)
                     }
-                    (dir::ScalarLiteral::Integer(i), mir::Type::Int { width, signed: true }) => {
-                        mir::Constant::Int {
-                            value: *i,
-                            width: *width as u8,
-                            is_signed: true,
-                        }
-                    }
-                    (dir::ScalarLiteral::Integer(i), mir::Type::Int { width, signed: false }) => {
-                        mir::Constant::UInt {
-                            value: *i as u64,
-                            width: *width as u8,
-                        }
-                    }
+                    (
+                        dir::ScalarLiteral::Integer(i),
+                        mir::Type::Int {
+                            width,
+                            signed: true,
+                        },
+                    ) => mir::Constant::Int {
+                        value: *i,
+                        width: *width as u8,
+                        is_signed: true,
+                    },
+                    (
+                        dir::ScalarLiteral::Integer(i),
+                        mir::Type::Int {
+                            width,
+                            signed: false,
+                        },
+                    ) => mir::Constant::UInt {
+                        value: *i as u64,
+                        width: *width as u8,
+                    },
                     (dir::ScalarLiteral::Float(f), mir::Type::Float { width }) => {
                         mir::Constant::Float {
                             bits: if *width == 32 {

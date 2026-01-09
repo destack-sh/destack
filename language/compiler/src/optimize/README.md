@@ -1,19 +1,23 @@
 # MIR Optimization
 
 Semantic-aware transformations on MIR before code generation.
-Runs after Verify, before Generate.
+Runs after Lower, before Generate.
 
 ## Overview
 
 ```
-... → MIR → Verify → Optimize → Generate → ...
-                        │
-                        ├─ Scalar (constant fold, CSE, copy prop, ...)
-                        ├─ Interprocedural (inline, dead function elim, ...)
-                        ├─ Memory (escape analysis, stack promote, SROA, ...)
-                        ├─ Loop (LICM, unroll, ...)
-                        └─ Type-Based (devirtualize, bounds check elim, ...)
+... → DIR → Lower → MIR → Optimize → Generate → ...
+                             │
+                             ├─ Verify (safety, borrowing, control flow)
+                             ├─ Scalar (constant fold, CSE, copy prop, ...)
+                             ├─ Interprocedural (inline, dead function elim, ...)
+                             ├─ Memory (escape analysis, stack promote, SROA, ...)
+                             ├─ Loop (LICM, unroll, ...)
+                             └─ Type-Based (devirtualize, bounds check elim, ...)
 ```
+
+The Optimize phase first verifies the MIR (safety checks, borrow validation, control flow analysis),
+then runs optimization passes.
 
 Optimize performs transformations taking maximal advantage of high-level semantic information.
 Cranelift handles low-level optimizations (register allocation, instruction selection, peephole) for now.
@@ -110,12 +114,25 @@ Analysis results are shared across passes until invalidated.
 Passes transform the MIR to improve performance or reduce code size.
 Each pass declares which analyses it requires and which it invalidates.
 
-Pass categories follow standard compiler terminology (LLVM, GCC, Go, Rust):
+Pass categories:
+- **Verify**: correctness checks and required transformations (run first, always)
 - **Scalar**: value-level transforms within functions
 - **Interprocedural**: cross-function analysis and transforms
 - **Memory**: allocation, load/store, aliasing optimizations
 - **Loop**: loop-specific transforms
 - **Type-Based**: optimizations requiring high-level type information
+
+### Verify (V)
+
+Verification passes ensure semantic correctness and insert required operations.
+These run before optimization passes and are not optional.
+
+| ID | Name | Scope | Level | Done | Requires | Description |
+|----|------|-------|-------|------|----------|-------------|
+| `borrow-check` | BorrowCheck | function | V | | cfg, alias | Verify borrow rules: exclusive `&mut`, no aliasing violations (strict mode) |
+| `move-check` | MoveCheck | function | V | | cfg, liveness | Verify move semantics: no use-after-move for `^T` owned values |
+| `drop-insert` | DropInsert | function | V | | cfg, liveness | Insert drops at last-use points for `Drop` types (non-lexical lifetimes) |
+| `stack-check` | StackCheck | function | V | | cfg | Verify stack safety: no returns of references to locals, valid stack lifetimes |
 
 ### Scalar (S)
 

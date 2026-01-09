@@ -1,17 +1,11 @@
-use crate::{BindResult, Compiler, TaskDependencyError};
+use crate::{Compiler, ImportResult};
 use destack_source::ModuleId;
 use destack_workspace::ModuleDir;
 
 impl Compiler {
-    /// Ensure a module has been bound (DIR built).
-    pub fn require_bind_module_build(&self, module: ModuleId) -> Result<(), TaskDependencyError> {
-        use crate::BindTask;
-        self.do_require_task_internal_only(BindTask::BindModuleBuild { module })
-    }
-
-    /// Build DIR for a module by binding its AST.
-    pub(crate) fn bind_module_build(&self, module: ModuleId) -> BindResult<()> {
-        self.require_import_module(module)?;
+    /// Bind a module's AST to DIR (create symbols, scopes, and base DIR).
+    pub(crate) fn import_module_bind(&self, module: ModuleId) -> ImportResult<()> {
+        self.require_import_module_parse(module)?;
         let module = self.program.modules.get(module);
 
         // initialize DIR

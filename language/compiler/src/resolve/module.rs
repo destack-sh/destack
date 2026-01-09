@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{BindError, Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{Compiler, ImportError, ResolveError, ResolveResult, TaskResultCollector};
 use destack_builtin::builtin_lib;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
@@ -319,7 +319,7 @@ impl Compiler {
 
             // report conflicts and keep the first assignment
             if let Some(existing) = export_assignment_item {
-                self.error(BindError::ConflictingExport {
+                self.error(ImportError::ConflictingExport {
                     node: item_id.into_global_any(module_id),
                     other_node: existing.into_global_any(module_id),
                     module: module_id,
@@ -372,7 +372,7 @@ impl Compiler {
                 let Some(other_node) = symbol.primary_declaration else {
                     continue;
                 };
-                self.error(BindError::ConflictingExport {
+                self.error(ImportError::ConflictingExport {
                     node: export_assignment_item.into_global_any(module_id),
                     other_node,
                     module: module_id,
@@ -453,7 +453,7 @@ impl Compiler {
             if let Some(export_assignment_item) = export_assignment_item
                 && export_assignment_item != item_id
             {
-                self.error(BindError::ConflictingExport {
+                self.error(ImportError::ConflictingExport {
                     node: item_id.into_global_any(module_id),
                     other_node: export_assignment_item.into_global_any(module_id),
                     module: module_id,
@@ -719,7 +719,7 @@ impl Compiler {
 
             // report conflicts and keep the first assignment
             if let Some(existing) = export_assignment_item {
-                self.error(BindError::ConflictingExport {
+                self.error(ImportError::ConflictingExport {
                     node: item_id.into_global_any(module.id),
                     other_node: existing.into_global_any(module.id),
                     module: module.id,
@@ -774,7 +774,7 @@ impl Compiler {
                 let Some(other_node) = symbol.primary_declaration else {
                     continue;
                 };
-                self.error(BindError::ConflictingExport {
+                self.error(ImportError::ConflictingExport {
                     node: export_assignment_item.into_global_any(module_id),
                     other_node,
                     module: module_id,
@@ -846,7 +846,7 @@ impl Compiler {
             if let Some(export_assignment_item) = export_assignment_item
                 && export_assignment_item != item_id
             {
-                self.error(BindError::ConflictingExport {
+                self.error(ImportError::ConflictingExport {
                     node: item_id.into_global_any(module_id),
                     other_node: export_assignment_item.into_global_any(module_id),
                     module: module_id,
@@ -1313,7 +1313,7 @@ impl Compiler {
             ExportKind::ReExport => existing.item.map(|item| item.into_global_any(module_id)),
         };
         if let (Some(node), Some(other_node)) = (node, other_node) {
-            self.error(BindError::ConflictingExport {
+            self.error(ImportError::ConflictingExport {
                 node,
                 other_node,
                 module: module_id,

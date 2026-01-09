@@ -65,7 +65,7 @@ impl Compiler {
                 self.resolve_module_direct(module, profile)?;
             }
             ResolveTask::ResolveModulePrepare { module, profile } => {
-                self.require_bind_module_validate(module)?;
+                self.require_import_module_validate(module)?;
                 self.resolve_module_prepare(module, profile)?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {

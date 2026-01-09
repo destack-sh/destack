@@ -12,7 +12,7 @@ use destack_workspace::{Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 
 use crate::{
-    BindError, Compiler, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
+    Compiler, ImportError, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
 };
 
 /// Target of an export assignment resolution.
@@ -841,7 +841,7 @@ impl Compiler {
             .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
 
         // require module to be bound
-        self.require_bind_module_validate(remote_module_id)?;
+        self.require_import_module_validate(remote_module_id)?;
 
         // record the resolved import
         let remote_target = ModuleTarget::Module(remote_module_id);
@@ -1777,7 +1777,7 @@ impl Compiler {
         );
 
         if !can_merge {
-            self.error(BindError::ConflictingExport {
+            self.error(ImportError::ConflictingExport {
                 node,
                 other_node,
                 module,

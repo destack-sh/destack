@@ -3,8 +3,8 @@ use destack_workspace::Program;
 use crate::DiagnosticAnchor;
 
 use crate::{
-    AnalyzeTask, BindTask, ElaborateTask, EmitTask, ExecuteTask, GenerateTask, ImportTask,
-    LinkTask, LintTask, LowerTask, OptimizeTask, ResolveTask, TaskError, VerifyTask,
+    AnalyzeTask, ElaborateTask, EmitTask, ExecuteTask, GenerateTask, ImportTask, LinkTask,
+    LintTask, LowerTask, OptimizeTask, ResolveTask, TaskError,
 };
 
 /// Trait for formatting task information.
@@ -19,9 +19,9 @@ pub trait TaskDebug {
 /// Region of the compiler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskRegion {
-    /// Front-end (import, bind, resolve, analyze, elaborate).
+    /// Front-end (import, resolve, analyze, elaborate).
     Front,
-    /// Middle-end (lower, verify, optimize).
+    /// Middle-end (execute, lower, optimize).
     Middle,
     /// Back-end (generate, link, emit).
     Back,
@@ -45,35 +45,31 @@ impl TaskRegion {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum TaskPhase {
-    /// Import and parse source into AST.
+    /// Import, parse, and bind source into DIR.
     Import = 1,
-    /// Bind and declare AST into DIR.
-    Bind = 2,
     /// Resolve symbol references in DIR.
-    Resolve = 3,
+    Resolve = 2,
     /// Infer types, resolve overloads, validate.
-    Analyze = 4,
+    Analyze = 3,
     /// Desugar, impute overloads, reify DIR.
-    Elaborate = 5,
+    Elaborate = 4,
     // --------------------------------------------------
     /// Execute comptime code and patch DIR before target lowering.
-    Execute = 6,
+    Execute = 5,
     /// Lower patched DIR into MIR.
-    Lower = 7,
-    /// Verify and flow-check MIR.
-    Verify = 8,
+    Lower = 6,
     /// Optimize MIR.
-    Optimize = 9,
+    Optimize = 7,
     // --------------------------------------------------
     /// Generate DIR or MIR into artifacts.
-    Generate = 10,
+    Generate = 8,
     /// Link artifacts into final output.
-    Link = 11,
+    Link = 9,
     /// Emit linked output to disk.
-    Emit = 12,
+    Emit = 10,
     // --------------------------------------------------
     /// Lint the program.
-    Lint = 13,
+    Lint = 11,
 }
 
 impl std::fmt::Display for TaskPhase {
@@ -91,10 +87,8 @@ impl TaskPhase {
     /// Get the region of the phase.
     pub fn region(&self) -> TaskRegion {
         match self {
-            Self::Import | Self::Bind | Self::Resolve | Self::Analyze | Self::Elaborate => {
-                TaskRegion::Front
-            }
-            Self::Execute | Self::Lower | Self::Verify | Self::Optimize => TaskRegion::Middle,
+            Self::Import | Self::Resolve | Self::Analyze | Self::Elaborate => TaskRegion::Front,
+            Self::Execute | Self::Lower | Self::Optimize => TaskRegion::Middle,
             Self::Generate | Self::Link | Self::Emit => TaskRegion::Back,
             Self::Lint => TaskRegion::Lint,
         }
@@ -104,13 +98,11 @@ impl TaskPhase {
     pub fn name(&self) -> &str {
         match self {
             Self::Import => "import",
-            Self::Bind => "bind",
             Self::Resolve => "resolve",
             Self::Analyze => "analyze",
             Self::Elaborate => "elaborate",
-            Self::Lower => "lower",
-            Self::Verify => "verify",
             Self::Execute => "execute",
+            Self::Lower => "lower",
             Self::Optimize => "optimize",
             Self::Generate => "generate",
             Self::Link => "link",
@@ -122,14 +114,12 @@ impl TaskPhase {
     /// Get the description of the phase.
     pub fn description(&self) -> &str {
         match self {
-            Self::Import => "import and parse source into AST",
-            Self::Bind => "bind and declare AST into DIR",
+            Self::Import => "import, parse, and bind source into DIR",
             Self::Resolve => "resolve symbol references in DIR",
             Self::Analyze => "infer types, resolve overloads, validate",
             Self::Elaborate => "desugar, resolve overloads, reify",
-            Self::Lower => "lower DIR into MIR",
-            Self::Verify => "verify and flow-check MIR",
             Self::Execute => "execute comptime code and patch DIR",
+            Self::Lower => "lower DIR into MIR",
             Self::Optimize => "optimize MIR",
             Self::Generate => "generate DIR or MIR into artifacts",
             Self::Link => "link artifacts into final output",
@@ -142,13 +132,11 @@ impl TaskPhase {
     pub fn letter(&self) -> char {
         match self {
             Self::Import => 'I',
-            Self::Bind => 'B',
             Self::Resolve => 'R',
             Self::Analyze => 'A',
             Self::Elaborate => 'E',
-            Self::Lower => 'M',
-            Self::Verify => 'V',
             Self::Execute => 'X',
+            Self::Lower => 'M',
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
@@ -158,15 +146,13 @@ impl TaskPhase {
     }
 
     /// All phases in compilation order.
-    pub const ALL: [TaskPhase; 13] = [
+    pub const ALL: [TaskPhase; 11] = [
         Self::Import,
-        Self::Bind,
         Self::Resolve,
         Self::Analyze,
         Self::Elaborate,
         Self::Execute,
         Self::Lower,
-        Self::Verify,
         Self::Optimize,
         Self::Generate,
         Self::Link,
@@ -183,10 +169,8 @@ impl TaskPhase {
 /// Task for the compiler during compilation.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Task {
-    /// Import and parse source into AST.
+    /// Import, parse, and bind source into DIR.
     Import(ImportTask),
-    /// Bind and declare AST into DIR.
-    Bind(BindTask),
     /// Resolve symbol references in DIR.
     Resolve(ResolveTask),
     /// Infer types, resolve overloads, validate.
@@ -198,8 +182,6 @@ pub enum Task {
     Execute(ExecuteTask),
     /// Lower DIR into MIR.
     Lower(LowerTask),
-    /// Verify and flow-check MIR.
-    Verify(VerifyTask),
     /// Optimize MIR.
     Optimize(OptimizeTask),
     // --------------------------------------------------
@@ -219,13 +201,11 @@ impl Task {
     pub fn phase(&self) -> TaskPhase {
         match self {
             Self::Import(_) => TaskPhase::Import,
-            Self::Bind(_) => TaskPhase::Bind,
             Self::Resolve(_) => TaskPhase::Resolve,
             Self::Analyze(_) => TaskPhase::Analyze,
             Self::Elaborate(_) => TaskPhase::Elaborate,
             Self::Execute(_) => TaskPhase::Execute,
             Self::Lower(_) => TaskPhase::Lower,
-            Self::Verify(_) => TaskPhase::Verify,
             Self::Optimize(_) => TaskPhase::Optimize,
             Self::Generate(_) => TaskPhase::Generate,
             Self::Link(_) => TaskPhase::Link,
@@ -238,13 +218,11 @@ impl Task {
     pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
             Self::Import(t) => t.anchor(),
-            Self::Bind(t) => t.anchor(),
             Self::Resolve(t) => t.anchor(),
             Self::Analyze(t) => t.anchor(),
             Self::Elaborate(t) => t.anchor(),
             Self::Execute(t) => t.anchor(),
             Self::Lower(t) => t.anchor(),
-            Self::Verify(t) => t.anchor(),
             Self::Optimize(t) => t.anchor(),
             Self::Generate(t) => t.anchor(),
             Self::Link(t) => t.anchor(),
@@ -262,13 +240,11 @@ impl Task {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Import(task) => task.sub_code(),
-            Self::Bind(task) => task.sub_code(),
             Self::Resolve(task) => task.sub_code(),
             Self::Analyze(task) => task.sub_code(),
             Self::Elaborate(task) => task.sub_code(),
             Self::Execute(task) => task.sub_code(),
             Self::Lower(task) => task.sub_code(),
-            Self::Verify(task) => task.sub_code(),
             Self::Optimize(task) => task.sub_code(),
             Self::Generate(task) => task.sub_code(),
             Self::Link(task) => task.sub_code(),
@@ -287,13 +263,11 @@ impl TaskDebug for Task {
     fn name(&self) -> &'static str {
         match self {
             Self::Import(task) => task.name(),
-            Self::Bind(task) => task.name(),
             Self::Resolve(task) => task.name(),
             Self::Analyze(task) => task.name(),
             Self::Elaborate(task) => task.name(),
             Self::Execute(task) => task.name(),
             Self::Lower(task) => task.name(),
-            Self::Verify(task) => task.name(),
             Self::Optimize(task) => task.name(),
             Self::Generate(task) => task.name(),
             Self::Link(task) => task.name(),
@@ -305,13 +279,11 @@ impl TaskDebug for Task {
     fn trace_args(&self, program: &Program) -> String {
         match self {
             Self::Import(task) => task.trace_args(program),
-            Self::Bind(task) => task.trace_args(program),
             Self::Resolve(task) => task.trace_args(program),
             Self::Analyze(task) => task.trace_args(program),
             Self::Elaborate(task) => task.trace_args(program),
             Self::Execute(task) => task.trace_args(program),
             Self::Lower(task) => task.trace_args(program),
-            Self::Verify(task) => task.trace_args(program),
             Self::Optimize(task) => task.trace_args(program),
             Self::Generate(task) => task.trace_args(program),
             Self::Link(task) => task.trace_args(program),

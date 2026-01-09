@@ -2,7 +2,7 @@ use destack_base::StringId;
 use destack_dir::StaticKey;
 use destack_workspace::Module;
 
-use crate::{BindError, Compiler};
+use crate::{Compiler, ImportError};
 
 const RESERVED_IDENTIFIERS: &[&str] = &[
     "implements",
@@ -42,7 +42,7 @@ impl Compiler {
                     && self.is_reserved_identifier(*name)
                     && module.is_user()
                 {
-                    self.error(BindError::ReservedIdentifier {
+                    self.error(ImportError::ReservedIdentifier {
                         node: primary_declaration,
                         name: *name,
                     });

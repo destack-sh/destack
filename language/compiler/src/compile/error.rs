@@ -1,17 +1,15 @@
 use destack_workspace::Program;
 
 use crate::{
-    AnalyzeError, BindError, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError,
-    GenerateError, ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
-    TaskDependency, TaskId, TaskPhase, VerifyError,
+    AnalyzeError, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError, GenerateError,
+    ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError, TaskDependency,
+    TaskId, TaskPhase,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskError {
     /// Error during importing.
     Import(ImportError),
-    /// Error during binding.
-    Bind(BindError),
     /// Error during resolution.
     Resolve(ResolveError),
     /// Error during analysis.
@@ -23,8 +21,6 @@ pub enum TaskError {
     Execute(ExecuteError),
     /// Error during lowering.
     Lower(LowerError),
-    /// Error during verification.
-    Verify(VerifyError),
     /// Error during optimization.
     Optimize(OptimizeError),
     // --------------------------------------------------
@@ -116,13 +112,11 @@ impl TaskError {
     pub fn phase(&self) -> Option<TaskPhase> {
         match self {
             Self::Import(_) => Some(TaskPhase::Import),
-            Self::Bind(_) => Some(TaskPhase::Bind),
             Self::Resolve(_) => Some(TaskPhase::Resolve),
             Self::Analyze(_) => Some(TaskPhase::Analyze),
             Self::Elaborate(_) => Some(TaskPhase::Elaborate),
             Self::Execute(_) => Some(TaskPhase::Execute),
             Self::Lower(_) => Some(TaskPhase::Lower),
-            Self::Verify(_) => Some(TaskPhase::Verify),
             Self::Optimize(_) => Some(TaskPhase::Optimize),
             Self::Generate(_) => Some(TaskPhase::Generate),
             Self::Link(_) => Some(TaskPhase::Link),
@@ -145,13 +139,11 @@ impl TaskError {
     pub fn sub_code(&self) -> u8 {
         match self {
             Self::Import(error) => error.sub_code(),
-            Self::Bind(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),
             Self::Analyze(error) => error.sub_code(),
             Self::Elaborate(error) => error.sub_code(),
             Self::Execute(error) => error.sub_code(),
             Self::Lower(error) => error.sub_code(),
-            Self::Verify(error) => error.sub_code(),
             Self::Optimize(error) => error.sub_code(),
             Self::Generate(error) => error.sub_code(),
             Self::Link(error) => error.sub_code(),
@@ -165,13 +157,11 @@ impl TaskError {
     pub fn anchor(&self) -> DiagnosticAnchor {
         match self {
             Self::Import(error) => error.anchor(),
-            Self::Bind(error) => error.anchor(),
             Self::Resolve(error) => error.anchor(),
             Self::Analyze(error) => error.anchor(),
             Self::Elaborate(error) => error.anchor(),
-            Self::Lower(error) => error.anchor(),
-            Self::Verify(error) => error.anchor(),
             Self::Execute(error) => error.anchor(),
+            Self::Lower(error) => error.anchor(),
             Self::Optimize(error) => error.anchor(),
             Self::Generate(error) => error.anchor(),
             Self::Link(error) => error.anchor(),
@@ -185,13 +175,11 @@ impl TaskError {
     pub fn message(&self, program: &Program) -> String {
         match self {
             Self::Import(error) => error.message(program),
-            Self::Bind(error) => error.message(program),
             Self::Resolve(error) => error.message(program),
             Self::Analyze(error) => error.message(program),
             Self::Elaborate(error) => error.message(program),
-            Self::Lower(error) => error.message(program),
-            Self::Verify(error) => error.message(program),
             Self::Execute(error) => error.message(program),
+            Self::Lower(error) => error.message(program),
             Self::Optimize(error) => error.message(program),
             Self::Generate(error) => error.message(program),
             Self::Link(error) => error.message(program),
@@ -211,19 +199,35 @@ impl TaskError {
     pub fn is_yield_failed(&self) -> bool {
         match self {
             Self::Import(error) => error.is_yield_failed(),
-            Self::Bind(error) => error.is_yield_failed(),
             Self::Resolve(error) => error.is_yield_failed(),
             Self::Analyze(error) => error.is_yield_failed(),
             Self::Elaborate(error) => error.is_yield_failed(),
             Self::Execute(error) => error.is_yield_failed(),
             Self::Lower(error) => error.is_yield_failed(),
-            Self::Verify(error) => error.is_yield_failed(),
             Self::Optimize(error) => error.is_yield_failed(),
             Self::Generate(error) => error.is_yield_failed(),
             Self::Link(error) => error.is_yield_failed(),
             Self::Emit(error) => error.is_yield_failed(),
             Self::Lint(error) => error.is_yield_failed(),
             Self::Internal(_) => false,
+        }
+    }
+
+    /// Get the task dependency that was yielded to, if any.
+    pub fn yielded_to(&self) -> Option<&TaskDependency> {
+        match self {
+            Self::Import(ImportError::Yield { dependency }) => Some(dependency),
+            Self::Resolve(ResolveError::Yield { dependency }) => Some(dependency),
+            Self::Analyze(AnalyzeError::Yield { dependency }) => Some(dependency),
+            Self::Elaborate(ElaborateError::Yield { dependency }) => Some(dependency),
+            Self::Execute(ExecuteError::Yield { dependency }) => Some(dependency),
+            Self::Lower(LowerError::Yield { dependency }) => Some(dependency),
+            Self::Optimize(OptimizeError::Yield { dependency }) => Some(dependency),
+            Self::Generate(GenerateError::Yield { dependency }) => Some(dependency),
+            Self::Link(LinkError::Yield { dependency }) => Some(dependency),
+            Self::Emit(EmitError::Yield { dependency }) => Some(dependency),
+            Self::Lint(LintError::Yield { dependency }) => Some(dependency),
+            _ => None,
         }
     }
 }

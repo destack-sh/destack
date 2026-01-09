@@ -22,7 +22,7 @@ impl Compiler {
     pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<()> {
         match task {
             OptimizeTask::OptimizeModule { module, target } => {
-                self.require_verify_module(module, &target)?;
+                self.require_lower_module(module, &target)?;
                 self.optimize_module(module, &target)?;
             }
         }
