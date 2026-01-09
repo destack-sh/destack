@@ -366,8 +366,13 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
-            Instruction::Drop { value } => {
-                self.write("drop ");
+            Instruction::RawDrop { value } => {
+                self.write("raw.drop ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::StackDrop { value } => {
+                self.write("stack.drop ");
                 self.write(&self.format_value(*value));
             }
 

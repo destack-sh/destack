@@ -391,8 +391,11 @@ pub enum ThreadedInstructionData {
         slot_count: u32,
     },
 
-    /// Free raw memory.
+    /// Free raw memory (user-inserted, FFI).
     RawFree { pointer: mir::Value },
+
+    /// Drop raw memory (compiler-inserted, ownership end).
+    RawDrop { value: mir::Value },
 
     /// Allocate stack memory.
     StackAlloc {
@@ -400,6 +403,9 @@ pub enum ThreadedInstructionData {
         reference: ReferenceMeta,
         slot_count: u32,
     },
+
+    /// Mark stack value lifetime ended (compiler-inserted, NLL).
+    StackDrop { value: mir::Value },
 
     /// Intrinsic call.
     Intrinsic {

@@ -39,8 +39,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         // writes have side effects
         Instruction::LocalSet { .. } | Instruction::Store { .. } => false,
 
-        // drops run destructors
-        Instruction::Drop { .. } => false,
+        // drops run destructors / deallocate
+        Instruction::RawDrop { .. } | Instruction::StackDrop { .. } => false,
 
         // calls may have side effects
         Instruction::Call { .. } | Instruction::CallIndirect { .. } => false,
@@ -90,8 +90,8 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         // side effects if the result is unused (they produce new values, not mutate)
         Instruction::FieldSet { .. } | Instruction::ElementSet { .. } => false,
 
-        // drops have side effects (run destructors)
-        Instruction::Drop { .. } => true,
+        // drops have side effects (deallocate, run destructors)
+        Instruction::RawDrop { .. } | Instruction::StackDrop { .. } => true,
 
         // calls may have side effects
         Instruction::Call { .. } | Instruction::CallIndirect { .. } => true,
@@ -211,7 +211,10 @@ pub fn instruction_substitute_uses(
             pointer: substitute(pointer),
             value: substitute(value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+        mir::Instruction::RawDrop { value } => mir::Instruction::RawDrop {
+            value: substitute(value),
+        },
+        mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
             value: substitute(value),
         },
         mir::Instruction::FieldGet {
@@ -431,7 +434,10 @@ pub fn instruction_map(
             pointer: remap(*pointer),
             value: remap(*value),
         },
-        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+        mir::Instruction::RawDrop { value } => mir::Instruction::RawDrop {
+            value: remap(*value),
+        },
+        mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
             value: remap(*value),
         },
         mir::Instruction::FieldGet {

@@ -139,14 +139,15 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::ManagedAllocArray { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::RawFree { .. }
+        | mir::Instruction::RawDrop { .. }
         | mir::Instruction::StackAlloc { .. }
+        | mir::Instruction::StackDrop { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }
-        | mir::Instruction::Drop { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. } => None,
     }

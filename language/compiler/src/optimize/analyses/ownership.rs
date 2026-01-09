@@ -231,8 +231,11 @@ impl OwnershipAnalysis {
         let at = MoveLocation::Instruction(inst_id);
 
         match inst {
-            // drop/free always consume
-            Instruction::Drop { value } => {
+            // raw.drop/stack.drop/raw.free always consume
+            Instruction::RawDrop { value } => {
+                state.mark_moved(*value, at);
+            }
+            Instruction::StackDrop { value } => {
                 state.mark_moved(*value, at);
             }
             Instruction::RawFree { pointer } => {
@@ -672,8 +675,11 @@ fn process_instruction(
     let at = MoveLocation::Instruction(inst_id);
 
     match inst {
-        // drop/free always consume
-        Instruction::Drop { value } => {
+        // raw.drop/stack.drop/raw.free always consume
+        Instruction::RawDrop { value } => {
+            state.mark_moved(*value, at);
+        }
+        Instruction::StackDrop { value } => {
             state.mark_moved(*value, at);
         }
         Instruction::RawFree { pointer } => {
@@ -881,7 +887,7 @@ block0:
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
-    drop v0
+    raw.drop v0
     v1 = iconst 0i32
     return v1
 }"#,
@@ -911,7 +917,7 @@ block0:
 block0(v0: bool, v1: i32):
     branch v0, block1, block2
 block1:
-    drop v1
+    raw.drop v1
     jump block3
 block2:
     jump block3

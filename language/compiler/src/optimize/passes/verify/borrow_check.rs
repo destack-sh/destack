@@ -335,7 +335,7 @@ impl<'a> BorrowCheckContext<'a> {
         context: &OptimizationContext<'_>,
     ) {
         // check if any existing borrow may be invalidated by this mutation
-        // FUGU: this is a simplified check based on direct origin equality.
+        // FUGU #Broken: this is a simplified check based on direct origin equality.
         // Full alias analysis would detect may-alias relationships.
         let invalidated: Vec<_> = self
             .active_borrows
@@ -647,8 +647,13 @@ fn check_instruction(
             }
         }
 
-        // drop invalidates any borrows from this value
-        Instruction::Drop { value } => {
+        // raw.drop invalidates any borrows from this value
+        Instruction::RawDrop { value } => {
+            checker.check_drop_while_borrowed(*value, instruction_id, context);
+        }
+
+        // stack.drop invalidates any borrows from this value
+        Instruction::StackDrop { value } => {
             checker.check_drop_while_borrowed(*value, instruction_id, context);
         }
 
@@ -882,7 +887,7 @@ block0(v0: ref<raw i32>, v1: i32):
 block0:
     v0 = stack.alloc i32
     v1 = field.addr v0, 0
-    drop v0
+    raw.drop v0
     v2 = load v1
     return v2
 }"#;
@@ -951,7 +956,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0
-    drop v0
+    raw.drop v0
     v3 = load v2
     return v3
 }"#;
@@ -973,7 +978,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0
-    drop v0
+    raw.drop v0
     v3 = load v2
     return v3
 }"#;
@@ -1042,7 +1047,7 @@ block0:
     store v0, v1
     v2 = field.addr v0, 0
     v3 = load v2
-    drop v0
+    raw.drop v0
     return v3
 }"#;
 
@@ -1062,7 +1067,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0
-    drop v0
+    raw.drop v0
     v3 = load v2
     return v3
 }"#;
@@ -1085,7 +1090,7 @@ block0:
     v2 = iconst 0i32
     v3 = element.addr v0, v2
     v4 = load v3
-    drop v0
+    raw.drop v0
     return v4
 }"#;
 
@@ -1105,7 +1110,7 @@ block0:
     store v0, v1
     v2 = field.addr v0, 0
     v3 = iconst 10i32
-    drop v0
+    raw.drop v0
     v4 = load v2
     return v4
 }"#;
@@ -1129,7 +1134,7 @@ block0:
     store v0, v1
     v2 = field.addr v0, 0
     v3 = field.addr v2, 0
-    drop v0
+    raw.drop v0
     v4 = load v3
     return v4
 }"#;
@@ -1151,7 +1156,7 @@ block0:
     v2 = field.addr v0, 0
     v3 = field.addr v2, 0
     v4 = field.addr v3, 0
-    drop v0
+    raw.drop v0
     v5 = load v4
     return v5
 }"#;
@@ -1173,7 +1178,7 @@ block0:
     v2 = field.addr v0, 0
     v3 = field.addr v2, 0
     v4 = load v3
-    drop v0
+    raw.drop v0
     return v4
 }"#;
 
@@ -1194,7 +1199,7 @@ block0:
     store v0, v1
     v2 = field.addr v0, 0
     v3 = field.addr v2, 0
-    drop v2
+    raw.drop v2
     v4 = load v3
     return v4
 }"#;
@@ -1262,7 +1267,7 @@ block1:
 block2:
     jump block3
 block3:
-    drop v1
+    raw.drop v1
     v4 = load v3
     return v4
 }"#;
@@ -1294,9 +1299,9 @@ block2:
     v5 = field.addr v2, 0
     jump block3(v5)
 block3(v6: ref<raw i32>):
-    drop v1
+    raw.drop v1
     v7 = load v6
-    drop v2
+    raw.drop v2
     return v7
 }"#;
 
@@ -1327,7 +1332,7 @@ block2:
     v6 = load v5
     jump block3(v6)
 block3(v7: i32):
-    drop v1
+    raw.drop v1
     return v7
 }"#;
 
@@ -1359,7 +1364,7 @@ block2:
     jump block1
 block3:
     v8 = load v1
-    drop v1
+    raw.drop v1
     return v8
 }"#;
 

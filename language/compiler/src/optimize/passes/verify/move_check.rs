@@ -295,7 +295,7 @@ block0:
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
-    drop v0
+    raw.drop v0
     v1 = iadd v0, v0
     return v1
 }"#;
@@ -362,7 +362,7 @@ block0:
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst true
-    drop v0
+    raw.drop v0
     branch v0, block1, block2
 block1:
     v1 = iconst 1i32
@@ -399,7 +399,7 @@ block1(v2: i32, v3: i32):
     fn test_detect_use_after_move_jump_arg() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    drop v0
+    raw.drop v0
     jump block1(v0)
 block1(v1: i32):
     return v1
@@ -416,7 +416,7 @@ block1(v1: i32):
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
-    drop v0
+    raw.drop v0
     return v0
 }"#;
 
@@ -432,7 +432,7 @@ block0:
 block0(v0: bool, v1: i32):
     branch v0, block1, block2
 block1:
-    drop v1
+    raw.drop v1
     jump block3
 block2:
     jump block3
@@ -453,10 +453,10 @@ block3:
 block0(v0: bool, v1: i32):
     branch v0, block1, block2
 block1:
-    drop v1
+    raw.drop v1
     jump block3
 block2:
-    drop v1
+    raw.drop v1
     jump block3
 block3:
     return v1
@@ -603,7 +603,7 @@ block0:
 block0(v0: ref<raw ref<owned i32>>):
     v1 = managed.alloc i32
     store v0, v1
-    drop v1
+    raw.drop v1
     return
 }"#;
 
@@ -654,7 +654,7 @@ local0: ref<owned i32>
 block0:
     v0 = managed.alloc i32
     local.set local0, v0
-    drop v0
+    raw.drop v0
     return
 }"#;
 
@@ -672,7 +672,7 @@ function @test() -> void {
 block0:
     v0 = managed.alloc i32
     call @consume(v0)
-    drop v0
+    raw.drop v0
     return
 }"#;
 
@@ -706,7 +706,7 @@ block0(v0: ref<raw ref<borrowed i32>>, v1: ref<borrowed i32>):
 block0:
     v0 = managed.alloc i32
     v1 = tuple (ref<owned i32>,) (v0)
-    drop v0
+    raw.drop v0
     return v1
 }"#;
 
@@ -738,7 +738,7 @@ block0:
 block0:
     v0 = managed.alloc i32
     v1 = struct { ref<owned i32> } (v0)
-    drop v0
+    raw.drop v0
     return v1
 }"#;
 
@@ -754,7 +754,7 @@ block0:
 block0:
     v0 = managed.alloc i32
     v1 = array [ref<owned i32>; 1] (v0)
-    drop v0
+    raw.drop v0
     return v1
 }"#;
 
@@ -772,7 +772,7 @@ block0:
 block0(v0: { ref<owned i32> }):
     v1 = managed.alloc i32
     v2 = field.set v0, 0, v1
-    drop v1
+    raw.drop v1
     return v2
 }"#;
 
@@ -789,7 +789,7 @@ block0(v0: [ref<owned i32>; 2]):
     v1 = managed.alloc i32
     v2 = iconst 0u64
     v3 = element.set v0, v2, v1
-    drop v1
+    raw.drop v1
     return v3
 }"#;
 
@@ -806,7 +806,7 @@ block0(v0: bool):
     v1 = managed.alloc i32
     jump block1(v1)
 block1(v2: ref<owned i32>):
-    drop v2
+    raw.drop v2
     branch v0, block1(v2), block2
 block2:
     return
@@ -825,7 +825,7 @@ block0(v0: bool):
     jump block1
 block1:
     v1 = managed.alloc i32
-    drop v1
+    raw.drop v1
     branch v0, block1, block2
 block2:
     return
@@ -845,7 +845,7 @@ block2:
 block0(v0: fn(ref<owned i32>) -> void):
     v1 = managed.alloc i32
     call.indirect v0(v1)
-    drop v1
+    raw.drop v1
     return
 }"#;
 
@@ -859,7 +859,7 @@ block0(v0: fn(ref<owned i32>) -> void):
     fn test_detect_switch_use_after_move() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    drop v0
+    raw.drop v0
     switch v0, block3, 0 => block1, 1 => block2
 block1:
     v1 = iconst 1i32
@@ -883,10 +883,10 @@ block3:
         let input = r#"function @test() -> void {
 block0:
     v0 = managed.alloc i32
-    drop v0
+    raw.drop v0
     jump block1(v0)
 block1(v1: ref<owned i32>):
-    drop v1
+    raw.drop v1
     return
 }"#;
 
@@ -901,7 +901,7 @@ block1(v1: ref<owned i32>):
         let input = r#"function @test() -> ref<owned i32> {
 block0:
     v0 = managed.alloc i32
-    drop v0
+    raw.drop v0
     return v0
 }"#;
 
@@ -916,7 +916,7 @@ block0:
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
-    drop v0
+    raw.drop v0
     v1 = iadd v0, v0
     v2 = iadd v0, v1
     return v2

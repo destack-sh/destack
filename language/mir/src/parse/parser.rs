@@ -975,9 +975,13 @@ impl<'a> Parser<'a> {
                 let value = self.parse_value()?;
                 Instruction::Store { pointer, value }
             }
-            "drop" => {
+            "raw.drop" => {
                 let value = self.parse_value()?;
-                Instruction::Drop { value }
+                Instruction::RawDrop { value }
+            }
+            "stack.drop" => {
+                let value = self.parse_value()?;
+                Instruction::StackDrop { value }
             }
 
             // void calls

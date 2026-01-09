@@ -396,11 +396,12 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 Instruction::Unary { argument, .. }
                 | Instruction::Cast { argument, .. }
-                | Instruction::Drop { value: argument }
-                | Instruction::RawFree { pointer: argument }
                 | Instruction::CallIndirect {
                     callee: argument, ..
-                } => {
+                }
+                | Instruction::RawFree { pointer: argument }
+                | Instruction::RawDrop { value: argument }
+                | Instruction::StackDrop { value: argument } => {
                     Self::replace_value_in_slot(argument, from, to);
                 }
                 Instruction::Load { pointer, .. } => {
