@@ -692,7 +692,7 @@ block1(v6: i32):
 block0(v0: bool, v1: i32):
     jump block1
 block1:
-    drop v1
+    raw.drop v1
     branch v0, block1, block2
 block2:
     return

@@ -703,7 +703,10 @@ fn substitute_instruction_uses(
             pointer: resolve_value(*pointer, substitutions),
             value: resolve_value(*value, substitutions),
         },
-        Instruction::Drop { value } => Instruction::Drop {
+        Instruction::RawDrop { value } => Instruction::RawDrop {
+            value: resolve_value(*value, substitutions),
+        },
+        Instruction::StackDrop { value } => Instruction::StackDrop {
             value: resolve_value(*value, substitutions),
         },
         Instruction::FieldGet {

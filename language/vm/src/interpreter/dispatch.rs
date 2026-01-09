@@ -3937,6 +3937,40 @@ pub(super) fn handle_raw_free(
     next!(state, block, pc)
 }
 
+/// Handle raw drop (compiler-inserted deallocation at ownership end).
+/// Semantically equivalent to raw_free but signals ownership transfer.
+pub(super) fn handle_raw_drop(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::RawDrop { value } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*value);
+
+    // accept raw pointer values - deallocate like raw_free
+    if let Some(p) = ptr.as_raw_pointer() {
+        // report invalid handle
+        if !state.interpreter.raw_heap.free(p) {
+            return ControlFlow::Error(Error::InvalidHeapHandle);
+        }
+    }
+    // otherwise report type mismatch
+    else {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "raw_pointer".to_string(),
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle stack allocation.
 pub(super) fn handle_stack_alloc(
     state: &mut ThreadedState,
@@ -3971,6 +4005,26 @@ pub(super) fn handle_stack_alloc(
     }
 
     state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle stack drop (compiler-inserted lifetime end marker).
+/// Currently a no-op - stack memory is freed when the frame exits.
+/// Exists for NLL support and potential future optimizations.
+pub(super) fn handle_stack_drop(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data - validate it's the right instruction
+    let ThreadedInstructionData::StackDrop { value: _ } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // no-op: stack memory is managed by frame lifetime
+    // the instruction exists to mark the end of the value's lifetime for NLL
 
     // continue to next instruction
     next!(state, block, pc)

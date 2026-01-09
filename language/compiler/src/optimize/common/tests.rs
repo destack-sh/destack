@@ -90,6 +90,9 @@ impl TestProgram {
                 continue;
             }
 
+            // clear analysis cache between functions (analyses are per-function)
+            context.analyses.clear();
+
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.tree);
             pass.run_on_function(&mut function, &mut self.tree, &context);
@@ -114,6 +117,11 @@ impl TestProgram {
             test_module_id(),
             test_target_id(),
         )
+    }
+
+    /// Get string by id from the string pool.
+    pub(crate) fn get_string(&self, id: destack_base::StringId) -> &str {
+        self.strings.get(id)
     }
 
     /// Get errors from the last pass run.

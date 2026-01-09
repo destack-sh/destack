@@ -169,7 +169,7 @@ impl FunctionPass for DropInsert {
         }
 
         // insert drops (process in reverse to maintain indices)
-        insert_drops(function, tree, &drops_to_insert);
+        insert_drops(function, tree, &drops_to_insert, &ownership);
 
         // we modified the CFG and instructions
         AnalysisPreservation::none()
@@ -301,11 +301,46 @@ fn find_death_point(
     last_use_idx
 }
 
+/// Emit the drop sequence for a value.
+///
+/// If the value's type has a drop function in the metadata table, emits a call
+/// to the drop function first. Then emits the drop instruction.
+fn emit_drop_sequence(
+    tree: &mut mir::NodeTree,
+    ownership: &OwnershipAnalysis,
+    value: Value,
+    instructions: &mut Vec<mir::LocalNodeId<Instruction>>,
+) {
+    // check if value's type has a drop function
+    if let Some(type_id) = ownership.value_type(value)
+        && let Some(&drop_fn) = tree.metadata.drop_function_by_type_id.get(&type_id)
+    {
+        let arguments = tree.add_arguments(&[value]);
+        let call = Instruction::Call {
+            destination: None,
+            function: drop_fn,
+            arguments,
+        };
+        let call_id = tree.insert(call);
+        instructions.push(call_id);
+    }
+
+    // emit the drop instruction
+    // TODO: use StackDrop for stack-allocated values once we track allocation kind
+    let drop_instruction = Instruction::RawDrop { value };
+    let drop_id = tree.insert(drop_instruction);
+    instructions.push(drop_id);
+}
+
 /// Insert Drop instructions at the specified points.
+///
+/// For each drop, if the value's type has a drop function registered in the
+/// metadata table, emits a call to the drop function before the drop instruction.
 fn insert_drops(
     _function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     drops: &[DropInsertionPoint],
+    ownership: &OwnershipAnalysis,
 ) {
     // group by block for efficient insertion
     let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<&DropInsertionPoint>> =
@@ -353,18 +388,14 @@ fn insert_drops(
             // insert drops after this instruction
             if let Some(values) = drops_after.get(&idx) {
                 for &value in values {
-                    let drop_instruction = Instruction::Drop { value };
-                    let drop_id = tree.insert(drop_instruction);
-                    new_instructions.push(drop_id);
+                    emit_drop_sequence(tree, ownership, value, &mut new_instructions);
                 }
             }
         }
 
         // insert drops before terminator
         for value in drops_before_terminator {
-            let drop_instruction = Instruction::Drop { value };
-            let drop_id = tree.insert(drop_instruction);
-            new_instructions.push(drop_id);
+            emit_drop_sequence(tree, ownership, value, &mut new_instructions);
         }
 
         // update block
@@ -377,6 +408,32 @@ fn insert_drops(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+
+    /// Register a drop function for all types matching a predicate.
+    ///
+    /// The MIR parser creates separate type nodes for each type occurrence,
+    /// so this helper registers the drop function for all matching types.
+    fn register_drop_function_for<F>(
+        program: &mut TestProgram,
+        drop_fn: mir::LocalNodeId<mir::Function>,
+        predicate: F,
+    ) where
+        F: Fn(&mir::Type) -> bool,
+    {
+        let type_ids: Vec<_> = program
+            .tree
+            .iter_nodes::<mir::Type>()
+            .filter_map(|(id, ty)| if predicate(ty) { Some(id) } else { None })
+            .collect();
+
+        for type_id in type_ids {
+            program
+                .tree
+                .metadata
+                .drop_function_by_type_id
+                .insert(type_id, drop_fn);
+        }
+    }
 
     /// Function with no droppable values is unchanged.
     #[test]
@@ -664,7 +721,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = load v0
-    drop v0
+    raw.drop v0
     return v2
 }"#;
 
@@ -704,7 +761,7 @@ block0(v0: ref<owned i32>):
         let expected = r#"function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
     v1 = load v0
-    drop v0
+    raw.drop v0
     return v1
 }"#;
 
@@ -732,5 +789,60 @@ block0:
         program.assert_no_errors();
         // raw.alloc doesn't get automatic drop - needs explicit raw.free
         program.assert_unchanged(input);
+    }
+
+    /// Type with drop function gets call emitted before raw.drop.
+    #[test]
+    fn test_drop_function_called_before_raw_drop() {
+        // input: function with owned param and a separate drop function
+        let input = r#"function @my_drop(v0: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>):
+    return
+}
+
+function @test(v0: ref<owned i32>) -> i32 {
+block0(v0: ref<owned i32>):
+    v1 = load v0
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // find the drop function
+        let drop_fn = program
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, f)| program.get_string(f.name) == "my_drop")
+            .map(|(id, _)| id)
+            .expect("drop function not found");
+
+        // register drop function for all owned reference types
+        register_drop_function_for(&mut program, drop_fn, |ty| {
+            matches!(
+                ty,
+                mir::Type::Reference {
+                    kind: mir::ReferenceKind::Owned,
+                    ..
+                }
+            )
+        });
+
+        // run drop_insert
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+
+        // verify output has call to @my_drop before raw.drop
+        let expected = r#"function @my_drop(v0: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>):
+    return
+}
+function @test(v0: ref<owned i32>) -> i32 {
+block0(v0: ref<owned i32>):
+    v1 = load v0
+    call @my_drop(v0)
+    raw.drop v0
+    return v1
+}"#;
+        program.assert_output(expected);
     }
 }

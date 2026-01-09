@@ -238,7 +238,9 @@ fn compute_available_stores(
                 }
 
                 // drop/free may read memory via destructors (use mod-ref analysis)
-                mir::Instruction::Drop { .. } | mir::Instruction::RawFree { .. } => {
+                mir::Instruction::RawDrop { .. }
+                | mir::Instruction::StackDrop { .. }
+                | mir::Instruction::RawFree { .. } => {
                     available.retain(|s| {
                         let store_loc = MemoryLocation::from_ptr(s.pointer);
                         !aa.get_mod_ref_info(inst_id, &store_loc).is_ref()
@@ -299,7 +301,9 @@ fn is_store_overwritten_at_block_entry(
             }
 
             // drop/free may read memory (use mod-ref analysis)
-            mir::Instruction::Drop { .. } | mir::Instruction::RawFree { .. } => {
+            mir::Instruction::RawDrop { .. }
+            | mir::Instruction::StackDrop { .. }
+            | mir::Instruction::RawFree { .. } => {
                 if aa.get_mod_ref_info(instruction_id, &store_loc).is_ref() {
                     return false;
                 }
@@ -370,7 +374,9 @@ fn find_locally_dead_stores(
             }
 
             // drop/free may read memory - use mod-ref analysis
-            mir::Instruction::Drop { .. } | mir::Instruction::RawFree { .. } => {
+            mir::Instruction::RawDrop { .. }
+            | mir::Instruction::StackDrop { .. }
+            | mir::Instruction::RawFree { .. } => {
                 last_stores.retain(|&ptr, _| {
                     let store_loc = MemoryLocation::from_ptr(ptr);
                     !aa.get_mod_ref_info(instruction_id, &store_loc).is_ref()

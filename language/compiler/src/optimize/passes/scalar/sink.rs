@@ -28,12 +28,13 @@ fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::Call { .. }
             | Instruction::CallIndirect { .. }
             | Instruction::Intrinsic { .. }
-            | Instruction::Drop { .. }
             | Instruction::ManagedAlloc { .. }
             | Instruction::ManagedAllocArray { .. }
             | Instruction::RawAlloc { .. }
             | Instruction::RawFree { .. }
+            | Instruction::RawDrop { .. }
             | Instruction::StackAlloc { .. }
+            | Instruction::StackDrop { .. }
     )
 }
 
@@ -379,7 +380,7 @@ block2:
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
     v2 = iconst 1i32
-    drop v0
+    raw.drop v0
     branch v1, block1, block2
 block1:
     return v2
@@ -393,7 +394,7 @@ block2:
         // actually, v2 has no dependency on drop, so v2 CAN sink to block1
         let expected = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    drop v0
+    raw.drop v0
     branch v1, block1, block2
 block1:
     v2 = iconst 1i32

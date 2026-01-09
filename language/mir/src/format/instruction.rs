@@ -188,7 +188,9 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
+            Instruction::RawDrop { value } => write!(f, [token("raw.drop"), space(), value]),
+
+            Instruction::StackDrop { value } => write!(f, [token("stack.drop"), space(), value]),
 
             Instruction::FieldGet {
                 destination,

@@ -412,8 +412,9 @@ impl<'a> FunctionLowerer<'a> {
             // store: no result
             mir::Instruction::Store { .. } => None,
 
-            // drop: no result
-            mir::Instruction::Drop { .. } => None,
+            // raw.drop / stack.drop: no result
+            mir::Instruction::RawDrop { .. } => None,
+            mir::Instruction::StackDrop { .. } => None,
 
             // extract_field: type is the field's type
             mir::Instruction::FieldGet {
@@ -779,12 +780,19 @@ impl<'a> FunctionLowerer<'a> {
                     .store(cir::MemFlags::new(), store_value, ptr_value, 0);
             }
 
-            // drop: requires ownership support, not lowered yet
-            mir::Instruction::Drop { .. } => {
+            // raw.drop: deallocate raw heap memory
+            mir::Instruction::RawDrop { value } => {
+                // TODO: implement raw deallocation
+                let _ = value_map[value];
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "drop",
+                    "raw.drop",
                     instruction_id.into_any(),
                 ));
+            }
+
+            // stack.drop: mark stack value lifetime ended (no-op for codegen)
+            mir::Instruction::StackDrop { .. } => {
+                // no-op: stack memory is freed when the frame exits
             }
 
             // extract_field: load at computed offset (struct/tuple field read)

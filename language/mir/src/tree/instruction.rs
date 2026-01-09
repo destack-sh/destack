@@ -140,13 +140,6 @@ pub enum Instruction {
         value: Value,
     },
 
-    // drop
-    /// Drop a value (drop).
-    Drop {
-        /// The value to drop.
-        value: Value,
-    },
-
     // aggregate operations (field.get, field.addr, field.set, element.get, element.addr, element.set)
     /// Extract a field from an aggregate value (field.get).
     FieldGet {
@@ -280,9 +273,9 @@ pub enum Instruction {
         length: Value,
     },
 
-    // allocation (raw - manual memory management: raw.alloc, raw.free)
+    // allocation (raw - manual memory management: raw.alloc, raw.free, raw.drop)
     /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a `ref<raw T>`. Caller must free with `raw.free`.
+    /// Returns a `ref<raw T>`. Caller must free with `raw.free` or `raw.drop`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: Value,
@@ -290,19 +283,33 @@ pub enum Instruction {
         layout: LocalNodeId<Type>,
     },
     /// Free raw heap memory previously allocated with `raw.alloc` (raw.free).
+    /// User-inserted for manual memory management (FFI, etc).
     RawFree {
         /// The pointer to free.
         pointer: Value,
     },
+    /// Drop an owned heap value (raw.drop).
+    /// Compiler-inserted to deallocate heap memory at ownership end.
+    /// Dispose and field drops are explicit calls preceding this.
+    RawDrop {
+        /// The value to drop.
+        value: Value,
+    },
 
-    // allocation (stack - automatic, scoped to function: stack.alloc)
+    // allocation (stack - automatic, scoped to function: stack.alloc, stack.drop)
     /// Allocate on the stack (lives until function returns) (stack.alloc).
-    /// Returns a `ref<raw T>`. Cannot free explicitly.
+    /// Returns a `ref<raw T>`. Freed automatically when frame exits.
     StackAlloc {
         /// The SSA value to define with the stack pointer.
         destination: Value,
         /// The type of the value to allocate.
         layout: LocalNodeId<Type>,
+    },
+    /// Mark a stack value's lifetime as ended (stack.drop).
+    /// Compiler-inserted for NLL. No deallocation (frame handles it).
+    StackDrop {
+        /// The value to drop.
+        value: Value,
     },
 
     // intrinsics
@@ -342,7 +349,6 @@ impl Instruction {
             Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
-            Instruction::Drop { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
             Instruction::FieldAddr { destination, .. } => Some(*destination),
             Instruction::FieldSet { destination, .. } => Some(*destination),
@@ -358,7 +364,9 @@ impl Instruction {
             Instruction::ManagedAllocArray { destination, .. } => Some(*destination),
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
+            Instruction::RawDrop { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
+            Instruction::StackDrop { .. } => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
     }
@@ -379,7 +387,6 @@ impl Instruction {
             Instruction::GlobalConst { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
-            Instruction::Drop { value } => smallvec![*value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldAddr { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldSet {
@@ -403,7 +410,9 @@ impl Instruction {
             Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
+            Instruction::RawDrop { value } => smallvec![*value],
             Instruction::StackAlloc { .. } => smallvec![],
+            Instruction::StackDrop { value } => smallvec![*value],
             // Arguments stored externally - return empty
             Instruction::Intrinsic { .. } => smallvec![],
         }

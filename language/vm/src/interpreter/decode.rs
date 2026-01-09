@@ -1248,9 +1248,14 @@ fn thread_instruction(
             },
         },
 
-        mir::Instruction::Drop { .. } => ThreadedInstruction {
-            handler: dispatch::handle_unsupported,
-            data: ThreadedInstructionData::Unsupported { name: "drop" },
+        mir::Instruction::RawDrop { value } => ThreadedInstruction {
+            handler: dispatch::handle_raw_drop,
+            data: ThreadedInstructionData::RawDrop { value: *value },
+        },
+
+        mir::Instruction::StackDrop { value } => ThreadedInstruction {
+            handler: dispatch::handle_stack_drop,
+            data: ThreadedInstructionData::StackDrop { value: *value },
         },
 
         mir::Instruction::FieldGet {
@@ -1735,8 +1740,9 @@ fn infer_instruction_kind(
         } => infer_intrinsic_kind(tree, *intrinsic, *arguments, value_kinds),
         mir::Instruction::LocalSet { .. }
         | mir::Instruction::Store { .. }
-        | mir::Instruction::Drop { .. }
-        | mir::Instruction::RawFree { .. } => None,
+        | mir::Instruction::RawFree { .. }
+        | mir::Instruction::RawDrop { .. }
+        | mir::Instruction::StackDrop { .. } => None,
     }
 }
 

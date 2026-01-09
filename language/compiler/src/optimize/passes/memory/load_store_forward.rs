@@ -339,7 +339,7 @@ fn process_block(
             }
 
             // drops may run destructors which can access any memory
-            mir::Instruction::Drop { .. } => {
+            mir::Instruction::RawDrop { .. } | mir::Instruction::StackDrop { .. } => {
                 available.invalidate_all();
             }
 

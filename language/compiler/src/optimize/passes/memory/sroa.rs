@@ -526,7 +526,12 @@ fn substitute_in_instruction(
                 *pointer = new;
             }
         }
-        mir::Instruction::Drop { value, .. } => {
+        mir::Instruction::RawDrop { value, .. } => {
+            if let Some(&new) = substitutions.get(value) {
+                *value = new;
+            }
+        }
+        mir::Instruction::StackDrop { value, .. } => {
             if let Some(&new) = substitutions.get(value) {
                 *value = new;
             }

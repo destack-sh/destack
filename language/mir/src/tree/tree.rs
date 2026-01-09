@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_base::Arena;
@@ -6,6 +7,25 @@ use crate::{
     ArgumentSlice, Block, Field, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType,
     Type, TypeAlias, Value,
 };
+
+/// Metadata table for MIR types.
+///
+/// Contains additional information about types that lowering populates
+/// from DIR type info. Currently tracks drop functions for types
+/// that implement Drop.
+#[derive(Clone, Debug, Default)]
+pub struct MetadataTable {
+    /// Drop function for each type that implements Drop.
+    /// Maps type id → drop function id.
+    pub drop_function_by_type_id: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
+}
+
+impl MetadataTable {
+    /// Create a new empty metadata table.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 /// MIR node tree for a single module.
 ///
@@ -40,6 +60,10 @@ pub struct NodeTree {
     /// Flat buffer of instruction arguments (for Call, CallIndirect, Intrinsic).
     /// Instructions reference slices of this buffer via ArgumentSlice.
     pub(crate) instruction_arguments: Vec<Value>,
+
+    // type metadata
+    /// Metadata about types (dispose functions, etc).
+    pub metadata: MetadataTable,
 }
 
 impl Debug for NodeTree {
@@ -87,6 +111,7 @@ impl NodeTree {
 
             source_id_by_node_id: Vec::with_capacity(capacity),
             instruction_arguments: Vec::new(),
+            metadata: MetadataTable::new(),
         }
     }
 
