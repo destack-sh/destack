@@ -70,7 +70,7 @@ impl TypeLowerer {
                 .layout_for_type(ty)
                 .and_then(|layout| layout.field_index(field_name))
                 .map(|i| i as usize),
-            mir::Type::Tuple { elements } => {
+            mir::Type::Tuple { elements, copyability: _ } => {
                 let name_str = strings.get(field_name);
                 name_str
                     .parse::<usize>()
@@ -97,12 +97,19 @@ impl TypeLowerer {
     ) -> mir::LocalNodeId<mir::Type> {
         let mut mir_fields = Vec::with_capacity(layout.fields.len());
 
+        // compute copyability from field types
+        let mut copyability = mir::Copyability::Trivial;
+        for field in &layout.fields {
+            let field_type = builder.tree().get(field.ty);
+            copyability = copyability.combine(field_type.copyability());
+        }
+
         for field in &layout.fields {
             let mir_field = builder.field(Some(field.name), field.ty, field.offset);
             mir_fields.push(mir_field);
         }
 
-        builder.type_struct(mir_fields)
+        builder.type_struct(mir_fields, copyability)
     }
 
     /// Lower a DIR type to a MIR type.

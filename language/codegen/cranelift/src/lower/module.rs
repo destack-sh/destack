@@ -176,11 +176,11 @@ impl<'a> ModuleLowerer<'a> {
                 // get the element types from the type
                 let mir_type = tree.get(ty);
                 let element_types = match mir_type {
-                    mir::Type::Tuple { elements } => elements.clone(),
-                    mir::Type::Struct { fields } => {
+                    mir::Type::Tuple { elements, copyability: _ } => elements.clone(),
+                    mir::Type::Struct { fields, copyability: _ } => {
                         fields.iter().map(|f| tree.get(*f).ty).collect()
                     }
-                    mir::Type::Array { element, length } => {
+                    mir::Type::Array { element, length, copyability: _ } => {
                         vec![*element; *length as usize]
                     }
                     _ => {

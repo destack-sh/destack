@@ -1,8 +1,8 @@
 use destack_base::{ImmutableStringPool, StringId, StringPool};
 
 use crate::{
-    Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability, NodeTree, ReferenceKind,
-    Type, TypedValue, Value,
+    Copyability, Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability, NodeTree,
+    ReferenceKind, Type, TypedValue, Value,
 };
 
 use super::FunctionBuilder;
@@ -130,19 +130,42 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create an array type.
-    pub fn type_array(&mut self, element: LocalNodeId<Type>, length: u64) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Array { element, length })
+    /// Create an array type with explicit copyability.
+    pub fn type_array(
+        &mut self,
+        element: LocalNodeId<Type>,
+        length: u64,
+        copyability: Copyability,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Array {
+            element,
+            length,
+            copyability,
+        })
     }
 
-    /// Create a tuple type.
-    pub fn type_tuple(&mut self, elements: Vec<LocalNodeId<Type>>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Tuple { elements })
+    /// Create a tuple type with explicit copyability.
+    pub fn type_tuple(
+        &mut self,
+        elements: Vec<LocalNodeId<Type>>,
+        copyability: Copyability,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Tuple {
+            elements,
+            copyability,
+        })
     }
 
-    /// Create a struct type from field definitions.
-    pub fn type_struct(&mut self, fields: Vec<LocalNodeId<Field>>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Struct { fields })
+    /// Create a struct type with explicit copyability.
+    pub fn type_struct(
+        &mut self,
+        fields: Vec<LocalNodeId<Field>>,
+        copyability: Copyability,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Struct {
+            fields,
+            copyability,
+        })
     }
 
     /// Create a field definition for a struct type.

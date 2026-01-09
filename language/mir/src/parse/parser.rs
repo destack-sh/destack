@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, Constant, Field, Function, Global,
-    GlobalInitializer, Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering,
+    AllocationMode, BinaryOperator, Block, CastOperator, Constant, Copyability, Field, Function,
+    Global, GlobalInitializer, Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering,
     Mutability, NodeTree, Ownership, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias,
     TypedValue, UnaryOperator, Value,
 };
@@ -1228,7 +1228,11 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Semicolon)?;
                 let length = self.parse_int_literal()? as u64;
                 self.eat_token(TokenType::CloseBracket)?;
-                Type::Array { element, length }
+                Type::Array {
+                    element,
+                    length,
+                    copyability: Copyability::default(),
+                }
             }
             TokenType::OpenParen => {
                 self.bump();
@@ -1240,7 +1244,10 @@ impl<'a> Parser<'a> {
                     }
                 }
                 self.eat_token(TokenType::CloseParen)?;
-                Type::Tuple { elements }
+                Type::Tuple {
+                    elements,
+                    copyability: Copyability::default(),
+                }
             }
             TokenType::Fn => {
                 self.bump();
@@ -1283,7 +1290,10 @@ impl<'a> Parser<'a> {
                     }
                 }
                 self.eat_token(TokenType::CloseBrace)?;
-                Type::Struct { fields }
+                Type::Struct {
+                    fields,
+                    copyability: Copyability::default(),
+                }
             }
             _ => {
                 return Err(ParseError::unexpected("type", token_ty, token_start));
