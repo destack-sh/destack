@@ -1,6 +1,6 @@
 mod aggregate;
 mod arithmetic;
-mod bindings;
+mod binding;
 mod bitwise;
 mod comparison;
 mod control;

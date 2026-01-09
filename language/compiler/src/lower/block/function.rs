@@ -7,7 +7,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::{ModuleLowerer, TypeLowerer};
+use super::super::{GlobalBinding, ModuleLowerer, TypeLowerer};
 use super::block::{BlockLowerer, LocalBinding, LoopContext, Terminates};
 
 /// Lower a single function body into MIR.
@@ -24,6 +24,8 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(crate) strings: &'a StringPool,
     /// Resolve direct calls for known function symbols.
     pub(crate) functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+    /// Resolve globals by symbol for module-level variable references.
+    pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: &'a TypeLowerer,
     /// Emit MIR into the current function builder.
@@ -46,6 +48,7 @@ impl<'a> FunctionLowerer<'a> {
         types: &'a dir::TypeTable,
         strings: &'a StringPool,
         functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+        globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
         type_lowerer: &'a TypeLowerer,
         builder: mir::FunctionBuilder<'a>,
     ) -> Self {
@@ -56,6 +59,7 @@ impl<'a> FunctionLowerer<'a> {
             types,
             strings,
             functions_by_symbol,
+            globals_by_symbol,
             type_lowerer,
             builder,
             locals_by_symbol: HashMap::new(),
@@ -76,6 +80,7 @@ impl<'a> FunctionLowerer<'a> {
             types: self.types,
             strings: self.strings,
             functions_by_symbol: self.functions_by_symbol,
+            globals_by_symbol: self.globals_by_symbol,
             type_lowerer: self.type_lowerer,
             builder: &mut self.builder,
             locals_by_symbol: &mut self.locals_by_symbol,
@@ -156,6 +161,7 @@ impl ModuleLowerer<'_> {
             self.types,
             &self.compiler.program.strings,
             &self.functions_by_symbol,
+            &self.globals_by_symbol,
             &self.type_lowerer,
             builder,
         );
@@ -167,14 +173,14 @@ impl ModuleLowerer<'_> {
         // add parameter locals
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let parameter = self.dir_tree.get(*parameter_id);
-            let symbol = parameter.symbol().into_global(self.module_id);
+            let symbol_id = parameter.symbol().into_global(self.module_id);
             let ty = parameter_types[index];
             let variable = function_lowerer.builder.create_variable(ty);
             let value = function_lowerer.builder.function_parameter(index);
             function_lowerer.builder.define_variable(variable, value);
             function_lowerer
                 .locals_by_symbol
-                .insert(symbol, LocalBinding { variable, ty });
+                .insert(symbol_id, LocalBinding { variable, ty });
         }
 
         // lower body
