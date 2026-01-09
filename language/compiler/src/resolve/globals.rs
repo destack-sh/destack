@@ -406,7 +406,7 @@ impl Compiler {
             }
 
             // load the module tree and symbols
-            self.require_bind_module_validate(module_id)?;
+            self.require_import_module_validate(module_id)?;
             let module = self.program.modules.get(module_id);
             let module = module.read();
             let base_dir = module.dir(profile_id);
@@ -454,7 +454,7 @@ impl Compiler {
             }
 
             // ensure bind validation before reading dir data
-            if let Err(error) = self.require_bind_module_validate(module_id) {
+            if let Err(error) = self.require_import_module_validate(module_id) {
                 // put current module back for retry
                 cache.pending.push_front(module_id);
                 self.global_symbol_caches.insert(key.clone(), cache);

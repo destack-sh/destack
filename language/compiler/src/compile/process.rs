@@ -4,10 +4,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::{
-    AnalyzeError, BindError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError,
-    GenerateError, InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
+    AnalyzeError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError, GenerateError,
+    ImportError, InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
     Task, TaskDebug, TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase,
-    TaskStatus, VerifyError,
+    TaskStatus,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -191,13 +191,11 @@ impl Compiler {
         // process
         match task.clone() {
             Task::Import(import_task) => self.process_import(import_task).into(),
-            Task::Bind(bind_task) => self.process_bind(bind_task).into(),
             Task::Resolve(resolve_task) => self.process_resolve(resolve_task).into(),
             Task::Analyze(analyze_task) => self.process_analyze(analyze_task).into(),
             Task::Elaborate(elaborate_task) => self.process_elaborate(elaborate_task).into(),
-            Task::Lower(lower_task) => self.process_lower(lower_task).into(),
-            Task::Verify(verify_task) => self.process_verify(verify_task).into(),
             Task::Execute(execute_task) => self.process_execute(execute_task).into(),
+            Task::Lower(lower_task) => self.process_lower(lower_task).into(),
             Task::Optimize(optimize_task) => self.process_optimize(optimize_task).into(),
             Task::Generate(generate_task) => self.process_generate(generate_task).into(),
             Task::Link(link_task) => self.process_link(link_task).into(),
@@ -496,10 +494,7 @@ impl Compiler {
     fn get_yield_failed_error(&self, waiter_id: TaskId, dependency: &TaskDependency) -> TaskError {
         let task = self.queue.get_task(waiter_id);
         match task.phase() {
-            TaskPhase::Import => {
-                panic!("import tasks cannot yield {waiter_id} for dependency {dependency:?}")
-            }
-            TaskPhase::Bind => BindError::UnsatisfiedDependency {
+            TaskPhase::Import => ImportError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),
@@ -515,15 +510,11 @@ impl Compiler {
                 dependency: dependency.clone(),
             }
             .into(),
-            TaskPhase::Lower => LowerError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
-            }
-            .into(),
-            TaskPhase::Verify => VerifyError::UnsatisfiedDependency {
-                dependency: dependency.clone(),
-            }
-            .into(),
             TaskPhase::Execute => ExecuteError::UnsatisfiedDependency {
+                dependency: dependency.clone(),
+            }
+            .into(),
+            TaskPhase::Lower => LowerError::UnsatisfiedDependency {
                 dependency: dependency.clone(),
             }
             .into(),

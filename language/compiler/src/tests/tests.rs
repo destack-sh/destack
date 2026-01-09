@@ -23,8 +23,8 @@ use destack_workspace::{Module, ProfileId, Program, Session, Target, TargetId};
 use parking_lot::RwLock;
 
 use crate::{
-    AnalyzeTask, BindTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask,
-    LintTask, LowerTask, ResolveTask, Task, TaskPhase, default_workers,
+    AnalyzeTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask, LintTask,
+    LowerTask, ResolveTask, Task, TaskPhase, default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -345,7 +345,7 @@ impl TestProgram {
 
     /// Enqueue Bind task for a module.
     pub fn bind_module(&self, module: ModuleId) {
-        self.enqueue(BindTask::BindModule { module });
+        self.enqueue(ImportTask::ImportModuleBind { module });
     }
 
     /// Enqueue Resolve task for a module.

@@ -113,7 +113,7 @@ let x: number = 0;
 x += 1;
 ",
         );
-        test.bind_module(module_id);
+        test.import_module(module_id);
         test.compile();
         test.check_clean();
         test.assert_bound(
@@ -137,7 +137,7 @@ async function test() {
 }
 "#,
         );
-        test.bind_module(module_id);
+        test.import_module(module_id);
         test.compile();
         test.check_clean();
         test.assert_bound(

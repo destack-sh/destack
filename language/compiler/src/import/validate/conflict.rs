@@ -5,8 +5,8 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
-use crate::bind::{SymbolDescriptor, can_merge_declarations};
-use crate::{BindError, Compiler};
+use crate::import::{SymbolDescriptor, can_merge_declarations};
+use crate::{Compiler, ImportError};
 
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
@@ -59,14 +59,14 @@ impl Compiler {
                         continue;
                     };
                     let error = if symbol.export.is_some() && other_symbol.export.is_some() {
-                        BindError::ConflictingExport {
+                        ImportError::ConflictingExport {
                             node: primary_declaration,
                             other_node: other_primary_declaration,
                             module: module.id,
                             name: Some(*key),
                         }
                     } else {
-                        BindError::ConflictingBinding {
+                        ImportError::ConflictingBinding {
                             node: primary_declaration,
                             other_node: other_primary_declaration,
                             scope: symbol.scope.0.into_global(module.id),

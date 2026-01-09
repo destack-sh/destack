@@ -13,8 +13,8 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                FRONT-END                                    │
 │                                                                             │
-│  Stages:  Import ───► Bind ───► Resolve ───► Analyze ───► Elaborate         │
-│  Output:    AST     base DIR   resolved DIR  typed DIR   canonical DIR      │
+│  Stages:  Import ───► Resolve ───► Analyze ───► Elaborate                   │
+│  Output: base DIR   resolved DIR  typed DIR   canonical DIR                 │
 │                                                                             │
 │                    (base DIR shared, canonical DIR per profile)             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -24,8 +24,8 @@ Like most compilers, the Destack compiler has three main regions:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                MIDDLE-END                                   │
 │                                                                             │
-│  Stages:  Execute ───► Lower ───► Verify ───► Optimize                      │
-│  Output: patched DIR     MIR    verified MIR   optimized MIR                │
+│  Stages:  Execute ───► Lower ───► Optimize                                  │
+│  Output: patched DIR     MIR    optimized MIR                               │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -49,13 +49,12 @@ Linting is a separate phase that runs on DIR alongside the pipeline.
 ### Front-End
 
 The front-end transforms source text into typed, elaborated ("canonical") DIR.
-Import and Bind are **profile-independent**, producing shared base DIR.
+Import is **profile-independent**, producing shared base DIR (parse, bind symbols/scopes, desugar).
 Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for each profile.
 
 | Phase | Letter | Input | Output | Profile | Description |
 |-------|--------|-------|--------|---------|-------------|
-| Import | `I` | Text | AST | — | Parse source into abstract syntax tree |
-| Bind | `B` | AST | base DIR | — | Create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
+| Import | `I` | Text | base DIR | — | Parse source into AST; create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
 | Resolve | `R` | base DIR | DIR | per-profile | Resolve symbol references (lexical binding, library resolution) |
 | Analyze | `A` | DIR | DIR | per-profile | Elaborate type declarations, infer value types, resolve overloads, validate semantics, record instances |
 | Elaborate | `E` | DIR | canonical DIR | per-profile | Canonicalize DIR: patterns→decision trees, tree literals→calls, etc. |
@@ -69,8 +68,7 @@ This region may be skipped for targets that don't require low-level IR (e.g., JS
 |-------|--------|-------|--------|-------------|
 | Execute | `X` | DIR | DIR | Execute comptime code via internal MIR and patch DIR |
 | Lower | `M` | DIR | MIR | Lower patched DIR to MIR (monomorphization, layouts, RTTI as needed) |
-| Verify | `V` | MIR | MIR | Verify and flow-check MIR (safety, borrowing, control flow) |
-| Optimize | `O` | MIR | MIR | Optimization passes |
+| Optimize | `O` | MIR | MIR | Verify MIR (safety, borrowing, control flow) then run optimization passes |
 
 ### Back-End
 
@@ -105,15 +103,13 @@ The compiler is organized into modules corresponding to each phase.
 | Path | Description | Source |
 |------|-------------|--------|
 | `compile/` | Compiler orchestration, task queue, and worker threads | [src/compile/](src/compile/) |
-| `import/` | Import and parse source into AST | [src/import/](src/import/) |
-| `bind/` | Bind AST to DIR; declare symbols/scopes; syntactic desugaring | [src/bind/](src/bind/) |
+| `import/` | Import, parse, bind, and desugar source into base DIR | [src/import/](src/import/) |
 | `resolve/` | Resolve symbol references | [src/resolve/](src/resolve/) |
 | `analyze/` | Type inference, checking, and overload resolution | [src/analyze/](src/analyze/) |
 | `elaborate/` | Post-analysis transforms (patterns, trees, etc.) | [src/elaborate/](src/elaborate/) |
 | `execute/` | Execute comptime code and patch DIR | [src/execute/](src/execute/) |
 | `lower/` | Lower DIR to MIR | [src/lower/](src/lower/) |
-| `verify/` | Verify and flow-check MIR | [src/verify/](src/verify/) |
-| `optimize/` | Optimize MIR | [src/optimize/](src/optimize/) |
+| `optimize/` | Verify and optimize MIR | [src/optimize/](src/optimize/) |
 | `generate/` | Generate artifacts from DIR/MIR | [src/generate/](src/generate/) |
 | `link/` | Link artifacts | [src/link/](src/link/) |
 | `emit/` | Write output files to disk | [src/emit/](src/emit/) |

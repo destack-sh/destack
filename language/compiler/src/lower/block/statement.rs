@@ -224,7 +224,8 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
             continue_block: header_block,
             break_block: exit_block,
         };
-        self.loops_by_symbol.insert(global_loop_symbol_id, loop_context);
+        self.loops_by_symbol
+            .insert(global_loop_symbol_id, loop_context);
         self.loop_stack.push(loop_context);
 
         match kind {
@@ -318,7 +319,8 @@ impl<'a, 'b> BlockLowerer<'a, 'b> {
             continue_block: increment_block,
             break_block: exit_block,
         };
-        self.loops_by_symbol.insert(global_loop_symbol_id, loop_context);
+        self.loops_by_symbol
+            .insert(global_loop_symbol_id, loop_context);
         self.loop_stack.push(loop_context);
 
         // jump to header to start loop

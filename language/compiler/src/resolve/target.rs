@@ -143,7 +143,7 @@ impl Compiler {
             }
 
             // ensure bind validation before reading dir data
-            self.require_bind_module_validate(module_id)
+            self.require_import_module_validate(module_id)
                 .map_err(|error| match error {
                     TaskDependencyError::NotReady { dependency } => {
                         ResolveError::Yield { dependency }
