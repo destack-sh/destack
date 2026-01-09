@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
+use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
     instruction_substitute_uses, terminator_substitute_uses,
@@ -52,13 +53,17 @@ impl FunctionPass for SimplifyCfg {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        context: &OptimizationContext<'_>,
     ) -> AnalysisPreservation {
+        // setup analysis state
         let mut changed = false;
+        let constants = context
+            .analyses
+            .get::<ConstantPropagation>(function, tree, context);
 
         // phase 1: constant branch folding
         // converts `branch const_true, A, B` -> `jump A`
-        changed |= fold_constant_branches(function, tree);
+        changed |= fold_constant_branches(function, tree, &constants);
 
         // phase 2: jump threading
         // threads jumps through empty blocks
@@ -85,24 +90,12 @@ impl FunctionPass for SimplifyCfg {
 
 /// Fold branches on constant conditions into unconditional jumps.
 /// Returns true if any branches were folded.
-fn fold_constant_branches(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn fold_constant_branches(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    constants: &ConstantPropagation,
+) -> bool {
     let mut changed = false;
-
-    // collect all constant values
-    let mut constants: HashSet<mir::Value> = HashSet::new();
-    let mut true_values: HashSet<mir::Value> = HashSet::new();
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            if let mir::Instruction::Const { destination, value } = instruction {
-                constants.insert(*destination);
-                if let mir::Constant::Boolean { value: true } = value {
-                    true_values.insert(*destination);
-                }
-            }
-        }
-    }
 
     // fold constant branches
     for &block_id in &function.blocks {
@@ -114,19 +107,26 @@ fn fold_constant_branches(function: &mir::Function, tree: &mut mir::NodeTree) ->
             else_target,
             else_arguments,
         } = &block.terminator
-            && constants.contains(condition)
         {
-            let is_true = true_values.contains(condition);
-            let (target, arguments) = if is_true {
-                (*then_target, then_arguments.clone())
-            } else {
-                (*else_target, else_arguments.clone())
+            // resolve condition constant
+            let condition_constant = constants.constant_at_exit(block_id, *condition);
+            let condition_value = match condition_constant {
+                Some(mir::Constant::Boolean { value }) => Some(*value),
+                _ => None,
             };
 
-            let mut new_block = block.clone();
-            new_block.terminator = mir::Terminator::Jump { target, arguments };
-            tree.replace(block_id, new_block);
-            changed = true;
+            if let Some(is_true) = condition_value {
+                let (target, arguments) = if is_true {
+                    (*then_target, then_arguments.clone())
+                } else {
+                    (*else_target, else_arguments.clone())
+                };
+
+                let mut new_block = block.clone();
+                new_block.terminator = mir::Terminator::Jump { target, arguments };
+                tree.replace(block_id, new_block);
+                changed = true;
+            }
         }
     }
 
@@ -557,6 +557,35 @@ block0:
         program.assert_output(expected);
     }
 
+    /// Branch on a global const folds to the selected target.
+    #[test]
+    fn test_fold_global_const_branch() {
+        let input = r#"global @flag: bool = true ; const
+function @test() -> i32 {
+block0:
+    v0 = global.const @flag
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    branch v0, block1, block2
+block1:
+    return v1
+block2:
+    return v2
+}"#;
+        let expected = r#"global @flag: bool = true ; const
+function @test() -> i32 {
+block0:
+    v0 = global.const @flag
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
     /// Branch on non-constant condition is preserved.
     #[test]
     fn test_preserve_non_constant_branch() {
@@ -575,6 +604,44 @@ block2:
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
         program.assert_unchanged(input);
+    }
+
+    /// Branch on a block parameter constant folds to the selected target.
+    #[test]
+    fn test_fold_block_param_constant_branch() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst true
+    branch v0, block1(v1), block2(v1)
+block1(v2: bool):
+    jump block3(v2)
+block2(v3: bool):
+    jump block3(v3)
+block3(v4: bool):
+    branch v4, block4, block5
+block4:
+    v5 = iconst 1i32
+    return v5
+block5:
+    v6 = iconst 2i32
+    return v6
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst true
+    branch v0, block1(v1), block2(v1)
+block1(v2: bool):
+    jump block3(v2)
+block2(v3: bool):
+    jump block3(v3)
+block3(v4: bool):
+    v5 = iconst 1i32
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
     }
 
     /// Constant branch folding makes the else target unreachable.
@@ -611,17 +678,17 @@ block0:
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 0i32
-    jump block1
-block1:
-    v1 = iconst 10i32
-    v2 = icmp_slt v0, v1
-    branch v2, block2, block3
+    jump block1(v0)
+block1(v1: i32):
+    v2 = iconst 10i32
+    v3 = icmp_slt v1, v2
+    branch v3, block2, block3
 block2:
-    v3 = iconst 1i32
-    v4 = iadd v0, v3
-    jump block1
+    v4 = iconst 1i32
+    v5 = iadd v1, v4
+    jump block1(v5)
 block3:
-    return v0
+    return v1
 }"#;
 
         let mut program = TestProgram::new(input);

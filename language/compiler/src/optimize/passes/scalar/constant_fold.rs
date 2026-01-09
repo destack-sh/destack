@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
-use mir::Constant;
 
+use crate::optimize::analyses::ConstantPropagation;
+use crate::optimize::common::{fold_binary, fold_unary};
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
+    AnalysisKind, AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
 };
 
 declare_pass! {
@@ -48,52 +47,74 @@ impl FunctionPass for ConstantFold {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        context: &OptimizationContext<'_>,
     ) -> AnalysisPreservation {
-        // build map of value -> constant for known constants
-        let mut constants: HashMap<mir::Value, mir::Constant> = HashMap::new();
+        // setup constant propagation state
+        let constants = context
+            .analyses
+            .get::<ConstantPropagation>(function, tree, context);
+        let mut changed = false;
 
-        // scan all blocks for constant definitions
+        // fold instructions with local constants
         for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let mir::Instruction::Const { destination, value } = instruction {
-                    constants.insert(*destination, value.clone());
-                }
-            }
-        }
-
-        // now fold binary/unary ops with constant operands
-        for &block_id in &function.blocks {
+            // seed constants for this block
+            let mut block_constants = constants.entry(block_id).clone();
             let block = tree.get(block_id);
             let instruction_ids: Vec<_> = block.instructions.clone();
 
+            // walk instructions in order
             for instruction_id in instruction_ids {
                 let instruction = tree.get(instruction_id);
+                let destination = instruction.destination();
 
+                // fold instruction when possible
                 match instruction {
+                    mir::Instruction::Const { destination, value } => {
+                        block_constants.insert(*destination, value.clone());
+                    }
+
+                    mir::Instruction::GlobalConst {
+                        destination,
+                        global,
+                    } => {
+                        // fold immutable scalar globals
+                        if let Some(constant) = constant_from_global(*global, tree) {
+                            block_constants.insert(*destination, constant.clone());
+                            let new_instruction = mir::Instruction::Const {
+                                destination: *destination,
+                                value: constant,
+                            };
+                            tree.replace(instruction_id, new_instruction);
+                            changed = true;
+                        } else {
+                            block_constants.remove(*destination);
+                        }
+                    }
+
                     mir::Instruction::Binary {
                         destination,
                         operator,
                         left,
                         right,
                     } => {
-                        let left_const = constants.get(left);
-                        let right_const = constants.get(right);
+                        // fold binary ops with constant operands
+                        let left_const = block_constants.get(*left);
+                        let right_const = block_constants.get(*right);
 
                         if let (Some(left_val), Some(right_val)) = (left_const, right_const)
                             && let Some(result) =
                                 fold_binary(*operator, left_val.clone(), right_val.clone())
                         {
-                            // replace with constant
                             let dest = *destination;
                             let new_instruction = mir::Instruction::Const {
                                 destination: dest,
                                 value: result.clone(),
                             };
                             tree.replace(instruction_id, new_instruction);
-                            constants.insert(dest, result);
+                            block_constants.insert(dest, result);
+                            changed = true;
+                        } else {
+                            block_constants.remove(*destination);
                         }
                     }
 
@@ -102,7 +123,8 @@ impl FunctionPass for ConstantFold {
                         operator,
                         argument,
                     } => {
-                        if let Some(arg_const) = constants.get(argument)
+                        // fold unary ops with constant operands
+                        if let Some(arg_const) = block_constants.get(*argument)
                             && let Some(result) = fold_unary(*operator, arg_const.clone())
                         {
                             let dest = *destination;
@@ -111,294 +133,46 @@ impl FunctionPass for ConstantFold {
                                 value: result.clone(),
                             };
                             tree.replace(instruction_id, new_instruction);
-                            constants.insert(dest, result);
+                            block_constants.insert(dest, result);
+                            changed = true;
+                        } else {
+                            block_constants.remove(*destination);
                         }
                     }
 
-                    _ => {}
+                    _ => {
+                        // clear destinations for unknown instructions
+                        if let Some(dest) = destination {
+                            block_constants.remove(dest);
+                        }
+                    }
                 }
             }
         }
 
         // constant folding doesn't change the CFG, only instruction contents
-        AnalysisPreservation::all()
-    }
-}
-
-/// Try to fold a binary operation on constants.
-fn fold_binary(
-    operator: mir::BinaryOperator,
-    left: mir::Constant,
-    right: mir::Constant,
-) -> Option<Constant> {
-    match (&left, &right) {
-        // signed integer operations (must have same width)
-        (
-            Constant::Int {
-                value: l,
-                width: lw,
-                is_signed: true,
-            },
-            Constant::Int {
-                value: r,
-                width: rw,
-                is_signed: true,
-            },
-        ) if lw == rw => fold_binary_signed(*l, *r, *lw, operator),
-
-        // unsigned integer operations (must have same width)
-        (
-            Constant::UInt {
-                value: l,
-                width: lw,
-            },
-            Constant::UInt {
-                value: r,
-                width: rw,
-            },
-        ) if lw == rw => fold_binary_unsigned(*l, *r, *lw, operator),
-
-        // float operations (must have same width)
-        (
-            Constant::Float {
-                bits: lb,
-                width: lw,
-            },
-            Constant::Float {
-                bits: rb,
-                width: rw,
-            },
-        ) if lw == rw => fold_binary_float(*lb, *rb, *lw, operator),
-
-        // boolean operations
-        (Constant::Boolean { value: l }, Constant::Boolean { value: r }) => {
-            fold_binary_bool(*l, *r, operator)
+        if changed {
+            AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
+        } else {
+            AnalysisPreservation::all()
         }
-
-        _ => None,
     }
 }
 
-/// Fold a binary operation on signed integers.
-fn fold_binary_signed(
-    left: i64,
-    right: i64,
-    width: u8,
-    operator: mir::BinaryOperator,
+/// Read a scalar constant from an immutable global.
+fn constant_from_global(
+    global: mir::LocalNodeId<mir::Global>,
+    tree: &mir::NodeTree,
 ) -> Option<mir::Constant> {
-    let result_int = |value: i64| {
-        Some(mir::Constant::Int {
-            value,
-            width,
-            is_signed: true,
-        })
-    };
-    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
-
-    match operator {
-        mir::BinaryOperator::Add => result_int(left.wrapping_add(right)),
-        mir::BinaryOperator::Subtract => result_int(left.wrapping_sub(right)),
-        mir::BinaryOperator::Multiply => result_int(left.wrapping_mul(right)),
-        mir::BinaryOperator::SignedDivide => {
-            if right != 0 {
-                result_int(left.wrapping_div(right))
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedRemainder => {
-            if right != 0 {
-                result_int(left.wrapping_rem(right))
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::And => result_int(left & right),
-        mir::BinaryOperator::Or => result_int(left | right),
-        mir::BinaryOperator::Xor => result_int(left ^ right),
-        mir::BinaryOperator::ShiftLeft => result_int(left.wrapping_shl(right as u32)),
-        mir::BinaryOperator::ArithmeticShiftRight => result_int(left.wrapping_shr(right as u32)),
-        mir::BinaryOperator::Equal => result_bool(left == right),
-        mir::BinaryOperator::NotEqual => result_bool(left != right),
-        mir::BinaryOperator::SignedLessThan => result_bool(left < right),
-        mir::BinaryOperator::SignedLessEqual => result_bool(left <= right),
-        mir::BinaryOperator::SignedGreaterThan => result_bool(left > right),
-        mir::BinaryOperator::SignedGreaterEqual => result_bool(left >= right),
-        _ => None,
+    // read global definition
+    let global = tree.get(global);
+    if global.is_mutable() {
+        return None;
     }
-}
 
-/// Fold a binary operation on unsigned integers.
-fn fold_binary_unsigned(
-    left: u64,
-    right: u64,
-    width: u8,
-    operator: mir::BinaryOperator,
-) -> Option<mir::Constant> {
-    let result_uint = |value: u64| Some(mir::Constant::UInt { value, width });
-    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
-
-    match operator {
-        mir::BinaryOperator::Add => result_uint(left.wrapping_add(right)),
-        mir::BinaryOperator::Subtract => result_uint(left.wrapping_sub(right)),
-        mir::BinaryOperator::Multiply => result_uint(left.wrapping_mul(right)),
-        mir::BinaryOperator::UnsignedDivide => {
-            if right != 0 {
-                result_uint(left.wrapping_div(right))
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::UnsignedRemainder => {
-            if right != 0 {
-                result_uint(left.wrapping_rem(right))
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::And => result_uint(left & right),
-        mir::BinaryOperator::Or => result_uint(left | right),
-        mir::BinaryOperator::Xor => result_uint(left ^ right),
-        mir::BinaryOperator::ShiftLeft => result_uint(left.wrapping_shl(right as u32)),
-        mir::BinaryOperator::LogicalShiftRight => result_uint(left.wrapping_shr(right as u32)),
-        mir::BinaryOperator::Equal => result_bool(left == right),
-        mir::BinaryOperator::NotEqual => result_bool(left != right),
-        mir::BinaryOperator::UnsignedLessThan => result_bool(left < right),
-        mir::BinaryOperator::UnsignedLessEqual => result_bool(left <= right),
-        mir::BinaryOperator::UnsignedGreaterThan => result_bool(left > right),
-        mir::BinaryOperator::UnsignedGreaterEqual => result_bool(left >= right),
-        _ => None,
-    }
-}
-
-/// Fold a binary operation on floats.
-fn fold_binary_float(
-    left_bits: u64,
-    right_bits: u64,
-    width: u8,
-    operator: mir::BinaryOperator,
-) -> Option<mir::Constant> {
-    let result_float = |value: f64| {
-        Some(mir::Constant::Float {
-            bits: value.to_bits(),
-            width,
-        })
-    };
-    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
-
-    if width == 32 {
-        let left = f32::from_bits(left_bits as u32);
-        let right = f32::from_bits(right_bits as u32);
-        match operator {
-            mir::BinaryOperator::FloatAdd => result_float((left + right) as f64),
-            mir::BinaryOperator::FloatSubtract => result_float((left - right) as f64),
-            mir::BinaryOperator::FloatMultiply => result_float((left * right) as f64),
-            mir::BinaryOperator::FloatDivide => result_float((left / right) as f64),
-            mir::BinaryOperator::FloatEqual => result_bool(left == right),
-            mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
-            mir::BinaryOperator::FloatLessThan => result_bool(left < right),
-            mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
-            mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
-            mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
-            _ => None,
-        }
-    } else if width == 64 {
-        let left = f64::from_bits(left_bits);
-        let right = f64::from_bits(right_bits);
-        match operator {
-            mir::BinaryOperator::FloatAdd => result_float(left + right),
-            mir::BinaryOperator::FloatSubtract => result_float(left - right),
-            mir::BinaryOperator::FloatMultiply => result_float(left * right),
-            mir::BinaryOperator::FloatDivide => result_float(left / right),
-            mir::BinaryOperator::FloatEqual => result_bool(left == right),
-            mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
-            mir::BinaryOperator::FloatLessThan => result_bool(left < right),
-            mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
-            mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
-            mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-/// Fold a binary operation on booleans.
-fn fold_binary_bool(
-    left: bool,
-    right: bool,
-    operator: mir::BinaryOperator,
-) -> Option<mir::Constant> {
-    let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
-
-    match operator {
-        mir::BinaryOperator::And => result_bool(left && right),
-        mir::BinaryOperator::Or => result_bool(left || right),
-        mir::BinaryOperator::Xor => result_bool(left ^ right),
-        mir::BinaryOperator::Equal => result_bool(left == right),
-        mir::BinaryOperator::NotEqual => result_bool(left != right),
-        _ => None,
-    }
-}
-
-/// Try to fold a unary operation on a constant.
-fn fold_unary(operator: mir::UnaryOperator, value: mir::Constant) -> Option<mir::Constant> {
-    match (operator, &value) {
-        (
-            mir::UnaryOperator::Negate,
-            mir::Constant::Int {
-                value: v,
-                width,
-                is_signed: true,
-            },
-        ) => Some(mir::Constant::Int {
-            value: v.wrapping_neg(),
-            width: *width,
-            is_signed: true,
-        }),
-
-        (mir::UnaryOperator::FloatNegate, mir::Constant::Float { bits, width }) => {
-            if *width == 32 {
-                let f = f32::from_bits(*bits as u32);
-                Some(mir::Constant::Float {
-                    bits: ((-f).to_bits()) as u64,
-                    width: 32,
-                })
-            } else if *width == 64 {
-                let f = f64::from_bits(*bits);
-                Some(mir::Constant::Float {
-                    bits: (-f).to_bits(),
-                    width: 64,
-                })
-            } else {
-                None
-            }
-        }
-
-        (mir::UnaryOperator::Not, mir::Constant::Boolean { value: v }) => {
-            Some(mir::Constant::Boolean { value: !v })
-        }
-
-        (
-            mir::UnaryOperator::Not,
-            mir::Constant::Int {
-                value: v,
-                width,
-                is_signed,
-            },
-        ) => Some(mir::Constant::Int {
-            value: !v,
-            width: *width,
-            is_signed: *is_signed,
-        }),
-
-        (mir::UnaryOperator::Not, mir::Constant::UInt { value: v, width }) => {
-            Some(mir::Constant::UInt {
-                value: !v,
-                width: *width,
-            })
-        }
-
+    // allow scalar initializers only
+    match global.initializer.as_ref()? {
+        mir::GlobalInitializer::Scalar(constant) => Some(constant.clone()),
         _ => None,
     }
 }
@@ -407,6 +181,7 @@ fn fold_unary(operator: mir::UnaryOperator, value: mir::Constant) -> Option<mir:
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+    use crate::optimize::common::{fold_binary_signed, fold_unary};
 
     /// Signed integer addition folds to result, division by zero returns None.
     #[test]
@@ -643,6 +418,70 @@ block1:
 block2:
     v4 = iconst 15i32
     return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Global constants fold through unary operations.
+    #[test]
+    fn test_fold_global_const_boolean() {
+        let input = r#"global @flag: bool = true ; const
+function @test() -> bool {
+block0:
+    v0 = global.const @flag
+    v1 = bnot v0
+    return v1
+}"#;
+        let expected = r#"global @flag: bool = true ; const
+function @test() -> bool {
+block0:
+    v0 = iconst true
+    v1 = iconst false
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Mutable globals do not fold through constant operations.
+    #[test]
+    fn test_preserve_mutable_global_const() {
+        let input = r#"global @flag: bool = true ; mut
+function @test() -> bool {
+block0:
+    v0 = global.const @flag
+    v1 = bnot v0
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_unchanged(input);
+    }
+
+    /// Block parameter constants fold within successor blocks.
+    #[test]
+    fn test_fold_block_param_constant() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3i32
+    jump block1(v0)
+block1(v1: i32):
+    v2 = iadd v1, v1
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3i32
+    jump block1(v0)
+block1(v1: i32):
+    v2 = iconst 6i32
+    return v2
 }"#;
 
         let mut program = TestProgram::new(input);

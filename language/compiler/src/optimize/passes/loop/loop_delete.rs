@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{DominatorTree, Loop, LoopAnalysis};
+use crate::optimize::analyses::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::common::instruction_has_side_effects;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
@@ -76,7 +76,9 @@ impl FunctionPass for LoopDelete {
             .analyses
             .get::<DominatorTree>(function, tree, context);
 
-        let constants = collect_boolean_constants(function, tree);
+        let constants = context
+            .analyses
+            .get::<ConstantPropagation>(function, tree, context);
 
         // collect deletable loops (innermost first to avoid invalidation issues)
         let mut deletable: Vec<DeleteCandidate> = Vec::new();
@@ -121,7 +123,7 @@ fn find_deletable_loop(
     function: &mir::Function,
     tree: &mir::NodeTree,
     domtree: &DominatorTree,
-    constants: &HashMap<mir::Value, bool>,
+    constants: &ConstantPropagation,
 ) -> Option<DeleteCandidate> {
     // need a preheader (immediate dominator outside the loop)
     let preheader = domtree.immediate_dominator(lp.header)?;
@@ -218,7 +220,7 @@ fn find_constant_exit(
     lp: &Loop,
     tree: &mir::NodeTree,
     preheader: mir::LocalNodeId<mir::Block>,
-    constants: &HashMap<mir::Value, bool>,
+    constants: &ConstantPropagation,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     let header_block = tree.get(lp.header);
 
@@ -240,7 +242,11 @@ fn find_constant_exit(
         _ => return None,
     };
 
-    let condition_value = *constants.get(&condition)?;
+    let condition_constant = constants.constant_at_exit(lp.header, condition)?;
+    let condition_value = match condition_constant {
+        mir::Constant::Boolean { value } => *value,
+        _ => return None,
+    };
     let (taken_target, taken_arguments) = if condition_value {
         (then_target, then_args)
     } else {
@@ -263,28 +269,6 @@ fn find_constant_exit(
         .collect();
 
     Some((taken_target, resolved_arguments))
-}
-
-/// Collect boolean constants defined in the function.
-fn collect_boolean_constants(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-) -> HashMap<mir::Value, bool> {
-    let mut constants = HashMap::new();
-
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            if let mir::Instruction::Const { destination, value } = instruction
-                && let mir::Constant::Boolean { value } = value
-            {
-                constants.insert(*destination, *value);
-            }
-        }
-    }
-
-    constants
 }
 
 /// Get arguments passed from preheader to header.
