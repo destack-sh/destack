@@ -160,6 +160,9 @@ pub struct OwnershipAnalysis {
     value_types: HashMap<Value, mir::LocalNodeId<Type>>,
     /// Values known to be copy types (constants, etc.).
     copy_values: HashSet<Value>,
+    /// Values allocated on the stack (from StackAlloc).
+    /// Used to determine whether to emit StackDrop vs RawDrop.
+    stack_allocated: HashSet<Value>,
 }
 
 impl OwnershipAnalysis {
@@ -215,6 +218,14 @@ impl OwnershipAnalysis {
             Some(&ty_id) => self.is_copy_type(ty_id, tree),
             None => false, // unknown type, be conservative
         }
+    }
+
+    /// Check if a value was allocated on the stack.
+    ///
+    /// Stack-allocated values use StackDrop (no-op, frame handles cleanup)
+    /// instead of RawDrop (explicit deallocation).
+    pub fn is_stack_allocated(&self, value: Value) -> bool {
+        self.stack_allocated.contains(&value)
     }
 
     /// Apply the effects of an instruction on ownership state.
@@ -384,12 +395,14 @@ impl OwnershipAnalysis {
                 block_exit: HashMap::new(),
                 value_types: HashMap::new(),
                 copy_values: HashSet::new(),
+                stack_allocated: HashSet::new(),
             };
         }
 
-        // collect type information and copy values
+        // collect type information, copy values, and stack allocations
         let mut value_types = HashMap::new();
         let mut copy_values = HashSet::new();
+        let mut stack_allocated = HashSet::new();
 
         // function parameters
         for param in &function.parameters {
@@ -406,7 +419,13 @@ impl OwnershipAnalysis {
             // collect types from instructions that have explicit types
             for &inst_id in &block.instructions {
                 let inst = tree.get(inst_id);
-                collect_instruction_types(inst, tree, &mut value_types, &mut copy_values);
+                collect_instruction_types(
+                    inst,
+                    tree,
+                    &mut value_types,
+                    &mut copy_values,
+                    &mut stack_allocated,
+                );
             }
         }
 
@@ -466,6 +485,7 @@ impl OwnershipAnalysis {
             block_exit: result.block_exit,
             value_types,
             copy_values,
+            stack_allocated,
         }
     }
 }
@@ -485,12 +505,13 @@ impl Analysis for OwnershipAnalysis {
     }
 }
 
-/// Collect type information and known copy values from an instruction.
+/// Collect type information, copy values, and stack allocations from an instruction.
 fn collect_instruction_types(
     inst: &Instruction,
     tree: &mir::NodeTree,
     value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
     copy_values: &mut HashSet<Value>,
+    stack_allocated: &mut HashSet<Value>,
 ) {
     match inst {
         // instructions with explicit result types
@@ -512,9 +533,14 @@ fn collect_instruction_types(
         } => {
             value_types.insert(*destination, *ty);
         }
-        // raw and stack allocs produce raw pointers (copy semantics)
-        Instruction::RawAlloc { destination, .. } | Instruction::StackAlloc { destination, .. } => {
+        // raw allocs produce raw pointers (copy semantics)
+        Instruction::RawAlloc { destination, .. } => {
             copy_values.insert(*destination);
+        }
+        // stack allocs produce raw pointers (copy semantics) and track allocation kind
+        Instruction::StackAlloc { destination, .. } => {
+            copy_values.insert(*destination);
+            stack_allocated.insert(*destination);
         }
 
         // managed allocs produce owned/managed refs (non-copy)

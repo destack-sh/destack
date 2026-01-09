@@ -325,9 +325,12 @@ fn emit_drop_sequence(
         instructions.push(call_id);
     }
 
-    // emit the drop instruction
-    // TODO: use StackDrop for stack-allocated values once we track allocation kind
-    let drop_instruction = Instruction::RawDrop { value };
+    // emit the drop instruction based on allocation kind
+    let drop_instruction = if ownership.is_stack_allocated(value) {
+        Instruction::StackDrop { value }
+    } else {
+        Instruction::RawDrop { value }
+    };
     let drop_id = tree.insert(drop_instruction);
     instructions.push(drop_id);
 }
