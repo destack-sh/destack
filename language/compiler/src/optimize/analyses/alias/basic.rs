@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use destack_mir as mir;
 
 use crate::optimize::common::{
@@ -7,6 +5,7 @@ use crate::optimize::common::{
     range_relation,
 };
 
+use super::common::FunctionAA;
 use super::result::{AliasResult, ModRefInfo, ParameterAttributes};
 
 /// Basic alias analysis using pointer provenance and offset tracking.
@@ -18,15 +17,11 @@ use super::result::{AliasResult, ModRefInfo, ParameterAttributes};
 /// - NoAlias from noalias function parameters
 /// - MustAlias for identical pointers
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct BasicAA {
-    /// Map from value to constant integer.
-    constants: HashMap<mir::Value, i64>,
-    /// Map from value to defining instruction.
-    definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    /// Function parameters.
-    parameters: Vec<mir::TypedValue>,
+    /// Common function information (constants, definitions, parameters).
+    function: FunctionAA,
     /// Parameter attributes (noalias, nocapture, etc.).
-    #[allow(dead_code)]
     param_attrs: Vec<ParameterAttributes>,
     /// Whether strict borrow mode is enabled.
     strict_borrow_mode: bool,
@@ -39,39 +34,7 @@ impl BasicAA {
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
     ) -> Self {
-        let mut constants = HashMap::new();
-        let mut definitions = HashMap::new();
-
-        // imports have no body
-        if function.entry.is_none() {
-            return Self {
-                constants,
-                definitions,
-                parameters: Vec::new(),
-                param_attrs: Vec::new(),
-                strict_borrow_mode,
-            };
-        }
-
-        // scan all instructions
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let inst = tree.get(instruction_id);
-
-                // record definitions
-                if let Some(dest) = inst.destination() {
-                    definitions.insert(dest, instruction_id);
-                }
-
-                // track constants
-                if let mir::Instruction::Const { destination, value } = inst
-                    && let mir::Constant::Int { value: v, .. } = value
-                {
-                    constants.insert(*destination, *v);
-                }
-            }
-        }
+        let info = FunctionAA::collect(function, tree);
 
         // NOTE #Incomplete: infer parameter attributes from function signature/annotations
         let param_attrs = function
@@ -81,9 +44,7 @@ impl BasicAA {
             .collect();
 
         Self {
-            constants,
-            definitions,
-            parameters: function.parameters.clone(),
+            function: info,
             param_attrs,
             strict_borrow_mode,
         }
@@ -103,10 +64,10 @@ impl BasicAA {
 
         // decompose pointers
         let mut decomposer = PointerDecomposer::new(
-            &self.constants,
-            &self.definitions,
+            &self.function.constants,
+            &self.function.definitions,
             tree,
-            &self.parameters,
+            &self.function.parameters,
             self.strict_borrow_mode,
         );
 
@@ -287,9 +248,10 @@ impl BasicAA {
         if ptr_a.var_offsets.len() == 1 && ptr_b.var_offsets.len() == 1 {
             let idx_a = ptr_a.var_offsets[0].index;
             let idx_b = ptr_b.var_offsets[0].index;
-            if let (Some(&c_a), Some(&c_b)) =
-                (self.constants.get(&idx_a), self.constants.get(&idx_b))
-                && c_a != c_b
+            if let (Some(&c_a), Some(&c_b)) = (
+                self.function.constants.get(&idx_a),
+                self.function.constants.get(&idx_b),
+            ) && c_a != c_b
             {
                 return true;
             }
@@ -420,10 +382,10 @@ impl BasicAA {
     #[allow(dead_code)]
     pub(super) fn is_arg_derived(&self, value: mir::Value, tree: &mir::NodeTree) -> bool {
         let mut decomposer = PointerDecomposer::new(
-            &self.constants,
-            &self.definitions,
+            &self.function.constants,
+            &self.function.definitions,
             tree,
-            &self.parameters,
+            &self.function.parameters,
             self.strict_borrow_mode,
         );
 

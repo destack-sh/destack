@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::common::{Analysis, AnalysisCache, AnalysisKind, MemoryLocation, TypeKey};
+use crate::optimize::common::{
+    Analysis, AnalysisKind, MemoryLocation, OptimizationContext, TypeKey,
+};
 
 use super::basic::BasicAA;
 use super::globals::GlobalsAA;
@@ -170,8 +172,16 @@ impl AliasAnalysis {
 impl Analysis for AliasAnalysis {
     const KIND: AnalysisKind = AnalysisKind::AliasAnalysis;
 
-    fn compute(function: &mir::Function, tree: &mir::NodeTree, cache: &AnalysisCache) -> Arc<Self> {
-        Arc::new(Self::build(function, tree, cache.strict_borrow_mode()))
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        context: &OptimizationContext<'_>,
+    ) -> Arc<Self> {
+        Arc::new(Self::build(
+            function,
+            tree,
+            context.options.strict_borrow_mode,
+        ))
     }
 }
 
@@ -194,8 +204,10 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let cache = AnalysisCache::new();
-        let aa = cache.get::<AliasAnalysis>(function, &program.tree);
+        let context = program.context();
+        let aa = context
+            .analyses
+            .get::<AliasAnalysis>(function, &program.tree, &context);
 
         // different allocations don't alias
         assert!(aa.pointers_no_alias(mir::Value::new(0), mir::Value::new(1)));
@@ -217,8 +229,10 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let cache = AnalysisCache::new();
-        let aa = cache.get::<AliasAnalysis>(function, &program.tree);
+        let context = program.context();
+        let aa = context
+            .analyses
+            .get::<AliasAnalysis>(function, &program.tree, &context);
 
         // find the load instruction
         let block = program.tree.get(function.blocks[0]);
@@ -244,8 +258,10 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let cache = AnalysisCache::new();
-        let aa = cache.get::<AliasAnalysis>(function, &program.tree);
+        let context = program.context();
+        let aa = context
+            .analyses
+            .get::<AliasAnalysis>(function, &program.tree, &context);
 
         // find the store instruction
         let block = program.tree.get(function.blocks[0]);
@@ -276,8 +292,10 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let cache = AnalysisCache::new();
-        let aa = cache.get::<AliasAnalysis>(function, &program.tree);
+        let context = program.context();
+        let aa = context
+            .analyses
+            .get::<AliasAnalysis>(function, &program.tree, &context);
 
         // different globals don't alias
         assert!(aa.pointers_no_alias(mir::Value::new(0), mir::Value::new(1)));
@@ -299,8 +317,10 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let cache = AnalysisCache::new();
-        let aa = cache.get::<AliasAnalysis>(function, &program.tree);
+        let context = program.context();
+        let aa = context
+            .analyses
+            .get::<AliasAnalysis>(function, &program.tree, &context);
 
         // with type info, int and float don't alias
         let int_ty = TypeKey::Int {

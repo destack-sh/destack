@@ -102,9 +102,15 @@ impl FunctionPass for Sink {
             None => return AnalysisPreservation::all(),
         };
 
-        let cfg = context.analyses.get::<ControlFlowGraph>(function, tree);
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
-        let loops = context.analyses.get::<LoopAnalysis>(function, tree);
+        let cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, tree, context);
 
         // collect all blocks that are in any loop
         let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops

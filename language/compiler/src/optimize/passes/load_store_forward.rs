@@ -83,15 +83,18 @@ impl FunctionPass for LoadStoreForward {
         };
 
         // get required analyses
-        let aa = context.analyses.get::<AliasAnalysis>(function, tree);
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
+        let aa = context
+            .analyses
+            .get::<AliasAnalysis>(function, tree, context);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
 
         // build dominator tree children for traversal
         let dom_children = build_dominator_children(function, &domtree);
 
         // run forwarding using dominator tree traversal
-        let (substitutions, to_remove) =
-            find_forwardable_loads(entry, tree, &aa, &dom_children);
+        let (substitutions, to_remove) = find_forwardable_loads(entry, tree, &aa, &dom_children);
 
         // nothing to do if no forwarding found
         if substitutions.is_empty() {

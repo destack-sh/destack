@@ -4,6 +4,7 @@ use destack_mir as mir;
 
 use crate::optimize::common::MemoryLocation;
 
+use super::common::FunctionAA;
 use super::result::{AliasResult, ModRefInfo};
 
 /// Global variable alias analysis.
@@ -20,22 +21,18 @@ pub(crate) struct GlobalsAA {
     writes: HashSet<mir::LocalNodeId<mir::Global>>,
     /// Globals whose address is taken (stored somewhere, passed to calls).
     address_taken: HashSet<mir::LocalNodeId<mir::Global>>,
-    /// Map from value to constant integer.
-    constants: HashMap<mir::Value, i64>,
-    /// Map from value to defining instruction.
-    definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    /// Function parameters.
-    parameters: Vec<mir::TypedValue>,
+    /// Common function information (constants, definitions, parameters).
+    function: FunctionAA,
 }
 
 impl GlobalsAA {
     /// Build GlobalsAA for a function.
     pub(super) fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+        let info = FunctionAA::collect(function, tree);
+
         let mut reads = HashSet::new();
         let mut writes = HashSet::new();
         let mut address_taken = HashSet::new();
-        let mut constants = HashMap::new();
-        let mut definitions = HashMap::new();
 
         // imports have no body
         if function.entry.is_none() {
@@ -43,31 +40,11 @@ impl GlobalsAA {
                 reads,
                 writes,
                 address_taken,
-                constants,
-                definitions,
-                parameters: Vec::new(),
+                function: info,
             };
         }
 
-        // first pass: collect definitions and constants
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let inst = tree.get(instruction_id);
-
-                if let Some(dest) = inst.destination() {
-                    definitions.insert(dest, instruction_id);
-                }
-
-                if let mir::Instruction::Const { destination, value } = inst
-                    && let mir::Constant::Int { value: v, .. } = value
-                {
-                    constants.insert(*destination, *v);
-                }
-            }
-        }
-
-        // second pass: analyze global accesses
+        // analyze global accesses
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
             for &instruction_id in &block.instructions {
@@ -87,19 +64,24 @@ impl GlobalsAA {
 
                     // loads through global addresses
                     mir::Instruction::Load { pointer, .. } => {
-                        if let Some(global) = Self::get_global_base(*pointer, &definitions, tree) {
+                        if let Some(global) =
+                            Self::get_global_base(*pointer, &info.definitions, tree)
+                        {
                             reads.insert(global);
                         }
                     }
 
                     // stores through global addresses
                     mir::Instruction::Store { pointer, value } => {
-                        if let Some(global) = Self::get_global_base(*pointer, &definitions, tree) {
+                        if let Some(global) =
+                            Self::get_global_base(*pointer, &info.definitions, tree)
+                        {
                             writes.insert(global);
                         }
 
                         // storing a global address somewhere makes it escape
-                        if let Some(global) = Self::get_global_base(*value, &definitions, tree) {
+                        if let Some(global) = Self::get_global_base(*value, &info.definitions, tree)
+                        {
                             address_taken.insert(global);
                         }
                     }
@@ -109,7 +91,9 @@ impl GlobalsAA {
                     | mir::Instruction::CallIndirect { arguments, .. } => {
                         let args = tree.get_arguments(*arguments);
                         for &arg in args {
-                            if let Some(global) = Self::get_global_base(arg, &definitions, tree) {
+                            if let Some(global) =
+                                Self::get_global_base(arg, &info.definitions, tree)
+                            {
                                 address_taken.insert(global);
                             }
                         }
@@ -124,9 +108,7 @@ impl GlobalsAA {
             reads,
             writes,
             address_taken,
-            constants,
-            definitions,
-            parameters: function.parameters.clone(),
+            function: info,
         }
     }
 
@@ -178,8 +160,8 @@ impl GlobalsAA {
         loc_b: &MemoryLocation,
         tree: &mir::NodeTree,
     ) -> AliasResult {
-        let global_a = Self::get_global_base(loc_a.ptr, &self.definitions, tree);
-        let global_b = Self::get_global_base(loc_b.ptr, &self.definitions, tree);
+        let global_a = Self::get_global_base(loc_a.ptr, &self.function.definitions, tree);
+        let global_b = Self::get_global_base(loc_b.ptr, &self.function.definitions, tree);
 
         match (global_a, global_b) {
             // different globals don't alias
@@ -213,7 +195,7 @@ impl GlobalsAA {
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
     ) -> ModRefInfo {
-        let Some(global) = Self::get_global_base(loc.ptr, &self.definitions, tree) else {
+        let Some(global) = Self::get_global_base(loc.ptr, &self.function.definitions, tree) else {
             // not a global location, we can't help
             return ModRefInfo::MOD_REF;
         };

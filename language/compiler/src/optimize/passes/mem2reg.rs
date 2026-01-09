@@ -72,8 +72,12 @@ impl FunctionPass for Mem2Reg {
         function.recompute_next_value_id(tree);
 
         // get dominator tree and CFG for the algorithm
-        let cfg = context.analyses.get::<ControlFlowGraph>(function, tree);
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
+        let cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
 
         // compute dominance frontiers
         let frontiers = compute_dominance_frontiers(function, &cfg, &domtree);

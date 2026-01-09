@@ -1,6 +1,7 @@
 mod constant_fold;
 mod copy_propagate;
 mod dead_code_eliminate;
+mod dead_store_eliminate;
 mod gvn;
 mod instruction_combine;
 mod licm;
@@ -13,10 +14,12 @@ mod loop_unswitch;
 mod mem2reg;
 mod simplify_cfg;
 mod sink;
+mod sroa;
 
 pub use constant_fold::*;
 pub use copy_propagate::*;
 pub use dead_code_eliminate::*;
+pub use dead_store_eliminate::*;
 pub use gvn::*;
 pub use instruction_combine::*;
 pub use licm::*;
@@ -29,3 +32,4 @@ pub use loop_unswitch::*;
 pub use mem2reg::*;
 pub use simplify_cfg::*;
 pub use sink::*;
+pub use sroa::*;

@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
+use super::context::OptimizationContext;
+
 /// Known analysis kinds.
 ///
 /// This is a closed enum - only the compiler can define new analysis types.
@@ -19,21 +21,27 @@ pub enum AnalysisKind {
     LoopAnalysis,
     /// Alias analysis (memory aliasing).
     AliasAnalysis,
+    /// Liveness analysis (live variables).
+    LivenessAnalysis,
 }
 
 /// A computed analysis over MIR.
 ///
 /// Analyses are lazily computed and cached. They can depend on other analyses
-/// by requesting them from the cache during computation.
+/// by requesting them from the context during computation.
 pub trait Analysis: 'static + Sized + Send + Sync {
     /// The kind of this analysis for invalidation tracking.
     const KIND: AnalysisKind;
 
     /// Compute this analysis for a function.
     ///
-    /// Dependencies on other analyses should be requested via `cache.get::<OtherAnalysis>()`.
+    /// Dependencies on other analyses should be requested via `context.analyses.get()`.
     /// The cache handles lazy computation and caching of dependencies.
-    fn compute(function: &mir::Function, tree: &mir::NodeTree, cache: &AnalysisCache) -> Arc<Self>;
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        context: &OptimizationContext<'_>,
+    ) -> Arc<Self>;
 }
 
 /// Cache for computed function analyses.
@@ -43,8 +51,6 @@ pub trait Analysis: 'static + Sized + Send + Sync {
 pub struct AnalysisCache {
     /// Cached analysis results, keyed by AnalysisKind.
     cache: RefCell<HashMap<AnalysisKind, Arc<dyn Any + Send + Sync>>>,
-    /// Whether strict borrow mode is enabled (`&mut T` has noalias semantics).
-    strict_borrow_mode: bool,
 }
 
 impl AnalysisCache {
@@ -52,28 +58,19 @@ impl AnalysisCache {
     pub fn new() -> Self {
         Self {
             cache: RefCell::new(HashMap::new()),
-            strict_borrow_mode: false,
         }
-    }
-
-    /// Create a new cache with the specified strict borrow mode.
-    pub fn with_strict_borrow_mode(strict_borrow_mode: bool) -> Self {
-        Self {
-            cache: RefCell::new(HashMap::new()),
-            strict_borrow_mode,
-        }
-    }
-
-    /// Whether strict borrow mode is enabled (`&mut T` has noalias semantics).
-    pub fn strict_borrow_mode(&self) -> bool {
-        self.strict_borrow_mode
     }
 
     /// Get or compute an analysis for a function.
     ///
     /// If the analysis is cached, returns the cached result. Otherwise computes
     /// the analysis (which may recursively request other analyses) and caches it.
-    pub fn get<A: Analysis>(&self, function: &mir::Function, tree: &mir::NodeTree) -> Arc<A> {
+    pub fn get<A: Analysis>(
+        &self,
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        context: &OptimizationContext<'_>,
+    ) -> Arc<A> {
         let kind = A::KIND;
 
         // check cache
@@ -82,7 +79,7 @@ impl AnalysisCache {
         }
 
         // compute (may recursively call get for dependencies)
-        let result = A::compute(function, tree, self);
+        let result = A::compute(function, tree, context);
 
         // cache
         self.cache.borrow_mut().insert(kind, result.clone());

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::{Analysis, AnalysisCache, AnalysisKind};
+use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
 
 use super::ControlFlowGraph;
 
@@ -230,9 +230,16 @@ impl DominatorTree {
 impl Analysis for DominatorTree {
     const KIND: AnalysisKind = AnalysisKind::DominatorTree;
 
-    fn compute(function: &mir::Function, tree: &mir::NodeTree, cache: &AnalysisCache) -> Arc<Self> {
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        context: &OptimizationContext<'_>,
+    ) -> Arc<Self> {
         // depends on CFG
-        let cfg = cache.get::<ControlFlowGraph>(function, tree);
+        let cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
+
         Arc::new(Self::build(function, tree, &cfg))
     }
 }
@@ -260,8 +267,10 @@ block2:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let cache = AnalysisCache::new();
-        let domtree = cache.get::<DominatorTree>(function, &program.tree);
+        let context = program.context();
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, &program.tree, &context);
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -304,8 +313,10 @@ block3:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let cache = AnalysisCache::new();
-        let domtree = cache.get::<DominatorTree>(function, &program.tree);
+        let context = program.context();
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, &program.tree, &context);
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -342,8 +353,10 @@ block1:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let cache = AnalysisCache::new();
-        let domtree = cache.get::<DominatorTree>(function, &program.tree);
+        let context = program.context();
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, &program.tree, &context);
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];

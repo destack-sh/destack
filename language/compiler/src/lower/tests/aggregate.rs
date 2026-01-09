@@ -93,5 +93,3 @@ function makeReversed(a: number, b: number): number {
         Value::float64(12.0),
     );
 }
-
-

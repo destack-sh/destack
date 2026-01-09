@@ -53,12 +53,18 @@ impl FunctionPass for LoopRotate {
             None => return AnalysisPreservation::all(),
         };
 
-        let loops = context.analyses.get::<LoopAnalysis>(function, tree);
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, tree, context);
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let cfg = context.analyses.get::<ControlFlowGraph>(function, tree);
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
+        let cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
 
         // collect rotation candidates, innermost first
         let mut candidates: Vec<RotationCandidate> = Vec::new();

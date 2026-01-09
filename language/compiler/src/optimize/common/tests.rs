@@ -4,7 +4,7 @@ use destack_base::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
 use destack_source::{DiffOptions, print_diff};
 
-use crate::optimize::{FunctionPass, OptimizationContext};
+use crate::optimize::{FunctionPass, OptimizationContext, OptimizeOptions};
 
 /// Test program for optimization passes.
 ///
@@ -34,7 +34,7 @@ impl TestProgram {
 
     /// Apply a function pass to all functions in the program.
     pub(crate) fn run_pass<P: FunctionPass + ?Sized>(&mut self, pass: &P) {
-        let context = OptimizationContext::new(&self.strings_pool);
+        let context = OptimizationContext::new(&self.strings_pool, OptimizeOptions::default());
 
         // collect function IDs
         let function_ids: Vec<_> = self
@@ -83,5 +83,10 @@ impl TestProgram {
     #[track_caller]
     pub(crate) fn assert_unchanged(&self, original: &str) {
         self.assert_output(original);
+    }
+
+    /// Create an optimization context for analysis tests.
+    pub(crate) fn context(&self) -> OptimizationContext<'_> {
+        OptimizationContext::new(&self.strings_pool, OptimizeOptions::default())
     }
 }

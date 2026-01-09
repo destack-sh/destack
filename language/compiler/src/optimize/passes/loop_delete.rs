@@ -67,11 +67,15 @@ impl FunctionPass for LoopDelete {
             return AnalysisPreservation::all();
         }
 
-        let loops = context.analyses.get::<LoopAnalysis>(function, tree);
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, tree, context);
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let domtree = context.analyses.get::<DominatorTree>(function, tree);
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, tree, context);
 
         // collect deletable loops (innermost first to avoid invalidation issues)
         let mut deletable: Vec<DeleteCandidate> = Vec::new();

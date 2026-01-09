@@ -1,5 +1,6 @@
-mod basic;
 mod analysis;
+mod basic;
+mod common;
 mod globals;
 mod result;
 mod scoped;
