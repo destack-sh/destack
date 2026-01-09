@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_compiler::{
-    AnalyzeError, AnalyzeTask, BindError, Compiler, CompilerOptions, ImportError, ResolveError,
+    AnalyzeError, AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveError,
 };
 use destack_source::{DiagnosticSeverity, FileType, MemoryFileSystem, Uri};
 use destack_workspace::Session;
@@ -57,11 +57,10 @@ impl TestArea {
         match self {
             // parse errors are EP (parser) and EI (import, includes file loading)
             TestArea::Parse => code.starts_with("EP") || ImportError::is_valid_code(code),
-            // early errors include parse + bind + specific resolve/analyze codes
+            // early errors include parse + import + specific resolve/analyze codes
             TestArea::Early => {
                 code.starts_with("EP")
                     || ImportError::is_valid_code(code)
-                    || BindError::is_valid_code(code)
                     || EARLY_RESOLVE_CODES.contains(&code)
                     || EARLY_ANALYZE_CODES.contains(&code)
             }

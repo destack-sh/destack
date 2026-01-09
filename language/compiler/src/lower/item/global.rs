@@ -20,7 +20,9 @@ impl ModuleLowerer<'_> {
             let value_id = declarator
                 .value
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "module-level binding requires initializer".to_string(),
                 })?;
 
@@ -34,13 +36,17 @@ impl ModuleLowerer<'_> {
             } = pattern
             else {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: pattern_id.into_global_any(self.module_id),
+                    node: pattern_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "unsupported module-level binding pattern".to_string(),
                 });
             };
             if nested_pattern.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: pattern_id.into_global_any(self.module_id),
+                    node: pattern_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "nested binding patterns not supported for module-level bindings"
                         .to_string(),
                 });
@@ -54,14 +60,18 @@ impl ModuleLowerer<'_> {
                 .types
                 .get_declared_or_inferred_type_id(value_id.into_global_any(self.module_id))
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: value_id.into_global_any(self.module_id),
+                    node: value_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "cannot determine type for module-level binding".to_string(),
                 })?;
             let mir_type = self.type_lowerer.lower_type(
                 self.types,
                 type_id,
                 self.module_id,
-                value_id.into_global_any(self.module_id),
+                value_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 &mut self.builder,
             )?;
 
@@ -69,7 +79,9 @@ impl ModuleLowerer<'_> {
             let initializer = self
                 .lower_const_initializer(value_id, mir_type)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: value_id.into_global_any(self.module_id),
+                    node: value_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "module-level binding requires constant initializer".to_string(),
                 })?;
 

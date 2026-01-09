@@ -198,7 +198,9 @@ impl Compiler {
                     }
                     _ => {
                         self.error(AnalyzeError::MissingType {
-                            node: expression_id.into_global_any(module.id),
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
                         });
                         member_ty_id
                     }
@@ -235,7 +237,9 @@ impl Compiler {
                     && !self.is_import_meta_chain(tree, left_id)
                 {
                     self.error(AnalyzeError::PropertyAccessFromIndexSignature {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
                         receiver_ty: left_ty_id.into_global(module.id),
                         member_key,
                     });
@@ -255,7 +259,9 @@ impl Compiler {
             } else {
                 if !self.is_import_meta_chain(tree, left_id) {
                     self.error(AnalyzeError::MissingMember {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
                         receiver_ty: left_ty_id.into_global(module.id),
                         member_key,
                     });

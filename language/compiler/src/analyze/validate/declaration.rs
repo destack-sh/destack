@@ -2,13 +2,14 @@ use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     Declaration, DeclarationAbstraction, DeclarationKind, GlobalNodeIdAny, LocalNodeId, TypeTable,
 };
-use destack_workspace::Module;
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Validate a declaration.
     pub(super) fn validate_declaration(
         &self,
         module: &Module,
+        profile: ProfileId,
         types: &TypeTable,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
@@ -18,7 +19,8 @@ impl Compiler {
                 // interfaces cannot be abstract
                 if descriptor.abstraction == DeclarationAbstraction::Abstract {
                     self.error(AnalyzeError::InvalidInterface {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                     });
                 }
             }
@@ -29,7 +31,8 @@ impl Compiler {
                 // declare functions cannot have a body
                 if descriptor.kind == DeclarationKind::Declaration && body.is_some() {
                     self.error(AnalyzeError::InvalidFunction {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                     });
                 }
             }
@@ -47,7 +50,8 @@ impl Compiler {
                         .into_iter()
                         .collect();
                     self.error(AnalyzeError::InvalidLineage {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                         extends_symbols,
                         implements_symbols: Vec::new(),
                         embedded_symbols: Vec::new(),
@@ -65,7 +69,8 @@ impl Compiler {
                         lineage.map(|l| l.implements.clone()).unwrap_or_default();
                     let embedded_symbols = lineage.map(|l| l.embedded.clone()).unwrap_or_default();
                     self.error(AnalyzeError::InvalidLineage {
-                        node: GlobalNodeIdAny::new(module.id, id.into_any()),
+                        node: GlobalNodeIdAny::new(module.id, id.into_any())
+                            .into_anchored(Some(profile)),
                         extends_symbols,
                         implements_symbols,
                         embedded_symbols,

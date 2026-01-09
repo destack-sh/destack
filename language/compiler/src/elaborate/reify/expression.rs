@@ -180,7 +180,9 @@ impl Compiler {
             // assign binary should be desugared during bind
             Expression::AssignBinary { .. } => {
                 return Err(ElaborateError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(module_id),
+                    node: expression_id
+                        .into_global_any(module_id)
+                        .into_anchored(Some(profile)),
                 });
             }
 

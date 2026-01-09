@@ -1,5 +1,5 @@
 use destack_base::StringId;
-use destack_dir::GlobalNodeIdAny;
+use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -40,7 +40,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         fields: &[dir::TypeField],
         module_id: ModuleId,
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let pointer_bytes = self.pointer_bytes();
@@ -79,7 +79,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         elements: &[dir::TypeElement],
         module_id: ModuleId,
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // reject optional and rest elements for now
@@ -117,7 +117,7 @@ impl TypeLowerer {
         element: dir::LocalTypeId,
         count: dir::LocalNodeId<dir::Expression>,
         module_id: ModuleId,
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // lower the element type

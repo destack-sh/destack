@@ -180,7 +180,7 @@ pub enum Type {
         mutability: Mutability,
         right: LocalTypeId,
     },
-    /// Value `^T` of a `T`. Or `^var T` for a mutable value.
+    /// Value `^T` of a `T`. Or `^mut T` for a mutable value.
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,

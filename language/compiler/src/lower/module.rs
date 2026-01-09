@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_base::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId};
 use destack_source::ModuleId;
-use destack_workspace::{Module, TargetId};
+use destack_workspace::{Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{Compiler, LowerError, LowerResult};
@@ -18,6 +18,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) compiler: &'a Compiler,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
+    /// Identify the profile used for DIR access.
+    pub(crate) profile: ProfileId,
     /// Provide access to the source module data.
     pub(crate) module: &'a Module,
     /// Provide access to the DIR tree for expression lookup.
@@ -47,6 +49,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn new(
         compiler: &'a Compiler,
         module: &'a Module,
+        profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
         dir_roots: &'a [LocalNodeId<dir::Expression>],
         symbols: &'a dir::SymbolTable,
@@ -60,6 +63,7 @@ impl<'a> ModuleLowerer<'a> {
         Self {
             compiler,
             module_id: module.id,
+            profile,
             module,
             dir_tree,
             dir_roots,
@@ -102,7 +106,7 @@ impl<'a> ModuleLowerer<'a> {
     ) -> LowerResult<String> {
         self.get_symbol_name(symbol_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
+                node: node.into_anchored(Some(self.profile)),
                 message: "symbol must have a name".to_string(),
             })
     }

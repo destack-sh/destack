@@ -25,6 +25,7 @@ impl Compiler {
     pub(super) fn assign_static_argument_values(
         &self,
         module_id: destack_source::ModuleId,
+        profile_id: ProfileId,
         node_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         parameters: &[StaticParameter],
@@ -51,7 +52,9 @@ impl Compiler {
                     StaticArgument::Unevaluated { node } => node.into_global_any(module_id),
                     _ => node_id.into_global(module_id),
                 };
-                self.error(AnalyzeError::MissingType { node: error_node });
+                self.error(AnalyzeError::MissingType {
+                    node: error_node.into_anchored(Some(profile_id)),
+                });
                 continue;
             }
 
@@ -80,7 +83,9 @@ impl Compiler {
                     StaticArgument::Unevaluated { node } => node.into_global_any(module_id),
                     _ => node_id.into_global(module_id),
                 };
-                self.error(AnalyzeError::MissingType { node: error_node });
+                self.error(AnalyzeError::MissingType {
+                    node: error_node.into_anchored(Some(profile_id)),
+                });
                 continue;
             };
 
@@ -90,7 +95,9 @@ impl Compiler {
                     StaticArgument::Unevaluated { node } => node.into_global_any(module_id),
                     _ => node_id.into_global(module_id),
                 };
-                self.error(AnalyzeError::MissingType { node: error_node });
+                self.error(AnalyzeError::MissingType {
+                    node: error_node.into_anchored(Some(profile_id)),
+                });
                 continue;
             }
 
@@ -346,7 +353,7 @@ impl Compiler {
                 ) == Assignability::NotAssignable
             {
                 self.error(AnalyzeError::UnassignableType {
-                    node: error_node,
+                    node: error_node.into_anchored(Some(profile)),
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
                     actual_ty: substitution_ty_id.into_global(module.id),
                 });
@@ -382,7 +389,7 @@ impl Compiler {
                 ) == Assignability::NotAssignable
             {
                 self.error(AnalyzeError::UnassignableType {
-                    node: error_node,
+                    node: error_node.into_anchored(Some(profile)),
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
                     actual_ty: value_ty_id.into_global(module.id),
                 });
@@ -467,6 +474,7 @@ impl Compiler {
         let argument_values = static_arguments.unwrap_or(&[]);
         let assigned_arguments = self.assign_static_argument_values(
             module.id,
+            profile,
             node_id,
             argument_values,
             &static_parameters,
@@ -719,6 +727,7 @@ impl Compiler {
     pub(super) fn missing_static_argument_for_function(
         &self,
         module: &Module,
+        profile: ProfileId,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_parameter: &StaticParameter,
@@ -742,7 +751,7 @@ impl Compiler {
                     infer_ty_id
                 } else {
                     self.error(AnalyzeError::MissingType {
-                        node: node_id.into_global(module.id),
+                        node: node_id.into_global(module.id).into_anchored(Some(profile)),
                     });
                     types.insert_type_from_any(
                         Type::TypeLiteral {
@@ -759,7 +768,7 @@ impl Compiler {
             }
             StaticParameterKind::Value => {
                 self.error(AnalyzeError::MissingType {
-                    node: node_id.into_global(module.id),
+                    node: node_id.into_global(module.id).into_anchored(Some(profile)),
                 });
 
                 let fallback_expression = node_id

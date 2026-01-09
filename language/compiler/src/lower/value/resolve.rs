@@ -99,7 +99,9 @@ impl BlockLowerer<'_, '_> {
     ) -> LowerResult<LocalBinding> {
         let binding = self.locals_by_symbol.get(&target_symbol).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: expression_id.into_global_any(self.module_id),
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: "missing local reference target symbol".to_string(),
             }
         })?;

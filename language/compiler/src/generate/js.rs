@@ -16,18 +16,18 @@ impl Compiler {
         // generate artifact
         let output =
             destack_codegen_js::generate_module(self.program.clone(), module_id, target, profile)
-                .map_err(|e| Self::map_js_error(module_id, e))?;
+                .map_err(|e| Self::map_js_error(module_id, profile, e))?;
         for artifact in output.artifacts {
             self.program.artifacts.insert(artifact);
         }
 
         // map warnings/errors
         for warning in output.warnings {
-            let warning = Self::map_js_warning(module_id, warning);
+            let warning = Self::map_js_warning(module_id, profile, warning);
             self.warning(warning);
         }
         for error in output.errors {
-            let error = Self::map_js_error(module_id, error);
+            let error = Self::map_js_error(module_id, profile, error);
             self.error(error);
         }
 
@@ -35,7 +35,11 @@ impl Compiler {
     }
 
     /// Map a JS error to a compiler error.
-    fn map_js_error(module_id: ModuleId, error: CodegenJsError) -> GenerateError {
+    fn map_js_error(
+        module_id: ModuleId,
+        profile: ProfileId,
+        error: CodegenJsError,
+    ) -> GenerateError {
         match error {
             CodegenJsError::UnsupportedTarget { format, .. } => GenerateError::UnsupportedTarget {
                 module: module_id,
@@ -48,38 +52,42 @@ impl Compiler {
             CodegenJsError::UnsupportedConstruct { node, .. } => {
                 GenerateError::UnsupportedConstruct {
                     module: module_id,
-                    node: Some(node),
+                    node: Some(node.into_anchored(Some(profile))),
                 }
             }
             CodegenJsError::UnexpectedNode { node, .. } => GenerateError::UnexpectedConstruct {
                 module: module_id,
-                node: Some(node),
+                node: Some(node.into_anchored(Some(profile))),
             },
             CodegenJsError::UnresolvedNode { node, .. } => GenerateError::UnresolvedConstruct {
                 module: module_id,
-                node: Some(node),
+                node: Some(node.into_anchored(Some(profile))),
             },
             CodegenJsError::MissingType { node, .. } => GenerateError::MissingType {
                 module: module_id,
-                node: Some(node),
+                node: Some(node.into_anchored(Some(profile))),
             },
         }
     }
 
     /// Map a JS warning to a compiler warning.
-    fn map_js_warning(module_id: ModuleId, warning: CodegenJsWarning) -> GenerateWarning {
+    fn map_js_warning(
+        module_id: ModuleId,
+        profile: ProfileId,
+        warning: CodegenJsWarning,
+    ) -> GenerateWarning {
         match warning {
             CodegenJsWarning::ImpreciseType { node } => GenerateWarning::ImpreciseType {
                 module: module_id,
-                node: Some(node),
+                node: Some(node.into_anchored(Some(profile))),
             },
             CodegenJsWarning::UnexpectedNode { node, .. } => GenerateWarning::UnexpectedConstruct {
                 module: module_id,
-                node: Some(node),
+                node: Some(node.into_anchored(Some(profile))),
             },
             CodegenJsWarning::ExpectedStatement { node } => GenerateWarning::UnexpectedConstruct {
                 module: module_id,
-                node: Some(node),
+                node: Some(node.into_anchored(Some(profile))),
             },
         }
     }

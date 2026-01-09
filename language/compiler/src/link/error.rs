@@ -9,6 +9,9 @@ use destack_workspace::{Program, TargetId};
 #[derive(Debug, Clone, PartialEq, DefineError)]
 #[phase(Link)]
 pub enum LinkError {
+    // -------------------------------------------------------------------------
+    // 0xx: Yield / dependency
+    // -------------------------------------------------------------------------
     /// Wait for task dependency.
     #[error(code = "EK000", r#yield)]
     Yield { dependency: TaskDependency },
@@ -17,22 +20,28 @@ pub enum LinkError {
     #[error(code = "EK001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
 
-    /// Internal error during linking.
-    #[error(code = "EK002", message = "internal error: {message}")]
-    Internal { package: PackageId, message: String },
-
+    // -------------------------------------------------------------------------
+    // 1xx: Target issues
+    // -------------------------------------------------------------------------
     /// Missing target.
-    #[error(code = "EK003", message = "missing target: {target}")]
+    #[error(code = "EK100", message = "missing target: {target}")]
     MissingTarget {
         package: PackageId,
         target: TargetId,
     },
 
     /// Invalid target configuration.
-    #[error(code = "EK004", message = "invalid target: {target}: {message}")]
+    #[error(code = "EK101", message = "invalid target: {target}: {message}")]
     InvalidTarget {
         package: PackageId,
         target: TargetId,
         message: String,
     },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Internal
+    // -------------------------------------------------------------------------
+    /// Internal error during linking.
+    #[error(code = "EK900", message = "internal error: {message}")]
+    Internal { package: PackageId, message: String },
 }

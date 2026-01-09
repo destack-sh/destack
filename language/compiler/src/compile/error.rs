@@ -55,7 +55,7 @@ pub enum InternalError {
 impl InternalError {
     /// Get the numeric sub-code of the error.
     #[inline]
-    pub fn sub_code(&self) -> u8 {
+    pub fn sub_code(&self) -> u16 {
         match self {
             Self::SuspiciousYield { .. } => 1,
             Self::ExcessiveYield { .. } => 2,
@@ -136,7 +136,7 @@ impl TaskError {
 
     /// Get the numeric sub-code of the error (e.g., `1` for `IE001`).
     #[inline]
-    pub fn sub_code(&self) -> u8 {
+    pub fn sub_code(&self) -> u16 {
         match self {
             Self::Import(error) => error.sub_code(),
             Self::Resolve(error) => error.sub_code(),

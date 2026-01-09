@@ -595,7 +595,7 @@ impl Compiler {
             Expression::ImportMeta => {
                 if module.module_type.is_script() {
                     self.error(AnalyzeError::InvalidImportMeta {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
                 // #Incomplete: type for import.meta
@@ -1174,7 +1174,7 @@ impl Compiler {
                 // validate try shape
                 if catch_expression.is_none() && finally_expression.is_none() {
                     self.error(AnalyzeError::IncompleteTry {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
 
@@ -1274,7 +1274,7 @@ impl Compiler {
                 // validate return position
                 if !ctx.can_return() {
                     self.error(AnalyzeError::InvalidReturn {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
 
@@ -1322,7 +1322,7 @@ impl Compiler {
             Expression::Break { target, target_symbol: _, value } => {
                 if !ctx.can_break() {
                     self.error(AnalyzeError::InvalidBreak {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                         label: *target,
                     });
                 }
@@ -1338,7 +1338,7 @@ impl Compiler {
             Expression::UnresolvedBreak { target, value } => {
                 if !ctx.can_break() {
                     self.error(AnalyzeError::InvalidBreak {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                         label: Some(*target),
                     });
                 }
@@ -1356,7 +1356,7 @@ impl Compiler {
             Expression::Continue { target, target_symbol: _ } => {
                 if !ctx.can_continue() {
                     self.error(AnalyzeError::InvalidContinue {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                         label: *target,
                     });
                 }
@@ -1369,7 +1369,7 @@ impl Compiler {
             Expression::UnresolvedContinue { target } => {
                 if !ctx.can_continue() {
                     self.error(AnalyzeError::InvalidContinue {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                         label: Some(*target),
                     });
                 }
@@ -1394,7 +1394,7 @@ impl Compiler {
             Expression::Await { expression } => {
                 if !ctx.can_await() {
                     self.error(AnalyzeError::InvalidAwait {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
                 let inner_ty_id =
@@ -1414,7 +1414,7 @@ impl Compiler {
                     ) == Assignability::NotAssignable
                     {
                         self.error(AnalyzeError::UnassignableType {
-                            node: expression_id.into_global_any(module.id),
+                            node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                             expected_ty: promise_ty_id.into_global(module.id),
                             actual_ty: inner_ty_id.into_global(module.id),
                         });
@@ -1440,7 +1440,7 @@ impl Compiler {
             } => {
                 if !ctx.can_yield() {
                     self.error(AnalyzeError::InvalidYield {
-                        node: expression_id.into_global_any(module.id),
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
                 if let Some(value_id) = value {
@@ -1589,7 +1589,7 @@ impl Compiler {
                         ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
-                                node: expression_id.into_global_any(module.id),
+                                node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                                 expected_ty: expected_object_ty_id.into_global(module.id),
                                 actual_ty: shape_ty_id.into_global(module.id),
                             });
@@ -1902,7 +1902,9 @@ impl Compiler {
                             ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
-                                node: body.into_global_any(module.id),
+                                node: body
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(ctx.profile)),
                                 expected_ty: return_ty_id.into_global(module.id),
                                 actual_ty: body_ty_id.into_global(module.id),
                             });
@@ -2419,7 +2421,9 @@ impl Compiler {
         // resolve a callable signature for generic instantiation
         let Some(signature_ty_id) = self.call_signature_for_type(base_ty_id, types) else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             return Ok(base_ty_id);
         };
@@ -2434,7 +2438,9 @@ impl Compiler {
         } = types.get_type(signature_ty_id).clone()
         else {
             self.error(AnalyzeError::MissingType {
-                node: expression_id.into_global_any(module.id),
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
             return Ok(base_ty_id);
         };
@@ -2524,7 +2530,9 @@ impl Compiler {
         // emit excess property diagnostics
         for (property_id, member_key) in excess_fields {
             self.error(AnalyzeError::ExcessProperty {
-                node: property_id.into_global_any(module.id),
+                node: property_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
                 expected_ty: candidate.into_global(module.id),
                 member_key,
             });

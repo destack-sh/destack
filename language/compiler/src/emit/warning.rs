@@ -9,11 +9,14 @@ use destack_workspace::Program;
 #[phase(Emit)]
 #[standalone]
 pub enum EmitWarning {
+    // -------------------------------------------------------------------------
+    // 1xx: File issues
+    // -------------------------------------------------------------------------
     /// Overwriting an existing file.
-    #[warning(code = "WW001", message = "overwriting existing file")]
+    #[warning(code = "WW100", message = "overwriting existing file")]
     OverwritingFile { path: PathBuf },
 
     /// Output file is unchanged from previous emit.
-    #[warning(code = "WW002", message = "file unchanged")]
+    #[warning(code = "WW101", message = "file unchanged")]
     FileUnchanged { path: PathBuf },
 }

@@ -1,6 +1,6 @@
-use destack_dir::GlobalNodeIdAny;
 use destack_source::{FileId, ModuleId, PackageId, Span};
 use destack_workspace::Program;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::{
     AnalyzeError, AnalyzeWarning, ElaborateError, ElaborateWarning, EmitError, EmitWarning,
@@ -19,14 +19,16 @@ pub struct DiagnosticDefinition {
     /// The doc comment description.
     pub description: &'static str,
     /// The numeric sub-code (e.g., 3 for "ER003").
-    pub sub_code: u8,
+    pub sub_code: u16,
 }
 
 /// Where a Diagnostic is anchored in the source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DiagnosticAnchor {
-    /// Anchored to a specific node in the source.
-    Node(GlobalNodeIdAny),
+    /// Anchored to a specific DIR node (with profile provenance).
+    DirNode(dir::AnchoredGlobalNodeId),
+    /// Anchored to a specific MIR node (with target provenance).
+    MirNode(mir::AnchoredGlobalNodeId),
     /// Anchored to a module (no specific node).
     Module(ModuleId),
     /// Anchored to a file (e.g., config file, entry point).
@@ -43,29 +45,54 @@ impl DiagnosticAnchor {
     /// Returns `None` for `Global` anchors or if the file cannot be determined.
     pub fn to_file_span(&self, program: &Program) -> Option<(FileId, Span)> {
         match self {
-            Self::Node(node_id) => {
-                let module = program.modules.get(node_id.module_id);
+            Self::DirNode(anchored) => {
+                let module = program.modules.get(anchored.module_id());
                 let module = module.read();
                 let ast = module.ast.as_ref()?;
-                let node_id = node_id.local_id.id;
+                let local_id = anchored.local_id().id;
 
-                for dir in &module.dirs {
+                // look in profile-specific DIR if we have a profile
+                if let Some(profile_id) = anchored.profile_id
+                    && let Some(dir) = module.dir_maybe(profile_id)
+                {
                     let tree = dir.tree.read();
-                    if !tree.has_node_id(node_id) {
-                        continue;
+                    if tree.has_node_id(local_id) {
+                        let source_id = tree.get_source(local_id);
+                        let span = ast.tree.get_span_by_id(source_id);
+                        return Some((module.file_id, span));
                     }
-                    let source_id = tree.get_source(node_id);
-                    let span = ast.tree.get_span_by_id(source_id);
-                    return Some((module.file_id, span));
                 }
 
+                // fall back to base DIR
                 let dir = module.dir_base_maybe()?;
                 let tree = dir.tree.read();
-                if !tree.has_node_id(node_id) {
+                if !tree.has_node_id(local_id) {
                     return None;
                 }
-                let source_id = tree.get_source(node_id);
+                let source_id = tree.get_source(local_id);
                 let span = ast.tree.get_span_by_id(source_id);
+
+                Some((module.file_id, span))
+            }
+            Self::MirNode(anchored) => {
+                let module = program.modules.get(anchored.module_id());
+                let module = module.read();
+                let ast = module.ast.as_ref()?;
+                let mir = module.mir(&anchored.target_id);
+                let mir_tree = mir.tree.read();
+
+                // get source DIR node from MIR
+                let dir_node_id = mir_tree.get_source(anchored.local_id().id)?;
+
+                // look up span from base DIR
+                let dir = module.dir_base_maybe()?;
+                let tree = dir.tree.read();
+                if !tree.has_node_id(dir_node_id) {
+                    return None;
+                }
+                let source_id = tree.get_source(dir_node_id);
+                let span = ast.tree.get_span_by_id(source_id);
+
                 Some((module.file_id, span))
             }
             Self::Module(module_id) => {
@@ -100,7 +127,8 @@ impl DiagnosticAnchor {
     /// Get the module id for this anchor, if applicable.
     pub fn module_id(&self) -> Option<ModuleId> {
         match self {
-            Self::Node(node_id) => Some(node_id.module_id),
+            Self::DirNode(anchored) => Some(anchored.module_id()),
+            Self::MirNode(anchored) => Some(anchored.module_id()),
             Self::Module(module_id) => Some(*module_id),
             _ => None,
         }
@@ -128,9 +156,22 @@ impl DiagnosticAnchor {
     }
 }
 
-impl From<GlobalNodeIdAny> for DiagnosticAnchor {
-    fn from(node: GlobalNodeIdAny) -> Self {
-        Self::Node(node)
+impl From<dir::AnchoredGlobalNodeId> for DiagnosticAnchor {
+    fn from(anchored: dir::AnchoredGlobalNodeId) -> Self {
+        Self::DirNode(anchored)
+    }
+}
+
+impl From<dir::GlobalNodeIdAny> for DiagnosticAnchor {
+    fn from(node: dir::GlobalNodeIdAny) -> Self {
+        // assume base DIR (no profile) for un-anchored nodes
+        Self::DirNode(dir::AnchoredGlobalNodeId::base(node))
+    }
+}
+
+impl From<mir::AnchoredGlobalNodeId> for DiagnosticAnchor {
+    fn from(anchored: mir::AnchoredGlobalNodeId) -> Self {
+        Self::MirNode(anchored)
     }
 }
 

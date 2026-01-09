@@ -320,8 +320,8 @@ impl Compiler {
             // report conflicts and keep the first assignment
             if let Some(existing) = export_assignment_item {
                 self.error(ImportError::ConflictingExport {
-                    node: item_id.into_global_any(module_id),
-                    other_node: existing.into_global_any(module_id),
+                    node: item_id.into_global_any(module_id).into(),
+                    other_node: existing.into_global_any(module_id).into(),
                     module: module_id,
                     name: None,
                 });
@@ -373,8 +373,8 @@ impl Compiler {
                     continue;
                 };
                 self.error(ImportError::ConflictingExport {
-                    node: export_assignment_item.into_global_any(module_id),
-                    other_node,
+                    node: export_assignment_item.into_global_any(module_id).into(),
+                    other_node: other_node.into(),
                     module: module_id,
                     name: None,
                 });
@@ -454,8 +454,8 @@ impl Compiler {
                 && export_assignment_item != item_id
             {
                 self.error(ImportError::ConflictingExport {
-                    node: item_id.into_global_any(module_id),
-                    other_node: export_assignment_item.into_global_any(module_id),
+                    node: item_id.into_global_any(module_id).into(),
+                    other_node: export_assignment_item.into_global_any(module_id).into(),
                     module: module_id,
                     name: None,
                 });
@@ -720,8 +720,8 @@ impl Compiler {
             // report conflicts and keep the first assignment
             if let Some(existing) = export_assignment_item {
                 self.error(ImportError::ConflictingExport {
-                    node: item_id.into_global_any(module.id),
-                    other_node: existing.into_global_any(module.id),
+                    node: item_id.into_global_any(module.id).into(),
+                    other_node: existing.into_global_any(module.id).into(),
                     module: module.id,
                     name: None,
                 });
@@ -775,8 +775,8 @@ impl Compiler {
                     continue;
                 };
                 self.error(ImportError::ConflictingExport {
-                    node: export_assignment_item.into_global_any(module_id),
-                    other_node,
+                    node: export_assignment_item.into_global_any(module_id).into(),
+                    other_node: other_node.into(),
                     module: module_id,
                     name: None,
                 });
@@ -847,8 +847,8 @@ impl Compiler {
                 && export_assignment_item != item_id
             {
                 self.error(ImportError::ConflictingExport {
-                    node: item_id.into_global_any(module_id),
-                    other_node: export_assignment_item.into_global_any(module_id),
+                    node: item_id.into_global_any(module_id).into(),
+                    other_node: export_assignment_item.into_global_any(module_id).into(),
                     module: module_id,
                     name: None,
                 });
@@ -1314,8 +1314,8 @@ impl Compiler {
         };
         if let (Some(node), Some(other_node)) = (node, other_node) {
             self.error(ImportError::ConflictingExport {
-                node,
-                other_node,
+                node: node.into(),
+                other_node: other_node.into(),
                 module: module_id,
                 name: Some(key),
             });

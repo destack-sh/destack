@@ -535,13 +535,11 @@ fn path_to_display(path: &str) -> String {
 fn phase_to_verb(phase: TaskPhase) -> &'static str {
     match phase {
         TaskPhase::Import => "Parsing",
-        TaskPhase::Bind => "Binding",
         TaskPhase::Resolve => "Resolving",
         TaskPhase::Analyze => "Checking",
         TaskPhase::Elaborate => "Elaborating",
-        TaskPhase::Lower => "Lowering",
-        TaskPhase::Verify => "Verifying",
         TaskPhase::Execute => "Executing",
+        TaskPhase::Lower => "Lowering",
         TaskPhase::Optimize => "Optimizing",
         TaskPhase::Generate => "Generating",
         TaskPhase::Link => "Linking",

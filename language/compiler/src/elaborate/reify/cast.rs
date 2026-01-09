@@ -32,12 +32,16 @@ impl Compiler {
         let value_type_id = types
             .get_declared_or_inferred_type_id(value.into_global_any(module_id))
             .ok_or(ElaborateError::UnsupportedConstruct {
-                node: value.into_global_any(module_id),
+                node: value
+                    .into_global_any(module_id)
+                    .into_anchored(Some(profile)),
             })?;
         let target_type_id = types
             .get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
             .ok_or(ElaborateError::UnsupportedConstruct {
-                node: expression_id.into_global_any(module_id),
+                node: expression_id
+                    .into_global_any(module_id)
+                    .into_anchored(Some(profile)),
             })?;
 
         // classify the cast
@@ -132,7 +136,7 @@ impl Compiler {
         let target_type_id = self
             .value_type_id_for_expression(module_id, left, tree, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
-                node: left.into_global_any(module_id),
+                node: left.into_global_any(module_id).into_anchored(Some(profile)),
             })?;
 
         // wrap the right hand side when needed
@@ -470,12 +474,14 @@ impl Compiler {
         let left_type_id = self
             .value_type_id_for_expression(module_id, left, tree, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
-                node: left.into_global_any(module_id),
+                node: left.into_global_any(module_id).into_anchored(Some(profile)),
             })?;
         let right_type_id = self
             .value_type_id_for_expression(module_id, right, tree, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
-                node: right.into_global_any(module_id),
+                node: right
+                    .into_global_any(module_id)
+                    .into_anchored(Some(profile)),
             })?;
 
         // compute the common numeric type for both operands
@@ -596,7 +602,9 @@ impl Compiler {
         let value_type_id = self
             .value_type_id_for_expression(module_id, value_id, tree, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
-                node: value_id.into_global_any(module_id),
+                node: value_id
+                    .into_global_any(module_id)
+                    .into_anchored(Some(profile)),
             })?;
 
         // skip when the types already match

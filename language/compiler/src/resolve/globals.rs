@@ -187,6 +187,7 @@ impl Compiler {
             let remaining_path = path.slice(1..);
             match self.resolve_relative_symbol(
                 &target_module,
+                profile_id,
                 node,
                 local_symbol_id,
                 &remaining_path,
@@ -492,7 +493,10 @@ impl Compiler {
                 // resolve specifiers to modules for traversal
                 let remote_module_id = self
                     .resolve_specifier_to_module(target, Some(module_id))
-                    .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
+                    .map_err(|_| ResolveError::UnresolvedModule {
+                        node: node.into_anchored(Some(profile_id)),
+                        target,
+                    })?;
                 cache.pending.push_back(remote_module_id);
             }
         }

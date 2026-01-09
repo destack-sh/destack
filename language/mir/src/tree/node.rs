@@ -3,7 +3,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_source::ModuleId;
+use destack_source::{ModuleId, TargetId};
 
 /// The type of a MIR node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -77,6 +77,18 @@ impl LocalNodeIdAny {
     /// Turn into a typed local node id.
     pub fn into_typed<T: Node>(self) -> LocalNodeId<T> {
         self.try_into_typed().unwrap()
+    }
+
+    /// Turn into an AnchoredGlobalNodeId.
+    #[inline]
+    pub fn into_anchored(self, module_id: ModuleId, target_id: TargetId) -> AnchoredGlobalNodeId {
+        AnchoredGlobalNodeId {
+            node_id: GlobalNodeIdAny {
+                module_id,
+                local_id: self,
+            },
+            target_id,
+        }
     }
 }
 
@@ -295,6 +307,15 @@ impl GlobalNodeIdAny {
     pub fn into_typed<T: Node>(self) -> GlobalNodeId<T> {
         self.try_into_typed().unwrap()
     }
+
+    /// Turn into an AnchoredGlobalNodeId.
+    #[inline]
+    pub fn into_anchored(self, target_id: TargetId) -> AnchoredGlobalNodeId {
+        AnchoredGlobalNodeId {
+            node_id: self,
+            target_id,
+        }
+    }
 }
 
 impl Debug for GlobalNodeIdAny {
@@ -326,6 +347,44 @@ impl<T: Node> TryFrom<GlobalNodeIdAny> for GlobalNodeId<T> {
 impl From<GlobalNodeIdAny> for LocalNodeIdAny {
     fn from(id: GlobalNodeIdAny) -> Self {
         id.local_id
+    }
+}
+
+/// Anchored global node id with target provenance.
+///
+/// MIR is always generated per-target, so every MIR node has an associated target.
+/// This type tracks the provenance so diagnostics can find the correct source location.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct AnchoredGlobalNodeId {
+    /// The global node id.
+    pub node_id: GlobalNodeIdAny,
+    /// The target this node belongs to.
+    pub target_id: TargetId,
+}
+
+impl AnchoredGlobalNodeId {
+    /// Create a new anchored global node id.
+    pub fn new(node_id: GlobalNodeIdAny, target_id: TargetId) -> Self {
+        Self { node_id, target_id }
+    }
+
+    /// Get the module id.
+    pub fn module_id(&self) -> ModuleId {
+        self.node_id.module_id
+    }
+
+    /// Get the local node id.
+    pub fn local_id(&self) -> LocalNodeIdAny {
+        self.node_id.local_id
+    }
+}
+
+impl Debug for AnchoredGlobalNodeId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AnchoredGlobalNodeId")
+            .field("node_id", &self.node_id)
+            .field("target_id", &self.target_id)
+            .finish()
     }
 }
 

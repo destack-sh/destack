@@ -129,6 +129,7 @@ impl Compiler {
     pub(super) fn resolve_absolute_symbol(
         &self,
         module: &Module,
+        profile_id: ProfileId,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         key: StaticKey,
@@ -175,7 +176,7 @@ impl Compiler {
 
         // report missing symbol after walking all scopes
         Err(ResolveError::MissingSymbol {
-            node,
+            node: node.into_anchored(Some(profile_id)),
             scope: scope.0.into_global(module.id),
             via_module: None,
             key,
@@ -260,6 +261,7 @@ impl Compiler {
             let remaining_path = path.slice(1..);
             match self.resolve_relative_symbol(
                 &prelude_module,
+                profile,
                 node,
                 local_symbol_id,
                 &remaining_path,
@@ -359,6 +361,7 @@ impl Compiler {
                     let remaining_path = path.slice(1..);
                     match self.resolve_relative_symbol(
                         &ambient_module,
+                        profile,
                         node,
                         symbol_id.local_id,
                         &remaining_path,
@@ -428,6 +431,7 @@ impl Compiler {
             let global_scope = symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
             let symbol_id = self.resolve_absolute_symbol(
                 &ambient_module,
+                profile,
                 node,
                 (
                     ambient_dir.global_augmentation_scope,
@@ -458,6 +462,7 @@ impl Compiler {
                 let remaining_path = path.slice(1..);
                 match self.resolve_relative_symbol(
                     &ambient_module,
+                    profile,
                     node,
                     symbol_id,
                     &remaining_path,
@@ -518,6 +523,7 @@ impl Compiler {
     pub(super) fn resolve_relative_symbol(
         &self,
         module: &Module,
+        profile_id: ProfileId,
         node: GlobalNodeIdAny,
         symbol_id: LocalSymbolId,
         path: &Path,
@@ -552,7 +558,7 @@ impl Compiler {
 
             // report a missing symbol in the namespace scope
             return Err(ResolveError::MissingSymbol {
-                node,
+                node: node.into_anchored(Some(profile_id)),
                 scope: symbol.scope.0.into_global(module.id),
                 via_module: None,
                 key,
@@ -618,6 +624,7 @@ impl Compiler {
         // try to resolve root symbol locally
         let local_result = self.resolve_absolute_symbol(
             module,
+            profile,
             node,
             scope,
             StaticKey::Name(first_segment),
@@ -629,6 +636,7 @@ impl Compiler {
         if let Ok(local_id) = local_result {
             return self.resolve_local_path(
                 module,
+                profile,
                 expression_id,
                 node,
                 local_id,
@@ -709,6 +717,7 @@ impl Compiler {
     fn resolve_local_path(
         &self,
         module: &Module,
+        profile_id: ProfileId,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
         local_id: LocalSymbolId,
@@ -738,6 +747,7 @@ impl Compiler {
             let remaining_path = path.slice(1..);
             match self.resolve_relative_symbol(
                 module,
+                profile_id,
                 node,
                 local_id,
                 &remaining_path,
@@ -823,6 +833,7 @@ impl Compiler {
     pub(super) fn resolve_label_symbol(
         &self,
         _module: &Module,
+        profile_id: ProfileId,
         node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         label: StringId,
@@ -855,7 +866,7 @@ impl Compiler {
         }
 
         Err(ResolveError::MissingTarget {
-            node,
+            node: node.into_anchored(Some(profile_id)),
             target: Some(label),
         })
     }
@@ -863,9 +874,9 @@ impl Compiler {
     /// Follow a symbol's target chain to find the canonical (final) symbol.
     fn resolve_canonical_symbol_chain(
         &self,
+        profile_id: ProfileId,
         node: GlobalNodeIdAny,
         start_symbol: GlobalSymbolId,
-        profile: ProfileId,
     ) -> ResolveResult<GlobalSymbolId> {
         // track the original calling module (from node)
         // (we don't need to require_task for this module since we're being called DURING its resolution)
@@ -877,7 +888,7 @@ impl Compiler {
             // detect cyclic symbol reference
             if visited.contains(&current) {
                 return Err(ResolveError::CyclicSymbol {
-                    node,
+                    node: node.into_anchored(Some(profile_id)),
                     symbol: start_symbol,
                 });
             }
@@ -887,13 +898,13 @@ impl Compiler {
             self.require_resolve_module_direct_if_other(
                 calling_module,
                 current.module_id,
-                profile,
+                profile_id,
             )?;
 
             // get the symbol
             let module = self.program.modules.get(current.module_id);
             let module = module.read();
-            let symbols = module.dir(profile).symbols.read();
+            let symbols = module.dir(profile_id).symbols.read();
             let symbol = symbols.get_symbol(current.local_id);
 
             // if symbol already has canonical_symbol computed, use it (optimization)
@@ -931,7 +942,7 @@ impl Compiler {
         drop(module);
 
         // follow the chain from target
-        let canonical_symbol = self.resolve_canonical_symbol_chain(node, target_symbol, profile)?;
+        let canonical_symbol = self.resolve_canonical_symbol_chain(profile, node, target_symbol)?;
 
         // set the canonical_symbol
         let module = self.program.modules.get(symbol_id.module_id);
@@ -1118,8 +1129,8 @@ while (true) {
         test.resolve_module(module_id);
         test.compile();
 
-        // ER010 = MissingTarget
-        test.check_has_diagnostic("ER010");
+        // ER201 = MissingTarget
+        test.check_has_diagnostic("ER201");
     }
 
     /// Missing label error for continue.
@@ -1137,8 +1148,8 @@ while (true) {
         test.resolve_module(module_id);
         test.compile();
 
-        // ER010 = MissingTarget
-        test.check_has_diagnostic("ER010");
+        // ER201 = MissingTarget
+        test.check_has_diagnostic("ER201");
     }
 
     /// Multiple nested labeled loops with correct targeting.
@@ -2127,8 +2138,8 @@ import { X } from "./a.ds";
         test.resolve_module(module_id);
         test.compile();
 
-        // ER008 = CyclicSymbol (re-export chain forms a cycle)
-        test.check_has_diagnostic("ER008");
+        // ER103 = CyclicSymbol (re-export chain forms a cycle)
+        test.check_has_diagnostic("ER103");
     }
 
     /// Test that prelude items (like Add, Type) are available in user code.

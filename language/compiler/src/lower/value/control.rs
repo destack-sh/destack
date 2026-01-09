@@ -19,7 +19,9 @@ impl BlockLowerer<'_, '_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // require else branch for value expressions
         let else_id = else_id.ok_or_else(|| LowerError::UnsupportedConstruct {
-            node: expression_id.into_global_any(self.module_id),
+            node: expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile)),
             message: "conditional expression requires else branch".to_string(),
         })?;
 
@@ -31,7 +33,9 @@ impl BlockLowerer<'_, '_> {
         let result_type =
             self.mir_type_for_expression(expression_id)
                 .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id.into_global_any(self.module_id),
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                 })?;
 
         // create blocks for each branch

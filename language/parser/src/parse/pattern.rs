@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_value() {
-        // ^var _
+        // ^mut _
         let mut test = TestParser::new("^mut x");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();

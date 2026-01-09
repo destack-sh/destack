@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use destack_base::StringPool;
 use destack_dir::{Declaration, GlobalNodeId, GlobalSymbolId};
 use destack_source::ModuleId;
+use destack_workspace::ProfileId;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -14,6 +15,8 @@ use super::block::{BlockLowerer, LocalBinding, LoopContext, Terminates};
 pub(crate) struct FunctionLowerer<'a> {
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
+    /// Identify the profile used for DIR access.
+    pub(crate) profile: ProfileId,
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::NodeTree,
     /// Provide access to symbol metadata for type resolution.
@@ -43,6 +46,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer with the given builder.
     fn new(
         module_id: ModuleId,
+        profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
@@ -54,6 +58,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Self {
         Self {
             module_id,
+            profile,
             dir_tree,
             symbols,
             types,
@@ -75,6 +80,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> LowerResult<Terminates> {
         let mut block_lowerer = BlockLowerer {
             module_id: self.module_id,
+            profile: self.profile,
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
@@ -107,7 +113,9 @@ impl ModuleLowerer<'_> {
         } = declaration
         else {
             return Err(LowerError::UnsupportedConstruct {
-                node: declaration_id.into_global_any(self.module_id),
+                node: declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
                 message: format!(
                     "unsupported non-function declaration '{}'",
                     declaration.kind_name()
@@ -120,7 +128,9 @@ impl ModuleLowerer<'_> {
                 .name
                 .map(|name| name.string())
                 .ok_or(LowerError::UnsupportedConstruct {
-                    node: declaration_id.into_global_any(self.module_id),
+                    node: declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
                     message: "missing name".to_string(),
                 })?;
         let name = self.compiler.program.strings.get(name_id).to_string();
@@ -138,13 +148,13 @@ impl ModuleLowerer<'_> {
                 .types
                 .get_declared_or_inferred_type_id(parameter_node)
                 .ok_or(LowerError::MissingType {
-                    node: parameter_node,
+                    node: parameter_node.into_anchored(Some(self.profile)),
                 })?;
             let parameter_ty = self.type_lowerer.lower_type(
                 self.types,
                 parameter_ty,
                 self.module_id,
-                parameter_node,
+                parameter_node.into_anchored(Some(self.profile)),
                 &mut self.builder,
             )?;
             parameter_types.push(parameter_ty);
@@ -156,6 +166,7 @@ impl ModuleLowerer<'_> {
         self.functions_by_symbol.insert(symbol_id, function_id);
         let mut function_lowerer = FunctionLowerer::new(
             self.module_id,
+            self.profile,
             self.dir_tree,
             self.symbols,
             self.types,
@@ -191,7 +202,9 @@ impl ModuleLowerer<'_> {
                     function_lowerer.builder.return_(None);
                 } else {
                     return Err(LowerError::UnsupportedConstruct {
-                        node: declaration_id.into_global_any(self.module_id),
+                        node: declaration_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
                         message: "missing terminator".to_string(),
                     })?;
                 }
@@ -211,17 +224,21 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let node_id = declaration_id.into_global_any(self.module_id);
 
-        let signature_type_id = self
-            .types
-            .get_inferred_type_id(node_id)
-            .ok_or(LowerError::MissingType { node: node_id })?;
+        let signature_type_id =
+            self.types
+                .get_inferred_type_id(node_id)
+                .ok_or(LowerError::MissingType {
+                    node: node_id.into_anchored(Some(self.profile)),
+                })?;
         let return_type_id = match self.types.get_type(signature_type_id) {
             dir::Type::Function { return_type, .. } => {
-                return_type.ok_or(LowerError::MissingType { node: node_id })?
+                return_type.ok_or(LowerError::MissingType {
+                    node: node_id.into_anchored(Some(self.profile)),
+                })?
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node: node_id,
+                    node: node_id.into_anchored(Some(self.profile)),
                     message: "missing function signature type".to_string(),
                 })?;
             }
@@ -231,7 +248,7 @@ impl ModuleLowerer<'_> {
             self.types,
             return_type_id,
             self.module_id,
-            node_id,
+            node_id.into_anchored(Some(self.profile)),
             &mut self.builder,
         )
     }

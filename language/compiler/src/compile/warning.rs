@@ -53,7 +53,7 @@ impl TaskWarning {
 
     /// Get the numeric sub-code of the warning (e.g., `1` for `IE001`).
     #[inline]
-    pub fn sub_code(&self) -> u8 {
+    pub fn sub_code(&self) -> u16 {
         match self {
             Self::Import(warning) => warning.sub_code(),
             Self::Resolve(warning) => warning.sub_code(),

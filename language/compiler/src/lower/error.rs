@@ -2,7 +2,7 @@ use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
 };
 use destack_compiler_macros::DefineError;
-use destack_dir::{GlobalNodeIdAny, GlobalTypeId};
+use destack_dir::{AnchoredGlobalNodeId, GlobalTypeId};
 use destack_source::ModuleId;
 use destack_workspace::Program;
 
@@ -10,6 +10,9 @@ use destack_workspace::Program;
 #[derive(Debug, Clone, PartialEq, DefineError)]
 #[phase(Lower)]
 pub enum LowerError {
+    // -------------------------------------------------------------------------
+    // 0xx: Yield / dependency
+    // -------------------------------------------------------------------------
     /// Wait for task dependency.
     #[error(code = "EM000", r#yield)]
     Yield {
@@ -24,20 +27,14 @@ pub enum LowerError {
         dependency: TaskDependency,
     },
 
-    /// Unsupported node.
-    #[error(code = "EM002", message = "unsupported construct: {message}")]
-    UnsupportedConstruct {
-        /// Report the offending node that cannot be lowered.
-        node: GlobalNodeIdAny,
-        /// Describe why the construct is unsupported.
-        message: String,
-    },
-
+    // -------------------------------------------------------------------------
+    // 1xx: Type issues
+    // -------------------------------------------------------------------------
     /// Unsupported type.
-    #[error(code = "EM003", message = "unsupported type {ty}: {message}")]
+    #[error(code = "EM100", message = "unsupported type {ty}: {message}")]
     UnsupportedType {
         /// Report the node that introduced the unsupported type.
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         /// Identify the unsupported type id.
         ty: GlobalTypeId,
         /// Describe why the type is unsupported.
@@ -45,14 +42,29 @@ pub enum LowerError {
     },
 
     /// Missing type.
-    #[error(code = "EM004", message = "missing type")]
+    #[error(code = "EM101", message = "missing type")]
     MissingType {
         /// Report the node that lacks type information.
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
     },
 
+    // -------------------------------------------------------------------------
+    // 2xx: Construct issues
+    // -------------------------------------------------------------------------
+    /// Unsupported node.
+    #[error(code = "EM200", message = "unsupported construct: {message}")]
+    UnsupportedConstruct {
+        /// Report the offending node that cannot be lowered.
+        node: AnchoredGlobalNodeId,
+        /// Describe why the construct is unsupported.
+        message: String,
+    },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Internal
+    // -------------------------------------------------------------------------
     /// Internal lowering error.
-    #[error(code = "EM005", message = "internal error: {message}")]
+    #[error(code = "EM900", message = "internal error: {message}")]
     Internal {
         /// Anchor the error to a module.
         module: ModuleId,

@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProfileId};
 
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -95,6 +95,19 @@ impl LocalNodeIdAny {
         GlobalNodeIdAny {
             module_id,
             local_id: self,
+        }
+    }
+
+    /// Turn into an AnchoredGlobalNodeId.
+    #[inline]
+    pub fn into_anchored(
+        self,
+        module_id: ModuleId,
+        profile_id: Option<ProfileId>,
+    ) -> AnchoredGlobalNodeId {
+        AnchoredGlobalNodeId {
+            node_id: self.into_global(module_id),
+            profile_id,
         }
     }
 }
@@ -303,6 +316,15 @@ impl GlobalNodeIdAny {
     pub fn into_local_typed<T: Node>(self) -> LocalNodeId<T> {
         self.try_into_local_typed().unwrap()
     }
+
+    /// Turn into an AnchoredGlobalNodeId.
+    #[inline]
+    pub fn into_anchored(self, profile_id: Option<ProfileId>) -> AnchoredGlobalNodeId {
+        AnchoredGlobalNodeId {
+            node_id: self,
+            profile_id,
+        }
+    }
 }
 
 impl Debug for GlobalNodeIdAny {
@@ -354,6 +376,80 @@ impl<T: Node> TryFrom<GlobalNodeIdAny> for LocalNodeId<T> {
 impl From<GlobalNodeIdAny> for LocalNodeIdAny {
     fn from(id: GlobalNodeIdAny) -> Self {
         id.local_id
+    }
+}
+
+/// Anchored global node id with profile provenance.
+///
+/// DIR nodes can come from different sources:
+/// - Base DIR (shared, profile_id = None) - from Import phase
+/// - Profile-specific DIR (profile_id = Some) - from Resolve/Analyze/Elaborate phases
+///
+/// This type tracks the provenance so diagnostics can find the correct source location.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AnchoredGlobalNodeId {
+    /// The global node id.
+    pub node_id: GlobalNodeIdAny,
+    /// The profile this node belongs to (None for base DIR).
+    pub profile_id: Option<ProfileId>,
+}
+
+impl AnchoredGlobalNodeId {
+    /// Create a new anchored global node id.
+    pub fn new(node_id: GlobalNodeIdAny, profile_id: Option<ProfileId>) -> Self {
+        Self {
+            node_id,
+            profile_id,
+        }
+    }
+
+    /// Create an anchored node id for the base DIR (no profile).
+    pub fn base(node_id: GlobalNodeIdAny) -> Self {
+        Self {
+            node_id,
+            profile_id: None,
+        }
+    }
+
+    /// Create an anchored node id for a profile-specific DIR.
+    pub fn profiled(node_id: GlobalNodeIdAny, profile_id: ProfileId) -> Self {
+        Self {
+            node_id,
+            profile_id: Some(profile_id),
+        }
+    }
+
+    /// Get the module id.
+    pub fn module_id(&self) -> ModuleId {
+        self.node_id.module_id
+    }
+
+    /// Get the local node id.
+    pub fn local_id(&self) -> LocalNodeIdAny {
+        self.node_id.local_id
+    }
+}
+
+impl Debug for AnchoredGlobalNodeId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AnchoredGlobalNodeId")
+            .field("node_id", &self.node_id)
+            .field("profile_id", &self.profile_id)
+            .finish()
+    }
+}
+
+impl From<GlobalNodeIdAny> for AnchoredGlobalNodeId {
+    /// Convert from GlobalNodeIdAny, assuming base DIR (no profile).
+    fn from(node_id: GlobalNodeIdAny) -> Self {
+        Self::base(node_id)
+    }
+}
+
+impl<T: Node> From<GlobalNodeId<T>> for AnchoredGlobalNodeId {
+    /// Convert from typed GlobalNodeId, assuming base DIR (no profile).
+    fn from(node_id: GlobalNodeId<T>) -> Self {
+        Self::base(node_id.into_any())
     }
 }
 

@@ -11,6 +11,9 @@ use destack_workspace::{ArtifactId, Program, TargetId};
 #[derive(Debug, Clone, PartialEq, DefineError)]
 #[phase(Emit)]
 pub enum EmitError {
+    // -------------------------------------------------------------------------
+    // 0xx: Yield / dependency
+    // -------------------------------------------------------------------------
     /// Wait for task dependency.
     #[error(code = "EW000", r#yield)]
     Yield { dependency: TaskDependency },
@@ -19,37 +22,46 @@ pub enum EmitError {
     #[error(code = "EW001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
 
+    // -------------------------------------------------------------------------
+    // 1xx: Target issues
+    // -------------------------------------------------------------------------
     /// Target not found in package.
-    #[error(code = "EW002", message = "target not found: {target}")]
+    #[error(code = "EW100", message = "target not found: {target}")]
     TargetNotFound {
         package: PackageId,
         target: TargetId,
     },
 
+    /// Emit is disabled by configuration.
+    #[error(code = "EW101", message = "emit disabled by configuration (noEmit)")]
+    NoEmit {
+        package: PackageId,
+        target: TargetId,
+    },
+
+    // -------------------------------------------------------------------------
+    // 2xx: Artifact issues
+    // -------------------------------------------------------------------------
     /// Artifact has invalid or missing output path.
-    #[error(code = "EW003", message = "artifact has invalid output path: {uri}")]
+    #[error(code = "EW200", message = "artifact has invalid output path: {uri}")]
     InvalidOutputPath { artifact: ArtifactId, uri: Uri },
 
     /// Unsupported artifact.
-    #[error(code = "EW004", message = "unsupported artifact type '{file_type}'")]
+    #[error(code = "EW201", message = "unsupported artifact type '{file_type}'")]
     UnsupportedArtifact {
         artifact: ArtifactId,
         uri: Uri,
         file_type: FileType,
     },
 
+    // -------------------------------------------------------------------------
+    // 3xx: Write issues
+    // -------------------------------------------------------------------------
     /// Failed to write output file.
-    #[error(code = "EW005", message = "failed to write file '{path}': {message}")]
+    #[error(code = "EW300", message = "failed to write file '{path}': {message}")]
     FailedWrite {
         artifact: ArtifactId,
         path: PathBuf,
         message: Option<String>,
-    },
-
-    /// Emit is disabled by configuration.
-    #[error(code = "EW006", message = "emit disabled by configuration (noEmit)")]
-    NoEmit {
-        package: PackageId,
-        target: TargetId,
     },
 }

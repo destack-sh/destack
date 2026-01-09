@@ -141,13 +141,16 @@ impl Compiler {
         if visited.contains(&(target, key, space)) {
             // report cyclic symbols when an origin symbol is known
             if let Some(symbol) = origin_symbol {
-                return Err(ResolveError::CyclicSymbol { node, symbol });
+                return Err(ResolveError::CyclicSymbol {
+                    node: node.into_anchored(Some(profile)),
+                    symbol,
+                });
             }
             // report missing symbols when a chain loops without an origin symbol
             let (scope, via_module) =
                 self.export_chain_scope_for_target(origin_module_id, target, profile)?;
             return Err(ResolveError::MissingSymbol {
-                node,
+                node: node.into_anchored(Some(profile)),
                 scope,
                 via_module,
                 key,
@@ -512,6 +515,7 @@ impl Compiler {
                 let symbol_id = self
                     .resolve_absolute_symbol(
                         module,
+                        profile,
                         item_node,
                         (scope_id, scope, LocalScopeMark::end()),
                         key,
@@ -523,6 +527,7 @@ impl Compiler {
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol(
                             module,
+                            profile,
                             item_node,
                             (global_scope_id, global_scope, LocalScopeMark::end()),
                             key,
@@ -838,7 +843,10 @@ impl Compiler {
         };
         let remote_module_id = self
             .resolve_specifier_to_module(target, source_module)
-            .map_err(|_| ResolveError::UnresolvedModule { node, target })?;
+            .map_err(|_| ResolveError::UnresolvedModule {
+                node: node.into_anchored(Some(profile)),
+                target,
+            })?;
 
         // require module to be bound
         self.require_import_module_validate(remote_module_id)?;
@@ -882,7 +890,7 @@ impl Compiler {
                 // report unresolved modules when no bindings match
                 let Some(bindings) = bindings else {
                     return Err(ResolveError::UnresolvedModule {
-                        node,
+                        node: node.into_anchored(Some(profile)),
                         target: specifier,
                     });
                 };
@@ -890,7 +898,7 @@ impl Compiler {
                 // select the first binding declaration
                 let Some(binding_ref) = bindings.first() else {
                     return Err(ResolveError::UnresolvedModule {
-                        node,
+                        node: node.into_anchored(Some(profile)),
                         target: specifier,
                     });
                 };
@@ -1399,7 +1407,9 @@ impl Compiler {
                         // resolve a named import from the target
                         let key = name.map(StaticKey::Name).ok_or(
                             ResolveError::UnsupportedConstruct {
-                                node: item_id.into_global_any(module.id),
+                                node: item_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
                             },
                         )?;
                         self.resolve_remote_item_symbol(
@@ -1510,6 +1520,7 @@ impl Compiler {
                 let target_symbol_id = self
                     .resolve_absolute_symbol(
                         module,
+                        profile,
                         node,
                         (scope_id, scope, mark),
                         key,
@@ -1523,6 +1534,7 @@ impl Compiler {
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol(
                             module,
+                            profile,
                             node,
                             (global_scope_id, global_scope, LocalScopeMark::end()),
                             key,
@@ -1650,7 +1662,7 @@ impl Compiler {
             self.collect_namespace_exports_for_target(module.id, via_target, profile)?;
         if namespace_exports.is_empty() {
             return Err(ResolveError::MissingSymbol {
-                node,
+                node: node.into_anchored(Some(profile)),
                 scope: via_scope,
                 via_module: via_module_id,
                 key,
@@ -1728,7 +1740,7 @@ impl Compiler {
 
         // report a missing symbol for namespace lookup failures
         Err(ResolveError::MissingSymbol {
-            node,
+            node: node.into_anchored(Some(profile)),
             scope: via_scope,
             via_module: via_module_id,
             key,
@@ -1776,10 +1788,12 @@ impl Compiler {
             SymbolDescriptor::from(right_symbol),
         );
 
+        // NOTE #Suspicious: should we separate export conflicts per profile? (from ImportError)
+        // (also see other usages of ImportError::Conflicting* across resolve)
         if !can_merge {
             self.error(ImportError::ConflictingExport {
-                node,
-                other_node,
+                node: node.into(),
+                other_node: other_node.into(),
                 module,
                 name,
             });

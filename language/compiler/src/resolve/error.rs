@@ -3,7 +3,7 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_compiler_macros::DefineError;
-use destack_dir::{GlobalNodeIdAny, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
+use destack_dir::{AnchoredGlobalNodeId, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{Program, TargetId};
 
@@ -11,6 +11,9 @@ use destack_workspace::{Program, TargetId};
 #[derive(Debug, Clone, PartialEq, DefineError)]
 #[phase(Resolve)]
 pub enum ResolveError {
+    // -------------------------------------------------------------------------
+    // 0xx: Yield / dependency
+    // -------------------------------------------------------------------------
     /// Wait for task dependency.
     #[error(code = "ER000", r#yield)]
     Yield { dependency: TaskDependency },
@@ -19,92 +22,107 @@ pub enum ResolveError {
     #[error(code = "ER001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
 
-    /// Unsupported node.
-    #[error(code = "ER002", message = "unsupported {node}")]
-    UnsupportedConstruct { node: GlobalNodeIdAny },
-
-    /// Circular dependency.
-    #[error(code = "ER003", message = "circular dependency")]
-    CircularDependency {
-        node: GlobalNodeIdAny,
-        depends_on: Vec<GlobalNodeIdAny>,
-    },
-
+    // -------------------------------------------------------------------------
+    // 1xx: Symbol lookup
+    // -------------------------------------------------------------------------
     /// Use of undeclared symbol.
-    #[error(code = "ER004", message = "missing symbol {key}")]
+    #[error(code = "ER100", message = "missing symbol {key}")]
     UndeclaredSymbol {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         scope: GlobalScopeId,
         key: StaticKey,
     },
 
     /// Use of missing symbol.
-    #[error(code = "ER005", message = "missing symbol {key}")]
+    #[error(code = "ER101", message = "missing symbol {key}")]
     MissingSymbol {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         scope: GlobalScopeId,
         via_module: Option<ModuleId>,
         key: StaticKey,
     },
 
     /// Use of ambiguous symbol.
-    #[error(code = "ER006", message = "ambiguous symbol {key}")]
+    #[error(code = "ER102", message = "ambiguous symbol {key}")]
     AmbiguousSymbol {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         scope: GlobalScopeId,
         symbol: GlobalSymbolId,
         key: StaticKey,
     },
 
-    /// Unresolved module.
-    #[error(code = "ER007", message = "unresolved module '{target}'")]
-    UnresolvedModule {
-        node: GlobalNodeIdAny,
-        target: StringId,
-    },
-
     /// Cyclic symbol reference (re-export chain forms a cycle).
-    #[error(code = "ER008", message = "cyclic reference to '{symbol}'")]
+    #[error(code = "ER103", message = "cyclic reference to '{symbol}'")]
     CyclicSymbol {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         symbol: GlobalSymbolId,
     },
 
+    // -------------------------------------------------------------------------
+    // 2xx: Module / target resolution
+    // -------------------------------------------------------------------------
+    /// Unresolved module.
+    #[error(code = "ER200", message = "unresolved module '{target}'")]
+    UnresolvedModule {
+        node: AnchoredGlobalNodeId,
+        target: StringId,
+    },
+
     /// Missing target for a control flow expression.
-    #[error(code = "ER010", message = "missing target")]
+    #[error(code = "ER201", message = "missing target")]
     MissingTarget {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         target: Option<StringId>,
     },
 
     /// Invalid target for a control flow expression.
-    #[error(code = "ER011", message = "invalid target")]
+    #[error(code = "ER202", message = "invalid target")]
     InvalidTarget {
-        node: GlobalNodeIdAny,
+        node: AnchoredGlobalNodeId,
         target: Option<StringId>,
-        target_node: GlobalNodeIdAny,
+        target_node: AnchoredGlobalNodeId,
     },
 
+    // -------------------------------------------------------------------------
+    // 3xx: Dependencies / cycles
+    // -------------------------------------------------------------------------
+    /// Circular dependency.
+    #[error(code = "ER300", message = "circular dependency")]
+    CircularDependency {
+        node: AnchoredGlobalNodeId,
+        depends_on: Vec<AnchoredGlobalNodeId>,
+    },
+
+    // -------------------------------------------------------------------------
+    // 4xx: Builtins / config
+    // -------------------------------------------------------------------------
     /// Missing language item (builtin not found).
-    #[error(code = "ER012", message = "missing language item '{item}'")]
+    #[error(code = "ER400", message = "missing language item '{item}'")]
     MissingLanguageSymbol { item: LanguageSymbol },
 
     /// Missing builtin library.
-    #[error(code = "ER013", message = "missing builtin lib '{name}'")]
+    #[error(code = "ER401", message = "missing builtin lib '{name}'")]
     MissingBuiltinLib { name: String },
 
     /// Conflicting builtin lib versions.
     #[error(
-        code = "ER015",
+        code = "ER402",
         message = "conflicting builtin lib versions for '{base}': {libs}"
     )]
     ConflictingBuiltinLibVersions { base: String, libs: String },
 
     /// Invalid target configuration.
-    #[error(code = "ER014", message = "invalid target config: {target}: {message}")]
+    #[error(code = "ER403", message = "invalid target config: {target}: {message}")]
     InvalidTargetConfig {
         package: PackageId,
         target: TargetId,
         message: String,
     },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Unsupported / internal
+    // -------------------------------------------------------------------------
+    /// Unsupported node.
+    #[error(code = "ER900", message = "unsupported {node}")]
+    UnsupportedConstruct { node: AnchoredGlobalNodeId },
 }
