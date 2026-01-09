@@ -1805,7 +1805,7 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
             reference: ReferenceMeta::new(*kind, *mutability, *is_nullable),
         },
         mir::Type::FunctionPointer { result, .. } => ValueKind::FunctionPointer { result: *result },
-        mir::Type::Array { element, length } => ValueKind::Array {
+        mir::Type::Array { element, length, copyability: _ } => ValueKind::Array {
             element: *element,
             length: *length,
         },
@@ -1888,12 +1888,12 @@ fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<
 
     // resolve field type from aggregate layout
     match tree.get(ty) {
-        mir::Type::Struct { fields } => {
+        mir::Type::Struct { fields, copyability: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
             Some(kind_from_type(tree, field.ty))
         }
-        mir::Type::Tuple { elements } => {
+        mir::Type::Tuple { elements, copyability: _ } => {
             let field = elements.get(index as usize)?;
             Some(kind_from_type(tree, *field))
         }
@@ -1916,12 +1916,12 @@ fn field_type_id_from_kind(
 
     // resolve field type from aggregate layout
     match tree.get(type_id) {
-        mir::Type::Struct { fields } => {
+        mir::Type::Struct { fields, copyability: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
             Some(field.ty)
         }
-        mir::Type::Tuple { elements } => elements.get(index as usize).copied(),
+        mir::Type::Tuple { elements, copyability: _ } => elements.get(index as usize).copied(),
         _ => None,
     }
 }
@@ -1963,8 +1963,8 @@ fn element_type_id_from_kind(
 fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Option<u32> {
     // map types to slot counts
     match tree.get(ty) {
-        mir::Type::Struct { fields } => u32::try_from(fields.len()).ok(),
-        mir::Type::Tuple { elements } => u32::try_from(elements.len()).ok(),
+        mir::Type::Struct { fields, copyability: _ } => u32::try_from(fields.len()).ok(),
+        mir::Type::Tuple { elements, copyability: _ } => u32::try_from(elements.len()).ok(),
         mir::Type::Array { length, .. } => u32::try_from(*length).ok(),
         mir::Type::Void => Some(1),
         mir::Type::Boolean
@@ -1979,13 +1979,13 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
 fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u32> {
     match kind {
         ValueKind::Aggregate { ty } => match tree.get(ty) {
-            mir::Type::Struct { fields } => u32::try_from(fields.len()).ok(),
-            mir::Type::Tuple { elements } => u32::try_from(elements.len()).ok(),
+            mir::Type::Struct { fields, copyability: _ } => u32::try_from(fields.len()).ok(),
+            mir::Type::Tuple { elements, copyability: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
         },
         ValueKind::Pointer { pointee, .. } => match tree.get(pointee) {
-            mir::Type::Struct { fields } => u32::try_from(fields.len()).ok(),
-            mir::Type::Tuple { elements } => u32::try_from(elements.len()).ok(),
+            mir::Type::Struct { fields, copyability: _ } => u32::try_from(fields.len()).ok(),
+            mir::Type::Tuple { elements, copyability: _ } => u32::try_from(elements.len()).ok(),
             _ => None,
         },
         _ => None,

@@ -81,7 +81,7 @@ fn format_type_inner<'a>(
                 )
             }
         }
-        Type::Array { element, length } => {
+        Type::Array { element, length, copyability: _ } => {
             write!(
                 f,
                 [
@@ -94,7 +94,7 @@ fn format_type_inner<'a>(
                 ]
             )
         }
-        Type::Tuple { elements } => {
+        Type::Tuple { elements, copyability: _ } => {
             write!(f, [token("(")])?;
             for (i, elem) in elements.iter().enumerate() {
                 if i > 0 {
@@ -104,7 +104,7 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(")")])
         }
-        Type::Struct { fields } => {
+        Type::Struct { fields, copyability: _ } => {
             write!(f, [token("{"), space()])?;
             for (i, field_id) in fields.iter().enumerate() {
                 if i > 0 {

@@ -24,6 +24,49 @@ pub enum ReferenceKind {
     Raw,
 }
 
+impl ReferenceKind {
+    /// Whether this reference kind owns its pointee.
+    pub fn is_owning(&self) -> bool {
+        matches!(self, ReferenceKind::Managed | ReferenceKind::Owned)
+    }
+}
+
+/// Copyability of a type.
+///
+/// Determines whether values of this type can be used multiple times
+/// or if each use consumes the value (linear/move semantics).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Copyability {
+    /// Value can be used multiple times freely (like Copy in Rust).
+    /// This is the default for primitives and non-owning references.
+    #[default]
+    Trivial,
+    /// Each use consumes the value (linear/move-only).
+    /// Required for types that own resources (owned/managed references).
+    Linear,
+}
+
+impl Copyability {
+    /// Whether this is trivially copyable.
+    pub fn is_trivial(&self) -> bool {
+        matches!(self, Copyability::Trivial)
+    }
+
+    /// Whether this has linear/move semantics.
+    pub fn is_linear(&self) -> bool {
+        matches!(self, Copyability::Linear)
+    }
+
+    /// Combine two copyabilities (for aggregate types).
+    /// Returns Linear if either is Linear, otherwise Trivial.
+    pub fn combine(self, other: Copyability) -> Copyability {
+        match (self, other) {
+            (Copyability::Trivial, Copyability::Trivial) => Copyability::Trivial,
+            _ => Copyability::Linear,
+        }
+    }
+}
+
 /// Concrete type in MIR (post-monomorphization).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -54,13 +97,22 @@ pub enum Type {
         element: LocalNodeId<Type>,
         /// The number of elements in the array.
         length: u64,
+        /// Copyability of this array type.
+        copyability: Copyability,
     },
     /// Tuple: `(T1, T2, ...)`.
-    Tuple { elements: Vec<LocalNodeId<Type>> },
+    Tuple {
+        /// The element types of the tuple.
+        elements: Vec<LocalNodeId<Type>>,
+        /// Copyability of this tuple type.
+        copyability: Copyability,
+    },
     /// Struct (anonymous, layout-focused).
     Struct {
         /// The fields of the struct.
         fields: Vec<LocalNodeId<Field>>,
+        /// Copyability of this struct type.
+        copyability: Copyability,
     },
 
     /// Function pointer type.
@@ -167,6 +219,39 @@ impl Type {
     /// Whether this type is any kind of pointer or reference.
     pub fn is_pointer_like(&self) -> bool {
         matches!(self, Type::Reference { .. })
+    }
+
+    /// Get the copyability of this type.
+    ///
+    /// - Primitives (void, bool, int, float) are always Trivial
+    /// - Non-owning references (borrowed, raw) are Trivial
+    /// - Owning references (owned, managed) are Linear
+    /// - Aggregates have explicit copyability stored in their variants
+    /// - Function pointers are Trivial
+    pub fn copyability(&self) -> Copyability {
+        match self {
+            // primitives are always trivially copyable
+            Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => {
+                Copyability::Trivial
+            }
+
+            // references depend on ownership
+            Type::Reference { kind, .. } => {
+                if kind.is_owning() {
+                    Copyability::Linear
+                } else {
+                    Copyability::Trivial
+                }
+            }
+
+            // aggregates have explicit copyability
+            Type::Array { copyability, .. }
+            | Type::Tuple { copyability, .. }
+            | Type::Struct { copyability, .. } => *copyability,
+
+            // function pointers are trivially copyable
+            Type::FunctionPointer { .. } => Copyability::Trivial,
+        }
     }
 }
 

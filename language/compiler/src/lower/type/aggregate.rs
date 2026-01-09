@@ -6,6 +6,19 @@ use {destack_dir as dir, destack_mir as mir};
 use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout};
 use crate::{LowerError, LowerResult};
 
+/// Compute aggregate copyability from element types.
+fn compute_aggregate_copyability(
+    element_types: &[mir::LocalNodeId<mir::Type>],
+    tree: &mir::NodeTree,
+) -> mir::Copyability {
+    let mut copyability = mir::Copyability::Trivial;
+    for &element_type_id in element_types {
+        let element_type = tree.get(element_type_id);
+        copyability = copyability.combine(element_type.copyability());
+    }
+    copyability
+}
+
 /// Convert a static key to a field name.
 ///
 /// For name and number keys, returns the string directly.
@@ -107,7 +120,10 @@ impl TypeLowerer {
             mir_elements.push(mir_type);
         }
 
-        Ok(builder.type_tuple(mir_elements))
+        // compute copyability from element types
+        let copyability = compute_aggregate_copyability(&mir_elements, builder.tree());
+
+        Ok(builder.type_tuple(mir_elements, copyability))
     }
 
     /// Lower a DIR sized array type to a MIR array type.
@@ -142,7 +158,11 @@ impl TypeLowerer {
                 message: "array size must be a constant integer".to_string(),
             })?;
 
-        Ok(builder.type_array(mir_element, length))
+        // array inherits copyability from element type
+        let element_type = builder.tree().get(mir_element);
+        let copyability = element_type.copyability();
+
+        Ok(builder.type_array(mir_element, length, copyability))
     }
 }
 
