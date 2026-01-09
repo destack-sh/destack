@@ -70,7 +70,10 @@ impl TypeLowerer {
                 .layout_for_type(ty)
                 .and_then(|layout| layout.field_index(field_name))
                 .map(|i| i as usize),
-            mir::Type::Tuple { elements, copyability: _ } => {
+            mir::Type::Tuple {
+                elements,
+                copyability: _,
+            } => {
                 let name_str = strings.get(field_name);
                 name_str
                     .parse::<usize>()

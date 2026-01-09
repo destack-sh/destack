@@ -75,10 +75,18 @@ impl Compiler {
         let before = count_mir_size(&tree);
 
         // create optimization context
-        let context = OptimizationContext::new(&strings, options);
+        let context = OptimizationContext::new(&strings, options, module, target.clone());
 
-        // run the pipeline on all functions
+        // run the pipeline on all functions (includes verification passes)
         pipeline.run_on_module(&mut tree, &context);
+
+        // collect accumulated diagnostics from verification passes
+        for error in context.take_errors() {
+            self.error(error);
+        }
+        for warning in context.take_warnings() {
+            self.warning(warning);
+        }
 
         // count MIR size after optimization
         let after = count_mir_size(&tree);

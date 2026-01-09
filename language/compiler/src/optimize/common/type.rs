@@ -69,7 +69,11 @@ impl TypeKey {
                 }
             }
 
-            mir::Type::Array { element, length } => {
+            mir::Type::Array {
+                element,
+                length,
+                copyability: _,
+            } => {
                 let element_ty = tree.get(*element);
                 TypeKey::Array {
                     element: Box::new(TypeKey::from_type(element_ty, tree)),
@@ -77,7 +81,10 @@ impl TypeKey {
                 }
             }
 
-            mir::Type::Tuple { elements } => {
+            mir::Type::Tuple {
+                elements,
+                copyability: _,
+            } => {
                 let elements = elements
                     .iter()
                     .map(|e| TypeKey::from_type(tree.get(*e), tree))
@@ -85,7 +92,10 @@ impl TypeKey {
                 TypeKey::Tuple { elements }
             }
 
-            mir::Type::Struct { fields } => {
+            mir::Type::Struct {
+                fields,
+                copyability: _,
+            } => {
                 let fields = fields
                     .iter()
                     .map(|f| {
@@ -180,15 +190,26 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
             mir::Type::Array {
                 element: e1,
                 length: l1,
+                copyability: _,
             },
             mir::Type::Array {
                 element: e2,
                 length: l2,
+                copyability: _,
             },
         ) => l1 == l2 && types_are_equal(*e1, *e2, tree),
 
         // tuples: compare element types
-        (mir::Type::Tuple { elements: e1 }, mir::Type::Tuple { elements: e2 }) => {
+        (
+            mir::Type::Tuple {
+                elements: e1,
+                copyability: _,
+            },
+            mir::Type::Tuple {
+                elements: e2,
+                copyability: _,
+            },
+        ) => {
             e1.len() == e2.len()
                 && e1
                     .iter()
@@ -197,7 +218,16 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
         }
 
         // structs: compare field types
-        (mir::Type::Struct { fields: f1 }, mir::Type::Struct { fields: f2 }) => {
+        (
+            mir::Type::Struct {
+                fields: f1,
+                copyability: _,
+            },
+            mir::Type::Struct {
+                fields: f2,
+                copyability: _,
+            },
+        ) => {
             f1.len() == f2.len()
                 && f1.iter().zip(f2.iter()).all(|(a, b)| {
                     let field_a = tree.get(*a);
@@ -285,6 +315,7 @@ mod tests {
         let array_ty = mir::Type::Array {
             element: i32_id,
             length: 10,
+            copyability: mir::Copyability::Trivial,
         };
         let key = TypeKey::from_type(&array_ty, &tree);
         assert_eq!(
@@ -313,10 +344,12 @@ mod tests {
         let array_1 = mir::Type::Array {
             element: i32_id_1,
             length: 5,
+            copyability: mir::Copyability::Trivial,
         };
         let array_2 = mir::Type::Array {
             element: i32_id_2,
             length: 5,
+            copyability: mir::Copyability::Trivial,
         };
 
         let key_1 = TypeKey::from_type(&array_1, &tree);

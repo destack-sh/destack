@@ -7,9 +7,10 @@ use super::pass::{
     BoxedFunctionPass, BoxedModulePass, FunctionPass, ModulePass, OptimizationLevel,
 };
 use crate::optimize::passes::{
-    ConstantFold, CopyPropagate, DeadCodeEliminate, DeadStoreEliminate, GlobalValueNumbering,
-    InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopDelete, LoopRotate, LoopSimplify,
-    LoopUnswitch, Mem2Reg, SimplifyCfg, Sink, Sroa,
+    BorrowCheck, ConstantFold, CopyPropagate, DeadCodeEliminate, DeadStoreEliminate, DropInsert,
+    GlobalValueNumbering, InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopDelete,
+    LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, MoveCheck, SimplifyCfg, Sink, Sroa,
+    StackCheck,
 };
 
 /// Optimization pipeline that runs passes in sequence.
@@ -133,6 +134,12 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             // no optimizations
         }
         OptimizationLevel::O1 | OptimizationLevel::O2 | OptimizationLevel::O3 => {
+            // phase 0: verification passes
+            // these run first to check ownership/borrow semantics before optimization
+            pipeline.add_function_pass(MoveCheck);
+            pipeline.add_function_pass(BorrowCheck);
+            pipeline.add_function_pass(StackCheck);
+
             // phase 1: initial simplifications
             pipeline.add_function_pass(ConstantFold);
             pipeline.add_function_pass(InstructionCombine);
@@ -140,6 +147,10 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             // phase 2: aggregate breakdown + SSA promotion
             pipeline.add_function_pass(Sroa);
             pipeline.add_function_pass(Mem2Reg);
+
+            // phase 2.5: drop insertion
+            // runs after SSA promotion so it sees cleaner IR
+            pipeline.add_function_pass(DropInsert);
 
             // phase 3: redundancy elimination
             pipeline.add_function_pass(LocalCse);

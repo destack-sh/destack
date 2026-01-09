@@ -84,6 +84,13 @@ pub enum OptimizeError {
         moved_at: mir::AnchoredGlobalNodeId,
     },
 
+    /// Assigning to a local variable while it is borrowed.
+    #[error(code = "EO204", message = "cannot assign to local: value is borrowed")]
+    LocalSetWhileBorrowed {
+        node: mir::AnchoredGlobalNodeId,
+        borrowed_at: mir::AnchoredGlobalNodeId,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: Lifetime errors
     // -------------------------------------------------------------------------

@@ -188,12 +188,19 @@ pub(crate) fn size_and_align_of_type(
             let bytes = pointer_bytes as u32;
             (bytes, bytes)
         }
-        mir::Type::Array { element, length, copyability: _ } => {
+        mir::Type::Array {
+            element,
+            length,
+            copyability: _,
+        } => {
             let element_ty = tree.get(*element);
             let (elem_size, elem_align) = size_and_align_of_type(element_ty, tree, pointer_bytes);
             (elem_size * (*length as u32), elem_align)
         }
-        mir::Type::Tuple { elements, copyability: _ } => {
+        mir::Type::Tuple {
+            elements,
+            copyability: _,
+        } => {
             // tuple layout is like a struct with anonymous fields
             let mut max_align: u32 = 1;
             let mut current_offset: u32 = 0;
@@ -208,7 +215,10 @@ pub(crate) fn size_and_align_of_type(
             let total_size = align_up(current_offset, max_align);
             (total_size, max_align)
         }
-        mir::Type::Struct { fields, copyability: _ } => {
+        mir::Type::Struct {
+            fields,
+            copyability: _,
+        } => {
             // for already laid out structs, compute from field info
             let mut max_align: u32 = 1;
             let mut max_end: u32 = 0;
