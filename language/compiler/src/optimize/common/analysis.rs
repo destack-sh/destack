@@ -19,6 +19,8 @@ pub enum AnalysisKind {
     DominatorTree,
     /// Natural loop analysis.
     LoopAnalysis,
+    /// Constant propagation analysis.
+    ConstantPropagation,
     /// Alias analysis (memory aliasing).
     AliasAnalysis,
     /// Liveness analysis (live variables).
