@@ -102,6 +102,8 @@ impl FunctionPass for LoopUnswitch {
             None => return AnalysisPreservation::all(),
         };
 
+        function.recompute_next_value_id(tree);
+
         unswitch_loop(function, tree, &candidate);
 
         AnalysisPreservation::none()
