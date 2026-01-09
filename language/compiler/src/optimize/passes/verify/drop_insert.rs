@@ -1,0 +1,736 @@
+use std::collections::{HashMap, HashSet};
+
+use destack_compiler_macros::declare_pass;
+use destack_mir as mir;
+use mir::{Instruction, Value};
+
+use crate::optimize::{
+    AnalysisPreservation, ControlFlowGraph, FunctionPass, LivenessAnalysis, OptimizationContext,
+    OwnershipAnalysis, Pass, PassMetadata,
+};
+
+declare_pass! {
+    /// Insert Drop instructions at last-use points.
+    ///
+    /// Implements non-lexical lifetimes (NLL) by dropping owned values as soon as
+    /// they're no longer needed, rather than at lexical scope boundaries.
+    ///
+    /// Algorithm:
+    /// 1. Identify droppable values (owned/managed refs, aggregates containing them)
+    /// 2. Use liveness analysis to find where each value becomes dead
+    /// 3. Insert `drop` after the last use, or before return for still-live values
+    ///
+    /// Identifies droppable values from:
+    /// - Function and block parameters with owned/managed reference types
+    /// - Managed allocations (managed.alloc, managed.alloc.array)
+    /// - Instructions with explicit types (struct, tuple, array, cast)
+    /// - Local variable loads (local.get)
+    ///
+    /// Modifies MIR and invalidates all analyses.
+    #[pass(id = "drop-insert")]
+    pub DropInsert,
+    "Insert drop calls at last-use points"
+}
+
+impl Pass for DropInsert {
+    fn metadata(&self) -> &'static PassMetadata {
+        DropInsert::metadata()
+    }
+}
+
+impl FunctionPass for DropInsert {
+    fn run_on_function(
+        &self,
+        function: &mut mir::Function,
+        tree: &mut mir::NodeTree,
+        context: &OptimizationContext<'_>,
+    ) -> AnalysisPreservation {
+        // get liveness analysis
+        let liveness = context
+            .analyses
+            .get::<LivenessAnalysis>(function, tree, context);
+
+        // get CFG for traversal
+        let _cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
+
+        // get ownership analysis for value type information
+        let ownership = context
+            .analyses
+            .get::<OwnershipAnalysis>(function, tree, context);
+
+        // find values that need drops using ownership analysis
+        let droppable = find_droppable_values_with_ownership(function, tree, &ownership);
+        if droppable.is_empty() {
+            return AnalysisPreservation::all();
+        }
+
+        // collect drop insertion points
+        let mut drops_to_insert: Vec<DropInsertionPoint> = Vec::new();
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            let instructions = block.instructions.clone();
+
+            // check each instruction for values that die after it
+            for (idx, &instruction_id) in instructions.iter().enumerate() {
+                let instruction = tree.get(instruction_id);
+
+                // check if any droppable value is defined here and dies before block exit
+                if let Some(dest) = instruction.destination()
+                    && droppable.contains(&dest)
+                    && !liveness.is_live_out(block_id, dest)
+                {
+                    // value dies in this block, find where
+                    let death_idx =
+                        find_death_point(block_id, idx, dest, &instructions, tree, &liveness);
+
+                    if let Some(after_idx) = death_idx {
+                        drops_to_insert.push(DropInsertionPoint::AfterInstruction {
+                            block: block_id,
+                            instruction_index: after_idx,
+                            value: dest,
+                        });
+                    }
+                }
+            }
+
+            // check for values that are live-in but not live-out (die in block)
+            for &value in liveness.live_in(block_id) {
+                if droppable.contains(&value) && !liveness.is_live_out(block_id, value) {
+                    // value dies in this block
+                    let death_idx =
+                        find_death_point(block_id, 0, value, &instructions, tree, &liveness);
+
+                    if let Some(after_idx) = death_idx {
+                        drops_to_insert.push(DropInsertionPoint::AfterInstruction {
+                            block: block_id,
+                            instruction_index: after_idx,
+                            value,
+                        });
+                    }
+                }
+            }
+
+            // check for values live-out that need drops at block exit (e.g., before return)
+            if let mir::Terminator::Return { value: ret_val } = &block.terminator {
+                // check live-in values
+                for &value in liveness.live_in(block_id) {
+                    // check if value is used in return; if not, drop before return
+                    if droppable.contains(&value) && ret_val != &Some(value) {
+                        drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
+                            block: block_id,
+                            value,
+                        });
+                    }
+                }
+
+                // also check block parameters (not live-in but need drops)
+                for param in &block.parameters {
+                    if droppable.contains(&param.value)
+                        && ret_val != &Some(param.value)
+                        && !liveness.is_live_out(block_id, param.value)
+                    {
+                        // parameter dies in this block, find where or drop before return
+                        let death_idx = find_death_point(
+                            block_id,
+                            0,
+                            param.value,
+                            &instructions,
+                            tree,
+                            &liveness,
+                        );
+
+                        if let Some(after_idx) = death_idx {
+                            drops_to_insert.push(DropInsertionPoint::AfterInstruction {
+                                block: block_id,
+                                instruction_index: after_idx,
+                                value: param.value,
+                            });
+                        } else {
+                            // used only in terminator or no uses - drop before terminator
+                            drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
+                                block: block_id,
+                                value: param.value,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // deduplicate and sort drops
+        drops_to_insert.sort();
+        drops_to_insert.dedup();
+
+        if drops_to_insert.is_empty() {
+            return AnalysisPreservation::all();
+        }
+
+        // insert drops (process in reverse to maintain indices)
+        insert_drops(function, tree, &drops_to_insert);
+
+        // we modified the CFG and instructions
+        AnalysisPreservation::none()
+    }
+}
+
+/// Where to insert a Drop instruction.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum DropInsertionPoint {
+    /// Insert after an instruction (before the next instruction).
+    AfterInstruction {
+        block: mir::LocalNodeId<mir::Block>,
+        instruction_index: usize,
+        value: Value,
+    },
+    /// Insert before the block's terminator.
+    BeforeTerminator {
+        block: mir::LocalNodeId<mir::Block>,
+        value: Value,
+    },
+}
+
+/// Find all values in the function that need Drop calls using ownership analysis.
+///
+/// Uses OwnershipAnalysis for accurate value type tracking, which handles cases like
+/// Load results and field.set/element.set where the type needs to be inferred.
+fn find_droppable_values_with_ownership(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    ownership: &OwnershipAnalysis,
+) -> HashSet<Value> {
+    let mut droppable = HashSet::new();
+
+    // check function parameters
+    for param in &function.parameters {
+        // if value is not copy, it needs dropping
+        if !ownership.value_is_copy(param.value, tree) {
+            droppable.insert(param.value);
+        }
+    }
+
+    // check all instructions
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // block parameters
+        for param in &block.parameters {
+            if !ownership.value_is_copy(param.value, tree) {
+                droppable.insert(param.value);
+            }
+        }
+
+        // instructions
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+
+            if let Some(dest) = instruction.destination() {
+                // check if instruction directly produces a droppable value
+                if instruction_produces_droppable(instruction) {
+                    droppable.insert(dest);
+                    continue;
+                }
+
+                // use ownership analysis for type inference
+                if !ownership.value_is_copy(dest, tree) {
+                    droppable.insert(dest);
+                }
+            }
+        }
+    }
+
+    droppable
+}
+
+/// Check if an instruction directly produces a value that needs dropping.
+///
+/// Some instructions produce droppable values but don't have a direct type field
+/// that we can check. This handles those cases directly.
+fn instruction_produces_droppable(instruction: &Instruction) -> bool {
+    match instruction {
+        // managed allocations produce managed refs which need dropping
+        Instruction::ManagedAlloc { .. } | Instruction::ManagedAllocArray { .. } => true,
+
+        // raw allocations produce raw refs which don't need automatic dropping
+        // (they need explicit raw.free)
+        Instruction::RawAlloc { .. } => false,
+
+        // stack allocations produce raw refs to stack memory (no drop needed)
+        Instruction::StackAlloc { .. } => false,
+
+        _ => false,
+    }
+}
+
+/// Find the instruction index after which a value dies (last use).
+fn find_death_point(
+    block_id: mir::LocalNodeId<mir::Block>,
+    start_idx: usize,
+    value: Value,
+    instructions: &[mir::LocalNodeId<Instruction>],
+    tree: &mir::NodeTree,
+    _liveness: &LivenessAnalysis,
+) -> Option<usize> {
+    // scan forward to find the last use
+    let mut last_use_idx = None;
+
+    for (idx, &instruction_id) in instructions.iter().enumerate().skip(start_idx) {
+        let instruction = tree.get(instruction_id);
+
+        // check if this instruction uses the value
+        if instruction.uses().contains(&value) {
+            last_use_idx = Some(idx);
+        }
+
+        // check externalized arguments
+        if let Some(arg_slice) = instruction.argument_slice()
+            && tree.get_arguments(arg_slice).contains(&value)
+        {
+            last_use_idx = Some(idx);
+        }
+    }
+
+    // if value is used in terminator, we can't drop in this block
+    let block = tree.get(block_id);
+    if crate::optimize::terminator_uses(&block.terminator, value) {
+        return None;
+    }
+
+    last_use_idx
+}
+
+/// Insert Drop instructions at the specified points.
+fn insert_drops(
+    _function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    drops: &[DropInsertionPoint],
+) {
+    // group by block for efficient insertion
+    let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<&DropInsertionPoint>> =
+        HashMap::new();
+
+    for drop in drops {
+        let block_id = match drop {
+            DropInsertionPoint::AfterInstruction { block, .. } => *block,
+            DropInsertionPoint::BeforeTerminator { block, .. } => *block,
+        };
+        by_block.entry(block_id).or_default().push(drop);
+    }
+
+    // process each block
+    for (block_id, block_drops) in by_block {
+        let block = tree.get(block_id).clone();
+        let mut new_instructions = Vec::with_capacity(block.instructions.len() + block_drops.len());
+
+        // track which indices need drops after them
+        let mut drops_after: HashMap<usize, Vec<Value>> = HashMap::new();
+        let mut drops_before_terminator: Vec<Value> = Vec::new();
+
+        for drop in block_drops {
+            match drop {
+                DropInsertionPoint::AfterInstruction {
+                    instruction_index,
+                    value,
+                    ..
+                } => {
+                    drops_after
+                        .entry(*instruction_index)
+                        .or_default()
+                        .push(*value);
+                }
+                DropInsertionPoint::BeforeTerminator { value, .. } => {
+                    drops_before_terminator.push(*value);
+                }
+            }
+        }
+
+        // rebuild instruction list with drops inserted
+        for (idx, &instruction_id) in block.instructions.iter().enumerate() {
+            new_instructions.push(instruction_id);
+
+            // insert drops after this instruction
+            if let Some(values) = drops_after.get(&idx) {
+                for &value in values {
+                    let drop_instruction = Instruction::Drop { value };
+                    let drop_id = tree.insert(drop_instruction);
+                    new_instructions.push(drop_id);
+                }
+            }
+        }
+
+        // insert drops before terminator
+        for value in drops_before_terminator {
+            let drop_instruction = Instruction::Drop { value };
+            let drop_id = tree.insert(drop_instruction);
+            new_instructions.push(drop_id);
+        }
+
+        // update block
+        let block_mut = tree.get_mut(block_id);
+        block_mut.instructions = new_instructions;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    /// Function with no droppable values is unchanged.
+    #[test]
+    fn test_verify_no_drops_needed() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 42i32
+    return v0
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Primitive types don't need drops.
+    #[test]
+    fn test_verify_primitives_no_drop() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = iadd v0, v1
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Boolean comparison doesn't need drops.
+    #[test]
+    fn test_verify_booleans_no_drop() {
+        let input = r#"function @test() -> bool {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = icmp_eq v0, v1
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Float values don't need drops.
+    #[test]
+    fn test_verify_floats_no_drop() {
+        let input = r#"function @test() -> f64 {
+block0:
+    v0 = iconst 1.0f64
+    v1 = iconst 2.0f64
+    v2 = fadd v0, v1
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+    }
+
+    /// Void function is unchanged.
+    #[test]
+    fn test_verify_void_function() {
+        let input = r#"function @test() -> void {
+block0:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Stack allocation with primitive doesn't need drop.
+    #[test]
+    fn test_verify_stack_alloc_primitive() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = load v0
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Multiple arithmetic operations don't need drops.
+    #[test]
+    fn test_verify_arithmetic_chain() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = iconst 3i32
+    v3 = iadd v0, v1
+    v4 = imul v3, v2
+    v5 = isub v4, v0
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Control flow with primitives doesn't need drops.
+    #[test]
+    fn test_verify_control_flow_primitives() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1i32
+    return v1
+block2:
+    v2 = iconst 2i32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Loop with primitives doesn't need drops.
+    #[test]
+    fn test_verify_loop_primitives() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = icmp_slt v2, v0
+    branch v3, block2, block3
+block2:
+    v4 = iconst 1i32
+    v5 = iadd v2, v4
+    jump block1(v5)
+block3:
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Cast operations don't need drops.
+    #[test]
+    fn test_verify_cast_no_drop() {
+        let input = r#"function @test() -> i64 {
+block0:
+    v0 = iconst 42i32
+    v1 = sextend v0 -> i64
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Load/store with primitives don't need drops.
+    #[test]
+    fn test_verify_load_store_primitives() {
+        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
+    v1 = load v0
+    v2 = iconst 10i32
+    v3 = iadd v1, v2
+    store v0, v3
+    v4 = load v0
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Function calls with primitive args don't need drops.
+    #[test]
+    fn test_verify_call_primitives() {
+        let input = r#"extern function @add(i32, i32) -> i32
+
+function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = call @add(v0, v1)
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+    }
+
+    /// Local variables with primitives don't need drops.
+    #[test]
+    fn test_verify_locals_primitives() {
+        let input = r#"function @test() -> i32 {
+local0: i32
+block0:
+    v0 = iconst 42i32
+    local.set local0, v0
+    v1 = local.get local0
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+    }
+
+    /// Unreachable terminator doesn't need special handling.
+    #[test]
+    fn test_verify_unreachable() {
+        let input = r#"function @test() -> i32 {
+block0:
+    unreachable
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Switch with primitives doesn't need drops.
+    #[test]
+    fn test_verify_switch_primitives() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    switch v0, block3, 0 => block1, 1 => block2
+block1:
+    v1 = iconst 10i32
+    return v1
+block2:
+    v2 = iconst 20i32
+    return v2
+block3:
+    v3 = iconst 30i32
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Managed allocation gets drop inserted after last use.
+    #[test]
+    fn test_insert_drop_for_managed_alloc() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = managed.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = load v0
+    return v2
+}"#;
+
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = managed.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = load v0
+    drop v0
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_output(expected);
+    }
+
+    /// Managed allocation returned is not dropped.
+    #[test]
+    fn test_managed_alloc_returned_no_drop() {
+        let input = r#"function @test() -> ref<managed i32> {
+block0:
+    v0 = managed.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    return v0
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        // v0 is returned, so no drop should be inserted
+        program.assert_unchanged(input);
+    }
+
+    /// Owned parameter gets drop inserted before return.
+    #[test]
+    fn test_insert_drop_for_owned_param() {
+        let input = r#"function @test(v0: ref<owned i32>) -> i32 {
+block0(v0: ref<owned i32>):
+    v1 = load v0
+    return v1
+}"#;
+
+        let expected = r#"function @test(v0: ref<owned i32>) -> i32 {
+block0(v0: ref<owned i32>):
+    v1 = load v0
+    drop v0
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_output(expected);
+    }
+
+    /// Raw allocation does not get automatic drop.
+    #[test]
+    fn test_raw_alloc_no_automatic_drop() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = raw.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = load v0
+    raw.free v0
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        // raw.alloc doesn't get automatic drop - needs explicit raw.free
+        program.assert_unchanged(input);
+    }
+}
