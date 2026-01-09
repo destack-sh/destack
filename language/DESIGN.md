@@ -698,6 +698,38 @@ Owned values are dropped at their last proven use unless `using` is specified.
 Combine `using` with `^T` for deterministic cleanup of owned values.
 The builtin `Error` interface is the conventional error shape for `Result<T, E>`, but any type can be used as `E`.
 
+### Allocation and Drop
+
+Ownership modifiers determine how values are allocated and cleaned up:
+
+| Source | Allocation | Cleanup | Semantics |
+|--------|------------|---------|-----------|
+| `T` (plain) | `managed.alloc` | GC | GC handles everything |
+| `^T` (owned) | `raw.alloc` | `raw.drop` | dispose + deallocate |
+| `&T` (borrow) | none | none | points to someone else's memory |
+
+The `raw.drop` operation performs **drop glue**: drop owned fields (reverse declaration order), call `Symbol.dispose` if the type implements `Drop`, then deallocate.
+The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis when the value doesn't escape the function.
+Stack-allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
+
+For manual memory without destructors (FFI, low-level code), use `raw.free` directly instead of `raw.drop`.
+
+### Nested Ownership
+
+Ownership is determined at the **usage site**, not the type definition.
+A struct can contain `^T` fields regardless of how the struct itself is used:
+
+```
+struct Container { data: ^Data }
+
+const a: Container = ...           // managed container
+const b: ^Container = ...          // owned container
+```
+
+When the container is owned (`^Container`), drops are **deterministic**: fields drop in reverse declaration order, then the container drops.
+When the container is managed (`Container`), drops are **nondeterministic**: GC finalizers handle owned fields when the container is collected.
+A warning is emitted in strict mode for `^T` fields in managed types.
+
 Strings follow the same ownership spectrum: `string` is GC-managed by default,
 `&string` is a borrowed view, and `^string` is explicitly owned.
 `Slice` is an explicit view type with a pointer and length.

@@ -1535,14 +1535,23 @@ GC implementation details are target-specific and live in the runtime/codegen la
 
 ### Raw Allocation
 
-`RawAlloc` / `RawFree` instructions are available for manual memory management (along with the common intrinsics for `memcpy`, `memset`, etc.)
+`raw.alloc` creates manually-managed heap memory for owned values (`^T`).
+Cleanup uses `raw.drop` (with dispose) or `raw.free` (without dispose).
 
 ```mir
 type @SomeType = struct { i64 }
 
 v0 = raw.alloc @SomeType
 ; ... use v0 ...
-raw.free v0
+raw.drop v0    ; drop glue: dispose + deallocate
+```
+
+For manual deallocation without dispose (FFI, low-level code):
+
+```mir
+v0 = raw.alloc @SomeType
+; ... use v0 ...
+raw.free v0    ; just deallocate, no dispose
 ```
 
 No GC overhead.
@@ -1551,17 +1560,39 @@ In debug builds, a tracing allocator (like Zig's) can detect leaks, double-frees
 
 ### Stack Allocation
 
-`StackAlloc` for frame-local storage:
+`stack.alloc` creates frame-local storage.
+Cleanup uses `stack.drop` for dispose; deallocation happens automatically when the frame exits.
 
 ```mir
 type @SomeType = struct { i64 }
 
 v0 = stack.alloc @SomeType
-; v0 is automatically freed when function returns
+; ... use v0 ...
+stack.drop v0    ; drop glue: dispose only, frame handles memory
 ```
 
 No heap allocation.
-Used for temporary values, small structs.
+The optimizer promotes `raw.alloc` to `stack.alloc` via escape analysis when the value doesn't escape the function.
+
+### Drop Instructions
+
+The drop instructions (`raw.drop`, `stack.drop`) perform **drop glue**:
+
+1. **Drop owned fields** in reverse declaration order (LIFO)
+2. **Call dispose** (`Symbol.dispose`) if the type implements `Drop`
+3. **Deallocate** (only for `raw.drop`; `stack.drop` skips this)
+
+Drop glue metadata is attached to MIR type definitions during lowering.
+Lowering has full DIR type information (including `Drop` trait bounds) and generates the appropriate drop glue for each type.
+
+| Instruction | Drop Fields | Call Dispose | Deallocate |
+|-------------|-------------|--------------|------------|
+| `raw.drop` | Yes (LIFO) | If `Drop` | Yes |
+| `stack.drop` | Yes (LIFO) | If `Drop` | No (frame) |
+| `raw.free` | No | No | Yes |
+
+For managed allocations (`managed.alloc`), there is no drop instruction.
+The GC handles cleanup, with finalizers for any `^T` fields (nondeterministic).
 
 ## Ownership and Value Semantics
 
@@ -1628,17 +1659,40 @@ async function example(flag: bool) {
 }
 ```
 
-### Ownership in Fields (Mixing)
+### Ownership in Fields (Nested Ownership)
 
-Ownership modifiers on fields are allowed but follow strict rules to keep semantics explicit:
+Ownership is at the **usage site**, not the definition site.
+A struct can contain `^T` fields regardless of how the struct itself is allocated:
 
-- `^T` inside **managed** objects is allowed, but drop is **nondeterministic**.
-  If `T: Drop`, the compiler registers a GC finalizer that calls `Symbol.dispose` on owned fields.
-  This is correct but not deterministic; a warning is emitted in strict modes.
-- `^T` inside **stack** or **raw** objects is deterministic. Drop order is field order.
+```ds
+struct Container { data: ^Data }
+
+const managed: Container = ...        // GC-managed container
+const owned: ^Container = ...         // manually owned container
+```
+
+Ownership modifiers on fields follow these rules:
+
+- `^T` inside **owned** (`^Container`) or **stack** objects is **deterministic**.
+  Fields drop in reverse declaration order (LIFO), then the container drops.
+- `^T` inside **managed** objects (`Container`) is allowed but **nondeterministic**.
+  The compiler registers a GC finalizer that runs `raw.drop` on owned fields when the container is collected.
+  A warning is emitted in strict modes.
 - `&T` fields are **disallowed** in managed heap objects by default (no lifetime tracking).
   They are allowed in `@stackOnly` or `@noManaged` contexts, where the lifetime is explicit,
   or via a targeted opt-in for advanced use cases.
+
+**Drop order example:**
+
+```ds
+struct Connection {
+    socket: ^Socket      // field 1
+    buffer: ^Buffer      // field 2 (might reference socket)
+}
+
+using conn: ^Connection = ...
+// scope end: buffer drops first (can still use socket), then socket
+```
 
 ### Explicit Borrowing (&T)
 
