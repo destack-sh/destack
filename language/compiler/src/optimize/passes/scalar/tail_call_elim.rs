@@ -1888,4 +1888,123 @@ block2:
         program.run_module_pass(&TailCallElim);
         program.assert_output(expected);
     }
+
+    #[test]
+    fn test_transform_indirect_tail_call() {
+        // indirect call in tail position becomes tailcall.indirect
+        let input = r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call.indirect v0(v1)
+    return v2
+}"#;
+        let expected = r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    tailcall.indirect v0(v1)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&TailCallElim);
+        program.assert_output(expected);
+    }
+
+    #[test]
+    fn test_transform_void_sibling_tail_call() {
+        // void sibling tail call
+        let input = r#"function @test(v0: i32) -> void {
+block0(v0: i32):
+    call @other(v0)
+    return
+}
+function @other(v0: i32) -> void {
+block0(v0: i32):
+    return
+}"#;
+        let expected = r#"function @test(v0: i32) -> void {
+block0(v0: i32):
+    tailcall @other(v0)
+}
+function @other(v0: i32) -> void {
+block0(v0: i32):
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&TailCallElim);
+        program.assert_output(expected);
+    }
+
+    #[test]
+    fn test_transform_bitwise_and_accumulator() {
+        // and_bits(n) = n & and_bits(n-1), identity for band is all-ones (-1)
+        // base case returns v1 (defined in block0) to avoid leftover instruction
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    v3 = iconst -1i32
+    branch v2, block1, block2
+block1:
+    return v3
+block2:
+    v4 = iconst 1i32
+    v5 = isub v0, v4
+    v6 = call @test(v5)
+    v7 = band v0, v6
+    return v7
+}"#;
+        let expected = r#"function @test(v0: i32, v8: i32) -> i32 {
+block0(v0: i32, v8: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    v3 = iconst -1i32
+    branch v2, block1, block2
+block1:
+    return v8
+block2:
+    v4 = iconst 1i32
+    v5 = isub v0, v4
+    v9 = band v8, v0
+    jump block0(v5, v9)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&TailCallElim);
+        program.assert_output(expected);
+    }
+
+    #[test]
+    fn test_transform_bitwise_xor_accumulator() {
+        // xor_bits(n) = n ^ xor_bits(n-1), identity for bxor is 0
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    branch v2, block1, block2
+block1:
+    return v1
+block2:
+    v3 = iconst 1i32
+    v4 = isub v0, v3
+    v5 = call @test(v4)
+    v6 = bxor v0, v5
+    return v6
+}"#;
+        let expected = r#"function @test(v0: i32, v7: i32) -> i32 {
+block0(v0: i32, v7: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    branch v2, block1, block2
+block1:
+    return v7
+block2:
+    v3 = iconst 1i32
+    v4 = isub v0, v3
+    v8 = bxor v7, v0
+    jump block0(v4, v8)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&TailCallElim);
+        program.assert_output(expected);
+    }
 }

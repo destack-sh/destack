@@ -666,7 +666,13 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // lower terminator
-        self.lower_terminator(&mir_block.terminator, builder, value_map, block_map)?;
+        self.lower_terminator(
+            &mir_block.terminator,
+            builder,
+            value_map,
+            block_map,
+            type_map,
+        )?;
 
         Ok(())
     }
@@ -822,7 +828,7 @@ impl<'a> FunctionLowerer<'a> {
 
             // raw.drop: deallocate raw heap memory
             mir::Instruction::RawDrop { value } => {
-                // TODO: implement raw deallocation
+                // TODO #Incomplete: implement raw deallocation
                 let _ = value_map[value];
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "raw.drop",
@@ -1184,39 +1190,12 @@ impl<'a> FunctionLowerer<'a> {
                 callee,
                 arguments,
             } => {
-                // callee type
-                let callee_type_id =
-                    type_map
-                        .get(callee)
-                        .ok_or_else(|| CodegenCraneliftError::MissingType {
-                            node: instruction_id.into_any(),
-                            message: Some("could not infer type for indirect call callee".into()),
-                        })?;
-                let callee_type = self.tree.get(*callee_type_id);
-
-                // function pointer type
-                let (params, result) = match callee_type {
-                    mir::Type::FunctionPointer { parameters, result } => (parameters, *result),
-                    _ => {
-                        return Err(CodegenCraneliftError::Internal {
-                            message: "CallIndirect callee is not a function pointer".into(),
-                        });
-                    }
-                };
-
-                // signature
-                let call_conv = self.isa.default_call_conv();
-                let mut signature = cir::Signature::new(call_conv);
-                for parameter_ty in params {
-                    let ty = lower_type(self.tree, *parameter_ty, self.pointer_bytes)?;
-                    signature.params.push(cir::AbiParam::new(ty));
-                }
-                let result_type = self.tree.get(result);
-                if !matches!(result_type, mir::Type::Void) {
-                    let ty = lower_type(self.tree, result, self.pointer_bytes)?;
-                    signature.returns.push(cir::AbiParam::new(ty));
-                }
-                let sig_ref = builder.import_signature(signature);
+                let sig_ref = self.build_indirect_call_signature(
+                    *callee,
+                    type_map,
+                    builder,
+                    "indirect call",
+                )?;
                 let callee_value = value_map[callee];
                 let args = self.tree.get_arguments(*arguments);
                 let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
@@ -1301,6 +1280,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
+        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> CodegenCraneliftResult<()> {
         match terminator {
             // return: function exit with optional value
@@ -1402,15 +1382,14 @@ impl<'a> FunctionLowerer<'a> {
 
             // tail call indirect: return_call_indirect (indirect tail call)
             mir::Terminator::TailCallIndirect { callee, arguments } => {
-                // callee type (need to get signature)
+                let sig_ref =
+                    self.build_indirect_call_signature(*callee, type_map, builder, "tail call")?;
                 let callee_value = value_map[callee];
-
-                // for indirect tail calls, we need the signature
-                // since we don't have type_map here, we fall back to a trap for now
-                // TODO #Performance: implement proper return_call_indirect with signature lookup
-                let _ = arguments;
-                let _ = callee_value;
-                builder.ins().trap(trap::UNREACHABLE);
+                let argument_values: Vec<cir::Value> =
+                    arguments.iter().map(|v| value_map[v]).collect();
+                builder
+                    .ins()
+                    .return_call_indirect(sig_ref, callee_value, &argument_values);
             }
         }
 
@@ -1521,8 +1500,52 @@ impl<'a> FunctionLowerer<'a> {
         match self.pointer_bytes {
             4 => cir::types::I32,
             8 => cir::types::I64,
+            // NOTE #Broken: cranelift codegen only supports 32-bit and 64-bit pointers
             _ => panic!("unsupported pointer size: {} bytes", self.pointer_bytes),
         }
+    }
+
+    /// Build a Cranelift signature for an indirect call from a function pointer type.
+    fn build_indirect_call_signature(
+        &self,
+        callee: mir::Value,
+        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+        builder: &mut FunctionBuilder<'_>,
+        error_context: &str,
+    ) -> CodegenCraneliftResult<cir::SigRef> {
+        // get callee type
+        let callee_type_id =
+            type_map
+                .get(&callee)
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message: format!("could not infer type for {error_context} callee"),
+                })?;
+        let callee_type = self.tree.get(*callee_type_id);
+
+        // extract function pointer params and result
+        let (params, result) = match callee_type {
+            mir::Type::FunctionPointer { parameters, result } => (parameters, *result),
+            _ => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: format!("{error_context} callee is not a function pointer"),
+                });
+            }
+        };
+
+        // build signature
+        let call_conv = self.isa.default_call_conv();
+        let mut signature = cir::Signature::new(call_conv);
+        for param_ty in params {
+            let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
+            signature.params.push(cir::AbiParam::new(ty));
+        }
+        let result_type = self.tree.get(result);
+        if !matches!(result_type, mir::Type::Void) {
+            let ty = lower_type(self.tree, result, self.pointer_bytes)?;
+            signature.returns.push(cir::AbiParam::new(ty));
+        }
+
+        Ok(builder.import_signature(signature))
     }
 
     /// Get or declare a global value reference for use in this function.

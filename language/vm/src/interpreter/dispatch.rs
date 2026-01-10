@@ -4592,7 +4592,7 @@ pub(super) fn handle_unsupported(
 
 /// Handle tail call to function.
 ///
-/// TODO #Performance: vm implements tail calls as regular calls. 
+/// FUGU #Performance: vm implements tail calls / indirect tail calls as regular calls.
 /// The caller's frame will be popped when the return value flows back.
 pub(super) fn handle_tail_call(
     _state: &mut ThreadedState,
@@ -4622,9 +4622,6 @@ pub(super) fn handle_tail_call(
 }
 
 /// Handle indirect tail call.
-///
-/// TODO #Performance: vm implements indirect tail calls as regular calls. 
-/// The caller's frame will be popped when the return value flows back.
 pub(super) fn handle_tail_call_indirect(
     state: &mut ThreadedState,
     block: &[ThreadedInstruction],
