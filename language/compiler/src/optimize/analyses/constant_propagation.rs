@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
 
 use destack_mir as mir;
 
@@ -7,7 +6,7 @@ use crate::optimize::common::{
     SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
     terminator_arguments_for_successor_checked,
 };
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 use super::{ControlFlowGraph, Lattice};
 
@@ -216,17 +215,18 @@ impl ConstantPropagation {
 }
 
 impl Analysis for ConstantPropagation {
-    const KIND: AnalysisKind = AnalysisKind::ConstantPropagation;
+    const ID: AnalysisId = AnalysisId("constprop");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
 
+impl FunctionAnalysis for ConstantPropagation {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        Arc::new(Self::build(function, tree, &cfg))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        Self::build(function, tree, &cfg)
     }
 }
 
@@ -439,11 +439,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
         let constant = analysis
@@ -466,11 +463,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
         let constant = analysis
@@ -493,11 +487,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
         let constant = analysis
@@ -521,11 +512,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
         let constant = analysis
@@ -560,11 +548,8 @@ block3(v4: bool):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block3 = function.blocks[3];
         let constant = analysis
@@ -593,11 +578,8 @@ block3(v5: bool):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block3 = function.blocks[3];
         let constant = analysis
@@ -622,11 +604,8 @@ block1(v3: bool):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis =
-            context
-                .analyses
-                .get::<ConstantPropagation>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<ConstantPropagation>();
 
         let block1 = function.blocks[1];
         let constant = analysis

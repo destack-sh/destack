@@ -2,9 +2,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, LoopAnalysis};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Canonicalize loops into a simplified form.
@@ -30,18 +28,12 @@ declare_pass! {
     "Canonicalize loops (preheaders, single latch, dedicated exits)"
 }
 
-impl Pass for LoopSimplify {
-    fn metadata(&self) -> &'static PassMetadata {
-        LoopSimplify::metadata()
-    }
-}
-
 impl FunctionPass for LoopSimplify {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -49,124 +41,142 @@ impl FunctionPass for LoopSimplify {
         };
 
         // get analyses
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
+        let (loops, cfg) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LoopAnalysis>().clone(),
+                analyses.get::<ControlFlowGraph>().clone(),
+            )
+        };
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
 
-        // collect work items using loop indices (avoids cloning)
-        let mut preheader_work: Vec<usize> = Vec::new();
-        let mut latch_work: Vec<usize> = Vec::new();
-        let mut exit_work: Vec<ExitWork> = Vec::new();
-
-        for (loop_idx, lp) in loops.loops().iter().enumerate() {
-            // check if preheader is needed
-            if needs_preheader(lp, &cfg, tree, entry) {
-                preheader_work.push(loop_idx);
-            }
-
-            // check if latch merging is needed
-            if !lp.has_single_latch() {
-                latch_work.push(loop_idx);
-            }
-
-            // check if exit blocks need to be dedicated
-            for &exit_block in &lp.exit_blocks {
-                // skip exit blocks that are loop headers (they have their own preheaders)
-                if loops.is_loop_header(exit_block) {
-                    continue;
-                }
-
-                if needs_dedicated_exit(exit_block, lp, &cfg) {
-                    // collect exiting blocks that target this exit
-                    let exiting_to_exit: Vec<_> = lp
-                        .exiting_blocks
-                        .iter()
-                        .filter(|&&eb| {
-                            let block = tree.get(eb);
-                            block.terminator.successors().contains(&exit_block)
-                        })
-                        .copied()
-                        .collect();
-
-                    if !exiting_to_exit.is_empty() {
-                        exit_work.push(ExitWork {
-                            exit_block,
-                            exiting_blocks: exiting_to_exit,
-                        });
-                    }
-                }
-            }
-        }
-
-        // snapshot loop data we need before dropping analyses
-        let preheader_data: Vec<_> = preheader_work
-            .iter()
-            .map(|&idx| {
-                let lp = &loops.loops()[idx];
-                PreheaderData {
-                    header: lp.header,
-                    loop_blocks: lp.blocks.iter().copied().collect(),
-                }
-            })
-            .collect();
-
-        let latch_data: Vec<_> = latch_work
-            .iter()
-            .map(|&idx| {
-                let lp = &loops.loops()[idx];
-                LatchData {
-                    header: lp.header,
-                    latches: lp.latches.clone(),
-                }
-            })
-            .collect();
-
-        // drop analyses before modifying
-        drop(cfg);
-        drop(loops);
-
-        // nothing to do
-        if preheader_data.is_empty() && latch_data.is_empty() && exit_work.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        function.recompute_next_value_id(tree);
-
-        let mut changed = false;
-
-        // phase 1: insert preheaders
-        for data in preheader_data {
-            if insert_preheader(data.header, &data.loop_blocks, function, tree, entry) {
-                changed = true;
-            }
-        }
-
-        // phase 2: merge latches
-        for data in latch_data {
-            if merge_latches(data.header, &data.latches, function, tree) {
-                changed = true;
-            }
-        }
-
-        // phase 3: create dedicated exit blocks
-        for work in exit_work {
-            if insert_dedicated_exit(work.exit_block, &work.exiting_blocks, function, tree) {
-                changed = true;
-            }
-        }
-
+        // run loop simplification
+        let changed = run_loop_simplify(entry, function, tree, &loops, &cfg);
         if changed {
             AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "LoopSimplify"
+    }
+
+    fn id(&self) -> &'static str {
+        "loop-simplify"
+    }
+}
+
+/// Core loop simplification logic. Returns true if changes were made.
+fn run_loop_simplify(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    loops: &LoopAnalysis,
+    cfg: &ControlFlowGraph,
+) -> bool {
+    // collect work items using loop indices (avoids cloning)
+    let mut preheader_work: Vec<usize> = Vec::new();
+    let mut latch_work: Vec<usize> = Vec::new();
+    let mut exit_work: Vec<ExitWork> = Vec::new();
+
+    for (loop_idx, lp) in loops.loops().iter().enumerate() {
+        // check if preheader is needed
+        if needs_preheader(lp, cfg, tree, entry) {
+            preheader_work.push(loop_idx);
+        }
+
+        // check if latch merging is needed
+        if !lp.has_single_latch() {
+            latch_work.push(loop_idx);
+        }
+
+        // check if exit blocks need to be dedicated
+        for &exit_block in &lp.exit_blocks {
+            // skip exit blocks that are loop headers (they have their own preheaders)
+            if loops.is_loop_header(exit_block) {
+                continue;
+            }
+
+            if needs_dedicated_exit(exit_block, lp, cfg) {
+                // collect exiting blocks that target this exit
+                let exiting_to_exit: Vec<_> = lp
+                    .exiting_blocks
+                    .iter()
+                    .filter(|&&eb| {
+                        let block = tree.get(eb);
+                        block.terminator.successors().contains(&exit_block)
+                    })
+                    .copied()
+                    .collect();
+
+                if !exiting_to_exit.is_empty() {
+                    exit_work.push(ExitWork {
+                        exit_block,
+                        exiting_blocks: exiting_to_exit,
+                    });
+                }
+            }
+        }
+    }
+
+    // snapshot loop data we need
+    let preheader_data: Vec<_> = preheader_work
+        .iter()
+        .map(|&idx| {
+            let lp = &loops.loops()[idx];
+            PreheaderData {
+                header: lp.header,
+                loop_blocks: lp.blocks.iter().copied().collect(),
+            }
+        })
+        .collect();
+
+    let latch_data: Vec<_> = latch_work
+        .iter()
+        .map(|&idx| {
+            let lp = &loops.loops()[idx];
+            LatchData {
+                header: lp.header,
+                latches: lp.latches.clone(),
+            }
+        })
+        .collect();
+
+    // nothing to do
+    if preheader_data.is_empty() && latch_data.is_empty() && exit_work.is_empty() {
+        return false;
+    }
+
+    function.recompute_next_value_id(tree);
+
+    let mut changed = false;
+
+    // phase 1: insert preheaders
+    for data in preheader_data {
+        if insert_preheader(data.header, &data.loop_blocks, function, tree, entry) {
+            changed = true;
+        }
+    }
+
+    // phase 2: merge latches
+    for data in latch_data {
+        if merge_latches(data.header, &data.latches, function, tree) {
+            changed = true;
+        }
+    }
+
+    // phase 3: create dedicated exit blocks
+    for work in exit_work {
+        if insert_dedicated_exit(work.exit_block, &work.exiting_blocks, function, tree) {
+            changed = true;
+        }
+    }
+
+    changed
 }
 
 /// Data for preheader insertion (snapshot of loop info).

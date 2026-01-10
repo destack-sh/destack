@@ -8,9 +8,7 @@ use crate::optimize::common::{
     build_use_def_maps, instruction_is_memory_read, instruction_is_pure,
     instruction_may_affect_memory,
 };
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Sink instructions closer to their uses.
@@ -59,228 +57,244 @@ declare_pass! {
     "Code sinking"
 }
 
-impl Pass for Sink {
-    fn metadata(&self) -> &'static PassMetadata {
-        Sink::metadata()
-    }
-}
-
 impl FunctionPass for Sink {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
+        // get analyses
+        let (cfg, domtree, loops) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+                analyses.get::<LoopAnalysis>().clone(),
+            )
+        };
 
-        // collect all blocks that are in any loop
-        let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
-            .loops()
-            .iter()
-            .flat_map(|lp| lp.blocks.iter().copied())
-            .collect();
+        // run sink
+        let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
+        }
+    }
 
-        // build value->uses map and value->defining-block map
-        let use_def = build_use_def_maps(function, tree);
+    fn name(&self) -> &'static str {
+        "Sink"
+    }
 
-        // collect sinking work
-        let mut work: Vec<SinkWork> = Vec::new();
+    fn id(&self) -> &'static str {
+        "sink"
+    }
+}
 
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            let successors = block.terminator.successors();
+/// Sink logic. Returns true if changes were made.
+fn run_sink(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+    loops: &LoopAnalysis,
+) -> bool {
+    // collect all blocks that are in any loop
+    let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
+        .loops()
+        .iter()
+        .flat_map(|lp| lp.blocks.iter().copied())
+        .collect();
 
-            if successors.is_empty() {
+    // build value->uses map and value->defining-block map
+    let use_def = build_use_def_maps(function, tree);
+
+    // collect sinking work
+    let mut work: Vec<SinkWork> = Vec::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let successors = block.terminator.successors();
+
+        if successors.is_empty() {
+            continue;
+        }
+
+        // check each instruction for sinking
+        for (idx, &instruction_id) in block.instructions.iter().enumerate() {
+            let instruction = tree.get(instruction_id);
+
+            // determine if the instruction can be sunk
+            let can_sink = if instruction_is_pure(instruction) {
+                // pure instructions can always be sunk
+                true
+            } else if instruction_is_memory_read(instruction) {
+                // memory reads (loads) can be sunk if there are no intervening
+                // memory-affecting operations between this instruction and the terminator
+                let has_intervening_memory_op = block.instructions[idx + 1..]
+                    .iter()
+                    .any(|&instr_id| instruction_may_affect_memory(tree.get(instr_id)));
+                !has_intervening_memory_op
+            } else {
+                // other instructions (stores, calls, etc.) cannot be sunk
+                false
+            };
+
+            if !can_sink {
                 continue;
             }
 
-            // check each instruction for sinking
-            for (idx, &instruction_id) in block.instructions.iter().enumerate() {
-                let instruction = tree.get(instruction_id);
+            // get the destination value
+            let destination = match instruction.destination() {
+                Some(d) => d,
+                None => continue,
+            };
 
-                // determine if the instruction can be sunk
-                let can_sink = if instruction_is_pure(instruction) {
-                    // pure instructions can always be sunk
-                    true
-                } else if instruction_is_memory_read(instruction) {
-                    // memory reads (loads) can be sunk if there are no intervening
-                    // memory-affecting operations between this instruction and the terminator
-                    let has_intervening_memory_op = block.instructions[idx + 1..]
-                        .iter()
-                        .any(|&instr_id| instruction_may_affect_memory(tree.get(instr_id)));
-                    !has_intervening_memory_op
-                } else {
-                    // other instructions (stores, calls, etc.) cannot be sunk
-                    false
-                };
+            // check that the value is not used in the terminator
+            let terminator_uses: Vec<_> = block.terminator.uses().into_iter().collect();
+            if terminator_uses.contains(&destination) {
+                continue;
+            }
 
-                if !can_sink {
-                    continue;
+            // check where the value is used
+            let uses = use_def
+                .use_blocks
+                .get(&destination)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+            if uses.is_empty() {
+                // no uses - DCE will remove this
+                continue;
+            }
+
+            // find the unique successor that uses this value
+            let mut target_successor: Option<mir::LocalNodeId<mir::Block>> = None;
+            for &use_block in uses {
+                // skip uses in the same block (instructions after this one)
+                if use_block == block_id {
+                    target_successor = None;
+                    break;
                 }
 
-                // get the destination value
-                let destination = match instruction.destination() {
-                    Some(d) => d,
-                    None => continue,
-                };
-
-                // check that the value is not used in the terminator
-                let terminator_uses: Vec<_> = block.terminator.uses().into_iter().collect();
-                if terminator_uses.contains(&destination) {
-                    continue;
+                // must be a successor
+                if !successors.contains(&use_block) {
+                    // used in a non-successor block (perhaps a later block)
+                    // this can happen if the value flows through block parameters
+                    target_successor = None;
+                    break;
                 }
 
-                // check where the value is used
-                let uses = use_def
-                    .use_blocks
-                    .get(&destination)
-                    .map(|v| v.as_slice())
-                    .unwrap_or(&[]);
-                if uses.is_empty() {
-                    // no uses - DCE will remove this
-                    continue;
-                }
-
-                // find the unique successor that uses this value
-                let mut target_successor: Option<mir::LocalNodeId<mir::Block>> = None;
-                for &use_block in uses {
-                    // skip uses in the same block (instructions after this one)
-                    if use_block == block_id {
+                match target_successor {
+                    None => target_successor = Some(use_block),
+                    Some(existing) if existing != use_block => {
+                        // used in multiple successors
                         target_successor = None;
                         break;
                     }
+                    Some(_) => {}
+                }
+            }
 
-                    // must be a successor
-                    if !successors.contains(&use_block) {
-                        // used in a non-successor block (perhaps a later block)
-                        // this can happen if the value flows through block parameters
-                        target_successor = None;
-                        break;
+            let successor = match target_successor {
+                Some(s) => s,
+                None => continue,
+            };
+
+            // don't sink into the entry block
+            if successor == entry {
+                continue;
+            }
+
+            // don't sink into blocks with multiple predecessors
+            // (the sunk instruction might not dominate all predecessors)
+            if cfg.predecessors(successor).len() > 1 {
+                continue;
+            }
+
+            // don't sink from outside a loop to inside a loop
+            // (would increase execution frequency)
+            let source_in_loop = loop_blocks.contains(&block_id);
+            let target_in_loop = loop_blocks.contains(&successor);
+            if !source_in_loop && target_in_loop {
+                continue;
+            }
+
+            // verify the instruction's operands will still be available in the successor
+            // (they must dominate the successor)
+            let operands_ok = instruction.uses().iter().all(|&operand| {
+                // check if operand is defined in a block that dominates successor
+                match use_def.def_block.get(&operand) {
+                    Some(&operand_block) => {
+                        domtree.dominates(operand_block, successor)
+                            || domtree.dominates(operand_block, block_id)
                     }
-
-                    match target_successor {
-                        None => target_successor = Some(use_block),
-                        Some(existing) if existing != use_block => {
-                            // used in multiple successors
-                            target_successor = None;
-                            break;
-                        }
-                        Some(_) => {}
-                    }
+                    // function parameter - always available
+                    None => true,
                 }
+            });
 
-                let successor = match target_successor {
-                    Some(s) => s,
-                    None => continue,
-                };
-
-                // don't sink into the entry block
-                if successor == entry {
-                    continue;
-                }
-
-                // don't sink into blocks with multiple predecessors
-                // (the sunk instruction might not dominate all predecessors)
-                if cfg.predecessors(successor).len() > 1 {
-                    continue;
-                }
-
-                // don't sink from outside a loop to inside a loop
-                // (would increase execution frequency)
-                let source_in_loop = loop_blocks.contains(&block_id);
-                let target_in_loop = loop_blocks.contains(&successor);
-                if !source_in_loop && target_in_loop {
-                    continue;
-                }
-
-                // verify the instruction's operands will still be available in the successor
-                // (they must dominate the successor)
-                let operands_ok = instruction.uses().iter().all(|&operand| {
-                    // check if operand is defined in a block that dominates successor
-                    match use_def.def_block.get(&operand) {
-                        Some(&operand_block) => {
-                            domtree.dominates(operand_block, successor)
-                                || domtree.dominates(operand_block, block_id)
-                        }
-                        // function parameter - always available
-                        None => true,
-                    }
-                });
-
-                if !operands_ok {
-                    continue;
-                }
-
-                work.push(SinkWork {
-                    from_block: block_id,
-                    instruction_idx: idx,
-                    to_block: successor,
-                });
-            }
-        }
-
-        drop(cfg);
-        drop(domtree);
-        drop(loops);
-
-        if work.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        // sort by instruction index descending so we can remove without invalidating indices
-        work.sort_by(|a, b| b.instruction_idx.cmp(&a.instruction_idx));
-
-        // group by source block
-        let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<SinkWork>> = HashMap::new();
-        for w in work {
-            by_block.entry(w.from_block).or_default().push(w);
-        }
-
-        // apply sinking
-        for (from_block, work_items) in by_block {
-            // collect instructions to sink (indices are already sorted descending)
-            let mut to_sink: Vec<(
-                mir::LocalNodeId<mir::Instruction>,
-                mir::LocalNodeId<mir::Block>,
-            )> = Vec::new();
-
-            let from = tree.get(from_block);
-            for w in &work_items {
-                let instruction_id = from.instructions[w.instruction_idx];
-                to_sink.push((instruction_id, w.to_block));
+            if !operands_ok {
+                continue;
             }
 
-            // remove from source block
-            let mut from = tree.get(from_block).clone();
-            for w in &work_items {
-                from.instructions.remove(w.instruction_idx);
-            }
-            tree.replace(from_block, from);
-
-            // insert at beginning of target blocks
-            for (instruction_id, to_block) in to_sink {
-                let mut to = tree.get(to_block).clone();
-                to.instructions.insert(0, instruction_id);
-                tree.replace(to_block, to);
-            }
+            work.push(SinkWork {
+                from_block: block_id,
+                instruction_idx: idx,
+                to_block: successor,
+            });
         }
-
-        AnalysisPreservation::none()
     }
+
+    if work.is_empty() {
+        return false;
+    }
+
+    // sort by instruction index descending so we can remove without invalidating indices
+    work.sort_by(|a, b| b.instruction_idx.cmp(&a.instruction_idx));
+
+    // group by source block
+    let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<SinkWork>> = HashMap::new();
+    for w in work {
+        by_block.entry(w.from_block).or_default().push(w);
+    }
+
+    // apply sinking
+    for (from_block, work_items) in by_block {
+        // collect instructions to sink (indices are already sorted descending)
+        let mut to_sink: Vec<(
+            mir::LocalNodeId<mir::Instruction>,
+            mir::LocalNodeId<mir::Block>,
+        )> = Vec::new();
+
+        let from = tree.get(from_block);
+        for w in &work_items {
+            let instruction_id = from.instructions[w.instruction_idx];
+            to_sink.push((instruction_id, w.to_block));
+        }
+
+        // remove from source block
+        let mut from = tree.get(from_block).clone();
+        for w in &work_items {
+            from.instructions.remove(w.instruction_idx);
+        }
+        tree.replace(from_block, from);
+
+        // insert at beginning of target blocks
+        for (instruction_id, to_block) in to_sink {
+            let mut to = tree.get(to_block).clone();
+            to.instructions.insert(0, instruction_id);
+            tree.replace(to_block, to);
+        }
+    }
+
+    true
 }
 
 /// Work item for sinking an instruction.

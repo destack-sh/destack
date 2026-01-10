@@ -5,9 +5,7 @@ use destack_mir as mir;
 use mir::{Instruction, Terminator};
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Memory to register promotion pass.
@@ -44,75 +42,92 @@ declare_pass! {
     "Promote locals to SSA values"
 }
 
-impl Pass for Mem2Reg {
-    fn metadata(&self) -> &'static PassMetadata {
-        Mem2Reg::metadata()
-    }
-}
-
 impl FunctionPass for Mem2Reg {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // no locals to promote
         if function.locals.is_empty() {
             return AnalysisPreservation::all();
         }
 
-        // find promotable locals (only LocalGet/LocalSet, no address taken)
-        let promotable = find_promotable_locals(function, tree);
-        if promotable.is_empty() {
-            return AnalysisPreservation::all();
+        // get analyses
+        let (cfg, domtree) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+            )
+        };
+
+        // run mem2reg
+        let changed = run_mem2reg(function, tree, &cfg, &domtree);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
-
-        // ensure next_value_id is correct before allocating new values
-        function.recompute_next_value_id(tree);
-
-        // get dominator tree and CFG for the algorithm
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
-
-        // compute dominance frontiers
-        let frontiers = compute_dominance_frontiers(function, &cfg, &domtree);
-
-        // find definition blocks for each promotable local
-        let def_blocks = find_definition_blocks(&promotable, function, tree);
-
-        // compute where block parameters are needed (dominance frontier + live uses)
-        let param_placements =
-            compute_parameter_placements(&promotable, &def_blocks, &frontiers, function, tree);
-
-        // insert block parameters for locals
-        let block_params = insert_block_parameters(&param_placements, &promotable, function, tree);
-
-        // rename variables: replace LocalGet/LocalSet with SSA values
-        let entry = function.entry.expect("function has no entry block");
-        rename_variables(
-            &promotable,
-            &block_params,
-            function,
-            tree,
-            &cfg,
-            &domtree,
-            entry,
-        );
-
-        // remove promoted locals from the function
-        let promoted_set: HashSet<_> = promotable.keys().copied().collect();
-        function
-            .locals
-            .retain(|local| !promoted_set.contains(local));
-
-        // CFG structure changed (block parameters modified)
-        AnalysisPreservation::none()
     }
+
+    fn name(&self) -> &'static str {
+        "Mem2Reg"
+    }
+
+    fn id(&self) -> &'static str {
+        "mem2reg"
+    }
+}
+
+/// Core mem2reg logic. Returns true if changes were made.
+fn run_mem2reg(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+) -> bool {
+    // find promotable locals (only LocalGet/LocalSet, no address taken)
+    let promotable = find_promotable_locals(function, tree);
+    if promotable.is_empty() {
+        return false;
+    }
+
+    // ensure next_value_id is correct before allocating new values
+    function.recompute_next_value_id(tree);
+
+    // compute dominance frontiers
+    let frontiers = compute_dominance_frontiers(function, cfg, domtree);
+
+    // find definition blocks for each promotable local
+    let def_blocks = find_definition_blocks(&promotable, function, tree);
+
+    // compute where block parameters are needed (dominance frontier + live uses)
+    let param_placements =
+        compute_parameter_placements(&promotable, &def_blocks, &frontiers, function, tree);
+
+    // insert block parameters for locals
+    let block_params = insert_block_parameters(&param_placements, &promotable, function, tree);
+
+    // rename variables: replace LocalGet/LocalSet with SSA values
+    let entry = function.entry.expect("function has no entry block");
+    rename_variables(
+        &promotable,
+        &block_params,
+        function,
+        tree,
+        cfg,
+        domtree,
+        entry,
+    );
+
+    // remove promoted locals from the function
+    let promoted_set: HashSet<_> = promotable.keys().copied().collect();
+    function
+        .locals
+        .retain(|local| !promoted_set.contains(local));
+
+    true
 }
 
 /// Information about a promotable local.

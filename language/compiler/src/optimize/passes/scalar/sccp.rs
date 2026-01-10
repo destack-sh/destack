@@ -7,9 +7,7 @@ use crate::optimize::common::{
     ConstantTree, build_use_def_maps, constant_tree_from_global, fold_binary, fold_cast,
     fold_unary, instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
-use crate::optimize::{
-    AnalysisKind, AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 /// Maximum aggregate elements to materialize from globals.
 const MAX_AGGREGATE_ELEMENTS: usize = 1024;
@@ -58,44 +56,48 @@ declare_pass! {
     "Sparse conditional constant propagation"
 }
 
-impl Pass for SparseConditionalConstantPropagation {
-    fn metadata(&self) -> &'static PassMetadata {
-        SparseConditionalConstantPropagation::metadata()
-    }
-}
-
 impl FunctionPass for SparseConditionalConstantPropagation {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // skip extern functions
-        let entry = match function.entry {
-            Some(entry) => entry,
-            None => return AnalysisPreservation::all(),
-        };
-
-        // build use def data
-        let use_def = build_use_def_maps(function, tree);
-
-        // run sccp analysis
-        let mut state = SccpState::new(tree, &use_def.use_blocks, entry);
-        let result = state.run();
-
-        // apply constant folding and reachability
-        let (cfg_changed, value_changed) = apply_sccp_result(function, tree, &result);
-
-        // report preserved analyses
-        if cfg_changed {
+        // run SCCP
+        let (cfg_changed, value_changed) = run_sccp(function, tree);
+        if cfg_changed || value_changed {
             AnalysisPreservation::none()
-        } else if value_changed {
-            AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "SparseConditionalConstantPropagation"
+    }
+
+    fn id(&self) -> &'static str {
+        "sccp"
+    }
+}
+
+/// SCCP logic. Returns (cfg_changed, value_changed).
+fn run_sccp(function: &mut mir::Function, tree: &mut mir::NodeTree) -> (bool, bool) {
+    // skip extern functions
+    let entry = match function.entry {
+        Some(entry) => entry,
+        None => return (false, false),
+    };
+
+    // build use def data
+    let use_def = build_use_def_maps(function, tree);
+
+    // run sccp analysis
+    let mut state = SccpState::new(tree, &use_def.use_blocks, entry);
+    let result = state.run();
+
+    // apply constant folding and reachability
+    apply_sccp_result(function, tree, &result)
 }
 
 /// Lattice state for SCCP values.

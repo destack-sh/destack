@@ -8,9 +8,7 @@ use crate::optimize::common::{
     MemoryLocation, instruction_substitute_uses, resolve_substitution_chains,
     terminator_substitute_uses,
 };
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Forward stored values to subsequent loads.
@@ -56,12 +54,6 @@ declare_pass! {
     "Forward stored values to subsequent loads"
 }
 
-impl Pass for LoadStoreForward {
-    fn metadata(&self) -> &'static PassMetadata {
-        LoadStoreForward::metadata()
-    }
-}
-
 /// An available value at a memory location.
 #[derive(Clone, Copy)]
 struct AvailableValue {
@@ -70,45 +62,67 @@ struct AvailableValue {
 }
 
 impl FunctionPass for LoadStoreForward {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // skip imports
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        // get required analyses
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, tree, context);
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
+        // get analyses
+        let (aa, dom_children) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            let domtree = analyses.get::<DominatorTree>();
+            let aa = analyses.get::<AliasAnalysis>().clone();
+            let dom_children = build_dominator_children(function, &domtree);
+            (aa, dom_children)
+        };
 
-        // build dominator tree children for traversal
-        let dom_children = build_dominator_children(function, &domtree);
-
-        // run forwarding using dominator tree traversal
-        let (substitutions, to_remove) = find_forwardable_loads(entry, tree, &aa, &dom_children);
-
-        // nothing to do if no forwarding found
-        if substitutions.is_empty() {
-            return AnalysisPreservation::all();
+        // run load-store forwarding
+        let changed = run_load_store_forward(entry, function, tree, &aa, &dom_children);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
-
-        // resolve transitive substitution chains
-        let substitutions = resolve_substitution_chains(substitutions);
-
-        // apply substitutions and remove forwarded loads
-        apply_substitutions(function, tree, &substitutions, &to_remove);
-
-        AnalysisPreservation::none()
     }
+
+    fn name(&self) -> &'static str {
+        "LoadStoreForward"
+    }
+
+    fn id(&self) -> &'static str {
+        "load-store-forward"
+    }
+}
+
+/// Core load-store forwarding logic. Returns true if changes were made.
+fn run_load_store_forward(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    aa: &AliasAnalysis,
+    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+) -> bool {
+    // run forwarding using dominator tree traversal
+    let (substitutions, to_remove) = find_forwardable_loads(entry, tree, aa, dom_children);
+
+    // nothing to do if no forwarding found
+    if substitutions.is_empty() {
+        return false;
+    }
+
+    // resolve transitive substitution chains
+    let substitutions = resolve_substitution_chains(substitutions);
+
+    // apply substitutions and remove forwarded loads
+    apply_substitutions(function, tree, &substitutions, &to_remove);
+
+    true
 }
 
 /// Build a map from each block to its children in the dominator tree.

@@ -5,9 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::common::instruction_has_side_effects;
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Delete loops that are proven to be skipped.
@@ -49,60 +47,75 @@ declare_pass! {
     "Delete loops that compute nothing useful"
 }
 
-impl Pass for LoopDelete {
-    fn metadata(&self) -> &'static PassMetadata {
-        LoopDelete::metadata()
-    }
-}
-
 impl FunctionPass for LoopDelete {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
+        // get analyses
+        let (loops, domtree, constants) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LoopAnalysis>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+                analyses.get::<ConstantPropagation>().clone(),
+            )
+        };
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
 
-        let constants = context
-            .analyses
-            .get::<ConstantPropagation>(function, tree, context);
-
-        // collect deletable loops (innermost first to avoid invalidation issues)
-        let mut deletable: Vec<DeleteCandidate> = Vec::new();
-
-        for lp in loops.loops().iter().rev() {
-            if let Some(candidate) = find_deletable_loop(lp, function, tree, &domtree, &constants) {
-                deletable.push(candidate);
-            }
+        // run loop deletion
+        let changed = run_loop_delete(function, tree, &loops, &domtree, &constants);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
-
-        drop(domtree);
-        drop(loops);
-
-        if deletable.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        // delete loops
-        for candidate in &deletable {
-            delete_loop(function, tree, candidate);
-        }
-
-        AnalysisPreservation::none()
     }
+
+    fn name(&self) -> &'static str {
+        "LoopDelete"
+    }
+
+    fn id(&self) -> &'static str {
+        "loop-delete"
+    }
+}
+
+/// Core loop deletion logic. Returns true if changes were made.
+fn run_loop_delete(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    loops: &LoopAnalysis,
+    domtree: &DominatorTree,
+    constants: &ConstantPropagation,
+) -> bool {
+    // collect deletable loops (innermost first to avoid invalidation issues)
+    let mut deletable: Vec<DeleteCandidate> = Vec::new();
+
+    for lp in loops.loops().iter().rev() {
+        if let Some(candidate) = find_deletable_loop(lp, function, tree, domtree, constants) {
+            deletable.push(candidate);
+        }
+    }
+
+    if deletable.is_empty() {
+        return false;
+    }
+
+    // delete loops
+    for candidate in &deletable {
+        delete_loop(function, tree, candidate);
+    }
+
+    true
 }
 
 /// Information needed to delete a loop.

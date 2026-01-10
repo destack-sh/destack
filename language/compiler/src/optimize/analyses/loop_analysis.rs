@@ -1,9 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 use super::{ControlFlowGraph, DominatorTree};
 
@@ -393,21 +392,19 @@ impl LoopAnalysis {
 }
 
 impl Analysis for LoopAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::Loop;
+    const ID: AnalysisId = AnalysisId("loops");
+    const DEPENDENCIES: &'static [AnalysisId] = &[DominatorTree::ID];
+}
 
+impl FunctionAnalysis for LoopAnalysis {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
-
-        Arc::new(Self::build(function, tree, &cfg, &domtree))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        let domtree = analyses.get::<DominatorTree>();
+        Self::build(function, tree, &cfg, &domtree)
     }
 }
 
@@ -430,10 +427,8 @@ block1:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
 
@@ -461,10 +456,8 @@ block2:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
 
@@ -494,10 +487,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
 
@@ -538,10 +529,8 @@ block4:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 2);
 
@@ -585,10 +574,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -628,10 +615,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 0);
         assert!(analysis.loops().is_empty());
@@ -660,10 +645,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
 
@@ -693,10 +676,8 @@ block4:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
 
@@ -737,10 +718,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         let block1 = function.blocks[1];
         let block2 = function.blocks[2];
@@ -772,10 +751,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         let top_level: Vec<_> = analysis.top_level_loops().collect();
         assert_eq!(top_level.len(), 2);
@@ -801,10 +778,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let analysis = analyses.get::<LoopAnalysis>();
 
         let block1 = function.blocks[1];
         let outer_index = analysis.loop_index(block1).unwrap();

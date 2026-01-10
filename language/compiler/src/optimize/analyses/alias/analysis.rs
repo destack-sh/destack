@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::common::{
-    Analysis, AnalysisKind, MemoryLocation, OptimizationContext, TypeKey,
-};
+use crate::optimize::common::{MemoryLocation, TypeKey};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 use super::basic::BasicAA;
 use super::globals::GlobalsAA;
@@ -37,8 +36,8 @@ pub struct AliasAnalysis {
 }
 
 impl AliasAnalysis {
-    /// Build combined AA for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, strict_borrow_mode: bool) -> Self {
+    /// Build combined AA for a function with explicit options.
+    pub fn build(function: &mir::Function, tree: &mir::NodeTree, strict_borrow_mode: bool) -> Self {
         Self {
             basic: BasicAA::build(function, tree, strict_borrow_mode),
             tbaa: TypeBasedAA::default(),
@@ -170,18 +169,17 @@ impl AliasAnalysis {
 }
 
 impl Analysis for AliasAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::Alias;
+    const ID: AnalysisId = AnalysisId("alias");
+    const DEPENDENCIES: &'static [AnalysisId] = &[];
+}
 
+impl FunctionAnalysis for AliasAnalysis {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        Arc::new(Self::build(
-            function,
-            tree,
-            context.options.strict_borrow_mode,
-        ))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        Self::build(function, tree, analyses.options().strict_borrow_mode)
     }
 }
 
@@ -204,10 +202,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
 
         // different allocations don't alias
         assert!(aa.pointers_no_alias(mir::Value::new(0), mir::Value::new(1)));
@@ -229,10 +225,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
 
         // find the load instruction
         let block = program.tree.get(function.blocks[0]);
@@ -258,10 +252,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
 
         // find the store instruction
         let block = program.tree.get(function.blocks[0]);
@@ -292,10 +284,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
 
         // different globals don't alias
         assert!(aa.pointers_no_alias(mir::Value::new(0), mir::Value::new(1)));
@@ -317,10 +307,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
 
         // with type info, int and float don't alias
         let int_ty = TypeKey::Int {

@@ -3,9 +3,8 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::AnalysisKind;
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, OptimizationContext, Pass, PassMetadata,
+    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
     instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -42,32 +41,38 @@ declare_pass! {
     "Eliminate redundant expressions within blocks"
 }
 
-impl Pass for LocalCse {
-    fn metadata(&self) -> &'static PassMetadata {
-        LocalCse::metadata()
-    }
-}
-
 impl FunctionPass for LocalCse {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        let mut changed = false;
-
-        for &block_id in &function.blocks {
-            let block_changed = eliminate_common_subexpressions_in_block(block_id, tree);
-            changed |= block_changed;
-        }
-
+        // run local CSE
+        let changed = run_local_cse(function, tree);
         if changed {
-            AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
+            AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "LocalCse"
+    }
+
+    fn id(&self) -> &'static str {
+        "local-cse"
+    }
+}
+
+/// Run local CSE on all blocks in a function.
+fn run_local_cse(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    let mut changed = false;
+    for &block_id in &function.blocks {
+        changed |= eliminate_common_subexpressions_in_block(block_id, tree);
+    }
+    changed
 }
 
 /// Eliminate common subexpressions within a single basic block.

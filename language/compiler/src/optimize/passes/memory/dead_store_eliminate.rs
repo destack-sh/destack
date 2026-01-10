@@ -4,8 +4,8 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{
-    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, FunctionPass, MemoryLocation,
-    OptimizationContext, Pass, PassMetadata,
+    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, FunctionAnalyses, FunctionPass,
+    MemoryLocation, PipelineContext,
 };
 
 declare_pass! {
@@ -50,47 +50,67 @@ declare_pass! {
     "Remove dead stores"
 }
 
-impl Pass for DeadStoreEliminate {
-    fn metadata(&self) -> &'static PassMetadata {
-        DeadStoreEliminate::metadata()
-    }
-}
-
 impl FunctionPass for DeadStoreEliminate {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        // get analysis results
-        let aa = context
-            .analyses
-            .get::<AliasAnalysis>(function, tree, context);
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
+        // get analyses
+        let (aa, cfg) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<AliasAnalysis>().clone(),
+                analyses.get::<ControlFlowGraph>().clone(),
+            )
+        };
 
-        // find dead stores
-        let dead_stores = find_dead_stores(function, tree, &aa, &cfg, entry);
-
-        if dead_stores.is_empty() {
-            return AnalysisPreservation::all();
+        // run dead store elimination
+        let changed = run_dead_store_eliminate(function, tree, &aa, &cfg, entry);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
-
-        // remove dead stores
-        for &block_id in &function.blocks {
-            let block = tree.get_mut(block_id);
-            block.instructions.retain(|id| !dead_stores.contains(id));
-        }
-
-        AnalysisPreservation::none()
     }
+
+    fn name(&self) -> &'static str {
+        "DeadStoreEliminate"
+    }
+
+    fn id(&self) -> &'static str {
+        "dse"
+    }
+}
+
+/// Core DSE logic. Returns true if changes were made.
+fn run_dead_store_eliminate(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    aa: &AliasAnalysis,
+    cfg: &ControlFlowGraph,
+    entry: mir::LocalNodeId<mir::Block>,
+) -> bool {
+    // find dead stores
+    let dead_stores = find_dead_stores(function, tree, aa, cfg, entry);
+
+    if dead_stores.is_empty() {
+        return false;
+    }
+
+    // remove dead stores
+    for &block_id in &function.blocks {
+        let block = tree.get_mut(block_id);
+        block.instructions.retain(|id| !dead_stores.contains(id));
+    }
+
+    true
 }
 
 /// Find stores that are dead (never read before being overwritten or function exit).

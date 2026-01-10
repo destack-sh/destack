@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use destack_workspace::TargetId;
 
 use super::{
-    OptimizationContext, OptimizationLevel, OptimizeOptions, count_mir_size, default_pipeline,
+    OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, count_mir_size, default_pipeline,
 };
 
 /// Task to optimize something.
@@ -48,10 +48,6 @@ impl Compiler {
 
         // build optimization pipeline for this level
         let pipeline = default_pipeline(level);
-        if pipeline.function_pass_count() == 0 && pipeline.module_pass_count() == 0 {
-            self.stats.record_optimize();
-            return Ok(());
-        }
 
         // get the module's MIR
         let module_ref = self.program.modules.get(module);
@@ -66,7 +62,7 @@ impl Compiler {
             .with_dsconfig_options(&module_guard, |opts| opts.compiler.borrow_mode.is_strict())
             .unwrap_or(false);
 
-        let options = OptimizeOptions {
+        let options = PipelineOptions {
             strict_borrow_mode,
             ..Default::default()
         };
@@ -74,11 +70,11 @@ impl Compiler {
         // count MIR size before optimization
         let before = count_mir_size(&tree);
 
-        // create optimization context
-        let context = OptimizationContext::new(&strings, options, module, target.clone());
+        // create pipeline context
+        let mut context = PipelineContext::new(&strings, options, module, target.clone());
 
         // run the pipeline on all functions (includes verification passes)
-        pipeline.run_on_module(&mut tree, &context);
+        pipeline.run(&mut tree, &mut context);
 
         // collect accumulated diagnostics from verification passes
         for error in context.take_errors() {

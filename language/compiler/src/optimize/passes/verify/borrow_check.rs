@@ -8,9 +8,9 @@ use destack_workspace::TargetId;
 use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
 use crate::optimize::{
-    AliasAnalysis, AnalysisPreservation, BorrowAnalysis, BorrowMap, ControlFlowGraph, FunctionPass,
-    LifetimeAnalysis, LivenessAnalysis, MemoryLocation, OptimizationContext, Pass, PassMetadata,
-    ResolvedLifetime,
+    AliasAnalysis, AnalysisPreservation, BorrowAnalysis, BorrowMap, DiagnosticEmitter,
+    FunctionPass, LifetimeAnalysis, LivenessAnalysis, MemoryLocation,
+    PipelineContext, ResolvedLifetime,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -28,12 +28,6 @@ declare_pass! {
     #[pass(id = "borrow-check")]
     pub BorrowCheck,
     "Verify borrow rules"
-}
-
-impl Pass for BorrowCheck {
-    fn metadata(&self) -> &'static PassMetadata {
-        BorrowCheck::metadata()
-    }
 }
 
 /// Unique identifier for a borrow.
@@ -61,9 +55,9 @@ struct ActiveBorrow {
 }
 
 /// Context for borrow checking a single function.
+#[allow(dead_code)]
 struct BorrowCheckContext<'a> {
     /// The function being checked.
-    #[allow(dead_code)]
     function: &'a mir::Function,
     /// The MIR tree.
     tree: &'a mir::NodeTree,
@@ -312,7 +306,7 @@ impl<'a> BorrowCheckContext<'a> {
         origin: Value,
         is_mutable: bool,
         at: mir::LocalNodeId<Instruction>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         let new_loc = MemoryLocation::from_ptr(origin);
 
@@ -358,7 +352,7 @@ impl<'a> BorrowCheckContext<'a> {
         &mut self,
         pointer: Value,
         at: mir::LocalNodeId<Instruction>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         let store_loc = MemoryLocation::from_ptr(pointer);
 
@@ -397,7 +391,7 @@ impl<'a> BorrowCheckContext<'a> {
         &mut self,
         value: Value,
         at: mir::LocalNodeId<Instruction>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         let drop_loc = MemoryLocation::from_ptr(value);
 
@@ -444,7 +438,7 @@ impl<'a> BorrowCheckContext<'a> {
         &mut self,
         value: Value,
         at: mir::LocalNodeId<Instruction>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         // check if the value being moved has active borrows
         let borrowed_at = self.has_any_borrow(value).map(|b| b.created_at);
@@ -463,7 +457,7 @@ impl<'a> BorrowCheckContext<'a> {
         &mut self,
         local: mir::LocalNodeId<mir::Local>,
         at: mir::LocalNodeId<Instruction>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         let borrowed_at = self.local_has_borrow(local).map(|b| b.created_at);
 
@@ -536,7 +530,7 @@ impl<'a> BorrowCheckContext<'a> {
         at: mir::LocalNodeId<Instruction>,
         existing_at: mir::LocalNodeId<Instruction>,
         existing_is_mutable: bool,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         self.had_aliasing_violations = true;
 
@@ -559,7 +553,7 @@ impl<'a> BorrowCheckContext<'a> {
         &mut self,
         at: mir::LocalNodeId<Instruction>,
         invalidated_at: mir::LocalNodeId<Instruction>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         self.had_aliasing_violations = true;
 
@@ -578,40 +572,29 @@ impl<'a> BorrowCheckContext<'a> {
 }
 
 impl FunctionPass for BorrowCheck {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        let _cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
+        // get function-level analyses
+        let (liveness, borrow_analysis, alias_analysis) = {
+            let analyses = ctx.function_analyses(function, tree);
+            (
+                analyses.get::<LivenessAnalysis>().clone(),
+                analyses.get::<BorrowAnalysis>().clone(),
+                analyses.get::<AliasAnalysis>().clone(),
+            )
+        };
 
-        // get liveness for borrow lifetime tracking
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, tree, context);
+        // get module-level lifetime analysis
+        let lifetime_analysis = ctx.module_analyses(tree).get::<LifetimeAnalysis>().clone();
 
-        // get borrow analysis for cross-block tracking
-        let borrow_analysis = context
-            .analyses
-            .get::<BorrowAnalysis>(function, tree, context);
+        let module_id = ctx.module_id();
+        let target_id = ctx.target_id().clone();
 
-        // get alias analysis for may-alias queries
-        let alias_analysis = context
-            .analyses
-            .get::<AliasAnalysis>(function, tree, context);
-
-        // get lifetime analysis for cross-function borrow tracking
-        let lifetime_analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, tree, context);
-
-        let module_id = context.module_id();
-        let target_id = context.target_id().clone();
-
-        let strict_mode = context.options.strict_borrow_mode;
+        let strict_mode = ctx.options.strict_borrow_mode;
         let mut checker = BorrowCheckContext::new(
             function,
             tree,
@@ -648,17 +631,25 @@ impl FunctionPass for BorrowCheck {
                 // expire borrows whose references are no longer live
                 expire_dead_borrows(&mut checker, block_id, inst_idx, &liveness, tree);
 
-                check_instruction(&mut checker, instruction_id, &instruction, context);
+                check_instruction(&mut checker, instruction_id, &instruction, ctx);
             }
         }
 
         // if aliasing violations were found, mark context
         if checker.had_aliasing_violations {
-            context.mark_aliasing_violation();
+            ctx.mark_aliasing_violation();
         }
 
         // borrow checking is a pure analysis pass
         AnalysisPreservation::all()
+    }
+
+    fn name(&self) -> &'static str {
+        "BorrowCheck"
+    }
+
+    fn id(&self) -> &'static str {
+        "borrow-check"
     }
 }
 
@@ -702,7 +693,7 @@ fn check_instruction(
     checker: &mut BorrowCheckContext<'_>,
     instruction_id: mir::LocalNodeId<Instruction>,
     instruction: &Instruction,
-    context: &OptimizationContext<'_>,
+    context: &impl DiagnosticEmitter,
 ) {
     match instruction {
         // field.addr creates a borrow of the aggregate
@@ -1095,7 +1086,7 @@ block0:
     return v3
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1357,7 +1348,7 @@ block0(v0: ref<borrowed mut i32>):
     return v5
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1561,7 +1552,7 @@ block0:
     return v8
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1617,7 +1608,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
     return v7
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1674,7 +1665,7 @@ block0:
     return v7
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1704,7 +1695,7 @@ block0:
     return v7
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1744,7 +1735,7 @@ block0:
     return v13
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -1770,7 +1761,7 @@ block0(v0: ref<borrowed mut i32>):
     return v5
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input_mut);
@@ -1793,7 +1784,7 @@ block0(v0: ref<borrowed mut i32>):
     return v3
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -2145,7 +2136,7 @@ block0(v0: ref<borrowed mut i32>):
     return v5
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -2178,7 +2169,7 @@ block0(v0: ref<borrowed i32>):
     return v5
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);
@@ -2216,7 +2207,7 @@ block0:
     return v6
 }"#;
 
-        let mut options = crate::optimize::OptimizeOptions::default();
+        let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
         let mut program = TestProgram::new(input);

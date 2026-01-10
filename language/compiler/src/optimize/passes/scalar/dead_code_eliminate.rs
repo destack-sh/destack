@@ -3,10 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::AnalysisKind;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-    instruction_has_side_effects,
+    AnalysisPreservation, FunctionPass, PipelineContext, instruction_has_side_effects,
 };
 
 declare_pass! {
@@ -37,108 +35,116 @@ declare_pass! {
     "Eliminate dead code"
 }
 
-impl Pass for DeadCodeEliminate {
-    fn metadata(&self) -> &'static PassMetadata {
-        DeadCodeEliminate::metadata()
-    }
-}
-
 impl FunctionPass for DeadCodeEliminate {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // phase 1: build value -> defining instruction map
-        let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
-            HashMap::new();
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(dest) = instruction.destination() {
-                    value_to_instruction.insert(dest, instruction_id);
-                }
-            }
+        // run dead code elimination
+        let changed = run_dead_code_elimination(function, tree);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
+    }
 
-        // phase 2: seed worklist with live roots
-        let mut live: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-        let mut worklist: VecDeque<mir::LocalNodeId<mir::Instruction>> = VecDeque::new();
+    fn name(&self) -> &'static str {
+        "DeadCodeEliminate"
+    }
 
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
+    fn id(&self) -> &'static str {
+        "dead-code-eliminate"
+    }
+}
 
-            // side-effecting instructions are live roots
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if instruction_has_side_effects(instruction) && live.insert(instruction_id) {
-                    worklist.push_back(instruction_id);
-                }
-            }
-
-            // values used by terminators are live
-            for value in block.terminator.uses() {
-                if let Some(&instruction_id) = value_to_instruction.get(&value)
-                    && live.insert(instruction_id)
-                {
-                    worklist.push_back(instruction_id);
-                }
-            }
-        }
-
-        // phase 3: propagate liveness backward through use-def chains
-        while let Some(instruction_id) = worklist.pop_front() {
+/// Core dead code elimination logic (shared by both pass implementations).
+fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // phase 1: build value -> defining instruction map
+    let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
+        HashMap::new();
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
+            if let Some(dest) = instruction.destination() {
+                value_to_instruction.insert(dest, instruction_id);
+            }
+        }
+    }
 
-            // mark all operands as live
-            for value in instruction.uses() {
-                if let Some(&def_instruction_id) = value_to_instruction.get(&value)
+    // phase 2: seed worklist with live roots
+    let mut live: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut worklist: VecDeque<mir::LocalNodeId<mir::Instruction>> = VecDeque::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // side-effecting instructions are live roots
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if instruction_has_side_effects(instruction) && live.insert(instruction_id) {
+                worklist.push_back(instruction_id);
+            }
+        }
+
+        // values used by terminators are live
+        for value in block.terminator.uses() {
+            if let Some(&instruction_id) = value_to_instruction.get(&value)
+                && live.insert(instruction_id)
+            {
+                worklist.push_back(instruction_id);
+            }
+        }
+    }
+
+    // phase 3: propagate liveness backward through use-def chains
+    while let Some(instruction_id) = worklist.pop_front() {
+        let instruction = tree.get(instruction_id);
+
+        // mark all operands as live
+        for value in instruction.uses() {
+            if let Some(&def_instruction_id) = value_to_instruction.get(&value)
+                && live.insert(def_instruction_id)
+            {
+                worklist.push_back(def_instruction_id);
+            }
+        }
+
+        // handle externalized arguments (Call, CallIndirect, Intrinsic)
+        if let Some(args_slice) = instruction.argument_slice() {
+            for &arg in tree.get_arguments(args_slice) {
+                if let Some(&def_instruction_id) = value_to_instruction.get(&arg)
                     && live.insert(def_instruction_id)
                 {
                     worklist.push_back(def_instruction_id);
                 }
             }
-
-            // handle externalized arguments (Call, CallIndirect, Intrinsic)
-            if let Some(args_slice) = instruction.argument_slice() {
-                for &arg in tree.get_arguments(args_slice) {
-                    if let Some(&def_instruction_id) = value_to_instruction.get(&arg)
-                        && live.insert(def_instruction_id)
-                    {
-                        worklist.push_back(def_instruction_id);
-                    }
-                }
-            }
-        }
-
-        // phase 4: remove dead instructions from all blocks
-        let mut changed = false;
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            let original_len = block.instructions.len();
-            let live_instructions: Vec<_> = block
-                .instructions
-                .iter()
-                .copied()
-                .filter(|id| live.contains(id))
-                .collect();
-            if live_instructions.len() != original_len {
-                let mut new_block = block.clone();
-                new_block.instructions = live_instructions;
-                tree.replace(block_id, new_block);
-                changed = true;
-            }
-        }
-
-        if changed {
-            // values changed, but CFG intact
-            AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
-        } else {
-            AnalysisPreservation::all()
         }
     }
+
+    // phase 4: remove dead instructions from all blocks
+    let mut changed = false;
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let original_len = block.instructions.len();
+        let live_instructions: Vec<_> = block
+            .instructions
+            .iter()
+            .copied()
+            .filter(|id| live.contains(id))
+            .collect();
+        if live_instructions.len() != original_len {
+            let mut new_block = block.clone();
+            new_block.instructions = live_instructions;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
 }
 
 #[cfg(test)]

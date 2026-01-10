@@ -3,10 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::AnalysisKind;
 use crate::optimize::analyses::DominatorTree;
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, OptimizationContext, Pass, PassMetadata,
+    AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
     instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -53,46 +52,62 @@ declare_pass! {
     "Eliminate redundant expressions across blocks"
 }
 
-impl Pass for GlobalValueNumbering {
-    fn metadata(&self) -> &'static PassMetadata {
-        GlobalValueNumbering::metadata()
-    }
-}
-
 impl FunctionPass for GlobalValueNumbering {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        // get dominator tree for this function
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
+        // get dominator tree children map (borrow immutably for analysis)
+        let dom_children = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            let domtree = analyses.get::<DominatorTree>();
+            build_dominator_children(function, &domtree)
+        };
 
-        // build dominator tree children map for traversal
-        let dom_children = build_dominator_children(function, &domtree);
-
-        // run GVN using dominator tree traversal
-        let (substitutions, to_remove) =
-            find_redundant_expressions(entry, function, tree, &dom_children);
-
-        // nothing to do if no redundancies found
-        if to_remove.is_empty() {
-            return AnalysisPreservation::all();
+        // run GVN
+        let changed = run_gvn(entry, function, tree, &dom_children);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
-
-        // apply substitutions and remove redundant instructions
-        apply_substitutions(function, tree, &substitutions, &to_remove);
-
-        AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
     }
+
+    fn name(&self) -> &'static str {
+        "GlobalValueNumbering"
+    }
+
+    fn id(&self) -> &'static str {
+        "gvn"
+    }
+}
+
+/// Core GVN logic. Returns true if changes were made.
+fn run_gvn(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+) -> bool {
+    // run GVN using dominator tree traversal
+    let (substitutions, to_remove) =
+        find_redundant_expressions(entry, function, tree, dom_children);
+
+    // nothing to do if no redundancies found
+    if to_remove.is_empty() {
+        return false;
+    }
+
+    // apply substitutions and remove redundant instructions
+    apply_substitutions(function, tree, &substitutions, &to_remove);
+    true
 }
 
 /// Build a map from each block to its immediate children in the dominator tree.

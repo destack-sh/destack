@@ -4,10 +4,9 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::Terminator;
 
-use crate::AnalysisKind;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-    instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -42,205 +41,200 @@ declare_pass! {
     "Propagate copies through block parameters"
 }
 
-impl Pass for CopyPropagate {
-    fn metadata(&self) -> &'static PassMetadata {
-        CopyPropagate::metadata()
-    }
-}
-
-#[allow(clippy::type_complexity)]
 impl FunctionPass for CopyPropagate {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // build predecessor map: block -> list of (predecessor_block, arguments passed)
-        let mut predecessors: HashMap<
-            mir::LocalNodeId<mir::Block>,
-            Vec<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)>,
-        > = HashMap::new();
-
-        // initialize all blocks with empty predecessor lists
-        for &block_id in &function.blocks {
-            predecessors.insert(block_id, Vec::new());
+        // run copy propagation
+        let changed = run_copy_propagate(function, tree);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
+    }
 
-        // collect predecessors and their arguments
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            match &block.terminator {
-                Terminator::Jump { target, arguments } => {
-                    predecessors
-                        .get_mut(target)
-                        .unwrap()
-                        .push((block_id, arguments.clone()));
-                }
-                Terminator::Branch {
-                    then_target,
-                    then_arguments,
-                    else_target,
-                    else_arguments,
-                    ..
-                } => {
-                    predecessors
-                        .get_mut(then_target)
-                        .unwrap()
-                        .push((block_id, then_arguments.clone()));
-                    predecessors
-                        .get_mut(else_target)
-                        .unwrap()
-                        .push((block_id, else_arguments.clone()));
-                }
-                Terminator::Switch {
-                    default,
-                    default_arguments,
-                    cases,
-                    ..
-                } => {
-                    predecessors
-                        .get_mut(default)
-                        .unwrap()
-                        .push((block_id, default_arguments.clone()));
-                    for case in cases {
-                        predecessors
-                            .get_mut(&case.target)
-                            .unwrap()
-                            .push((block_id, case.arguments.clone()));
-                    }
-                }
-                Terminator::Yield {
-                    resume,
-                    resume_arguments,
-                    ..
-                } => {
-                    predecessors
-                        .get_mut(resume)
-                        .unwrap()
-                        .push((block_id, resume_arguments.clone()));
-                }
-                Terminator::Return { .. }
-                | Terminator::Unreachable
-                | Terminator::TailCall { .. }
-                | Terminator::TailCallIndirect { .. } => {}
+    fn name(&self) -> &'static str {
+        "CopyPropagate"
+    }
+
+    fn id(&self) -> &'static str {
+        "copy-propagate"
+    }
+}
+
+/// Core copy propagation logic.
+#[allow(clippy::type_complexity)]
+fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // build predecessor map: block -> list of (predecessor_block, arguments passed)
+    let mut predecessors: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        Vec<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)>,
+    > = HashMap::new();
+
+    // initialize all blocks with empty predecessor lists
+    for &block_id in &function.blocks {
+        predecessors.insert(block_id, Vec::new());
+    }
+
+    // collect predecessors and their arguments
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        match &block.terminator {
+            Terminator::Jump { target, arguments } => {
+                predecessors
+                    .get_mut(target)
+                    .unwrap()
+                    .push((block_id, arguments.clone()));
             }
+            Terminator::Branch {
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+                ..
+            } => {
+                predecessors
+                    .get_mut(then_target)
+                    .unwrap()
+                    .push((block_id, then_arguments.clone()));
+                predecessors
+                    .get_mut(else_target)
+                    .unwrap()
+                    .push((block_id, else_arguments.clone()));
+            }
+            Terminator::Switch {
+                default,
+                default_arguments,
+                cases,
+                ..
+            } => {
+                predecessors
+                    .get_mut(default)
+                    .unwrap()
+                    .push((block_id, default_arguments.clone()));
+                for case in cases {
+                    predecessors
+                        .get_mut(&case.target)
+                        .unwrap()
+                        .push((block_id, case.arguments.clone()));
+                }
+            }
+            Terminator::Yield {
+                resume,
+                resume_arguments,
+                ..
+            } => {
+                predecessors
+                    .get_mut(resume)
+                    .unwrap()
+                    .push((block_id, resume_arguments.clone()));
+            }
+            Terminator::Return { .. }
+            | Terminator::Unreachable
+            | Terminator::TailCall { .. }
+            | Terminator::TailCallIndirect { .. } => {}
+        }
+    }
+
+    // find copy parameters
+    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let preds = &predecessors[&block_id];
+
+        if preds.is_empty() || block.parameters.is_empty() {
+            continue;
         }
 
-        // find copy parameters: block parameters where all predecessors pass the same value
-        let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+        for (param_idx, param) in block.parameters.iter().enumerate() {
+            let param_value = param.value;
+            let mut incoming_values: Vec<mir::Value> = Vec::new();
+            for (_pred_block, args) in preds {
+                if param_idx < args.len() {
+                    incoming_values.push(args[param_idx]);
+                }
+            }
 
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            let preds = &predecessors[&block_id];
-
-            // skip entry block (no predecessors) or blocks with no parameters
-            if preds.is_empty() || block.parameters.is_empty() {
+            if incoming_values.len() != preds.len() {
                 continue;
             }
 
-            // for each parameter, check if all predecessors pass the same value
-            for (param_idx, param) in block.parameters.iter().enumerate() {
-                let param_value = param.value;
-
-                // collect the value passed by each predecessor for this parameter
-                let mut incoming_values: Vec<mir::Value> = Vec::new();
-                for (_pred_block, args) in preds {
-                    if param_idx < args.len() {
-                        incoming_values.push(args[param_idx]);
-                    }
-                }
-
-                // skip if not all predecessors provide this argument
-                if incoming_values.len() != preds.len() {
-                    continue;
-                }
-
-                // check if all incoming values are the same
-                if let Some(&first) = incoming_values.first()
-                    && incoming_values.iter().all(|&v| v == first)
-                {
-                    // this parameter is a copy of `first`
-                    // (but don't substitute if it would be self-referential)
-                    if first != param_value {
-                        substitutions.insert(param_value, first);
-                    }
-                }
-            }
-        }
-
-        // nothing to do if no copies found
-        if substitutions.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        // resolve transitive substitutions
-        let substitutions = resolve_substitution_chains(substitutions);
-
-        // collect which parameter indices to remove for each block (BEFORE modifying)
-        let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            let indices: Vec<usize> = block
-                .parameters
-                .iter()
-                .enumerate()
-                .filter_map(|(idx, p)| {
-                    if substitutions.contains_key(&p.value) {
-                        Some(idx)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            if !indices.is_empty() {
-                removed_indices.insert(block_id, indices);
-            }
-        }
-
-        // apply substitutions to all instructions
-        for &block_id in &function.blocks {
-            let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
-            for instruction_id in instruction_ids {
-                let instruction = tree.get(instruction_id).clone();
-                let new_instruction =
-                    instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
-                if new_instruction != instruction {
-                    tree.replace(instruction_id, new_instruction);
-                }
-            }
-        }
-
-        // apply substitutions to terminators, remove arguments, and remove substituted parameters
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-
-            // substitute values in terminator
-            let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
-
-            // remove arguments for removed parameters
-            let new_terminator = remove_arguments_at_indices(&new_terminator, &removed_indices);
-
-            // remove parameters that were substituted
-            let new_parameters: Vec<_> = block
-                .parameters
-                .iter()
-                .filter(|p| !substitutions.contains_key(&p.value))
-                .cloned()
-                .collect();
-
-            if new_terminator != block.terminator || new_parameters.len() != block.parameters.len()
+            if let Some(&first) = incoming_values.first()
+                && incoming_values.iter().all(|&v| v == first)
+                && first != param_value
             {
-                let mut new_block = block.clone();
-                new_block.terminator = new_terminator;
-                new_block.parameters = new_parameters;
-                tree.replace(block_id, new_block);
+                substitutions.insert(param_value, first);
             }
         }
-
-        // CFG structure unchanged, but values changed
-        AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
     }
+
+    // nothing to do
+    if substitutions.is_empty() {
+        return false;
+    }
+
+    let substitutions = resolve_substitution_chains(substitutions);
+
+    // collect removed indices
+    let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let indices: Vec<usize> = block
+            .parameters
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, p)| {
+                if substitutions.contains_key(&p.value) {
+                    Some(idx)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if !indices.is_empty() {
+            removed_indices.insert(block_id, indices);
+        }
+    }
+
+    // apply substitutions to instructions
+    for &block_id in &function.blocks {
+        let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id).clone();
+            let new_instruction =
+                instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+            if new_instruction != instruction {
+                tree.replace(instruction_id, new_instruction);
+            }
+        }
+    }
+
+    // apply substitutions to terminators and parameters
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+        let new_terminator = remove_arguments_at_indices(&new_terminator, &removed_indices);
+        let new_parameters: Vec<_> = block
+            .parameters
+            .iter()
+            .filter(|p| !substitutions.contains_key(&p.value))
+            .cloned()
+            .collect();
+
+        if new_terminator != block.terminator || new_parameters.len() != block.parameters.len() {
+            let mut new_block = block.clone();
+            new_block.terminator = new_terminator;
+            new_block.parameters = new_parameters;
+            tree.replace(block_id, new_block);
+        }
+    }
+
+    true
 }
 
 /// Resolve transitive substitution chains.

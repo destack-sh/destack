@@ -5,9 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::common::instruction_is_pure;
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Move loop-invariant computations outside of loops.
@@ -31,209 +29,225 @@ declare_pass! {
     "Loop invariant code motion"
 }
 
-impl Pass for Licm {
-    fn metadata(&self) -> &'static PassMetadata {
-        Licm::metadata()
-    }
-}
-
 impl FunctionPass for Licm {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
+        // get analyses
+        let (loops, domtree) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LoopAnalysis>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+            )
+        };
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
 
-        // collect hoisting work for each loop, outermost first
-        let mut all_work: Vec<HoistWork> = Vec::new();
-        let mut already_queued: HashSet<(mir::LocalNodeId<mir::Block>, usize)> = HashSet::new();
+        // run LICM
+        let changed = run_licm(entry, function, tree, &loops, &domtree);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
+        }
+    }
 
-        for lp in loops.loops().iter() {
-            // find preheader (immediate dominator outside the loop)
-            let preheader = match find_preheader(lp, &domtree, entry) {
-                Some(p) => p,
-                None => continue,
-            };
+    fn name(&self) -> &'static str {
+        "Licm"
+    }
 
-            // collect values defined outside the loop
-            let mut invariant_values: HashSet<mir::Value> = HashSet::new();
+    fn id(&self) -> &'static str {
+        "licm"
+    }
+}
 
-            // function parameters
-            for param in &function.parameters {
+/// Core LICM logic. Returns true if changes were made.
+fn run_licm(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    loops: &LoopAnalysis,
+    domtree: &DominatorTree,
+) -> bool {
+    // collect hoisting work for each loop, outermost first
+    let mut all_work: Vec<HoistWork> = Vec::new();
+    let mut already_queued: HashSet<(mir::LocalNodeId<mir::Block>, usize)> = HashSet::new();
+
+    for lp in loops.loops().iter() {
+        // find preheader (immediate dominator outside the loop)
+        let preheader = match find_preheader(lp, domtree, entry) {
+            Some(p) => p,
+            None => continue,
+        };
+
+        // collect values defined outside the loop
+        let mut invariant_values: HashSet<mir::Value> = HashSet::new();
+
+        // function parameters
+        for param in &function.parameters {
+            invariant_values.insert(param.value);
+        }
+
+        // values from blocks outside the loop
+        for &block_id in &function.blocks {
+            if lp.blocks.contains(&block_id) {
+                continue;
+            }
+            let block = tree.get(block_id);
+
+            for param in &block.parameters {
                 invariant_values.insert(param.value);
             }
 
-            // values from blocks outside the loop
-            for &block_id in &function.blocks {
-                if lp.blocks.contains(&block_id) {
-                    continue;
-                }
-                let block = tree.get(block_id);
-
-                for param in &block.parameters {
-                    invariant_values.insert(param.value);
-                }
-
-                for &instruction_id in &block.instructions {
-                    let instruction = tree.get(instruction_id);
-                    if let Some(destination) = instruction.destination() {
-                        invariant_values.insert(destination);
-                    }
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                if let Some(destination) = instruction.destination() {
+                    invariant_values.insert(destination);
                 }
             }
+        }
 
-            // iteratively find loop-invariant instructions
-            let mut changed = true;
-            while changed {
-                changed = false;
-                for &block_id in &function.blocks {
-                    if !lp.blocks.contains(&block_id) {
-                        continue;
-                    }
-                    let block = tree.get(block_id);
-
-                    for &instruction_id in &block.instructions {
-                        let instruction = tree.get(instruction_id);
-                        if let Some(destination) = instruction.destination() {
-                            if invariant_values.contains(&destination) {
-                                continue;
-                            }
-                            let is_pure = instruction_is_pure(instruction);
-                            let operands_invariant = instruction
-                                .uses()
-                                .iter()
-                                .all(|v| invariant_values.contains(v));
-                            if is_pure && operands_invariant {
-                                invariant_values.insert(destination);
-                                changed = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // collect instructions to hoist
+        // iteratively find loop-invariant instructions
+        let mut changed = true;
+        while changed {
+            changed = false;
             for &block_id in &function.blocks {
                 if !lp.blocks.contains(&block_id) {
                     continue;
                 }
                 let block = tree.get(block_id);
 
-                for (index, &instruction_id) in block.instructions.iter().enumerate() {
-                    if already_queued.contains(&(block_id, index)) {
-                        continue;
-                    }
-
+                for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
                     if let Some(destination) = instruction.destination() {
+                        if invariant_values.contains(&destination) {
+                            continue;
+                        }
                         let is_pure = instruction_is_pure(instruction);
                         let operands_invariant = instruction
                             .uses()
                             .iter()
                             .all(|v| invariant_values.contains(v));
-
-                        // hoist if pure and all operands are invariant
-                        if is_pure && invariant_values.contains(&destination) && operands_invariant
-                        {
-                            already_queued.insert((block_id, index));
-                            all_work.push(HoistWork {
-                                source_block: block_id,
-                                instruction_index: index,
-                                target_preheader: preheader,
-                            });
+                        if is_pure && operands_invariant {
+                            invariant_values.insert(destination);
+                            changed = true;
                         }
                     }
                 }
             }
         }
 
-        drop(domtree);
-        drop(loops);
-
-        if all_work.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        // sort descending by (block, index) so removal doesn't invalidate indices
-        all_work.sort_by(|a, b| {
-            b.source_block
-                .cmp(&a.source_block)
-                .then(b.instruction_index.cmp(&a.instruction_index))
-        });
-
-        let mut hoisted_count = 0;
-        let mut current_block: Option<mir::LocalNodeId<mir::Block>> = None;
-        let mut block_data: Option<mir::Block> = None;
-        let mut preheader_insertions: Vec<(
-            mir::LocalNodeId<mir::Block>,
-            mir::LocalNodeId<mir::Instruction>,
-        )> = Vec::new();
-
-        for work in all_work {
-            // flush previous block if switching
-            if current_block != Some(work.source_block) {
-                if let (Some(block_id), Some(data)) = (current_block, block_data.take()) {
-                    tree.replace(block_id, data);
-                }
-                current_block = Some(work.source_block);
-                block_data = Some(tree.get(work.source_block).clone());
+        // collect instructions to hoist
+        for &block_id in &function.blocks {
+            if !lp.blocks.contains(&block_id) {
+                continue;
             }
+            let block = tree.get(block_id);
 
-            let data = block_data.as_mut().unwrap();
-            let instr_id = data.instructions.remove(work.instruction_index);
-            preheader_insertions.push((work.target_preheader, instr_id));
-            hoisted_count += 1;
-        }
+            for (index, &instruction_id) in block.instructions.iter().enumerate() {
+                if already_queued.contains(&(block_id, index)) {
+                    continue;
+                }
 
-        // flush last block
-        if let (Some(block_id), Some(data)) = (current_block, block_data.take()) {
-            tree.replace(block_id, data);
-        }
+                let instruction = tree.get(instruction_id);
+                if let Some(destination) = instruction.destination() {
+                    let is_pure = instruction_is_pure(instruction);
+                    let operands_invariant = instruction
+                        .uses()
+                        .iter()
+                        .all(|v| invariant_values.contains(v));
 
-        // insert into preheaders
-        preheader_insertions.reverse();
-        let mut preheaders_to_update: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-        for (preheader, _) in &preheader_insertions {
-            preheaders_to_update.insert(*preheader);
-        }
-
-        for preheader_id in preheaders_to_update {
-            let mut preheader = tree.get(preheader_id).clone();
-            for (target, instr_id) in &preheader_insertions {
-                if *target == preheader_id {
-                    preheader.instructions.push(*instr_id);
+                    // hoist if pure and all operands are invariant
+                    if is_pure && invariant_values.contains(&destination) && operands_invariant {
+                        already_queued.insert((block_id, index));
+                        all_work.push(HoistWork {
+                            source_block: block_id,
+                            instruction_index: index,
+                            target_preheader: preheader,
+                        });
+                    }
                 }
             }
-            tree.replace(preheader_id, preheader);
-        }
-
-        if hoisted_count > 0 {
-            AnalysisPreservation::none()
-        } else {
-            AnalysisPreservation::all()
         }
     }
+
+    if all_work.is_empty() {
+        return false;
+    }
+
+    // sort descending by (block, index) so removal doesn't invalidate indices
+    all_work.sort_by(|a, b| {
+        b.source_block
+            .cmp(&a.source_block)
+            .then(b.instruction_index.cmp(&a.instruction_index))
+    });
+
+    let mut hoisted_count = 0;
+    let mut current_block: Option<mir::LocalNodeId<mir::Block>> = None;
+    let mut block_data: Option<mir::Block> = None;
+    let mut preheader_insertions: Vec<(
+        mir::LocalNodeId<mir::Block>,
+        mir::LocalNodeId<mir::Instruction>,
+    )> = Vec::new();
+
+    for work in all_work {
+        // flush previous block if switching
+        if current_block != Some(work.source_block) {
+            if let (Some(block_id), Some(data)) = (current_block, block_data.take()) {
+                tree.replace(block_id, data);
+            }
+            current_block = Some(work.source_block);
+            block_data = Some(tree.get(work.source_block).clone());
+        }
+
+        let data = block_data.as_mut().unwrap();
+        let instr_id = data.instructions.remove(work.instruction_index);
+        preheader_insertions.push((work.target_preheader, instr_id));
+        hoisted_count += 1;
+    }
+
+    // flush last block
+    if let (Some(block_id), Some(data)) = (current_block, block_data.take()) {
+        tree.replace(block_id, data);
+    }
+
+    // insert into preheaders
+    preheader_insertions.reverse();
+    let mut preheaders_to_update: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+    for (preheader, _) in &preheader_insertions {
+        preheaders_to_update.insert(*preheader);
+    }
+
+    for preheader_id in preheaders_to_update {
+        let mut preheader = tree.get(preheader_id).clone();
+        for (target, instr_id) in &preheader_insertions {
+            if *target == preheader_id {
+                preheader.instructions.push(*instr_id);
+            }
+        }
+        tree.replace(preheader_id, preheader);
+    }
+
+    hoisted_count > 0
 }
 
 /// Work item for hoisting an instruction.
 struct HoistWork {
+    /// The block containing the instruction to hoist.
     source_block: mir::LocalNodeId<mir::Block>,
+    /// The index of the instruction to hoist.
     instruction_index: usize,
+    /// The preheader to hoist the instruction to.
     target_preheader: mir::LocalNodeId<mir::Block>,
 }
 

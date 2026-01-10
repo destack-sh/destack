@@ -4,8 +4,8 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-    terminator_substitute_uses, terminator_uses,
+    AnalysisPreservation, FunctionPass, PipelineContext, terminator_substitute_uses,
+    terminator_uses,
 };
 
 declare_pass! {
@@ -50,47 +50,61 @@ declare_pass! {
     "Break aggregates into scalars"
 }
 
-impl Pass for Sroa {
-    fn metadata(&self) -> &'static PassMetadata {
-        Sroa::metadata()
-    }
-}
-
 impl FunctionPass for Sroa {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        // find splittable allocations
-        let candidates = find_splittable_allocations(function, tree, context);
-        if candidates.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        // ensure next_value_id is correct before allocating new values
-        function.recompute_next_value_id(tree);
-
-        // split each candidate
-        let mut made_changes = false;
-        for candidate in candidates {
-            if split_allocation(&candidate, function, tree, entry) {
-                made_changes = true;
-            }
-        }
-
-        if made_changes {
+        // run SROA
+        let changed = run_sroa(function, tree, entry, ctx.options.sroa_max_array_elements);
+        if changed {
             AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "Sroa"
+    }
+
+    fn id(&self) -> &'static str {
+        "sroa"
+    }
+}
+
+/// Core SROA logic. Returns true if changes were made.
+fn run_sroa(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    entry: mir::LocalNodeId<mir::Block>,
+    max_array_elements: usize,
+) -> bool {
+    // find splittable allocations
+    let candidates = find_splittable_allocations_core(function, tree, max_array_elements);
+    if candidates.is_empty() {
+        return false;
+    }
+
+    // ensure next_value_id is correct before allocating new values
+    function.recompute_next_value_id(tree);
+
+    // split each candidate
+    let mut made_changes = false;
+    for candidate in candidates {
+        if split_allocation(&candidate, function, tree, entry) {
+            made_changes = true;
+        }
+    }
+
+    made_changes
 }
 
 /// A candidate allocation that can be split.
@@ -115,13 +129,12 @@ struct UseInfo {
 }
 
 /// Find stack allocations that can be split into scalars.
-fn find_splittable_allocations(
+fn find_splittable_allocations_core(
     function: &mir::Function,
     tree: &mir::NodeTree,
-    context: &OptimizationContext<'_>,
+    max_array_elements: usize,
 ) -> Vec<SplitCandidate> {
     let mut candidates = Vec::new();
-    let max_array_elements = context.options.sroa_max_array_elements;
 
     // collect all stack allocations of aggregate types
     for &block_id in &function.blocks {

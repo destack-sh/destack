@@ -6,8 +6,8 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, MoveLocation, OptimizationContext, OwnershipAnalysis,
-    OwnershipMap, Pass, PassMetadata,
+    AnalysisPreservation, DiagnosticEmitter, FunctionAnalyses, FunctionPass, MoveLocation,
+    OwnershipAnalysis, OwnershipMap, PipelineContext,
 };
 
 declare_pass! {
@@ -19,12 +19,6 @@ declare_pass! {
     #[pass(id = "move-check")]
     pub MoveCheck,
     "Verify move semantics"
-}
-
-impl Pass for MoveCheck {
-    fn metadata(&self) -> &'static PassMetadata {
-        MoveCheck::metadata()
-    }
 }
 
 /// Context for move checking.
@@ -91,7 +85,7 @@ impl<'a> MoveCheckContext<'a> {
         value: Value,
         at_instruction: Option<mir::LocalNodeId<Instruction>>,
         at_block: mir::LocalNodeId<mir::Block>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         if let Some(ownership) = state.get(value)
             && ownership.is_moved()
@@ -119,7 +113,7 @@ impl<'a> MoveCheckContext<'a> {
     }
 
     /// Run the move check on a function.
-    fn check(&self, function: &mir::Function, context: &OptimizationContext<'_>) {
+    fn check(&self, function: &mir::Function, context: &impl DiagnosticEmitter) {
         if function.entry.is_none() {
             return;
         }
@@ -164,7 +158,7 @@ impl<'a> MoveCheckContext<'a> {
         instruction_id: mir::LocalNodeId<Instruction>,
         inst: &Instruction,
         block_id: mir::LocalNodeId<mir::Block>,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         // get all values used by this instruction
         for used in inst.uses() {
@@ -198,7 +192,7 @@ impl<'a> MoveCheckContext<'a> {
         state: &OwnershipMap,
         block_id: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         match terminator {
             mir::Terminator::Return { value } => {
@@ -244,24 +238,33 @@ impl<'a> MoveCheckContext<'a> {
 }
 
 impl FunctionPass for MoveCheck {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // get the ownership analysis (computed and cached)
-        let ownership = context
-            .analyses
-            .get::<OwnershipAnalysis>(function, tree, context);
+        // get ownership analysis
+        let ownership = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            analyses.get::<OwnershipAnalysis>().clone()
+        };
 
-        let module_id = context.module_id();
-        let target_id = context.target_id().clone();
+        let module_id = ctx.module_id();
+        let target_id = ctx.target_id().clone();
 
         let checker = MoveCheckContext::new(tree, &ownership, module_id, target_id);
-        checker.check(function, context);
+        checker.check(function, ctx);
 
         AnalysisPreservation::all()
+    }
+
+    fn name(&self) -> &'static str {
+        "MoveCheck"
+    }
+
+    fn id(&self) -> &'static str {
+        "move-check"
     }
 }
 

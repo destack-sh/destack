@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
     instruction_substitute_uses, terminator_substitute_uses,
 };
 
@@ -42,50 +42,65 @@ declare_pass! {
     "Simplify control flow graph"
 }
 
-impl Pass for SimplifyCfg {
-    fn metadata(&self) -> &'static PassMetadata {
-        SimplifyCfg::metadata()
-    }
-}
-
 impl FunctionPass for SimplifyCfg {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // setup analysis state
-        let mut changed = false;
-        let constants = context
-            .analyses
-            .get::<ConstantPropagation>(function, tree, context);
+        // get constant propagation analysis
+        let constants = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            analyses.get::<ConstantPropagation>().clone()
+        };
 
-        // phase 1: constant branch folding
-        // converts `branch const_true, A, B` -> `jump A`
-        changed |= fold_constant_branches(function, tree, &constants);
-
-        // phase 2: jump threading
-        // threads jumps through empty blocks
-        changed |= thread_jumps(function, tree);
-
-        // phase 3: block merging
-        // merges blocks with single predecessor/successor
-        if let Some(entry) = function.entry {
-            changed |= merge_blocks(function, tree, entry);
-        }
-
-        // phase 4: eliminate unreachable blocks
-        if let Some(entry) = function.entry {
-            changed |= eliminate_unreachable_blocks(function, tree, entry);
-        }
-
+        // run simplify CFG
+        let changed = run_simplify_cfg(function, tree, &constants);
         if changed {
             AnalysisPreservation::none() // CFG changed
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "SimplifyCfg"
+    }
+
+    fn id(&self) -> &'static str {
+        "simplify-cfg"
+    }
+}
+
+/// SimplifyCFG logic. Returns true if changes were made.
+fn run_simplify_cfg(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    constants: &ConstantPropagation,
+) -> bool {
+    let mut changed = false;
+
+    // phase 1: constant branch folding
+    // converts `branch const_true, A, B` -> `jump A`
+    changed |= fold_constant_branches(function, tree, constants);
+
+    // phase 2: jump threading
+    // threads jumps through empty blocks
+    changed |= thread_jumps(function, tree);
+
+    // phase 3: block merging
+    // merges blocks with single predecessor/successor
+    if let Some(entry) = function.entry {
+        changed |= merge_blocks(function, tree, entry);
+    }
+
+    // phase 4: eliminate unreachable blocks
+    if let Some(entry) = function.entry {
+        changed |= eliminate_unreachable_blocks(function, tree, entry);
+    }
+
+    changed
 }
 
 /// Fold branches on constant conditions into unconditional jumps.
