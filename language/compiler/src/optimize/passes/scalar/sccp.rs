@@ -415,7 +415,10 @@ impl<'a> SccpState<'a> {
             } => {
                 self.mark_edge_executable(block_id, *resume, resume_arguments);
             }
-            mir::Terminator::Return { .. } | mir::Terminator::Unreachable => {}
+            mir::Terminator::Return { .. }
+            | mir::Terminator::Unreachable
+            | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallIndirect { .. } => {}
         }
     }
 

@@ -591,6 +591,8 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::Branch)
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Unreachable)
+                || self.peek_token(TokenType::TailCall)
+                || self.peek_token(TokenType::TailCallIndirect)
             {
                 terminator = Some(self.parse_terminator()?);
                 break;
@@ -627,7 +629,10 @@ impl<'a> Parser<'a> {
         }
 
         match &mut block.terminator {
-            Terminator::Return { .. } | Terminator::Unreachable => {}
+            Terminator::Return { .. }
+            | Terminator::Unreachable
+            | Terminator::TailCall { .. }
+            | Terminator::TailCallIndirect { .. } => {}
             Terminator::Jump { target, .. } => {
                 *target = resolve(*target, source_to_actual);
             }
@@ -1157,6 +1162,25 @@ impl<'a> Parser<'a> {
             TokenType::Unreachable => {
                 self.bump();
                 Ok(Terminator::Unreachable)
+            }
+
+            TokenType::TailCall => {
+                self.bump();
+                // tailcall @func(args...)
+                let function = self.parse_function_reference()?;
+                let arguments = self.parse_call_arguments()?;
+                Ok(Terminator::TailCall {
+                    function,
+                    arguments,
+                })
+            }
+
+            TokenType::TailCallIndirect => {
+                self.bump();
+                // tailcall.indirect callee(args...)
+                let callee = self.parse_value()?;
+                let arguments = self.parse_call_arguments()?;
+                Ok(Terminator::TailCallIndirect { callee, arguments })
             }
 
             _ => Err(ParseError::unexpected("terminator", token.ty, token.start)),

@@ -4589,3 +4589,73 @@ pub(super) fn handle_unsupported(
         name: (*name).to_string(),
     })
 }
+
+/// Handle tail call to function.
+///
+/// TODO #Performance: vm implements tail calls as regular calls. 
+/// The caller's frame will be popped when the return value flows back.
+pub(super) fn handle_tail_call(
+    _state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::TailCall {
+        function,
+        callee_index,
+        copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // for now: treat as call + implicit return
+    // the trampoline will handle this and return the result
+    ControlFlow::Call {
+        function: *function,
+        callee_index: *callee_index,
+        destination: mir::Value(0), // dummy, result goes to caller's frame
+        arguments: ArgumentRange::empty(),
+        copies: Some(*copies),
+        resume_pc: pc, // won't be used, we return immediately after
+    }
+}
+
+/// Handle indirect tail call.
+///
+/// TODO #Performance: vm implements indirect tail calls as regular calls. 
+/// The caller's frame will be popped when the return value flows back.
+pub(super) fn handle_tail_call_indirect(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::TailCallIndirect { callee, arguments } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load callee value
+    let callee_val = state.get(*callee);
+
+    // extract function pointer
+    let function = match callee_val.as_function_pointer() {
+        Some(f) => f.id,
+        None => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "function_pointer".to_string(),
+                actual: format!("{callee_val:?}"),
+            });
+        }
+    };
+
+    // for now: treat as call + implicit return
+    ControlFlow::Call {
+        function,
+        callee_index: INVALID_FUNCTION_INDEX,
+        destination: mir::Value(0), // dummy
+        arguments: *arguments,
+        copies: None,
+        resume_pc: pc,
+    }
+}

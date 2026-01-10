@@ -120,7 +120,10 @@ impl FunctionPass for CopyPropagate {
                         .unwrap()
                         .push((block_id, resume_arguments.clone()));
                 }
-                Terminator::Return { .. } | Terminator::Unreachable => {}
+                Terminator::Return { .. }
+                | Terminator::Unreachable
+                | Terminator::TailCall { .. }
+                | Terminator::TailCallIndirect { .. } => {}
             }
         }
 

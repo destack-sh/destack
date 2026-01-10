@@ -384,6 +384,23 @@ impl OwnershipAnalysis {
             mir::Terminator::Branch { .. }
             | mir::Terminator::Switch { .. }
             | mir::Terminator::Unreachable => {}
+            mir::Terminator::TailCall { arguments, .. } => {
+                for &arg in arguments {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved(arg, at.clone());
+                    }
+                }
+            }
+            mir::Terminator::TailCallIndirect { callee, arguments } => {
+                if !self.value_is_copy(*callee, tree) {
+                    state.mark_moved(*callee, at.clone());
+                }
+                for &arg in arguments {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved(arg, at.clone());
+                    }
+                }
+            }
         }
     }
 
@@ -875,6 +892,17 @@ fn process_terminator(
         mir::Terminator::Branch { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Unreachable => {}
+        mir::Terminator::TailCall { arguments, .. } => {
+            for &arg in arguments {
+                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+            }
+        }
+        mir::Terminator::TailCallIndirect { callee, arguments } => {
+            state.mark_moved_if_not_copy(*callee, at.clone(), tree, value_types, copy_values);
+            for &arg in arguments {
+                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+            }
+        }
     }
 }
 

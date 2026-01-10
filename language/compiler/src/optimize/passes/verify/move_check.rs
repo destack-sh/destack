@@ -228,6 +228,17 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::Unreachable => {}
+            mir::Terminator::TailCall { arguments, .. } => {
+                for &arg in arguments {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
+            mir::Terminator::TailCallIndirect { callee, arguments } => {
+                self.check_use(state, *callee, None, block_id, context);
+                for &arg in arguments {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
         }
     }
 }

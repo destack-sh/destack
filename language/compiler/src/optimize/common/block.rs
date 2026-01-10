@@ -36,6 +36,10 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
             resume_arguments,
             ..
         } => *v == value || resume_arguments.contains(&value),
+        mir::Terminator::TailCall { arguments, .. } => arguments.contains(&value),
+        mir::Terminator::TailCallIndirect { callee, arguments } => {
+            *callee == value || arguments.contains(&value)
+        }
     }
 }
 
@@ -79,6 +83,12 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
         } => {
             let mut values = vec![*value];
             values.extend(resume_arguments.iter().copied());
+            values
+        }
+        mir::Terminator::TailCall { arguments, .. } => arguments.clone(),
+        mir::Terminator::TailCallIndirect { callee, arguments } => {
+            let mut values = vec![*callee];
+            values.extend(arguments.iter().copied());
             values
         }
     }
@@ -299,5 +309,18 @@ pub fn terminator_substitute_uses(
             resume_arguments: resume_arguments.iter().map(&substitute).collect(),
         },
         mir::Terminator::Unreachable => mir::Terminator::Unreachable,
+        mir::Terminator::TailCall {
+            function,
+            arguments,
+        } => mir::Terminator::TailCall {
+            function: *function,
+            arguments: arguments.iter().map(&substitute).collect(),
+        },
+        mir::Terminator::TailCallIndirect { callee, arguments } => {
+            mir::Terminator::TailCallIndirect {
+                callee: substitute(callee),
+                arguments: arguments.iter().map(&substitute).collect(),
+            }
+        }
     }
 }

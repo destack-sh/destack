@@ -152,28 +152,47 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         target: &mut cir::Function,
     ) -> CodegenCraneliftResult<()> {
-        // scan all blocks for Call instructions
+        // scan all blocks for Call instructions and TailCall terminators
         for &block_id in &self.function.blocks {
             let block = self.tree.get(block_id);
+
+            // check instructions for Call
             for &inst_id in &block.instructions {
                 let inst = self.tree.get(inst_id);
                 if let mir::Instruction::Call { function, .. } = inst
                     && !self.function_ref_map.contains_key(function)
                 {
-                    let callee_function_id =
-                        self.cl_function_ids.get(function).ok_or_else(|| {
-                            CodegenCraneliftError::Internal {
-                                message: format!("unknown function {function:?}"),
-                            }
-                        })?;
-                    let function_ref = self
-                        .cl_module
-                        .declare_func_in_func(*callee_function_id, target);
-                    self.function_ref_map.insert(*function, function_ref);
+                    self.declare_function_ref(*function, target)?;
                 }
+            }
+
+            // check terminator for TailCall
+            if let mir::Terminator::TailCall { function, .. } = &block.terminator
+                && !self.function_ref_map.contains_key(function)
+            {
+                self.declare_function_ref(*function, target)?;
             }
         }
 
+        Ok(())
+    }
+
+    /// Declare a function reference for use in this function.
+    fn declare_function_ref(
+        &mut self,
+        function: mir::LocalNodeId<mir::Function>,
+        target: &mut cir::Function,
+    ) -> CodegenCraneliftResult<()> {
+        let callee_function_id =
+            self.cl_function_ids
+                .get(&function)
+                .ok_or_else(|| CodegenCraneliftError::Internal {
+                    message: format!("unknown function {function:?}"),
+                })?;
+        let function_ref = self
+            .cl_module
+            .declare_func_in_func(*callee_function_id, target);
+        self.function_ref_map.insert(function, function_ref);
         Ok(())
     }
 
@@ -1359,6 +1378,38 @@ impl<'a> FunctionLowerer<'a> {
             // yield: coroutine suspension
             mir::Terminator::Yield { .. } => {
                 // #Incomplete: implement cranelift coroutine support (lower in MIR?)
+                builder.ins().trap(trap::UNREACHABLE);
+            }
+
+            // tail call: return_call (direct tail call)
+            mir::Terminator::TailCall {
+                function,
+                arguments,
+            } => {
+                let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
+                    CodegenCraneliftError::Internal {
+                        message: format!("function {function:?} not declared"),
+                    }
+                })?;
+
+                // gather argument values
+                let argument_values: Vec<cir::Value> =
+                    arguments.iter().map(|v| value_map[v]).collect();
+
+                // emit return_call
+                builder.ins().return_call(*function_ref, &argument_values);
+            }
+
+            // tail call indirect: return_call_indirect (indirect tail call)
+            mir::Terminator::TailCallIndirect { callee, arguments } => {
+                // callee type (need to get signature)
+                let callee_value = value_map[callee];
+
+                // for indirect tail calls, we need the signature
+                // since we don't have type_map here, we fall back to a trap for now
+                // TODO #Performance: implement proper return_call_indirect with signature lookup
+                let _ = arguments;
+                let _ = callee_value;
                 builder.ins().trap(trap::UNREACHABLE);
             }
         }

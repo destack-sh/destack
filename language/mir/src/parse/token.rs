@@ -28,6 +28,10 @@ pub enum TokenType {
     Switch,
     /// `unreachable`
     Unreachable,
+    /// `tailcall`
+    TailCall,
+    /// `tailcall.indirect`
+    TailCallIndirect,
 
     // type keywords
     /// `void`

@@ -776,6 +776,37 @@ impl<'a> Dumper<'a> {
                     self.write(")");
                 }
             }
+
+            Terminator::TailCall {
+                function,
+                arguments,
+            } => {
+                self.write_colored("tailcall", Color::Red);
+                self.write(" ");
+                self.write(&self.format_function_id(*function));
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+            }
+
+            Terminator::TailCallIndirect { callee, arguments } => {
+                self.write_colored("tailcall.indirect", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*callee));
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+            }
         }
         self.write("\n");
     }
