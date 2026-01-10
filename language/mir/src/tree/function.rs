@@ -1,7 +1,8 @@
 use destack_base::StringId;
 
 use crate::{
-    Block, Linkage, Local, LocalNodeId, Node, NodeTree, NodeType, Type, TypedValue, Value,
+    Block, Lifetime, Linkage, Local, LocalNodeId, Node, NodeTree, NodeType, Type, TypedValue,
+    Value,
 };
 
 /// Memory allocation restrictions for a function.
@@ -90,6 +91,12 @@ pub struct Function {
     pub parameters: Vec<TypedValue>,
     /// The return type.
     pub return_type: LocalNodeId<Type>,
+    /// Lifetime bounds for the return value.
+    ///
+    /// Specifies which parameters the return value may borrow from.
+    /// Only meaningful when return type contains borrowed references.
+    /// Defaults to `Inferred`, which uses signature-based inference rules.
+    pub return_lifetime: Lifetime,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
@@ -128,6 +135,7 @@ impl Function {
             name,
             parameters,
             return_type,
+            return_lifetime: Lifetime::Inferred,
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine: None,
@@ -148,6 +156,7 @@ impl Function {
             name,
             parameters,
             return_type,
+            return_lifetime: Lifetime::Inferred,
             linkage: Linkage::Import,
             allocation: AllocationMode::Any,
             coroutine: None,
@@ -156,6 +165,12 @@ impl Function {
             entry: None,
             next_value_id: 0,
         }
+    }
+
+    /// Set the return lifetime and return self (builder pattern).
+    pub fn with_return_lifetime(mut self, lifetime: Lifetime) -> Self {
+        self.return_lifetime = lifetime;
+        self
     }
 
     /// Set the linkage and return self (builder pattern).

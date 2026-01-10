@@ -2,6 +2,58 @@ use destack_base::StringId;
 
 use crate::{LocalNodeId, Node, NodeType};
 
+/// Lifetime bounds for a returned borrowed value.
+///
+/// Specifies which function parameters a returned reference (or aggregate
+/// containing references) may borrow from. Used by the borrow checker to
+/// track borrows across function calls.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Lifetime {
+    /// Use inference rules based on function signature:
+    /// - Single `&T` parameter: return borrows from it
+    /// - `&self`/`&this` receiver: return borrows from receiver
+    /// - Multiple `&T` parameters: conservative (borrows from all)
+    #[default]
+    Inferred,
+    /// Borrows from specific parameters (by index).
+    /// E.g., `@lifetime(a, b)` where a is param 0 and b is param 1.
+    /// Typically 1-2 parameters, so Vec is efficient enough.
+    Parameters(Vec<u32>),
+    /// Static lifetime - borrows only from global/static data.
+    /// The returned reference is valid for the entire program lifetime.
+    Static,
+}
+
+impl Lifetime {
+    /// Create a lifetime bound for a single parameter.
+    pub fn param(index: u32) -> Self {
+        Lifetime::Parameters(vec![index])
+    }
+
+    /// Create a lifetime bound for multiple parameters.
+    pub fn params(indices: impl IntoIterator<Item = u32>) -> Self {
+        Lifetime::Parameters(indices.into_iter().collect())
+    }
+
+    /// Check if this is the inferred/default lifetime.
+    pub fn is_inferred(&self) -> bool {
+        matches!(self, Lifetime::Inferred)
+    }
+
+    /// Check if this is a static lifetime.
+    pub fn is_static(&self) -> bool {
+        matches!(self, Lifetime::Static)
+    }
+
+    /// Check if this lifetime includes a specific parameter.
+    pub fn includes_param(&self, index: u32) -> bool {
+        match self {
+            Lifetime::Parameters(params) => params.contains(&index),
+            _ => false,
+        }
+    }
+}
+
 /// Mutability of a reference or binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mutability {
@@ -219,6 +271,29 @@ impl Type {
     /// Whether this type is any kind of pointer or reference.
     pub fn is_pointer_like(&self) -> bool {
         matches!(self, Type::Reference { .. })
+    }
+
+    /// Whether this type is a borrowed reference.
+    pub fn is_borrowed_reference(&self) -> bool {
+        matches!(
+            self,
+            Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                ..
+            }
+        )
+    }
+
+    /// Whether this type is a mutable borrowed reference.
+    pub fn is_mutable_borrowed_reference(&self) -> bool {
+        matches!(
+            self,
+            Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                mutability: Mutability::Mutable,
+                ..
+            }
+        )
     }
 
     /// Get the copyability of this type.
