@@ -131,18 +131,24 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 
 Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
 
-- Place imports at the top, prefer `use std::time::Instant` patterns
+Imports:
 - Comments/documentation goes before *all* attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
+- Place imports at the top, prefer `use std::time::Instant` patterns
+- Just use `pub use submodule::*` for public exports, we use `pub` properly
+- Relatedly, we like to just use `use crate::x` directly at the top level (when possible)
+
+Logic:
+- Put constants at the top of the file (no magic numbers/values)
 - Avoid `unwrap`/`expect` outside tests; fail explicitly
 - Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)
 - Inline variables in format macros if possible: `format!("name is {name}")`
 - Prefer multiline raw strings for longer strings
 - Prefer using `--release` for build, test, check, etc. (it's faster)
-- Just use `pub use submodule::*` for public exports, we use `pub` properly
-- Relatedly, we like to just use `use crate::x` directly at the top level (when possible)
 - Prefer re-defining variables if we're just transforming them about
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
+
+Lints and warnings:
 - Fix all the lints from `cargo check --release -p <crate>` and `cargo clippy --release -p <crate>`
 - Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
 
