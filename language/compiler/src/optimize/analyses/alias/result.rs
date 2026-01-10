@@ -417,7 +417,7 @@ mod tests {
         assert!(argmemonly.reads_memory());
         assert!(argmemonly.writes_memory());
 
-        // conservative: may access anything
+        // may access anything
         let any = FunctionModRefBehavior::may_access_any_memory();
         assert!(!any.is_arg_mem_only());
         assert!(any.accesses_global_mem());

@@ -168,12 +168,11 @@ impl DecomposedPointer {
 
 /// Builder for decomposing pointers by walking the def chain.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PointerDecomposer<'a> {
     /// Cached decomposition results.
     cache: HashMap<mir::Value, DecomposedPointer>,
     /// Map from values to their constant integer values.
-    /// NOTE #Incomplete: used for constant folding element indices.
-    #[allow(dead_code)]
     constants: &'a HashMap<mir::Value, i64>,
     /// Map from values to their defining instructions.
     definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -276,9 +275,9 @@ impl<'a> PointerDecomposer<'a> {
             } if *destination == ptr => {
                 let mut base_decomp = self.decompose(*array);
 
-                // add variable offset with scale=1 (element size unknown without layout info)
-                // this is conservative: we can still prove NoAlias when indices are
-                // provably different constants, but we can't reason about partial overlaps
+                // NOTE: add variable offset with scale=1 (element size unknown without layout info)
+                // we can still prove NoAlias when indices are provably different constants,
+                // but we can't reason about partial overlaps (yet, #Incomplete)
                 base_decomp.add_var_offset(*index, 1);
                 base_decomp
             }

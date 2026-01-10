@@ -393,7 +393,7 @@ impl LoopAnalysis {
 }
 
 impl Analysis for LoopAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::LoopAnalysis;
+    const KIND: AnalysisKind = AnalysisKind::Loop;
 
     fn compute(
         function: &mir::Function,

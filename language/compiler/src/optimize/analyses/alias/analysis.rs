@@ -170,7 +170,7 @@ impl AliasAnalysis {
 }
 
 impl Analysis for AliasAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::AliasAnalysis;
+    const KIND: AnalysisKind = AnalysisKind::Alias;
 
     fn compute(
         function: &mir::Function,

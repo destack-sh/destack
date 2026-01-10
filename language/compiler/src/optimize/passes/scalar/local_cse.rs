@@ -93,7 +93,7 @@ fn eliminate_common_subexpressions_in_block(
     for instruction_id in instruction_ids {
         let instruction = tree.get(instruction_id);
 
-        // skip instructions with side effects (conservative: don't CSE across side effects)
+        // skip instructions with side effects (don't CSE across side effects)
         if instruction_has_side_effects(instruction) {
             continue;
         }

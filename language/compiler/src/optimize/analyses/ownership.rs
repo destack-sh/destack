@@ -419,7 +419,7 @@ impl OwnershipAnalysis {
             // collect types from instructions that have explicit types
             for &inst_id in &block.instructions {
                 let inst = tree.get(inst_id);
-                collect_instruction_types(
+                instruction_collect_types(
                     inst,
                     tree,
                     &mut value_types,
@@ -491,7 +491,7 @@ impl OwnershipAnalysis {
 }
 
 impl Analysis for OwnershipAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::OwnershipAnalysis;
+    const KIND: AnalysisKind = AnalysisKind::Ownership;
 
     fn compute(
         function: &mir::Function,
@@ -506,14 +506,14 @@ impl Analysis for OwnershipAnalysis {
 }
 
 /// Collect type information, copy values, and stack allocations from an instruction.
-fn collect_instruction_types(
-    inst: &Instruction,
+fn instruction_collect_types(
+    instruction: &Instruction,
     tree: &mir::NodeTree,
     value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
     copy_values: &mut HashSet<Value>,
     stack_allocated: &mut HashSet<Value>,
 ) {
-    match inst {
+    match instruction {
         // instructions with explicit result types
         Instruction::Cast {
             destination,

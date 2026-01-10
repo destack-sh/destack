@@ -400,7 +400,7 @@ fn arguments_for_successor(
 }
 
 impl Analysis for BorrowAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::BorrowAnalysis;
+    const KIND: AnalysisKind = AnalysisKind::Borrow;
 
     fn compute(
         function: &mir::Function,

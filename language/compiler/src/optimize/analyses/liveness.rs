@@ -270,7 +270,7 @@ fn compute_block_use_def(
 }
 
 impl Analysis for LivenessAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::LivenessAnalysis;
+    const KIND: AnalysisKind = AnalysisKind::Liveness;
 
     fn compute(
         function: &mir::Function,

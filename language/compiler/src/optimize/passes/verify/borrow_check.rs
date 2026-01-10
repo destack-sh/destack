@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
@@ -7,8 +8,9 @@ use destack_workspace::TargetId;
 use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
 use crate::optimize::{
-    AnalysisPreservation, BorrowAnalysis, BorrowMap, ControlFlowGraph, FunctionPass,
-    LivenessAnalysis, OptimizationContext, Pass, PassMetadata,
+    AliasAnalysis, AnalysisPreservation, BorrowAnalysis, BorrowMap, ControlFlowGraph, FunctionPass,
+    LifetimeAnalysis, LivenessAnalysis, MemoryLocation, OptimizationContext, Pass, PassMetadata,
+    ResolvedLifetime,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -53,9 +55,9 @@ struct ActiveBorrow {
     created_at: mir::LocalNodeId<Instruction>,
     /// Provenance chain: all values this borrow transitively borrows from.
     ///
-    /// If v3 = field.addr v2 and v2 = field.addr v0, then v3's provenance is [v2, v0].
+    /// If v3 = field.addr v2 and v2 = field.addr v0, then v3's provenance is {v2, v0}.
     /// This allows us to detect when dropping any value in the chain invalidates the borrow.
-    provenance: Vec<Value>,
+    provenance: HashSet<Value>,
 }
 
 /// Context for borrow checking a single function.
@@ -65,6 +67,10 @@ struct BorrowCheckContext<'a> {
     function: &'a mir::Function,
     /// The MIR tree.
     tree: &'a mir::NodeTree,
+    /// Alias analysis for may-alias queries.
+    alias_analysis: Arc<AliasAnalysis>,
+    /// Lifetime analysis for cross-function borrow tracking.
+    lifetime_analysis: Arc<LifetimeAnalysis>,
     /// Currently active borrows by ID.
     active_borrows: HashMap<BorrowId, ActiveBorrow>,
     /// Map from borrowed-from value to borrow IDs.
@@ -93,6 +99,8 @@ impl<'a> BorrowCheckContext<'a> {
     fn new(
         function: &'a mir::Function,
         tree: &'a mir::NodeTree,
+        alias_analysis: Arc<AliasAnalysis>,
+        lifetime_analysis: Arc<LifetimeAnalysis>,
         module_id: ModuleId,
         target_id: TargetId,
         strict_mode: bool,
@@ -100,6 +108,8 @@ impl<'a> BorrowCheckContext<'a> {
         Self {
             function,
             tree,
+            alias_analysis,
+            lifetime_analysis,
             active_borrows: HashMap::new(),
             borrows_of: HashMap::new(),
             next_borrow_id: 0,
@@ -135,8 +145,10 @@ impl<'a> BorrowCheckContext<'a> {
                 return *mutability == Mutability::Mutable;
             }
         }
-        // conservative: assume shared (immutable) if unknown
-        false
+
+        // conservative: assume mutable if type unknown
+        // this catches more potential conflicts than assuming shared
+        true
     }
 
     /// Reset borrows for a new block and seed from BorrowAnalysis.
@@ -155,14 +167,16 @@ impl<'a> BorrowCheckContext<'a> {
         // seed from BorrowAnalysis - use active_borrows which has reference info
         for (reference, origin, at) in borrow_state.active_borrows() {
             let id = self.alloc_borrow_id();
+            // derive mutability from reference type
+            let is_mutable = self.derive_mutability(reference);
             self.active_borrows.insert(
                 id,
                 ActiveBorrow {
                     reference,
                     origin: Some(origin),
-                    is_mutable: false, // conservative: could derive from type
+                    is_mutable,
                     created_at: at,
-                    provenance: Vec::new(),
+                    provenance: HashSet::new(),
                 },
             );
             self.borrows_of.entry(origin).or_default().insert(id);
@@ -179,21 +193,21 @@ impl<'a> BorrowCheckContext<'a> {
     /// Build provenance chain for a new borrow.
     ///
     /// If the origin has borrows, we include its provenance chain in ours.
-    fn build_provenance(&self, origin: Value) -> Vec<Value> {
+    fn build_provenance(&self, origin: Value) -> HashSet<Value> {
         // find any borrow where the reference is our origin
         for borrow in self.active_borrows.values() {
             if borrow.reference == origin {
                 // origin is itself a reference: inherit its provenance plus origin
-                let mut provenance = Vec::new();
+                let mut provenance = HashSet::new();
                 if let Some(parent_origin) = borrow.origin {
-                    provenance.push(parent_origin);
+                    provenance.insert(parent_origin);
                 }
                 provenance.extend(borrow.provenance.iter().copied());
                 return provenance;
             }
         }
         // origin has no provenance chain
-        Vec::new()
+        HashSet::new()
     }
 
     /// Register a new borrow.
@@ -239,7 +253,7 @@ impl<'a> BorrowCheckContext<'a> {
                 origin: None, // local borrows tracked via local_borrows map
                 is_mutable,
                 created_at: at,
-                provenance: Vec::new(),
+                provenance: HashSet::new(),
             },
         );
 
@@ -260,21 +274,6 @@ impl<'a> BorrowCheckContext<'a> {
             .get(&value)
             .into_iter()
             .flat_map(|ids| ids.iter().filter_map(|id| self.active_borrows.get(id)))
-    }
-
-    /// Get all borrows that transitively borrow from a value.
-    ///
-    /// This includes direct borrows and borrows where the value appears in provenance.
-    fn borrows_transitively_from(&self, value: Value) -> Vec<&ActiveBorrow> {
-        self.active_borrows
-            .values()
-            .filter(|borrow| borrow.origin == Some(value) || borrow.provenance.contains(&value))
-            .collect()
-    }
-
-    /// Check if a value has any active mutable borrows.
-    fn has_mutable_borrow(&self, value: Value) -> Option<&ActiveBorrow> {
-        self.borrows_of_value(value).find(|b| b.is_mutable)
     }
 
     /// Check if a value has any active borrows (mutable or immutable).
@@ -300,6 +299,13 @@ impl<'a> BorrowCheckContext<'a> {
     }
 
     /// Check creating a new borrow for conflicts.
+    ///
+    /// Uses alias analysis to detect may-alias relationships between the new
+    /// borrow's origin and existing borrow origins. This enables more precise
+    /// conflict detection:
+    /// - Two field.addr to different fields of same struct: NoAlias (no conflict)
+    /// - Two field.addr to same field: MayAlias/MustAlias (conflict if mutable)
+    /// - Unrelated allocations: NoAlias (no conflict)
     fn check_new_borrow(
         &mut self,
         new_reference: Value,
@@ -308,19 +314,35 @@ impl<'a> BorrowCheckContext<'a> {
         at: mir::LocalNodeId<Instruction>,
         context: &OptimizationContext<'_>,
     ) {
-        // check for conflicting borrows
-        let conflict = if is_mutable {
-            // mutable borrow: conflicts with any existing borrow
-            self.has_any_borrow(origin)
-                .map(|b| (b.created_at, b.is_mutable))
-        } else {
-            // shared borrow: conflicts with existing mutable borrow
-            self.has_mutable_borrow(origin)
-                .map(|b| (b.created_at, b.is_mutable))
-        };
+        let new_loc = MemoryLocation::from_ptr(origin);
+
+        // find conflicting borrows using alias analysis
+        let conflict = self.active_borrows.values().find_map(|borrow| {
+            if let Some(borrow_origin) = borrow.origin {
+                let borrow_loc = MemoryLocation::from_ptr(borrow_origin);
+
+                // check if locations may alias
+                if !self.alias_analysis.alias(&new_loc, &borrow_loc).may_alias() {
+                    return None; // no alias, no conflict
+                }
+
+                // aliasing exists - check borrow rules
+                if is_mutable {
+                    // mutable borrow conflicts with any existing borrow of same location
+                    Some((borrow.created_at, borrow.is_mutable))
+                } else if borrow.is_mutable {
+                    // shared borrow conflicts with existing mutable borrow
+                    Some((borrow.created_at, borrow.is_mutable))
+                } else {
+                    None // shared + shared is ok
+                }
+            } else {
+                None
+            }
+        });
 
         if let Some((existing_at, existing_is_mutable)) = conflict {
-            self.emit_borrow_conflict(at, existing_at, existing_is_mutable, context);
+            self.report_borrow_conflict(at, existing_at, existing_is_mutable, context);
         }
 
         // register the new borrow (with provenance tracking)
@@ -328,15 +350,19 @@ impl<'a> BorrowCheckContext<'a> {
     }
 
     /// Check mutation through reference doesn't invalidate other borrows.
+    ///
+    /// Uses alias analysis to detect may-alias relationships between the store
+    /// location and borrow origins. This catches cases where different pointers
+    /// may refer to overlapping memory.
     fn check_mutation_through_reference(
         &mut self,
         pointer: Value,
         at: mir::LocalNodeId<Instruction>,
         context: &OptimizationContext<'_>,
     ) {
+        let store_loc = MemoryLocation::from_ptr(pointer);
+
         // check if any existing borrow may be invalidated by this mutation
-        // FUGU #Broken: this is a simplified check based on direct origin equality.
-        // Full alias analysis would detect may-alias relationships.
         let invalidated: Vec<_> = self
             .active_borrows
             .values()
@@ -345,8 +371,14 @@ impl<'a> BorrowCheckContext<'a> {
                 if borrow.reference == pointer {
                     return false;
                 }
-                // if the borrow's origin is the same as the pointer, mutation may invalidate
-                borrow.origin == Some(pointer)
+
+                // check if the borrow's location may alias the store location
+                // for regular borrows, use origin; for local borrows, use reference
+                let borrow_ptr = borrow.origin.unwrap_or(borrow.reference);
+                let borrow_loc = MemoryLocation::from_ptr(borrow_ptr);
+                self.alias_analysis
+                    .alias(&store_loc, &borrow_loc)
+                    .may_alias()
             })
             .map(|b| b.created_at)
             .collect();
@@ -357,20 +389,38 @@ impl<'a> BorrowCheckContext<'a> {
     }
 
     /// Check that dropping a value doesn't drop while borrowed.
+    ///
+    /// Uses alias analysis to check if the dropped value may alias any borrow
+    /// origin. This catches cases where different pointers refer to the same
+    /// or overlapping memory.
     fn check_drop_while_borrowed(
         &mut self,
         value: Value,
         at: mir::LocalNodeId<Instruction>,
         context: &OptimizationContext<'_>,
     ) {
-        // check borrows that directly or transitively borrow from this value
-        let borrowed_borrows = self.borrows_transitively_from(value);
+        let drop_loc = MemoryLocation::from_ptr(value);
 
-        if let Some(borrow) = borrowed_borrows.first() {
-            let borrowed_at = borrow.created_at;
+        // check borrows that may alias the dropped value
+        let conflicting_borrow = self.active_borrows.values().find(|borrow| {
+            // check direct transitive borrow relationship (provenance chain)
+            if borrow.origin == Some(value) || borrow.provenance.contains(&value) {
+                return true;
+            }
+
+            // check if the borrow's location may alias the dropped value
+            // for regular borrows, use origin; for local borrows, use reference
+            let borrow_ptr = borrow.origin.unwrap_or(borrow.reference);
+            let borrow_loc = MemoryLocation::from_ptr(borrow_ptr);
+            self.alias_analysis
+                .alias(&drop_loc, &borrow_loc)
+                .may_alias()
+        });
+
+        if let Some(borrow) = conflicting_borrow {
             context.emit_error(OptimizeError::DropWhileBorrowed {
                 node: self.anchor(at),
-                borrowed_at: self.anchor(borrowed_at),
+                borrowed_at: self.anchor(borrow.created_at),
             });
             self.had_aliasing_violations = true;
             return;
@@ -398,7 +448,6 @@ impl<'a> BorrowCheckContext<'a> {
     ) {
         // check if the value being moved has active borrows
         let borrowed_at = self.has_any_borrow(value).map(|b| b.created_at);
-
         if let Some(borrowed_at) = borrowed_at {
             // moving while borrowed invalidates the borrow
             context.emit_error(OptimizeError::MoveOfBorrowedValue {
@@ -428,8 +477,61 @@ impl<'a> BorrowCheckContext<'a> {
         }
     }
 
+    /// Track borrows created by a function call based on lifetime analysis.
+    ///
+    /// When a function returns a borrowed reference (or aggregate containing references),
+    /// the returned value may borrow from some of the arguments based on the callee's
+    /// lifetime bounds.
+    fn track_call_return_borrows(
+        &mut self,
+        destination: Value,
+        callee_id: mir::LocalNodeId<mir::Function>,
+        arguments: &[Value],
+        at: mir::LocalNodeId<Instruction>,
+    ) {
+        // clone to avoid borrow conflict with self
+        let lifetime = self.lifetime_analysis.get(callee_id).clone();
+        match lifetime {
+            // no borrowed references in return: nothing to track
+            ResolvedLifetime::None => {}
+
+            // static lifetime: return borrows from global/static data, not arguments
+            ResolvedLifetime::Static => {}
+
+            // return borrows from specific parameters
+            ResolvedLifetime::Parameters(param_indices) => {
+                // determine mutability from callee's return type
+                let callee = self.tree.get(callee_id);
+                let return_ty = self.tree.get(callee.return_type);
+                let is_mutable = return_ty.is_mutable_borrowed_reference();
+
+                for param_idx in param_indices {
+                    if let Some(&arg) = arguments.get(param_idx as usize) {
+                        // returned value borrows from this argument
+                        // if argument is a reference, we inherit its provenance
+                        let provenance = self.build_provenance(arg);
+                        let id = self.alloc_borrow_id();
+
+                        self.active_borrows.insert(
+                            id,
+                            ActiveBorrow {
+                                reference: destination,
+                                origin: Some(arg),
+                                is_mutable,
+                                created_at: at,
+                                provenance,
+                            },
+                        );
+
+                        self.borrows_of.entry(arg).or_default().insert(id);
+                    }
+                }
+            }
+        }
+    }
+
     /// Emit a borrow conflict error/warning.
-    fn emit_borrow_conflict(
+    fn report_borrow_conflict(
         &mut self,
         at: mir::LocalNodeId<Instruction>,
         existing_at: mir::LocalNodeId<Instruction>,
@@ -496,12 +598,29 @@ impl FunctionPass for BorrowCheck {
             .analyses
             .get::<BorrowAnalysis>(function, tree, context);
 
+        // get alias analysis for may-alias queries
+        let alias_analysis = context
+            .analyses
+            .get::<AliasAnalysis>(function, tree, context);
+
+        // get lifetime analysis for cross-function borrow tracking
+        let lifetime_analysis = context
+            .analyses
+            .get::<LifetimeAnalysis>(function, tree, context);
+
         let module_id = context.module_id();
         let target_id = context.target_id().clone();
 
         let strict_mode = context.options.strict_borrow_mode;
-        let mut checker =
-            BorrowCheckContext::new(function, tree, module_id, target_id, strict_mode);
+        let mut checker = BorrowCheckContext::new(
+            function,
+            tree,
+            alias_analysis,
+            lifetime_analysis,
+            module_id,
+            target_id,
+            strict_mode,
+        );
 
         // register function parameter types
         for param in &function.parameters {
@@ -691,6 +810,9 @@ fn check_instruction(
             if let Some(dest) = destination {
                 let func = checker.tree.get(*function);
                 checker.register_value_type(*dest, func.return_type);
+
+                // track borrows created by the call based on callee's lifetime bounds
+                checker.track_call_return_borrows(*dest, *function, args, instruction_id);
             }
         }
 
@@ -817,6 +939,18 @@ mod tests {
     use super::*;
     use crate::OptimizeError;
     use crate::optimize::common::tests::TestProgram;
+
+    /// Set the return lifetime for a function by name.
+    fn set_function_lifetime(program: &mut TestProgram, name: &str, lifetime: mir::Lifetime) {
+        let fn_id = program
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, f)| program.get_string(f.name) == name)
+            .map(|(id, _)| id)
+            .unwrap_or_else(|| panic!("function '{name}' not found"));
+        let function = program.tree.get_mut(fn_id);
+        function.return_lifetime = lifetime;
+    }
 
     /// Simple function with no borrows passes verification.
     #[test]
@@ -1401,5 +1535,697 @@ block3:
         // (this is actually a stack escape, but borrow check sees it too)
         // The borrow flows through the loop and returns
         program.assert_no_errors(); // borrow check doesn't catch return escape (stack_check does)
+    }
+
+    /// Different allocations don't alias - borrows from separate allocations don't conflict.
+    ///
+    /// Even with mutable borrows, references to different allocations are independent
+    /// because alias analysis proves they cannot refer to the same memory.
+    #[test]
+    fn test_alias_different_allocations_no_conflict() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    v3 = iconst 2i32
+    store v0, v2
+    store v1, v3
+    v4 = field.addr v0, 0
+    v5 = field.addr v1, 0
+    v6 = load v4
+    v7 = load v5
+    v8 = iadd v6, v7
+    raw.drop v0
+    raw.drop v1
+    return v8
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // v4 borrows v0, v5 borrows v1 - different allocations don't conflict
+        program.assert_no_errors();
+    }
+
+    /// Store through one pointer doesn't invalidate borrow through unrelated pointer.
+    ///
+    /// Alias analysis proves the pointers cannot refer to overlapping memory,
+    /// so storing through one doesn't invalidate borrows of the other.
+    #[test]
+    fn test_alias_store_unrelated_pointers_no_conflict() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = iconst 99i32
+    store v1, v4
+    v5 = load v3
+    raw.drop v0
+    raw.drop v1
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+        // store to v1 doesn't invalidate borrow of v0 - different allocations
+        program.assert_no_errors();
+    }
+
+    /// Concurrent mutable borrows of different allocations are valid.
+    ///
+    /// Even in strict mode, mutable borrows to different allocations don't conflict
+    /// because alias analysis proves they refer to different memory.
+    #[test]
+    fn test_alias_concurrent_mutable_borrows_different_allocs() {
+        let input = r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> i32 {
+block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
+    v2 = field.addr v0, 0
+    v3 = field.addr v1, 0
+    v4 = iconst 42i32
+    store v2, v4
+    store v3, v4
+    v5 = load v0
+    v6 = load v1
+    v7 = iadd v5, v6
+    return v7
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // noalias params in strict mode means v0 and v1 don't alias
+        // so mutable borrows from both don't conflict
+        program.assert_no_errors();
+    }
+
+    /// Drop of unrelated allocation while another allocation is borrowed is valid.
+    ///
+    /// Alias analysis proves the dropped value doesn't alias the borrowed value's origin.
+    #[test]
+    fn test_alias_drop_unrelated_allocation_while_other_borrowed() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    raw.drop v1
+    v4 = load v3
+    raw.drop v0
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+        // dropping v1 while v0 is borrowed via v3 is fine - different allocations
+        program.assert_no_errors();
+    }
+
+    /// Global address doesn't alias stack allocation.
+    ///
+    /// Alias analysis proves globals and stack allocations are in different
+    /// address spaces.
+    #[test]
+    fn test_alias_global_vs_stack_no_conflict() {
+        let input = r#"global @g1: i32 = 42i32
+function @test() -> i32 {
+block0:
+    v0 = global.addr @g1
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = field.addr v1, 0
+    v5 = load v3
+    v6 = load v4
+    raw.drop v1
+    v7 = iadd v5, v6
+    return v7
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // global and stack allocation don't alias - no conflict
+        program.assert_no_errors();
+    }
+
+    /// Managed and raw allocations don't alias each other.
+    ///
+    /// Different allocation types in the same function are independent.
+    #[test]
+    fn test_alias_managed_vs_raw_no_conflict() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = managed.alloc i32
+    v1 = raw.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = field.addr v1, 0
+    v5 = load v3
+    v6 = load v4
+    raw.free v1
+    v7 = iadd v5, v6
+    return v7
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // managed and raw allocations don't alias - no conflict
+        program.assert_no_errors();
+    }
+
+    /// Multiple sequential allocations in same block don't alias.
+    ///
+    /// Each allocation instruction creates a fresh allocation that cannot
+    /// alias any previous allocation.
+    #[test]
+    fn test_alias_sequential_allocations_no_conflict() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = stack.alloc i32
+    v3 = iconst 1i32
+    v4 = iconst 2i32
+    v5 = iconst 3i32
+    store v0, v3
+    store v1, v4
+    store v2, v5
+    v6 = field.addr v0, 0
+    v7 = field.addr v1, 0
+    v8 = field.addr v2, 0
+    v9 = load v6
+    v10 = load v7
+    v11 = load v8
+    v12 = iadd v9, v10
+    v13 = iadd v12, v11
+    raw.drop v0
+    raw.drop v1
+    raw.drop v2
+    return v13
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // all three allocations are independent - no conflicts
+        program.assert_no_errors();
+    }
+
+    /// Same allocation, same field access - detects conflict for mutable borrows.
+    ///
+    /// When two field.addr instructions access the same allocation at the same field,
+    /// mutable borrows conflict because they may alias the same memory.
+    #[test]
+    fn test_alias_same_allocation_same_field_conflict() {
+        // in strict mode with mutable ref, same field access conflicts
+        let input_mut = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
+block0(v0: ref<borrowed mut i32>):
+    v1 = field.addr v0, 0
+    v2 = field.addr v0, 0
+    v3 = load v1
+    v4 = load v2
+    v5 = iadd v3, v4
+    return v5
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input_mut);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // v1 and v2 both borrow from v0 mutably - same allocation, same field
+        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
+    }
+
+    /// Store through aliasing pointer invalidates borrow.
+    ///
+    /// When a store may alias an existing borrow's origin, the borrow is invalidated.
+    #[test]
+    fn test_alias_store_invalidates_aliasing_borrow() {
+        let input = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
+block0(v0: ref<borrowed mut i32>):
+    v1 = field.addr v0, 0
+    v2 = iconst 99i32
+    store v0, v2
+    v3 = load v1
+    return v3
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+        // store to v0 may alias v1's origin (v0), so it invalidates the borrow
+        // this should emit an error in strict mode
+        program.assert_error(|e| matches!(e, OptimizeError::InvalidatedReference { .. }));
+    }
+
+    /// Drop of aliasing value while borrowed is detected.
+    ///
+    /// Alias analysis detects when a dropped value may alias an existing borrow origin.
+    #[test]
+    fn test_alias_drop_aliasing_value_detected() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = field.addr v0, 0
+    v3 = field.addr v0, 0
+    raw.drop v0
+    v4 = load v2
+    v5 = load v3
+    v6 = iadd v4, v5
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+        // dropping v0 while v2 and v3 borrow from it is detected
+        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Cast doesn't break alias tracking.
+    ///
+    /// Pointer casts preserve provenance for alias analysis.
+    #[test]
+    fn test_alias_cast_preserves_provenance() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = bitcast v0 -> ref<raw i32>
+    v3 = field.addr v2, 0
+    raw.drop v0
+    v4 = load v3
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+        // v3 borrows from v2 which is a cast of v0
+        // dropping v0 while v3 is live should be detected
+        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Call to function with inferred single-param lifetime tracks borrow correctly.
+    ///
+    /// When calling a function that returns a borrowed reference and has one
+    /// borrowed parameter, the return value borrows from that argument.
+    #[test]
+    fn test_track_call_borrow_from_single_param() {
+        let input = r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = field.addr v0, 0
+    v3 = call @identity(v2)
+    raw.drop v0
+    v4 = load v3
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+
+        // v3 = call @identity(v2) returns a borrow of v2 which borrows from v0
+        // dropping v0 while v3 is live should be an error
+        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Call result with static lifetime doesn't track borrow from arguments.
+    ///
+    /// When a function has explicit static lifetime, the return value doesn't
+    /// borrow from any arguments.
+    #[test]
+    fn test_track_call_static_lifetime_no_borrow() {
+        let input = r#"function @getStatic(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = field.addr v0, 0
+    v3 = call @getStatic(v2)
+    raw.drop v0
+    v4 = load v3
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        set_function_lifetime(&mut program, "getStatic", mir::Lifetime::Static);
+        program.run_pass(&BorrowCheck);
+
+        // with static lifetime, v3 doesn't borrow from v2
+        // so dropping v0 while v3 is live is okay (from borrow perspective)
+        // (the load v4 would be use-after-free, but borrow check doesn't catch that, see move-check)
+        program.assert_no_errors();
+    }
+
+    /// Call with explicit param lifetime tracks only specified params.
+    ///
+    /// When a function has explicit lifetime annotation specifying which params
+    /// the return borrows from, only those params are tracked.
+    #[test]
+    fn test_track_call_explicit_param_lifetime() {
+        let input = r#"function @pickFirst(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = field.addr v1, 0
+    v5 = call @pickFirst(v3, v4)
+    raw.drop v1
+    v6 = load v5
+    raw.drop v0
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        set_function_lifetime(&mut program, "pickFirst", mir::Lifetime::param(0));
+        program.run_pass(&BorrowCheck);
+
+        // v5 only borrows from v3 (param 0), not v4 (param 1)
+        // so dropping v1 while v5 is live is okay (v5 doesn't borrow from v4 which borrows v1)
+        program.assert_no_errors();
+    }
+
+    /// Call with conservative multi-param inference tracks all borrowed params.
+    ///
+    /// When a function has multiple borrowed params and no explicit annotation,
+    /// the return may borrow from all of them.
+    #[test]
+    fn test_track_call_conservative_multi_param() {
+        let input = r#"function @pick_any(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = field.addr v1, 0
+    v5 = call @pick_any(v3, v4)
+    raw.drop v1
+    v6 = load v5
+    raw.drop v0
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+
+        // with conservative inference, v5 may borrow from both v3 and v4
+        // dropping v1 while v5 is live is an error (v5 may borrow from v4 which borrows v1)
+        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Call returning non-borrowed type doesn't track any borrows.
+    ///
+    /// When a function returns a non-borrowed type (like i32), no borrow
+    /// tracking is needed for the call.
+    #[test]
+    fn test_track_call_no_borrow_for_value_return() {
+        let input = r#"function @deref(v0: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>):
+    v1 = load v0
+    return v1
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = field.addr v0, 0
+    v3 = call @deref(v2)
+    raw.drop v0
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+
+        // v3 is an i32, not a reference, so no borrow tracking needed
+        // dropping v0 after v2 is consumed by the call is okay
+        program.assert_no_errors();
+    }
+
+    /// Borrow expires after call return is consumed.
+    ///
+    /// The borrow from a call return expires when the returned reference
+    /// is no longer live, allowing the original value to be dropped.
+    #[test]
+    fn test_track_call_borrow_expires_after_use() {
+        let input = r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = field.addr v0, 0
+    v3 = call @identity(v2)
+    v4 = load v3
+    raw.drop v0
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BorrowCheck);
+
+        // v3 borrow expires after v4 = load v3 (v3 is dead)
+        // dropping v0 is okay
+        program.assert_no_errors();
+    }
+
+    /// Explicit multi-param lifetime tracks all specified parameters.
+    ///
+    /// When a function has explicit lifetime annotation for multiple params,
+    /// the return may borrow from any of them.
+    #[test]
+    fn test_track_call_explicit_multi_param_lifetime() {
+        let input = r#"function @pickEither(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = field.addr v1, 0
+    v5 = call @pickEither(v3, v4)
+    raw.drop v0
+    v6 = load v5
+    raw.drop v1
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // explicit lifetime: borrows from both param 0 and param 1
+        set_function_lifetime(&mut program, "pickEither", mir::Lifetime::params([0, 1]));
+        program.run_pass(&BorrowCheck);
+
+        // v5 may borrow from v3 (param 0), dropping v0 while v5 is live is an error
+        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Explicit lifetime param(1) allows dropping param 0's origin.
+    ///
+    /// When a function explicitly states return borrows from param 1,
+    /// dropping param 0's origin is safe.
+    #[test]
+    fn test_track_call_explicit_second_param_lifetime() {
+        let input = r#"function @pickSecond(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    return v1
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = field.addr v0, 0
+    v4 = field.addr v1, 0
+    v5 = call @pickSecond(v3, v4)
+    raw.drop v0
+    v6 = load v5
+    raw.drop v1
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // explicit lifetime: borrows only from param 1
+        set_function_lifetime(&mut program, "pickSecond", mir::Lifetime::param(1));
+        program.run_pass(&BorrowCheck);
+
+        // v5 borrows from v4 (param 1), not v3 (param 0)
+        // dropping v0 is okay, v1 must stay live until after v5 is used
+        program.assert_no_errors();
+    }
+
+    /// Call returning mutable borrowed reference propagates mutability.
+    ///
+    /// When a function returns ref<borrowed mut T>, the returned borrow
+    /// should be tracked as mutable and conflict with other borrows.
+    #[test]
+    fn test_track_call_mutable_return_conflicts() {
+        let input = r#"function @getMut(v0: ref<borrowed mut i32>) -> ref<borrowed mut i32> {
+block0(v0: ref<borrowed mut i32>):
+    return v0
+}
+
+function @test(v0: ref<borrowed mut i32>) -> i32 {
+block0(v0: ref<borrowed mut i32>):
+    v1 = call @getMut(v0)
+    v2 = field.addr v0, 0
+    v3 = load v1
+    v4 = load v2
+    v5 = iadd v3, v4
+    return v5
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+
+        // v1 = call @getMut(v0) returns a mutable borrow from v0
+        // v2 = field.addr v0, 0 creates another mutable borrow of v0
+        // these should conflict in strict mode
+        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
+    }
+
+    /// Call returning shared borrowed reference allows concurrent shared borrows.
+    ///
+    /// When a function returns ref<borrowed T> (shared), the returned borrow
+    /// should be tracked as shared and not conflict with other shared borrows.
+    #[test]
+    fn test_track_call_shared_return_no_conflict() {
+        let input = r#"function @getShared(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
+    return v0
+}
+
+function @test(v0: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>):
+    v1 = call @getShared(v0)
+    v2 = field.addr v0, 0
+    v3 = load v1
+    v4 = load v2
+    v5 = iadd v3, v4
+    return v5
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+
+        // v1 = call @getShared(v0) returns a shared borrow from v0
+        // v2 = field.addr v0, 0 creates another shared borrow of v0
+        // shared + shared is okay
+        program.assert_no_errors();
+    }
+
+    /// Mutable borrow from call conflicts with subsequent mutable field.addr.
+    ///
+    /// Tests that mutability is correctly propagated through the call and
+    /// detected when creating another mutable borrow.
+    #[test]
+    fn test_track_call_mutable_borrow_then_field_addr_conflict() {
+        let input = r#"function @getMutRef(v0: ref<borrowed mut i32>) -> ref<borrowed mut i32> {
+block0(v0: ref<borrowed mut i32>):
+    v1 = field.addr v0, 0
+    return v1
+}
+
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = call @getMutRef(v0)
+    v3 = field.addr v0, 0
+    v4 = load v2
+    v5 = load v3
+    v6 = iadd v4, v5
+    raw.drop v0
+    return v6
+}"#;
+
+        let mut options = crate::optimize::OptimizeOptions::default();
+        options.strict_borrow_mode = true;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(&BorrowCheck, options);
+
+        // v2 is a mutable borrow returned from call
+        // v3 = field.addr v0 creates another borrow from v0
+        // since v0 is stack.alloc (not mut ref param), the field.addr creates
+        // a mutable borrow (conservative default), so this should conflict
+        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 }
