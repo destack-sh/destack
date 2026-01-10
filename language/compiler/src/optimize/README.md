@@ -45,12 +45,12 @@ Analysis results are shared across passes until invalidated.
                               │   cfg   │
                               └────┬────┘
                                    │
-            ┌──────────┬───────────┼───────────┬───────────────┬───────────┐
-            │          │           │           │               │           │
-            ▼          ▼           ▼           ▼               ▼           ▼
-      ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌─────────────┐
-      │ domtree  │ │ postdom  │ │ liveness │ │ constant-prop │ │ ownership│ │reaching-defs│
-      └────┬─────┘ └──────────┘ └────┬─────┘ └──────────────┘ └──────────┘ └─────────────┘
+            ┌──────────┬───────────┼───────────┬───────────────┬───────────┬─────────────┬──────────┐
+            │          │           │           │               │           │             │          │
+            ▼          ▼           ▼           ▼               ▼           ▼             ▼          ▼
+      ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌─────────────┐ ┌──────────┐
+      │ domtree  │ │ postdom  │ │ liveness │ │ constant-prop │ │ ownership│ │reaching-defs│ │  range   │
+      └────┬─────┘ └──────────┘ └────┬─────┘ └──────────────┘ └──────────┘ └─────────────┘ └──────────┘
            │                         │
            ▼                         ▼
     ┌──────────┬───────────────┬──────────┐    ┌─────────┐
@@ -60,11 +60,11 @@ Analysis results are shared across passes until invalidated.
          ▼
   ┌──────────────────┐
   │ scalar-evolution │
-  └────┬────────┬────┘
-       ▼        ▼
-   ┌──────┐ ┌──────────┐
-   │range │ │dependence│
-   └──────┘ └──────────┘
+  └────┬─────────────┘
+       ▼
+   ┌──────────┐
+   │dependence│
+   └──────────┘
 
   ┌───────────┐
   │ callgraph │
@@ -89,7 +89,7 @@ Analysis results are shared across passes until invalidated.
 |----|------|-------|------|------------|-------------|
 | `cfg` | ControlFlowGraph | function | ✓ | — | Predecessors and successors for each block |
 | `domtree` | DominatorTree | function | ✓ | cfg | Dominance relationships, immediate dominators |
-| `postdomtree` | PostDominatorTree | function | | cfg | Post-dominance for control dependence analysis |
+| `postdomtree` | PostDominatorTree | function | ✓ | cfg | Post dominance for control dependence analysis |
 | `loops` | LoopAnalysis | function | ✓ | domtree | Natural loops, headers, latches, nesting depth |
 | `liveness` | LivenessAnalysis | function | ✓ | cfg | Which values are live at each program point |
 | `constant-propagation` | ConstantPropagation | function | ✓ | cfg | Constant values per block using SSA and block parameters |
@@ -103,8 +103,8 @@ Analysis results are shared across passes until invalidated.
 | `borrow` | BorrowAnalysis | function | ✓ | cfg, liveness | Active borrows across control flow |
 | `lifetime` | LifetimeAnalysis | function | ✓ | — | Lifetime bounds for borrowed returns |
 | `type-flow` | TypeFlowAnalysis | function | | domtree | Concrete types at each point (for devirtualization) |
-| `scalar-evolution` | ScalarEvolution | function | | loops | Symbolic expressions for induction variables and trip counts |
-| `range` | RangeAnalysis | function | | scalar-evolution | Integer value ranges (for bounds check elimination) |
+| `scalar-evolution` | ScalarEvolution | function | ✓ | loops | Symbolic expressions for induction variables and trip counts |
+| `range` | RangeAnalysis | function | ✓ | cfg | Numeric value ranges (for bounds check elimination) |
 | `dependence` | DependenceAnalysis | function | | scalar-evolution, alias | Memory dependence between loop iterations |
 
 ---

@@ -84,6 +84,158 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
     }
 }
 
+/// Get the arguments passed to a specific successor block from a terminator.
+pub fn terminator_arguments_for_successor(
+    terminator: &mir::Terminator,
+    successor: mir::LocalNodeId<mir::Block>,
+) -> &[mir::Value] {
+    match terminator {
+        mir::Terminator::Jump { target, arguments } if *target == successor => arguments,
+
+        mir::Terminator::Branch {
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+            ..
+        } => {
+            // then branch
+            if *then_target == successor {
+                then_arguments
+            }
+            // else branch
+            else if *else_target == successor {
+                else_arguments
+            }
+            // not a successor
+            else {
+                &[]
+            }
+        }
+
+        mir::Terminator::Switch {
+            default,
+            default_arguments,
+            cases,
+            ..
+        } => {
+            // default case
+            if *default == successor {
+                return default_arguments;
+            }
+
+            // numbered cases
+            for case in cases {
+                if case.target == successor {
+                    return &case.arguments;
+                }
+            }
+
+            &[]
+        }
+
+        mir::Terminator::Yield {
+            resume,
+            resume_arguments,
+            ..
+        } if *resume == successor => resume_arguments,
+
+        _ => &[],
+    }
+}
+
+/// Result of collecting arguments for a successor edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SuccessorArguments<'a> {
+    /// No edge to the successor was found.
+    Missing,
+    /// A single consistent argument list for all matching edges.
+    Consistent(&'a [mir::Value]),
+    /// Multiple edges to the successor disagree on arguments.
+    Conflict,
+}
+
+/// Get the arguments passed to a successor, reporting conflicts.
+pub fn terminator_arguments_for_successor_checked(
+    terminator: &mir::Terminator,
+    successor: mir::LocalNodeId<mir::Block>,
+) -> SuccessorArguments<'_> {
+    // track candidate arguments and conflicts
+    let mut candidate: Option<&[mir::Value]> = None;
+    let mut is_conflict = false;
+
+    /// Record candidate arguments or flag a conflict.
+    fn record_arguments<'a>(
+        candidate: &mut Option<&'a [mir::Value]>,
+        is_conflict: &mut bool,
+        args: &'a [mir::Value],
+    ) {
+        if let Some(existing) = *candidate {
+            if existing != args {
+                *is_conflict = true;
+            }
+        } else {
+            *candidate = Some(args);
+        }
+    }
+
+    // scan terminator edges
+    match terminator {
+        mir::Terminator::Jump { target, arguments } => {
+            if *target == successor {
+                record_arguments(&mut candidate, &mut is_conflict, arguments);
+            }
+        }
+        mir::Terminator::Branch {
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+            ..
+        } => {
+            if *then_target == successor {
+                record_arguments(&mut candidate, &mut is_conflict, then_arguments);
+            }
+            if *else_target == successor {
+                record_arguments(&mut candidate, &mut is_conflict, else_arguments);
+            }
+        }
+        mir::Terminator::Switch {
+            default,
+            default_arguments,
+            cases,
+            ..
+        } => {
+            if *default == successor {
+                record_arguments(&mut candidate, &mut is_conflict, default_arguments);
+            }
+            for case in cases {
+                if case.target == successor {
+                    record_arguments(&mut candidate, &mut is_conflict, &case.arguments);
+                }
+            }
+        }
+        mir::Terminator::Yield {
+            resume,
+            resume_arguments,
+            ..
+        } => {
+            if *resume == successor {
+                record_arguments(&mut candidate, &mut is_conflict, resume_arguments);
+            }
+        }
+        _ => {}
+    }
+
+    if is_conflict {
+        SuccessorArguments::Conflict
+    } else if let Some(args) = candidate {
+        SuccessorArguments::Consistent(args)
+    } else {
+        SuccessorArguments::Missing
+    }
+}
+
 /// Substitute values in a terminator according to the given map.
 ///
 /// Creates a new terminator with value references replaced according to the substitution map.

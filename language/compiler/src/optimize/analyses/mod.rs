@@ -8,6 +8,9 @@ mod lifetime;
 mod liveness;
 mod loop_analysis;
 mod ownership;
+mod post_dominator_tree;
+mod range;
+mod scalar_evolution;
 
 pub use alias::*;
 pub use borrow::*;
@@ -19,3 +22,6 @@ pub use lifetime::*;
 pub use liveness::*;
 pub use loop_analysis::*;
 pub use ownership::*;
+pub use post_dominator_tree::*;
+pub use range::*;
+pub use scalar_evolution::*;

@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
+use crate::optimize::common::{
+    SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
+    terminator_arguments_for_successor_checked,
+};
 use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
 
 use super::{ControlFlowGraph, Lattice};
@@ -37,6 +40,13 @@ impl ConstantMap {
     pub fn remove(&mut self, value: mir::Value) {
         self.constants.remove(&value);
     }
+
+    /// Iterate over known constants.
+    pub fn iter(&self) -> impl Iterator<Item = (mir::Value, &mir::Constant)> + '_ {
+        self.constants
+            .iter()
+            .map(|(value, constant)| (*value, constant))
+    }
 }
 
 impl Lattice for ConstantMap {
@@ -59,7 +69,7 @@ impl Lattice for ConstantMap {
 /// Constant propagation analysis.
 ///
 /// Tracks constant values at block entry and exit using a forward dataflow
-/// analysis with SSA-aware handling of block parameters.
+/// analysis with SSA aware handling of block parameters.
 #[derive(Debug)]
 pub struct ConstantPropagation {
     /// Constants available at block entry.
@@ -231,17 +241,6 @@ enum ParamState {
     Overdefined,
 }
 
-/// Argument list result for a target edge.
-#[derive(Debug)]
-enum TargetArguments {
-    /// No edge to the target was found.
-    Missing,
-    /// A single consistent argument list.
-    Consistent(Vec<mir::Value>),
-    /// Multiple edges to the target disagree on arguments.
-    Conflict,
-}
-
 /// Apply block parameter constants derived from predecessor arguments.
 fn apply_block_param_constants(
     block_id: mir::LocalNodeId<mir::Block>,
@@ -288,14 +287,17 @@ fn resolve_block_param_constants(
         };
 
         // collect arguments for this edge
-        let args = match target_arguments(&tree.get(pred).terminator, block_id) {
-            TargetArguments::Missing => continue,
-            TargetArguments::Conflict => {
+        let args = match terminator_arguments_for_successor_checked(
+            &tree.get(pred).terminator,
+            block_id,
+        ) {
+            SuccessorArguments::Missing => continue,
+            SuccessorArguments::Conflict => {
                 states.fill(ParamState::Overdefined);
                 is_seen = true;
                 continue;
             }
-            TargetArguments::Consistent(args) => args,
+            SuccessorArguments::Consistent(args) => args,
         };
 
         // mark that we saw a predecessor
@@ -337,84 +339,6 @@ fn resolve_block_param_constants(
     }
 
     constants
-}
-
-/// Find arguments passed to a block by a given terminator.
-fn target_arguments(
-    terminator: &mir::Terminator,
-    target_block: mir::LocalNodeId<mir::Block>,
-) -> TargetArguments {
-    // track candidate argument lists
-    let mut args: Option<Vec<mir::Value>> = None;
-    let mut is_conflict = false;
-
-    // record a candidate or mark conflict
-    let mut record = |candidate: &Vec<mir::Value>| {
-        if let Some(existing) = &args {
-            if existing != candidate {
-                is_conflict = true;
-            }
-        } else {
-            args = Some(candidate.clone());
-        }
-    };
-
-    // scan terminator edges
-    match terminator {
-        mir::Terminator::Jump { target, arguments } => {
-            if *target == target_block {
-                record(arguments);
-            }
-        }
-        mir::Terminator::Branch {
-            then_target,
-            then_arguments,
-            else_target,
-            else_arguments,
-            ..
-        } => {
-            if *then_target == target_block {
-                record(then_arguments);
-            }
-            if *else_target == target_block {
-                record(else_arguments);
-            }
-        }
-        mir::Terminator::Switch {
-            default,
-            default_arguments,
-            cases,
-            ..
-        } => {
-            if *default == target_block {
-                record(default_arguments);
-            }
-            for case in cases {
-                if case.target == target_block {
-                    record(&case.arguments);
-                }
-            }
-        }
-        mir::Terminator::Yield {
-            resume,
-            resume_arguments,
-            ..
-        } => {
-            if *resume == target_block {
-                record(resume_arguments);
-            }
-        }
-        _ => {}
-    }
-
-    // decide result
-    if is_conflict {
-        TargetArguments::Conflict
-    } else if let Some(args) = args {
-        TargetArguments::Consistent(args)
-    } else {
-        TargetArguments::Missing
-    }
 }
 
 /// Transfer constants through a block's instructions.

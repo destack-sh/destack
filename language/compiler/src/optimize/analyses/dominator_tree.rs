@@ -1,8 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_mir as mir;
 
+use crate::optimize::common::compute_immediate_dominators;
 use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
 
 use super::ControlFlowGraph;
@@ -22,11 +23,8 @@ pub struct DominatorTree {
 }
 
 impl DominatorTree {
-    /// Build a dominator tree using the simple iterative algorithm.
-    ///
-    /// This is O(n²) in the worst case but simple and correct.
-    /// For production, consider Semi-NCA (what LLVM/Cranelift use).
-    fn build(function: &mir::Function, _tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    /// Build a dominator tree using the Lengauer Tarjan algorithm.
+    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
         let entry = match function.entry {
             Some(entry) => entry,
             None => {
@@ -39,81 +37,37 @@ impl DominatorTree {
             }
         };
 
-        // initialize dominators: entry dominates only itself, others dominate all
-        let all_blocks: HashSet<mir::LocalNodeId<mir::Block>> =
-            function.blocks.iter().copied().collect();
-        let mut dominators: HashMap<
-            mir::LocalNodeId<mir::Block>,
-            HashSet<mir::LocalNodeId<mir::Block>>,
-        > = HashMap::new();
+        // map blocks to dense indices
+        let mut block_index = HashMap::new();
+        for (index, &block) in function.blocks.iter().enumerate() {
+            block_index.insert(block, index);
+        }
+
+        // build adjacency lists
+        let mut successors = vec![Vec::new(); function.blocks.len()];
+        let mut predecessors = vec![Vec::new(); function.blocks.len()];
 
         for &block in &function.blocks {
-            if block == entry {
-                let mut dom_set = HashSet::new();
-                dom_set.insert(entry);
-                dominators.insert(block, dom_set);
-            } else {
-                dominators.insert(block, all_blocks.clone());
+            let index = block_index[&block];
+            let block_data = tree.get(block);
+            for successor in block_data.terminator.successors() {
+                let successor_index = block_index[&successor];
+                successors[index].push(successor_index);
+            }
+
+            for predecessor in cfg.predecessors(block) {
+                let predecessor_index = block_index[predecessor];
+                predecessors[index].push(predecessor_index);
             }
         }
 
-        // iterate until fixed point
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for &block in &function.blocks {
-                if block == entry {
-                    continue;
-                }
+        let entry_index = block_index[&entry];
+        let result = compute_immediate_dominators(&successors, &predecessors, entry_index);
 
-                // dom(block) = {block} ∪ (∩ dom(pred) for pred in predecessors)
-                let preds = cfg.predecessors(block);
-                if preds.is_empty() {
-                    continue;
-                }
-
-                let mut new_dom: HashSet<mir::LocalNodeId<mir::Block>> =
-                    dominators.get(&preds[0]).cloned().unwrap_or_default();
-
-                for &pred in &preds[1..] {
-                    if let Some(pred_dom) = dominators.get(&pred) {
-                        new_dom = new_dom.intersection(pred_dom).copied().collect();
-                    }
-                }
-                new_dom.insert(block);
-
-                if new_dom != *dominators.get(&block).unwrap() {
-                    dominators.insert(block, new_dom);
-                    changed = true;
-                }
-            }
-        }
-
-        // compute immediate dominators from dominator sets
         let mut immediate_dominators = HashMap::new();
-        for &block in &function.blocks {
-            if block == entry {
-                continue;
-            }
-
-            let dom_set = dominators.get(&block).unwrap();
-
-            // idom is the dominator closest to block (has largest dominator set minus block)
-            let mut idom = None;
-            let mut idom_size = 0;
-
-            for &candidate in dom_set {
-                if candidate == block {
-                    continue;
-                }
-                let candidate_dom = dominators.get(&candidate).unwrap();
-                if candidate_dom.len() > idom_size {
-                    idom = Some(candidate);
-                    idom_size = candidate_dom.len();
-                }
-            }
-
-            if let Some(idom_block) = idom {
+        for (&block, &index) in &block_index {
+            if let Some(idom_index) = result.immediate_dominators[index] {
+                let idom_block = function.blocks[idom_index];
                 immediate_dominators.insert(block, idom_block);
             }
         }
@@ -337,6 +291,37 @@ block3:
 
         // block3's immediate dominator is block0
         assert_eq!(domtree.immediate_dominator(block3), Some(block0));
+    }
+
+    #[test]
+    fn test_domtree_unreachable_block() {
+        // unreachable block3 should have no immediate dominator
+        let program = TestProgram::new(
+            r#"function @unreachable_block(v0: bool) -> void {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    return
+block2:
+    return
+block3:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+
+        let context = program.context();
+        let domtree = context
+            .analyses
+            .get::<DominatorTree>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block3 = function.blocks[3];
+
+        assert_eq!(domtree.immediate_dominator(block3), None);
+        assert!(!domtree.dominates(block0, block3));
     }
 
     #[test]

@@ -9,7 +9,7 @@ use super::context::OptimizationContext;
 
 /// Known analysis kinds.
 ///
-/// This is a closed enum - only the compiler can define new analysis types.
+/// This is a closed enum: only the compiler can define new analysis types.
 /// Used for invalidation tracking in AnalysisPreservation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AnalysisKind {
@@ -17,6 +17,8 @@ pub enum AnalysisKind {
     ControlFlowGraph,
     /// Dominator tree.
     DominatorTree,
+    /// Postdominator tree.
+    PostDominatorTree,
     /// Natural loop analysis.
     Loop,
     /// Constant propagation analysis.
@@ -31,6 +33,10 @@ pub enum AnalysisKind {
     Lifetime,
     /// Borrow analysis (active borrows tracking).
     Borrow,
+    /// Scalar evolution analysis (induction variables).
+    ScalarEvolution,
+    /// Range analysis for integer values.
+    Range,
 }
 
 /// A computed analysis over MIR.

@@ -9,6 +9,7 @@ pub fn constant_is_zero(constant: Option<&Constant>) -> bool {
         constant,
         Some(Constant::Int { value: 0, .. })
             | Some(Constant::UInt { value: 0, .. })
+            | Some(Constant::Float { bits: 0, .. })
             | Some(Constant::Boolean { value: false })
     )
 }
@@ -78,6 +79,32 @@ pub fn constant_zero_like(template: &Constant) -> Constant {
             width: 32,
             is_signed: true,
         },
+    }
+}
+
+/// Build a zero constant for a scalar type.
+pub fn constant_zero_for_type(ty: &Type) -> Option<Constant> {
+    match ty {
+        Type::Int { width, signed } => {
+            if *signed {
+                Some(Constant::Int {
+                    value: 0,
+                    width: *width as u8,
+                    is_signed: true,
+                })
+            } else {
+                Some(Constant::UInt {
+                    value: 0,
+                    width: *width as u8,
+                })
+            }
+        }
+        Type::Float { width } => Some(Constant::Float {
+            bits: 0,
+            width: *width as u8,
+        }),
+        Type::Boolean => Some(Constant::Boolean { value: false }),
+        _ => None,
     }
 }
 
