@@ -203,6 +203,20 @@ impl<'a> MoveCheckContext<'a> {
             mir::Terminator::Branch { condition, .. } => {
                 self.check_use(state, *condition, None, block_id, context);
             }
+            mir::Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                self.check_use(state, *condition, None, block_id, context);
+                for &value in constraint.uses().iter() {
+                    self.check_use(state, value, None, block_id, context);
+                }
+                for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
             mir::Terminator::Switch { value, .. } => {
                 self.check_use(state, *value, None, block_id, context);
             }

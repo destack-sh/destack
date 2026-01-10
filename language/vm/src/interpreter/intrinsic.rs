@@ -135,7 +135,6 @@ impl Interpreter {
             mir::Intrinsic::Unreachable => Err(self.make_error(Error::Unreachable)),
             mir::Intrinsic::Breakpoint => Ok(Value::VOID),
             mir::Intrinsic::Abort => Err(self.make_error(Error::Abort)),
-            mir::Intrinsic::Assume => Ok(Value::VOID),
 
             // reflection (should be resolved at compile time)
             mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self

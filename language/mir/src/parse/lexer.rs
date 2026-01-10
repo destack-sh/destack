@@ -155,6 +155,7 @@ impl<'a> Lexer<'a> {
             "return" => TokenType::Return,
             "jump" => TokenType::Jump,
             "branch" => TokenType::Branch,
+            "check" => TokenType::Check,
             "switch" => TokenType::Switch,
             "unreachable" => TokenType::Unreachable,
             "tailcall" => TokenType::TailCall,

@@ -329,6 +329,13 @@ pub enum Instruction {
         value: Value,
     },
 
+    // assumptions and hints
+    /// Assume a condition is true (UB if false).
+    Assume {
+        /// The condition to assume.
+        condition: Value,
+    },
+
     // intrinsics
     /// Call a compiler intrinsic.
     ///
@@ -385,6 +392,7 @@ impl Instruction {
             Instruction::RawDrop { .. } => None,
             Instruction::StackAlloc { destination, .. } => Some(*destination),
             Instruction::StackDrop { .. } => None,
+            Instruction::Assume { .. } => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
     }
@@ -437,6 +445,7 @@ impl Instruction {
             Instruction::RawDrop { value } => smallvec![*value],
             Instruction::StackAlloc { .. } => smallvec![],
             Instruction::StackDrop { value } => smallvec![*value],
+            Instruction::Assume { condition } => smallvec![*condition],
             // Arguments stored externally - return empty
             Instruction::Intrinsic { .. } => smallvec![],
         }

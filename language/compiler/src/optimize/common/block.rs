@@ -21,6 +21,17 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
                 || then_arguments.contains(&value)
                 || else_arguments.contains(&value)
         }
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            *condition == value
+                || constraint.uses().contains(&value)
+                || success.arguments.contains(&value)
+                || failure.arguments.contains(&value)
+        }
         mir::Terminator::Switch {
             value: v,
             cases,
@@ -61,6 +72,18 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             let mut values = vec![*condition];
             values.extend(then_arguments.iter().copied());
             values.extend(else_arguments.iter().copied());
+            values
+        }
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let mut values = vec![*condition];
+            values.extend(constraint.uses().iter().copied());
+            values.extend(success.arguments.iter().copied());
+            values.extend(failure.arguments.iter().copied());
             values
         }
         mir::Terminator::Switch {
@@ -119,6 +142,17 @@ pub fn terminator_arguments_for_successor(
             }
             // not a successor
             else {
+                &[]
+            }
+        }
+        mir::Terminator::Check {
+            success, failure, ..
+        } => {
+            if success.target == successor {
+                &success.arguments
+            } else if failure.target == successor {
+                &failure.arguments
+            } else {
                 &[]
             }
         }
@@ -210,6 +244,16 @@ pub fn terminator_arguments_for_successor_checked(
                 record_arguments(&mut candidate, &mut is_conflict, else_arguments);
             }
         }
+        mir::Terminator::Check {
+            success, failure, ..
+        } => {
+            if success.target == successor {
+                record_arguments(&mut candidate, &mut is_conflict, &success.arguments);
+            }
+            if failure.target == successor {
+                record_arguments(&mut candidate, &mut is_conflict, &failure.arguments);
+            }
+        }
         mir::Terminator::Switch {
             default,
             default_arguments,
@@ -281,6 +325,78 @@ pub fn terminator_substitute_uses(
             else_target: *else_target,
             else_arguments: else_arguments.iter().map(&substitute).collect(),
         },
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let constraint = match constraint {
+                mir::CheckConsstraint::Bounds {
+                    index,
+                    length,
+                    collection,
+                    is_signed,
+                } => mir::CheckConsstraint::Bounds {
+                    index: substitute(index),
+                    length: substitute(length),
+                    collection: substitute(collection),
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+                    value: substitute(value),
+                },
+                mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+                    divisor: substitute(divisor),
+                },
+                mir::CheckConsstraint::ShiftRange {
+                    value,
+                    bit_width,
+                    is_signed,
+                } => mir::CheckConsstraint::ShiftRange {
+                    value: substitute(value),
+                    bit_width: *bit_width,
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Narrow {
+                    value,
+                    to_width,
+                    is_signed,
+                } => mir::CheckConsstraint::Narrow {
+                    value: substitute(value),
+                    to_width: *to_width,
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Overflow {
+                    operator,
+                    left,
+                    right,
+                    is_signed,
+                } => mir::CheckConsstraint::Overflow {
+                    operator: *operator,
+                    left: substitute(left),
+                    right: substitute(right),
+                    is_signed: *is_signed,
+                },
+            };
+
+            let success = mir::CheckTarget {
+                target: success.target,
+                arguments: success.arguments.iter().map(&substitute).collect(),
+            };
+
+            let failure = mir::CheckTarget {
+                target: failure.target,
+                arguments: failure.arguments.iter().map(&substitute).collect(),
+            };
+
+            mir::Terminator::Check {
+                condition: substitute(condition),
+                constraint: constraint.clone(),
+                success,
+                failure,
+            }
+        }
         mir::Terminator::Switch {
             value,
             default,

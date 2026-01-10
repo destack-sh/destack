@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use destack_base::StringPool;
@@ -11,10 +12,11 @@ use super::analysis::{AnalysisPreservation, FunctionAnalyses, ModuleAnalyses};
 use super::context::DiagnosticEmitter;
 use super::pass::OptimizationLevel;
 use crate::optimize::passes::{
-    BorrowCheck, ConstantFold, CopyPropagate, DeadCodeEliminate, DeadStoreEliminate, DropInsert,
-    GlobalValueNumbering, InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopDelete,
-    LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, MoveCheck, SimplifyCfg, Sink,
-    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
+    BorrowCheck, BoundsCheckEliminate, ConstantFold, CopyPropagate, DeadCodeEliminate,
+    DeadStoreEliminate, DropInsert, GlobalValueNumbering, InstructionCombine, Licm,
+    LoadStoreForward, LocalCse, LoopDelete, LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg,
+    MoveCheck, SimplifyCfg, Sink, SparseConditionalConstantPropagation, Sroa, StackCheck,
+    TailCallElim,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -32,12 +34,15 @@ pub struct PipelineContext<'a> {
     module_id: ModuleId,
     /// The target being optimized.
     target_id: TargetId,
+    /// Optional profile-guided optimization data.
+    profile: Option<Arc<mir::ProfileTable>>,
 
     /// Accumulated errors from verification passes.
     errors: Mutex<Vec<OptimizeError>>,
     /// Accumulated warnings from verification passes.
     warnings: Mutex<Vec<OptimizeWarning>>,
     /// Whether all verification passed with no aliasing violations.
+    /// NOTE #Architecture: is PipelineContext.is_strict_safe too strict/narrow?
     is_strict_safe: AtomicBool,
 }
 
@@ -48,6 +53,7 @@ impl std::fmt::Debug for PipelineContext<'_> {
             .field("options", &self.options)
             .field("module_id", &self.module_id)
             .field("target_id", &self.target_id)
+            .field("has_profile", &self.profile.is_some())
             .field("errors", &self.errors.lock().len())
             .field("warnings", &self.warnings.lock().len())
             .field(
@@ -83,12 +89,14 @@ impl<'a> PipelineContext<'a> {
         options: PipelineOptions,
         module_id: ModuleId,
         target_id: TargetId,
+        profile: Option<Arc<mir::ProfileTable>>,
     ) -> Self {
         Self {
             strings,
             options,
             module_id,
             target_id,
+            profile,
             errors: Mutex::new(Vec::new()),
             warnings: Mutex::new(Vec::new()),
             is_strict_safe: AtomicBool::new(true),
@@ -103,6 +111,16 @@ impl<'a> PipelineContext<'a> {
     /// Get the target id.
     pub fn target_id(&self) -> &TargetId {
         &self.target_id
+    }
+
+    /// Get profile data if available.
+    pub fn profile(&self) -> Option<&mir::ProfileTable> {
+        self.profile.as_deref()
+    }
+
+    /// Return true when profile data is available.
+    pub fn has_profile(&self) -> bool {
+        self.profile.is_some()
     }
 
     /// Create module-level analyses for a tree.
@@ -612,6 +630,10 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     passes
 }
 
+fn optimize_types() -> Vec<Box<dyn FunctionPass>> {
+    vec![Box::new(BoundsCheckEliminate)]
+}
+
 fn cleanup() -> Vec<Box<dyn FunctionPass>> {
     vec![Box::new(SimplifyCfg), Box::new(DeadCodeEliminate)]
 }
@@ -657,6 +679,8 @@ fn o2_pipeline() -> CompositePipeline {
         // loop optimization
         .function_passes(optimize_loops(false))
         .function_passes(simplify())
+        // type optimization
+        .function_passes(optimize_types())
         // late scalar
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
@@ -688,6 +712,8 @@ fn o3_pipeline() -> CompositePipeline {
         // loop optimization (aggressive)
         .function_passes(optimize_loops(true))
         .function_passes(simplify())
+        // type optimization
+        .function_passes(optimize_types())
         // late scalar
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])

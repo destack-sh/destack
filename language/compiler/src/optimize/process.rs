@@ -55,6 +55,7 @@ impl Compiler {
         let mir = module_guard.mir(target);
         let mut tree = mir.tree.write();
         let strings = mir.strings.clone();
+        let profile = mir.profile.clone();
 
         // get options from dsconfig
         let strict_borrow_mode = self
@@ -71,7 +72,7 @@ impl Compiler {
         let before = count_mir_size(&tree);
 
         // create pipeline context
-        let mut context = PipelineContext::new(&strings, options, module, target.clone());
+        let mut context = PipelineContext::new(&strings, options, module, target.clone(), profile);
 
         // run the pipeline on all functions (includes verification passes)
         pipeline.run(&mut tree, &mut context);

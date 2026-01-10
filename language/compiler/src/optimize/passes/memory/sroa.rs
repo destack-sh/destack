@@ -570,6 +570,11 @@ fn substitute_in_instruction(
                 *value = new;
             }
         }
+        mir::Instruction::Assume { condition } => {
+            if let Some(&new) = substitutions.get(condition) {
+                *condition = new;
+            }
+        }
 
         // instructions without value operands or with external arguments
         mir::Instruction::Const { .. }

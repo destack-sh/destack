@@ -564,6 +564,87 @@ fn update_terminator_arguments(
                 else_arguments: new_else_args,
             }
         }
+        Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let new_success_args = extend_arguments(
+                success.target,
+                &success.arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            );
+            let new_failure_args = extend_arguments(
+                failure.target,
+                &failure.arguments,
+                block_params,
+                value_stacks,
+                substitutions,
+            );
+            let constraint = match constraint {
+                mir::CheckConsstraint::Bounds {
+                    index,
+                    length,
+                    collection,
+                    is_signed,
+                } => mir::CheckConsstraint::Bounds {
+                    index: resolve_value(*index, substitutions),
+                    length: resolve_value(*length, substitutions),
+                    collection: resolve_value(*collection, substitutions),
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+                    value: resolve_value(*value, substitutions),
+                },
+                mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+                    divisor: resolve_value(*divisor, substitutions),
+                },
+                mir::CheckConsstraint::ShiftRange {
+                    value,
+                    bit_width,
+                    is_signed,
+                } => mir::CheckConsstraint::ShiftRange {
+                    value: resolve_value(*value, substitutions),
+                    bit_width: *bit_width,
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Narrow {
+                    value,
+                    to_width,
+                    is_signed,
+                } => mir::CheckConsstraint::Narrow {
+                    value: resolve_value(*value, substitutions),
+                    to_width: *to_width,
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Overflow {
+                    operator,
+                    left,
+                    right,
+                    is_signed,
+                } => mir::CheckConsstraint::Overflow {
+                    operator: *operator,
+                    left: resolve_value(*left, substitutions),
+                    right: resolve_value(*right, substitutions),
+                    is_signed: *is_signed,
+                },
+            };
+            Terminator::Check {
+                condition: resolve_value(*condition, substitutions),
+                constraint,
+                success: mir::CheckTarget {
+                    target: success.target,
+                    arguments: new_success_args,
+                },
+                failure: mir::CheckTarget {
+                    target: failure.target,
+                    arguments: new_failure_args,
+                },
+            }
+        }
         Terminator::Switch {
             value,
             default,
@@ -752,6 +833,9 @@ fn substitute_instruction_uses(
         Instruction::StackDrop { value } => Instruction::StackDrop {
             value: resolve_value(*value, substitutions),
         },
+        Instruction::Assume { condition } => Instruction::Assume {
+            condition: resolve_value(*condition, substitutions),
+        },
         Instruction::FieldGet {
             destination,
             aggregate,
@@ -871,6 +955,81 @@ fn substitute_terminator_uses(
                 .map(|&v| resolve_value(v, substitutions))
                 .collect(),
         },
+        Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let constraint = match constraint {
+                mir::CheckConsstraint::Bounds {
+                    index,
+                    length,
+                    collection,
+                    is_signed,
+                } => mir::CheckConsstraint::Bounds {
+                    index: resolve_value(*index, substitutions),
+                    length: resolve_value(*length, substitutions),
+                    collection: resolve_value(*collection, substitutions),
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+                    value: resolve_value(*value, substitutions),
+                },
+                mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+                    divisor: resolve_value(*divisor, substitutions),
+                },
+                mir::CheckConsstraint::ShiftRange {
+                    value,
+                    bit_width,
+                    is_signed,
+                } => mir::CheckConsstraint::ShiftRange {
+                    value: resolve_value(*value, substitutions),
+                    bit_width: *bit_width,
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Narrow {
+                    value,
+                    to_width,
+                    is_signed,
+                } => mir::CheckConsstraint::Narrow {
+                    value: resolve_value(*value, substitutions),
+                    to_width: *to_width,
+                    is_signed: *is_signed,
+                },
+                mir::CheckConsstraint::Overflow {
+                    operator,
+                    left,
+                    right,
+                    is_signed,
+                } => mir::CheckConsstraint::Overflow {
+                    operator: *operator,
+                    left: resolve_value(*left, substitutions),
+                    right: resolve_value(*right, substitutions),
+                    is_signed: *is_signed,
+                },
+            };
+            Terminator::Check {
+                condition: resolve_value(*condition, substitutions),
+                constraint,
+                success: mir::CheckTarget {
+                    target: success.target,
+                    arguments: success
+                        .arguments
+                        .iter()
+                        .map(|&v| resolve_value(v, substitutions))
+                        .collect(),
+                },
+                failure: mir::CheckTarget {
+                    target: failure.target,
+                    arguments: failure
+                        .arguments
+                        .iter()
+                        .map(|&v| resolve_value(v, substitutions))
+                        .collect(),
+                },
+            }
+        }
         Terminator::Switch {
             value,
             default,

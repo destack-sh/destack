@@ -489,6 +489,15 @@ fn find_unreachable_stores(
                     }
                 }
             }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
+                    if stack_allocs.contains_key(&arg) {
+                        escaping.insert(arg);
+                    }
+                }
+            }
             mir::Terminator::Switch {
                 cases,
                 default_arguments,

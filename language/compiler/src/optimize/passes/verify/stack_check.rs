@@ -237,6 +237,19 @@ impl StackPointerMap {
                     self.propagate(*arg, param.value);
                 }
             }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                let success_block = tree.get(success.target);
+                for (arg, param) in success.arguments.iter().zip(&success_block.parameters) {
+                    self.propagate(*arg, param.value);
+                }
+
+                let failure_block = tree.get(failure.target);
+                for (arg, param) in failure.arguments.iter().zip(&failure_block.parameters) {
+                    self.propagate(*arg, param.value);
+                }
+            }
             _ => {}
         }
     }
@@ -316,7 +329,9 @@ impl StackPointerMap {
             }
 
             // passing stack pointers to block params is fine (same function, stack frame alive)
-            mir::Terminator::Jump { .. } | mir::Terminator::Branch { .. } => {}
+            mir::Terminator::Jump { .. }
+            | mir::Terminator::Branch { .. }
+            | mir::Terminator::Check { .. } => {}
 
             // yielding a stack pointer = escape (coroutine could be resumed after stack frame gone)
             mir::Terminator::Yield { value, .. } => {

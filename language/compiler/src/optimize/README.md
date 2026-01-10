@@ -254,8 +254,3 @@ Target pipelines evolve with new analyses, but the expected layering is:
 
 Module passes run first, then function passes run on each function.
 Pipelines may iterate passes until a fixed point when profitable.
-
-## Future Work
-
-We expect to add interprocedural and type-driven passes as the module-level analyses mature.
-Profile-guided optimization will plug into this pipeline once runtime instrumentation lands.

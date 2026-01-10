@@ -414,6 +414,29 @@ fn remap_terminator_blocks(
             else_target: block_map.get(else_target).copied().unwrap_or(*else_target),
             else_arguments: else_arguments.clone(),
         },
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => mir::Terminator::Check {
+            condition: *condition,
+            constraint: constraint.clone(),
+            success: mir::CheckTarget {
+                target: block_map
+                    .get(&success.target)
+                    .copied()
+                    .unwrap_or(success.target),
+                arguments: success.arguments.clone(),
+            },
+            failure: mir::CheckTarget {
+                target: block_map
+                    .get(&failure.target)
+                    .copied()
+                    .unwrap_or(failure.target),
+                arguments: failure.arguments.clone(),
+            },
+        },
         mir::Terminator::Switch {
             value,
             default,

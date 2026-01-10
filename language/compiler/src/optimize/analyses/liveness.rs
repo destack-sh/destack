@@ -86,6 +86,16 @@ impl LivenessAnalysis {
                             new_live_out.insert(arg);
                         }
                     }
+                    mir::Terminator::Check {
+                        success, failure, ..
+                    } => {
+                        for &arg in &success.arguments {
+                            new_live_out.insert(arg);
+                        }
+                        for &arg in &failure.arguments {
+                            new_live_out.insert(arg);
+                        }
+                    }
                     mir::Terminator::Switch {
                         cases,
                         default_arguments,

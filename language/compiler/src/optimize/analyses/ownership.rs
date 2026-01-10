@@ -381,6 +381,7 @@ impl OwnershipAnalysis {
                 }
             }
             mir::Terminator::Branch { .. }
+            | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
             | mir::Terminator::Unreachable => {}
             mir::Terminator::TailCall { arguments, .. } => {
@@ -834,6 +835,9 @@ fn process_instruction(
             }
         }
 
+        // assume has no ownership effects
+        Instruction::Assume { .. } => {}
+
         // instructions that produce new values (all mark destination as owned)
         Instruction::Binary { destination, .. }
         | Instruction::Unary { destination, .. }
@@ -890,6 +894,7 @@ fn process_terminator(
             }
         }
         mir::Terminator::Branch { .. }
+        | mir::Terminator::Check { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall { arguments, .. } => {

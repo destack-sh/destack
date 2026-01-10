@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_base::StringPool;
 use destack_mir::{self as mir};
 use destack_source::{ModuleId, ModuleVersion};
@@ -19,6 +21,8 @@ pub struct ModuleMir {
     pub tree: RwLock<mir::NodeTree>,
     /// The string pool of the Module's MIR stuff.
     pub strings: StringPool,
+    /// Profile-guided optimization data for this module and target.
+    pub profile: Option<Arc<mir::ProfileTable>>,
 }
 
 impl ModuleMir {
@@ -31,6 +35,22 @@ impl ModuleMir {
             target,
             tree: RwLock::new(mir::NodeTree::new()),
             strings: StringPool::new(),
+            profile: None,
         }
+    }
+
+    /// Get the profile data, if any.
+    pub fn profile(&self) -> Option<&mir::ProfileTable> {
+        self.profile.as_deref()
+    }
+
+    /// Replace the profile data.
+    pub fn set_profile(&mut self, profile: mir::ProfileTable) {
+        self.profile = Some(Arc::new(profile));
+    }
+
+    /// Clear any profile data.
+    pub fn clear_profile(&mut self) {
+        self.profile = None;
     }
 }

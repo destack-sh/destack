@@ -363,6 +363,40 @@ fn redirect_terminator(
                 None
             }
         }
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let redirect_success = success.target == old_target;
+            let redirect_failure = failure.target == old_target;
+
+            if redirect_success || redirect_failure {
+                Some(mir::Terminator::Check {
+                    condition: *condition,
+                    constraint: constraint.clone(),
+                    success: mir::CheckTarget {
+                        target: if redirect_success {
+                            new_target
+                        } else {
+                            success.target
+                        },
+                        arguments: success.arguments.clone(),
+                    },
+                    failure: mir::CheckTarget {
+                        target: if redirect_failure {
+                            new_target
+                        } else {
+                            failure.target
+                        },
+                        arguments: failure.arguments.clone(),
+                    },
+                })
+            } else {
+                None
+            }
+        }
 
         mir::Terminator::Switch {
             value,

@@ -106,6 +106,18 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
                     .unwrap()
                     .push((block_id, else_arguments.clone()));
             }
+            Terminator::Check {
+                success, failure, ..
+            } => {
+                predecessors
+                    .get_mut(&success.target)
+                    .unwrap()
+                    .push((block_id, success.arguments.clone()));
+                predecessors
+                    .get_mut(&failure.target)
+                    .unwrap()
+                    .push((block_id, failure.arguments.clone()));
+            }
             Terminator::Switch {
                 default,
                 default_arguments,
@@ -296,6 +308,39 @@ fn remove_arguments_at_indices(
                     then_arguments: new_then_args,
                     else_target: *else_target,
                     else_arguments: new_else_args,
+                }
+            } else {
+                terminator.clone()
+            }
+        }
+        Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let new_success_args = if let Some(indices) = removed_indices.get(&success.target) {
+                filter_indices(&success.arguments, indices)
+            } else {
+                success.arguments.clone()
+            };
+            let new_failure_args = if let Some(indices) = removed_indices.get(&failure.target) {
+                filter_indices(&failure.arguments, indices)
+            } else {
+                failure.arguments.clone()
+            };
+            if new_success_args != success.arguments || new_failure_args != failure.arguments {
+                Terminator::Check {
+                    condition: *condition,
+                    constraint: constraint.clone(),
+                    success: mir::CheckTarget {
+                        target: success.target,
+                        arguments: new_success_args,
+                    },
+                    failure: mir::CheckTarget {
+                        target: failure.target,
+                        arguments: new_failure_args,
+                    },
                 }
             } else {
                 terminator.clone()
