@@ -3,9 +3,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
-use crate::optimize::{
-    AnalysisKind, AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Fold constant expressions at compile time.
@@ -36,181 +34,195 @@ declare_pass! {
     "Fold constant expressions"
 }
 
-impl Pass for ConstantFold {
-    fn metadata(&self) -> &'static PassMetadata {
-        ConstantFold::metadata()
-    }
-}
-
 impl FunctionPass for ConstantFold {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // setup constant propagation state
-        let constants = context
-            .analyses
-            .get::<ConstantPropagation>(function, tree, context);
-        let mut changed = false;
+        // get constant propagation analysis
+        let constants = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            analyses.get::<ConstantPropagation>().clone()
+        };
 
-        // fold instructions with local constants
-        for &block_id in &function.blocks {
-            // seed constants for this block
-            let mut block_constants = constants.entry(block_id).clone();
-            let block = tree.get(block_id);
-            let instruction_ids: Vec<_> = block.instructions.clone();
-
-            // walk instructions in order
-            for instruction_id in instruction_ids {
-                let instruction = tree.get(instruction_id);
-                let destination = instruction.destination();
-
-                // fold instruction when possible
-                match instruction {
-                    mir::Instruction::Const { destination, value } => {
-                        block_constants.insert(*destination, value.clone());
-                    }
-
-                    mir::Instruction::GlobalConst {
-                        destination,
-                        global,
-                    } => {
-                        // fold immutable scalar globals
-                        if let Some(constant) = constant_from_global(*global, tree) {
-                            block_constants.insert(*destination, constant.clone());
-                            let new_instruction = mir::Instruction::Const {
-                                destination: *destination,
-                                value: constant,
-                            };
-                            tree.replace(instruction_id, new_instruction);
-                            changed = true;
-                        } else {
-                            block_constants.remove(*destination);
-                        }
-                    }
-
-                    mir::Instruction::Binary {
-                        destination,
-                        operator,
-                        left,
-                        right,
-                    } => {
-                        // fold binary ops with constant operands
-                        let left_const = block_constants.get(*left);
-                        let right_const = block_constants.get(*right);
-
-                        if let (Some(left_val), Some(right_val)) = (left_const, right_const)
-                            && let Some(result) =
-                                fold_binary(*operator, left_val.clone(), right_val.clone())
-                        {
-                            let dest = *destination;
-                            let new_instruction = mir::Instruction::Const {
-                                destination: dest,
-                                value: result.clone(),
-                            };
-                            tree.replace(instruction_id, new_instruction);
-                            block_constants.insert(dest, result);
-                            changed = true;
-                        } else {
-                            block_constants.remove(*destination);
-                        }
-                    }
-
-                    mir::Instruction::Unary {
-                        destination,
-                        operator,
-                        argument,
-                    } => {
-                        // fold unary ops with constant operands
-                        if let Some(arg_const) = block_constants.get(*argument)
-                            && let Some(result) = fold_unary(*operator, arg_const.clone())
-                        {
-                            let dest = *destination;
-                            let new_instruction = mir::Instruction::Const {
-                                destination: dest,
-                                value: result.clone(),
-                            };
-                            tree.replace(instruction_id, new_instruction);
-                            block_constants.insert(dest, result);
-                            changed = true;
-                        } else {
-                            block_constants.remove(*destination);
-                        }
-                    }
-
-                    mir::Instruction::Select {
-                        destination,
-                        condition,
-                        then_value,
-                        else_value,
-                    } => {
-                        // fold select with constant condition
-                        if let Some(mir::Constant::Boolean { value: cond_val }) =
-                            block_constants.get(*condition)
-                        {
-                            let selected = if *cond_val { *then_value } else { *else_value };
-
-                            // if selected value is constant, fold to constant
-                            if let Some(result) = block_constants.get(selected) {
-                                let dest = *destination;
-                                let new_instruction = mir::Instruction::Const {
-                                    destination: dest,
-                                    value: result.clone(),
-                                };
-                                tree.replace(instruction_id, new_instruction);
-                                block_constants.insert(dest, result.clone());
-                                changed = true;
-                            } else {
-                                // condition is constant but selected value isn't
-                                // we could replace with a copy, but let copy_propagate handle it
-                                block_constants.remove(*destination);
-                            }
-                        } else {
-                            block_constants.remove(*destination);
-                        }
-                    }
-                    mir::Instruction::Cast {
-                        destination,
-                        operator,
-                        argument,
-                        to_type,
-                    } => {
-                        // fold casts with constant operands
-                        if let Some(arg_const) = block_constants.get(*argument)
-                            && let Some(result) =
-                                fold_cast(*operator, arg_const.clone(), *to_type, tree)
-                        {
-                            let dest = *destination;
-                            let new_instruction = mir::Instruction::Const {
-                                destination: dest,
-                                value: result.clone(),
-                            };
-                            tree.replace(instruction_id, new_instruction);
-                            block_constants.insert(dest, result);
-                            changed = true;
-                        } else {
-                            block_constants.remove(*destination);
-                        }
-                    }
-                    _ => {
-                        // clear destinations for unknown instructions
-                        if let Some(dest) = destination {
-                            block_constants.remove(dest);
-                        }
-                    }
-                }
-            }
-        }
-
-        // constant folding doesn't change the CFG, only instruction contents
+        // run constant folding
+        let changed = run_constant_fold(function, tree, &constants);
         if changed {
-            AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
+            AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "ConstantFold"
+    }
+
+    fn id(&self) -> &'static str {
+        "constant-fold"
+    }
+}
+
+/// Core constant folding logic. Returns true if changes were made.
+fn run_constant_fold(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    constants: &ConstantPropagation,
+) -> bool {
+    let mut changed = false;
+
+    // fold instructions with local constants
+    for &block_id in &function.blocks {
+        // seed constants for this block
+        let mut block_constants = constants.entry(block_id).clone();
+        let block = tree.get(block_id);
+        let instruction_ids: Vec<_> = block.instructions.clone();
+
+        // walk instructions in order
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id);
+            let destination = instruction.destination();
+
+            // fold instruction when possible
+            match instruction {
+                mir::Instruction::Const { destination, value } => {
+                    block_constants.insert(*destination, value.clone());
+                }
+
+                mir::Instruction::GlobalConst {
+                    destination,
+                    global,
+                } => {
+                    // fold immutable scalar globals
+                    if let Some(constant) = constant_from_global(*global, tree) {
+                        block_constants.insert(*destination, constant.clone());
+                        let new_instruction = mir::Instruction::Const {
+                            destination: *destination,
+                            value: constant,
+                        };
+                        tree.replace(instruction_id, new_instruction);
+                        changed = true;
+                    } else {
+                        block_constants.remove(*destination);
+                    }
+                }
+
+                mir::Instruction::Binary {
+                    destination,
+                    operator,
+                    left,
+                    right,
+                } => {
+                    // fold binary ops with constant operands
+                    let left_const = block_constants.get(*left);
+                    let right_const = block_constants.get(*right);
+
+                    if let (Some(left_val), Some(right_val)) = (left_const, right_const)
+                        && let Some(result) =
+                            fold_binary(*operator, left_val.clone(), right_val.clone())
+                    {
+                        let dest = *destination;
+                        let new_instruction = mir::Instruction::Const {
+                            destination: dest,
+                            value: result.clone(),
+                        };
+                        tree.replace(instruction_id, new_instruction);
+                        block_constants.insert(dest, result);
+                        changed = true;
+                    } else {
+                        block_constants.remove(*destination);
+                    }
+                }
+
+                mir::Instruction::Unary {
+                    destination,
+                    operator,
+                    argument,
+                } => {
+                    // fold unary ops with constant operands
+                    if let Some(arg_const) = block_constants.get(*argument)
+                        && let Some(result) = fold_unary(*operator, arg_const.clone())
+                    {
+                        let dest = *destination;
+                        let new_instruction = mir::Instruction::Const {
+                            destination: dest,
+                            value: result.clone(),
+                        };
+                        tree.replace(instruction_id, new_instruction);
+                        block_constants.insert(dest, result);
+                        changed = true;
+                    } else {
+                        block_constants.remove(*destination);
+                    }
+                }
+
+                mir::Instruction::Select {
+                    destination,
+                    condition,
+                    then_value,
+                    else_value,
+                } => {
+                    // fold select with constant condition
+                    if let Some(mir::Constant::Boolean { value: cond_val }) =
+                        block_constants.get(*condition)
+                    {
+                        let selected = if *cond_val { *then_value } else { *else_value };
+
+                        // if selected value is constant, fold to constant
+                        if let Some(result) = block_constants.get(selected) {
+                            let dest = *destination;
+                            let new_instruction = mir::Instruction::Const {
+                                destination: dest,
+                                value: result.clone(),
+                            };
+                            tree.replace(instruction_id, new_instruction);
+                            block_constants.insert(dest, result.clone());
+                            changed = true;
+                        } else {
+                            // condition is constant but selected value isn't
+                            // we could replace with a copy, but let copy_propagate handle it
+                            block_constants.remove(*destination);
+                        }
+                    } else {
+                        block_constants.remove(*destination);
+                    }
+                }
+                mir::Instruction::Cast {
+                    destination,
+                    operator,
+                    argument,
+                    to_type,
+                } => {
+                    // fold casts with constant operands
+                    if let Some(arg_const) = block_constants.get(*argument)
+                        && let Some(result) =
+                            fold_cast(*operator, arg_const.clone(), *to_type, tree)
+                    {
+                        let dest = *destination;
+                        let new_instruction = mir::Instruction::Const {
+                            destination: dest,
+                            value: result.clone(),
+                        };
+                        tree.replace(instruction_id, new_instruction);
+                        block_constants.insert(dest, result);
+                        changed = true;
+                    } else {
+                        block_constants.remove(*destination);
+                    }
+                }
+                _ => {
+                    // clear destinations for unknown instructions
+                    if let Some(dest) = destination {
+                        block_constants.remove(dest);
+                    }
+                }
+            }
+        }
+    }
+
+    changed
 }
 
 #[cfg(test)]

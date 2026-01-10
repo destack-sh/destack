@@ -4,9 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Rotate loops to expose optimization opportunities.
@@ -35,68 +33,81 @@ declare_pass! {
     "Loop rotation"
 }
 
-impl Pass for LoopRotate {
-    fn metadata(&self) -> &'static PassMetadata {
-        LoopRotate::metadata()
-    }
-}
-
 impl FunctionPass for LoopRotate {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
+        // get analyses
+        let (loops, cfg, domtree) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LoopAnalysis>().clone(),
+                analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+            )
+        };
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
 
-        // collect rotation candidates, innermost first
-        let mut candidates: Vec<RotationCandidate> = Vec::new();
-
-        for lp in loops.loops().iter().rev() {
-            if let Some(candidate) = find_rotation_candidate(lp, &cfg, &domtree, tree, entry) {
-                candidates.push(candidate);
-            }
-        }
-
-        drop(domtree);
-        drop(cfg);
-        drop(loops);
-
-        if candidates.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        let mut changed = false;
-        for candidate in candidates {
-            if rotate_loop(function, tree, &candidate) {
-                changed = true;
-            }
-        }
-
+        let changed = run_loop_rotate(entry, function, tree, &loops, &cfg, &domtree);
         if changed {
-            function.recompute_next_value_id(tree);
             AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "LoopRotate"
+    }
+
+    fn id(&self) -> &'static str {
+        "loop-rotate"
+    }
+}
+
+/// Core loop rotation logic. Returns true if changes were made.
+fn run_loop_rotate(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    loops: &LoopAnalysis,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+) -> bool {
+    // collect rotation candidates, innermost first
+    let mut candidates: Vec<RotationCandidate> = Vec::new();
+
+    for lp in loops.loops().iter().rev() {
+        if let Some(candidate) = find_rotation_candidate(lp, cfg, domtree, tree, entry) {
+            candidates.push(candidate);
+        }
+    }
+
+    if candidates.is_empty() {
+        return false;
+    }
+
+    let mut changed = false;
+    for candidate in candidates {
+        if rotate_loop(function, tree, &candidate) {
+            changed = true;
+        }
+    }
+    if changed {
+        function.recompute_next_value_id(tree);
+    }
+
+    changed
 }
 
 /// Information needed to rotate a loop.

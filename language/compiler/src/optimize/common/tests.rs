@@ -3,7 +3,7 @@ use destack_mir as mir;
 use destack_source::{DiffOptions, ModuleId, PackageId, print_diff};
 use destack_workspace::TargetId;
 
-use crate::optimize::{FunctionPass, ModulePass, OptimizationContext, OptimizeOptions};
+use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
 use crate::{OptimizeError, OptimizeWarning};
 
 /// Placeholder module id for tests.
@@ -32,6 +32,7 @@ pub(crate) struct TestProgram {
     warnings: Vec<OptimizeWarning>,
 }
 
+#[allow(dead_code)]
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
@@ -53,14 +54,14 @@ impl TestProgram {
 
     /// Apply a function pass to all functions in the program.
     pub(crate) fn run_pass<P: FunctionPass + ?Sized>(&mut self, pass: &P) {
-        self.run_pass_with_options_impl(pass, OptimizeOptions::default());
+        self.run_pass_with_options_impl(pass, PipelineOptions::default());
     }
 
     /// Apply a function pass with custom options.
     pub(crate) fn run_pass_with_options<P: FunctionPass + ?Sized>(
         &mut self,
         pass: &P,
-        options: OptimizeOptions,
+        options: PipelineOptions,
     ) {
         self.run_pass_with_options_impl(pass, options);
     }
@@ -69,9 +70,9 @@ impl TestProgram {
     fn run_pass_with_options_impl<P: FunctionPass + ?Sized>(
         &mut self,
         pass: &P,
-        options: OptimizeOptions,
+        options: PipelineOptions,
     ) {
-        let context = OptimizationContext::new(
+        let context = PipelineContext::new(
             &self.strings_pool,
             options,
             test_module_id(),
@@ -94,12 +95,9 @@ impl TestProgram {
                 continue;
             }
 
-            // clear analysis cache between functions (analyses are per-function)
-            context.analyses.clear();
-
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.tree);
-            pass.run_on_function(&mut function, &mut self.tree, &context);
+            pass.run(&mut function, &mut self.tree, &context);
             *self.tree.get_mut(function_id) = function;
         }
 
@@ -110,14 +108,14 @@ impl TestProgram {
 
     /// Apply a module pass to the program.
     pub(crate) fn run_module_pass<P: ModulePass + ?Sized>(&mut self, pass: &P) {
-        let context = OptimizationContext::new(
+        let context = PipelineContext::new(
             &self.strings_pool,
-            OptimizeOptions::default(),
+            PipelineOptions::default(),
             test_module_id(),
             test_target_id(),
         );
 
-        pass.run_on_module(&mut self.tree, &context);
+        pass.run(&mut self.tree, &context);
 
         // collect diagnostics after pass completes
         self.errors = context.take_errors();
@@ -130,36 +128,20 @@ impl TestProgram {
         mir::format_mir(&self.tree, &strings, mir::MirFormatOptions::default())
     }
 
-    /// Create an optimization context for analysis tests.
-    pub(crate) fn context(&self) -> OptimizationContext<'_> {
-        OptimizationContext::new(
-            &self.strings_pool,
-            OptimizeOptions::default(),
-            test_module_id(),
-            test_target_id(),
-        )
-    }
-
     /// Get string by id from the string pool.
     pub(crate) fn get_string(&self, id: destack_base::StringId) -> &str {
         self.strings.get(id)
     }
 
     /// Get errors from the last pass run.
-    #[allow(dead_code)]
     pub(crate) fn errors(&self) -> &[OptimizeError] {
         &self.errors
     }
 
     /// Get warnings from the last pass run.
-    #[allow(dead_code)]
     pub(crate) fn warnings(&self) -> &[OptimizeWarning] {
         &self.warnings
     }
-
-    // ================================================================================
-    // assertions
-    // ================================================================================
 
     /// Assert that the current MIR matches the expected output.
     #[track_caller]
@@ -189,7 +171,6 @@ impl TestProgram {
     }
 
     /// Assert that no warnings were emitted.
-    #[allow(dead_code)]
     #[track_caller]
     pub(crate) fn assert_no_warnings(&self) {
         if !self.warnings.is_empty() {
@@ -214,7 +195,6 @@ impl TestProgram {
     }
 
     /// Assert that at least one warning matches the predicate.
-    #[allow(dead_code)]
     #[track_caller]
     pub(crate) fn assert_warning<F>(&self, predicate: F)
     where
@@ -244,5 +224,308 @@ impl TestProgram {
     ) -> Vec<OptimizeError> {
         self.run_pass(pass);
         self.errors.clone()
+    }
+
+    /// Create a FunctionAnalyses storage for testing the new infrastructure.
+    pub(crate) fn function_analyses<'a>(
+        &'a self,
+        function: &'a mir::Function,
+    ) -> super::FunctionAnalyses<'a> {
+        super::FunctionAnalyses::new(function, &self.tree)
+    }
+
+    /// Create a ModuleAnalyses storage for testing the new infrastructure.
+    pub(crate) fn module_analyses(&self) -> super::ModuleAnalyses<'_> {
+        super::ModuleAnalyses::new(&self.tree)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use destack_mir as mir;
+
+    use super::TestProgram;
+    use crate::optimize::{
+        Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis,
+    };
+
+    /// Simple test analysis with no dependencies.
+    struct TestAnalysisA {
+        computed: bool,
+    }
+
+    impl Analysis for TestAnalysisA {
+        const ID: AnalysisId = AnalysisId("test-a");
+        const DEPENDENCIES: &'static [AnalysisId] = &[];
+    }
+
+    impl FunctionAnalysis for TestAnalysisA {
+        fn compute(
+            _function: &mir::Function,
+            _tree: &mir::NodeTree,
+            _analyses: &FunctionAnalyses<'_>,
+        ) -> Self {
+            Self { computed: true }
+        }
+    }
+
+    /// Test analysis that depends on TestAnalysisA.
+    struct TestAnalysisB {
+        a_computed: bool,
+    }
+
+    impl Analysis for TestAnalysisB {
+        const ID: AnalysisId = AnalysisId("test-b");
+        const DEPENDENCIES: &'static [AnalysisId] = &[TestAnalysisA::ID];
+    }
+
+    impl FunctionAnalysis for TestAnalysisB {
+        fn compute(
+            _function: &mir::Function,
+            _tree: &mir::NodeTree,
+            analyses: &FunctionAnalyses<'_>,
+        ) -> Self {
+            let a = analyses.get::<TestAnalysisA>();
+            Self {
+                a_computed: a.computed,
+            }
+        }
+    }
+
+    /// Test analysis that depends on TestAnalysisB.
+    struct TestAnalysisC {
+        b_a_computed: bool,
+    }
+
+    impl Analysis for TestAnalysisC {
+        const ID: AnalysisId = AnalysisId("test-c");
+        const DEPENDENCIES: &'static [AnalysisId] = &[TestAnalysisB::ID];
+    }
+
+    impl FunctionAnalysis for TestAnalysisC {
+        fn compute(
+            _function: &mir::Function,
+            _tree: &mir::NodeTree,
+            analyses: &FunctionAnalyses<'_>,
+        ) -> Self {
+            let b = analyses.get::<TestAnalysisB>();
+            Self {
+                b_a_computed: b.a_computed,
+            }
+        }
+    }
+
+    #[test]
+    fn test_compute_analysis_on_demand() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // initially not cached
+        assert!(!analyses.is_cached::<TestAnalysisA>());
+
+        // get computes and caches
+        let a = analyses.get::<TestAnalysisA>();
+        assert!(a.computed);
+        assert!(analyses.is_cached::<TestAnalysisA>());
+
+        // second get returns cached
+        let a2 = analyses.get::<TestAnalysisA>();
+        assert!(Arc::ptr_eq(&a, &a2));
+    }
+
+    #[test]
+    fn test_analysis_compute_dependencies() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // get B, which depends on A
+        let b = analyses.get::<TestAnalysisB>();
+        assert!(b.a_computed);
+
+        // A should now be cached (computed as dependency)
+        assert!(analyses.is_cached::<TestAnalysisA>());
+    }
+
+    #[test]
+    fn test_analysis_transitive_dependencies() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // get C, which depends on B, which depends on A
+        let c = analyses.get::<TestAnalysisC>();
+        assert!(c.b_a_computed);
+
+        // all should be cached
+        assert!(analyses.is_cached::<TestAnalysisA>());
+        assert!(analyses.is_cached::<TestAnalysisB>());
+        assert!(analyses.is_cached::<TestAnalysisC>());
+    }
+
+    #[test]
+    fn test_analysis_invalidate_single() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // compute A
+        let _ = analyses.get::<TestAnalysisA>();
+        assert!(analyses.is_cached::<TestAnalysisA>());
+
+        // invalidate A
+        analyses.invalidate(TestAnalysisA::ID);
+        assert!(!analyses.is_cached::<TestAnalysisA>());
+    }
+
+    #[test]
+    fn test_analysis_invalidate_all() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // compute all
+        let _ = analyses.get::<TestAnalysisC>();
+        assert!(analyses.is_cached::<TestAnalysisA>());
+        assert!(analyses.is_cached::<TestAnalysisB>());
+        assert!(analyses.is_cached::<TestAnalysisC>());
+
+        // invalidate all
+        analyses.invalidate_all();
+        assert!(!analyses.is_cached::<TestAnalysisA>());
+        assert!(!analyses.is_cached::<TestAnalysisB>());
+        assert!(!analyses.is_cached::<TestAnalysisC>());
+    }
+
+    #[test]
+    fn test_analysis_preservation_all() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // compute all
+        let _ = analyses.get::<TestAnalysisC>();
+
+        // preserve all
+        analyses.apply_preservation(&AnalysisPreservation::all());
+
+        // all still cached
+        assert!(analyses.is_cached::<TestAnalysisA>());
+        assert!(analyses.is_cached::<TestAnalysisB>());
+        assert!(analyses.is_cached::<TestAnalysisC>());
+    }
+
+    #[test]
+    fn test_analysis_preservation_none() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // compute all
+        let _ = analyses.get::<TestAnalysisC>();
+
+        // preserve none
+        analyses.apply_preservation(&AnalysisPreservation::none());
+
+        // all invalidated
+        assert!(!analyses.is_cached::<TestAnalysisA>());
+        assert!(!analyses.is_cached::<TestAnalysisB>());
+        assert!(!analyses.is_cached::<TestAnalysisC>());
+    }
+
+    #[test]
+    fn test_analysis_preservation_some() {
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+
+        // compute all
+        let _ = analyses.get::<TestAnalysisC>();
+
+        // preserve only A
+        analyses.apply_preservation(&AnalysisPreservation::preserving(&[TestAnalysisA::ID]));
+
+        // A still cached, B and C invalidated
+        assert!(analyses.is_cached::<TestAnalysisA>());
+        assert!(!analyses.is_cached::<TestAnalysisB>());
+        assert!(!analyses.is_cached::<TestAnalysisC>());
+    }
+
+    #[test]
+    fn test_analysis_id_display() {
+        assert_eq!(format!("{}", AnalysisId("cfg")), "cfg");
+        assert_eq!(format!("{}", TestAnalysisA::ID), "test-a");
+    }
+
+    #[test]
+    fn test_analysis_preservation_is_preserved() {
+        let all = AnalysisPreservation::all();
+        assert!(all.is_preserved(AnalysisId("anything")));
+
+        let none = AnalysisPreservation::none();
+        assert!(!none.is_preserved(AnalysisId("anything")));
+
+        let some = AnalysisPreservation::preserving(&[AnalysisId("cfg")]);
+        assert!(some.is_preserved(AnalysisId("cfg")));
+        assert!(!some.is_preserved(AnalysisId("domtree")));
     }
 }

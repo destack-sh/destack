@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 /// Control flow graph for a function.
 ///
@@ -66,14 +65,17 @@ impl ControlFlowGraph {
 }
 
 impl Analysis for ControlFlowGraph {
-    const KIND: AnalysisKind = AnalysisKind::ControlFlowGraph;
+    const ID: AnalysisId = AnalysisId("cfg");
+    const DEPENDENCIES: &'static [AnalysisId] = &[];
+}
 
+impl FunctionAnalysis for ControlFlowGraph {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        _context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        Arc::new(Self::build(function, tree))
+        _analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        Self::build(function, tree)
     }
 }
 
@@ -99,10 +101,8 @@ block2:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let cfg = analyses.get::<ControlFlowGraph>();
 
         // block0 has no predecessors (entry)
         let block0 = function.entry.unwrap();
@@ -134,10 +134,8 @@ block2:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let cfg = analyses.get::<ControlFlowGraph>();
 
         // block1 and block2 each have block0 as predecessor
         let block1 = function.blocks[1];
@@ -165,10 +163,8 @@ block3:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let cfg = analyses.get::<ControlFlowGraph>();
 
         // block3 has two predecessors: block1 and block2
         let block3 = function.blocks[3];
@@ -192,10 +188,8 @@ block2:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let cfg = analyses.get::<ControlFlowGraph>();
 
         // block1 has two predecessors: block0 and block1 (self-loop)
         let block1 = function.blocks[1];

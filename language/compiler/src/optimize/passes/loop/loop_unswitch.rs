@@ -5,9 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::common::{instruction_map, terminator_remap};
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Move loop-invariant conditionals outside of loops by duplicating the loop.
@@ -57,57 +55,74 @@ declare_pass! {
 /// Maximum number of instructions in a loop to consider for unswitching.
 const MAX_LOOP_SIZE: usize = 50;
 
-impl Pass for LoopUnswitch {
-    fn metadata(&self) -> &'static PassMetadata {
-        LoopUnswitch::metadata()
-    }
-}
-
 impl FunctionPass for LoopUnswitch {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
+        // get analyses
+        let (loops, domtree) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LoopAnalysis>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+            )
+        };
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, tree, context);
 
-        // find first unswitchable loop (innermost first)
-        let mut candidate: Option<UnswitchCandidate> = None;
-        for lp in loops.loops().iter().rev() {
-            if let Some(c) = find_unswitchable_loop(lp, function, tree, &domtree) {
-                candidate = Some(c);
-                break;
-            }
+        // run loop unswitching
+        let changed = run_loop_unswitch(function, tree, &loops, &domtree);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
-
-        drop(domtree);
-        drop(loops);
-
-        // unswitch at most one loop per pass invocation
-        let candidate = match candidate {
-            Some(c) => c,
-            None => return AnalysisPreservation::all(),
-        };
-
-        function.recompute_next_value_id(tree);
-
-        unswitch_loop(function, tree, &candidate);
-
-        AnalysisPreservation::none()
     }
+
+    fn name(&self) -> &'static str {
+        "LoopUnswitch"
+    }
+
+    fn id(&self) -> &'static str {
+        "loop-unswitch"
+    }
+}
+
+/// Core loop unswitching logic. Returns true if changes were made.
+fn run_loop_unswitch(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    loops: &LoopAnalysis,
+    domtree: &DominatorTree,
+) -> bool {
+    // find first unswitchable loop (innermost first)
+    let mut candidate: Option<UnswitchCandidate> = None;
+    for lp in loops.loops().iter().rev() {
+        if let Some(c) = find_unswitchable_loop(lp, function, tree, domtree) {
+            candidate = Some(c);
+            break;
+        }
+    }
+
+    // unswitch at most one loop per pass invocation
+    let candidate = match candidate {
+        Some(c) => c,
+        None => return false,
+    };
+
+    function.recompute_next_value_id(tree);
+
+    unswitch_loop(function, tree, &candidate);
+
+    true
 }
 
 /// Information needed to unswitch a loop.

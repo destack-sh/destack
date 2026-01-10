@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
 use destack_mir as mir;
 
@@ -8,7 +7,7 @@ use crate::optimize::common::{
     constant_zero_for_type, constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
     terminator_arguments_for_successor_checked,
 };
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 use super::{ControlFlowGraph, Loop, LoopAnalysis};
 
@@ -164,21 +163,19 @@ impl ScalarEvolution {
 }
 
 impl Analysis for ScalarEvolution {
-    const KIND: AnalysisKind = AnalysisKind::ScalarEvolution;
+    const ID: AnalysisId = AnalysisId("scev");
+    const DEPENDENCIES: &'static [AnalysisId] = &[LoopAnalysis::ID];
+}
 
+impl FunctionAnalysis for ScalarEvolution {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, tree, context);
-
-        Arc::new(Self::build(function, tree, &cfg, &loops))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        let loops = analyses.get::<LoopAnalysis>();
+        Self::build(function, tree, &cfg, &loops)
     }
 }
 
@@ -1374,14 +1371,9 @@ block2(v7: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1431,14 +1423,9 @@ block2(v6: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1475,14 +1462,9 @@ block2(v6: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1533,14 +1515,9 @@ block3(v5: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1593,14 +1570,9 @@ block2(v9: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1654,14 +1626,9 @@ block2(v7: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1715,14 +1682,9 @@ block2(v8: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1776,14 +1738,9 @@ block2(v8: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1836,14 +1793,9 @@ block2(v8: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1900,14 +1852,9 @@ block2(v13: i64):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()

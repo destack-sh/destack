@@ -5,8 +5,8 @@ use destack_mir as mir;
 use mir::{Instruction, Value};
 
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, FunctionPass, LivenessAnalysis, OptimizationContext,
-    OwnershipAnalysis, Pass, PassMetadata,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, LivenessAnalysis, OwnershipAnalysis,
+    PipelineContext,
 };
 
 declare_pass! {
@@ -32,147 +32,151 @@ declare_pass! {
     "Insert drop calls at last-use points"
 }
 
-impl Pass for DropInsert {
-    fn metadata(&self) -> &'static PassMetadata {
-        DropInsert::metadata()
+/// Run drop insertion on a function.
+///
+/// Returns true if any changes were made.
+fn run_drop_insert(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    liveness: &LivenessAnalysis,
+    ownership: &OwnershipAnalysis,
+) -> bool {
+    // find values that need drops using ownership analysis
+    let droppable = find_droppable_values_with_ownership(function, tree, ownership);
+    if droppable.is_empty() {
+        return false;
     }
+
+    // collect drop insertion points
+    let mut drops_to_insert: Vec<DropInsertionPoint> = Vec::new();
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let instructions = block.instructions.clone();
+
+        // check each instruction for values that die after it
+        for (idx, &instruction_id) in instructions.iter().enumerate() {
+            let instruction = tree.get(instruction_id);
+
+            // check if any droppable value is defined here and dies before block exit
+            if let Some(dest) = instruction.destination()
+                && droppable.contains(&dest)
+                && !liveness.is_live_out(block_id, dest)
+            {
+                // value dies in this block, find where
+                let death_idx =
+                    find_death_point(block_id, idx, dest, &instructions, tree, liveness);
+
+                if let Some(after_idx) = death_idx {
+                    drops_to_insert.push(DropInsertionPoint::AfterInstruction {
+                        block: block_id,
+                        instruction_index: after_idx,
+                        value: dest,
+                    });
+                }
+            }
+        }
+
+        // check for values that are live-in but not live-out (die in block)
+        for &value in liveness.live_in(block_id) {
+            if droppable.contains(&value) && !liveness.is_live_out(block_id, value) {
+                // value dies in this block
+                let death_idx = find_death_point(block_id, 0, value, &instructions, tree, liveness);
+
+                if let Some(after_idx) = death_idx {
+                    drops_to_insert.push(DropInsertionPoint::AfterInstruction {
+                        block: block_id,
+                        instruction_index: after_idx,
+                        value,
+                    });
+                }
+            }
+        }
+
+        // check for values live-out that need drops at block exit (e.g., before return)
+        if let mir::Terminator::Return { value: ret_val } = &block.terminator {
+            // check live-in values
+            for &value in liveness.live_in(block_id) {
+                // check if value is used in return; if not, drop before return
+                if droppable.contains(&value) && ret_val != &Some(value) {
+                    drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
+                        block: block_id,
+                        value,
+                    });
+                }
+            }
+
+            // also check block parameters (not live-in but need drops)
+            for param in &block.parameters {
+                if droppable.contains(&param.value)
+                    && ret_val != &Some(param.value)
+                    && !liveness.is_live_out(block_id, param.value)
+                {
+                    // parameter dies in this block, find where or drop before return
+                    let death_idx =
+                        find_death_point(block_id, 0, param.value, &instructions, tree, liveness);
+
+                    if let Some(after_idx) = death_idx {
+                        drops_to_insert.push(DropInsertionPoint::AfterInstruction {
+                            block: block_id,
+                            instruction_index: after_idx,
+                            value: param.value,
+                        });
+                    } else {
+                        // used only in terminator or no uses: drop before terminator
+                        drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
+                            block: block_id,
+                            value: param.value,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // deduplicate and sort drops
+    drops_to_insert.sort();
+    drops_to_insert.dedup();
+    if drops_to_insert.is_empty() {
+        return false;
+    }
+
+    // insert drops (process in reverse to maintain indices)
+    insert_drops(function, tree, &drops_to_insert, ownership);
+
+    true
 }
 
 impl FunctionPass for DropInsert {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // get liveness analysis
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, tree, context);
+        // get analyses
+        let (liveness, ownership) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LivenessAnalysis>().clone(),
+                analyses.get::<OwnershipAnalysis>().clone(),
+            )
+        };
 
-        // get CFG for traversal
-        let _cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
+        let changed = run_drop_insert(function, tree, &liveness, &ownership);
 
-        // get ownership analysis for value type information
-        let ownership = context
-            .analyses
-            .get::<OwnershipAnalysis>(function, tree, context);
-
-        // find values that need drops using ownership analysis
-        let droppable = find_droppable_values_with_ownership(function, tree, &ownership);
-        if droppable.is_empty() {
-            return AnalysisPreservation::all();
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
         }
+    }
 
-        // collect drop insertion points
-        let mut drops_to_insert: Vec<DropInsertionPoint> = Vec::new();
+    fn name(&self) -> &'static str {
+        "DropInsert"
+    }
 
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            let instructions = block.instructions.clone();
-
-            // check each instruction for values that die after it
-            for (idx, &instruction_id) in instructions.iter().enumerate() {
-                let instruction = tree.get(instruction_id);
-
-                // check if any droppable value is defined here and dies before block exit
-                if let Some(dest) = instruction.destination()
-                    && droppable.contains(&dest)
-                    && !liveness.is_live_out(block_id, dest)
-                {
-                    // value dies in this block, find where
-                    let death_idx =
-                        find_death_point(block_id, idx, dest, &instructions, tree, &liveness);
-
-                    if let Some(after_idx) = death_idx {
-                        drops_to_insert.push(DropInsertionPoint::AfterInstruction {
-                            block: block_id,
-                            instruction_index: after_idx,
-                            value: dest,
-                        });
-                    }
-                }
-            }
-
-            // check for values that are live-in but not live-out (die in block)
-            for &value in liveness.live_in(block_id) {
-                if droppable.contains(&value) && !liveness.is_live_out(block_id, value) {
-                    // value dies in this block
-                    let death_idx =
-                        find_death_point(block_id, 0, value, &instructions, tree, &liveness);
-
-                    if let Some(after_idx) = death_idx {
-                        drops_to_insert.push(DropInsertionPoint::AfterInstruction {
-                            block: block_id,
-                            instruction_index: after_idx,
-                            value,
-                        });
-                    }
-                }
-            }
-
-            // check for values live-out that need drops at block exit (e.g., before return)
-            if let mir::Terminator::Return { value: ret_val } = &block.terminator {
-                // check live-in values
-                for &value in liveness.live_in(block_id) {
-                    // check if value is used in return; if not, drop before return
-                    if droppable.contains(&value) && ret_val != &Some(value) {
-                        drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
-                            block: block_id,
-                            value,
-                        });
-                    }
-                }
-
-                // also check block parameters (not live-in but need drops)
-                for param in &block.parameters {
-                    if droppable.contains(&param.value)
-                        && ret_val != &Some(param.value)
-                        && !liveness.is_live_out(block_id, param.value)
-                    {
-                        // parameter dies in this block, find where or drop before return
-                        let death_idx = find_death_point(
-                            block_id,
-                            0,
-                            param.value,
-                            &instructions,
-                            tree,
-                            &liveness,
-                        );
-
-                        if let Some(after_idx) = death_idx {
-                            drops_to_insert.push(DropInsertionPoint::AfterInstruction {
-                                block: block_id,
-                                instruction_index: after_idx,
-                                value: param.value,
-                            });
-                        } else {
-                            // used only in terminator or no uses - drop before terminator
-                            drops_to_insert.push(DropInsertionPoint::BeforeTerminator {
-                                block: block_id,
-                                value: param.value,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        // deduplicate and sort drops
-        drops_to_insert.sort();
-        drops_to_insert.dedup();
-
-        if drops_to_insert.is_empty() {
-            return AnalysisPreservation::all();
-        }
-
-        // insert drops (process in reverse to maintain indices)
-        insert_drops(function, tree, &drops_to_insert, &ownership);
-
-        // we modified the CFG and instructions
-        AnalysisPreservation::none()
+    fn id(&self) -> &'static str {
+        "drop-insert"
     }
 }
 

@@ -8,8 +8,8 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, FunctionPass, Lattice, LifetimeAnalysis,
-    OptimizationContext, Pass, PassMetadata, ResolvedLifetime, forward_dataflow,
+    AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionAnalyses, FunctionPass,
+    Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
 };
 
 declare_pass! {
@@ -30,12 +30,6 @@ declare_pass! {
     #[pass(id = "stack-check")]
     pub StackCheck,
     "Verify stack safety"
-}
-
-impl Pass for StackCheck {
-    fn metadata(&self) -> &'static PassMetadata {
-        StackCheck::metadata()
-    }
 }
 
 /// Stack pointer state for a single value.
@@ -254,7 +248,7 @@ impl StackPointerMap {
         instruction: &Instruction,
         module_id: &ModuleId,
         target_id: &TargetId,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         match instruction {
             // store stack pointer to non-stack location = escape
@@ -307,7 +301,7 @@ impl StackPointerMap {
         terminator: &mir::Terminator,
         module_id: &ModuleId,
         target_id: &TargetId,
-        context: &OptimizationContext<'_>,
+        context: &impl DiagnosticEmitter,
     ) {
         match terminator {
             // returning a stack pointer = escape
@@ -357,88 +351,114 @@ impl Lattice for StackPointerMap {
     }
 }
 
-impl FunctionPass for StackCheck {
-    fn run_on_function(
-        &self,
-        function: &mut mir::Function,
-        tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> AnalysisPreservation {
-        if function.entry.is_none() {
-            return AnalysisPreservation::all();
-        }
+/// Run stack check on a function.
+fn run_stack_check(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    lifetime_analysis: &LifetimeAnalysis,
+    module_id: ModuleId,
+    target_id: TargetId,
+    context: &impl DiagnosticEmitter,
+) {
+    if function.entry.is_none() {
+        return;
+    }
 
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-
-        // get lifetime analysis for tracking stack pointers through calls
-        let lifetime_analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, tree, context);
-
-        // run forward dataflow to compute stack pointer states
-        let result = forward_dataflow(
-            function,
-            tree,
-            &cfg,
-            StackPointerMap::new(),
-            |block_id, mut state, tree| {
-                let block = tree.get(block_id);
-
-                // process each instruction
-                for &instruction_id in &block.instructions {
-                    let instruction = tree.get(instruction_id);
-                    state.apply_instruction_effects(instruction);
-                    state.apply_call_effects(instruction, tree, &lifetime_analysis);
-                }
-
-                // propagate to successors via jump arguments
-                state.apply_terminator_effects(&block.terminator, tree);
-
-                state
-            },
-        );
-
-        // check for escapes using computed states
-        let module_id = context.module_id();
-        let target_id = context.target_id().clone();
-
-        for &block_id in &function.blocks {
-            let Some(entry_state) = result.entry(block_id) else {
-                continue;
-            };
-
+    // run forward dataflow to compute stack pointer states
+    let result = forward_dataflow(
+        function,
+        tree,
+        cfg,
+        StackPointerMap::new(),
+        |block_id, mut state, tree| {
             let block = tree.get(block_id);
 
-            // track state as we process instructions
-            let mut current_state = entry_state.clone();
-
-            // check each instruction
+            // process each instruction
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
-                current_state.check_instruction_escapes(
-                    instruction_id,
-                    instruction,
-                    &module_id,
-                    &target_id,
-                    context,
-                );
-                current_state.apply_instruction_effects(instruction);
-                current_state.apply_call_effects(instruction, tree, &lifetime_analysis);
+                state.apply_instruction_effects(instruction);
+                state.apply_call_effects(instruction, tree, lifetime_analysis);
             }
 
-            // check terminator
-            current_state.check_terminator_escapes(
-                block_id,
-                &block.terminator,
+            // propagate to successors via jump arguments
+            state.apply_terminator_effects(&block.terminator, tree);
+
+            state
+        },
+    );
+
+    // check for escapes using computed states
+    for &block_id in &function.blocks {
+        let Some(entry_state) = result.entry(block_id) else {
+            continue;
+        };
+
+        let block = tree.get(block_id);
+
+        // track state as we process instructions
+        let mut current_state = entry_state.clone();
+
+        // check each instruction
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            current_state.check_instruction_escapes(
+                instruction_id,
+                instruction,
                 &module_id,
                 &target_id,
                 context,
             );
+            current_state.apply_instruction_effects(instruction);
+            current_state.apply_call_effects(instruction, tree, lifetime_analysis);
         }
 
+        // check terminator
+        current_state.check_terminator_escapes(
+            block_id,
+            &block.terminator,
+            &module_id,
+            &target_id,
+            context,
+        );
+    }
+}
+
+impl FunctionPass for StackCheck {
+    fn run(
+        &self,
+        function: &mut mir::Function,
+        tree: &mut mir::NodeTree,
+        ctx: &PipelineContext<'_>,
+    ) -> AnalysisPreservation {
+        // get function-level analyses
+        let cfg = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            analyses.get::<ControlFlowGraph>().clone()
+        };
+
+        // get module-level lifetime analysis
+        let lifetime_analysis = ctx.module_analyses(tree).get::<LifetimeAnalysis>().clone();
+
+        run_stack_check(
+            function,
+            tree,
+            &cfg,
+            &lifetime_analysis,
+            ctx.module_id(),
+            ctx.target_id().clone(),
+            ctx,
+        );
+
         AnalysisPreservation::all()
+    }
+
+    fn name(&self) -> &'static str {
+        "StackCheck"
+    }
+
+    fn id(&self) -> &'static str {
+        "stack-check"
     }
 }
 
@@ -861,13 +881,6 @@ block3(v5: ref<raw i32>):
         // loading and returning the *value* is fine, only returning the pointer is bad
         program.assert_no_errors();
     }
-
-    // NOTE: yield escape test omitted because MIR text parser doesn't support yield terminators.
-    // The implementation in check_terminator_escapes correctly handles Yield.
-
-    // ================================================================================
-    // Lifetime analysis integration tests
-    // ================================================================================
 
     /// Set the return lifetime for a function by name.
     fn set_function_lifetime(program: &mut TestProgram, name: &str, lifetime: mir::Lifetime) {

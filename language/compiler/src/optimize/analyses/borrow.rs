@@ -4,14 +4,13 @@
 //! that span multiple basic blocks.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use destack_mir as mir;
 use mir::{Instruction, Value};
 
 use super::{ControlFlowGraph, Lattice, LivenessAnalysis, forward_dataflow};
 use crate::optimize::common::terminator_arguments_for_successor;
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 /// Location where a borrow was created.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -342,20 +341,18 @@ fn apply_instruction_effects(
 }
 
 impl Analysis for BorrowAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::Borrow;
+    const ID: AnalysisId = AnalysisId("borrow");
+    const DEPENDENCIES: &'static [AnalysisId] = &[LivenessAnalysis::ID];
+}
 
+impl FunctionAnalysis for BorrowAnalysis {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, tree, context);
-
-        Arc::new(Self::build(function, tree, &cfg, &liveness))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        let liveness = analyses.get::<LivenessAnalysis>();
+        Self::build(function, tree, &cfg, &liveness)
     }
 }

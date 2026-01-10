@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
 use destack_mir as mir;
 
 use crate::optimize::{
-    Analysis, AnalysisKind, ControlFlowGraph, OptimizationContext, terminator_used_values,
-    terminator_uses,
+    Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, FunctionAnalysis,
+    terminator_used_values, terminator_uses,
 };
 
 /// Liveness analysis for SSA values.
@@ -270,17 +269,18 @@ fn compute_block_use_def(
 }
 
 impl Analysis for LivenessAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::Liveness;
+    const ID: AnalysisId = AnalysisId("liveness");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
 
+impl FunctionAnalysis for LivenessAnalysis {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        Arc::new(Self::build(function, tree, &cfg))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        Self::build(function, tree, &cfg)
     }
 }
 
@@ -304,10 +304,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
@@ -344,10 +342,8 @@ block2:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -382,10 +378,8 @@ block2:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -421,10 +415,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
@@ -448,10 +440,8 @@ block0(v0: i32, v1: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
@@ -475,10 +465,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
@@ -515,10 +503,8 @@ block3(v3: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -556,10 +542,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
@@ -592,10 +576,8 @@ block0:
         // skip the extern function, get the test function
         let function_id = program.tree.iter_nodes::<mir::Function>().nth(1).unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let liveness = context
-            .analyses
-            .get::<LivenessAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 

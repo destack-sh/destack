@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use destack_mir as mir;
 
 use crate::optimize::common::compute_immediate_dominators;
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 use super::ControlFlowGraph;
 
@@ -182,19 +181,18 @@ impl DominatorTree {
 }
 
 impl Analysis for DominatorTree {
-    const KIND: AnalysisKind = AnalysisKind::DominatorTree;
+    const ID: AnalysisId = AnalysisId("domtree");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
 
+impl FunctionAnalysis for DominatorTree {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        // depends on CFG
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-
-        Arc::new(Self::build(function, tree, &cfg))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        Self::build(function, tree, &cfg)
     }
 }
 
@@ -221,10 +219,8 @@ block2:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -267,10 +263,8 @@ block3:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
@@ -312,10 +306,8 @@ block3:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
         let block3 = function.blocks[3];
@@ -338,10 +330,8 @@ block1:
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let context = program.context();
-        let domtree = context
-            .analyses
-            .get::<DominatorTree>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];

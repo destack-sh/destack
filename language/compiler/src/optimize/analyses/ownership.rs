@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
 use destack_mir as mir;
 use mir::{Instruction, ReferenceKind, Type, Value};
 
 use super::{ControlFlowGraph, Lattice, forward_dataflow};
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 /// Location where a move occurred (for diagnostics).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -508,17 +507,18 @@ impl OwnershipAnalysis {
 }
 
 impl Analysis for OwnershipAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::Ownership;
+    const ID: AnalysisId = AnalysisId("ownership");
+    const DEPENDENCIES: &'static [AnalysisId] = &[ControlFlowGraph::ID];
+}
 
+impl FunctionAnalysis for OwnershipAnalysis {
     fn compute(
         function: &mir::Function,
         tree: &mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        let cfg = context
-            .analyses
-            .get::<ControlFlowGraph>(function, tree, context);
-        Arc::new(Self::build(function, tree, &cfg))
+        analyses: &FunctionAnalyses<'_>,
+    ) -> Self {
+        let cfg = analyses.get::<ControlFlowGraph>();
+        Self::build(function, tree, &cfg)
     }
 }
 
@@ -923,11 +923,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ownership =
-            context
-                .analyses
-                .get::<OwnershipAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ownership = analyses.get::<OwnershipAnalysis>();
 
         let entry = function.entry.unwrap();
 
@@ -950,11 +947,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ownership =
-            context
-                .analyses
-                .get::<OwnershipAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ownership = analyses.get::<OwnershipAnalysis>();
 
         let entry = function.entry.unwrap();
         let exit_state = ownership.state_at_exit(entry).unwrap();
@@ -984,11 +978,8 @@ block3:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ownership =
-            context
-                .analyses
-                .get::<OwnershipAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ownership = analyses.get::<OwnershipAnalysis>();
 
         // block3 is the merge point (index 3 in blocks list)
         let block3 = function.blocks[3];

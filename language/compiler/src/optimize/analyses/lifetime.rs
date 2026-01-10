@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use destack_mir::{self as mir, Lifetime, Type};
 
-use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
+use crate::optimize::{Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis};
 
 /// Resolved lifetime bounds for a function's return value.
 ///
@@ -166,17 +165,13 @@ impl LifetimeAnalysis {
 }
 
 impl Analysis for LifetimeAnalysis {
-    const KIND: AnalysisKind = AnalysisKind::Lifetime;
+    const ID: AnalysisId = AnalysisId("lifetime");
+    const DEPENDENCIES: &'static [AnalysisId] = &[];
+}
 
-    fn compute(
-        _function: &mir::Function,
-        tree: &mir::NodeTree,
-        _context: &OptimizationContext<'_>,
-    ) -> Arc<Self> {
-        // FUGU #Architecture: split function, module, and program wide Analysis
-        // (this analysis is module-wide, not per-function)
-        // we compute lifetimes for ALL functions in the tree
-        Arc::new(Self::build(tree))
+impl ModuleAnalysis for LifetimeAnalysis {
+    fn compute(tree: &mir::NodeTree, _analyses: &ModuleAnalyses<'_>) -> Self {
+        Self::build(tree)
     }
 }
 
@@ -197,11 +192,9 @@ block0(v0: i32, v1: i32):
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         assert!(analysis.get(function_id).is_none());
     }
@@ -217,11 +210,9 @@ block0(v0: ref<borrowed i32>):
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.includes_parameter(0));
@@ -239,11 +230,9 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.includes_parameter(0));
@@ -261,11 +250,9 @@ block0(v0: ref<borrowed i32>):
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         // void return: no lifetime needed
         assert!(analysis.get(function_id).is_none());
@@ -283,11 +270,9 @@ block0:
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         // raw/owned return: not a borrowed ref, no lifetime
         assert!(analysis.get(function_id).is_none());
@@ -304,11 +289,9 @@ block0(v0: i32, v1: ref<borrowed i32>, v2: i32):
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
 
@@ -335,11 +318,9 @@ block0(v0: ref<borrowed i32>):
             function.return_lifetime = mir::Lifetime::Static;
         }
 
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_static());
@@ -363,11 +344,9 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
             function.return_lifetime = mir::Lifetime::param(0);
         }
 
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
 
@@ -391,11 +370,9 @@ block0(v0: i32):
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let context = program.context();
-        let analysis = context
-            .analyses
-            .get::<LifetimeAnalysis>(function, &program.tree, &context);
+        let _function = program.tree.get(function_id);
+        let module_analyses = program.module_analyses();
+        let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
 

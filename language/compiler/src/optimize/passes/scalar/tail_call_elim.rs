@@ -2,7 +2,9 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, Instruction};
 
-use crate::optimize::{AnalysisPreservation, ModulePass, OptimizationContext, Pass, PassMetadata};
+use destack_base::StringPool;
+
+use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
@@ -21,68 +23,73 @@ declare_pass! {
     "Eliminate tail-recursive calls"
 }
 
-impl Pass for TailCallElim {
-    fn metadata(&self) -> &'static PassMetadata {
-        TailCallElim::metadata()
-    }
-}
-
 impl ModulePass for TailCallElim {
-    fn run_on_module(
-        &self,
-        tree: &mut mir::NodeTree,
-        context: &OptimizationContext<'_>,
-    ) -> AnalysisPreservation {
-        let mut changed = false;
-
-        // collect function ids first to avoid borrow issues
-        let function_ids: Vec<_> = tree
-            .iter_nodes::<mir::Function>()
-            .map(|(id, _)| id)
-            .collect();
-
-        for function_id in function_ids {
-            let function = tree.get(function_id);
-
-            // skip imported functions
-            let Some(entry_block) = function.entry else {
-                continue;
-            };
-
-            // clone function for mutation
-            let mut function = function.clone();
-
-            // phase 1: try accumulator transformation to enable more tail calls
-            // (this may modify call sites in other functions, or create wrapper for exported)
-            if try_accumulator_transform(&mut function, tree, function_id, entry_block, context) {
-                changed = true;
-            }
-
-            // phase 2: transform self-recursive tail calls to jumps
-            for &block_id in &function.blocks {
-                if transform_self_recursive_tail_call(block_id, function_id, entry_block, tree) {
-                    changed = true;
-                }
-            }
-
-            // phase 3: transform sibling tail calls (calls to OTHER functions)
-            // These become TailCall terminators for codegen optimization
-            for &block_id in &function.blocks {
-                if transform_sibling_tail_call(block_id, function_id, tree) {
-                    changed = true;
-                }
-            }
-
-            // write function back
-            *tree.get_mut(function_id) = function;
-        }
-
+    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+        // run tail call elimination
+        let changed = run_tail_call_elimination(tree, ctx.strings);
         if changed {
             AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "TailCallElim"
+    }
+
+    fn id(&self) -> &'static str {
+        "tail-call-elim"
+    }
+}
+
+/// Tail call elimination logic.
+fn run_tail_call_elimination(tree: &mut mir::NodeTree, strings: &StringPool) -> bool {
+    let mut changed = false;
+
+    // collect function ids first to avoid borrow issues
+    let function_ids: Vec<_> = tree
+        .iter_nodes::<mir::Function>()
+        .map(|(id, _)| id)
+        .collect();
+
+    for function_id in function_ids {
+        let function = tree.get(function_id);
+
+        // skip imported functions
+        let Some(entry_block) = function.entry else {
+            continue;
+        };
+
+        // clone function for mutation
+        let mut function = function.clone();
+
+        // phase 1: try accumulator transformation to enable more tail calls
+        // (this may modify call sites in other functions, or create wrapper for exported)
+        if try_accumulator_transform(&mut function, tree, function_id, entry_block, strings) {
+            changed = true;
+        }
+
+        // phase 2: transform self-recursive tail calls to jumps
+        for &block_id in &function.blocks {
+            if transform_self_recursive_tail_call(block_id, function_id, entry_block, tree) {
+                changed = true;
+            }
+        }
+
+        // phase 3: transform sibling tail calls (calls to OTHER functions)
+        // These become TailCall terminators for codegen optimization
+        for &block_id in &function.blocks {
+            if transform_sibling_tail_call(block_id, function_id, tree) {
+                changed = true;
+            }
+        }
+
+        // write function back
+        *tree.get_mut(function_id) = function;
+    }
+
+    changed
 }
 
 /// Information about a block with the accumulator pattern.
@@ -115,7 +122,7 @@ fn try_accumulator_transform(
     tree: &mut mir::NodeTree,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
-    context: &OptimizationContext<'_>,
+    strings: &StringPool,
 ) -> bool {
     // find all blocks with the accumulator pattern
     let patterns = find_accumulator_patterns(function, tree, current_function_id);
@@ -148,7 +155,7 @@ fn try_accumulator_transform(
             &patterns,
             operator,
             &identity,
-            context,
+            strings,
         );
     }
 
@@ -215,13 +222,13 @@ fn try_accumulator_transform_exported(
     patterns: &[AccumulatorPattern],
     operator: BinaryOperator,
     identity: &Constant,
-    context: &OptimizationContext<'_>,
+    strings: &StringPool,
 ) -> bool {
     let return_type = function.return_type;
 
     // create the impl function name: "func" -> "func$impl"
-    let impl_name_str = format!("{}$impl", &*context.strings.get(function.name));
-    let impl_name = context.strings.intern(&impl_name_str);
+    let impl_name_str = format!("{}$impl", &*strings.get(function.name));
+    let impl_name = strings.intern(&impl_name_str);
 
     // clone the function to create the impl version
     let (impl_function_id, impl_entry_block, block_map) =

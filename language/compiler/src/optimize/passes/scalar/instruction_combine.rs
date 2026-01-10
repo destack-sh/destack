@@ -4,12 +4,10 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, UnaryOperator};
 
-use crate::AnalysisKind;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-    constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
-    constant_is_one, constant_is_zero, constant_zero_like, instruction_substitute_uses,
-    terminator_substitute_uses,
+    AnalysisPreservation, FunctionPass, PipelineContext, constant_all_ones_like,
+    constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
+    constant_is_zero, constant_zero_like, instruction_substitute_uses, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -44,12 +42,6 @@ declare_pass! {
     "Combine and simplify instructions"
 }
 
-impl Pass for InstructionCombine {
-    fn metadata(&self) -> &'static PassMetadata {
-        InstructionCombine::metadata()
-    }
-}
-
 /// Result of simplifying an instruction.
 enum Simplification {
     /// Replace with a constant value.
@@ -59,213 +51,207 @@ enum Simplification {
 }
 
 impl FunctionPass for InstructionCombine {
-    fn run_on_function(
+    fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // build map of value -> constant for known constants
-        let mut constants: HashMap<mir::Value, mir::Constant> = HashMap::new();
-
-        // build map of value -> instruction for unary simplifications
-        let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
-
-        // track aggregate construction operands: dest -> operand list
-        let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
-
-        // scan all blocks for constant definitions and build value map
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-
-                // track constants
-                if let mir::Instruction::Const { destination, value } = instruction {
-                    constants.insert(*destination, value.clone());
-                }
-
-                // track aggregate constructions
-                match instruction {
-                    mir::Instruction::Struct {
-                        destination,
-                        fields,
-                        ..
-                    } => {
-                        let args = tree.get_arguments(*fields);
-                        aggregate_operands.insert(*destination, args.to_vec());
-                    }
-                    mir::Instruction::Tuple {
-                        destination,
-                        elements,
-                        ..
-                    }
-                    | mir::Instruction::Array {
-                        destination,
-                        elements,
-                        ..
-                    } => {
-                        let args = tree.get_arguments(*elements);
-                        aggregate_operands.insert(*destination, args.to_vec());
-                    }
-                    _ => {}
-                }
-
-                // track all instructions by destination
-                if let Some(dest) = instruction.destination() {
-                    value_to_instruction.insert(dest, instruction.clone());
-                }
-            }
-        }
-
-        // track substitutions: dest -> replacement value
-        let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
-
-        // track instructions to remove (those that became substitutions)
-        let mut to_remove: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
-
-        // track whether we made any changes
-        let mut changed = false;
-
-        // apply simplifications
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            let instruction_ids: Vec<_> = block.instructions.clone();
-
-            for instruction_id in instruction_ids {
-                let instruction = tree.get(instruction_id);
-
-                // try to simplify the instruction
-                let simplified = match instruction {
-                    mir::Instruction::Binary {
-                        destination,
-                        operator,
-                        left,
-                        right,
-                    } => {
-                        simplify_binary_operator(*destination, *operator, *left, *right, &constants)
-                    }
-
-                    mir::Instruction::Unary {
-                        destination,
-                        operator,
-                        argument,
-                    } => simplify_unary_operator(
-                        *destination,
-                        *operator,
-                        *argument,
-                        &value_to_instruction,
-                    ),
-
-                    // field.get(struct/tuple(...), i) -> operand i
-                    mir::Instruction::FieldGet {
-                        aggregate, index, ..
-                    } => {
-                        if let Some(operands) = aggregate_operands.get(aggregate) {
-                            if let Some(&operand) = operands.get(*index as usize) {
-                                Some(Simplification::Substitute(operand))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-
-                    // element.get(array(...), const_i) -> operand i
-                    mir::Instruction::ElementGet { array, index, .. } => {
-                        if let Some(operands) = aggregate_operands.get(array) {
-                            // index must be a constant for this simplification
-                            if let Some(Constant::Int { value: idx, .. }) = constants.get(index) {
-                                if let Some(&operand) = operands.get(*idx as usize) {
-                                    Some(Simplification::Substitute(operand))
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-
-                    _ => None,
-                };
-
-                // handle simplification result
-                if let Some(simplification) = simplified {
-                    changed = true;
-                    match simplification {
-                        Simplification::Constant(value) => {
-                            let dest = instruction.destination().unwrap();
-                            let new_instruction = mir::Instruction::Const {
-                                destination: dest,
-                                value: value.clone(),
-                            };
-                            constants.insert(dest, value);
-                            value_to_instruction.insert(dest, new_instruction.clone());
-                            tree.replace(instruction_id, new_instruction);
-                        }
-                        Simplification::Substitute(replacement) => {
-                            let dest = instruction.destination().unwrap();
-                            substitutions.insert(dest, replacement);
-                            to_remove.push(instruction_id);
-                        }
-                    }
-                }
-            }
-        }
-
-        // resolve transitive substitutions (v4 -> v2 -> v0 becomes v4 -> v0)
-        let substitutions = resolve_substitution_chains(substitutions);
-
-        // apply substitutions to all instructions and terminators
-        if !substitutions.is_empty() {
-            // substitute in instructions
-            for &block_id in &function.blocks {
-                let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
-                for instruction_id in instruction_ids {
-                    if to_remove.contains(&instruction_id) {
-                        continue;
-                    }
-                    let instruction = tree.get(instruction_id);
-                    let new_instruction = instruction_substitute_uses(instruction, &substitutions);
-                    if new_instruction != *instruction {
-                        tree.replace(instruction_id, new_instruction);
-                    }
-                }
-            }
-
-            // substitute in terminators and remove substituted instructions
-            for &block_id in &function.blocks {
-                let block = tree.get(block_id);
-                let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
-                let filtered: Vec<_> = block
-                    .instructions
-                    .iter()
-                    .copied()
-                    .filter(|id| !to_remove.contains(id))
-                    .collect();
-
-                // update block if anything changed
-                if new_terminator != block.terminator || filtered.len() != block.instructions.len()
-                {
-                    let mut new_block = block.clone();
-                    new_block.terminator = new_terminator;
-                    new_block.instructions = filtered;
-                    tree.replace(block_id, new_block);
-                }
-            }
-        }
-
-        // instruction combine doesn't change the CFG, only instruction contents
+        let changed = run_instruction_combine(function, tree);
         if changed {
-            AnalysisPreservation::Some(vec![AnalysisKind::ControlFlowGraph])
+            AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
+
+    fn name(&self) -> &'static str {
+        "InstructionCombine"
+    }
+
+    fn id(&self) -> &'static str {
+        "instruction-combine"
+    }
+}
+
+/// Core instruction combine logic.
+fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // build map of value -> constant for known constants
+    let mut constants: HashMap<mir::Value, mir::Constant> = HashMap::new();
+
+    // build map of value -> instruction for unary simplifications
+    let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
+
+    // track aggregate construction operands: dest -> operand list
+    let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
+
+    // scan all blocks for constant definitions and build value map
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+
+            // track constants
+            if let mir::Instruction::Const { destination, value } = instruction {
+                constants.insert(*destination, value.clone());
+            }
+
+            // track aggregate constructions
+            match instruction {
+                mir::Instruction::Struct {
+                    destination,
+                    fields,
+                    ..
+                } => {
+                    let args = tree.get_arguments(*fields);
+                    aggregate_operands.insert(*destination, args.to_vec());
+                }
+                mir::Instruction::Tuple {
+                    destination,
+                    elements,
+                    ..
+                }
+                | mir::Instruction::Array {
+                    destination,
+                    elements,
+                    ..
+                } => {
+                    let args = tree.get_arguments(*elements);
+                    aggregate_operands.insert(*destination, args.to_vec());
+                }
+                _ => {}
+            }
+
+            // track all instructions by destination
+            if let Some(dest) = instruction.destination() {
+                value_to_instruction.insert(dest, instruction.clone());
+            }
+        }
+    }
+
+    // track substitutions and removals
+    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut to_remove: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    let mut changed = false;
+
+    // apply simplifications
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let instruction_ids: Vec<_> = block.instructions.clone();
+
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id);
+
+            let simplified = match instruction {
+                mir::Instruction::Binary {
+                    destination,
+                    operator,
+                    left,
+                    right,
+                } => simplify_binary_operator(*destination, *operator, *left, *right, &constants),
+
+                mir::Instruction::Unary {
+                    destination,
+                    operator,
+                    argument,
+                } => simplify_unary_operator(
+                    *destination,
+                    *operator,
+                    *argument,
+                    &value_to_instruction,
+                ),
+
+                mir::Instruction::FieldGet {
+                    aggregate, index, ..
+                } => {
+                    if let Some(operands) = aggregate_operands.get(aggregate) {
+                        operands
+                            .get(*index as usize)
+                            .map(|&op| Simplification::Substitute(op))
+                    } else {
+                        None
+                    }
+                }
+
+                mir::Instruction::ElementGet { array, index, .. } => {
+                    if let Some(operands) = aggregate_operands.get(array) {
+                        if let Some(Constant::Int { value: idx, .. }) = constants.get(index) {
+                            operands
+                                .get(*idx as usize)
+                                .map(|&op| Simplification::Substitute(op))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+
+                _ => None,
+            };
+
+            if let Some(simplification) = simplified {
+                changed = true;
+                match simplification {
+                    Simplification::Constant(value) => {
+                        let dest = instruction.destination().unwrap();
+                        let new_instruction = mir::Instruction::Const {
+                            destination: dest,
+                            value: value.clone(),
+                        };
+                        constants.insert(dest, value);
+                        value_to_instruction.insert(dest, new_instruction.clone());
+                        tree.replace(instruction_id, new_instruction);
+                    }
+                    Simplification::Substitute(replacement) => {
+                        let dest = instruction.destination().unwrap();
+                        substitutions.insert(dest, replacement);
+                        to_remove.push(instruction_id);
+                    }
+                }
+            }
+        }
+    }
+
+    // resolve transitive substitutions
+    let substitutions = resolve_substitution_chains(substitutions);
+
+    // apply substitutions
+    if !substitutions.is_empty() {
+        for &block_id in &function.blocks {
+            let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
+            for instruction_id in instruction_ids {
+                if to_remove.contains(&instruction_id) {
+                    continue;
+                }
+                let instruction = tree.get(instruction_id);
+                let new_instruction = instruction_substitute_uses(instruction, &substitutions);
+                if new_instruction != *instruction {
+                    tree.replace(instruction_id, new_instruction);
+                }
+            }
+        }
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+            let filtered: Vec<_> = block
+                .instructions
+                .iter()
+                .copied()
+                .filter(|id| !to_remove.contains(id))
+                .collect();
+
+            if new_terminator != block.terminator || filtered.len() != block.instructions.len() {
+                let mut new_block = block.clone();
+                new_block.terminator = new_terminator;
+                new_block.instructions = filtered;
+                tree.replace(block_id, new_block);
+            }
+        }
+    }
+
+    changed
 }
 
 /// Try to simplify a binary operation using algebraic identities.
