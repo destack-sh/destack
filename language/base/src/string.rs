@@ -263,6 +263,17 @@ impl StringPool {
         self.intern(&s)
     }
 
+    /// Copy all strings from an immutable pool into this pool.
+    ///
+    /// Strings are interned in order, preserving StringId mappings as long as
+    /// this pool was empty before the call.
+    pub fn copy_from_immutable(&self, other: &ImmutableStringPool) {
+        for i in 0..other.len() {
+            let id = StringId::from_zero_based_index(i);
+            self.intern(other.get(id));
+        }
+    }
+
     /// Get the number of unique strings stored in this pool.
     #[inline]
     pub fn len(&self) -> usize {
