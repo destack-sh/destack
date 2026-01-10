@@ -688,6 +688,17 @@ fn substitute_instruction_uses(
             argument: resolve_value(*argument, substitutions),
             to_type: *to_type,
         },
+        Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        } => Instruction::Select {
+            destination: *destination,
+            condition: resolve_value(*condition, substitutions),
+            then_value: resolve_value(*then_value, substitutions),
+            else_value: resolve_value(*else_value, substitutions),
+        },
         Instruction::LocalSet { local, value } => Instruction::LocalSet {
             local: *local,
             value: resolve_value(*value, substitutions),

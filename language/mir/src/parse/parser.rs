@@ -747,6 +747,21 @@ impl<'a> Parser<'a> {
                 }
             }
 
+            // selection
+            "select" => {
+                let condition = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let then_value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let else_value = self.parse_value()?;
+                Instruction::Select {
+                    destination,
+                    condition,
+                    then_value,
+                    else_value,
+                }
+            }
+
             // local operations
             "local.get" => {
                 let local = self.parse_local_ref()?;

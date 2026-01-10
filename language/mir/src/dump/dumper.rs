@@ -319,6 +319,23 @@ impl<'a> Dumper<'a> {
                 self.write_colored(&self.format_type_id(*to_type), Color::Magenta);
             }
 
+            Instruction::Select {
+                destination,
+                condition,
+                then_value,
+                else_value,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = ");
+                self.write_colored("select", Color::Cyan);
+                self.write(" ");
+                self.write(&self.format_value(*condition));
+                self.write(", ");
+                self.write(&self.format_value(*then_value));
+                self.write(", ");
+                self.write(&self.format_value(*else_value));
+            }
+
             Instruction::LocalGet { destination, local } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = local.get ");

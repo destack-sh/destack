@@ -226,6 +226,14 @@ pub enum ThreadedInstructionData {
         to_type: u32,
     },
 
+    /// Conditional select.
+    Select {
+        dest: mir::Value,
+        condition: mir::Value,
+        then_value: mir::Value,
+        else_value: mir::Value,
+    },
+
     /// Function call.
     Call {
         dest: mir::Value,

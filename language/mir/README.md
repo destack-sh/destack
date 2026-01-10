@@ -120,6 +120,7 @@ Each instruction defines at most one `Value`.
 | Constants | `const` |
 | Arithmetic | `binary`, `unary` |
 | Type conversion | `cast` (trunc, extend, bitcast, float↔int, etc.) |
+| Selection | `select` (conditional value without branching) |
 | Local variables | `local.get`, `local.set` |
 | Globals | `global.addr`, `global.const` |
 | Memory | `load`, `store`, `drop` |
