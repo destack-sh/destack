@@ -874,7 +874,7 @@ pub fn terminator_remap(
             remap_target(&mut failure.target);
             remap_args(&mut failure.arguments);
             match constraint {
-                mir::CheckConsstraint::Bounds {
+                mir::CheckConstraint::Bounds {
                     index,
                     length,
                     collection,
@@ -884,19 +884,19 @@ pub fn terminator_remap(
                     remap_value(length);
                     remap_value(collection);
                 }
-                mir::CheckConsstraint::Null { value } => {
+                mir::CheckConstraint::Null { value } => {
                     remap_value(value);
                 }
-                mir::CheckConsstraint::DivZero { divisor } => {
+                mir::CheckConstraint::DivZero { divisor } => {
                     remap_value(divisor);
                 }
-                mir::CheckConsstraint::ShiftRange { value, .. } => {
+                mir::CheckConstraint::ShiftRange { value, .. } => {
                     remap_value(value);
                 }
-                mir::CheckConsstraint::Narrow { value, .. } => {
+                mir::CheckConstraint::Narrow { value, .. } => {
                     remap_value(value);
                 }
-                mir::CheckConsstraint::Overflow { left, right, .. } => {
+                mir::CheckConstraint::Overflow { left, right, .. } => {
                     remap_value(left);
                     remap_value(right);
                 }

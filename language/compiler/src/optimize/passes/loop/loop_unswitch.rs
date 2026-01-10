@@ -144,7 +144,7 @@ struct UnswitchCandidate {
     /// Arguments passed to else_target.
     else_arguments: Vec<mir::Value>,
     /// The check kind if the invariant branch is a check.
-    check_kind: Option<mir::CheckConsstraint>,
+    check_kind: Option<mir::CheckConstraint>,
     /// All blocks in the loop.
     loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Arguments passed from preheader to header.

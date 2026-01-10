@@ -585,47 +585,47 @@ fn update_terminator_arguments(
                 substitutions,
             );
             let constraint = match constraint {
-                mir::CheckConsstraint::Bounds {
+                mir::CheckConstraint::Bounds {
                     index,
                     length,
                     collection,
                     is_signed,
-                } => mir::CheckConsstraint::Bounds {
+                } => mir::CheckConstraint::Bounds {
                     index: resolve_value(*index, substitutions),
                     length: resolve_value(*length, substitutions),
                     collection: resolve_value(*collection, substitutions),
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+                mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
                     value: resolve_value(*value, substitutions),
                 },
-                mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+                mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
                     divisor: resolve_value(*divisor, substitutions),
                 },
-                mir::CheckConsstraint::ShiftRange {
+                mir::CheckConstraint::ShiftRange {
                     value,
                     bit_width,
                     is_signed,
-                } => mir::CheckConsstraint::ShiftRange {
+                } => mir::CheckConstraint::ShiftRange {
                     value: resolve_value(*value, substitutions),
                     bit_width: *bit_width,
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Narrow {
+                mir::CheckConstraint::Narrow {
                     value,
                     to_width,
                     is_signed,
-                } => mir::CheckConsstraint::Narrow {
+                } => mir::CheckConstraint::Narrow {
                     value: resolve_value(*value, substitutions),
                     to_width: *to_width,
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Overflow {
+                mir::CheckConstraint::Overflow {
                     operator,
                     left,
                     right,
                     is_signed,
-                } => mir::CheckConsstraint::Overflow {
+                } => mir::CheckConstraint::Overflow {
                     operator: *operator,
                     left: resolve_value(*left, substitutions),
                     right: resolve_value(*right, substitutions),
@@ -962,47 +962,47 @@ fn substitute_terminator_uses(
             failure,
         } => {
             let constraint = match constraint {
-                mir::CheckConsstraint::Bounds {
+                mir::CheckConstraint::Bounds {
                     index,
                     length,
                     collection,
                     is_signed,
-                } => mir::CheckConsstraint::Bounds {
+                } => mir::CheckConstraint::Bounds {
                     index: resolve_value(*index, substitutions),
                     length: resolve_value(*length, substitutions),
                     collection: resolve_value(*collection, substitutions),
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+                mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
                     value: resolve_value(*value, substitutions),
                 },
-                mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+                mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
                     divisor: resolve_value(*divisor, substitutions),
                 },
-                mir::CheckConsstraint::ShiftRange {
+                mir::CheckConstraint::ShiftRange {
                     value,
                     bit_width,
                     is_signed,
-                } => mir::CheckConsstraint::ShiftRange {
+                } => mir::CheckConstraint::ShiftRange {
                     value: resolve_value(*value, substitutions),
                     bit_width: *bit_width,
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Narrow {
+                mir::CheckConstraint::Narrow {
                     value,
                     to_width,
                     is_signed,
-                } => mir::CheckConsstraint::Narrow {
+                } => mir::CheckConstraint::Narrow {
                     value: resolve_value(*value, substitutions),
                     to_width: *to_width,
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Overflow {
+                mir::CheckConstraint::Overflow {
                     operator,
                     left,
                     right,
                     is_signed,
-                } => mir::CheckConsstraint::Overflow {
+                } => mir::CheckConstraint::Overflow {
                     operator: *operator,
                     left: resolve_value(*left, substitutions),
                     right: resolve_value(*right, substitutions),

@@ -653,6 +653,7 @@ fn o1_pipeline() -> CompositePipeline {
         .function_passes(simplify())
         .function_passes(canonicalize())
         .function_passes(vec![Box::new(LocalCse), Box::new(CopyPropagate)])
+        .function_passes(optimize_types())
         .function_passes(cleanup())
         .build()
 }
