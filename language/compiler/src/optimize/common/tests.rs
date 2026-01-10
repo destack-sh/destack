@@ -77,6 +77,7 @@ impl TestProgram {
             options,
             test_module_id(),
             test_target_id(),
+            None,
         );
 
         // collect function ids
@@ -113,6 +114,7 @@ impl TestProgram {
             PipelineOptions::default(),
             test_module_id(),
             test_target_id(),
+            None,
         );
 
         pass.run(&mut self.tree, &context);
@@ -244,11 +246,13 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
+    use destack_base::StringPool;
     use destack_mir as mir;
 
     use super::TestProgram;
     use crate::optimize::{
         Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis,
+        PipelineContext, PipelineOptions,
     };
 
     /// Simple test analysis with no dependencies.
@@ -341,6 +345,27 @@ block0:
         // second get returns cached
         let a2 = analyses.get::<TestAnalysisA>();
         assert!(Arc::ptr_eq(&a, &a2));
+    }
+
+    /// Pipeline context exposes profile data when provided.
+    #[test]
+    fn test_pipeline_context_profile_access() {
+        // create context inputs
+        let strings = StringPool::new();
+        let profile = Arc::new(mir::ProfileTable::new(mir::ProfileSource::Instrumentation));
+
+        // build pipeline context
+        let context = PipelineContext::new(
+            &strings,
+            PipelineOptions::default(),
+            super::test_module_id(),
+            super::test_target_id(),
+            Some(profile),
+        );
+
+        // verify profile accessors
+        assert!(context.has_profile());
+        assert!(context.profile().is_some());
     }
 
     #[test]

@@ -4,7 +4,10 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{Block, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter, Terminator, Value};
+use crate::{
+    Block, CheckConsstraint, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter,
+    Terminator, Value,
+};
 
 impl<'a> FormatMirNode<'a, Block> for Block {
     fn format_node(
@@ -112,6 +115,33 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
+        Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            let success_index = f.context().block_index(success.target);
+            let failure_index = f.context().block_index(failure.target);
+            write!(f, [token("check"), space(), condition, token(","), space()])?;
+            format_check_kind(constraint, f)?;
+            write!(
+                f,
+                [token(","), space(), text(&format!("block{success_index}"))]
+            )?;
+            if !success.arguments.is_empty() {
+                format_value_list(&success.arguments, f)?;
+            }
+            write!(
+                f,
+                [token(","), space(), text(&format!("block{failure_index}"))]
+            )?;
+            if !failure.arguments.is_empty() {
+                format_value_list(&failure.arguments, f)?;
+            }
+            Ok(())
+        }
+
         Terminator::Switch {
             value,
             default,
@@ -196,6 +226,107 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::TailCallIndirect { callee, arguments } => {
             write!(f, [token("tailcall.indirect"), space(), callee])?;
             format_value_list(arguments, f)
+        }
+    }
+}
+
+/// Format a check kind and its operands.
+fn format_check_kind<'a>(
+    kind: &CheckConsstraint,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    // write the check kind header
+    match kind {
+        CheckConsstraint::Bounds {
+            index,
+            length,
+            collection,
+            is_signed,
+        } => {
+            let prefix = if *is_signed {
+                "bounds.signed"
+            } else {
+                "bounds.unsigned"
+            };
+            write!(
+                f,
+                [
+                    token(prefix),
+                    space(),
+                    index,
+                    token(","),
+                    space(),
+                    length,
+                    token(","),
+                    space(),
+                    collection
+                ]
+            )
+        }
+        CheckConsstraint::Null { value } => {
+            write!(f, [token("null"), space(), value])
+        }
+        CheckConsstraint::DivZero { divisor } => {
+            write!(f, [token("div_zero"), space(), divisor])
+        }
+        CheckConsstraint::ShiftRange {
+            value,
+            bit_width,
+            is_signed,
+        } => {
+            let prefix = if *is_signed {
+                "shift.signed"
+            } else {
+                "shift.unsigned"
+            };
+            write!(
+                f,
+                [
+                    token(prefix),
+                    space(),
+                    value,
+                    token(","),
+                    space(),
+                    text(&bit_width.to_string())
+                ]
+            )
+        }
+        CheckConsstraint::Narrow {
+            value,
+            to_width,
+            is_signed,
+        } => {
+            let prefix = if *is_signed {
+                "narrow.signed"
+            } else {
+                "narrow.unsigned"
+            };
+            write!(
+                f,
+                [
+                    token(prefix),
+                    space(),
+                    value,
+                    token(","),
+                    space(),
+                    text(&to_width.to_string())
+                ]
+            )
+        }
+        CheckConsstraint::Overflow {
+            operator,
+            left,
+            right,
+            is_signed,
+        } => {
+            let prefix = if *is_signed {
+                "overflow.signed"
+            } else {
+                "overflow.unsigned"
+            };
+            let op_name = operator.to_str();
+            let name = format!("{prefix}.{op_name}");
+            write!(f, [text(&name), space(), left, token(","), space(), right])
         }
     }
 }

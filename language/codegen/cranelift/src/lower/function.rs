@@ -404,6 +404,9 @@ impl<'a> FunctionLowerer<'a> {
             // local_set: no result
             mir::Instruction::LocalSet { .. } => None,
 
+            // assume: no result
+            mir::Instruction::Assume { .. } => None,
+
             // global_addr: result type = pointer (but we don't track pointer types here)
             mir::Instruction::GlobalAddr { .. } => None,
 
@@ -840,6 +843,9 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::StackDrop { .. } => {
                 // no-op: stack memory is freed when the frame exits
             }
+
+            // assume: no op for codegen (optimizer handled it)
+            mir::Instruction::Assume { .. } => {}
 
             // extract_field: load at computed offset (struct/tuple field read)
             mir::Instruction::FieldGet {
@@ -1329,6 +1335,36 @@ impl<'a> FunctionLowerer<'a> {
                     &then_arguments,
                     else_block,
                     &else_arguments,
+                );
+            }
+
+            // check: brif (semantic check with explicit failure edge)
+            mir::Terminator::Check {
+                condition,
+                success,
+                failure,
+                ..
+            } => {
+                let cond_value = value_map[condition];
+                let success_block = block_map[&success.target];
+                let failure_block = block_map[&failure.target];
+                let success_arguments: Vec<cir::BlockArg> = success
+                    .arguments
+                    .iter()
+                    .map(|v| cir::BlockArg::from(value_map[v]))
+                    .collect();
+                let failure_arguments: Vec<cir::BlockArg> = failure
+                    .arguments
+                    .iter()
+                    .map(|v| cir::BlockArg::from(value_map[v]))
+                    .collect();
+
+                builder.ins().brif(
+                    cond_value,
+                    success_block,
+                    &success_arguments,
+                    failure_block,
+                    &failure_arguments,
                 );
             }
 

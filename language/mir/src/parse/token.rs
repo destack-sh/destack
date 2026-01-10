@@ -24,6 +24,8 @@ pub enum TokenType {
     Jump,
     /// `branch`
     Branch,
+    /// `check`
+    Check,
     /// `switch`
     Switch,
     /// `unreachable`

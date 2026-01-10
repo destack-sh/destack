@@ -237,6 +237,7 @@ fn find_constant_exit(
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     let header_block = tree.get(lp.header);
 
+    // extract condition and targets from header terminator
     let (condition, then_target, then_args, else_target, else_args) = match &header_block.terminator
     {
         mir::Terminator::Branch {
@@ -252,30 +253,48 @@ fn find_constant_exit(
             *else_target,
             else_arguments.clone(),
         ),
+        mir::Terminator::Check {
+            condition,
+            success,
+            failure,
+            ..
+        } => (
+            *condition,
+            success.target,
+            success.arguments.clone(),
+            failure.target,
+            failure.arguments.clone(),
+        ),
         _ => return None,
     };
 
+    // evaluate the condition as a constant
     let condition_constant = constants.constant_at_exit(lp.header, condition)?;
     let condition_value = match condition_constant {
         mir::Constant::Boolean { value } => *value,
         _ => return None,
     };
+
+    // determine which branch is taken
     let (taken_target, taken_arguments) = if condition_value {
         (then_target, then_args)
     } else {
         (else_target, else_args)
     };
 
+    // ensure the taken target is outside the loop
     if lp.blocks.contains(&taken_target) {
         return None;
     }
 
+    // map header parameters to their initial values from preheader
     let preheader_args = preheader_to_header_args(preheader, lp.header, tree)?;
     let mut initial_values: HashMap<mir::Value, mir::Value> = HashMap::new();
     for (param, arg) in header_block.parameters.iter().zip(preheader_args.iter()) {
         initial_values.insert(param.value, *arg);
     }
 
+    // resolve exit arguments using initial values
     let resolved_arguments: Vec<mir::Value> = taken_arguments
         .iter()
         .map(|v| *initial_values.get(v).unwrap_or(v))
@@ -292,6 +311,7 @@ fn preheader_to_header_args(
 ) -> Option<Vec<mir::Value>> {
     let preheader_block = tree.get(preheader);
 
+    // find the terminator path that leads to the header
     match &preheader_block.terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => Some(arguments.clone()),
         mir::Terminator::Branch {
@@ -301,10 +321,27 @@ fn preheader_to_header_args(
             else_arguments,
             ..
         } => {
+            // check then branch
             if *then_target == header {
                 Some(then_arguments.clone())
-            } else if *else_target == header {
+            }
+            // check else branch
+            else if *else_target == header {
                 Some(else_arguments.clone())
+            } else {
+                None
+            }
+        }
+        mir::Terminator::Check {
+            success, failure, ..
+        } => {
+            // check success path
+            if success.target == header {
+                Some(success.arguments.clone())
+            }
+            // check failure path
+            else if failure.target == header {
+                Some(failure.arguments.clone())
             } else {
                 None
             }

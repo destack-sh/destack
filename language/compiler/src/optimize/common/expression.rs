@@ -167,7 +167,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
-        | mir::Instruction::ElementAddr { .. } => None,
+        | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::Assume { .. } => None,
     }
 }
 

@@ -1,9 +1,10 @@
 //! MIR tree dumper for debugging and visualization.
 
 use crate::{
-    BinaryOperator, Block, CastOperator, Constant, Function, Global, GlobalInitializer,
-    Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions,
-    Ownership, ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator, Value,
+    BinaryOperator, Block, CastOperator, CheckConsstraint, Constant, Function, Global,
+    GlobalInitializer, Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor,
+    NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator,
+    Value,
 };
 use destack_base::{Color, StringPool};
 
@@ -393,6 +394,11 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*value));
             }
 
+            Instruction::Assume { condition } => {
+                self.write("assume ");
+                self.write(&self.format_value(*condition));
+            }
+
             Instruction::FieldGet {
                 destination,
                 aggregate,
@@ -700,6 +706,120 @@ impl<'a> Dumper<'a> {
                 if !else_arguments.is_empty() {
                     self.write("(");
                     for (i, arg) in else_arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+            }
+
+            Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                self.write_colored("check", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*condition));
+                self.write(", ");
+                match constraint {
+                    CheckConsstraint::Bounds {
+                        index,
+                        length,
+                        collection,
+                        is_signed,
+                    } => {
+                        let prefix = if *is_signed {
+                            "bounds.signed"
+                        } else {
+                            "bounds.unsigned"
+                        };
+                        self.write(prefix);
+                        self.write(" ");
+                        self.write(&self.format_value(*index));
+                        self.write(", ");
+                        self.write(&self.format_value(*length));
+                        self.write(", ");
+                        self.write(&self.format_value(*collection));
+                    }
+                    CheckConsstraint::Null { value } => {
+                        self.write("null ");
+                        self.write(&self.format_value(*value));
+                    }
+                    CheckConsstraint::DivZero { divisor } => {
+                        self.write("div_zero ");
+                        self.write(&self.format_value(*divisor));
+                    }
+                    CheckConsstraint::ShiftRange {
+                        value,
+                        bit_width,
+                        is_signed,
+                    } => {
+                        let prefix = if *is_signed {
+                            "shift.signed"
+                        } else {
+                            "shift.unsigned"
+                        };
+                        self.write(prefix);
+                        self.write(" ");
+                        self.write(&self.format_value(*value));
+                        self.write(", ");
+                        self.write(&bit_width.to_string());
+                    }
+                    CheckConsstraint::Narrow {
+                        value,
+                        to_width,
+                        is_signed,
+                    } => {
+                        let prefix = if *is_signed {
+                            "narrow.signed"
+                        } else {
+                            "narrow.unsigned"
+                        };
+                        self.write(prefix);
+                        self.write(" ");
+                        self.write(&self.format_value(*value));
+                        self.write(", ");
+                        self.write(&to_width.to_string());
+                    }
+                    CheckConsstraint::Overflow {
+                        operator,
+                        left,
+                        right,
+                        is_signed,
+                    } => {
+                        let prefix = if *is_signed {
+                            "overflow.signed"
+                        } else {
+                            "overflow.unsigned"
+                        };
+                        self.write(&format!("{prefix}.{}", operator.to_str()));
+                        self.write(" ");
+                        self.write(&self.format_value(*left));
+                        self.write(", ");
+                        self.write(&self.format_value(*right));
+                    }
+                }
+                self.write(", ");
+                self.write(&self.format_block_id(success.target));
+                if !success.arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in success.arguments.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write(")");
+                }
+                self.write(", ");
+                self.write(&self.format_block_id(failure.target));
+                if !failure.arguments.is_empty() {
+                    self.write("(");
+                    for (i, arg) in failure.arguments.iter().enumerate() {
                         if i > 0 {
                             self.write(", ");
                         }

@@ -518,6 +518,12 @@ pub(super) fn thread_function(
                 queue.push(*then_target);
                 queue.push(*else_target);
             }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                queue.push(success.target);
+                queue.push(failure.target);
+            }
             mir::Terminator::Switch { cases, default, .. } => {
                 for case in cases {
                     queue.push(case.target);
@@ -1278,6 +1284,13 @@ fn thread_instruction(
             data: ThreadedInstructionData::StackDrop { value: *value },
         },
 
+        mir::Instruction::Assume { condition } => ThreadedInstruction {
+            handler: dispatch::handle_assume,
+            data: ThreadedInstructionData::Assume {
+                condition: *condition,
+            },
+        },
+
         mir::Instruction::FieldGet {
             destination,
             aggregate,
@@ -1763,7 +1776,8 @@ fn infer_instruction_kind(
         | mir::Instruction::Store { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::RawDrop { .. }
-        | mir::Instruction::StackDrop { .. } => None,
+        | mir::Instruction::StackDrop { .. }
+        | mir::Instruction::Assume { .. } => None,
     }
 }
 
@@ -2385,6 +2399,39 @@ fn thread_terminator(
                     then_copies,
                     else_target: else_index as u32,
                     else_copies,
+                },
+            }
+        }
+
+        mir::Terminator::Check {
+            condition,
+            success,
+            failure,
+            ..
+        } => {
+            // resolve check target parameters
+            let success_index = block_index_map[&success.target];
+            let failure_index = block_index_map[&failure.target];
+            let success_parameters = block_parameters
+                .get(success_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            let failure_parameters = block_parameters
+                .get(failure_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            let success_copies = push_copy_range(copy_pool, success_parameters, &success.arguments);
+            let failure_copies = push_copy_range(copy_pool, failure_parameters, &failure.arguments);
+
+            // assemble threaded check
+            ThreadedInstruction {
+                handler: select_branch_handler(value_kinds, *condition),
+                data: ThreadedInstructionData::Branch {
+                    condition: *condition,
+                    then_target: success_index as u32,
+                    then_copies: success_copies,
+                    else_target: failure_index as u32,
+                    else_copies: failure_copies,
                 },
             }
         }

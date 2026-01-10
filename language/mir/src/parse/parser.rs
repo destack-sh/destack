@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, Constant, Copyability, Field, Function,
-    Global, GlobalInitializer, Instruction, Intrinsic, Lifetime, Linkage, Local, LocalNodeId,
-    MemoryOrdering, Mutability, NodeTree, Ownership, ReferenceKind, SwitchCase, Terminator, Type,
-    TypeAlias, TypedValue, UnaryOperator, Value,
+    AllocationMode, BinaryOperator, Block, CastOperator, CheckConsstraint, CheckTarget, Constant,
+    Copyability, Field, Function, Global, GlobalInitializer, Instruction, Intrinsic, Lifetime,
+    Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership, ReferenceKind,
+    SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -589,6 +589,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::Return)
                 || self.peek_token(TokenType::Jump)
                 || self.peek_token(TokenType::Branch)
+                || self.peek_token(TokenType::Check)
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
@@ -643,6 +644,12 @@ impl<'a> Parser<'a> {
             } => {
                 *then_target = resolve(*then_target, source_to_actual);
                 *else_target = resolve(*else_target, source_to_actual);
+            }
+            Terminator::Check {
+                success, failure, ..
+            } => {
+                success.target = resolve(success.target, source_to_actual);
+                failure.target = resolve(failure.target, source_to_actual);
             }
             Terminator::Switch { default, cases, .. } => {
                 *default = resolve(*default, source_to_actual);
@@ -1005,6 +1012,10 @@ impl<'a> Parser<'a> {
                 let value = self.parse_value()?;
                 Instruction::StackDrop { value }
             }
+            "assume" => {
+                let condition = self.parse_value()?;
+                Instruction::Assume { condition }
+            }
 
             // void calls
             "call" => {
@@ -1118,6 +1129,23 @@ impl<'a> Parser<'a> {
                 })
             }
 
+            TokenType::Check => {
+                self.bump();
+                let condition = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let constraint = self.parse_check_kind()?;
+                self.eat_token(TokenType::Comma)?;
+                let success = self.parse_check_target()?;
+                self.eat_token(TokenType::Comma)?;
+                let failure = self.parse_check_target()?;
+                Ok(Terminator::Check {
+                    condition,
+                    constraint,
+                    success,
+                    failure,
+                })
+            }
+
             TokenType::Switch => {
                 self.bump();
                 let value = self.parse_value()?;
@@ -1185,6 +1213,223 @@ impl<'a> Parser<'a> {
 
             _ => Err(ParseError::unexpected("terminator", token.ty, token.start)),
         }
+    }
+
+    /// Parse a check kind and its operands.
+    fn parse_check_kind(&mut self) -> ParseResult<CheckConsstraint> {
+        // parse the kind identifier
+        let kind_token = self.eat_token(TokenType::Identifier)?;
+        let kind_text = kind_token.text;
+        let kind_start = kind_token.start;
+
+        // split the kind into segments
+        let mut parts = kind_text.split('.');
+        let head = parts.next().unwrap_or_default();
+
+        // dispatch on the kind head
+        match head {
+            "bounds" => {
+                // parse signedness
+                let signedness = parts.next().ok_or_else(|| {
+                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
+                })?;
+                let is_signed = match signedness {
+                    "signed" => true,
+                    "unsigned" => false,
+                    _ => {
+                        return Err(ParseError::invalid(
+                            &format!("check kind '{kind_text}'"),
+                            kind_start,
+                        ));
+                    }
+                };
+
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse bounds operands
+                let index = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let length = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let collection = self.parse_value()?;
+
+                Ok(CheckConsstraint::Bounds {
+                    index,
+                    length,
+                    collection,
+                    is_signed,
+                })
+            }
+            "null" => {
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse the null checked value
+                let value = self.parse_value()?;
+                Ok(CheckConsstraint::Null { value })
+            }
+            "div_zero" => {
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse the divisor
+                let divisor = self.parse_value()?;
+                Ok(CheckConsstraint::DivZero { divisor })
+            }
+            "shift" => {
+                // parse signedness
+                let signedness = parts.next().ok_or_else(|| {
+                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
+                })?;
+                let is_signed = match signedness {
+                    "signed" => true,
+                    "unsigned" => false,
+                    _ => {
+                        return Err(ParseError::invalid(
+                            &format!("check kind '{kind_text}'"),
+                            kind_start,
+                        ));
+                    }
+                };
+
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse shift operands
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let bit_width = self.parse_int_literal()?;
+                let bit_width = u8::try_from(bit_width)
+                    .map_err(|_| ParseError::invalid("check bit width", kind_start))?;
+
+                Ok(CheckConsstraint::ShiftRange {
+                    value,
+                    bit_width,
+                    is_signed,
+                })
+            }
+            "narrow" => {
+                // parse signedness
+                let signedness = parts.next().ok_or_else(|| {
+                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
+                })?;
+                let is_signed = match signedness {
+                    "signed" => true,
+                    "unsigned" => false,
+                    _ => {
+                        return Err(ParseError::invalid(
+                            &format!("check kind '{kind_text}'"),
+                            kind_start,
+                        ));
+                    }
+                };
+
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse narrow operands
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let to_width = self.parse_int_literal()?;
+                let to_width = u8::try_from(to_width)
+                    .map_err(|_| ParseError::invalid("check width", kind_start))?;
+
+                Ok(CheckConsstraint::Narrow {
+                    value,
+                    to_width,
+                    is_signed,
+                })
+            }
+            "overflow" => {
+                // parse signedness and operator
+                let signedness = parts.next().ok_or_else(|| {
+                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
+                })?;
+                let operator_text = parts.next().ok_or_else(|| {
+                    ParseError::invalid(&format!("check kind '{kind_text}'"), kind_start)
+                })?;
+                let is_signed = match signedness {
+                    "signed" => true,
+                    "unsigned" => false,
+                    _ => {
+                        return Err(ParseError::invalid(
+                            &format!("check kind '{kind_text}'"),
+                            kind_start,
+                        ));
+                    }
+                };
+                let operator = operator_text.parse::<BinaryOperator>().map_err(|_| {
+                    ParseError::invalid(&format!("check operator '{operator_text}'"), kind_start)
+                })?;
+
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse overflow operands
+                let left = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let right = self.parse_value()?;
+
+                Ok(CheckConsstraint::Overflow {
+                    operator,
+                    left,
+                    right,
+                    is_signed,
+                })
+            }
+            _ => Err(ParseError::invalid(
+                &format!("check kind '{kind_text}'"),
+                kind_start,
+            )),
+        }
+    }
+
+    /// Parse a check target with optional block arguments.
+    fn parse_check_target(&mut self) -> ParseResult<CheckTarget> {
+        // parse the target block
+        let target = self.parse_block_ref()?;
+
+        // parse optional arguments
+        let arguments = if self.eat_token_maybe(TokenType::OpenParen) {
+            let args = self.parse_value_list()?;
+            self.eat_token(TokenType::CloseParen)?;
+            args
+        } else {
+            Vec::new()
+        };
+
+        Ok(CheckTarget { target, arguments })
     }
 
     /// Parse a type.

@@ -115,33 +115,61 @@ fn fold_constant_branches(
     // fold constant branches
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        if let mir::Terminator::Branch {
-            condition,
-            then_target,
-            then_arguments,
-            else_target,
-            else_arguments,
-        } = &block.terminator
-        {
-            // resolve condition constant
-            let condition_constant = constants.constant_at_exit(block_id, *condition);
-            let condition_value = match condition_constant {
-                Some(mir::Constant::Boolean { value }) => Some(*value),
-                _ => None,
-            };
-
-            if let Some(is_true) = condition_value {
-                let (target, arguments) = if is_true {
-                    (*then_target, then_arguments.clone())
-                } else {
-                    (*else_target, else_arguments.clone())
+        match &block.terminator {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => {
+                // resolve condition constant
+                let condition_constant = constants.constant_at_exit(block_id, *condition);
+                let condition_value = match condition_constant {
+                    Some(mir::Constant::Boolean { value }) => Some(*value),
+                    _ => None,
                 };
 
-                let mut new_block = block.clone();
-                new_block.terminator = mir::Terminator::Jump { target, arguments };
-                tree.replace(block_id, new_block);
-                changed = true;
+                if let Some(is_true) = condition_value {
+                    let (target, arguments) = if is_true {
+                        (*then_target, then_arguments.clone())
+                    } else {
+                        (*else_target, else_arguments.clone())
+                    };
+
+                    let mut new_block = block.clone();
+                    new_block.terminator = mir::Terminator::Jump { target, arguments };
+                    tree.replace(block_id, new_block);
+                    changed = true;
+                }
             }
+            mir::Terminator::Check {
+                condition,
+                success,
+                failure,
+                ..
+            } => {
+                // resolve condition constant
+                let condition_constant = constants.constant_at_exit(block_id, *condition);
+                let condition_value = match condition_constant {
+                    Some(mir::Constant::Boolean { value }) => Some(*value),
+                    _ => None,
+                };
+
+                if let Some(is_true) = condition_value {
+                    let (target, arguments) = if is_true {
+                        (success.target, success.arguments.clone())
+                    } else {
+                        (failure.target, failure.arguments.clone())
+                    };
+
+                    let mut new_block = block.clone();
+                    new_block.terminator = mir::Terminator::Jump { target, arguments };
+                    tree.replace(block_id, new_block);
+                    changed = true;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -250,6 +278,47 @@ fn thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
                         then_arguments: then_arguments.clone(),
                         else_target: new_else.unwrap_or(*else_target),
                         else_arguments: else_arguments.clone(),
+                    })
+                } else {
+                    None
+                }
+            }
+            mir::Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                let success_resolved = resolve_jump_target(success.target, &threadable);
+                let failure_resolved = resolve_jump_target(failure.target, &threadable);
+
+                let new_success = match success_resolved {
+                    ResolvedTarget::Block(t) if t != success.target => Some(t),
+                    ResolvedTarget::Terminator(mir::Terminator::Jump { target, .. }) => {
+                        Some(target)
+                    }
+                    _ => None,
+                };
+                let new_failure = match failure_resolved {
+                    ResolvedTarget::Block(t) if t != failure.target => Some(t),
+                    ResolvedTarget::Terminator(mir::Terminator::Jump { target, .. }) => {
+                        Some(target)
+                    }
+                    _ => None,
+                };
+
+                if new_success.is_some() || new_failure.is_some() {
+                    Some(mir::Terminator::Check {
+                        condition: *condition,
+                        constraint: constraint.clone(),
+                        success: mir::CheckTarget {
+                            target: new_success.unwrap_or(success.target),
+                            arguments: success.arguments.clone(),
+                        },
+                        failure: mir::CheckTarget {
+                            target: new_failure.unwrap_or(failure.target),
+                            arguments: failure.arguments.clone(),
+                        },
                     })
                 } else {
                     None

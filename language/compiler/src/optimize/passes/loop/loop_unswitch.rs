@@ -143,6 +143,8 @@ struct UnswitchCandidate {
     else_target: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to else_target.
     else_arguments: Vec<mir::Value>,
+    /// The check kind if the invariant branch is a check.
+    check_kind: Option<mir::CheckConsstraint>,
     /// All blocks in the loop.
     loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Arguments passed from preheader to header.
@@ -197,7 +199,7 @@ fn find_unswitchable_loop(
         let block = tree.get(block_id);
 
         // must have a branch terminator
-        let (condition, then_target, then_arguments, else_target, else_arguments) =
+        let (condition, then_target, then_arguments, else_target, else_arguments, check_kind) =
             match &block.terminator {
                 mir::Terminator::Branch {
                     condition,
@@ -211,12 +213,34 @@ fn find_unswitchable_loop(
                     then_arguments.clone(),
                     *else_target,
                     else_arguments.clone(),
+                    None,
+                ),
+                mir::Terminator::Check {
+                    condition,
+                    constraint,
+                    success,
+                    failure,
+                } => (
+                    *condition,
+                    success.target,
+                    success.arguments.clone(),
+                    failure.target,
+                    failure.arguments.clone(),
+                    Some(constraint.clone()),
                 ),
                 _ => continue,
             };
 
         // condition must be loop-invariant
         if !invariant_values.contains(&condition) {
+            continue;
+        }
+        if let Some(kind) = &check_kind
+            && !kind
+                .uses()
+                .iter()
+                .all(|value| invariant_values.contains(value))
+        {
             continue;
         }
 
@@ -241,6 +265,7 @@ fn find_unswitchable_loop(
             then_arguments,
             else_target,
             else_arguments,
+            check_kind,
             loop_blocks: lp.blocks.clone(),
             preheader_to_header_args,
         });
@@ -325,12 +350,27 @@ fn unswitch_loop(
 
     // modify preheader: branch based on condition
     let mut preheader = tree.get(candidate.preheader).clone();
-    preheader.terminator = mir::Terminator::Branch {
-        condition: candidate.condition,
-        then_target: candidate.header,
-        then_arguments: candidate.preheader_to_header_args.clone(),
-        else_target: cloned_header,
-        else_arguments: candidate.preheader_to_header_args.clone(),
+    preheader.terminator = if let Some(constraint) = candidate.check_kind.clone() {
+        mir::Terminator::Check {
+            condition: candidate.condition,
+            constraint,
+            success: mir::CheckTarget {
+                target: candidate.header,
+                arguments: candidate.preheader_to_header_args.clone(),
+            },
+            failure: mir::CheckTarget {
+                target: cloned_header,
+                arguments: candidate.preheader_to_header_args.clone(),
+            },
+        }
+    } else {
+        mir::Terminator::Branch {
+            condition: candidate.condition,
+            then_target: candidate.header,
+            then_arguments: candidate.preheader_to_header_args.clone(),
+            else_target: cloned_header,
+            else_arguments: candidate.preheader_to_header_args.clone(),
+        }
     };
     tree.replace(candidate.preheader, preheader);
 

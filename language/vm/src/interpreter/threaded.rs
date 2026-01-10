@@ -415,6 +415,9 @@ pub enum ThreadedInstructionData {
     /// Mark stack value lifetime ended (compiler-inserted, NLL).
     StackDrop { value: mir::Value },
 
+    /// Assume a condition is true (UB if false).
+    Assume { condition: mir::Value },
+
     /// Intrinsic call.
     Intrinsic {
         dest: mir::Value,

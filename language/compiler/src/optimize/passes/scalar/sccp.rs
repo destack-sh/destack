@@ -379,6 +379,27 @@ impl<'a> SccpState<'a> {
                     self.mark_edge_executable(block_id, *else_target, else_arguments);
                 }
             }
+            mir::Terminator::Check {
+                condition,
+                success,
+                failure,
+                ..
+            } => {
+                // evaluate check condition
+                let condition_state = self.value_state(*condition);
+
+                // mark executable edges for the check
+                if let LatticeValue::Constant(mir::Constant::Boolean { value }) = condition_state {
+                    if value {
+                        self.mark_edge_executable(block_id, success.target, &success.arguments);
+                    } else {
+                        self.mark_edge_executable(block_id, failure.target, &failure.arguments);
+                    }
+                } else {
+                    self.mark_edge_executable(block_id, success.target, &success.arguments);
+                    self.mark_edge_executable(block_id, failure.target, &failure.arguments);
+                }
+            }
             mir::Terminator::Switch {
                 value,
                 default,
@@ -1040,6 +1061,28 @@ fn fold_constant_terminator(
                 target: *default,
                 arguments: default_arguments.clone(),
             });
+        }
+    }
+    if let mir::Terminator::Check {
+        condition,
+        success,
+        failure,
+        ..
+    } = terminator
+    {
+        let condition_state = result.value_state(*condition);
+        let is_true = match condition_state {
+            LatticeValue::Constant(mir::Constant::Boolean { value }) => Some(value),
+            _ => None,
+        };
+
+        if let Some(is_true) = is_true {
+            let (target, arguments) = if is_true {
+                (success.target, success.arguments.clone())
+            } else {
+                (failure.target, failure.arguments.clone())
+            };
+            return Some(mir::Terminator::Jump { target, arguments });
         }
     }
 

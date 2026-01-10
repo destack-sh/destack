@@ -1,6 +1,8 @@
 use smallvec::{SmallVec, smallvec};
 
-use crate::{Function, Instruction, LocalNodeId, Node, NodeType, TypedValue, Value};
+use crate::{
+    BinaryOperator, Function, Instruction, LocalNodeId, Node, NodeType, TypedValue, Value,
+};
 
 /// A basic block is a sequence of instructions with:
 /// - A single entry point (can have parameters for SSA)
@@ -47,6 +49,90 @@ impl Default for Block {
     }
 }
 
+/// Target and arguments for a check edge.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckTarget {
+    /// The block to transfer control to.
+    pub target: LocalNodeId<Block>,
+    /// Arguments for the target block's parameters.
+    pub arguments: Vec<Value>,
+}
+
+/// Semantic constraint for a runtime check.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CheckConsstraint {
+    /// Bounds check on an index into a collection.
+    Bounds {
+        /// The index being checked.
+        index: Value,
+        /// The length being checked against.
+        length: Value,
+        /// The collection being indexed.
+        collection: Value,
+        /// Whether the index is treated as signed.
+        is_signed: bool,
+    },
+    /// Null check on a reference.
+    Null {
+        /// The value being checked for null.
+        value: Value,
+    },
+    /// Division by zero check.
+    DivZero {
+        /// The divisor being checked for zero.
+        divisor: Value,
+    },
+    /// Shift amount range check.
+    ShiftRange {
+        /// The shift amount being checked.
+        value: Value,
+        /// The bit width of the shifted type.
+        bit_width: u8,
+        /// Whether the shift amount is signed.
+        is_signed: bool,
+    },
+    /// Integer narrowing check.
+    Narrow {
+        /// The value being narrowed.
+        value: Value,
+        /// The target bit width.
+        to_width: u8,
+        /// Whether the narrowed value is signed.
+        is_signed: bool,
+    },
+    /// Overflow check for an arithmetic operation.
+    Overflow {
+        /// The operator being checked.
+        operator: BinaryOperator,
+        /// The left operand.
+        left: Value,
+        /// The right operand.
+        right: Value,
+        /// Whether the overflow check is signed.
+        is_signed: bool,
+    },
+}
+
+impl CheckConsstraint {
+    /// Get values used by this check kind.
+    pub fn uses(&self) -> SmallVec<[Value; 4]> {
+        // collect values referenced by the check kind
+        match self {
+            CheckConsstraint::Bounds {
+                index,
+                length,
+                collection,
+                ..
+            } => smallvec![*index, *length, *collection],
+            CheckConsstraint::Null { value } => smallvec![*value],
+            CheckConsstraint::DivZero { divisor } => smallvec![*divisor],
+            CheckConsstraint::ShiftRange { value, .. } => smallvec![*value],
+            CheckConsstraint::Narrow { value, .. } => smallvec![*value],
+            CheckConsstraint::Overflow { left, right, .. } => smallvec![*left, *right],
+        }
+    }
+}
+
 /// Block terminator - how control flow leaves a block.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Terminator {
@@ -76,6 +162,18 @@ pub enum Terminator {
         else_target: LocalNodeId<Block>,
         /// Arguments for the else block's parameters.
         else_arguments: Vec<Value>,
+    },
+
+    /// Runtime check with explicit success and failure edges.
+    Check {
+        /// The boolean condition being checked.
+        condition: Value,
+        /// Semantic constraint for the check.
+        constraint: CheckConsstraint,
+        /// The block to jump to when the check succeeds.
+        success: CheckTarget,
+        /// The block to jump to when the check fails.
+        failure: CheckTarget,
     },
 
     /// Switch on an integer value (multi-way branch).
@@ -147,6 +245,11 @@ impl Terminator {
                 else_target,
                 ..
             } => smallvec![*then_target, *else_target],
+            Terminator::Check {
+                success, failure, ..
+            } => {
+                smallvec![success.target, failure.target]
+            }
             Terminator::Switch { default, cases, .. } => {
                 let mut successors = smallvec![*default];
                 successors.extend(cases.iter().map(|c| c.target));
@@ -174,6 +277,18 @@ impl Terminator {
                 let mut uses = smallvec![*condition];
                 uses.extend(then_arguments.iter().copied());
                 uses.extend(else_arguments.iter().copied());
+                uses
+            }
+            Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                let mut uses = smallvec![*condition];
+                uses.extend(constraint.uses());
+                uses.extend(success.arguments.iter().copied());
+                uses.extend(failure.arguments.iter().copied());
                 uses
             }
             Terminator::Switch {

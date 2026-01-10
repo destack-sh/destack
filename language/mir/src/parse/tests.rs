@@ -49,6 +49,24 @@ block3(v3: i32):
     );
 }
 
+/// Roundtrip parsing supports check terminators and assume instructions.
+#[test]
+fn test_roundtrip_check_and_assume() {
+    roundtrip(
+        r#"function @guard(v0: u32, v1: u32, v2: [i32; 4]) -> i32 {
+block0(v0: u32, v1: u32, v2: [i32; 4]):
+    v3 = icmp_ult v0, v1
+    assume v3
+    check v3, bounds.unsigned v0, v1, v2, block1(v0), block2
+block1(v4: u32):
+    v5 = iconst 0i32
+    return v5
+block2:
+    unreachable
+}"#,
+    );
+}
+
 #[test]
 fn test_roundtrip_call() {
     roundtrip(

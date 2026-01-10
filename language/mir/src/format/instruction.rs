@@ -218,6 +218,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::StackDrop { value } => write!(f, [token("stack.drop"), space(), value]),
 
+            Instruction::Assume { condition } => {
+                write!(f, [token("assume"), space(), condition])
+            }
+
             Instruction::FieldGet {
                 destination,
                 aggregate,

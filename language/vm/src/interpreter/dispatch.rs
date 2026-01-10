@@ -4062,6 +4062,23 @@ pub(super) fn handle_stack_drop(
     next!(state, block, pc)
 }
 
+/// Handle assume (optimizer hint).
+pub(super) fn handle_assume(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Assume { condition: _ } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // no op: assume is handled by the optimizer
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle intrinsic call.
 pub(super) fn handle_intrinsic(
     state: &mut ThreadedState<'_>,

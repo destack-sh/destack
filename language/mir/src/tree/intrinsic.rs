@@ -264,9 +264,6 @@ pub enum Intrinsic {
     /// Hint that condition is likely false.
     /// `(bool) -> bool`
     Unlikely,
-    /// Assert that condition is true (UB if false, optimizer can assume).
-    /// `(bool) -> ()`
-    Assume,
     /// Optimization barrier (prevent optimizations through this value).
     /// `(T) -> T`
     BlackBox,
@@ -406,7 +403,6 @@ impl Intrinsic {
             Intrinsic::Expect => "expect",
             Intrinsic::Likely => "likely",
             Intrinsic::Unlikely => "unlikely",
-            Intrinsic::Assume => "assume",
             Intrinsic::BlackBox => "black_box",
 
             // SIMD
@@ -617,7 +613,6 @@ impl FromStr for Intrinsic {
             "expect" => Ok(Intrinsic::Expect),
             "likely" => Ok(Intrinsic::Likely),
             "unlikely" => Ok(Intrinsic::Unlikely),
-            "assume" => Ok(Intrinsic::Assume),
             "black_box" => Ok(Intrinsic::BlackBox),
             "shuffle" => Ok(Intrinsic::Shuffle),
             "select" => Ok(Intrinsic::Select),
@@ -881,7 +876,6 @@ impl Intrinsic {
             Intrinsic::FrameAddress => IntrinsicSignature::Control { args: 0 },
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
             Intrinsic::Likely | Intrinsic::Unlikely => IntrinsicSignature::BranchHint { args: 1 },
-            Intrinsic::Assume => IntrinsicSignature::Control { args: 1 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
 
             // SIMD

@@ -1,9 +1,10 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, Constant, Function, Global, Instruction,
-    Intrinsic, Lifetime, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
-    Ownership, Terminator, Type, TypedValue, UnaryOperator, Value,
+    AllocationMode, BinaryOperator, Block, CastOperator, CheckConsstraint, CheckTarget, Constant,
+    Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local, LocalNodeId,
+    MemoryOrdering, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator,
+    Value,
 };
 
 use super::Variable;
@@ -459,6 +460,9 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::ManagedAllocArray { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
                 }
+                Instruction::Assume { condition } => {
+                    Self::replace_value_in_slot(condition, from, to);
+                }
                 // arguments stored externally
                 Instruction::Struct { .. }
                 | Instruction::Tuple { .. }
@@ -503,6 +507,17 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(then_arguments, from, to);
                 Self::replace_values_in_slice(else_arguments, from, to);
             }
+            Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                Self::replace_value_in_slot(condition, from, to);
+                Self::replace_values_in_check_kind(constraint, from, to);
+                Self::replace_values_in_slice(&mut success.arguments, from, to);
+                Self::replace_values_in_slice(&mut failure.arguments, from, to);
+            }
             Terminator::Switch {
                 value,
                 default_arguments,
@@ -539,6 +554,39 @@ impl<'a> FunctionBuilder<'a> {
         // update matching values
         if *value == from {
             *value = to;
+        }
+    }
+
+    /// Replace values referenced by a check kind.
+    fn replace_values_in_check_kind(kind: &mut CheckConsstraint, from: Value, to: Value) {
+        // update values stored in the check kind
+        match kind {
+            CheckConsstraint::Bounds {
+                index,
+                length,
+                collection,
+                ..
+            } => {
+                Self::replace_value_in_slot(index, from, to);
+                Self::replace_value_in_slot(length, from, to);
+                Self::replace_value_in_slot(collection, from, to);
+            }
+            CheckConsstraint::Null { value } => {
+                Self::replace_value_in_slot(value, from, to);
+            }
+            CheckConsstraint::DivZero { divisor } => {
+                Self::replace_value_in_slot(divisor, from, to);
+            }
+            CheckConsstraint::ShiftRange { value, .. } => {
+                Self::replace_value_in_slot(value, from, to);
+            }
+            CheckConsstraint::Narrow { value, .. } => {
+                Self::replace_value_in_slot(value, from, to);
+            }
+            CheckConsstraint::Overflow { left, right, .. } => {
+                Self::replace_value_in_slot(left, from, to);
+                Self::replace_value_in_slot(right, from, to);
+            }
         }
     }
 
@@ -622,6 +670,16 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 if *else_target == to_block {
                     else_arguments.push(value);
+                }
+            }
+            Terminator::Check {
+                success, failure, ..
+            } => {
+                if success.target == to_block {
+                    success.arguments.push(value);
+                }
+                if failure.target == to_block {
+                    failure.arguments.push(value);
                 }
             }
             Terminator::Switch {
@@ -1042,6 +1100,13 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    // instruction builders: assumptions
+
+    /// Assume a condition is true (UB if false).
+    pub fn assume(&mut self, condition: Value) {
+        self.insert_instruction(Instruction::Assume { condition });
+    }
+
     // instruction builders: function calls
 
     /// Call a function.
@@ -1247,6 +1312,32 @@ impl<'a> FunctionBuilder<'a> {
             then_arguments: Vec::new(),
             else_target: else_block,
             else_arguments: Vec::new(),
+        };
+    }
+
+    /// Conditional check with explicit success and failure edges.
+    pub fn check(
+        &mut self,
+        condition_value: Value,
+        constraint: CheckConsstraint,
+        success_block: LocalNodeId<Block>,
+        failure_block: LocalNodeId<Block>,
+    ) {
+        let block = self.current_block();
+        self.add_predecessor(block, success_block);
+        self.add_predecessor(block, failure_block);
+        let block_data = self.tree.get_mut(block);
+        block_data.terminator = Terminator::Check {
+            condition: condition_value,
+            constraint,
+            success: CheckTarget {
+                target: success_block,
+                arguments: Vec::new(),
+            },
+            failure: CheckTarget {
+                target: failure_block,
+                arguments: Vec::new(),
+            },
         };
     }
 

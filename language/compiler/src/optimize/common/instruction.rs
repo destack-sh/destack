@@ -18,7 +18,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::Binary { .. }
         | Instruction::Unary { .. }
         | Instruction::Cast { .. }
-        | Instruction::Select { .. } => true,
+        | Instruction::Select { .. }
+        | Instruction::Assume { .. } => true,
 
         // pure aggregate operations (value semantics)
         Instruction::Struct { .. }
@@ -80,7 +81,8 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::ElementGet { .. }
         | Instruction::ElementAddr { .. }
         | Instruction::GlobalConst { .. }
-        | Instruction::GlobalAddr { .. } => false,
+        | Instruction::GlobalAddr { .. }
+        | Instruction::Assume { .. } => false,
 
         // memory reads are pure (assuming no volatile)
         Instruction::LocalGet { .. } | Instruction::Load { .. } => false,
@@ -326,6 +328,9 @@ pub fn instruction_substitute_uses(
         mir::Instruction::LocalSet { local, value } => mir::Instruction::LocalSet {
             local: *local,
             value: substitute(value),
+        },
+        mir::Instruction::Assume { condition } => mir::Instruction::Assume {
+            condition: substitute(condition),
         },
         mir::Instruction::CallIndirect {
             destination,
@@ -655,6 +660,9 @@ pub fn instruction_map(
             local: *local,
             value: remap(*value),
         },
+        mir::Instruction::Assume { condition } => mir::Instruction::Assume {
+            condition: remap(*condition),
+        },
         mir::Instruction::GlobalAddr {
             destination,
             global,
@@ -853,6 +861,46 @@ pub fn terminator_remap(
             remap_args(then_arguments);
             remap_target(else_target);
             remap_args(else_arguments);
+        }
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            remap_value(condition);
+            remap_target(&mut success.target);
+            remap_args(&mut success.arguments);
+            remap_target(&mut failure.target);
+            remap_args(&mut failure.arguments);
+            match constraint {
+                mir::CheckConsstraint::Bounds {
+                    index,
+                    length,
+                    collection,
+                    ..
+                } => {
+                    remap_value(index);
+                    remap_value(length);
+                    remap_value(collection);
+                }
+                mir::CheckConsstraint::Null { value } => {
+                    remap_value(value);
+                }
+                mir::CheckConsstraint::DivZero { divisor } => {
+                    remap_value(divisor);
+                }
+                mir::CheckConsstraint::ShiftRange { value, .. } => {
+                    remap_value(value);
+                }
+                mir::CheckConsstraint::Narrow { value, .. } => {
+                    remap_value(value);
+                }
+                mir::CheckConsstraint::Overflow { left, right, .. } => {
+                    remap_value(left);
+                    remap_value(right);
+                }
+            }
         }
         mir::Terminator::Switch {
             value,
