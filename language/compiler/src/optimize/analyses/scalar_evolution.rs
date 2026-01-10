@@ -1023,7 +1023,7 @@ fn scev_signed_divide(left: Scev, right: Scev) -> Scev {
         return Scev::Constant(constant_zero_like(left_const));
     }
 
-    // divide by negative one is a negation for wrapping semantics
+    // divide by negative one uses wrapping negation
     if let Scev::Constant(mir::Constant::Int {
         value: -1,
         is_signed: true,
@@ -1767,6 +1767,151 @@ block2(v8: i32):
             .scev_for_value_in_loop(loop_index, param_value)
             .unwrap();
         assert_eq!(actual, &expected);
+    }
+
+    /// Signed division by negative one produces a negated recurrence.
+    #[test]
+    fn test_scev_signed_divide_by_negative_one() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = iconst -1i32
+    v4 = sdiv v2, v3
+    v5 = iconst 1i32
+    v6 = iadd v2, v5
+    v7 = icmp_slt v6, v0
+    branch v7, block1(v6), block2(v4)
+block2(v8: i32):
+    return v8
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let block1 = program.tree.get(function.blocks[1]);
+        let instruction = program.tree.get(block1.instructions[1]);
+        let divide_value = instruction.destination().unwrap();
+
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 0,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Constant(mir::Constant::Int {
+                value: -1,
+                width: 32,
+                is_signed: true,
+            })),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, divide_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
+    /// Shift right operations are represented in SCEV.
+    #[test]
+    fn test_scev_shift_right_operations() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = iconst 1i32
+    v4 = sshr v2, v3
+    v5 = ushr v2, v3
+    v6 = iadd v2, v3
+    v7 = icmp_slt v6, v0
+    branch v7, block1(v6), block2(v4)
+block2(v8: i32):
+    return v8
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let header_block = program.tree.get(function.blocks[1]);
+        let param_value = header_block.parameters[0].value;
+        let param_scev = scev
+            .scev_for_value_in_loop(loop_index, param_value)
+            .unwrap()
+            .clone();
+
+        let block1 = program.tree.get(function.blocks[1]);
+        let arithmetic_value = program
+            .tree
+            .get(block1.instructions[1])
+            .destination()
+            .unwrap();
+        let logical_value = program
+            .tree
+            .get(block1.instructions[2])
+            .destination()
+            .unwrap();
+
+        let expected_arithmetic = Scev::ArithmeticShiftRight(
+            Box::new(param_scev.clone()),
+            Box::new(Scev::Constant(mir::Constant::Int {
+                value: 1,
+                width: 32,
+                is_signed: true,
+            })),
+        );
+        let expected_logical = Scev::LogicalShiftRight(
+            Box::new(param_scev),
+            Box::new(Scev::Constant(mir::Constant::Int {
+                value: 1,
+                width: 32,
+                is_signed: true,
+            })),
+        );
+
+        let actual_arithmetic = scev
+            .scev_for_value_in_loop(loop_index, arithmetic_value)
+            .unwrap();
+        let actual_logical = scev
+            .scev_for_value_in_loop(loop_index, logical_value)
+            .unwrap();
+
+        assert_eq!(actual_arithmetic, &expected_arithmetic);
+        assert_eq!(actual_logical, &expected_logical);
     }
 
     /// Extended arithmetic and casts are represented in SCEV.
