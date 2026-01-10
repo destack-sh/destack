@@ -2,7 +2,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
-use crate::optimize::common::{fold_binary, fold_unary};
+use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
 use crate::optimize::{
     AnalysisKind, AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
 };
@@ -171,7 +171,29 @@ impl FunctionPass for ConstantFold {
                             block_constants.remove(*destination);
                         }
                     }
-
+                    mir::Instruction::Cast {
+                        destination,
+                        operator,
+                        argument,
+                        to_type,
+                    } => {
+                        // fold casts with constant operands
+                        if let Some(arg_const) = block_constants.get(*argument)
+                            && let Some(result) =
+                                fold_cast(*operator, arg_const.clone(), *to_type, tree)
+                        {
+                            let dest = *destination;
+                            let new_instruction = mir::Instruction::Const {
+                                destination: dest,
+                                value: result.clone(),
+                            };
+                            tree.replace(instruction_id, new_instruction);
+                            block_constants.insert(dest, result);
+                            changed = true;
+                        } else {
+                            block_constants.remove(*destination);
+                        }
+                    }
                     _ => {
                         // clear destinations for unknown instructions
                         if let Some(dest) = destination {
@@ -188,24 +210,6 @@ impl FunctionPass for ConstantFold {
         } else {
             AnalysisPreservation::all()
         }
-    }
-}
-
-/// Read a scalar constant from an immutable global.
-fn constant_from_global(
-    global: mir::LocalNodeId<mir::Global>,
-    tree: &mir::NodeTree,
-) -> Option<mir::Constant> {
-    // read global definition
-    let global = tree.get(global);
-    if global.is_mutable() {
-        return None;
-    }
-
-    // allow scalar initializers only
-    match global.initializer.as_ref()? {
-        mir::GlobalInitializer::Scalar(constant) => Some(constant.clone()),
-        _ => None,
     }
 }
 
@@ -514,6 +518,48 @@ block0:
 block1(v1: i32):
     v2 = iconst 6i32
     return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Sign extend casts fold to constants.
+    #[test]
+    fn test_fold_cast_sign_extend() {
+        let input = r#"function @test() -> i64 {
+block0:
+    v0 = iconst -1i32
+    v1 = sextend v0 -> i64
+    return v1
+}"#;
+        let expected = r#"function @test() -> i64 {
+block0:
+    v0 = iconst -1i32
+    v1 = iconst -1i64
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Truncate casts fold to constants.
+    #[test]
+    fn test_fold_cast_truncate() {
+        let input = r#"function @test() -> u8 {
+block0:
+    v0 = iconst 257u16
+    v1 = trunc v0 -> u8
+    return v1
+}"#;
+        let expected = r#"function @test() -> u8 {
+block0:
+    v0 = iconst 257u16
+    v1 = iconst 1u8
+    return v1
 }"#;
 
         let mut program = TestProgram::new(input);

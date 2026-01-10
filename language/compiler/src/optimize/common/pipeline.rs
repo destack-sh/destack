@@ -9,8 +9,8 @@ use super::pass::{
 use crate::optimize::passes::{
     BorrowCheck, ConstantFold, CopyPropagate, DeadCodeEliminate, DeadStoreEliminate, DropInsert,
     GlobalValueNumbering, InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopDelete,
-    LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, MoveCheck, SimplifyCfg, Sink, Sroa,
-    StackCheck,
+    LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, MoveCheck, SimplifyCfg, Sink,
+    SparseConditionalConstantPropagation, Sroa, StackCheck,
 };
 
 /// Optimization pipeline that runs passes in sequence.
@@ -158,6 +158,7 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             pipeline.add_function_pass(LoadStoreForward);
             pipeline.add_function_pass(DeadStoreEliminate);
             pipeline.add_function_pass(CopyPropagate);
+            pipeline.add_function_pass(SparseConditionalConstantPropagation);
 
             // phase 4: loop optimizations
             pipeline.add_function_pass(LoopSimplify);
