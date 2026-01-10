@@ -24,8 +24,10 @@ pub enum ValueRange {
         width: u8,
         /// Whether NaN is possible.
         can_be_nan: bool,
-        /// Whether non-NaN values are possible.
-        can_be_non_nan: bool,
+        /// Whether positive infinity is possible.
+        can_be_pos_inf: bool,
+        /// Whether negative infinity is possible.
+        can_be_neg_inf: bool,
     },
     /// Boolean values that can occur.
     Boolean {
@@ -63,17 +65,20 @@ impl ValueRange {
         match constant {
             mir::Constant::Float { bits, width } => {
                 let width = *width;
-                let (value, can_be_nan) = if width == 32 {
+                let value = if width == 32 {
                     let value = f32::from_bits(*bits as u32);
-                    (value as f64, value.is_nan())
+                    value as f64
                 } else if width == 64 {
                     let value = f64::from_bits(*bits);
-                    (value, value.is_nan())
+                    value
                 } else {
                     return None;
                 };
 
-                let bounds = if can_be_nan {
+                let can_be_nan = value.is_nan();
+                let can_be_pos_inf = value.is_infinite() && value.is_sign_positive();
+                let can_be_neg_inf = value.is_infinite() && value.is_sign_negative();
+                let bounds = if can_be_nan || can_be_pos_inf || can_be_neg_inf {
                     None
                 } else {
                     Some(FloatBounds {
@@ -82,13 +87,12 @@ impl ValueRange {
                     })
                 };
 
-                let can_be_non_nan = !can_be_nan;
-
                 Some(ValueRange::Float {
                     bounds,
                     width,
                     can_be_nan,
-                    can_be_non_nan,
+                    can_be_pos_inf,
+                    can_be_neg_inf,
                 })
             }
             mir::Constant::Boolean { value } => Some(ValueRange::Boolean {
@@ -167,13 +171,15 @@ impl ValueRange {
                     bounds: left_bounds,
                     width: left_width,
                     can_be_nan: left_nan,
-                    can_be_non_nan: left_non_nan,
+                    can_be_pos_inf: left_pos_inf,
+                    can_be_neg_inf: left_neg_inf,
                 },
                 ValueRange::Float {
                     bounds: right_bounds,
                     width: right_width,
                     can_be_nan: right_nan,
-                    can_be_non_nan: right_non_nan,
+                    can_be_pos_inf: right_pos_inf,
+                    can_be_neg_inf: right_neg_inf,
                 },
             ) => {
                 // refuse to merge mismatched float types
@@ -186,8 +192,8 @@ impl ValueRange {
                         min: left.min.min(right.min),
                         max: left.max.max(right.max),
                     }),
-                    (Some(bounds), None) if !*right_non_nan => Some(*bounds),
-                    (None, Some(bounds)) if !*left_non_nan => Some(*bounds),
+                    (Some(bounds), None) => Some(*bounds),
+                    (None, Some(bounds)) => Some(*bounds),
                     _ => None,
                 };
 
@@ -195,7 +201,8 @@ impl ValueRange {
                     bounds,
                     width: *left_width,
                     can_be_nan: *left_nan || *right_nan,
-                    can_be_non_nan: *left_non_nan || *right_non_nan,
+                    can_be_pos_inf: *left_pos_inf || *right_pos_inf,
+                    can_be_neg_inf: *left_neg_inf || *right_neg_inf,
                 })
             }
             (
@@ -1159,14 +1166,31 @@ fn float_width_supported(width: u8) -> bool {
     width == 32 || width == 64
 }
 
+/// Return the maximum finite magnitude for a float width.
+fn float_max_finite(width: u8) -> Option<f64> {
+    match width {
+        32 => Some(f32::MAX as f64),
+        64 => Some(f64::MAX),
+        _ => None,
+    }
+}
+
+/// Build finite bounds that cover all finite values of a float width.
+fn float_full_finite_bounds(width: u8) -> Option<FloatBounds> {
+    let max = float_max_finite(width)?;
+
+    Some(FloatBounds { min: -max, max })
+}
+
 /// Extract float range fields with bounds check.
-fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u8, bool, bool)> {
+fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u8, bool, bool, bool)> {
     // require a float range
     let ValueRange::Float {
         bounds,
         width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf,
+        can_be_neg_inf,
     } = range
     else {
         return None;
@@ -1176,7 +1200,13 @@ fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u8, bo
         return None;
     }
 
-    Some((*bounds, *width, *can_be_nan, *can_be_non_nan))
+    Some((
+        *bounds,
+        *width,
+        *can_be_nan,
+        *can_be_pos_inf,
+        *can_be_neg_inf,
+    ))
 }
 
 /// Build a float range with full bounds.
@@ -1185,14 +1215,14 @@ fn float_full_range(width: u8) -> Option<ValueRange> {
         return None;
     }
 
+    let bounds = float_full_finite_bounds(width)?;
+
     Some(ValueRange::Float {
-        bounds: Some(FloatBounds {
-            min: f64::NEG_INFINITY,
-            max: f64::INFINITY,
-        }),
+        bounds: Some(bounds),
         width,
         can_be_nan: true,
-        can_be_non_nan: true,
+        can_be_pos_inf: true,
+        can_be_neg_inf: true,
     })
 }
 
@@ -1274,22 +1304,49 @@ fn float_neg_value(width: u8, value: f64) -> Option<f64> {
 }
 
 /// Build finite bounds from candidate float values.
-fn float_bounds_from_candidates(candidates: &[f64]) -> Option<FloatBounds> {
-    let mut iter = candidates.iter().copied().filter(|value| !value.is_nan());
-    let first = iter.next()?;
-    let mut min = first;
-    let mut max = first;
+fn float_bounds_from_candidates(candidates: &[f64]) -> (Option<FloatBounds>, bool, bool) {
+    let mut min: Option<f64> = None;
+    let mut max: Option<f64> = None;
+    let mut can_be_pos_inf = false;
+    let mut can_be_neg_inf = false;
 
-    for value in iter {
-        if value < min {
-            min = value;
+    // scan candidates for finite bounds and infinities
+    for value in candidates.iter().copied() {
+        if value.is_nan() {
+            continue;
         }
-        if value > max {
-            max = value;
+
+        if value.is_infinite() {
+            if value.is_sign_positive() {
+                can_be_pos_inf = true;
+            } else {
+                can_be_neg_inf = true;
+            }
+            continue;
+        }
+
+        match min {
+            Some(current_min) => {
+                let current_max = max.unwrap();
+                let next_min = current_min.min(value);
+                let next_max = current_max.max(value);
+                min = Some(next_min);
+                max = Some(next_max);
+            }
+            None => {
+                min = Some(value);
+                max = Some(value);
+            }
         }
     }
 
-    Some(FloatBounds { min, max })
+    // build bounds from finite candidates
+    let bounds = min.map(|min| FloatBounds {
+        min,
+        max: max.unwrap(),
+    });
+
+    (bounds, can_be_pos_inf, can_be_neg_inf)
 }
 
 /// Check if a float range includes zero.
@@ -1302,47 +1359,101 @@ fn float_bounds_is_zero(bounds: &FloatBounds) -> bool {
     bounds.min == 0.0 && bounds.max == 0.0
 }
 
-/// Check if a float range includes positive infinity.
-fn float_bounds_has_pos_inf(bounds: &FloatBounds) -> bool {
-    bounds.max.is_infinite() && bounds.max.is_sign_positive()
+/// Check if a float range can be positive.
+fn float_bounds_can_be_positive(bounds: &FloatBounds) -> bool {
+    bounds.max > 0.0
 }
 
-/// Check if a float range includes negative infinity.
-fn float_bounds_has_neg_inf(bounds: &FloatBounds) -> bool {
-    bounds.min.is_infinite() && bounds.min.is_sign_negative()
+/// Check if a float range can be negative.
+fn float_bounds_can_be_negative(bounds: &FloatBounds) -> bool {
+    bounds.min < 0.0
+}
+
+/// Build comparison bounds including infinities when needed.
+fn float_effective_bounds(
+    bounds: Option<FloatBounds>,
+    can_be_pos_inf: bool,
+    can_be_neg_inf: bool,
+) -> Option<FloatBounds> {
+    if bounds.is_none() && !can_be_pos_inf && !can_be_neg_inf {
+        return None;
+    }
+
+    // seed bounds from finite values when available
+    let mut min = bounds.map_or(0.0, |bounds| bounds.min);
+    let mut max = bounds.map_or(0.0, |bounds| bounds.max);
+
+    // expand bounds to include infinities
+    if bounds.is_none() {
+        min = if can_be_neg_inf {
+            f64::NEG_INFINITY
+        } else if can_be_pos_inf {
+            f64::INFINITY
+        } else {
+            0.0
+        };
+        max = if can_be_pos_inf {
+            f64::INFINITY
+        } else if can_be_neg_inf {
+            f64::NEG_INFINITY
+        } else {
+            0.0
+        };
+    } else {
+        if can_be_neg_inf {
+            min = f64::NEG_INFINITY;
+        }
+        if can_be_pos_inf {
+            max = f64::INFINITY;
+        }
+    }
+
+    Some(FloatBounds { min, max })
 }
 
 /// Compute a range for float addition.
 fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_non_nan) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_non_nan) = float_range_fields(right)?;
+    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+        float_range_fields(right)?;
 
     // ensure operand types match
     if width != right_width {
         return None;
     }
 
-    // track NaN and non nan possibilities
+    // track NaN and infinity possibilities
     let mut can_be_nan = left_nan || right_nan;
-    let can_be_non_nan = left_non_nan && right_non_nan;
+    let mut can_be_pos_inf = false;
+    let mut can_be_neg_inf = false;
 
-    if !can_be_non_nan {
-        return Some(ValueRange::Float {
-            bounds: None,
-            width,
-            can_be_nan: true,
-            can_be_non_nan: false,
-        });
+    // handle infinity combinations
+    if left_pos_inf && right_pos_inf {
+        can_be_pos_inf = true;
     }
+    if left_neg_inf && right_neg_inf {
+        can_be_neg_inf = true;
+    }
+    if (left_pos_inf && right_neg_inf) || (left_neg_inf && right_pos_inf) {
+        can_be_nan = true;
+    }
+    if left_pos_inf && right_bounds.is_some() {
+        can_be_pos_inf = true;
+    }
+    if right_pos_inf && left_bounds.is_some() {
+        can_be_pos_inf = true;
+    }
+    if left_neg_inf && right_bounds.is_some() {
+        can_be_neg_inf = true;
+    }
+    if right_neg_inf && left_bounds.is_some() {
+        can_be_neg_inf = true;
+    }
+
+    // derive finite bounds from candidates
     let bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
-            if (float_bounds_has_pos_inf(&left) && float_bounds_has_neg_inf(&right))
-                || (float_bounds_has_neg_inf(&left) && float_bounds_has_pos_inf(&right))
-            {
-                can_be_nan = true;
-            }
-
             let candidates = [
                 float_add_value(width, left.min, right.min)?,
                 float_add_value(width, left.min, right.max)?,
@@ -1350,56 +1461,69 @@ fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
                 float_add_value(width, left.max, right.max)?,
             ];
 
-            let bounds = float_bounds_from_candidates(&candidates);
-            if bounds.is_none() {
-                can_be_nan = true;
-            }
+            let (bounds, add_pos_inf, add_neg_inf) = float_bounds_from_candidates(&candidates);
+            can_be_pos_inf |= add_pos_inf;
+            can_be_neg_inf |= add_neg_inf;
             bounds
         }
-        _ => {
-            can_be_nan = true;
-            None
-        }
+        _ => None,
     };
 
     Some(ValueRange::Float {
         bounds,
         width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf,
+        can_be_neg_inf,
     })
 }
 
 /// Compute a range for float subtraction.
 fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_non_nan) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_non_nan) = float_range_fields(right)?;
+    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+        float_range_fields(right)?;
 
     // ensure operand types match
     if width != right_width {
         return None;
     }
 
+    // track NaN and infinity possibilities
     let mut can_be_nan = left_nan || right_nan;
-    let can_be_non_nan = left_non_nan && right_non_nan;
+    let mut can_be_pos_inf = false;
+    let mut can_be_neg_inf = false;
 
-    if !can_be_non_nan {
-        return Some(ValueRange::Float {
-            bounds: None,
-            width,
-            can_be_nan: true,
-            can_be_non_nan: false,
-        });
+    // handle infinity combinations
+    if left_pos_inf && right_pos_inf {
+        can_be_nan = true;
     }
+    if left_neg_inf && right_neg_inf {
+        can_be_nan = true;
+    }
+    if left_pos_inf && right_neg_inf {
+        can_be_pos_inf = true;
+    }
+    if left_neg_inf && right_pos_inf {
+        can_be_neg_inf = true;
+    }
+    if left_pos_inf && right_bounds.is_some() {
+        can_be_pos_inf = true;
+    }
+    if left_neg_inf && right_bounds.is_some() {
+        can_be_neg_inf = true;
+    }
+    if right_pos_inf && left_bounds.is_some() {
+        can_be_neg_inf = true;
+    }
+    if right_neg_inf && left_bounds.is_some() {
+        can_be_pos_inf = true;
+    }
+
+    // derive finite bounds from candidates
     let bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
-            if (float_bounds_has_pos_inf(&left) && float_bounds_has_pos_inf(&right))
-                || (float_bounds_has_neg_inf(&left) && float_bounds_has_neg_inf(&right))
-            {
-                can_be_nan = true;
-            }
-
             let candidates = [
                 float_sub_value(width, left.min, right.min)?,
                 float_sub_value(width, left.min, right.max)?,
@@ -1407,88 +1531,127 @@ fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
                 float_sub_value(width, left.max, right.max)?,
             ];
 
-            let bounds = float_bounds_from_candidates(&candidates);
-            if bounds.is_none() {
-                can_be_nan = true;
-            }
+            let (bounds, sub_pos_inf, sub_neg_inf) = float_bounds_from_candidates(&candidates);
+            can_be_pos_inf |= sub_pos_inf;
+            can_be_neg_inf |= sub_neg_inf;
             bounds
         }
-        _ => {
-            can_be_nan = true;
-            None
-        }
+        _ => None,
     };
 
     Some(ValueRange::Float {
         bounds,
         width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf,
+        can_be_neg_inf,
     })
 }
 
 /// Compute a range for float multiplication.
 fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_non_nan) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_non_nan) = float_range_fields(right)?;
+    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+        float_range_fields(right)?;
 
     // ensure operand types match
     if width != right_width {
         return None;
     }
 
+    // track NaN and infinity possibilities
     let mut can_be_nan = left_nan || right_nan;
-    let can_be_non_nan = left_non_nan && right_non_nan;
+    let mut can_be_pos_inf = false;
+    let mut can_be_neg_inf = false;
 
-    // stop if operands can only be NaN
-    if !can_be_non_nan {
+    // handle infinity multiplied by infinity
+    if left_pos_inf && right_pos_inf {
+        can_be_pos_inf = true;
+    }
+    if left_pos_inf && right_neg_inf {
+        can_be_neg_inf = true;
+    }
+    if left_neg_inf && right_pos_inf {
+        can_be_neg_inf = true;
+    }
+    if left_neg_inf && right_neg_inf {
+        can_be_pos_inf = true;
+    }
+
+    // handle infinity multiplied by finite values
+    if left_pos_inf {
+        if let Some(right_bounds) = right_bounds {
+            if float_bounds_contains_zero(&right_bounds) {
+                can_be_nan = true;
+            }
+            if float_bounds_can_be_positive(&right_bounds) {
+                can_be_pos_inf = true;
+            }
+            if float_bounds_can_be_negative(&right_bounds) {
+                can_be_neg_inf = true;
+            }
+        }
+    }
+    if left_neg_inf {
+        if let Some(right_bounds) = right_bounds {
+            if float_bounds_contains_zero(&right_bounds) {
+                can_be_nan = true;
+            }
+            if float_bounds_can_be_positive(&right_bounds) {
+                can_be_neg_inf = true;
+            }
+            if float_bounds_can_be_negative(&right_bounds) {
+                can_be_pos_inf = true;
+            }
+        }
+    }
+    if right_pos_inf {
+        if let Some(left_bounds) = left_bounds {
+            if float_bounds_contains_zero(&left_bounds) {
+                can_be_nan = true;
+            }
+            if float_bounds_can_be_positive(&left_bounds) {
+                can_be_pos_inf = true;
+            }
+            if float_bounds_can_be_negative(&left_bounds) {
+                can_be_neg_inf = true;
+            }
+        }
+    }
+    if right_neg_inf {
+        if let Some(left_bounds) = left_bounds {
+            if float_bounds_contains_zero(&left_bounds) {
+                can_be_nan = true;
+            }
+            if float_bounds_can_be_positive(&left_bounds) {
+                can_be_neg_inf = true;
+            }
+            if float_bounds_can_be_negative(&left_bounds) {
+                can_be_pos_inf = true;
+            }
+        }
+    }
+
+    // short circuit when one operand is exactly zero and the other is only infinite
+    let left_is_zero = left_bounds.as_ref().is_some_and(float_bounds_is_zero);
+    let right_is_zero = right_bounds.as_ref().is_some_and(float_bounds_is_zero);
+    let left_is_infinite_only = left_bounds.is_none() && (left_pos_inf || left_neg_inf);
+    let right_is_infinite_only = right_bounds.is_none() && (right_pos_inf || right_neg_inf);
+
+    if (left_is_zero && right_is_infinite_only) || (right_is_zero && left_is_infinite_only) {
         return Some(ValueRange::Float {
             bounds: None,
             width,
             can_be_nan: true,
-            can_be_non_nan: false,
+            can_be_pos_inf: false,
+            can_be_neg_inf: false,
         });
     }
 
-    // short circuit when one operand is exactly zero
-    let left_is_zero = left_bounds.as_ref().is_some_and(float_bounds_is_zero);
-    let right_is_zero = right_bounds.as_ref().is_some_and(float_bounds_is_zero);
-
-    if left_is_zero || right_is_zero {
-        let left_has_inf = left_bounds.as_ref().is_some_and(|bounds| {
-            float_bounds_has_pos_inf(bounds) || float_bounds_has_neg_inf(bounds)
-        });
-        let right_has_inf = right_bounds.as_ref().is_some_and(|bounds| {
-            float_bounds_has_pos_inf(bounds) || float_bounds_has_neg_inf(bounds)
-        });
-
-        if (left_is_zero && (right_has_inf || right_bounds.is_none()))
-            || (right_is_zero && (left_has_inf || left_bounds.is_none()))
-        {
-            can_be_nan = true;
-        }
-
-        return Some(ValueRange::Float {
-            bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-            width,
-            can_be_nan,
-            can_be_non_nan: true,
-        });
-    }
-
+    // derive finite bounds from candidates
     let bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
-            let left_has_inf = float_bounds_has_pos_inf(&left) || float_bounds_has_neg_inf(&left);
-            let right_has_inf =
-                float_bounds_has_pos_inf(&right) || float_bounds_has_neg_inf(&right);
-
-            if (left_has_inf && float_bounds_contains_zero(&right))
-                || (right_has_inf && float_bounds_contains_zero(&left))
-            {
-                can_be_nan = true;
-            }
-
             let candidates = [
                 float_mul_value(width, left.min, right.min)?,
                 float_mul_value(width, left.min, right.max)?,
@@ -1496,70 +1659,78 @@ fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
                 float_mul_value(width, left.max, right.max)?,
             ];
 
-            let bounds = float_bounds_from_candidates(&candidates);
-            if bounds.is_none() {
-                can_be_nan = true;
-            }
+            let (bounds, mul_pos_inf, mul_neg_inf) = float_bounds_from_candidates(&candidates);
+            can_be_pos_inf |= mul_pos_inf;
+            can_be_neg_inf |= mul_neg_inf;
             bounds
         }
-        _ => {
-            can_be_nan = true;
-            None
-        }
+        _ => None,
     };
 
     Some(ValueRange::Float {
         bounds,
         width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf,
+        can_be_neg_inf,
     })
 }
 
 /// Compute a range for float division.
 fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_non_nan) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_non_nan) = float_range_fields(right)?;
+    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+        float_range_fields(right)?;
 
     // ensure operand types match
     if width != right_width {
         return None;
     }
 
-    // track NaN and non nan possibilities
-    let can_be_non_nan = left_non_nan && right_non_nan;
+    // reject NaN only operands
+    let left_has_non_nan = left_bounds.is_some() || left_pos_inf || left_neg_inf;
+    let right_has_non_nan = right_bounds.is_some() || right_pos_inf || right_neg_inf;
 
-    // stop if operands can only be NaN
-    if !can_be_non_nan {
+    if !left_has_non_nan || !right_has_non_nan {
         return Some(ValueRange::Float {
             bounds: None,
             width,
             can_be_nan: true,
-            can_be_non_nan: false,
+            can_be_pos_inf: false,
+            can_be_neg_inf: false,
         });
+    }
+
+    // track NaN and infinity possibilities
+    let mut can_be_nan = left_nan || right_nan;
+    let mut can_be_pos_inf = false;
+    let mut can_be_neg_inf = false;
+
+    // infinities divided by infinities yield NaN
+    if (left_pos_inf || left_neg_inf) && (right_pos_inf || right_neg_inf) {
+        can_be_nan = true;
     }
 
     // short circuit when the numerator is exactly zero
     if let Some(left_bounds) = left_bounds
         && float_bounds_is_zero(&left_bounds)
     {
-        if right_bounds.as_ref().is_some_and(float_bounds_is_zero) {
+        let right_is_nan_only = right_bounds.is_none() && !right_pos_inf && !right_neg_inf;
+        let right_is_zero = right_bounds.as_ref().is_some_and(float_bounds_is_zero);
+        let right_contains_zero = right_bounds
+            .as_ref()
+            .is_some_and(float_bounds_contains_zero);
+        if right_is_nan_only || (right_is_zero && !right_pos_inf && !right_neg_inf) {
             return Some(ValueRange::Float {
                 bounds: None,
                 width,
                 can_be_nan: true,
-                can_be_non_nan: false,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false,
             });
         }
-
-        let mut can_be_nan = left_nan || right_nan;
-        let right_includes_zero = match right_bounds {
-            Some(right_bounds) => float_bounds_contains_zero(&right_bounds),
-            None => true,
-        };
-
-        if right_includes_zero {
+        if right_contains_zero {
             can_be_nan = true;
         }
 
@@ -1567,28 +1738,112 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
             bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
             width,
             can_be_nan,
-            can_be_non_nan: true,
+            can_be_pos_inf: false,
+            can_be_neg_inf: false,
         });
+    }
+
+    // handle division by NaN only denominator
+    if right_bounds.is_none() && !right_pos_inf && !right_neg_inf {
+        return Some(ValueRange::Float {
+            bounds: None,
+            width,
+            can_be_nan: true,
+            can_be_pos_inf: false,
+            can_be_neg_inf: false,
+        });
+    }
+
+    // infinite only divided by infinite only yields NaN
+    if left_bounds.is_none()
+        && (left_pos_inf || left_neg_inf)
+        && right_bounds.is_none()
+        && (right_pos_inf || right_neg_inf)
+    {
+        return Some(ValueRange::Float {
+            bounds: None,
+            width,
+            can_be_nan: true,
+            can_be_pos_inf: false,
+            can_be_neg_inf: false,
+        });
+    }
+
+    // handle division by infinite-only denominator
+    if right_bounds.is_none() && (right_pos_inf || right_neg_inf) {
+        return Some(ValueRange::Float {
+            bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
+            width,
+            can_be_nan,
+            can_be_pos_inf: false,
+            can_be_neg_inf: false,
+        });
+    }
+
+    // handle infinite numerator divided by finite denominator
+    if left_pos_inf {
+        if let Some(right_bounds) = right_bounds {
+            if float_bounds_can_be_positive(&right_bounds) {
+                can_be_pos_inf = true;
+            }
+            if float_bounds_can_be_negative(&right_bounds) {
+                can_be_neg_inf = true;
+            }
+        }
+    }
+    if left_neg_inf {
+        if let Some(right_bounds) = right_bounds {
+            if float_bounds_can_be_positive(&right_bounds) {
+                can_be_neg_inf = true;
+            }
+            if float_bounds_can_be_negative(&right_bounds) {
+                can_be_pos_inf = true;
+            }
+        }
     }
 
     // return full range when dividing by a range that includes zero
     if let Some(right_bounds) = right_bounds
         && float_bounds_contains_zero(&right_bounds)
     {
-        return float_full_range(width);
-    }
+        if left_bounds.is_none() && (left_pos_inf || left_neg_inf) {
+            can_be_pos_inf = true;
+            can_be_neg_inf = true;
 
-    let mut can_be_nan = left_nan || right_nan;
-    let bounds = match (left_bounds, right_bounds) {
-        (Some(left), Some(right)) => {
-            let left_has_inf = float_bounds_has_pos_inf(&left) || float_bounds_has_neg_inf(&left);
-            let right_has_inf =
-                float_bounds_has_pos_inf(&right) || float_bounds_has_neg_inf(&right);
+            return Some(ValueRange::Float {
+                bounds: None,
+                width,
+                can_be_nan,
+                can_be_pos_inf,
+                can_be_neg_inf,
+            });
+        }
 
-            if left_has_inf && right_has_inf {
+        let left_contains_zero = left_bounds.as_ref().is_some_and(float_bounds_contains_zero);
+        let left_is_zero = left_bounds.as_ref().is_some_and(float_bounds_is_zero);
+        let left_has_non_zero = left_bounds.is_some() && !left_is_zero;
+
+        if left_has_non_zero {
+            let bounds = float_full_finite_bounds(width)?;
+            if left_contains_zero {
                 can_be_nan = true;
             }
 
+            return Some(ValueRange::Float {
+                bounds: Some(bounds),
+                width,
+                can_be_nan,
+                can_be_pos_inf: true,
+                can_be_neg_inf: true,
+            });
+        }
+
+        return float_full_range(width);
+    }
+
+    // derive finite bounds from candidates
+    let mut bounds = match (left_bounds, right_bounds) {
+        (Some(left), Some(right)) => {
             let candidates = [
                 float_div_value(width, left.min, right.min)?,
                 float_div_value(width, left.min, right.max)?,
@@ -1596,30 +1851,40 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
                 float_div_value(width, left.max, right.max)?,
             ];
 
-            let bounds = float_bounds_from_candidates(&candidates);
-            if bounds.is_none() {
-                can_be_nan = true;
-            }
+            let (bounds, div_pos_inf, div_neg_inf) = float_bounds_from_candidates(&candidates);
+            can_be_pos_inf |= div_pos_inf;
+            can_be_neg_inf |= div_neg_inf;
             bounds
         }
-        _ => {
-            can_be_nan = true;
-            None
-        }
+        _ => None,
     };
+
+    // include zero when dividing by an infinite denominator
+    if let Some(bounds) = &mut bounds
+        && (right_pos_inf || right_neg_inf)
+        && left_bounds.is_some()
+    {
+        if bounds.min > 0.0 {
+            bounds.min = 0.0;
+        }
+        if bounds.max < 0.0 {
+            bounds.max = 0.0;
+        }
+    }
 
     Some(ValueRange::Float {
         bounds,
         width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf,
+        can_be_neg_inf,
     })
 }
 
 /// Compute a range for float negation.
 fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
     // extract operand range
-    let (bounds, width, can_be_nan, can_be_non_nan) = float_range_fields(range)?;
+    let (bounds, width, can_be_nan, can_be_pos_inf, can_be_neg_inf) = float_range_fields(range)?;
 
     let bounds = match bounds {
         Some(bounds) => Some(FloatBounds {
@@ -1633,23 +1898,31 @@ fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
         bounds,
         width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf: can_be_neg_inf,
+        can_be_neg_inf: can_be_pos_inf,
     })
 }
 
 /// Compute a float range for cast operations between floats.
 fn float_range_cast(argument: &ValueRange, to_width: u8) -> Option<ValueRange> {
-    let (bounds, _width, can_be_nan, can_be_non_nan) = float_range_fields(argument)?;
+    let (bounds, _width, can_be_nan, mut can_be_pos_inf, mut can_be_neg_inf) =
+        float_range_fields(argument)?;
 
     if !float_width_supported(to_width) {
         return None;
     }
 
     let bounds = match bounds {
-        Some(bounds) => Some(FloatBounds {
-            min: float_cast_value(to_width, bounds.min)?,
-            max: float_cast_value(to_width, bounds.max)?,
-        }),
+        Some(bounds) => {
+            let candidates = [
+                float_cast_value(to_width, bounds.min)?,
+                float_cast_value(to_width, bounds.max)?,
+            ];
+            let (bounds, cast_pos_inf, cast_neg_inf) = float_bounds_from_candidates(&candidates);
+            can_be_pos_inf |= cast_pos_inf;
+            can_be_neg_inf |= cast_neg_inf;
+            bounds
+        }
         None => None,
     };
 
@@ -1657,7 +1930,8 @@ fn float_range_cast(argument: &ValueRange, to_width: u8) -> Option<ValueRange> {
         bounds,
         width: to_width,
         can_be_nan,
-        can_be_non_nan,
+        can_be_pos_inf,
+        can_be_neg_inf,
     })
 }
 
@@ -1678,21 +1952,51 @@ fn float_range_from_integer(
         return None;
     }
 
-    let mut min_value = float_from_integer(to_width, min)?;
-    let mut max_value = float_from_integer(to_width, max)?;
+    // convert integer bounds to float endpoints
+    let min_value = float_from_integer(to_width, min)?;
+    let max_value = float_from_integer(to_width, max)?;
 
-    if min_value > max_value {
-        std::mem::swap(&mut min_value, &mut max_value);
-    }
+    // derive infinity flags from endpoints
+    let mut can_be_pos_inf = min_value.is_infinite() && min_value.is_sign_positive();
+    let mut can_be_neg_inf = min_value.is_infinite() && min_value.is_sign_negative();
+    can_be_pos_inf |= max_value.is_infinite() && max_value.is_sign_positive();
+    can_be_neg_inf |= max_value.is_infinite() && max_value.is_sign_negative();
+
+    // compute finite bounds while clamping infinities
+    let bounds = if min_value.is_infinite()
+        && max_value.is_infinite()
+        && min_value.is_sign_positive() == max_value.is_sign_positive()
+    {
+        None
+    } else {
+        let max_finite = float_max_finite(to_width)?;
+        let mut min_bound = min_value;
+        let mut max_bound = max_value;
+
+        if min_bound.is_infinite() {
+            min_bound = -max_finite;
+        }
+
+        if max_bound.is_infinite() {
+            max_bound = max_finite;
+        }
+
+        if min_bound > max_bound {
+            std::mem::swap(&mut min_bound, &mut max_bound);
+        }
+
+        Some(FloatBounds {
+            min: min_bound,
+            max: max_bound,
+        })
+    };
 
     Some(ValueRange::Float {
-        bounds: Some(FloatBounds {
-            min: min_value,
-            max: max_value,
-        }),
+        bounds,
         width: to_width,
         can_be_nan: false,
-        can_be_non_nan: true,
+        can_be_pos_inf,
+        can_be_neg_inf,
     })
 }
 
@@ -1703,7 +2007,8 @@ fn integer_range_from_float(
     to_signed: bool,
     operator: mir::CastOperator,
 ) -> Option<ValueRange> {
-    let (bounds, _width, can_be_nan, can_be_non_nan) = float_range_fields(argument)?;
+    let (bounds, _width, can_be_nan, can_be_pos_inf, can_be_neg_inf) =
+        float_range_fields(argument)?;
     let expect_signed = match operator {
         mir::CastOperator::FloatToSignedInt => true,
         mir::CastOperator::FloatToUnsignedInt => false,
@@ -1714,35 +2019,56 @@ fn integer_range_from_float(
         return None;
     }
 
+    // resolve integer bounds for the target type
     let (min_bound, max_bound) = integer_bounds(to_width, to_signed)?;
 
-    let mut min_value;
-    let mut max_value;
+    // collect integer bounds from all possible float cases
+    let mut min_value: Option<i128> = None;
+    let mut max_value: Option<i128> = None;
 
-    match bounds {
-        Some(bounds) => {
-            min_value = float_to_int_saturating(bounds.min, min_bound, max_bound);
-            max_value = float_to_int_saturating(bounds.max, min_bound, max_bound);
-
-            if min_value > max_value {
-                std::mem::swap(&mut min_value, &mut max_value);
-            }
+    // widen the integer bounds for each new value
+    let mut include_value = |value| match min_value {
+        Some(current_min) => {
+            let current_max = max_value.unwrap();
+            let next_min = current_min.min(value);
+            let next_max = current_max.max(value);
+            min_value = Some(next_min);
+            max_value = Some(next_max);
         }
         None => {
-            if can_be_non_nan {
-                min_value = min_bound;
-                max_value = max_bound;
-            } else {
-                min_value = 0;
-                max_value = 0;
-            }
+            min_value = Some(value);
+            max_value = Some(value);
         }
+    };
+
+    // clamp finite bounds into integer range
+    if let Some(bounds) = bounds {
+        let mut finite_min = float_to_int_saturating(bounds.min, min_bound, max_bound);
+        let mut finite_max = float_to_int_saturating(bounds.max, min_bound, max_bound);
+
+        if finite_min > finite_max {
+            std::mem::swap(&mut finite_min, &mut finite_max);
+        }
+
+        include_value(finite_min);
+        include_value(finite_max);
     }
 
+    // include NaN conversions
     if can_be_nan {
-        min_value = min_value.min(0);
-        max_value = max_value.max(0);
+        include_value(0);
     }
+
+    // include saturating infinities
+    if can_be_pos_inf {
+        include_value(max_bound);
+    }
+    if can_be_neg_inf {
+        include_value(min_bound);
+    }
+
+    let min_value = min_value?;
+    let max_value = max_value?;
 
     Some(ValueRange::Integer {
         min: min_value,
@@ -1781,8 +2107,9 @@ fn range_for_float_comparison(
     left: &ValueRange,
     right: &ValueRange,
 ) -> Option<ValueRange> {
-    let (left_bounds, width, left_nan, left_non_nan) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_non_nan) = float_range_fields(right)?;
+    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+        float_range_fields(right)?;
 
     if width != right_width {
         return None;
@@ -1790,7 +2117,10 @@ fn range_for_float_comparison(
 
     let can_be_nan = left_nan || right_nan;
 
-    if !left_non_nan || !right_non_nan {
+    let left_has_non_nan = left_bounds.is_some() || left_pos_inf || left_neg_inf;
+    let right_has_non_nan = right_bounds.is_some() || right_pos_inf || right_neg_inf;
+
+    if !left_has_non_nan || !right_has_non_nan {
         return match operator {
             mir::BinaryOperator::FloatNotEqual => Some(ValueRange::Boolean {
                 can_be_true: true,
@@ -1807,10 +2137,8 @@ fn range_for_float_comparison(
             _ => None,
         };
     }
-    let (left_bounds, right_bounds) = match (left_bounds, right_bounds) {
-        (Some(left_bounds), Some(right_bounds)) => (left_bounds, right_bounds),
-        _ => return None,
-    };
+    let left_bounds = float_effective_bounds(left_bounds, left_pos_inf, left_neg_inf)?;
+    let right_bounds = float_effective_bounds(right_bounds, right_pos_inf, right_neg_inf)?;
 
     let mut is_always_true = false;
     let mut is_always_false = false;
@@ -2200,7 +2528,8 @@ block0:
                 bounds: Some(FloatBounds { min: 1.5, max: 1.5 }),
                 width: 32,
                 can_be_nan: false,
-                can_be_non_nan: true
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
             }
         );
     }
@@ -2245,7 +2574,188 @@ block3(v3: f32):
                 bounds: Some(FloatBounds { min: 3.0, max: 5.0 }),
                 width: 32,
                 can_be_nan: false,
-                can_be_non_nan: true
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Infinite addition with opposite signs yields NaN only.
+    #[test]
+    fn test_range_float_add_infinite_nan_only() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1e1000f32
+    v2 = iconst -1e1000f32
+    jump block3(v1, v2)
+block2:
+    v3 = iconst 1e1000f32
+    v4 = iconst -1e1000f32
+    jump block3(v3, v4)
+block3(v5: f32, v6: f32):
+    v7 = fadd v5, v6
+    return v7
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Positive infinity plus finite values stays infinite.
+    #[test]
+    fn test_range_float_add_infinite_and_finite() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 1e1000f32
+    v1 = iconst 2.0f32
+    v2 = fadd v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: true,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Infinite subtraction with equal signs yields NaN only.
+    #[test]
+    fn test_range_float_sub_infinite_nan_only() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1e1000f32
+    v2 = iconst 1e1000f32
+    jump block3(v1, v2)
+block2:
+    v3 = iconst 1e1000f32
+    v4 = iconst 1e1000f32
+    jump block3(v3, v4)
+block3(v5: f32, v6: f32):
+    v7 = fsub v5, v6
+    return v7
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Finite values minus positive infinity yield negative infinity.
+    #[test]
+    fn test_range_float_sub_finite_minus_infinite() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 2.0f32
+    v1 = iconst 1e1000f32
+    v2 = fsub v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: false,
+                can_be_neg_inf: true
             }
         );
     }
@@ -2323,9 +2833,67 @@ block0:
         assert!(exit_ranges.get(value).is_none());
     }
 
-    /// Float division by a range that includes zero yields full bounds.
+    /// Float division with both operands able to reach zero yields full bounds.
     #[test]
     fn test_range_float_division_by_zero() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool, v1: bool) -> f32 {
+block0(v0: bool, v1: bool):
+    branch v0, block1, block2
+block1:
+    v2 = iconst 0.0f32
+    jump block3(v2, v1)
+block2:
+    v3 = iconst 1.0f32
+    jump block3(v3, v1)
+block3(v4: f32, v10: bool):
+    branch v10, block4, block5
+block4:
+    v5 = iconst 0.0f32
+    jump block6(v4, v5)
+block5:
+    v6 = iconst 1.0f32
+    jump block6(v4, v6)
+block6(v7: f32, v8: f32):
+    v9 = fdiv v8, v7
+    return v9
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block6 = function.blocks[6];
+        let block = program.tree.get(block6);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block6);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds {
+                    min: -(f32::MAX as f64),
+                    max: f32::MAX as f64
+                }),
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: true,
+                can_be_neg_inf: true
+            }
+        );
+    }
+
+    /// Nonzero divided by a range including zero yields infinities without NaN.
+    #[test]
+    fn test_range_float_division_nonzero_by_zero_range() {
         let program = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
@@ -2337,7 +2905,7 @@ block2:
     v2 = iconst 1.0f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 1.0f32
+    v4 = iconst 2.0f32
     v5 = fdiv v4, v3
     return v5
 }"#,
@@ -2361,12 +2929,13 @@ block3(v3: f32):
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds {
-                    min: f64::NEG_INFINITY,
-                    max: f64::INFINITY
+                    min: -(f32::MAX as f64),
+                    max: f32::MAX as f64
                 }),
                 width: 32,
-                can_be_nan: true,
-                can_be_non_nan: true
+                can_be_nan: false,
+                can_be_pos_inf: true,
+                can_be_neg_inf: true
             }
         );
     }
@@ -2411,7 +2980,325 @@ block3(v3: f32):
                 bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
                 width: 32,
                 can_be_nan: true,
-                can_be_non_nan: true
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Zero divided by zero or infinity stays at zero with NaN possible.
+    #[test]
+    fn test_range_float_division_zero_by_zero_or_infinite() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 0.0f32
+    jump block3(v1)
+block2:
+    v2 = iconst 1e1000f32
+    jump block3(v2)
+block3(v3: f32):
+    v4 = iconst 0.0f32
+    v5 = fdiv v4, v3
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Zero multiplied by infinity yields NaN only.
+    #[test]
+    fn test_range_float_multiply_zero_by_infinite() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 0.0f32
+    v2 = iconst 1e1000f32
+    jump block3(v1, v2)
+block2:
+    v3 = iconst 0.0f32
+    v4 = iconst 1e1000f32
+    jump block3(v3, v4)
+block3(v5: f32, v6: f32):
+    v7 = fmul v5, v6
+    return v7
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Infinity times a range containing zero yields NaN with infinity.
+    #[test]
+    fn test_range_float_multiply_infinite_by_zero_range() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 0.0f32
+    jump block3(v1)
+block2:
+    v2 = iconst 2.0f32
+    jump block3(v2)
+block3(v3: f32):
+    v4 = iconst 1e1000f32
+    v5 = fmul v4, v3
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: true,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Infinite divided by infinite yields NaN only.
+    #[test]
+    fn test_range_float_division_infinite_by_infinite() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1e1000f32
+    v2 = iconst 1e1000f32
+    jump block3(v1, v2)
+block2:
+    v3 = iconst 1e1000f32
+    v4 = iconst 1e1000f32
+    jump block3(v3, v4)
+block3(v5: f32, v6: f32):
+    v7 = fdiv v5, v6
+    return v7
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: true,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Infinite divided by zero yields infinities with unknown sign.
+    #[test]
+    fn test_range_float_division_infinite_by_zero() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 1e1000f32
+    v1 = iconst 0.0f32
+    v2 = fdiv v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: true,
+                can_be_neg_inf: true
+            }
+        );
+    }
+
+    /// Finite values divided by infinity yield zero.
+    #[test]
+    fn test_range_float_division_finite_by_infinite() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 2.0f32
+    v1 = iconst 1e1000f32
+    v2 = fdiv v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Positive infinity divided by negative finite values yields negative infinity.
+    #[test]
+    fn test_range_float_division_infinite_by_negative() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 1e1000f32
+    v1 = iconst -2.0f32
+    v2 = fdiv v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: false,
+                can_be_neg_inf: true
             }
         );
     }
@@ -2451,7 +3338,8 @@ block0:
                 bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
                 width: 32,
                 can_be_nan: true,
-                can_be_non_nan: true
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
             }
         );
     }
@@ -2525,14 +3413,55 @@ block0:
                 bounds: Some(FloatBounds { min: 4.0, max: 4.0 }),
                 width: 32,
                 can_be_nan: false,
-                can_be_non_nan: true
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
             }
         );
     }
 
-    /// Merging a full range float with a finite value preserves full bounds.
+    /// Float truncation saturates large f64 values to infinity.
     #[test]
-    fn test_range_float_union_unknown() {
+    fn test_range_float_truncate_overflow() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 1e300f64
+    v1 = fnarrow v0 -> f32
+    return v1
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: None,
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: true,
+                can_be_neg_inf: false
+            }
+        );
+    }
+
+    /// Merging NaN only and finite values preserves finite bounds with NaN possible.
+    #[test]
+    fn test_range_float_union_nan_only() {
         let program = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
@@ -2567,7 +3496,8 @@ block3(v4: f32):
                 bounds: Some(FloatBounds { min: 1.0, max: 1.0 }),
                 width: 32,
                 can_be_nan: true,
-                can_be_non_nan: true
+                can_be_pos_inf: false,
+                can_be_neg_inf: false
             }
         );
     }
@@ -2603,6 +3533,197 @@ block0:
             &ValueRange::Boolean {
                 can_be_true: false,
                 can_be_false: true
+            }
+        );
+    }
+
+    /// Positive infinity comparisons against finite values are constant.
+    #[test]
+    fn test_range_float_comparison_infinite_gt_finite() {
+        let program = TestProgram::new(
+            r#"function @test() -> bool {
+block0:
+    v0 = iconst 1e1000f32
+    v1 = iconst 1.0f32
+    v2 = fcmp_gt v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        assert_eq!(
+            exit_ranges.get(value).unwrap(),
+            &ValueRange::Boolean {
+                can_be_true: true,
+                can_be_false: false
+            }
+        );
+    }
+
+    /// Positive infinity comparisons against finite values are constant for less equal.
+    #[test]
+    fn test_range_float_comparison_infinite_le_finite() {
+        let program = TestProgram::new(
+            r#"function @test() -> bool {
+block0:
+    v0 = iconst 1e1000f32
+    v1 = iconst 1.0f32
+    v2 = fcmp_le v0, v1
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        assert_eq!(
+            exit_ranges.get(value).unwrap(),
+            &ValueRange::Boolean {
+                can_be_true: false,
+                can_be_false: true
+            }
+        );
+    }
+
+    /// NaN comparisons against inequality are always true.
+    #[test]
+    fn test_range_float_comparison_nan_ne_true() {
+        let program = TestProgram::new(
+            r#"function @test() -> bool {
+block0:
+    v0 = iconst 0.0f32
+    v1 = fdiv v0, v0
+    v2 = iconst 1.0f32
+    v3 = fcmp_ne v1, v2
+    return v3
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[3];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        assert_eq!(
+            exit_ranges.get(value).unwrap(),
+            &ValueRange::Boolean {
+                can_be_true: true,
+                can_be_false: false
+            }
+        );
+    }
+
+    /// NaN mixed with finite values keeps comparisons unknown for greater equal.
+    #[test]
+    fn test_range_float_comparison_nan_ge_unknown() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> bool {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 0.0f32
+    v2 = fdiv v1, v1
+    jump block3(v2)
+block2:
+    v3 = iconst 1.0f32
+    jump block3(v3)
+block3(v4: f32):
+    v5 = iconst 1.0f32
+    v6 = fcmp_ge v4, v5
+    return v6
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        assert!(exit_ranges.get(value).is_none());
+    }
+
+    /// Unions preserve finite bounds and track infinity.
+    #[test]
+    fn test_range_float_union_infinite_and_finite() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1e1000f32
+    jump block3(v1)
+block2:
+    v2 = iconst 2.0f32
+    jump block3(v2)
+block3(v3: f32):
+    return v3
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let merge_block = function.blocks[3];
+        let merge = program.tree.get(merge_block);
+        let param_value = merge.parameters[0].value;
+
+        let entry_ranges = ranges.entry(merge_block);
+        let param_range = entry_ranges.get(param_value).unwrap();
+
+        assert_eq!(
+            param_range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds { min: 2.0, max: 2.0 }),
+                width: 32,
+                can_be_nan: false,
+                can_be_pos_inf: true,
+                can_be_neg_inf: false
             }
         );
     }
@@ -2644,6 +3765,45 @@ block3(v3: f32):
             range,
             &ValueRange::Integer {
                 min: 1,
+                max: i32::MAX as i128,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Float to int casts saturate positive infinity to the maximum.
+    #[test]
+    fn test_range_float_to_int_cast_positive_infinite() {
+        let program = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1e1000f32
+    v1 = fcvt_to_sint v0 -> i32
+    return v1
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: i32::MAX as i128,
                 max: i32::MAX as i128,
                 width: 32,
                 is_signed: true
@@ -2695,9 +3855,48 @@ block3(v3: f32):
         );
     }
 
-    /// Full range float to int casts conservatively yield the full integer range.
+    /// Float to int casts saturate negative infinity to the minimum.
     #[test]
-    fn test_range_float_to_int_cast_nan() {
+    fn test_range_float_to_int_cast_negative_infinite() {
+        let program = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0 = iconst -1e1000f32
+    v1 = fcvt_to_sint v0 -> i32
+    return v1
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: i32::MIN as i128,
+                max: i32::MIN as i128,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// NaN only float to int casts yield zero.
+    #[test]
+    fn test_range_float_to_int_cast_nan_only() {
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
