@@ -4,18 +4,24 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    build_use_def_maps, constant_from_global, fold_binary, fold_cast, fold_unary,
+    ConstantTree, build_use_def_maps, constant_tree_from_global, fold_binary, fold_cast,
+    fold_unary, instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 use crate::optimize::{
     AnalysisKind, AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
 };
 
+/// Maximum aggregate elements to materialize from globals.
+const MAX_AGGREGATE_ELEMENTS: usize = 1024;
+
 declare_pass! {
     /// Perform sparse conditional constant propagation.
     ///
     /// This pass tracks constant values along executable paths and folds
-    /// operations where all operands are constant. It also uses constant
-    /// branch conditions to mark unreachable blocks for removal.
+    /// operations where all operands are constant.
+    /// It also uses constant branch conditions to mark unreachable blocks for removal.
+    /// Aggregate values and immutable global initializers are propagated when they can be
+    /// represented in the lattice.
     ///
     /// ```mir
     /// function @before() -> i32 {
@@ -99,6 +105,8 @@ enum LatticeValue {
     Unknown,
     /// A known constant value.
     Constant(mir::Constant),
+    /// A known aggregate value with per element lattice values.
+    Aggregate(Vec<LatticeValue>),
     /// A value that is known to vary.
     Overdefined,
 }
@@ -114,6 +122,21 @@ impl LatticeValue {
                 Self::Constant(left.clone())
             }
             (Self::Constant(_), Self::Constant(_)) => Self::Overdefined,
+            (Self::Aggregate(left), Self::Aggregate(right)) => {
+                if left.len() != right.len() {
+                    return Self::Overdefined;
+                }
+
+                let elements = left
+                    .iter()
+                    .zip(right)
+                    .map(|(left, right)| left.meet(right))
+                    .collect();
+                Self::Aggregate(elements)
+            }
+            (Self::Aggregate(_), Self::Constant(_)) | (Self::Constant(_), Self::Aggregate(_)) => {
+                Self::Overdefined
+            }
         }
     }
 }
@@ -455,11 +478,7 @@ impl<'a> SccpState<'a> {
             mir::Instruction::Const { value, .. } => LatticeValue::Constant(value.clone()),
             mir::Instruction::GlobalConst { global, .. } => {
                 // read global constant
-                if let Some(constant) = constant_from_global(*global, self.tree) {
-                    LatticeValue::Constant(constant)
-                } else {
-                    LatticeValue::Overdefined
-                }
+                lattice_from_global(*global, self.tree).unwrap_or(LatticeValue::Overdefined)
             }
             mir::Instruction::Binary {
                 operator,
@@ -481,6 +500,9 @@ impl<'a> SccpState<'a> {
                     (LatticeValue::Overdefined, _) | (_, LatticeValue::Overdefined) => {
                         LatticeValue::Overdefined
                     }
+                    (LatticeValue::Aggregate(_), _) | (_, LatticeValue::Aggregate(_)) => {
+                        LatticeValue::Overdefined
+                    }
                     _ => LatticeValue::Unknown,
                 }
             }
@@ -496,6 +518,7 @@ impl<'a> SccpState<'a> {
                         .map(LatticeValue::Constant)
                         .unwrap_or(LatticeValue::Overdefined),
                     LatticeValue::Overdefined => LatticeValue::Overdefined,
+                    LatticeValue::Aggregate(_) => LatticeValue::Overdefined,
                     LatticeValue::Unknown => LatticeValue::Unknown,
                 }
             }
@@ -516,10 +539,169 @@ impl<'a> SccpState<'a> {
                             .unwrap_or(LatticeValue::Overdefined)
                     }
                     LatticeValue::Overdefined => LatticeValue::Overdefined,
+                    LatticeValue::Aggregate(_) => LatticeValue::Overdefined,
                     LatticeValue::Unknown => LatticeValue::Unknown,
                 }
             }
+            mir::Instruction::Struct { fields, .. } => {
+                // evaluate aggregate fields
+                let arguments = self.tree.get_arguments(*fields);
+                self.evaluate_aggregate(arguments)
+            }
+            mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
+                // evaluate aggregate elements
+                let arguments = self.tree.get_arguments(*elements);
+                self.evaluate_aggregate(arguments)
+            }
+            mir::Instruction::FieldGet {
+                aggregate, index, ..
+            } => {
+                // evaluate field get from aggregates
+                let aggregate_state = self.value_state(*aggregate);
+                self.evaluate_field_get(aggregate_state, *index as usize)
+            }
+            mir::Instruction::FieldSet {
+                aggregate,
+                index,
+                value,
+                ..
+            } => {
+                // evaluate field set on aggregates
+                let aggregate_state = self.value_state(*aggregate);
+                let value_state = self.value_state(*value);
+                self.evaluate_field_set(aggregate_state, *index as usize, value_state)
+            }
+            mir::Instruction::ElementGet { array, index, .. } => {
+                // evaluate element get from arrays
+                let array_state = self.value_state(*array);
+                let index_state = self.value_state(*index);
+                self.evaluate_element_get(array_state, index_state)
+            }
+            mir::Instruction::ElementSet {
+                array,
+                index,
+                value,
+                ..
+            } => {
+                // evaluate element set on arrays
+                let array_state = self.value_state(*array);
+                let index_state = self.value_state(*index);
+                let value_state = self.value_state(*value);
+                self.evaluate_element_set(array_state, index_state, value_state)
+            }
             _ => LatticeValue::Overdefined,
+        }
+    }
+
+    /// Build an aggregate lattice value from operand values.
+    fn evaluate_aggregate(&self, values: &[mir::Value]) -> LatticeValue {
+        // collect operand lattice values
+        let elements = values
+            .iter()
+            .map(|value| self.value_state(*value))
+            .collect();
+        LatticeValue::Aggregate(elements)
+    }
+
+    /// Evaluate a field.get on an aggregate lattice value.
+    fn evaluate_field_get(&self, aggregate_state: LatticeValue, index: usize) -> LatticeValue {
+        // extract element from aggregate state
+        match aggregate_state {
+            LatticeValue::Aggregate(elements) => elements
+                .get(index)
+                .cloned()
+                .unwrap_or(LatticeValue::Overdefined),
+            LatticeValue::Unknown => LatticeValue::Unknown,
+            LatticeValue::Overdefined => LatticeValue::Overdefined,
+            LatticeValue::Constant(_) => LatticeValue::Overdefined,
+        }
+    }
+
+    /// Evaluate a field.set on an aggregate lattice value.
+    fn evaluate_field_set(
+        &self,
+        aggregate_state: LatticeValue,
+        index: usize,
+        value_state: LatticeValue,
+    ) -> LatticeValue {
+        // update element when aggregate shape is known
+        match aggregate_state {
+            LatticeValue::Aggregate(mut elements) => {
+                if index >= elements.len() {
+                    return LatticeValue::Overdefined;
+                }
+
+                elements[index] = value_state;
+                LatticeValue::Aggregate(elements)
+            }
+            LatticeValue::Unknown => LatticeValue::Unknown,
+            LatticeValue::Overdefined => LatticeValue::Overdefined,
+            LatticeValue::Constant(_) => LatticeValue::Overdefined,
+        }
+    }
+
+    /// Evaluate an element.get on an array lattice value.
+    fn evaluate_element_get(
+        &self,
+        array_state: LatticeValue,
+        index_state: LatticeValue,
+    ) -> LatticeValue {
+        // resolve constant index
+        let index = match index_state {
+            LatticeValue::Constant(constant) => constant_index_to_usize(&constant),
+            LatticeValue::Unknown => return LatticeValue::Unknown,
+            LatticeValue::Overdefined => return LatticeValue::Overdefined,
+            LatticeValue::Aggregate(_) => return LatticeValue::Overdefined,
+        };
+
+        let Some(index) = index else {
+            return LatticeValue::Overdefined;
+        };
+
+        // extract element from array state
+        match array_state {
+            LatticeValue::Aggregate(elements) => elements
+                .get(index)
+                .cloned()
+                .unwrap_or(LatticeValue::Overdefined),
+            LatticeValue::Unknown => LatticeValue::Unknown,
+            LatticeValue::Overdefined => LatticeValue::Overdefined,
+            LatticeValue::Constant(_) => LatticeValue::Overdefined,
+        }
+    }
+
+    /// Evaluate an element.set on an array lattice value.
+    fn evaluate_element_set(
+        &self,
+        array_state: LatticeValue,
+        index_state: LatticeValue,
+        value_state: LatticeValue,
+    ) -> LatticeValue {
+        // resolve constant index
+        let index = match index_state {
+            LatticeValue::Constant(constant) => constant_index_to_usize(&constant),
+            LatticeValue::Unknown => return LatticeValue::Unknown,
+            LatticeValue::Overdefined => return LatticeValue::Overdefined,
+            LatticeValue::Aggregate(_) => return LatticeValue::Overdefined,
+        };
+
+        let Some(index) = index else {
+            return LatticeValue::Overdefined;
+        };
+
+        // update element when array shape is known
+        match array_state {
+            LatticeValue::Aggregate(mut elements) => {
+                if index >= elements.len() {
+                    return LatticeValue::Overdefined;
+                }
+
+                elements[index] = value_state;
+                LatticeValue::Aggregate(elements)
+            }
+            LatticeValue::Unknown => LatticeValue::Unknown,
+            LatticeValue::Overdefined => LatticeValue::Overdefined,
+            LatticeValue::Constant(_) => LatticeValue::Overdefined,
         }
     }
 }
@@ -529,16 +711,48 @@ fn switch_constant_value(constant: &mir::Constant) -> Option<i64> {
     // convert numeric constants to switch values
     match constant {
         mir::Constant::Int { value, .. } => Some(*value),
-        mir::Constant::UInt { value, .. } => i64::try_from(*value).ok(),
+        mir::Constant::UInt { value, .. } => Some(*value as i64),
+        _ => None,
+    }
+}
+
+/// Convert an immutable global initializer into a lattice value when possible.
+fn lattice_from_global(
+    global_id: mir::LocalNodeId<mir::Global>,
+    tree: &mir::NodeTree,
+) -> Option<LatticeValue> {
+    // read constant tree
+    let constant_tree = constant_tree_from_global(global_id, tree, MAX_AGGREGATE_ELEMENTS)?;
+
+    // map to lattice value
+    Some(lattice_from_constant_tree(&constant_tree))
+}
+
+/// Convert a constant tree into a lattice value.
+fn lattice_from_constant_tree(constant_tree: &ConstantTree) -> LatticeValue {
+    // map constant nodes to lattice values
+    match constant_tree {
+        ConstantTree::Scalar(constant) => LatticeValue::Constant(constant.clone()),
+        ConstantTree::Aggregate(elements) => {
+            let elements = elements.iter().map(lattice_from_constant_tree).collect();
+            LatticeValue::Aggregate(elements)
+        }
+        ConstantTree::Unknown => LatticeValue::Overdefined,
+    }
+}
+
+/// Convert a constant to a usable array index.
+fn constant_index_to_usize(constant: &mir::Constant) -> Option<usize> {
+    // map integer constants to indices
+    match constant {
+        mir::Constant::Int { value, .. } => usize::try_from(*value).ok(),
+        mir::Constant::UInt { value, .. } => usize::try_from(*value).ok(),
         _ => None,
     }
 }
 
 /// Select the switch case that matches a constant value.
-fn select_switch_target<'a>(
-    value: i64,
-    cases: &'a [mir::SwitchCase],
-) -> Option<&'a mir::SwitchCase> {
+fn select_switch_target(value: i64, cases: &[mir::SwitchCase]) -> Option<&mir::SwitchCase> {
     // find matching case
     cases.iter().find(|case| case.value == value)
 }
@@ -552,8 +766,17 @@ fn apply_sccp_result(
     let mut cfg_changed = false;
     let mut value_changed = false;
 
+    // ensure next value id is fresh before inserting new values
+    function.recompute_next_value_id(tree);
+
+    // insert consts for constant block params and build substitutions
+    let mut substitutions = HashMap::new();
+    value_changed |=
+        function_insert_block_param_constants(function, tree, result, &mut substitutions);
+
     // fold instructions and terminators in executable blocks
-    for &block_id in &function.blocks {
+    let block_ids: Vec<_> = function.blocks.clone();
+    for block_id in block_ids {
         // skip non executable blocks
         if !result.is_executable(block_id) {
             continue;
@@ -597,12 +820,17 @@ fn apply_sccp_result(
         }
 
         // fold constant branches and switches
-        if let Some(new_terminator) = fold_constant_terminator(&terminator, result) {
-            if new_terminator != terminator {
-                tree.get_mut(block_id).terminator = new_terminator;
-                cfg_changed = true;
-            }
+        if let Some(new_terminator) = fold_constant_terminator(&terminator, result)
+            && new_terminator != terminator
+        {
+            tree.get_mut(block_id).terminator = new_terminator;
+            cfg_changed = true;
         }
+    }
+
+    // substitute constant uses after folding
+    if !substitutions.is_empty() {
+        value_changed |= function_substitute_constant_uses(function, tree, &substitutions);
     }
 
     // remove unreachable blocks
@@ -615,6 +843,138 @@ fn apply_sccp_result(
     }
 
     (cfg_changed, value_changed)
+}
+
+/// Insert constants for block parameters and populate substitutions.
+fn function_insert_block_param_constants(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    result: &SccpResult,
+    substitutions: &mut HashMap<mir::Value, mir::Value>,
+) -> bool {
+    let mut changed = false;
+
+    let block_ids: Vec<_> = function.blocks.clone();
+    for block_id in block_ids {
+        // skip non executable blocks
+        if !result.is_executable(block_id) {
+            continue;
+        }
+
+        // snapshot block parameters
+        let params = tree.get(block_id).parameters.clone();
+        if params.is_empty() {
+            continue;
+        }
+
+        // build consts to insert at block entry
+        let mut inserted_constants: Vec<(mir::Constant, mir::Value)> = Vec::new();
+        let mut new_instructions = Vec::new();
+
+        for param in &params {
+            let Some(constant) = result.value_constant(param.value) else {
+                continue;
+            };
+
+            let existing = inserted_constants
+                .iter()
+                .find(|(value, _)| value == constant)
+                .map(|(_, value)| *value);
+
+            let const_value = if let Some(value) = existing {
+                value
+            } else {
+                let new_value = function.next_value();
+                let instruction = mir::Instruction::Const {
+                    destination: new_value,
+                    value: constant.clone(),
+                };
+                let instruction_id = tree.insert(instruction);
+                inserted_constants.push((constant.clone(), new_value));
+                new_instructions.push(instruction_id);
+                new_value
+            };
+
+            substitutions.insert(param.value, const_value);
+        }
+
+        if !new_instructions.is_empty() {
+            // insert consts at block entry
+            let block = tree.get_mut(block_id);
+            let mut updated = new_instructions;
+            updated.extend(block.instructions.iter().copied());
+            block.instructions = updated;
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Substitute constant values in instruction and terminator uses.
+fn function_substitute_constant_uses(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> bool {
+    let mut changed = false;
+
+    for &block_id in &function.blocks {
+        let (instruction_ids, terminator) = {
+            let block = tree.get(block_id);
+            (block.instructions.clone(), block.terminator.clone())
+        };
+
+        // rewrite instruction uses
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id).clone();
+            if !instruction_needs_substitution(&instruction, tree, substitutions) {
+                continue;
+            }
+
+            let new_instruction =
+                instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
+            if new_instruction != instruction {
+                tree.replace(instruction_id, new_instruction);
+                changed = true;
+            }
+        }
+
+        // rewrite terminator uses
+        let new_terminator = terminator_substitute_uses(&terminator, substitutions);
+        if new_terminator != terminator {
+            tree.get_mut(block_id).terminator = new_terminator;
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Check if an instruction uses any substituted values.
+fn instruction_needs_substitution(
+    instruction: &mir::Instruction,
+    tree: &mir::NodeTree,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> bool {
+    // check inline operands
+    if instruction
+        .uses()
+        .iter()
+        .any(|value| substitutions.contains_key(value))
+    {
+        return true;
+    }
+
+    // check externalized arguments
+    if let Some(arguments) = instruction.argument_slice() {
+        return tree
+            .get_arguments(arguments)
+            .iter()
+            .any(|value| substitutions.contains_key(value));
+    }
+
+    false
 }
 
 /// Fold a terminator when its condition is constant.
@@ -711,6 +1071,7 @@ block1:
     v1 = iconst 10i32
     jump block2(v1)
 block2(v3: i32):
+    v5 = iconst 10i32
     v4 = iconst 20i32
     return v4
 }"#;
@@ -746,6 +1107,7 @@ block2:
     v2 = iconst 3i32
     jump block3(v2)
 block3(v3: i32):
+    v5 = iconst 3i32
     v4 = iconst 6i32
     return v4
 }"#;
@@ -875,5 +1237,306 @@ block2:
         let mut program = TestProgram::new(input);
         program.run_pass(&SparseConditionalConstantPropagation);
         program.assert_unchanged(input);
+    }
+
+    /// Block parameter constants are substituted in uses.
+    #[test]
+    fn test_substitute_block_param_uses() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3i32
+    jump block1(v0)
+block1(v1: i32):
+    jump block2(v1)
+block2(v2: i32):
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3i32
+    jump block1(v0)
+block1(v1: i32):
+    v3 = iconst 3i32
+    jump block2(v3)
+block2(v2: i32):
+    v4 = iconst 3i32
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Call arguments are substituted when constants are available.
+    #[test]
+    fn test_substitute_call_arguments() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test() -> i32 {
+block0:
+    v0 = iconst 5i32
+    jump block1(v0)
+block1(v1: i32):
+    v2 = call @callee(v1)
+    return v2
+}"#;
+        let expected = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test() -> i32 {
+block0:
+    v0 = iconst 5i32
+    jump block1(v0)
+block1(v1: i32):
+    v3 = iconst 5i32
+    v2 = call @callee(v3)
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Switch constants use the same i64 cast semantics as the VM.
+    #[test]
+    fn test_switch_u64_wraps_to_i64() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 18446744073709551615u64
+    switch v0, block2, -1 => block1
+block1:
+    v1 = iconst 1i32
+    return v1
+block2:
+    v2 = iconst 2i32
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 18446744073709551615u64
+    jump block1
+block1:
+    v1 = iconst 1i32
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Field access folds when a struct has constant fields.
+    #[test]
+    fn test_struct_field_get_constant() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 5i32
+    v1 = iconst 7i32
+    v2 = struct { i32, i32 } (v0, v1)
+    v3 = field.get v2, 0
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 5i32
+    v1 = iconst 7i32
+    v2 = struct { i32, i32 } (v0, v1)
+    v3 = iconst 5i32
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Field access keeps constant elements even when other fields vary.
+    #[test]
+    fn test_struct_field_get_partial_constant() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 4i32
+    v2 = struct { i32, i32 } (v1, v0)
+    v3 = field.get v2, 0
+    return v3
+}"#;
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 4i32
+    v2 = struct { i32, i32 } (v1, v0)
+    v3 = iconst 4i32
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Field set updates aggregate constants for later field access.
+    #[test]
+    fn test_struct_field_set_constant() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = struct { i32, i32 } (v0, v1)
+    v3 = iconst 9i32
+    v4 = field.set v2, 1, v3
+    v5 = field.get v4, 1
+    return v5
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = struct { i32, i32 } (v0, v1)
+    v3 = iconst 9i32
+    v4 = field.set v2, 1, v3
+    v5 = iconst 9i32
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Element access folds for constant array indices.
+    #[test]
+    fn test_array_element_get_constant_index() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 10i32
+    v1 = iconst 20i32
+    v2 = iconst 30i32
+    v3 = array [i32; 3] (v0, v1, v2)
+    v4 = iconst 1i64
+    v5 = element.get v3, v4
+    return v5
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 10i32
+    v1 = iconst 20i32
+    v2 = iconst 30i32
+    v3 = array [i32; 3] (v0, v1, v2)
+    v4 = iconst 1i64
+    v5 = iconst 20i32
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Element set updates array constants for later element access.
+    #[test]
+    fn test_array_element_set_constant_index() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = iconst 3i32
+    v3 = array [i32; 3] (v0, v1, v2)
+    v4 = iconst 1i64
+    v5 = iconst 9i32
+    v6 = element.set v3, v4, v5
+    v7 = element.get v6, v4
+    return v7
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = iconst 3i32
+    v3 = array [i32; 3] (v0, v1, v2)
+    v4 = iconst 1i64
+    v5 = iconst 9i32
+    v6 = element.set v3, v4, v5
+    v7 = iconst 9i32
+    return v7
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Global aggregate constants are used for field access folding.
+    #[test]
+    fn test_global_struct_field_get_constant() {
+        let input = r#"global @pair: { i32, i32 } = { 1i32, 2i32 } ; const
+function @test() -> i32 {
+block0:
+    v0 = global.const @pair
+    v1 = field.get v0, 1
+    return v1
+}"#;
+        let expected = r#"global @pair: { i32, i32 } = {1i32, 2i32} ; const
+function @test() -> i32 {
+block0:
+    v0 = global.const @pair
+    v1 = iconst 2i32
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Zero initializers produce aggregate constants for field access.
+    #[test]
+    fn test_global_zero_initializer_field_get() {
+        let input = r#"global @pair: (i32, i32) = zeroinit ; const
+function @test() -> i32 {
+block0:
+    v0 = global.const @pair
+    v1 = field.get v0, 0
+    return v1
+}"#;
+        let expected = r#"global @pair: (i32, i32) = zeroinit ; const
+function @test() -> i32 {
+block0:
+    v0 = global.const @pair
+    v1 = iconst 0i32
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Byte initializers on u8 arrays fold element access with constant indices.
+    #[test]
+    fn test_global_bytes_element_get() {
+        let input = r#"global @data: [u8; 4] = "test" ; const
+function @test() -> u8 {
+block0:
+    v0 = global.const @data
+    v1 = iconst 2i64
+    v2 = element.get v0, v1
+    return v2
+}"#;
+        let expected = r#"global @data: [u8; 4] = "test" ; const
+function @test() -> u8 {
+block0:
+    v0 = global.const @data
+    v1 = iconst 2i64
+    v2 = iconst 115u8
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
     }
 }

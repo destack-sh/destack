@@ -329,6 +329,96 @@ pub fn instruction_substitute_uses(
     }
 }
 
+/// Substitute values in an instruction, including externalized arguments.
+///
+/// Creates a new instruction with value references replaced according to the substitution map.
+/// Values not in the map are left unchanged.
+pub fn instruction_substitute_uses_in_tree(
+    instruction: &mir::Instruction,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+    tree: &mut mir::NodeTree,
+) -> mir::Instruction {
+    if substitutions.is_empty() {
+        return instruction.clone();
+    }
+
+    let substitute =
+        |value: mir::Value| -> mir::Value { *substitutions.get(&value).unwrap_or(&value) };
+
+    let mut substitute_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
+        let arguments = tree.get_arguments(slice);
+        if !arguments
+            .iter()
+            .any(|value| substitutions.contains_key(value))
+        {
+            return slice;
+        }
+
+        let new_arguments: Vec<_> = arguments.iter().map(|value| substitute(*value)).collect();
+        tree.add_arguments(&new_arguments)
+    };
+
+    match instruction {
+        mir::Instruction::Struct {
+            destination,
+            ty,
+            fields,
+        } => mir::Instruction::Struct {
+            destination: *destination,
+            ty: *ty,
+            fields: substitute_arguments(*fields),
+        },
+        mir::Instruction::Tuple {
+            destination,
+            ty,
+            elements,
+        } => mir::Instruction::Tuple {
+            destination: *destination,
+            ty: *ty,
+            elements: substitute_arguments(*elements),
+        },
+        mir::Instruction::Array {
+            destination,
+            ty,
+            elements,
+        } => mir::Instruction::Array {
+            destination: *destination,
+            ty: *ty,
+            elements: substitute_arguments(*elements),
+        },
+        mir::Instruction::Call {
+            destination,
+            function,
+            arguments,
+        } => mir::Instruction::Call {
+            destination: *destination,
+            function: *function,
+            arguments: substitute_arguments(*arguments),
+        },
+        mir::Instruction::CallIndirect {
+            destination,
+            callee,
+            arguments,
+        } => mir::Instruction::CallIndirect {
+            destination: *destination,
+            callee: substitute(*callee),
+            arguments: substitute_arguments(*arguments),
+        },
+        mir::Instruction::Intrinsic {
+            destination,
+            intrinsic,
+            arguments,
+            ordering,
+        } => mir::Instruction::Intrinsic {
+            destination: *destination,
+            intrinsic: *intrinsic,
+            arguments: substitute_arguments(*arguments),
+            ordering: *ordering,
+        },
+        _ => instruction_substitute_uses(instruction, substitutions),
+    }
+}
+
 /// Maps for tracking where values are used and defined.
 #[derive(Debug)]
 pub struct UseDefMaps {

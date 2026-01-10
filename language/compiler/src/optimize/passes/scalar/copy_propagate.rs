@@ -7,7 +7,7 @@ use mir::Terminator;
 use crate::AnalysisKind;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
-    instruction_substitute_uses, terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -199,9 +199,10 @@ impl FunctionPass for CopyPropagate {
         for &block_id in &function.blocks {
             let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
             for instruction_id in instruction_ids {
-                let instruction = tree.get(instruction_id);
-                let new_instruction = instruction_substitute_uses(instruction, &substitutions);
-                if new_instruction != *instruction {
+                let instruction = tree.get(instruction_id).clone();
+                let new_instruction =
+                    instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+                if new_instruction != instruction {
                     tree.replace(instruction_id, new_instruction);
                 }
             }
