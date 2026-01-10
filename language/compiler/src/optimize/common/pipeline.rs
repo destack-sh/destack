@@ -575,11 +575,7 @@ fn verify() -> Vec<Box<dyn FunctionPass>> {
 }
 
 fn canonicalize() -> Vec<Box<dyn FunctionPass>> {
-    vec![
-        Box::new(Sroa),
-        Box::new(Mem2Reg),
-        Box::new(DropInsert),
-    ]
+    vec![Box::new(Sroa), Box::new(Mem2Reg), Box::new(DropInsert)]
 }
 
 /// Fast simplification passes that benefit from tight iteration.
@@ -603,18 +599,12 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
 }
 
 fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
-    vec![
-        Box::new(LoadStoreForward),
-        Box::new(DeadStoreEliminate),
-    ]
+    vec![Box::new(LoadStoreForward), Box::new(DeadStoreEliminate)]
 }
 
 fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
-    let mut passes: Vec<Box<dyn FunctionPass>> = vec![
-        Box::new(LoopSimplify),
-        Box::new(Licm),
-        Box::new(LoopRotate),
-    ];
+    let mut passes: Vec<Box<dyn FunctionPass>> =
+        vec![Box::new(LoopSimplify), Box::new(Licm), Box::new(LoopRotate)];
     if aggressive {
         passes.push(Box::new(LoopUnswitch));
     }
@@ -623,10 +613,7 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 }
 
 fn cleanup() -> Vec<Box<dyn FunctionPass>> {
-    vec![
-        Box::new(SimplifyCfg),
-        Box::new(DeadCodeEliminate),
-    ]
+    vec![Box::new(SimplifyCfg), Box::new(DeadCodeEliminate)]
 }
 
 /// O0: Verification and correctness only.
@@ -643,10 +630,7 @@ fn o1_pipeline() -> CompositePipeline {
         .function_passes(verify())
         .function_passes(simplify())
         .function_passes(canonicalize())
-        .function_passes(vec![
-            Box::new(LocalCse),
-            Box::new(CopyPropagate),
-        ])
+        .function_passes(vec![Box::new(LocalCse), Box::new(CopyPropagate)])
         .function_passes(cleanup())
         .build()
 }
@@ -660,9 +644,10 @@ fn o2_pipeline() -> CompositePipeline {
         .function_passes(verify())
         .function_passes(canonicalize())
         // early simplification
-        .repeat(2, FunctionToModuleAdaptor::new(
-            FunctionPipeline::new(simplify()),
-        ))
+        .repeat(
+            2,
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(simplify())),
+        )
         // scalar optimization with interleaved simplification
         .function_passes(eliminate_redundancy())
         .function_passes(simplify())
@@ -687,9 +672,10 @@ fn o3_pipeline() -> CompositePipeline {
         .function_passes(verify())
         .function_passes(canonicalize())
         // early simplification (more iterations)
-        .repeat(3, FunctionToModuleAdaptor::new(
-            FunctionPipeline::new(simplify()),
-        ))
+        .repeat(
+            3,
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(simplify())),
+        )
         // scalar optimization round 1
         .function_passes(eliminate_redundancy())
         .function_passes(simplify())

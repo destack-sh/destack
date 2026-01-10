@@ -5,6 +5,12 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
+use crate::optimize::analyses::{
+    AliasAnalysis, BorrowAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree,
+    LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, OwnershipAnalysis, PostDominatorTree,
+    RangeAnalysis, ScalarEvolution,
+};
+
 use super::pipeline::PipelineOptions;
 
 /// Unique identifier for an analysis type.
@@ -71,6 +77,11 @@ impl DependencyGraph {
     }
 }
 
+/// Register an analysis in the dependency graph.
+fn register_analysis<A: Analysis>(graph: &mut DependencyGraph) {
+    graph.register(A::ID, A::DEPENDENCIES);
+}
+
 /// Stores function-scoped analyses with lazy computation and dependency tracking.
 pub struct FunctionAnalyses<'a> {
     function: &'a mir::Function,
@@ -96,7 +107,7 @@ impl<'a> FunctionAnalyses<'a> {
 
         // register known function analyses and their dependencies
         // (this will be populated as analyses are migrated)
-        Self::register_known_analyses(&mut dependency_graph);
+        Self::register_all(&mut dependency_graph);
 
         Self {
             function,
@@ -108,39 +119,18 @@ impl<'a> FunctionAnalyses<'a> {
     }
 
     /// Register all known function analyses.
-    fn register_known_analyses(graph: &mut DependencyGraph) {
-        // CFG has no dependencies
-        graph.register(AnalysisId("cfg"), &[]);
-
-        // dominator tree depends on CFG
-        graph.register(AnalysisId("domtree"), &[AnalysisId("cfg")]);
-
-        // post-dominator tree depends on CFG
-        graph.register(AnalysisId("postdomtree"), &[AnalysisId("cfg")]);
-
-        // loop analysis depends on dominator tree
-        graph.register(AnalysisId("loops"), &[AnalysisId("domtree")]);
-
-        // liveness depends on CFG
-        graph.register(AnalysisId("liveness"), &[AnalysisId("cfg")]);
-
-        // ownership depends on CFG
-        graph.register(AnalysisId("ownership"), &[AnalysisId("cfg")]);
-
-        // borrow depends on ownership
-        graph.register(AnalysisId("borrow"), &[AnalysisId("ownership")]);
-
-        // alias analysis depends on CFG
-        graph.register(AnalysisId("alias"), &[AnalysisId("cfg")]);
-
-        // scalar evolution depends on loops
-        graph.register(AnalysisId("scev"), &[AnalysisId("loops")]);
-
-        // range analysis depends on scalar evolution
-        graph.register(AnalysisId("range"), &[AnalysisId("scev")]);
-
-        // constant propagation depends on CFG
-        graph.register(AnalysisId("constprop"), &[AnalysisId("cfg")]);
+    fn register_all(graph: &mut DependencyGraph) {
+        register_analysis::<ControlFlowGraph>(graph);
+        register_analysis::<DominatorTree>(graph);
+        register_analysis::<PostDominatorTree>(graph);
+        register_analysis::<LoopAnalysis>(graph);
+        register_analysis::<LivenessAnalysis>(graph);
+        register_analysis::<ConstantPropagation>(graph);
+        register_analysis::<ScalarEvolution>(graph);
+        register_analysis::<RangeAnalysis>(graph);
+        register_analysis::<OwnershipAnalysis>(graph);
+        register_analysis::<BorrowAnalysis>(graph);
+        register_analysis::<AliasAnalysis>(graph);
     }
 
     /// Get the function being analyzed.
@@ -244,7 +234,7 @@ impl<'a> ModuleAnalyses<'a> {
     /// Create a new module analyses storage.
     pub fn new(tree: &'a mir::NodeTree) -> Self {
         let mut dependency_graph = DependencyGraph::default();
-        Self::register_known_analyses(&mut dependency_graph);
+        Self::register_all(&mut dependency_graph);
 
         Self {
             tree,
@@ -254,12 +244,8 @@ impl<'a> ModuleAnalyses<'a> {
     }
 
     /// Register all known module analyses.
-    fn register_known_analyses(graph: &mut DependencyGraph) {
-        // lifetime analysis has no dependencies
-        graph.register(AnalysisId("lifetime"), &[]);
-
-        // call graph has no dependencies
-        graph.register(AnalysisId("callgraph"), &[]);
+    fn register_all(graph: &mut DependencyGraph) {
+        register_analysis::<LifetimeAnalysis>(graph);
     }
 
     /// Get the node tree.
@@ -362,5 +348,57 @@ impl AnalysisPreservation {
 impl Default for AnalysisPreservation {
     fn default() -> Self {
         Self::none()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_mir as mir;
+
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    /// Ensure the dependency registry matches each analysis declaration.
+    #[test]
+    fn test_function_analysis_dependency_registry() {
+        // build a minimal mir program
+        let program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        // locate the function and dependency graph
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = FunctionAnalyses::new(function, &program.tree);
+        let graph = &analyses.dependency_graph;
+
+        // validate dependency edges for all registered analyses
+        assert_registered_dependencies::<ControlFlowGraph>(graph);
+        assert_registered_dependencies::<DominatorTree>(graph);
+        assert_registered_dependencies::<PostDominatorTree>(graph);
+        assert_registered_dependencies::<LoopAnalysis>(graph);
+        assert_registered_dependencies::<LivenessAnalysis>(graph);
+        assert_registered_dependencies::<ConstantPropagation>(graph);
+        assert_registered_dependencies::<ScalarEvolution>(graph);
+        assert_registered_dependencies::<RangeAnalysis>(graph);
+        assert_registered_dependencies::<OwnershipAnalysis>(graph);
+        assert_registered_dependencies::<BorrowAnalysis>(graph);
+        assert_registered_dependencies::<AliasAnalysis>(graph);
+    }
+
+    /// Ensure registry edges match analysis declared dependencies.
+    fn assert_registered_dependencies<A: Analysis>(graph: &DependencyGraph) {
+        // check each declared dependency edge
+        for dependency in A::DEPENDENCIES {
+            let dependents = graph.get_dependents(*dependency);
+            assert!(
+                dependents.contains(&A::ID),
+                "missing dependency {dependency} for analysis {}",
+                A::ID
+            );
+        }
     }
 }

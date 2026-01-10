@@ -9,8 +9,8 @@ use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
 use crate::optimize::{
     AliasAnalysis, AnalysisPreservation, BorrowAnalysis, BorrowMap, DiagnosticEmitter,
-    FunctionPass, LifetimeAnalysis, LivenessAnalysis, MemoryLocation,
-    PipelineContext, ResolvedLifetime,
+    FunctionPass, LifetimeAnalysis, LivenessAnalysis, MemoryLocation, PipelineContext,
+    ResolvedLifetime,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
