@@ -1,7 +1,7 @@
 //! MIR tree dumper for debugging and visualization.
 
 use crate::{
-    BinaryOperator, Block, CastOperator, CheckConsstraint, Constant, Function, Global,
+    BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
     GlobalInitializer, Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor,
     NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator,
     Value,
@@ -726,7 +726,7 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*condition));
                 self.write(", ");
                 match constraint {
-                    CheckConsstraint::Bounds {
+                    CheckConstraint::Bounds {
                         index,
                         length,
                         collection,
@@ -745,15 +745,15 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                         self.write(&self.format_value(*collection));
                     }
-                    CheckConsstraint::Null { value } => {
+                    CheckConstraint::Null { value } => {
                         self.write("null ");
                         self.write(&self.format_value(*value));
                     }
-                    CheckConsstraint::DivZero { divisor } => {
+                    CheckConstraint::DivZero { divisor } => {
                         self.write("div_zero ");
                         self.write(&self.format_value(*divisor));
                     }
-                    CheckConsstraint::ShiftRange {
+                    CheckConstraint::ShiftRange {
                         value,
                         bit_width,
                         is_signed,
@@ -769,7 +769,7 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                         self.write(&bit_width.to_string());
                     }
-                    CheckConsstraint::Narrow {
+                    CheckConstraint::Narrow {
                         value,
                         to_width,
                         is_signed,
@@ -785,7 +785,7 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                         self.write(&to_width.to_string());
                     }
-                    CheckConsstraint::Overflow {
+                    CheckConstraint::Overflow {
                         operator,
                         left,
                         right,
