@@ -119,6 +119,290 @@ pub fn constant_from_global(global: LocalNodeId<Global>, tree: &NodeTree) -> Opt
     }
 }
 
+/// Constant value tree for aggregate data.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConstantTree {
+    /// Scalar constant value.
+    Scalar(Constant),
+    /// Aggregate constants in order.
+    Aggregate(Vec<ConstantTree>),
+    /// Unknown or unsupported constant value.
+    Unknown,
+}
+
+/// Read a constant tree from an immutable global initializer.
+pub fn constant_tree_from_global(
+    global: LocalNodeId<Global>,
+    tree: &NodeTree,
+    max_aggregate_elements: usize,
+) -> Option<ConstantTree> {
+    // read global definition
+    let global = tree.get(global);
+    if global.is_mutable() {
+        return None;
+    }
+
+    // read initializer
+    let initializer = global.initializer.as_ref()?;
+
+    // build constant tree
+    Some(constant_tree_from_initializer(
+        initializer,
+        global.ty,
+        tree,
+        max_aggregate_elements,
+    ))
+}
+
+/// Build a constant tree from a global initializer.
+fn constant_tree_from_initializer(
+    initializer: &mir::GlobalInitializer,
+    ty: LocalNodeId<Type>,
+    tree: &NodeTree,
+    max_aggregate_elements: usize,
+) -> ConstantTree {
+    // map initializer kind
+    match initializer {
+        mir::GlobalInitializer::Zero => constant_tree_from_zero(ty, tree, max_aggregate_elements),
+        mir::GlobalInitializer::Scalar(constant) => constant_tree_from_scalar(constant, ty, tree),
+        mir::GlobalInitializer::Bytes(bytes) => {
+            constant_tree_from_bytes(bytes, ty, tree, max_aggregate_elements)
+        }
+        mir::GlobalInitializer::Aggregate(elements) => {
+            constant_tree_from_aggregate_initializer(elements, ty, tree, max_aggregate_elements)
+        }
+    }
+}
+
+/// Build a scalar constant tree when the type is compatible.
+fn constant_tree_from_scalar(
+    constant: &Constant,
+    ty: LocalNodeId<Type>,
+    tree: &NodeTree,
+) -> ConstantTree {
+    // read type
+    let ty = tree.get(ty);
+
+    // accept scalar types only
+    if ty.is_scalar() {
+        return ConstantTree::Scalar(constant.clone());
+    }
+
+    ConstantTree::Unknown
+}
+
+/// Build a zero constant tree for the given type.
+fn constant_tree_from_zero(
+    ty: LocalNodeId<Type>,
+    tree: &NodeTree,
+    max_aggregate_elements: usize,
+) -> ConstantTree {
+    // read type
+    let ty = tree.get(ty);
+
+    // build zero constants by type
+    match ty {
+        Type::Boolean => ConstantTree::Scalar(Constant::Boolean { value: false }),
+        Type::Int { width, signed } => {
+            let width = match u8::try_from(*width) {
+                Ok(width) => width,
+                Err(_) => return ConstantTree::Unknown,
+            };
+
+            if *signed {
+                ConstantTree::Scalar(Constant::Int {
+                    value: 0,
+                    width,
+                    is_signed: true,
+                })
+            } else {
+                ConstantTree::Scalar(Constant::UInt { value: 0, width })
+            }
+        }
+        Type::Float { width } => {
+            let width = match u8::try_from(*width) {
+                Ok(width) => width,
+                Err(_) => return ConstantTree::Unknown,
+            };
+
+            ConstantTree::Scalar(Constant::Float { bits: 0, width })
+        }
+        Type::Array {
+            element, length, ..
+        } => {
+            let length = match usize::try_from(*length) {
+                Ok(length) => length,
+                Err(_) => return ConstantTree::Unknown,
+            };
+
+            if length > max_aggregate_elements {
+                return ConstantTree::Unknown;
+            }
+
+            let element_value = constant_tree_from_zero(*element, tree, max_aggregate_elements);
+            let elements = (0..length).map(|_| element_value.clone()).collect();
+            ConstantTree::Aggregate(elements)
+        }
+        Type::Tuple { elements, .. } => {
+            let elements = elements
+                .iter()
+                .map(|element| constant_tree_from_zero(*element, tree, max_aggregate_elements))
+                .collect();
+            ConstantTree::Aggregate(elements)
+        }
+        Type::Struct { fields, .. } => {
+            let elements = fields
+                .iter()
+                .map(|field| tree.get(*field).ty)
+                .map(|field_ty| constant_tree_from_zero(field_ty, tree, max_aggregate_elements))
+                .collect();
+            ConstantTree::Aggregate(elements)
+        }
+        _ => ConstantTree::Unknown,
+    }
+}
+
+/// Build a constant tree from a byte initializer when possible.
+fn constant_tree_from_bytes(
+    bytes: &[u8],
+    ty: LocalNodeId<Type>,
+    tree: &NodeTree,
+    max_aggregate_elements: usize,
+) -> ConstantTree {
+    // read array type
+    let Type::Array {
+        element, length, ..
+    } = tree.get(ty)
+    else {
+        return ConstantTree::Unknown;
+    };
+
+    // check length constraints
+    let length = match usize::try_from(*length) {
+        Ok(length) => length,
+        Err(_) => return ConstantTree::Unknown,
+    };
+
+    if length != bytes.len() || length > max_aggregate_elements {
+        return ConstantTree::Unknown;
+    }
+
+    // require 8 bit integer element type
+    let Type::Int { width, signed } = tree.get(*element) else {
+        return ConstantTree::Unknown;
+    };
+
+    if *width != 8 {
+        return ConstantTree::Unknown;
+    }
+
+    // build per byte constants
+    let elements = if *signed {
+        bytes
+            .iter()
+            .map(|byte| {
+                let value = i8::from_ne_bytes([*byte]) as i64;
+                ConstantTree::Scalar(Constant::Int {
+                    value,
+                    width: 8,
+                    is_signed: true,
+                })
+            })
+            .collect()
+    } else {
+        bytes
+            .iter()
+            .map(|byte| {
+                ConstantTree::Scalar(Constant::UInt {
+                    value: *byte as u64,
+                    width: 8,
+                })
+            })
+            .collect()
+    };
+
+    ConstantTree::Aggregate(elements)
+}
+
+/// Build a constant tree from an aggregate initializer.
+fn constant_tree_from_aggregate_initializer(
+    elements: &[mir::GlobalInitializer],
+    ty: LocalNodeId<Type>,
+    tree: &NodeTree,
+    max_aggregate_elements: usize,
+) -> ConstantTree {
+    // map aggregate initializer to type shape
+    match tree.get(ty) {
+        Type::Array {
+            element, length, ..
+        } => {
+            let length = match usize::try_from(*length) {
+                Ok(length) => length,
+                Err(_) => return ConstantTree::Unknown,
+            };
+
+            if length != elements.len() || length > max_aggregate_elements {
+                return ConstantTree::Unknown;
+            }
+
+            let values = elements
+                .iter()
+                .map(|element_init| {
+                    constant_tree_from_initializer(
+                        element_init,
+                        *element,
+                        tree,
+                        max_aggregate_elements,
+                    )
+                })
+                .collect();
+            ConstantTree::Aggregate(values)
+        }
+        Type::Tuple {
+            elements: element_types,
+            ..
+        } => {
+            if element_types.len() != elements.len() {
+                return ConstantTree::Unknown;
+            }
+
+            let values = elements
+                .iter()
+                .zip(element_types)
+                .map(|(element_init, element_ty)| {
+                    constant_tree_from_initializer(
+                        element_init,
+                        *element_ty,
+                        tree,
+                        max_aggregate_elements,
+                    )
+                })
+                .collect();
+            ConstantTree::Aggregate(values)
+        }
+        Type::Struct { fields, .. } => {
+            if fields.len() != elements.len() {
+                return ConstantTree::Unknown;
+            }
+
+            let values = elements
+                .iter()
+                .zip(fields)
+                .map(|(element_init, field)| {
+                    constant_tree_from_initializer(
+                        element_init,
+                        tree.get(*field).ty,
+                        tree,
+                        max_aggregate_elements,
+                    )
+                })
+                .collect();
+            ConstantTree::Aggregate(values)
+        }
+        _ => ConstantTree::Unknown,
+    }
+}
+
 /// Try to fold a binary operation on constants.
 pub fn fold_binary(operator: BinaryOperator, left: Constant, right: Constant) -> Option<Constant> {
     match (&left, &right) {
