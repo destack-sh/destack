@@ -1,4 +1,7 @@
-use destack_mir::{BinaryOperator, Constant, UnaryOperator};
+use destack_mir as mir;
+use destack_mir::{
+    BinaryOperator, CastOperator, Constant, Global, LocalNodeId, NodeTree, Type, UnaryOperator,
+};
 
 /// Check if a constant is zero.
 pub fn constant_is_zero(constant: Option<&Constant>) -> bool {
@@ -78,7 +81,7 @@ pub fn constant_zero_like(template: &Constant) -> Constant {
     }
 }
 
-/// Create an all-ones constant matching the given constant's type.
+/// Create an all ones constant matching the given constant's type.
 pub fn constant_all_ones_like(template: &Constant) -> Constant {
     match template {
         Constant::Int {
@@ -98,6 +101,21 @@ pub fn constant_all_ones_like(template: &Constant) -> Constant {
             width: 32,
             is_signed: true,
         },
+    }
+}
+
+/// Read a scalar constant from an immutable global.
+pub fn constant_from_global(global: LocalNodeId<Global>, tree: &NodeTree) -> Option<Constant> {
+    // read global definition
+    let global = tree.get(global);
+    if global.is_mutable() {
+        return None;
+    }
+
+    // allow scalar initializers only
+    match global.initializer.as_ref()? {
+        mir::GlobalInitializer::Scalar(constant) => Some(constant.clone()),
+        _ => None,
     }
 }
 
@@ -303,6 +321,255 @@ pub fn fold_binary_bool(left: bool, right: bool, operator: BinaryOperator) -> Op
         BinaryOperator::NotEqual => result_bool(left != right),
         _ => None,
     }
+}
+
+/// Try to fold a cast operation on a constant.
+pub fn fold_cast(
+    operator: CastOperator,
+    value: Constant,
+    to_type: LocalNodeId<Type>,
+    tree: &NodeTree,
+) -> Option<Constant> {
+    // load target type
+    let target_type = tree.get(to_type);
+
+    // apply cast semantics
+    match operator {
+        CastOperator::Bitcast => Some(value),
+
+        CastOperator::Truncate => {
+            // read target integer width
+            let target_width = match target_type {
+                Type::Int { width, .. } => *width as u8,
+                _ => return Some(value),
+            };
+
+            // truncate integer values
+            match value {
+                Constant::Int { value, .. } => Some(Constant::Int {
+                    value: truncate_signed(value, target_width),
+                    width: target_width,
+                    is_signed: true,
+                }),
+                Constant::UInt { value, .. } => Some(Constant::UInt {
+                    value: truncate_unsigned(value, target_width),
+                    width: target_width,
+                }),
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::ZeroExtend => {
+            // read target integer width
+            let target_width = match target_type {
+                Type::Int { width, .. } => *width as u8,
+                _ => return Some(value),
+            };
+
+            // zero extend integer values
+            match value {
+                Constant::UInt { value, .. } => Some(Constant::UInt {
+                    value,
+                    width: target_width,
+                }),
+                Constant::Int { value, width, .. } => {
+                    let masked = truncate_unsigned(value as u64, width);
+                    Some(Constant::UInt {
+                        value: masked,
+                        width: target_width,
+                    })
+                }
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::SignExtend => {
+            // read target integer width
+            let target_width = match target_type {
+                Type::Int { width, .. } => *width as u8,
+                _ => return Some(value),
+            };
+
+            // sign extend integer values
+            match value {
+                Constant::Int { value, width, .. } => Some(Constant::Int {
+                    value: sign_extend(value, width, target_width),
+                    width: target_width,
+                    is_signed: true,
+                }),
+                Constant::UInt { value, width } => {
+                    let as_signed = truncate_signed(value as i64, width);
+                    Some(Constant::Int {
+                        value: sign_extend(as_signed, width, target_width),
+                        width: target_width,
+                        is_signed: true,
+                    })
+                }
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::FloatToSignedInt => {
+            // read target integer width
+            let target_width = match target_type {
+                Type::Int { width, .. } => *width as u8,
+                _ => 64,
+            };
+
+            // convert float to signed int
+            match value {
+                Constant::Float { bits, width: 32 } => Some(Constant::Int {
+                    value: f32::from_bits(bits as u32) as i64,
+                    width: target_width,
+                    is_signed: true,
+                }),
+                Constant::Float { bits, width: 64 } => Some(Constant::Int {
+                    value: f64::from_bits(bits) as i64,
+                    width: target_width,
+                    is_signed: true,
+                }),
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::FloatToUnsignedInt => {
+            // read target integer width
+            let target_width = match target_type {
+                Type::Int { width, .. } => *width as u8,
+                _ => 64,
+            };
+
+            // convert float to unsigned int
+            match value {
+                Constant::Float { bits, width: 32 } => Some(Constant::UInt {
+                    value: f32::from_bits(bits as u32) as u64,
+                    width: target_width,
+                }),
+                Constant::Float { bits, width: 64 } => Some(Constant::UInt {
+                    value: f64::from_bits(bits) as u64,
+                    width: target_width,
+                }),
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::SignedIntToFloat => {
+            // read target float width
+            let target_width = match target_type {
+                Type::Float { width } => *width,
+                _ => 64,
+            };
+
+            // convert signed int to float
+            match value {
+                Constant::Int { value, .. } if target_width == 32 => Some(Constant::Float {
+                    bits: (value as f32).to_bits() as u64,
+                    width: 32,
+                }),
+                Constant::Int { value, .. } => Some(Constant::Float {
+                    bits: (value as f64).to_bits(),
+                    width: 64,
+                }),
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::UnsignedIntToFloat => {
+            // read target float width
+            let target_width = match target_type {
+                Type::Float { width } => *width,
+                _ => 64,
+            };
+
+            // convert unsigned int to float
+            match value {
+                Constant::UInt { value, .. } if target_width == 32 => Some(Constant::Float {
+                    bits: (value as f32).to_bits() as u64,
+                    width: 32,
+                }),
+                Constant::UInt { value, .. } => Some(Constant::Float {
+                    bits: (value as f64).to_bits(),
+                    width: 64,
+                }),
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::FloatTruncate => {
+            // truncate float64 to float32
+            match value {
+                Constant::Float { bits, width: 64 } => {
+                    let f = f64::from_bits(bits);
+                    Some(Constant::Float {
+                        bits: (f as f32).to_bits() as u64,
+                        width: 32,
+                    })
+                }
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::FloatExtend => {
+            // extend float32 to float64
+            match value {
+                Constant::Float { bits, width: 32 } => {
+                    let f = f32::from_bits(bits as u32);
+                    Some(Constant::Float {
+                        bits: (f as f64).to_bits(),
+                        width: 64,
+                    })
+                }
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::PointerToInt | CastOperator::IntToPointer => None,
+    }
+}
+
+/// Truncate a signed integer to a target bit width.
+fn truncate_signed(value: i64, width: u8) -> i64 {
+    // handle full width
+    if width >= 64 {
+        return value;
+    }
+
+    // build bit mask
+    let mask = (1u64 << width) - 1;
+    let masked = (value as u64) & mask;
+    let sign_bit = 1u64 << (width - 1);
+
+    // set sign extension when needed
+    if masked & sign_bit != 0 {
+        (masked | !mask) as i64
+    }
+    // otherwise keep masked value
+    else {
+        masked as i64
+    }
+}
+
+/// Truncate an unsigned integer to a target bit width.
+fn truncate_unsigned(value: u64, width: u8) -> u64 {
+    // handle full width
+    if width >= 64 {
+        return value;
+    }
+
+    // apply mask
+    let mask = (1u64 << width) - 1;
+    value & mask
+}
+
+/// Sign extend a value from one width to another.
+fn sign_extend(value: i64, from_width: u8, to_width: u8) -> i64 {
+    // handle no extend case
+    if from_width >= to_width || from_width >= 64 {
+        return value;
+    }
+
+    // extend using truncate logic
+    truncate_signed(value, from_width)
 }
 
 /// Try to fold a unary operation on a constant.

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::common::{fold_binary, fold_unary};
+use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
 use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
 
 use super::{ControlFlowGraph, Lattice};
@@ -455,15 +455,7 @@ fn constant_for_instruction(
         mir::Instruction::Const { value, .. } => Some(value.clone()),
         mir::Instruction::GlobalConst { global, .. } => {
             // check immutable scalar global
-            let global = tree.get(*global);
-            if global.is_mutable() {
-                return None;
-            }
-
-            match global.initializer.as_ref()? {
-                mir::GlobalInitializer::Scalar(constant) => Some(constant.clone()),
-                _ => None,
-            }
+            constant_from_global(*global, tree)
         }
         mir::Instruction::Binary {
             operator,
@@ -482,6 +474,16 @@ fn constant_for_instruction(
             // fold unary ops with constant operands
             let arg_constant = state.get(*argument)?;
             fold_unary(*operator, arg_constant.clone())
+        }
+        mir::Instruction::Cast {
+            operator,
+            argument,
+            to_type,
+            ..
+        } => {
+            // fold casts with constant operands
+            let arg_constant = state.get(*argument)?;
+            fold_cast(*operator, arg_constant.clone(), *to_type, tree)
         }
         _ => None,
     }

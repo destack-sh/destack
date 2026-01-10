@@ -96,6 +96,7 @@ Analysis results are shared across passes until invalidated.
 | `postdomtree` | PostDominatorTree | function | | cfg | Post-dominance for control dependence analysis |
 | `loops` | LoopAnalysis | function | ✓ | domtree | Natural loops, headers, latches, nesting depth |
 | `liveness` | LivenessAnalysis | function | ✓ | cfg | Which values are live at each program point |
+| `constant-propagation` | ConstantPropagation | function | ✓ | cfg | Constant values per block using SSA and block parameters |
 | `reaching-defs` | ReachingDefinitions | function | | cfg | Which Local definitions reach each use (pre-mem2reg) |
 | `available-exprs` | AvailableExpressions | function | | domtree | Which expressions are available at each point |
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
@@ -148,7 +149,7 @@ Local and global optimizations within a single function.
 | `local-cse` | LocalCse | function | O1 | ✓ | — | Eliminate redundant computations within a basic block |
 | `gvn` | GlobalValueNumbering | function | O2 | ✓ | domtree | Eliminate redundant computations across basic blocks |
 | `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
-| `sccp` | SparseConditionalConstantProp | function | O2 | | cfg | Aggressive constant propagation with unreachable code detection |
+| `sccp` | SparseConditionalConstantPropagation | function | O2 | ✓ | — | Aggressive constant propagation with unreachable code detection |
 | `reassociate` | Reassociate | function | O2 | | — | Reorder associative operations for better constant folding |
 | `sink` | CodeSinking | function | O2 | ✓ | domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | | domtree | Move identical instructions to common dominator |
@@ -249,12 +250,11 @@ Return `AnalysisPreservation.none()` if the CFG or values changed.
 
 ## Pipeline
 
-The default pipeline runs passes in this order:
+The default pipeline currently uses the same function-pass sequence for `O1`, `O2`, and `O3`
+(`O0` still runs nothing):
 
 ```
-O1+: ConstantFold → InstructionCombine → CopyPropagate → Mem2Reg → SimplifyCfg → DeadCodeEliminate
-O2+: (above) + Inline → (scalar cleanup) → StackPromote → Devirtualize
-O3+: (above) + LoopUnroll → LoopDistribute → LoopVectorize → SlpVectorize → FunctionSpecialize
+O1/O2/O3: MoveCheck → BorrowCheck → StackCheck → ConstantFold → InstructionCombine → Sroa → Mem2Reg → DropInsert → LocalCse → GlobalValueNumbering → LoadStoreForward → DeadStoreEliminate → CopyPropagate → SCCP → LoopSimplify → Licm → LoopRotate → LoopUnswitch → LoopDelete → Sink → SimplifyCfg → DeadCodeEliminate
 ```
 
 Module passes run first, then function passes run on each function.
