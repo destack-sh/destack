@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use crate::{
     AllocationMode, BinaryOperator, Block, CastOperator, Constant, Copyability, Field, Function,
-    Global, GlobalInitializer, Instruction, Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering,
-    Mutability, NodeTree, Ownership, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias,
-    TypedValue, UnaryOperator, Value,
+    Global, GlobalInitializer, Instruction, Intrinsic, Lifetime, Linkage, Local, LocalNodeId,
+    MemoryOrdering, Mutability, NodeTree, Ownership, ReferenceKind, SwitchCase, Terminator, Type,
+    TypeAlias, TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -243,6 +243,7 @@ impl<'a> Parser<'a> {
                                 name: name_id,
                                 parameters: Vec::new(),
                                 return_type: void_ty,
+                                return_lifetime: Lifetime::Inferred,
                                 linkage: Linkage::Local,
                                 allocation: AllocationMode::Any,
                                 coroutine: None,
@@ -417,6 +418,7 @@ impl<'a> Parser<'a> {
                 name: name_id,
                 parameters,
                 return_type,
+                return_lifetime: Lifetime::Inferred,
                 linkage,
                 allocation: AllocationMode::Any, // #Incomplete: set proper MIR allocation mode?
                 coroutine: None,

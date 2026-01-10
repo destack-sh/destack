@@ -2,8 +2,8 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::{
     AllocationMode, BinaryOperator, Block, CastOperator, Constant, Function, Global, Instruction,
-    Intrinsic, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership,
-    Terminator, Type, TypedValue, UnaryOperator, Value,
+    Intrinsic, Lifetime, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
+    Ownership, Terminator, Type, TypedValue, UnaryOperator, Value,
 };
 
 use super::Variable;
@@ -90,6 +90,7 @@ impl<'a> FunctionBuilder<'a> {
             name,
             parameters,
             return_type,
+            return_lifetime: Lifetime::Inferred,
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine: None,
@@ -118,6 +119,12 @@ impl<'a> FunctionBuilder<'a> {
     /// Get the function id being built.
     pub fn function_id(&self) -> LocalNodeId<Function> {
         self.function_id
+    }
+
+    /// Set the return lifetime for this function.
+    pub fn set_return_lifetime(&mut self, lifetime: Lifetime) {
+        let function = self.tree.get_mut(self.function_id);
+        function.return_lifetime = lifetime;
     }
 
     /// Get a reference to the underlying node tree.
