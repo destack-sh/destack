@@ -10,7 +10,7 @@ use crate::optimize::passes::{
     BorrowCheck, ConstantFold, CopyPropagate, DeadCodeEliminate, DeadStoreEliminate, DropInsert,
     GlobalValueNumbering, InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopDelete,
     LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg, MoveCheck, SimplifyCfg, Sink,
-    SparseConditionalConstantPropagation, Sroa, StackCheck,
+    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
 };
 
 /// Optimization pipeline that runs passes in sequence.
@@ -134,8 +134,14 @@ pub fn default_pipeline(level: OptimizationLevel) -> Pipeline {
             // no optimizations
         }
         OptimizationLevel::O1 | OptimizationLevel::O2 | OptimizationLevel::O3 => {
+            // module passes (run first, before all function passes)
+            // tail call elimination needs module-level access to update call sites
+            pipeline.add_module_pass(TailCallElim);
+
+            // function passes (run on each function in order)
+
             // phase 0: verification passes
-            // these run first to check ownership/borrow semantics before optimization
+            // check ownership/borrow semantics before optimization
             pipeline.add_function_pass(MoveCheck);
             pipeline.add_function_pass(BorrowCheck);
             pipeline.add_function_pass(StackCheck);

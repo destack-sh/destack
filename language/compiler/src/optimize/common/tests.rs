@@ -3,7 +3,7 @@ use destack_mir as mir;
 use destack_source::{DiffOptions, ModuleId, PackageId, print_diff};
 use destack_workspace::TargetId;
 
-use crate::optimize::{FunctionPass, OptimizationContext, OptimizeOptions};
+use crate::optimize::{FunctionPass, ModulePass, OptimizationContext, OptimizeOptions};
 use crate::{OptimizeError, OptimizeWarning};
 
 /// Placeholder module id for tests.
@@ -98,6 +98,22 @@ impl TestProgram {
             pass.run_on_function(&mut function, &mut self.tree, &context);
             *self.tree.get_mut(function_id) = function;
         }
+
+        // collect diagnostics after pass completes
+        self.errors = context.take_errors();
+        self.warnings = context.take_warnings();
+    }
+
+    /// Apply a module pass to the program.
+    pub(crate) fn run_module_pass<P: ModulePass + ?Sized>(&mut self, pass: &P) {
+        let context = OptimizationContext::new(
+            &self.strings_pool,
+            OptimizeOptions::default(),
+            test_module_id(),
+            test_target_id(),
+        );
+
+        pass.run_on_module(&mut self.tree, &context);
 
         // collect diagnostics after pass completes
         self.errors = context.take_errors();
