@@ -16,20 +16,19 @@ Runs after Lower, before Generate.
                              └─ Type-Based (devirtualize, bounds check elim, ...)
 ```
 
-The Optimize phase first verifies the MIR (safety checks, borrow validation, control flow analysis),
-then runs optimization passes.
+The Optimize phase runs verification passes early, then executes optimization passes.
 
 Optimize performs transformations taking maximal advantage of high-level semantic information.
-Cranelift handles low-level optimizations (register allocation, instruction selection, peephole) for now.
+The backend handles low-level optimizations such as register allocation, instruction selection, and peephole passes.
 
 ## Optimization Levels
 
 | Level | Use Case | What Runs |
 |-------|----------|-----------|
-| `O0` | Debug | Nothing |
-| `O1` | Comptime, dev | Fast local passes (constant fold, DCE, simplify CFG) |
-| `O2` | Release | Full suite (inlining, escape analysis, devirt) |
-| `O3` | Hot paths | Aggressive thresholds, loop unrolling |
+| `O0` | Debug | Verification only |
+| `O1` | Comptime, dev | Verification + local scalar + SSA/memory canonicalization |
+| `O2` | Release | O1 + global scalar, memory, and loop optimizations |
+| `O3` | Hot paths | O2 + aggressive loop, vectorization, and interprocedural transforms |
 
 ---
 
@@ -46,45 +45,42 @@ Analysis results are shared across passes until invalidated.
                               │   cfg   │
                               └────┬────┘
                                    │
-              ┌────────────────────┼────────────────────┐
-              │                    │                    │
-              ▼                    ▼                    ▼
-        ┌──────────┐        ┌───────────┐        ┌──────────┐
-        │ domtree  │        │ postdomtree│       │ liveness │
-        └────┬─────┘        └───────────┘        └──────────┘
-             │
-       ┌─────┼─────────────┐
-       │     │             │
-       ▼     ▼             ▼
-  ┌─────────┐ ┌───────────────┐ ┌────────────┐
-  │  loops  │ │ available-exprs│ │ type-flow  │
-  └────┬────┘ └───────────────┘ └────────────┘
-       │
-       ▼
+            ┌──────────┬───────────┼───────────┬───────────────┬───────────┐
+            │          │           │           │               │           │
+            ▼          ▼           ▼           ▼               ▼           ▼
+      ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌─────────────┐
+      │ domtree  │ │ postdom  │ │ liveness │ │ constant-prop │ │ ownership│ │reaching-defs│
+      └────┬─────┘ └──────────┘ └────┬─────┘ └──────────────┘ └──────────┘ └─────────────┘
+           │                         │
+           ▼                         ▼
+    ┌──────────┬───────────────┬──────────┐    ┌─────────┐
+    │  loops   │ available-exprs│ type-flow│    │ borrow  │
+    └────┬─────┘ └───────────────┘ └──────────┘  └─────────┘
+         │
+         ▼
   ┌──────────────────┐
   │ scalar-evolution │
-  └────────┬─────────┘
-           │
-     ┌─────┴─────┐
-     ▼           ▼
-┌─────────┐ ┌─────────────┐
-│  range  │ │ dependence  │
-└─────────┘ └─────────────┘
-
+  └────┬────────┬────┘
+       ▼        ▼
+   ┌──────┐ ┌──────────┐
+   │range │ │dependence│
+   └──────┘ └──────────┘
 
   ┌───────────┐
-  │ callgraph │ (module-level)
-  └─────┬─────┘
-        │
-        ▼
-  ┌───────────┐
-  │  escape   │
-  └───────────┘
+  │ callgraph │
+  └────┬──────┘
+       ▼
+  ┌──────────┐
+  │  escape  │
+  └──────────┘
 
+  ┌──────────┐       ┌──────────────┐
+  │  alias   │──────▶│  memory-ssa  │
+  └──────────┘       └──────────────┘
 
-  ┌───────────┐       ┌──────────────┐
-  │   alias   │──────▶│  memory-ssa  │ (also needs domtree)
-  └───────────┘       └──────────────┘
+  ┌──────────┐
+  │ lifetime │
+  └──────────┘
 ```
 
 ### Analysis Reference
@@ -97,16 +93,19 @@ Analysis results are shared across passes until invalidated.
 | `loops` | LoopAnalysis | function | ✓ | domtree | Natural loops, headers, latches, nesting depth |
 | `liveness` | LivenessAnalysis | function | ✓ | cfg | Which values are live at each program point |
 | `constant-propagation` | ConstantPropagation | function | ✓ | cfg | Constant values per block using SSA and block parameters |
-| `reaching-defs` | ReachingDefinitions | function | | cfg | Which Local definitions reach each use (pre-mem2reg) |
+| `reaching-defs` | ReachingDefinitions | function | | cfg | Which local definitions reach each use |
 | `available-exprs` | AvailableExpressions | function | | domtree | Which expressions are available at each point |
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
 | `memory-ssa` | MemorySSA | function | | domtree, alias | Memory versioning for precise load/store analysis |
 | `callgraph` | CallGraph | module | | — | Which functions call which, with call sites |
 | `escape` | EscapeAnalysis | module | | callgraph | Which allocations escape their scope |
+| `ownership` | OwnershipAnalysis | function | ✓ | cfg | Value ownership and move/copy semantics |
+| `borrow` | BorrowAnalysis | function | ✓ | cfg, liveness | Active borrows across control flow |
+| `lifetime` | LifetimeAnalysis | function | ✓ | — | Lifetime bounds for borrowed returns |
 | `type-flow` | TypeFlowAnalysis | function | | domtree | Concrete types at each point (for devirtualization) |
 | `scalar-evolution` | ScalarEvolution | function | | loops | Symbolic expressions for induction variables and trip counts |
 | `range` | RangeAnalysis | function | | scalar-evolution | Integer value ranges (for bounds check elimination) |
-| `dependence` | DependenceAnalysis | function | | scalar-evolution, alias | Memory dependence between loop iterations (for interchange, vectorization) |
+| `dependence` | DependenceAnalysis | function | | scalar-evolution, alias | Memory dependence between loop iterations |
 
 ---
 
@@ -116,24 +115,24 @@ Passes transform the MIR to improve performance or reduce code size.
 Each pass declares which analyses it requires and which it invalidates.
 
 Pass categories:
-- **Verify**: correctness checks and required transformations (run first, always)
+- **Verify**: correctness checks and required transformations (run early in the pipeline)
 - **Scalar**: value-level transforms within functions
 - **Interprocedural**: cross-function analysis and transforms
 - **Memory**: allocation, load/store, aliasing optimizations
 - **Loop**: loop-specific transforms
-- **Type-Based**: optimizations requiring high-level type information
+- **Type**: optimizations requiring high-level type information
 
 ### Verify (V)
 
 Verification passes ensure semantic correctness and insert required operations.
-These always run before optimization passes (even at optimization level 0).
+These run before optimization passes.
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, alias | Verify borrow rules: exclusive `&mut`, no aliasing violations, move-while-borrowed, local.set while borrowed; validate `@lifetime` annotations |
-| `move-check` | MoveCheck | function | V | ✓ | cfg, liveness | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
-| `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness | Insert `raw.drop`/`stack.drop` at last-use points for owned refs (non-lexical lifetimes) |
-| `stack-check` | StackCheck | function | V | ✓ | cfg | Verify stack safety: no returns of references to locals, no stack pointer escapes |
+| `move-check` | MoveCheck | function | V | ✓ | ownership | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
+| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, borrow, alias, lifetime | Verify borrow rules, exclusivity, and lifetime annotations |
+| `stack-check` | StackCheck | function | V | ✓ | cfg, lifetime | Verify stack safety: no returns of references to locals, no stack pointer escapes |
+| `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `raw.drop`/`stack.drop` at last-use points for owned refs |
 
 ### Scalar (S)
 
@@ -141,18 +140,18 @@ Local and global optimizations within a single function.
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `constant-fold` | ConstantFold | function | O1 | ✓ | — | Evaluate operations on constants at compile time |
+| `constant-fold` | ConstantFold | function | O1 | ✓ | constant-propagation | Evaluate operations on constants at compile time |
 | `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | — | Branch folding, jump threading, block merging, unreachable elimination |
 | `dead-code-eliminate` | DeadCodeEliminate | function | O1 | ✓ | — | Remove dead instructions via backwards liveness (ADCE) |
 | `instruction-combine` | InstructionCombine | function | O1 | ✓ | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
 | `copy-propagate` | CopyPropagate | function | O1 | ✓ | — | Replace uses of `v1 = v0` with `v0` directly |
 | `local-cse` | LocalCse | function | O1 | ✓ | — | Eliminate redundant computations within a basic block |
 | `gvn` | GlobalValueNumbering | function | O2 | ✓ | domtree | Eliminate redundant computations across basic blocks |
-| `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `sccp` | SparseConditionalConstantPropagation | function | O2 | ✓ | — | Aggressive constant propagation with unreachable code detection |
 | `reassociate` | Reassociate | function | O2 | | — | Reorder associative operations for better constant folding |
-| `sink` | CodeSinking | function | O2 | ✓ | domtree, loops | Move instructions closer to their uses |
+| `sink` | CodeSinking | function | O2 | ✓ | cfg, domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | | domtree | Move identical instructions to common dominator |
+| `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `tail-call-eliminate` | TailCallEliminate | function | O2 | | cfg | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | | domtree | Use dominating conditions to narrow value ranges |
 | `if-convert` | IfConvert | function | O2 | | cfg | Convert simple if-then-else diamonds to select/conditional-move |
@@ -184,9 +183,9 @@ Optimizations for memory allocation and access patterns.
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `mem2reg` | Mem2Reg | function | O1 | ✓ | domtree | Promote stack allocations to SSA values |
-| `sroa` | ScalarReplacementOfAggregates | function | O2 | ✓ | — | Break aggregates into individual scalar values |
+| `sroa` | ScalarReplacementOfAggregates | function | O1 | ✓ | — | Break aggregates into individual scalar values |
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias | Forward stored values to subsequent loads |
-| `dead-store-eliminate` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias | Remove stores that are overwritten before being read |
+| `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
 
 ### Loop (L)
@@ -195,23 +194,23 @@ Loop-specific transformations.
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `loop-simplify` | LoopSimplify | function | O1 | ✓ | loops | Canonicalize loops (preheader, single latch, dedicated exits) |
-| `loop-rotate` | LoopRotate | function | O2 | ✓ | loops | Rotate simple loops (header with no instructions) |
+| `loop-simplify` | LoopSimplify | function | O2 | ✓ | loops, cfg | Canonicalize loops (preheader, single latch, dedicated exits) |
+| `loop-rotate` | LoopRotate | function | O2 | ✓ | loops, cfg, domtree | Rotate simple loops (header with no instructions) |
 | `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree | Move pure loop-invariant computations to preheader |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | | scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | | scalar-evolution | Replace expensive ops (mul) with cheaper ones (add) |
-| `loop-delete` | LoopDelete | function | O2 | ✓ | loops | Delete loops that compute nothing useful |
+| `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |
 | `loop-unroll` | LoopUnroll | function | O3 | | scalar-evolution | Unroll loops with known or small trip counts |
-| `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops | Move loop-invariant conditionals outside the loop |
+| `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops, domtree | Move loop-invariant conditionals outside the loop |
 | `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | | dependence | Swap loop nesting order for cache locality |
 | `loop-distribute` | LoopDistribute | function | O3 | | dependence | Split loops to enable partial vectorization |
 | `loop-vectorize` | LoopVectorize | function | O3 | | dependence | Vectorize loop iterations (SIMD) |
 | `slp-vectorize` | SlpVectorize | function | O3 | | alias | Vectorize straight-line code (superword parallelism) |
 
-### Type-Based (T)
+### Type (T)
 
-Optimizations that require high-level type information unavailable to Cranelift.
+Optimizations that require high-level type information.
 These are MIR-only optimizations that justify having an optimizer above the backend.
 
 | ID | Name | Scope | Level | Done | Requires | Description |
@@ -220,8 +219,6 @@ These are MIR-only optimizations that justify having an optimizer above the back
 | `bounds-check-eliminate` | BoundsCheckEliminate | function | O2 | | range | Remove array bounds checks when provably safe |
 | `null-check-eliminate` | NullCheckEliminate | function | O2 | | type-flow | Remove null checks when provably non-null |
 | `specialize` | FunctionSpecialize | module | O3 | | callgraph | Create specialized versions for constant arguments |
-
----
 
 ## Pass Structure
 
@@ -246,26 +243,19 @@ interface ModulePass extends Pass {
 
 The `AnalysisPreservation` return value tells the pass manager which cached analyses are still valid.
 Return `AnalysisPreservation.all()` if no changes were made.
-Return `AnalysisPreservation.none()` if the CFG or values changed.
+Return `AnalysisPreservation.none()` if any cached analysis may be invalidated.
 
 ## Pipeline
 
-The default pipeline currently uses the same function-pass sequence for `O1`, `O2`, and `O3`
-(`O0` still runs nothing):
-
-```
-O1/O2/O3: MoveCheck → BorrowCheck → StackCheck → ConstantFold → InstructionCombine → Sroa → Mem2Reg → DropInsert → LocalCse → GlobalValueNumbering → LoadStoreForward → DeadStoreEliminate → CopyPropagate → SCCP → LoopSimplify → Licm → LoopRotate → LoopUnswitch → LoopDelete → Sink → SimplifyCfg → DeadCodeEliminate
-```
+Target pipelines evolve with new analyses, but the expected layering is:
+- `O1`: verify, local scalar cleanup, SSA/memory canonicalization, final cleanup
+- `O2`: `O1` + global scalar, memory optimizations, core loop transforms
+- `O3`: `O2` + aggressive loop transforms, vectorization, interprocedural passes
 
 Module passes run first, then function passes run on each function.
-The pipeline may iterate passes until a fixed point for maximum optimization.
+Pipelines may iterate passes until a fixed point when profitable.
 
-## Profile-Guided Optimization
+## Future Work
 
-Profile data is a first-class input to optimization.
-Annotations like `@hot`, `@cold`, `@inline`, `@noinline` provide compile-time hints.
-Real PGO data from instrumented runs can guide:
-- Inlining decisions (inline hot call sites, skip cold ones)
-- Block layout (fall through on hot paths)
-- Loop unrolling (unroll hot loops more aggressively)
-- Function specialization (specialize for common argument patterns)
+We expect to add interprocedural and type-driven passes as the module-level analyses mature.
+Profile-guided optimization will plug into this pipeline once runtime instrumentation lands.
