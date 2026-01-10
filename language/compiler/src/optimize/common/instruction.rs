@@ -883,5 +883,15 @@ pub fn terminator_remap(
             remap_args(resume_arguments);
         }
         mir::Terminator::Unreachable => {}
+        mir::Terminator::TailCall {
+            function: _,
+            arguments,
+        } => {
+            remap_args(arguments);
+        }
+        mir::Terminator::TailCallIndirect { callee, arguments } => {
+            remap_value(callee);
+            remap_args(arguments);
+        }
     }
 }

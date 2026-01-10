@@ -524,6 +524,13 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(resume_arguments, from, to);
             }
             Terminator::Unreachable => {}
+            Terminator::TailCall { arguments, .. } => {
+                Self::replace_values_in_slice(arguments, from, to);
+            }
+            Terminator::TailCallIndirect { callee, arguments } => {
+                Self::replace_value_in_slot(callee, from, to);
+                Self::replace_values_in_slice(arguments, from, to);
+            }
         }
     }
 
@@ -1240,6 +1247,30 @@ impl<'a> FunctionBuilder<'a> {
             then_arguments: Vec::new(),
             else_target: else_block,
             else_arguments: Vec::new(),
+        };
+    }
+
+    /// Tail call to a function (does not return to this function).
+    ///
+    /// The callee's return value becomes this function's return value.
+    pub fn tail_call(&mut self, function: LocalNodeId<Function>, argument_values: Vec<Value>) {
+        let block = self.current_block();
+        let block_data = self.tree.get_mut(block);
+        block_data.terminator = Terminator::TailCall {
+            function,
+            arguments: argument_values,
+        };
+    }
+
+    /// Tail call through a function pointer (does not return to this function).
+    ///
+    /// The callee's return value becomes this function's return value.
+    pub fn tail_call_indirect(&mut self, callee: Value, argument_values: Vec<Value>) {
+        let block = self.current_block();
+        let block_data = self.tree.get_mut(block);
+        block_data.terminator = Terminator::TailCallIndirect {
+            callee,
+            arguments: argument_values,
         };
     }
 

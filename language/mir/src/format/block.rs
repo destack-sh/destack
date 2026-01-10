@@ -180,6 +180,23 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             }
             Ok(())
         }
+
+        Terminator::TailCall {
+            function,
+            arguments,
+        } => {
+            let tree = f.context().tree;
+            let strings = f.context().strings;
+            let func = tree.get(*function);
+            let name = strings.get(func.name);
+            write!(f, [token("tailcall"), space(), token("@"), text(name)])?;
+            format_value_list(arguments, f)
+        }
+
+        Terminator::TailCallIndirect { callee, arguments } => {
+            write!(f, [token("tailcall.indirect"), space(), callee])?;
+            format_value_list(arguments, f)
+        }
     }
 }
 

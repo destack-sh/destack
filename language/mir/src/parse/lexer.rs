@@ -157,6 +157,8 @@ impl<'a> Lexer<'a> {
             "branch" => TokenType::Branch,
             "switch" => TokenType::Switch,
             "unreachable" => TokenType::Unreachable,
+            "tailcall" => TokenType::TailCall,
+            "tailcall.indirect" => TokenType::TailCallIndirect,
             "void" => TokenType::Void,
             "bool" => TokenType::Bool,
             "ref" => {

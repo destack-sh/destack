@@ -1,6 +1,6 @@
 use smallvec::{SmallVec, smallvec};
 
-use crate::{Instruction, LocalNodeId, Node, NodeType, TypedValue, Value};
+use crate::{Function, Instruction, LocalNodeId, Node, NodeType, TypedValue, Value};
 
 /// A basic block is a sequence of instructions with:
 /// - A single entry point (can have parameters for SSA)
@@ -111,6 +111,29 @@ pub enum Terminator {
 
     /// Unreachable code (triggers undefined behavior if executed).
     Unreachable,
+
+    /// Tail call to a function (does not return to this function).
+    ///
+    /// The callee's return value becomes this function's return value.
+    /// Codegen can reuse the current stack frame. Semantically equivalent
+    /// to `call` followed by `return`, but enables stack frame reuse.
+    TailCall {
+        /// The function to tail call.
+        function: LocalNodeId<Function>,
+        /// The arguments to pass.
+        arguments: Vec<Value>,
+    },
+
+    /// Tail call through a function pointer (does not return to this function).
+    ///
+    /// The callee's return value becomes this function's return value.
+    /// Codegen can reuse the current stack frame.
+    TailCallIndirect {
+        /// The function pointer to tail call.
+        callee: Value,
+        /// The arguments to pass.
+        arguments: Vec<Value>,
+    },
 }
 
 impl Terminator {
@@ -131,6 +154,9 @@ impl Terminator {
             }
             Terminator::Yield { resume, .. } => smallvec![*resume],
             Terminator::Unreachable => smallvec![],
+            // tail calls don't return to this function, so no successors
+            Terminator::TailCall { .. } => smallvec![],
+            Terminator::TailCallIndirect { .. } => smallvec![],
         }
     }
 
@@ -173,6 +199,12 @@ impl Terminator {
                 uses
             }
             Terminator::Unreachable => smallvec![],
+            Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
+            Terminator::TailCallIndirect { callee, arguments } => {
+                let mut uses = smallvec![*callee];
+                uses.extend(arguments.iter().copied());
+                uses
+            }
         }
     }
 }

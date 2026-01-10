@@ -526,7 +526,9 @@ pub(super) fn thread_function(
             }
             mir::Terminator::Return { .. }
             | mir::Terminator::Unreachable
-            | mir::Terminator::Yield { .. } => {}
+            | mir::Terminator::Yield { .. }
+            | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallIndirect { .. } => {}
         }
     }
 
@@ -681,10 +683,13 @@ fn thread_block(
     } else {
         // append threaded terminator
         let terminator = thread_terminator(
+            tree,
             &block.terminator,
             block_index_map,
             block_parameters,
+            function_indices,
             value_kinds,
+            argument_pool,
             switch_case_pool,
             copy_pool,
         );
@@ -2310,11 +2315,15 @@ fn push_switch_case_range(
 }
 
 /// Convert a MIR terminator to threaded form.
+#[allow(clippy::too_many_arguments)]
 fn thread_terminator(
+    tree: &mir::NodeTree,
     term: &mir::Terminator,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
+    function_indices: &[u32],
     value_kinds: &ValueKinds,
+    argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
 ) -> ThreadedInstruction {
@@ -2422,5 +2431,36 @@ fn thread_terminator(
             handler: dispatch::handle_unsupported,
             data: ThreadedInstructionData::Unsupported { name: "yield" },
         },
+
+        mir::Terminator::TailCall {
+            function,
+            arguments,
+        } => {
+            // for the interpreter, tail call = call + return
+            let callee = tree.get(*function);
+            let copies = push_copy_range_from_params(copy_pool, &callee.parameters, arguments);
+            let callee_index = lookup_function_index(function_indices, *function)
+                .unwrap_or(INVALID_FUNCTION_INDEX);
+
+            ThreadedInstruction {
+                handler: dispatch::handle_tail_call,
+                data: ThreadedInstructionData::TailCall {
+                    function: function.id,
+                    callee_index,
+                    copies,
+                },
+            }
+        }
+
+        mir::Terminator::TailCallIndirect { callee, arguments } => {
+            let args = push_argument_range(argument_pool, arguments);
+            ThreadedInstruction {
+                handler: dispatch::handle_tail_call_indirect,
+                data: ThreadedInstructionData::TailCallIndirect {
+                    callee: *callee,
+                    arguments: args,
+                },
+            }
+        }
     }
 }

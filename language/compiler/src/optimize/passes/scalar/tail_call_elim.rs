@@ -4,8 +4,6 @@ use mir::{BinaryOperator, Constant, Instruction};
 
 use crate::optimize::{AnalysisPreservation, ModulePass, OptimizationContext, Pass, PassMetadata};
 
-// FUGU: add tailcall MIR instruction for non-recursive tail calls (codegen optimization)
-
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
     ///
@@ -60,9 +58,17 @@ impl ModulePass for TailCallElim {
                 changed = true;
             }
 
-            // phase 2: transform tail calls in each block
+            // phase 2: transform self-recursive tail calls to jumps
             for &block_id in &function.blocks {
-                if transform_tail_call(block_id, function_id, entry_block, tree) {
+                if transform_self_recursive_tail_call(block_id, function_id, entry_block, tree) {
+                    changed = true;
+                }
+            }
+
+            // phase 3: transform sibling tail calls (calls to OTHER functions)
+            // These become TailCall terminators for codegen optimization
+            for &block_id in &function.blocks {
+                if transform_sibling_tail_call(block_id, function_id, tree) {
                     changed = true;
                 }
             }
@@ -419,8 +425,21 @@ fn remap_terminator_blocks(
                 })
                 .collect(),
         },
-        // return, unreachable, unwind don't reference blocks
-        other => other.clone(),
+        // return, unreachable, tailcall don't reference blocks that need remapping
+        mir::Terminator::Return { .. }
+        | mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
+        // yield has a resume block that needs remapping
+        mir::Terminator::Yield {
+            value,
+            resume,
+            resume_arguments,
+        } => mir::Terminator::Yield {
+            value: *value,
+            resume: block_map.get(resume).copied().unwrap_or(*resume),
+            resume_arguments: resume_arguments.clone(),
+        },
     }
 }
 
@@ -1006,11 +1025,11 @@ fn transform_base_case_block(
     }
 }
 
-/// Checks if a block ends with a tail-recursive call and transforms it.
+/// Checks if a block ends with a self-recursive tail call and transforms it to a jump.
 ///
 /// The pattern is: last instruction is `v = call @self(args...)`, terminator is `return v`.
 /// For void functions: last instruction is `call @self(args...)`, terminator is `return`.
-fn transform_tail_call(
+fn transform_self_recursive_tail_call(
     block_id: mir::LocalNodeId<mir::Block>,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
@@ -1075,6 +1094,116 @@ fn transform_tail_call(
     tree.replace(block_id, new_block);
 
     true
+}
+
+/// Checks if a block ends with a sibling tail call (call to ANOTHER function) and transforms it.
+///
+/// The pattern is: last instruction is `v = call @other(args...)`, terminator is `return v`.
+/// For void functions: last instruction is `call @other(args...)`, terminator is `return`.
+///
+/// Transforms to: `tailcall @other(args...)` (or `tailcall.indirect` for indirect calls).
+fn transform_sibling_tail_call(
+    block_id: mir::LocalNodeId<mir::Block>,
+    current_function_id: mir::LocalNodeId<mir::Function>,
+    tree: &mut mir::NodeTree,
+) -> bool {
+    let block = tree.get(block_id);
+
+    // must end with a return
+    let returned_value = match &block.terminator {
+        mir::Terminator::Return { value } => *value,
+        _ => return false,
+    };
+
+    // need at least one instruction
+    let Some(&last_instruction_id) = block.instructions.last() else {
+        return false;
+    };
+
+    // last instruction must be a call
+    let last_instruction = tree.get(last_instruction_id);
+
+    match last_instruction {
+        mir::Instruction::Call {
+            destination,
+            function: called_function,
+            arguments,
+        } => {
+            // skip self-recursive calls (handled by transform_self_recursive_tail_call)
+            if *called_function == current_function_id {
+                return false;
+            }
+
+            // return value must match call result
+            let is_tail_position = match (destination, returned_value) {
+                (Some(call_result), Some(return_val)) => *call_result == return_val,
+                (None, None) => true,
+                _ => false,
+            };
+
+            if !is_tail_position {
+                return false;
+            }
+
+            // extract call arguments before mutating
+            let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
+
+            // rewrite the block: remove call, replace return with TailCall
+            let block = tree.get(block_id);
+            let mut new_instructions = block.instructions.clone();
+            new_instructions.pop();
+
+            let new_terminator = mir::Terminator::TailCall {
+                function: *called_function,
+                arguments: call_args,
+            };
+
+            let mut new_block = block.clone();
+            new_block.instructions = new_instructions;
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+
+            true
+        }
+        mir::Instruction::CallIndirect {
+            destination,
+            callee,
+            arguments,
+        } => {
+            // return value must match call result
+            let is_tail_position = match (destination, returned_value) {
+                (Some(call_result), Some(return_val)) => *call_result == return_val,
+                (None, None) => true,
+                _ => false,
+            };
+
+            if !is_tail_position {
+                return false;
+            }
+
+            // extract call info before mutating
+            let callee_value = *callee;
+            let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
+
+            // rewrite the block: remove call, replace return with TailCallIndirect
+            let block = tree.get(block_id);
+            let mut new_instructions = block.instructions.clone();
+            new_instructions.pop();
+
+            let new_terminator = mir::Terminator::TailCallIndirect {
+                callee: callee_value,
+                arguments: call_args,
+            };
+
+            let mut new_block = block.clone();
+            new_block.instructions = new_instructions;
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+
+            true
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -1211,8 +1340,8 @@ block2:
     }
 
     #[test]
-    fn test_preserve_call_to_other_function() {
-        // call to different function is not transformed
+    fn test_transform_sibling_tail_call() {
+        // sibling call (to different function) in tail position becomes tailcall
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = call @other(v0)
@@ -1222,10 +1351,18 @@ function @other(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
 }"#;
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    tailcall @other(v0)
+}
+function @other(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}"#;
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        program.assert_output(expected);
     }
 
     #[test]
@@ -1435,8 +1572,8 @@ block0(v0: i32):
     }
 
     #[test]
-    fn test_preserve_mutual_recursion() {
-        // even/odd mutual recursion: not self-recursion
+    fn test_transform_mutual_recursion() {
+        // even/odd mutual recursion becomes sibling tail calls
         let input = r#"function @even(v0: i32) -> bool {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1465,10 +1602,36 @@ block2:
     v6 = call @even(v5)
     return v6
 }"#;
+        let expected = r#"function @even(v0: i32) -> bool {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    branch v2, block1, block2
+block1:
+    v3 = iconst true
+    return v3
+block2:
+    v4 = iconst 1i32
+    v5 = isub v0, v4
+    tailcall @odd(v5)
+}
+function @odd(v0: i32) -> bool {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    branch v2, block1, block2
+block1:
+    v3 = iconst false
+    return v3
+block2:
+    v4 = iconst 1i32
+    v5 = isub v0, v4
+    tailcall @even(v5)
+}"#;
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        program.assert_output(expected);
     }
 
     #[test]
@@ -1660,7 +1823,7 @@ block0:
     v1 = call @factorial(v0)
     return v1
 }"#;
-        // after transform: factorial gets accumulator param, main passes identity (1)
+        // after transform: factorial gets accumulator param, main's tail call becomes tailcall
         let expected = r#"function @factorial(v0: i32, v6: i32) -> i32 {
 block0(v0: i32, v6: i32):
     v1 = iconst 1i32
@@ -1677,8 +1840,7 @@ function @main() -> i32 {
 block0:
     v0 = iconst 5i32
     v7 = iconst 1i32
-    v1 = call @factorial(v0, v7)
-    return v1
+    tailcall @factorial(v0, v7)
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -1702,13 +1864,12 @@ block2:
     v5 = imul v0, v4
     return v5
 }"#;
-        // exported wrapper calls internal impl with identity
+        // exported wrapper tail-calls internal impl with identity
         // impl has tail-recursive structure
         let expected = r#"export function @factorial(v0: i32) -> i32 {
 block0(v0: i32):
     v8 = iconst 1i32
-    v9 = call @factorial$impl(v0, v8)
-    return v9
+    tailcall @factorial$impl(v0, v8)
 }
 function @factorial$impl(v0: i32, v6: i32) -> i32 {
 block0(v0: i32, v6: i32):

@@ -462,6 +462,19 @@ pub enum ThreadedInstructionData {
 
     /// Unsupported instruction or terminator.
     Unsupported { name: &'static str },
+
+    /// Tail call to a function (call + return).
+    TailCall {
+        function: u32,
+        callee_index: u32,
+        copies: CopyRange,
+    },
+
+    /// Indirect tail call (call + return).
+    TailCallIndirect {
+        callee: mir::Value,
+        arguments: ArgumentRange,
+    },
 }
 
 /// Switch case.

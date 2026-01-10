@@ -506,6 +506,23 @@ fn find_unreachable_stores(
                 }
             }
             mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => {}
+            mir::Terminator::TailCall { arguments, .. } => {
+                for &arg in arguments {
+                    if stack_allocs.contains_key(&arg) {
+                        escaping.insert(arg);
+                    }
+                }
+            }
+            mir::Terminator::TailCallIndirect { callee, arguments } => {
+                if stack_allocs.contains_key(callee) {
+                    escaping.insert(*callee);
+                }
+                for &arg in arguments {
+                    if stack_allocs.contains_key(&arg) {
+                        escaping.insert(arg);
+                    }
+                }
+            }
         }
     }
 

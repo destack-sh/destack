@@ -605,6 +605,23 @@ fn update_terminator_arguments(
             value: value.map(|v| resolve_value(v, substitutions)),
         },
         Terminator::Unreachable => Terminator::Unreachable,
+        Terminator::TailCall {
+            function,
+            arguments,
+        } => Terminator::TailCall {
+            function: *function,
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+        },
+        Terminator::TailCallIndirect { callee, arguments } => Terminator::TailCallIndirect {
+            callee: resolve_value(*callee, substitutions),
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+        },
     }
 }
 
@@ -880,6 +897,23 @@ fn substitute_terminator_uses(
                 .collect(),
         },
         Terminator::Unreachable => Terminator::Unreachable,
+        Terminator::TailCall {
+            function,
+            arguments,
+        } => Terminator::TailCall {
+            function: *function,
+            arguments: arguments
+                .iter()
+                .map(|&v| resolve_value(v, substitutions))
+                .collect(),
+        },
+        Terminator::TailCallIndirect { callee, arguments } => Terminator::TailCallIndirect {
+            callee: resolve_value(*callee, substitutions),
+            arguments: arguments
+                .iter()
+                .map(|&v| resolve_value(v, substitutions))
+                .collect(),
+        },
     }
 }
 
