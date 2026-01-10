@@ -1733,6 +1733,25 @@ Strict mode forbids:
 - Storing `&mut` inside managed objects
 - Holding `&mut` across `await` or generator suspension
 
+### Lifetime Annotations
+
+When a function returns a borrowed reference or a struct containing borrowed references,
+the compiler infers which parameters the return value may borrow from:
+- Single `&T` parameter: return borrows from it
+- `&self` or `&this` method: return borrows from receiver
+- Multiple `&T` parameters: conservative (borrows from all)
+
+Use `@lifetime` to override inference when it's too conservative:
+```ds
+// Explicit: return only borrows from 'a'
+function first(a: &string, b: &string): @lifetime(a) &string { a }
+
+// Static lifetime: borrows from global/static data
+function constant(): @lifetime("static") &string { &"hello" }
+```
+
+The borrow checker validates that annotated lifetimes are sound.
+
 **What ownership hints are for:**
 - API documentation ("this function borrows, doesn't own")
 - Optimization hints (compiler can assume no aliasing for `&mut`)

@@ -160,10 +160,17 @@ impl ModuleLowerer<'_> {
             parameter_types.push(parameter_ty);
         }
 
+        // extract return lifetime from @lifetime decorator before borrowing self.builder
+        let return_lifetime = self.extract_lifetime_annotation(declaration_id, signature);
+
         // build the function
-        let builder = self.builder.function(&name, &parameter_types, return_type);
+        let mut builder = self.builder.function(&name, &parameter_types, return_type);
         let function_id = builder.function_id();
         self.functions_by_symbol.insert(symbol_id, function_id);
+
+        // set return lifetime
+        builder.set_return_lifetime(return_lifetime);
+
         let mut function_lowerer = FunctionLowerer::new(
             self.module_id,
             self.profile,
@@ -251,5 +258,137 @@ impl ModuleLowerer<'_> {
             node_id.into_anchored(Some(self.profile)),
             &mut self.builder,
         )
+    }
+
+    /// Extract return lifetime from @lifetime decorator annotations on a function.
+    ///
+    /// Supports:
+    /// - `@lifetime("static")` - static lifetime
+    /// - `@lifetime(param1, param2, ...)` - borrows from named parameters
+    fn extract_lifetime_annotation(
+        &self,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        signature: &dir::FunctionSignature,
+    ) -> mir::Lifetime {
+        let annotations = self.dir_tree.get_annotations(declaration_id.id);
+
+        for annotation_id in annotations {
+            let annotation = self.dir_tree.get(annotation_id);
+
+            // look for decorator annotations
+            let dir::Annotation::Decorator {
+                left, arguments, ..
+            } = annotation
+            else {
+                continue;
+            };
+
+            // check if the decorator is named "lifetime"
+            let left_expr = self.dir_tree.get(*left);
+            let is_lifetime = match left_expr {
+                dir::Expression::UnresolvedPath { path, .. }
+                | dir::Expression::LocalReference { path, .. }
+                | dir::Expression::ModuleReference { path, .. }
+                | dir::Expression::GlobalReference { path, .. } => {
+                    if let Some(first) = path.first_segment() {
+                        self.compiler.program.strings.get(first) == "lifetime"
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+            if !is_lifetime {
+                continue;
+            }
+
+            // parse the arguments
+            let Some(args) = arguments else {
+                // @lifetime with no args: defaults to inferred
+                continue;
+            };
+            if args.is_empty() {
+                continue;
+            }
+
+            // check for @lifetime("static")
+            if args.len() == 1 {
+                let arg = self.dir_tree.get(args[0]);
+                if let dir::Argument::Positional { value }
+                | dir::Argument::Named { value, .. }
+                | dir::Argument::Labeled { value, .. } = arg
+                {
+                    let expr = self.dir_tree.get(*value);
+                    if let dir::Expression::ScalarLiteral {
+                        value: dir::ScalarLiteral::String(string_id),
+                    } = expr
+                        && self.compiler.program.strings.get(*string_id) == "static"
+                    {
+                        return mir::Lifetime::Static;
+                    }
+                }
+            }
+
+            // build mapping from parameter names to indices
+            let mut param_name_to_index: HashMap<String, u32> = HashMap::new();
+            for (index, param_id) in signature.dynamic_parameters.iter().enumerate() {
+                let param: &dir::Parameter = self.dir_tree.get(*param_id);
+                let param_name = match param {
+                    dir::Parameter::Named { name, .. } => Some(*name),
+                    dir::Parameter::Variadic { name, .. } => Some(*name),
+                    dir::Parameter::Pattern { .. } => None,
+                };
+                if let Some(name_id) = param_name {
+                    let name_str = self.compiler.program.strings.get(name_id).to_string();
+                    param_name_to_index.insert(name_str, index as u32);
+                }
+            }
+
+            // parse parameter references from arguments
+            let mut param_indices = Vec::new();
+            for arg_id in args {
+                let arg = self.dir_tree.get(*arg_id);
+                let value_id = match arg {
+                    dir::Argument::Positional { value } => value,
+                    dir::Argument::Named { value, .. } => value,
+                    dir::Argument::Labeled { value, .. } => value,
+                    dir::Argument::Spread { value, .. } => value,
+                };
+                let expr = self.dir_tree.get(*value_id);
+
+                // look for identifier references that match parameter names
+                let param_name: Option<String> = match expr {
+                    // single-segment path is a parameter reference
+                    dir::Expression::UnresolvedPath { path, .. }
+                    | dir::Expression::LocalReference { path, .. } => {
+                        if path.segments.len() == 1 {
+                            Some(
+                                self.compiler
+                                    .program
+                                    .strings
+                                    .get(path.segments[0])
+                                    .to_string(),
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+
+                if let Some(name) = param_name
+                    && let Some(&index) = param_name_to_index.get(&name)
+                    && !param_indices.contains(&index)
+                {
+                    param_indices.push(index);
+                }
+            }
+
+            if !param_indices.is_empty() {
+                return mir::Lifetime::Parameters(param_indices);
+            }
+        }
+
+        mir::Lifetime::Inferred
     }
 }

@@ -8,8 +8,8 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, FunctionPass, Lattice, OptimizationContext, Pass,
-    PassMetadata, forward_dataflow,
+    AnalysisPreservation, ControlFlowGraph, FunctionPass, Lattice, LifetimeAnalysis,
+    OptimizationContext, Pass, PassMetadata, ResolvedLifetime, forward_dataflow,
 };
 
 declare_pass! {
@@ -24,8 +24,9 @@ declare_pass! {
     /// through control flow joins and block parameters.
     ///
     /// Stack pointers originate from `stack.alloc` and propagate through
-    /// `field.addr`, `element.addr`, `field.set`, `element.set`, and `cast`.
-    /// Storing a stack pointer to another stack location is allowed.
+    /// `field.addr`, `element.addr`, `field.set`, `element.set`, `cast`, and function
+    /// calls (via lifetime analysis). Storing a stack pointer to another stack
+    /// location is allowed.
     #[pass(id = "stack-check")]
     pub StackCheck,
     "Verify stack safety"
@@ -59,8 +60,6 @@ enum StackPointerState {
 
 impl StackPointerState {
     /// Compute the meet of two stack pointer states.
-    ///
-    /// Conservative: if either could be stack, result reflects that.
     fn meet(self, other: Self) -> Self {
         match (self, other) {
             (Self::NonStack, Self::NonStack) => Self::NonStack,
@@ -160,6 +159,51 @@ impl StackPointerMap {
         }
     }
 
+    /// Apply call instruction effects based on lifetime analysis.
+    ///
+    /// If a call returns a borrowed reference that borrows from arguments
+    /// that are stack pointers, the return value is also a stack pointer.
+    fn apply_call_effects(
+        &mut self,
+        instruction: &Instruction,
+        tree: &mir::NodeTree,
+        lifetime_analysis: &LifetimeAnalysis,
+    ) {
+        let (destination, callee_id, arguments) = match instruction {
+            Instruction::Call {
+                destination: Some(dest),
+                function,
+                arguments,
+            } => (*dest, *function, tree.get_arguments(*arguments)),
+            // indirect calls: conservative, can't analyze lifetime
+            // calls without destination: nothing to track
+            _ => return,
+        };
+
+        // get lifetime for the callee
+        let lifetime = lifetime_analysis.get(callee_id);
+        match lifetime {
+            // no borrowed references in return: destination is not a stack pointer
+            ResolvedLifetime::None => {}
+
+            // static lifetime: return borrows from global/static, not arguments
+            ResolvedLifetime::Static => {}
+
+            // return borrows from specific parameters
+            ResolvedLifetime::Parameters(param_indices) => {
+                for &param_idx in param_indices {
+                    if let Some(&arg) = arguments.get(param_idx as usize) {
+                        // if argument is a stack pointer, return is too
+                        if self.get(arg).is_maybe_stack() {
+                            self.0.insert(destination, self.get(arg));
+                            return; // once we find one stack arg, we're done
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Apply terminator effects on stack pointer state.
     ///
     /// This handles propagation of stack pointers through block parameters.
@@ -224,8 +268,8 @@ impl StackPointerMap {
                 }
             }
 
-            // NOTE #Incomplete: call with stack pointer arg is allowed here; interprocedural escape
-            // analysis would require function signature annotations (e.g., @noescape)
+            // calls are handled via apply_call_effects using lifetime analysis
+            // indirect calls are conservative (can't analyze lifetime)
             Instruction::Call { .. } | Instruction::CallIndirect { .. } => {}
 
             // field.set with stack pointer into non-stack aggregate = escape
@@ -328,6 +372,11 @@ impl FunctionPass for StackCheck {
             .analyses
             .get::<ControlFlowGraph>(function, tree, context);
 
+        // get lifetime analysis for tracking stack pointers through calls
+        let lifetime_analysis = context
+            .analyses
+            .get::<LifetimeAnalysis>(function, tree, context);
+
         // run forward dataflow to compute stack pointer states
         let result = forward_dataflow(
             function,
@@ -341,6 +390,7 @@ impl FunctionPass for StackCheck {
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
                     state.apply_instruction_effects(instruction);
+                    state.apply_call_effects(instruction, tree, &lifetime_analysis);
                 }
 
                 // propagate to successors via jump arguments
@@ -375,6 +425,7 @@ impl FunctionPass for StackCheck {
                     context,
                 );
                 current_state.apply_instruction_effects(instruction);
+                current_state.apply_call_effects(instruction, tree, &lifetime_analysis);
             }
 
             // check terminator
@@ -813,4 +864,145 @@ block3(v5: ref<raw i32>):
 
     // NOTE: yield escape test omitted because MIR text parser doesn't support yield terminators.
     // The implementation in check_terminator_escapes correctly handles Yield.
+
+    // ================================================================================
+    // Lifetime analysis integration tests
+    // ================================================================================
+
+    /// Set the return lifetime for a function by name.
+    fn set_function_lifetime(program: &mut TestProgram, name: &str, lifetime: mir::Lifetime) {
+        let fn_id = program
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, f)| program.get_string(f.name) == name)
+            .map(|(id, _)| id)
+            .unwrap_or_else(|| panic!("function '{name}' not found"));
+        let function = program.tree.get_mut(fn_id);
+        function.return_lifetime = lifetime;
+    }
+
+    /// Stack pointer escapes through identity function call.
+    ///
+    /// When a function returns a borrowed reference that borrows from an argument,
+    /// and that argument is a stack pointer, the return value is also a stack pointer.
+    #[test]
+    fn test_detect_stack_escape_through_call() {
+        let input = r#"function @identity(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> ref<borrowed i32> {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = call @identity(v0)
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&StackCheck);
+
+        // v2 = call @identity(v0) where v0 is stack pointer
+        // @identity returns borrowed ref from param 0, so v2 is stack pointer
+        // returning v2 is a stack escape
+        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+    }
+
+    /// Static lifetime prevents stack pointer propagation through call.
+    ///
+    /// When a function has static lifetime, its return doesn't borrow from
+    /// arguments, so stack pointer status doesn't propagate.
+    #[test]
+    fn test_static_lifetime_no_stack_propagation() {
+        let input = r#"function @getStatic(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> ref<borrowed i32> {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = call @getStatic(v0)
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        set_function_lifetime(&mut program, "getStatic", mir::Lifetime::Static);
+        program.run_pass(&StackCheck);
+
+        // with static lifetime, v2 doesn't inherit stack pointer status from v0
+        // so returning v2 is allowed (from stack-check's perspective)
+        // (this may still be incorrect at runtime, but that's a different issue)
+        program.assert_no_errors();
+    }
+
+    /// Stack pointer propagates through call with explicit param lifetime.
+    ///
+    /// When a function has explicit lifetime annotation specifying param 0,
+    /// stack pointer status from arg 0 propagates to the return value.
+    #[test]
+    fn test_explicit_param_lifetime_stack_propagation() {
+        let input = r#"function @pick(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    return v0
+}
+
+function @test() -> ref<borrowed i32> {
+block0:
+    v0 = managed.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = call @pick(v0, v1)
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // explicit lifetime: return borrows from param 0 only
+        set_function_lifetime(&mut program, "pick", mir::Lifetime::param(0));
+        program.run_pass(&StackCheck);
+
+        // v3 borrows from v0 (param 0) which is managed, not stack
+        // v1 (param 1) is stack but not borrowed from, so v3 is not stack
+        program.assert_no_errors();
+    }
+
+    /// Stack pointer propagates through call when borrowing from stack arg.
+    ///
+    /// When explicit lifetime borrows from a param that is a stack pointer,
+    /// the return is also a stack pointer.
+    #[test]
+    fn test_explicit_second_param_lifetime_stack_propagation() {
+        let input = r#"function @pick(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+    return v1
+}
+
+function @test() -> ref<borrowed i32> {
+block0:
+    v0 = managed.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 42i32
+    store v0, v2
+    store v1, v2
+    v3 = call @pick(v0, v1)
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // explicit lifetime: return borrows from param 1 only
+        set_function_lifetime(&mut program, "pick", mir::Lifetime::param(1));
+        program.run_pass(&StackCheck);
+
+        // v3 borrows from v1 (param 1) which is stack
+        // returning v3 is a stack escape
+        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+    }
 }

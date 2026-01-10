@@ -1,8 +1,7 @@
 use destack_base::StringId;
 
 use crate::{
-    Block, Lifetime, Linkage, Local, LocalNodeId, Node, NodeTree, NodeType, Type, TypedValue,
-    Value,
+    Block, Lifetime, Linkage, Local, LocalNodeId, Node, NodeTree, NodeType, Type, TypedValue, Value,
 };
 
 /// Memory allocation restrictions for a function.

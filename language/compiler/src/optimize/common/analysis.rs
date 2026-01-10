@@ -18,17 +18,19 @@ pub enum AnalysisKind {
     /// Dominator tree.
     DominatorTree,
     /// Natural loop analysis.
-    LoopAnalysis,
+    Loop,
     /// Constant propagation analysis.
     ConstantPropagation,
     /// Alias analysis (memory aliasing).
-    AliasAnalysis,
+    Alias,
     /// Liveness analysis (live variables).
-    LivenessAnalysis,
+    Liveness,
     /// Ownership analysis (move tracking).
-    OwnershipAnalysis,
+    Ownership,
+    /// Lifetime analysis (return value lifetime bounds).
+    Lifetime,
     /// Borrow analysis (active borrows tracking).
-    BorrowAnalysis,
+    Borrow,
 }
 
 /// A computed analysis over MIR.

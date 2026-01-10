@@ -129,7 +129,7 @@ These always run before optimization passes (even at optimization level 0).
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness | Verify borrow rules: exclusive `&mut`, no aliasing violations, move-while-borrowed, local.set while borrowed |
+| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, alias | Verify borrow rules: exclusive `&mut`, no aliasing violations, move-while-borrowed, local.set while borrowed; validate `@lifetime` annotations |
 | `move-check` | MoveCheck | function | V | ✓ | cfg, liveness | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
 | `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness | Insert `raw.drop`/`stack.drop` at last-use points for owned refs (non-lexical lifetimes) |
 | `stack-check` | StackCheck | function | V | ✓ | cfg | Verify stack safety: no returns of references to locals, no stack pointer escapes |

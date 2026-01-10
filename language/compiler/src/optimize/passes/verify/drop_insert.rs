@@ -428,7 +428,6 @@ mod tests {
             .iter_nodes::<mir::Type>()
             .filter_map(|(id, ty)| if predicate(ty) { Some(id) } else { None })
             .collect();
-
         for type_id in type_ids {
             program
                 .tree
