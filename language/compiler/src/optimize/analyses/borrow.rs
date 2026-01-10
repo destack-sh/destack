@@ -10,6 +10,7 @@ use destack_mir as mir;
 use mir::{Instruction, Value};
 
 use super::{ControlFlowGraph, Lattice, LivenessAnalysis, forward_dataflow};
+use crate::optimize::common::terminator_arguments_for_successor;
 use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
 
 /// Location where a borrow was created.
@@ -271,7 +272,8 @@ impl BorrowAnalysis {
                 // transfer borrow relationships from predecessor jump args to block params
                 for &pred_id in cfg.predecessors(block_id) {
                     let pred_block = tree.get(pred_id);
-                    let arguments = arguments_for_successor(&pred_block.terminator, block_id);
+                    let arguments =
+                        terminator_arguments_for_successor(&pred_block.terminator, block_id);
                     for (param, arg) in block.parameters.iter().zip(arguments) {
                         state.transfer_borrow(*arg, param.value);
                     }
@@ -336,66 +338,6 @@ fn apply_instruction_effects(
         }
 
         _ => {}
-    }
-}
-
-/// Get the arguments passed to a specific successor block from a terminator.
-fn arguments_for_successor(
-    terminator: &mir::Terminator,
-    successor: mir::LocalNodeId<mir::Block>,
-) -> &[Value] {
-    match terminator {
-        mir::Terminator::Jump { target, arguments } if *target == successor => arguments,
-
-        mir::Terminator::Branch {
-            then_target,
-            then_arguments,
-            else_target,
-            else_arguments,
-            ..
-        } => {
-            // then branch
-            if *then_target == successor {
-                then_arguments
-            }
-            // else branch
-            else if *else_target == successor {
-                else_arguments
-            }
-            // not a successor
-            else {
-                &[]
-            }
-        }
-
-        mir::Terminator::Switch {
-            default,
-            default_arguments,
-            cases,
-            ..
-        } => {
-            // default case
-            if *default == successor {
-                return default_arguments;
-            }
-
-            // numbered cases
-            for case in cases {
-                if case.target == successor {
-                    return &case.arguments;
-                }
-            }
-
-            &[]
-        }
-
-        mir::Terminator::Yield {
-            resume,
-            resume_arguments,
-            ..
-        } if *resume == successor => resume_arguments,
-
-        _ => &[],
     }
 }
 

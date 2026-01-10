@@ -1,0 +1,2262 @@
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
+
+use destack_mir as mir;
+
+use crate::optimize::common::{
+    SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
+    terminator_arguments_for_successor_checked,
+};
+use crate::optimize::{Analysis, AnalysisKind, ControlFlowGraph, OptimizationContext};
+
+use super::Lattice;
+
+/// Range information for a value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValueRange {
+    /// Bounds for floating point values.
+    Float {
+        /// Finite bounds for the float range.
+        bounds: Option<FloatBounds>,
+        /// Bit width of the float.
+        width: u8,
+        /// Whether NaN is possible.
+        can_be_nan: bool,
+    },
+    /// Boolean values that can occur.
+    Boolean {
+        /// Whether true is possible.
+        can_be_true: bool,
+        /// Whether false is possible.
+        can_be_false: bool,
+    },
+    /// Integer values within inclusive bounds.
+    Integer {
+        /// Minimum possible value.
+        min: i128,
+        /// Maximum possible value.
+        max: i128,
+        /// Bit width of the integer.
+        width: u8,
+        /// Whether the integer is signed.
+        is_signed: bool,
+    },
+}
+
+/// Finite bounds for float ranges.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FloatBounds {
+    /// Minimum finite value.
+    pub min: f64,
+    /// Maximum finite value.
+    pub max: f64,
+}
+
+impl ValueRange {
+    /// Build a value range from a MIR constant.
+    pub fn from_constant(constant: &mir::Constant) -> Option<Self> {
+        // map supported constant kinds to ranges
+        match constant {
+            mir::Constant::Float { bits, width } => {
+                let width = *width;
+                let (value, can_be_nan) = if width == 32 {
+                    let value = f32::from_bits(*bits as u32);
+                    (value as f64, value.is_nan())
+                } else if width == 64 {
+                    let value = f64::from_bits(*bits);
+                    (value, value.is_nan())
+                } else {
+                    return None;
+                };
+
+                let bounds = if can_be_nan {
+                    None
+                } else {
+                    Some(FloatBounds {
+                        min: value,
+                        max: value,
+                    })
+                };
+
+                Some(ValueRange::Float {
+                    bounds,
+                    width,
+                    can_be_nan,
+                })
+            }
+            mir::Constant::Boolean { value } => Some(ValueRange::Boolean {
+                can_be_true: *value,
+                can_be_false: !*value,
+            }),
+            mir::Constant::Int {
+                value,
+                width,
+                is_signed,
+            } => Some(ValueRange::Integer {
+                min: *value as i128,
+                max: *value as i128,
+                width: *width,
+                is_signed: *is_signed,
+            }),
+            mir::Constant::UInt { value, width } => Some(ValueRange::Integer {
+                min: *value as i128,
+                max: *value as i128,
+                width: *width,
+                is_signed: false,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Return a constant value if this range is a single point.
+    pub fn as_constant(&self) -> Option<mir::Constant> {
+        // convert ranges to exact constants when possible
+        match self {
+            ValueRange::Float { .. } => None,
+            ValueRange::Boolean {
+                can_be_true,
+                can_be_false,
+            } => match (*can_be_true, *can_be_false) {
+                (true, false) => Some(mir::Constant::Boolean { value: true }),
+                (false, true) => Some(mir::Constant::Boolean { value: false }),
+                _ => None,
+            },
+            ValueRange::Integer {
+                min,
+                max,
+                width,
+                is_signed,
+            } => {
+                // reject non point ranges
+                if min != max {
+                    return None;
+                }
+
+                // select a signed or unsigned constant representation
+                if *is_signed {
+                    let value = i64::try_from(*min).ok()?;
+                    Some(mir::Constant::Int {
+                        value,
+                        width: *width,
+                        is_signed: true,
+                    })
+                } else {
+                    let value = u64::try_from(*min).ok()?;
+                    Some(mir::Constant::UInt {
+                        value,
+                        width: *width,
+                    })
+                }
+            }
+        }
+    }
+
+    /// Merge two ranges by taking the union of possible values.
+    pub fn union(&self, other: &Self) -> Option<Self> {
+        // merge compatible ranges
+        match (self, other) {
+            (
+                ValueRange::Float {
+                    bounds: left_bounds,
+                    width: left_width,
+                    can_be_nan: left_nan,
+                },
+                ValueRange::Float {
+                    bounds: right_bounds,
+                    width: right_width,
+                    can_be_nan: right_nan,
+                },
+            ) => {
+                // refuse to merge mismatched float types
+                if left_width != right_width {
+                    return None;
+                }
+
+                let bounds = match (left_bounds, right_bounds) {
+                    (Some(left), Some(right)) => Some(FloatBounds {
+                        min: left.min.min(right.min),
+                        max: left.max.max(right.max),
+                    }),
+                    (Some(left), None) => Some(*left),
+                    (None, Some(right)) => Some(*right),
+                    (None, None) => None,
+                };
+
+                Some(ValueRange::Float {
+                    bounds,
+                    width: *left_width,
+                    can_be_nan: *left_nan || *right_nan,
+                })
+            }
+            (
+                ValueRange::Boolean {
+                    can_be_true: left_true,
+                    can_be_false: left_false,
+                },
+                ValueRange::Boolean {
+                    can_be_true: right_true,
+                    can_be_false: right_false,
+                },
+            ) => Some(ValueRange::Boolean {
+                can_be_true: *left_true || *right_true,
+                can_be_false: *left_false || *right_false,
+            }),
+            (
+                ValueRange::Integer {
+                    min: left_min,
+                    max: left_max,
+                    width: left_width,
+                    is_signed: left_signed,
+                },
+                ValueRange::Integer {
+                    min: right_min,
+                    max: right_max,
+                    width: right_width,
+                    is_signed: right_signed,
+                },
+            ) => {
+                // refuse to merge mismatched integer types
+                if left_width != right_width || left_signed != right_signed {
+                    return None;
+                }
+
+                // widen to cover both ranges
+                Some(ValueRange::Integer {
+                    min: (*left_min).min(*right_min),
+                    max: (*left_max).max(*right_max),
+                    width: *left_width,
+                    is_signed: *left_signed,
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Mapping from values to their ranges.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RangeMap {
+    /// Known ranges keyed by value.
+    ranges: HashMap<mir::Value, ValueRange>,
+}
+
+impl RangeMap {
+    /// Create an empty range map.
+    pub fn new() -> Self {
+        Self {
+            ranges: HashMap::new(),
+        }
+    }
+
+    /// Get the range for a value.
+    pub fn get(&self, value: mir::Value) -> Option<&ValueRange> {
+        self.ranges.get(&value)
+    }
+
+    /// Insert a range for a value.
+    pub fn insert(&mut self, value: mir::Value, range: ValueRange) {
+        self.ranges.insert(value, range);
+    }
+
+    /// Remove any range for a value.
+    pub fn remove(&mut self, value: mir::Value) {
+        self.ranges.remove(&value);
+    }
+}
+
+impl Lattice for RangeMap {
+    /// Merge ranges that are known on all incoming paths.
+    fn meet(&self, other: &Self) -> Self {
+        let mut ranges = HashMap::new();
+
+        // merge ranges present on every incoming path
+        for (value, range) in &self.ranges {
+            if let Some(other_range) = other.ranges.get(value)
+                && let Some(merged) = range.union(other_range)
+            {
+                ranges.insert(*value, merged);
+            }
+        }
+
+        Self { ranges }
+    }
+}
+
+/// Range analysis for a function.
+#[derive(Debug)]
+pub struct RangeAnalysis {
+    /// Ranges available at block entry.
+    block_entry: HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+    /// Ranges available at block exit.
+    block_exit: HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+}
+
+impl RangeAnalysis {
+    /// Build range analysis for a function.
+    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+        let Some(entry) = function.entry else {
+            return Self {
+                block_entry: HashMap::new(),
+                block_exit: HashMap::new(),
+            };
+        };
+
+        // init state maps
+        let mut block_entry: HashMap<mir::LocalNodeId<mir::Block>, RangeMap> = HashMap::new();
+        let mut block_exit: HashMap<mir::LocalNodeId<mir::Block>, RangeMap> = HashMap::new();
+
+        // seed entry state
+        block_entry.insert(entry, RangeMap::new());
+
+        // init worklist
+        let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
+        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        worklist.push_back(entry);
+        in_worklist.insert(entry);
+
+        // process blocks until fixed point
+        while let Some(block_id) = worklist.pop_front() {
+            // remove block from worklist
+            in_worklist.remove(&block_id);
+
+            // compute entry state
+            let mut entry_state = if block_id == entry {
+                block_entry
+                    .get(&entry)
+                    .cloned()
+                    .unwrap_or_else(RangeMap::new)
+            } else {
+                // merge predecessor exits
+                let mut merged: Option<RangeMap> = None;
+                for &pred in cfg.predecessors(block_id) {
+                    let Some(pred_exit) = block_exit.get(&pred) else {
+                        continue;
+                    };
+
+                    merged = Some(match merged {
+                        Some(existing) => existing.meet(pred_exit),
+                        None => pred_exit.clone(),
+                    });
+                }
+
+                let Some(merged) = merged else {
+                    continue;
+                };
+
+                merged
+            };
+
+            // apply block parameter ranges
+            apply_block_param_ranges(block_id, tree, cfg, &block_exit, &mut entry_state);
+
+            // check if entry state changed
+            let entry_changed = block_entry
+                .get(&block_id)
+                .map(|old| old != &entry_state)
+                .unwrap_or(true);
+
+            if entry_changed || block_id == entry {
+                block_entry.insert(block_id, entry_state.clone());
+
+                // transfer through block
+                let exit_state = transfer_block(block_id, &entry_state, tree);
+
+                // check if exit state changed
+                let exit_changed = block_exit
+                    .get(&block_id)
+                    .map(|old| old != &exit_state)
+                    .unwrap_or(true);
+
+                if exit_changed {
+                    block_exit.insert(block_id, exit_state);
+
+                    // add successors to worklist
+                    let block = tree.get(block_id);
+                    for succ in block.terminator.successors() {
+                        if !in_worklist.contains(&succ) {
+                            worklist.push_back(succ);
+                            in_worklist.insert(succ);
+                        }
+                    }
+                }
+            }
+        }
+
+        Self {
+            block_entry,
+            block_exit,
+        }
+    }
+
+    /// Get the ranges at block entry.
+    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeMap {
+        match self.block_entry.get(&block) {
+            Some(ranges) => ranges,
+            None => empty_ranges(),
+        }
+    }
+
+    /// Get the ranges at block exit.
+    pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &RangeMap {
+        match self.block_exit.get(&block) {
+            Some(ranges) => ranges,
+            None => empty_ranges(),
+        }
+    }
+}
+
+impl Analysis for RangeAnalysis {
+    const KIND: AnalysisKind = AnalysisKind::Range;
+
+    fn compute(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        context: &OptimizationContext<'_>,
+    ) -> Arc<Self> {
+        let cfg = context
+            .analyses
+            .get::<ControlFlowGraph>(function, tree, context);
+
+        Arc::new(Self::build(function, tree, &cfg))
+    }
+}
+
+/// Parameter range tracking state during merge.
+#[derive(Debug, Clone)]
+enum ParamRangeState {
+    /// No predecessor has been seen yet.
+    Unseen,
+    /// Range info accumulated across predecessors.
+    Range(ValueRange),
+    /// Conflicting or unknown input.
+    Overdefined,
+}
+
+/// Apply block parameter ranges derived from predecessor arguments.
+fn apply_block_param_ranges(
+    block_id: mir::LocalNodeId<mir::Block>,
+    tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    block_exit: &HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+    entry_state: &mut RangeMap,
+) {
+    // resolve ranges for block parameters
+    let ranges = resolve_block_param_ranges(block_id, tree, cfg, block_exit);
+    let block = tree.get(block_id);
+
+    // apply ranges to entry state
+    for param in &block.parameters {
+        if let Some(range) = ranges.get(&param.value) {
+            entry_state.insert(param.value, range.clone());
+        } else {
+            entry_state.remove(param.value);
+        }
+    }
+}
+
+/// Resolve ranges for block parameters from predecessor arguments.
+fn resolve_block_param_ranges(
+    block_id: mir::LocalNodeId<mir::Block>,
+    tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    block_exit: &HashMap<mir::LocalNodeId<mir::Block>, RangeMap>,
+) -> HashMap<mir::Value, ValueRange> {
+    // early exit for blocks without parameters
+    let block = tree.get(block_id);
+    if block.parameters.is_empty() {
+        return HashMap::new();
+    }
+
+    // track parameter states across predecessors
+    let mut states = vec![ParamRangeState::Unseen; block.parameters.len()];
+    let mut is_seen = false;
+
+    // scan predecessors
+    for &pred in cfg.predecessors(block_id) {
+        let Some(pred_exit) = block_exit.get(&pred) else {
+            continue;
+        };
+
+        // collect arguments for this edge
+        let args = match terminator_arguments_for_successor_checked(
+            &tree.get(pred).terminator,
+            block_id,
+        ) {
+            SuccessorArguments::Missing => continue,
+            SuccessorArguments::Conflict => {
+                states.fill(ParamRangeState::Overdefined);
+                is_seen = true;
+                continue;
+            }
+            SuccessorArguments::Consistent(args) => args,
+        };
+
+        // mark that we saw a predecessor
+        is_seen = true;
+
+        // reject mismatched argument counts
+        if args.len() != states.len() {
+            states.fill(ParamRangeState::Overdefined);
+            continue;
+        }
+
+        // update parameter states from arguments
+        for (index, arg) in args.iter().enumerate() {
+            let arg_range = pred_exit.get(*arg).cloned();
+            states[index] = match (&states[index], arg_range) {
+                (ParamRangeState::Unseen, Some(range)) => ParamRangeState::Range(range),
+                (ParamRangeState::Unseen, None) => ParamRangeState::Overdefined,
+                (ParamRangeState::Range(existing), Some(range)) => match existing.union(&range) {
+                    Some(merged) => ParamRangeState::Range(merged),
+                    None => ParamRangeState::Overdefined,
+                },
+                (ParamRangeState::Range(_), None) => ParamRangeState::Overdefined,
+                (ParamRangeState::Overdefined, _) => ParamRangeState::Overdefined,
+            };
+        }
+    }
+
+    // return empty if no predecessors were processed
+    if !is_seen {
+        return HashMap::new();
+    }
+
+    // collect ranges for parameters
+    let mut ranges = HashMap::new();
+    for (param, state) in block.parameters.iter().zip(states.into_iter()) {
+        if let ParamRangeState::Range(range) = state {
+            ranges.insert(param.value, range);
+        }
+    }
+
+    ranges
+}
+
+/// Transfer ranges through a block's instructions.
+fn transfer_block(
+    block_id: mir::LocalNodeId<mir::Block>,
+    entry_state: &RangeMap,
+    tree: &mir::NodeTree,
+) -> RangeMap {
+    // clone entry state for updates
+    let block = tree.get(block_id);
+    let mut state = entry_state.clone();
+
+    // update state per instruction
+    for &instruction_id in &block.instructions {
+        let instruction = tree.get(instruction_id);
+        let Some(destination) = instruction.destination() else {
+            continue;
+        };
+
+        if let Some(range) = range_for_instruction(instruction, tree, &state) {
+            state.insert(destination, range);
+        } else {
+            state.remove(destination);
+        }
+    }
+
+    state
+}
+
+/// Evaluate a range for an instruction when possible.
+fn range_for_instruction(
+    instruction: &mir::Instruction,
+    tree: &mir::NodeTree,
+    state: &RangeMap,
+) -> Option<ValueRange> {
+    match instruction {
+        mir::Instruction::Const { value, .. } => ValueRange::from_constant(value),
+        mir::Instruction::GlobalConst { global, .. } => {
+            let constant = constant_from_global(*global, tree)?;
+            ValueRange::from_constant(&constant)
+        }
+        mir::Instruction::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } => range_for_binary(*operator, state.get(*left), state.get(*right)),
+        mir::Instruction::Unary {
+            operator, argument, ..
+        } => range_for_unary(*operator, state.get(*argument)),
+        mir::Instruction::Cast {
+            operator,
+            argument,
+            to_type,
+            ..
+        } => range_for_cast(*operator, state.get(*argument), *to_type, tree),
+        mir::Instruction::Select {
+            then_value,
+            else_value,
+            ..
+        } => range_for_select(state.get(*then_value), state.get(*else_value)),
+        _ => None,
+    }
+}
+
+/// Evaluate a range for a binary instruction.
+fn range_for_binary(
+    operator: mir::BinaryOperator,
+    left: Option<&ValueRange>,
+    right: Option<&ValueRange>,
+) -> Option<ValueRange> {
+    // require ranges for both operands
+    let left = left?;
+    let right = right?;
+
+    // fold exact constants when possible
+    if let (Some(left_const), Some(right_const)) = (left.as_constant(), right.as_constant()) {
+        let result = fold_binary(operator, left_const, right_const)?;
+        return ValueRange::from_constant(&result);
+    }
+
+    match operator {
+        mir::BinaryOperator::Add => integer_range_add(left, right),
+        mir::BinaryOperator::Subtract => integer_range_sub(left, right),
+        mir::BinaryOperator::Multiply => integer_range_mul(left, right),
+        mir::BinaryOperator::SignedDivide => integer_range_div_signed(left, right),
+        mir::BinaryOperator::UnsignedDivide => integer_range_div_unsigned(left, right),
+        mir::BinaryOperator::SignedRemainder => integer_range_rem_signed(left, right),
+        mir::BinaryOperator::UnsignedRemainder => integer_range_rem_unsigned(left, right),
+        mir::BinaryOperator::FloatAdd => float_range_add(left, right),
+        mir::BinaryOperator::FloatSubtract => float_range_sub(left, right),
+        mir::BinaryOperator::FloatMultiply => float_range_mul(left, right),
+        mir::BinaryOperator::FloatDivide => float_range_div(left, right),
+        mir::BinaryOperator::Equal
+        | mir::BinaryOperator::NotEqual
+        | mir::BinaryOperator::SignedLessThan
+        | mir::BinaryOperator::SignedLessEqual
+        | mir::BinaryOperator::SignedGreaterThan
+        | mir::BinaryOperator::SignedGreaterEqual
+        | mir::BinaryOperator::UnsignedLessThan
+        | mir::BinaryOperator::UnsignedLessEqual
+        | mir::BinaryOperator::UnsignedGreaterThan
+        | mir::BinaryOperator::UnsignedGreaterEqual => range_for_comparison(operator, left, right),
+        mir::BinaryOperator::FloatEqual
+        | mir::BinaryOperator::FloatNotEqual
+        | mir::BinaryOperator::FloatLessThan
+        | mir::BinaryOperator::FloatLessEqual
+        | mir::BinaryOperator::FloatGreaterThan
+        | mir::BinaryOperator::FloatGreaterEqual => {
+            range_for_float_comparison(operator, left, right)
+        }
+        _ => None,
+    }
+}
+
+/// Evaluate a range for a unary instruction.
+fn range_for_unary(
+    operator: mir::UnaryOperator,
+    argument: Option<&ValueRange>,
+) -> Option<ValueRange> {
+    // require a range for the operand
+    let argument = argument?;
+
+    // fold exact constants when possible
+    if let Some(constant) = argument.as_constant() {
+        let result = fold_unary(operator, constant)?;
+        return ValueRange::from_constant(&result);
+    }
+
+    match operator {
+        mir::UnaryOperator::Negate => integer_range_negate(argument),
+        mir::UnaryOperator::FloatNegate => float_range_negate(argument),
+        _ => None,
+    }
+}
+
+/// Evaluate a range for a cast instruction.
+fn range_for_cast(
+    operator: mir::CastOperator,
+    argument: Option<&ValueRange>,
+    to_type: mir::LocalNodeId<mir::Type>,
+    tree: &mir::NodeTree,
+) -> Option<ValueRange> {
+    // require a range for the operand
+    let argument = argument?;
+
+    // fold exact constants when possible
+    if let Some(constant) = argument.as_constant() {
+        let result = fold_cast(operator, constant, to_type, tree)?;
+        return ValueRange::from_constant(&result);
+    }
+
+    // read the target type
+    let to_type = tree.get(to_type);
+
+    match operator {
+        mir::CastOperator::SignExtend
+        | mir::CastOperator::ZeroExtend
+        | mir::CastOperator::Truncate => {
+            // require an integer operand range
+            let ValueRange::Integer {
+                min,
+                max,
+                width: _,
+                is_signed,
+            } = argument
+            else {
+                return None;
+            };
+
+            // require an integer target type
+            let mir::Type::Int {
+                width: to_width,
+                signed: to_signed,
+            } = to_type
+            else {
+                return None;
+            };
+
+            // normalize the target width
+            let to_width = u8::try_from(*to_width).ok()?;
+
+            match operator {
+                mir::CastOperator::SignExtend => {
+                    if !*is_signed {
+                        return None;
+                    }
+                    Some(ValueRange::Integer {
+                        min: *min,
+                        max: *max,
+                        width: to_width,
+                        is_signed: true,
+                    })
+                }
+                mir::CastOperator::ZeroExtend => {
+                    if *is_signed {
+                        return None;
+                    }
+                    Some(ValueRange::Integer {
+                        min: *min,
+                        max: *max,
+                        width: to_width,
+                        is_signed: false,
+                    })
+                }
+                mir::CastOperator::Truncate => {
+                    let (min_bound, max_bound) = integer_bounds(to_width, *to_signed)?;
+                    if *min < min_bound || *max > max_bound {
+                        return None;
+                    }
+                    Some(ValueRange::Integer {
+                        min: *min,
+                        max: *max,
+                        width: to_width,
+                        is_signed: *to_signed,
+                    })
+                }
+                _ => None,
+            }
+        }
+        mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => {
+            // require a float target type
+            let mir::Type::Float { width } = to_type else {
+                return None;
+            };
+
+            let to_width = u8::try_from(*width).ok()?;
+            float_range_from_integer(argument, to_width, operator)
+        }
+        mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt => {
+            // require an integer target type
+            let mir::Type::Int {
+                width: to_width,
+                signed: to_signed,
+            } = to_type
+            else {
+                return None;
+            };
+
+            let to_width = u8::try_from(*to_width).ok()?;
+            integer_range_from_float(argument, to_width, *to_signed, operator)
+        }
+        mir::CastOperator::FloatTruncate | mir::CastOperator::FloatExtend => {
+            // require a float target type
+            let mir::Type::Float { width } = to_type else {
+                return None;
+            };
+
+            let to_width = u8::try_from(*width).ok()?;
+            float_range_cast(argument, to_width)
+        }
+        _ => None,
+    }
+}
+
+/// Evaluate a range for a select instruction.
+fn range_for_select(
+    then_value: Option<&ValueRange>,
+    else_value: Option<&ValueRange>,
+) -> Option<ValueRange> {
+    // require ranges for both arms
+    let then_value = then_value?;
+    let else_value = else_value?;
+
+    then_value.union(else_value)
+}
+
+/// Return a shared empty range map.
+fn empty_ranges() -> &'static RangeMap {
+    // init shared empty map
+    static EMPTY: std::sync::OnceLock<RangeMap> = std::sync::OnceLock::new();
+    EMPTY.get_or_init(RangeMap::new)
+}
+
+/// Compute integer bounds for a width and signedness.
+fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
+    // reject unsupported widths
+    if width == 0 || width > 64 {
+        return None;
+    }
+
+    // compute signed or unsigned bounds
+    if is_signed {
+        let shift = (width - 1) as u32;
+        let min = -(1_i128 << shift);
+        let max = (1_i128 << shift) - 1;
+        Some((min, max))
+    } else {
+        let shift = width as u32;
+        let max = (1_i128 << shift) - 1;
+        Some((0, max))
+    }
+}
+
+/// Extract integer range fields with bounds check.
+fn integer_range_fields(range: &ValueRange) -> Option<(i128, i128, u8, bool)> {
+    // require an integer range
+    let ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    } = range
+    else {
+        return None;
+    };
+
+    Some((*min, *max, *width, *is_signed))
+}
+
+/// Build an integer range with full bounds.
+fn integer_full_range(width: u8, is_signed: bool) -> Option<ValueRange> {
+    // compute full bounds for the integer width
+    let (min, max) = integer_bounds(width, is_signed)?;
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for integer addition.
+fn integer_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_min, left_max, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width || is_signed != right_signed {
+        return None;
+    }
+
+    // compute bounds for the sum
+    let min = left_min.checked_add(right_min)?;
+    let max = left_max.checked_add(right_max)?;
+
+    // clamp to full range if overflow is possible
+    let (min_bound, max_bound) = integer_bounds(width, is_signed)?;
+    if min < min_bound || max > max_bound {
+        return integer_full_range(width, is_signed);
+    }
+
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for integer subtraction.
+fn integer_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_min, left_max, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width || is_signed != right_signed {
+        return None;
+    }
+
+    // compute bounds for the difference
+    let min = left_min.checked_sub(right_max)?;
+    let max = left_max.checked_sub(right_min)?;
+
+    // clamp to full range if overflow is possible
+    let (min_bound, max_bound) = integer_bounds(width, is_signed)?;
+    if min < min_bound || max > max_bound {
+        return integer_full_range(width, is_signed);
+    }
+
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for integer multiplication.
+fn integer_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_min, left_max, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width || is_signed != right_signed {
+        return None;
+    }
+
+    // compute candidate products
+    let candidates = [
+        left_min.checked_mul(right_min),
+        left_min.checked_mul(right_max),
+        left_max.checked_mul(right_min),
+        left_max.checked_mul(right_max),
+    ];
+
+    // overflow yields the full range
+    if candidates.iter().any(|value| value.is_none()) {
+        return integer_full_range(width, is_signed);
+    }
+
+    // select the min and max product
+    let values: Vec<i128> = candidates.into_iter().flatten().collect();
+    let min = *values.iter().min()?;
+    let max = *values.iter().max()?;
+
+    // clamp to full range if overflow is possible
+    let (min_bound, max_bound) = integer_bounds(width, is_signed)?;
+    if min < min_bound || max > max_bound {
+        return integer_full_range(width, is_signed);
+    }
+
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for signed integer division.
+fn integer_range_div_signed(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_min, left_max, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // enforce signed division and matching widths
+    if !is_signed || !right_signed || width != right_width {
+        return None;
+    }
+
+    // division by zero yields full range
+    if right_min <= 0 && right_max >= 0 {
+        return integer_full_range(width, is_signed);
+    }
+
+    // compute candidate quotients
+    let candidates = [
+        left_min.checked_div(right_min),
+        left_min.checked_div(right_max),
+        left_max.checked_div(right_min),
+        left_max.checked_div(right_max),
+    ];
+
+    // overflow yields the full range
+    if candidates.iter().any(|value| value.is_none()) {
+        return integer_full_range(width, is_signed);
+    }
+
+    // select the min and max quotient
+    let values: Vec<i128> = candidates.into_iter().flatten().collect();
+    let min = *values.iter().min()?;
+    let max = *values.iter().max()?;
+
+    // clamp to full range if overflow is possible
+    let (min_bound, max_bound) = integer_bounds(width, is_signed)?;
+    if min < min_bound || max > max_bound {
+        return integer_full_range(width, is_signed);
+    }
+
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for unsigned integer division.
+fn integer_range_div_unsigned(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_min, left_max, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // enforce unsigned division and matching widths
+    if is_signed || right_signed || width != right_width {
+        return None;
+    }
+
+    // division by zero yields full range
+    if right_min == 0 {
+        return integer_full_range(width, is_signed);
+    }
+
+    // compute the min and max quotient
+    let min = left_min.checked_div(right_max)?;
+    let max = left_max.checked_div(right_min)?;
+
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for signed integer remainder.
+fn integer_range_rem_signed(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (_, _, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // enforce signed remainder and matching widths
+    if !is_signed || !right_signed || width != right_width {
+        return None;
+    }
+
+    // remainder by zero yields full range
+    if right_min <= 0 && right_max >= 0 {
+        return integer_full_range(width, is_signed);
+    }
+
+    // compute the maximum possible absolute remainder
+    let max_abs = right_min.abs().max(right_max.abs());
+    let max_abs = max_abs.saturating_sub(1);
+
+    Some(ValueRange::Integer {
+        min: -max_abs,
+        max: max_abs,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for unsigned integer remainder.
+fn integer_range_rem_unsigned(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (_, _, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // enforce unsigned remainder and matching widths
+    if is_signed || right_signed || width != right_width {
+        return None;
+    }
+
+    // remainder by zero yields full range
+    if right_min == 0 {
+        return integer_full_range(width, is_signed);
+    }
+
+    // compute the maximum possible remainder
+    let max = right_max.saturating_sub(1);
+
+    Some(ValueRange::Integer {
+        min: 0,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Compute a range for integer negation.
+fn integer_range_negate(range: &ValueRange) -> Option<ValueRange> {
+    // extract the operand range
+    let (min, max, width, is_signed) = integer_range_fields(range)?;
+
+    // require a signed range
+    if !is_signed {
+        return None;
+    }
+
+    // negation can overflow for the minimum value
+    let (min_bound, _max_bound) = integer_bounds(width, is_signed)?;
+    if min == min_bound {
+        return integer_full_range(width, is_signed);
+    }
+
+    // compute the negated bounds
+    let neg_min = max.checked_neg()?;
+    let neg_max = min.checked_neg()?;
+
+    Some(ValueRange::Integer {
+        min: neg_min,
+        max: neg_max,
+        width,
+        is_signed,
+    })
+}
+
+/// Check if a float width is supported.
+fn float_width_supported(width: u8) -> bool {
+    width == 32 || width == 64
+}
+
+/// Extract float range fields with bounds check.
+fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u8, bool)> {
+    // require a float range
+    let ValueRange::Float {
+        bounds,
+        width,
+        can_be_nan,
+    } = range
+    else {
+        return None;
+    };
+
+    if !float_width_supported(*width) {
+        return None;
+    }
+
+    Some((*bounds, *width, *can_be_nan))
+}
+
+/// Build a float range with full bounds.
+fn float_full_range(width: u8) -> Option<ValueRange> {
+    if !float_width_supported(width) {
+        return None;
+    }
+
+    Some(ValueRange::Float {
+        bounds: Some(FloatBounds {
+            min: f64::NEG_INFINITY,
+            max: f64::INFINITY,
+        }),
+        width,
+        can_be_nan: true,
+    })
+}
+
+/// Cast a float value to the given width.
+fn float_cast_value(width: u8, value: f64) -> Option<f64> {
+    if width == 32 {
+        Some((value as f32) as f64)
+    } else if width == 64 {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+/// Cast an integer value to the given float width.
+fn float_from_integer(width: u8, value: i128) -> Option<f64> {
+    if width == 32 {
+        Some((value as f32) as f64)
+    } else if width == 64 {
+        Some(value as f64)
+    } else {
+        None
+    }
+}
+
+/// Apply a float addition with the given width.
+fn float_add_value(width: u8, left: f64, right: f64) -> Option<f64> {
+    if width == 32 {
+        Some(((left as f32) + (right as f32)) as f64)
+    } else if width == 64 {
+        Some(left + right)
+    } else {
+        None
+    }
+}
+
+/// Apply a float subtraction with the given width.
+fn float_sub_value(width: u8, left: f64, right: f64) -> Option<f64> {
+    if width == 32 {
+        Some(((left as f32) - (right as f32)) as f64)
+    } else if width == 64 {
+        Some(left - right)
+    } else {
+        None
+    }
+}
+
+/// Apply a float multiplication with the given width.
+fn float_mul_value(width: u8, left: f64, right: f64) -> Option<f64> {
+    if width == 32 {
+        Some(((left as f32) * (right as f32)) as f64)
+    } else if width == 64 {
+        Some(left * right)
+    } else {
+        None
+    }
+}
+
+/// Apply a float division with the given width.
+fn float_div_value(width: u8, left: f64, right: f64) -> Option<f64> {
+    if width == 32 {
+        Some(((left as f32) / (right as f32)) as f64)
+    } else if width == 64 {
+        Some(left / right)
+    } else {
+        None
+    }
+}
+
+/// Apply a float negation with the given width.
+fn float_neg_value(width: u8, value: f64) -> Option<f64> {
+    if width == 32 {
+        Some((-(value as f32)) as f64)
+    } else if width == 64 {
+        Some(-value)
+    } else {
+        None
+    }
+}
+
+/// Build finite bounds from candidate float values.
+fn float_bounds_from_candidates(candidates: &[f64]) -> Option<FloatBounds> {
+    let mut iter = candidates.iter().copied().filter(|value| !value.is_nan());
+    let first = iter.next()?;
+    let mut min = first;
+    let mut max = first;
+
+    for value in iter {
+        if value < min {
+            min = value;
+        }
+        if value > max {
+            max = value;
+        }
+    }
+
+    Some(FloatBounds { min, max })
+}
+
+/// Check if a float range includes zero.
+fn float_bounds_contains_zero(bounds: &FloatBounds) -> bool {
+    bounds.min <= 0.0 && bounds.max >= 0.0
+}
+
+/// Check if a float range includes positive infinity.
+fn float_bounds_has_pos_inf(bounds: &FloatBounds) -> bool {
+    bounds.max.is_infinite() && bounds.max.is_sign_positive()
+}
+
+/// Check if a float range includes negative infinity.
+fn float_bounds_has_neg_inf(bounds: &FloatBounds) -> bool {
+    bounds.min.is_infinite() && bounds.min.is_sign_negative()
+}
+
+/// Compute a range for float addition.
+fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_bounds, width, left_nan) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan) = float_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width {
+        return None;
+    }
+
+    let mut can_be_nan = left_nan || right_nan;
+    let bounds = match (left_bounds, right_bounds) {
+        (Some(left), Some(right)) => {
+            if (float_bounds_has_pos_inf(&left) && float_bounds_has_neg_inf(&right))
+                || (float_bounds_has_neg_inf(&left) && float_bounds_has_pos_inf(&right))
+            {
+                can_be_nan = true;
+            }
+
+            let candidates = [
+                float_add_value(width, left.min, right.min)?,
+                float_add_value(width, left.min, right.max)?,
+                float_add_value(width, left.max, right.min)?,
+                float_add_value(width, left.max, right.max)?,
+            ];
+
+            let bounds = float_bounds_from_candidates(&candidates);
+            if bounds.is_none() {
+                can_be_nan = true;
+            }
+            bounds
+        }
+        _ => {
+            can_be_nan = true;
+            None
+        }
+    };
+
+    Some(ValueRange::Float {
+        bounds,
+        width,
+        can_be_nan,
+    })
+}
+
+/// Compute a range for float subtraction.
+fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_bounds, width, left_nan) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan) = float_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width {
+        return None;
+    }
+
+    let mut can_be_nan = left_nan || right_nan;
+    let bounds = match (left_bounds, right_bounds) {
+        (Some(left), Some(right)) => {
+            if (float_bounds_has_pos_inf(&left) && float_bounds_has_pos_inf(&right))
+                || (float_bounds_has_neg_inf(&left) && float_bounds_has_neg_inf(&right))
+            {
+                can_be_nan = true;
+            }
+
+            let candidates = [
+                float_sub_value(width, left.min, right.min)?,
+                float_sub_value(width, left.min, right.max)?,
+                float_sub_value(width, left.max, right.min)?,
+                float_sub_value(width, left.max, right.max)?,
+            ];
+
+            let bounds = float_bounds_from_candidates(&candidates);
+            if bounds.is_none() {
+                can_be_nan = true;
+            }
+            bounds
+        }
+        _ => {
+            can_be_nan = true;
+            None
+        }
+    };
+
+    Some(ValueRange::Float {
+        bounds,
+        width,
+        can_be_nan,
+    })
+}
+
+/// Compute a range for float multiplication.
+fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_bounds, width, left_nan) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan) = float_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width {
+        return None;
+    }
+
+    let mut can_be_nan = left_nan || right_nan;
+    let bounds = match (left_bounds, right_bounds) {
+        (Some(left), Some(right)) => {
+            let left_has_inf = float_bounds_has_pos_inf(&left) || float_bounds_has_neg_inf(&left);
+            let right_has_inf =
+                float_bounds_has_pos_inf(&right) || float_bounds_has_neg_inf(&right);
+
+            if (left_has_inf && float_bounds_contains_zero(&right))
+                || (right_has_inf && float_bounds_contains_zero(&left))
+            {
+                can_be_nan = true;
+            }
+
+            let candidates = [
+                float_mul_value(width, left.min, right.min)?,
+                float_mul_value(width, left.min, right.max)?,
+                float_mul_value(width, left.max, right.min)?,
+                float_mul_value(width, left.max, right.max)?,
+            ];
+
+            let bounds = float_bounds_from_candidates(&candidates);
+            if bounds.is_none() {
+                can_be_nan = true;
+            }
+            bounds
+        }
+        _ => {
+            can_be_nan = true;
+            None
+        }
+    };
+
+    Some(ValueRange::Float {
+        bounds,
+        width,
+        can_be_nan,
+    })
+}
+
+/// Compute a range for float division.
+fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_bounds, width, left_nan) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan) = float_range_fields(right)?;
+
+    // ensure operand types match
+    if width != right_width {
+        return None;
+    }
+
+    if let Some(right_bounds) = right_bounds
+        && float_bounds_contains_zero(&right_bounds)
+    {
+        return float_full_range(width);
+    }
+
+    let mut can_be_nan = left_nan || right_nan;
+    let bounds = match (left_bounds, right_bounds) {
+        (Some(left), Some(right)) => {
+            let left_has_inf = float_bounds_has_pos_inf(&left) || float_bounds_has_neg_inf(&left);
+            let right_has_inf =
+                float_bounds_has_pos_inf(&right) || float_bounds_has_neg_inf(&right);
+
+            if left_has_inf && right_has_inf {
+                can_be_nan = true;
+            }
+
+            let candidates = [
+                float_div_value(width, left.min, right.min)?,
+                float_div_value(width, left.min, right.max)?,
+                float_div_value(width, left.max, right.min)?,
+                float_div_value(width, left.max, right.max)?,
+            ];
+
+            let bounds = float_bounds_from_candidates(&candidates);
+            if bounds.is_none() {
+                can_be_nan = true;
+            }
+            bounds
+        }
+        _ => {
+            can_be_nan = true;
+            None
+        }
+    };
+
+    Some(ValueRange::Float {
+        bounds,
+        width,
+        can_be_nan,
+    })
+}
+
+/// Compute a range for float negation.
+fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
+    // extract operand range
+    let (bounds, width, can_be_nan) = float_range_fields(range)?;
+
+    let bounds = match bounds {
+        Some(bounds) => Some(FloatBounds {
+            min: float_neg_value(width, bounds.max)?,
+            max: float_neg_value(width, bounds.min)?,
+        }),
+        None => None,
+    };
+
+    Some(ValueRange::Float {
+        bounds,
+        width,
+        can_be_nan,
+    })
+}
+
+/// Compute a float range for cast operations between floats.
+fn float_range_cast(argument: &ValueRange, to_width: u8) -> Option<ValueRange> {
+    let (bounds, _width, can_be_nan) = float_range_fields(argument)?;
+
+    if !float_width_supported(to_width) {
+        return None;
+    }
+
+    let bounds = match bounds {
+        Some(bounds) => Some(FloatBounds {
+            min: float_cast_value(to_width, bounds.min)?,
+            max: float_cast_value(to_width, bounds.max)?,
+        }),
+        None => None,
+    };
+
+    Some(ValueRange::Float {
+        bounds,
+        width: to_width,
+        can_be_nan,
+    })
+}
+
+/// Convert an integer range to a float range.
+fn float_range_from_integer(
+    argument: &ValueRange,
+    to_width: u8,
+    operator: mir::CastOperator,
+) -> Option<ValueRange> {
+    let (min, max, _width, is_signed) = integer_range_fields(argument)?;
+    let expect_signed = match operator {
+        mir::CastOperator::SignedIntToFloat => true,
+        mir::CastOperator::UnsignedIntToFloat => false,
+        _ => return None,
+    };
+
+    if is_signed != expect_signed || !float_width_supported(to_width) {
+        return None;
+    }
+
+    let mut min_value = float_from_integer(to_width, min)?;
+    let mut max_value = float_from_integer(to_width, max)?;
+
+    if min_value > max_value {
+        std::mem::swap(&mut min_value, &mut max_value);
+    }
+
+    Some(ValueRange::Float {
+        bounds: Some(FloatBounds {
+            min: min_value,
+            max: max_value,
+        }),
+        width: to_width,
+        can_be_nan: false,
+    })
+}
+
+/// Convert a float range to an integer range.
+fn integer_range_from_float(
+    argument: &ValueRange,
+    to_width: u8,
+    to_signed: bool,
+    operator: mir::CastOperator,
+) -> Option<ValueRange> {
+    let (bounds, _width, can_be_nan) = float_range_fields(argument)?;
+    let expect_signed = match operator {
+        mir::CastOperator::FloatToSignedInt => true,
+        mir::CastOperator::FloatToUnsignedInt => false,
+        _ => return None,
+    };
+
+    if to_signed != expect_signed {
+        return None;
+    }
+
+    let (min_bound, max_bound) = integer_bounds(to_width, to_signed)?;
+
+    let mut min_value;
+    let mut max_value;
+
+    match bounds {
+        Some(bounds) => {
+            min_value = float_to_int_saturating(bounds.min, min_bound, max_bound);
+            max_value = float_to_int_saturating(bounds.max, min_bound, max_bound);
+
+            if min_value > max_value {
+                std::mem::swap(&mut min_value, &mut max_value);
+            }
+        }
+        None => {
+            if !can_be_nan {
+                return None;
+            }
+
+            min_value = 0;
+            max_value = 0;
+        }
+    }
+
+    if can_be_nan {
+        min_value = min_value.min(0);
+        max_value = max_value.max(0);
+    }
+
+    Some(ValueRange::Integer {
+        min: min_value,
+        max: max_value,
+        width: to_width,
+        is_signed: to_signed,
+    })
+}
+
+/// Convert a float to an integer using saturating cast semantics.
+fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
+    if value.is_nan() {
+        return 0;
+    }
+
+    if value.is_infinite() {
+        if value.is_sign_negative() {
+            return min_bound;
+        }
+        return max_bound;
+    }
+
+    let truncated = value.trunc();
+    if truncated < min_bound as f64 {
+        min_bound
+    } else if truncated > max_bound as f64 {
+        max_bound
+    } else {
+        truncated as i128
+    }
+}
+
+/// Evaluate comparison ranges for floats and return constant booleans when possible.
+fn range_for_float_comparison(
+    operator: mir::BinaryOperator,
+    left: &ValueRange,
+    right: &ValueRange,
+) -> Option<ValueRange> {
+    let (left_bounds, width, left_nan) = float_range_fields(left)?;
+    let (right_bounds, right_width, right_nan) = float_range_fields(right)?;
+
+    if width != right_width {
+        return None;
+    }
+
+    let can_be_nan = left_nan || right_nan;
+    let (left_bounds, right_bounds) = match (left_bounds, right_bounds) {
+        (Some(left_bounds), Some(right_bounds)) => (left_bounds, right_bounds),
+        _ => {
+            return Some(ValueRange::Boolean {
+                can_be_true: false,
+                can_be_false: true,
+            });
+        }
+    };
+
+    let mut is_always_true = false;
+    let mut is_always_false = false;
+
+    match operator {
+        mir::BinaryOperator::FloatEqual => {
+            if left_bounds.max < right_bounds.min || right_bounds.max < left_bounds.min {
+                is_always_false = true;
+            } else if left_bounds.min == left_bounds.max
+                && left_bounds.min == right_bounds.min
+                && right_bounds.min == right_bounds.max
+                && !can_be_nan
+            {
+                is_always_true = true;
+            }
+        }
+        mir::BinaryOperator::FloatNotEqual => {
+            if left_bounds.min == left_bounds.max
+                && left_bounds.min == right_bounds.min
+                && right_bounds.min == right_bounds.max
+            {
+                is_always_false = true;
+            } else if (left_bounds.max < right_bounds.min || right_bounds.max < left_bounds.min)
+                && !can_be_nan
+            {
+                is_always_true = true;
+            }
+        }
+        mir::BinaryOperator::FloatLessThan => {
+            if left_bounds.max < right_bounds.min && !can_be_nan {
+                is_always_true = true;
+            } else if left_bounds.min >= right_bounds.max {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::FloatLessEqual => {
+            if left_bounds.max <= right_bounds.min && !can_be_nan {
+                is_always_true = true;
+            } else if left_bounds.min > right_bounds.max {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::FloatGreaterThan => {
+            if left_bounds.min > right_bounds.max && !can_be_nan {
+                is_always_true = true;
+            } else if left_bounds.max <= right_bounds.min {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::FloatGreaterEqual => {
+            if left_bounds.min >= right_bounds.max && !can_be_nan {
+                is_always_true = true;
+            } else if left_bounds.max < right_bounds.min {
+                is_always_false = true;
+            }
+        }
+        _ => return None,
+    }
+
+    if is_always_true {
+        return Some(ValueRange::Boolean {
+            can_be_true: true,
+            can_be_false: false,
+        });
+    }
+
+    if is_always_false {
+        return Some(ValueRange::Boolean {
+            can_be_true: false,
+            can_be_false: true,
+        });
+    }
+
+    None
+}
+
+/// Evaluate comparison ranges and return constant booleans when possible.
+fn range_for_comparison(
+    operator: mir::BinaryOperator,
+    left: &ValueRange,
+    right: &ValueRange,
+) -> Option<ValueRange> {
+    // extract operand ranges
+    let (left_min, left_max, width, is_signed) = integer_range_fields(left)?;
+    let (right_min, right_max, right_width, right_signed) = integer_range_fields(right)?;
+
+    // require matching integer types
+    if width != right_width || is_signed != right_signed {
+        return None;
+    }
+
+    // compute comparison guarantees
+    let mut is_always_true = false;
+    let mut is_always_false = false;
+
+    match operator {
+        mir::BinaryOperator::Equal => {
+            if left_max < right_min || right_max < left_min {
+                is_always_false = true;
+            } else if left_min == left_max && left_min == right_min && right_min == right_max {
+                is_always_true = true;
+            }
+        }
+        mir::BinaryOperator::NotEqual => {
+            if left_max < right_min || right_max < left_min {
+                is_always_true = true;
+            } else if left_min == left_max && left_min == right_min && right_min == right_max {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+            if left_max < right_min {
+                is_always_true = true;
+            } else if left_min >= right_max {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+            if left_max <= right_min {
+                is_always_true = true;
+            } else if left_min > right_max {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+            if left_min > right_max {
+                is_always_true = true;
+            } else if left_max <= right_min {
+                is_always_false = true;
+            }
+        }
+        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+            if left_min >= right_max {
+                is_always_true = true;
+            } else if left_max < right_min {
+                is_always_false = true;
+            }
+        }
+        _ => return None,
+    }
+
+    // return a constant boolean when the comparison is decided
+    if is_always_true {
+        return Some(ValueRange::Boolean {
+            can_be_true: true,
+            can_be_false: false,
+        });
+    }
+
+    // return a constant boolean when the comparison is decided
+    if is_always_false {
+        return Some(ValueRange::Boolean {
+            can_be_true: false,
+            can_be_false: true,
+        });
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    /// Constants appear as exact ranges at block exit.
+    #[test]
+    fn test_range_from_constant() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 5i32
+    v2 = iadd v1, v0
+    return v2
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+        let exit_ranges = ranges.exit(block0);
+        let constant_range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            constant_range,
+            &ValueRange::Integer {
+                min: 5,
+                max: 5,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Block parameters merge to a union of incoming ranges.
+    #[test]
+    fn test_range_param_union() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1i32
+    jump block3(v1)
+block2:
+    v2 = iconst 3i32
+    jump block3(v2)
+block3(v3: i32):
+    return v3
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let merge_block = function.blocks[3];
+        let merge = program.tree.get(merge_block);
+        let param_value = merge.parameters[0].value;
+
+        let entry_ranges = ranges.entry(merge_block);
+        let param_range = entry_ranges.get(param_value).unwrap();
+
+        assert_eq!(
+            param_range,
+            &ValueRange::Integer {
+                min: 1,
+                max: 3,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Unknown inputs prevent ranges from being inferred.
+    #[test]
+    fn test_range_param_unknown() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    branch v0, block1, block2
+block1:
+    v2 = iconst 1i32
+    jump block3(v2)
+block2:
+    jump block3(v1)
+block3(v3: i32):
+    return v3
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let merge_block = function.blocks[3];
+        let merge = program.tree.get(merge_block);
+        let param_value = merge.parameters[0].value;
+
+        let entry_ranges = ranges.entry(merge_block);
+        assert!(entry_ranges.get(param_value).is_none());
+    }
+
+    /// Arithmetic ranges are propagated through instructions.
+    #[test]
+    fn test_range_arithmetic_add() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 2i32
+    jump block3(v1)
+block2:
+    v2 = iconst 4i32
+    jump block3(v2)
+block3(v3: i32):
+    v4 = iconst 1i32
+    v5 = iadd v3, v4
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: 3,
+                max: 5,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Comparisons that are always true become constant ranges.
+    #[test]
+    fn test_range_comparison_constant() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> bool {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1i32
+    jump block3(v1)
+block2:
+    v2 = iconst 3i32
+    jump block3(v2)
+block3(v3: i32):
+    v4 = iconst 10i32
+    v5 = icmp_slt v3, v4
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Boolean {
+                can_be_true: true,
+                can_be_false: false
+            }
+        );
+    }
+
+    /// Float constants appear as exact ranges at block exit.
+    #[test]
+    fn test_range_float_constant() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 1.5f32
+    return v0
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[0];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+        let exit_ranges = ranges.exit(block0);
+        let constant_range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            constant_range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds { min: 1.5, max: 1.5 }),
+                width: 32,
+                can_be_nan: false
+            }
+        );
+    }
+
+    /// Float arithmetic ranges are propagated through instructions.
+    #[test]
+    fn test_range_float_arithmetic_add() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1.0f32
+    jump block3(v1)
+block2:
+    v2 = iconst 3.0f32
+    jump block3(v2)
+block3(v3: f32):
+    v4 = iconst 2.0f32
+    v5 = fadd v3, v4
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds { min: 3.0, max: 5.0 }),
+                width: 32,
+                can_be_nan: false
+            }
+        );
+    }
+
+    /// Float comparisons that are always true become constant ranges.
+    #[test]
+    fn test_range_float_comparison_constant() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> bool {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1.0f32
+    jump block3(v1)
+block2:
+    v2 = iconst 2.0f32
+    jump block3(v2)
+block3(v3: f32):
+    v4 = iconst 5.0f32
+    v5 = fcmp_lt v3, v4
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Boolean {
+                can_be_true: true,
+                can_be_false: false
+            }
+        );
+    }
+
+    /// Float division by a range that includes zero yields full bounds.
+    #[test]
+    fn test_range_float_division_by_zero() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> f32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1 = iconst 0.0f32
+    jump block3(v1)
+block2:
+    v2 = iconst 1.0f32
+    jump block3(v2)
+block3(v3: f32):
+    v4 = iconst 1.0f32
+    v5 = fdiv v4, v3
+    return v5
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block3 = function.blocks[3];
+        let block = program.tree.get(block3);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds {
+                    min: f64::NEG_INFINITY,
+                    max: f64::INFINITY
+                }),
+                width: 32,
+                can_be_nan: true
+            }
+        );
+    }
+
+    /// Float to signed int casts clamp and truncate the range.
+    #[test]
+    fn test_range_float_to_int_cast() {
+        let program = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3.9f32
+    v1 = fcvt_to_sint v0 -> i32
+    return v1
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: 3,
+                max: 3,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Signed int to float casts preserve the range.
+    #[test]
+    fn test_range_int_to_float_cast() {
+        let program = TestProgram::new(
+            r#"function @test() -> f32 {
+block0:
+    v0 = iconst 4i32
+    v1 = scvt_to_float v0 -> f32
+    return v1
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+        let ranges = context
+            .analyses
+            .get::<RangeAnalysis>(function, &program.tree, &context);
+
+        let block0 = function.blocks[0];
+        let block = program.tree.get(block0);
+        let instruction_id = block.instructions[1];
+        let instruction = program.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Float {
+                bounds: Some(FloatBounds { min: 4.0, max: 4.0 }),
+                width: 32,
+                can_be_nan: false
+            }
+        );
+    }
+}
