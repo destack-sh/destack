@@ -389,16 +389,22 @@ function trunc(x: float64): int32 {
 }
 ```
 
-### Resolve operators to calls or builtin ops
+### Reify resolutions
 
-Operator reify uses Analyze resolutions stored in TypeTable.
-The Resolution enum determines how to transform each operator expression:
+Reify uses Analyze resolutions stored in TypeTable to make symbol dispatch explicit.
+Resolutions apply to all symbol lookups: operators, method calls, member access, and index acces:
+- `Resolution::Builtin` - keep as builtin (primitives, no symbol needed)
+- `Resolution::Static` - single target known at compile time
+- `Resolution::Dynamic` - union type dispatch, transform to runtime `is` type checks with static branches
 
-- `Resolution::Builtin` - Keep as builtin operator (primitives, no symbol needed)
-- `Resolution::Static` - Single target known at compile time, transform to method call
-- `Resolution::Dynamic` - Union type dispatch, transform to `is` type checks with branches
+After reify, only `Builtin` and `Static` resolutions remain.
+Lower and codegen never see `Dynamic` resolutions.
 
-#### Static resolution (single target)
+#### Operators
+
+Operators with resolutions are transformed to method calls.
+
+**Static resolution:**
 
 ```ds
 // source
@@ -418,18 +424,18 @@ function sum(a: Vec2, b: Vec2): Vec2 {
 ```ds
 // after reify
 function sum(a: Vec2, b: Vec2): Vec2 {
-    a.add(b)
+    a.add(b)  // Resolution::Static { target: Vec2.add }
 }
 ```
 
-#### Dynamic resolution (union dispatch)
+**Dynamic resolution:**
 
 When the receiver is a union type with different implementations, we insert `is` type checks:
 
 ```ds
 // source
 function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
-    a + b
+    a + b  // Resolution::Dynamic { candidates: [Vec2.add, Vec3.add] }
 }
 ```
 
@@ -437,18 +443,163 @@ function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
 // after reify
 function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
     if (a is Vec2) {
-        a.add(b)  // Vec2.add
+        a.add(b)  // Resolution::Static { target: Vec2.add }
     } else {
-        a.add(b)  // Vec3.add
+        a.add(b)  // Resolution::Static { target: Vec3.add }
     }
 }
 ```
 
-#### Special operator mappings
+**Special operator mappings:**
 
 - `NotEqual` → `!a.equal(b)` (wrap in unary not)
 - `<`, `<=`, `>`, `>=` → `a.compare(b)` and compare result to `Ordering` variants
 - Unary operators: `Negate` → `a.negate()`, `Plus` → `a.plus()`
+
+#### Method calls
+
+Method calls on union types with different target symbols are split into type checks.
+
+**Static resolution:**
+
+```ds
+// source
+struct Cat { name: string }
+extension for Cat {
+    speak(): string { "meow" }
+}
+
+function greet(c: Cat): string {
+    c.speak()  // Resolution::Static { target: Cat.speak }
+}
+```
+
+```ds
+// after reify (unchanged, already static)
+function greet(c: Cat): string {
+    c.speak()  // Resolution::Static { target: Cat.speak }
+}
+```
+
+**Dynamic resolution:**
+
+```ds
+// source
+struct Cat { name: string }
+struct Dog { name: string }
+
+extension for Cat {
+    speak(): string { "meow" }
+}
+extension for Dog {
+    speak(): string { "woof" }
+}
+
+function greet(pet: Cat | Dog): string {
+    pet.speak()  // Resolution::Dynamic { candidates: [Cat.speak, Dog.speak] }
+}
+```
+
+```ds
+// after reify
+function greet(pet: Cat | Dog): string {
+    if (pet is Cat) {
+        pet.speak()  // Resolution::Static { target: Cat.speak }
+    } else {
+        pet.speak()  // Resolution::Static { target: Dog.speak }
+    }
+}
+```
+
+#### Member access
+
+Field access on union types where fields have different offsets or types.
+
+**Static resolution:**
+
+```ds
+// source
+struct User { name: string, age: int32 }
+
+function getName(u: User): string {
+    u.name  // Resolution::Static { target: User.name }
+}
+```
+
+```ds
+// after reify (unchanged, already static)
+function getName(u: User): string {
+    u.name  // Resolution::Static { target: User.name }
+}
+```
+
+**Dynamic resolution:**
+
+```ds
+// source
+struct User { name: string, role: string }
+struct Admin { name: string, level: int32 }
+
+function getName(person: User | Admin): string {
+    person.name  // Resolution::Dynamic { candidates: [User.name, Admin.name] }
+}
+```
+
+```ds
+// after reify
+function getName(person: User | Admin): string {
+    if (person is User) {
+        person.name  // Resolution::Static { target: User.name }
+    } else {
+        person.name  // Resolution::Static { target: Admin.name }
+    }
+}
+```
+
+#### Index access
+
+Index operations on union types with different `Index` implementations.
+
+**Static resolution:**
+
+```ds
+// source
+function first(arr: int32[]): int32 {
+    arr[0]  // Resolution::Static { target: Array.index }
+}
+```
+
+```ds
+// after reify (unchanged, already static)
+function first(arr: int32[]): int32 {
+    arr[0]  // Resolution::Static { target: Array.index }
+}
+```
+
+**Dynamic resolution:**
+
+```ds
+// source
+struct Vec2 { x: int32, y: int32 }
+extension for Vec2 implements Index<int32, int32> {
+    index(i: int32): int32 { if (i == 0) this.x else this.y }
+}
+
+function getFirst(v: int32[] | Vec2): int32 {
+    v[0]  // Resolution::Dynamic { candidates: [Array.index, Vec2.index] }
+}
+```
+
+```ds
+// after reify
+function getFirst(v: int32[] | Vec2): int32 {
+    if (v is int32[]) {
+        v[0]  // Resolution::Static { target: Array.index }
+    } else {
+        v[0]  // Resolution::Static { target: Vec2.index }
+    }
+}
+```
 
 ### Reify nominal constructor calls into tagged expressions
 
