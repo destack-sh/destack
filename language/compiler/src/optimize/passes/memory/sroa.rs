@@ -456,6 +456,22 @@ fn substitute_in_instruction(
                 *argument = new;
             }
         }
+        mir::Instruction::Select {
+            condition,
+            then_value,
+            else_value,
+            ..
+        } => {
+            if let Some(&new) = substitutions.get(condition) {
+                *condition = new;
+            }
+            if let Some(&new) = substitutions.get(then_value) {
+                *then_value = new;
+            }
+            if let Some(&new) = substitutions.get(else_value) {
+                *else_value = new;
+            }
+        }
         mir::Instruction::Load { pointer, .. } => {
             if let Some(&new) = substitutions.get(pointer) {
                 *pointer = new;

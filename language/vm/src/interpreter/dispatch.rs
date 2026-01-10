@@ -1369,6 +1369,38 @@ pub(super) fn handle_cast(
     next!(state, block, pc)
 }
 
+/// Handle select operation.
+pub(super) fn handle_select(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Select {
+        dest,
+        condition,
+        then_value,
+        else_value,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load condition and select result
+    let cond = state.get(*condition).as_bool().unwrap_or(false);
+    let result = if cond {
+        state.get(*then_value)
+    } else {
+        state.get(*else_value)
+    };
+
+    // store result
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle function call (returns to trampoline).
 pub(super) fn handle_call(
     _state: &mut ThreadedState,
@@ -3987,7 +4019,7 @@ pub(super) fn handle_stack_alloc(
         unreachable!()
     };
 
-    // NOTE #Incomplete: stack allocation requires proper layout sizing
+    // NOTE #Broken: stack allocation requires proper layout sizing
     let frame_index = state.frame_index;
     let slot = if *slot_count == UNKNOWN_SLOT_COUNT {
         state.current_frame_mut().allocate_stack_cell()

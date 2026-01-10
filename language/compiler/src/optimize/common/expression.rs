@@ -35,6 +35,12 @@ pub enum ExpressionKey {
         argument: mir::Value,
         to_type: TypeKey,
     },
+    /// Conditional select (pure, can be CSE'd).
+    Select {
+        condition: mir::Value,
+        then_value: mir::Value,
+        else_value: mir::Value,
+    },
     /// Field access from aggregate.
     FieldGet { aggregate: mir::Value, index: u32 },
     /// Element access from array.
@@ -102,6 +108,18 @@ pub fn expression_key_from_instruction(
                 to_type: type_key,
             })
         }
+
+        // select (pure, no side effects)
+        mir::Instruction::Select {
+            condition,
+            then_value,
+            else_value,
+            ..
+        } => Some(ExpressionKey::Select {
+            condition: *condition,
+            then_value: *then_value,
+            else_value: *else_value,
+        }),
 
         // field access (pure, no side effects)
         mir::Instruction::FieldGet {
@@ -220,6 +238,21 @@ pub fn expression_key_substitute(
                 operator,
                 argument,
                 to_type,
+            }
+        }
+
+        ExpressionKey::Select {
+            condition,
+            then_value,
+            else_value,
+        } => {
+            let condition = *substitutions.get(&condition).unwrap_or(&condition);
+            let then_value = *substitutions.get(&then_value).unwrap_or(&then_value);
+            let else_value = *substitutions.get(&else_value).unwrap_or(&else_value);
+            ExpressionKey::Select {
+                condition,
+                then_value,
+                else_value,
             }
         }
 

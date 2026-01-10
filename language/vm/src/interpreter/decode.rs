@@ -1147,6 +1147,21 @@ fn thread_instruction(
             },
         },
 
+        mir::Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_select,
+            data: ThreadedInstructionData::Select {
+                dest: *destination,
+                condition: *condition,
+                then_value: *then_value,
+                else_value: *else_value,
+            },
+        },
+
         mir::Instruction::Call {
             destination,
             function,
@@ -1627,6 +1642,7 @@ fn infer_instruction_kind(
         }
         mir::Instruction::Unary { argument, .. } => value_kinds.get(*argument),
         mir::Instruction::Cast { to_type, .. } => Some(kind_from_type(tree, *to_type)),
+        mir::Instruction::Select { then_value, .. } => value_kinds.get(*then_value),
         mir::Instruction::Call {
             destination,
             function,

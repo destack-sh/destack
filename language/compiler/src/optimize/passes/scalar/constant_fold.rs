@@ -140,6 +140,38 @@ impl FunctionPass for ConstantFold {
                         }
                     }
 
+                    mir::Instruction::Select {
+                        destination,
+                        condition,
+                        then_value,
+                        else_value,
+                    } => {
+                        // fold select with constant condition
+                        if let Some(mir::Constant::Boolean { value: cond_val }) =
+                            block_constants.get(*condition)
+                        {
+                            let selected = if *cond_val { *then_value } else { *else_value };
+
+                            // if selected value is constant, fold to constant
+                            if let Some(result) = block_constants.get(selected) {
+                                let dest = *destination;
+                                let new_instruction = mir::Instruction::Const {
+                                    destination: dest,
+                                    value: result.clone(),
+                                };
+                                tree.replace(instruction_id, new_instruction);
+                                block_constants.insert(dest, result.clone());
+                                changed = true;
+                            } else {
+                                // condition is constant but selected value isn't
+                                // we could replace with a copy, but let copy_propagate handle it
+                                block_constants.remove(*destination);
+                            }
+                        } else {
+                            block_constants.remove(*destination);
+                        }
+                    }
+
                     _ => {
                         // clear destinations for unknown instructions
                         if let Some(dest) = destination {
@@ -567,5 +599,71 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_output(expected);
+    }
+
+    /// Select with constant true condition folds to then_value.
+    #[test]
+    fn test_fold_select_true_condition() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst true
+    v1 = iconst 42i32
+    v2 = iconst 0i32
+    v3 = select v0, v1, v2
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst true
+    v1 = iconst 42i32
+    v2 = iconst 0i32
+    v3 = iconst 42i32
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Select with constant false condition folds to else_value.
+    #[test]
+    fn test_fold_select_false_condition() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst false
+    v1 = iconst 42i32
+    v2 = iconst 0i32
+    v3 = select v0, v1, v2
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst false
+    v1 = iconst 42i32
+    v2 = iconst 0i32
+    v3 = iconst 0i32
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Select with non-constant condition is preserved.
+    #[test]
+    fn test_preserve_select_non_constant_condition() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 42i32
+    v2 = iconst 0i32
+    v3 = select v0, v1, v2
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_unchanged(input);
     }
 }

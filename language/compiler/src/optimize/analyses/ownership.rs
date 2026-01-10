@@ -821,6 +821,7 @@ fn process_instruction(
         Instruction::Binary { destination, .. }
         | Instruction::Unary { destination, .. }
         | Instruction::Cast { destination, .. }
+        | Instruction::Select { destination, .. }
         | Instruction::Load { destination, .. }
         | Instruction::FieldGet { destination, .. }
         | Instruction::FieldAddr { destination, .. }

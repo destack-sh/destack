@@ -369,6 +369,13 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => Some((*destination, *to_type)),
 
+            // select: result type = then_value type
+            mir::Instruction::Select {
+                destination,
+                then_value,
+                ..
+            } => type_map.get(then_value).map(|ty| (*destination, *ty)),
+
             // local_get: result type = local's type
             mir::Instruction::LocalGet { destination, local } => {
                 let local_data = self.tree.get(*local);
@@ -699,6 +706,20 @@ impl<'a> FunctionLowerer<'a> {
                 let argument_value = value_map[argument];
                 let target_type = lower_type(self.tree, *to_type, self.pointer_bytes)?;
                 let result = self.lower_cast(*operator, argument_value, target_type, builder)?;
+                value_map.insert(*destination, result);
+            }
+
+            // select: conditional value selection
+            mir::Instruction::Select {
+                destination,
+                condition,
+                then_value,
+                else_value,
+            } => {
+                let cond = value_map[condition];
+                let t_val = value_map[then_value];
+                let f_val = value_map[else_value];
+                let result = builder.ins().select(cond, t_val, f_val);
                 value_map.insert(*destination, result);
             }
 

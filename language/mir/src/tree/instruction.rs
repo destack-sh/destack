@@ -90,6 +90,23 @@ pub enum Instruction {
         to_type: LocalNodeId<Type>,
     },
 
+    // conditional selection
+    /// Select a value based on a boolean condition.
+    ///
+    /// Returns `then_value` if `condition` is true, `else_value` otherwise.
+    /// Both values must have the same type. Unlike a branch, both values are
+    /// computed before the selection (no short-circuit evaluation).
+    Select {
+        /// The SSA value to define with the selected result.
+        destination: Value,
+        /// The boolean condition (must be bool type).
+        condition: Value,
+        /// The value returned if condition is true.
+        then_value: Value,
+        /// The value returned if condition is false.
+        else_value: Value,
+    },
+
     // local variables (local.get, local.set)
     /// Load from a local variable (stack slot).
     LocalGet {
@@ -343,6 +360,7 @@ impl Instruction {
             Instruction::Binary { destination, .. } => Some(*destination),
             Instruction::Unary { destination, .. } => Some(*destination),
             Instruction::Cast { destination, .. } => Some(*destination),
+            Instruction::Select { destination, .. } => Some(*destination),
             Instruction::LocalGet { destination, .. } => Some(*destination),
             Instruction::LocalSet { .. } => None,
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
@@ -381,6 +399,12 @@ impl Instruction {
             Instruction::Binary { left, right, .. } => smallvec![*left, *right],
             Instruction::Unary { argument, .. } => smallvec![*argument],
             Instruction::Cast { argument, .. } => smallvec![*argument],
+            Instruction::Select {
+                condition,
+                then_value,
+                else_value,
+                ..
+            } => smallvec![*condition, *then_value, *else_value],
             Instruction::LocalGet { .. } => smallvec![],
             Instruction::LocalSet { value, .. } => smallvec![*value],
             Instruction::GlobalAddr { .. } => smallvec![],

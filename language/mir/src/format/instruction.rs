@@ -96,6 +96,32 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::Select {
+                destination,
+                condition,
+                then_value,
+                else_value,
+            } => {
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("select"),
+                        space(),
+                        condition,
+                        token(","),
+                        space(),
+                        then_value,
+                        token(","),
+                        space(),
+                        else_value
+                    ]
+                )
+            }
+
             Instruction::LocalGet { destination, local } => {
                 let local_index = f.context().local_index(*local);
                 write!(

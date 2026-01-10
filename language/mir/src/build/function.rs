@@ -411,6 +411,16 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::StackDrop { value: argument } => {
                     Self::replace_value_in_slot(argument, from, to);
                 }
+                Instruction::Select {
+                    condition,
+                    then_value,
+                    else_value,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(condition, from, to);
+                    Self::replace_value_in_slot(then_value, from, to);
+                    Self::replace_value_in_slot(else_value, from, to);
+                }
                 Instruction::Load { pointer, .. } => {
                     Self::replace_value_in_slot(pointer, from, to);
                 }
@@ -1112,6 +1122,23 @@ impl<'a> FunctionBuilder<'a> {
     /// Sign-extend integer to larger width.
     pub fn sext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
         self.cast(CastOperator::SignExtend, argument, to_type)
+    }
+
+    // instruction builders: selection
+
+    /// Select between two values based on a boolean condition.
+    ///
+    /// Returns `then_value` if `condition` is true, `else_value` otherwise.
+    /// Both values must have the same type.
+    pub fn select(&mut self, condition: Value, then_value: Value, else_value: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        });
+        destination
     }
 
     // instruction builders: intrinsics

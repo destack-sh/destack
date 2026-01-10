@@ -17,7 +17,8 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::Const { .. }
         | Instruction::Binary { .. }
         | Instruction::Unary { .. }
-        | Instruction::Cast { .. } => true,
+        | Instruction::Cast { .. }
+        | Instruction::Select { .. } => true,
 
         // pure aggregate operations (value semantics)
         Instruction::Struct { .. }
@@ -70,6 +71,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::Binary { .. }
         | Instruction::Unary { .. }
         | Instruction::Cast { .. }
+        | Instruction::Select { .. }
         | Instruction::Struct { .. }
         | Instruction::Tuple { .. }
         | Instruction::Array { .. }
@@ -199,6 +201,17 @@ pub fn instruction_substitute_uses(
             operator: *operator,
             argument: substitute(argument),
             to_type: *to_type,
+        },
+        mir::Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        } => mir::Instruction::Select {
+            destination: *destination,
+            condition: substitute(condition),
+            then_value: substitute(then_value),
+            else_value: substitute(else_value),
         },
         mir::Instruction::Load {
             destination,
@@ -422,6 +435,17 @@ pub fn instruction_map(
             operator: *operator,
             argument: remap(*argument),
             to_type: *to_type,
+        },
+        mir::Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        } => mir::Instruction::Select {
+            destination: remap(*destination),
+            condition: remap(*condition),
+            then_value: remap(*then_value),
+            else_value: remap(*else_value),
         },
         mir::Instruction::Load {
             destination,
