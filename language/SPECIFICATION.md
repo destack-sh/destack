@@ -598,6 +598,84 @@ Strict mode enforces exclusive `&mut` borrows and no-escape rules.
 Strict mode enables stronger optimizations like `noalias` on `&mut`.
 Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
 
+### Lifetime Annotations
+
+When a function returns `&T` or a type containing borrowed references, the compiler
+tracks which input parameters the return value borrows from. This is usually inferred
+automatically:
+
+| Input Parameters | Inference |
+|------------------|-----------|
+| Single `&T` parameter | Return borrows from it |
+| `&self` or `&this` receiver | Return borrows from receiver |
+| Multiple `&T` parameters | Return borrows from all (conservative) |
+
+When conservative inference is too restrictive, use `@lifetime` to specify exactly
+which parameters the return borrows from:
+
+```
+@lifetime("param")          // borrows from single parameter
+@lifetime("a", "b")           // may borrow from a or b
+@lifetime("static")       // borrows from static/global data only (static is a reserved name anyway)
+```
+
+**Examples:**
+
+```
+// only borrows from 'a', caller knows 'b' can be a local
+function first(a: &string, b: &string): @lifetime("a") &string {
+    return a;
+}
+
+// may borrow from either parameter
+function pick(a: &string, b: &string): @lifetime("a", "b") &string {
+    if (condition) { return a; }
+    return b;
+}
+
+// static lifetime: string literal never dies
+function constant(): @lifetime("static") &string {
+    return &"hello";
+}
+
+// struct containing borrowed reference
+struct Tokenizer { source: &string, pos: int }
+
+function makeTokenizer(source: &string): @lifetime("source") Tokenizer {
+    return Tokenizer { source, pos: 0 };
+}
+```
+
+**Verification:**
+
+The compiler verifies that the annotation is correct. Returning a value that doesn't
+actually borrow from the declared parameters is a compile error:
+
+```
+function wrong(a: &string, b: &string): @lifetime("a") &string {
+    return b;  // ERROR: return borrows from 'b', not 'a'
+}
+```
+
+**Call-site tracking:**
+
+At call sites, the compiler uses lifetime information to check safety:
+
+```
+function caller(x: &string): &string {
+    const local = "hello";
+    return first(x, &local);  // OK: first only borrows from 'x'
+}
+
+function bad(): Tokenizer {
+    const local = "hello";
+    return makeTokenizer(&local);  // ERROR: Tokenizer borrows from local
+}
+```
+
+This design provides precise borrow tracking without requiring Rust-style `<'a>`
+lifetime parameters on every function signature.
+
 ### Dynamic Parameterisation
 
 Functions and methods work exactly like in JavaScript and TypeScript.

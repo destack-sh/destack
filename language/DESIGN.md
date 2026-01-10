@@ -775,6 +775,41 @@ Strict mode enforces exclusive `&mut` borrows and no-escape rules.
 Strict mode enables stronger optimizations like `noalias` on `&mut`.
 Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
 
+### Lifetime Annotations
+
+When returning references or aggregates containing references, the compiler needs to know which input parameters the return value borrows from. This is usually inferred:
+
+- Single `&T` parameter → return borrows from it
+- `&self`/`&this` method → return borrows from receiver
+- Multiple `&T` parameters → conservative (borrows from all)
+
+When inference is too conservative, use `@lifetime` to be explicit:
+
+```
+// explicit: only borrows from 'a', not 'b'
+function first(a: &string, b: &string): @lifetime("a") &string {
+    return a;
+}
+
+// may borrow from either
+function pick(a: &string, b: &string): @lifetime("a", "b") &string {
+    if (cond) { return a; }
+    return b;
+}
+
+// static: borrows from static data only
+function constant(): @lifetime("static") &string {
+    return &"hello";
+}
+
+// struct with borrowed field
+function makeTokenizer(source: &string): @lifetime("source") Tokenizer {
+    return Tokenizer { source, pos: 0 };
+}
+```
+
+The compiler verifies annotations—returning something that doesn't borrow from the declared parameters is an error. This avoids Rust-style `<'a>` annotations while still enabling precise borrow tracking where needed.
+
 ### Project-Level Control
 
 Configure strictness in `dsconfig.json`:
