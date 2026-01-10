@@ -4,8 +4,9 @@ use std::sync::Arc;
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    SuccessorArguments, constant_from_global, constant_is_zero, constant_zero_for_type,
-    fold_binary, instruction_is_pure, terminator_arguments_for_successor_checked,
+    SuccessorArguments, constant_from_global, constant_is_one, constant_is_zero,
+    constant_zero_for_type, constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
+    terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{Analysis, AnalysisKind, OptimizationContext};
 
@@ -24,6 +25,41 @@ pub enum Scev {
     Add(Box<Scev>, Box<Scev>),
     /// Product of two expressions.
     Mul(Box<Scev>, Box<Scev>),
+    /// Signed division of two expressions.
+    SignedDivide(Box<Scev>, Box<Scev>),
+    /// Unsigned division of two expressions.
+    UnsignedDivide(Box<Scev>, Box<Scev>),
+    /// Signed remainder of two expressions.
+    SignedRemainder(Box<Scev>, Box<Scev>),
+    /// Unsigned remainder of two expressions.
+    UnsignedRemainder(Box<Scev>, Box<Scev>),
+    /// Shift left by the right operand.
+    ShiftLeft(Box<Scev>, Box<Scev>),
+    /// Arithmetic shift right by the right operand.
+    ArithmeticShiftRight(Box<Scev>, Box<Scev>),
+    /// Logical shift right by the right operand.
+    LogicalShiftRight(Box<Scev>, Box<Scev>),
+    /// Zero extend to a wider integer width.
+    ZeroExtend {
+        /// Operand being extended.
+        value: Box<Scev>,
+        /// Target width.
+        width: u16,
+    },
+    /// Sign extend to a wider integer width.
+    SignExtend {
+        /// Operand being extended.
+        value: Box<Scev>,
+        /// Target width.
+        width: u16,
+    },
+    /// Truncate to a smaller integer width.
+    Truncate {
+        /// Operand being truncated.
+        value: Box<Scev>,
+        /// Target width.
+        width: u16,
+    },
     /// Additive recurrence for a loop header.
     AddRec {
         /// Start value for the recurrence.
@@ -48,6 +84,30 @@ impl Scev {
             Scev::Mul(left, right) => {
                 left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
             }
+            Scev::SignedDivide(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::UnsignedDivide(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::SignedRemainder(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::UnsignedRemainder(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::ShiftLeft(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::ArithmeticShiftRight(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::LogicalShiftRight(left, right) => {
+                left.is_loop_invariant(loop_header) && right.is_loop_invariant(loop_header)
+            }
+            Scev::ZeroExtend { value, .. } => value.is_loop_invariant(loop_header),
+            Scev::SignExtend { value, .. } => value.is_loop_invariant(loop_header),
+            Scev::Truncate { value, .. } => value.is_loop_invariant(loop_header),
             Scev::AddRec {
                 loop_header: header,
                 ..
@@ -330,6 +390,12 @@ impl<'a> LoopScevBuilder<'a> {
             mir::Instruction::Unary {
                 operator, argument, ..
             } => self.scev_for_unary(value, *operator, *argument),
+            mir::Instruction::Cast {
+                operator,
+                argument,
+                to_type,
+                ..
+            } => self.scev_for_cast(value, *operator, *argument, *to_type),
             _ => Scev::Unknown(value),
         }
     }
@@ -359,6 +425,41 @@ impl<'a> LoopScevBuilder<'a> {
                 let right_scev = self.scev_for_value(right);
                 scev_mul(left_scev, right_scev)
             }
+            mir::BinaryOperator::SignedDivide => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_signed_divide(left_scev, right_scev)
+            }
+            mir::BinaryOperator::UnsignedDivide => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_unsigned_divide(left_scev, right_scev)
+            }
+            mir::BinaryOperator::SignedRemainder => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_signed_remainder(left_scev, right_scev)
+            }
+            mir::BinaryOperator::UnsignedRemainder => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_unsigned_remainder(left_scev, right_scev)
+            }
+            mir::BinaryOperator::ShiftLeft => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_shift_left(left_scev, right_scev)
+            }
+            mir::BinaryOperator::ArithmeticShiftRight => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_arithmetic_shift_right(left_scev, right_scev)
+            }
+            mir::BinaryOperator::LogicalShiftRight => {
+                let left_scev = self.scev_for_value(left);
+                let right_scev = self.scev_for_value(right);
+                scev_logical_shift_right(left_scev, right_scev)
+            }
             _ => Scev::Unknown(destination),
         }
     }
@@ -377,6 +478,49 @@ impl<'a> LoopScevBuilder<'a> {
             mir::UnaryOperator::Negate | mir::UnaryOperator::FloatNegate => {
                 scev_negate(argument_scev)
             }
+            _ => Scev::Unknown(destination),
+        }
+    }
+
+    /// Compute a SCEV for a cast operation.
+    fn scev_for_cast(
+        &mut self,
+        destination: mir::Value,
+        operator: mir::CastOperator,
+        argument: mir::Value,
+        to_type: mir::LocalNodeId<mir::Type>,
+    ) -> Scev {
+        // compute the operand expression
+        let argument_scev = self.scev_for_value(argument);
+
+        // fold constant casts when possible
+        if let Scev::Constant(constant) = &argument_scev
+            && let Some(result) = fold_cast(operator, constant.clone(), to_type, self.tree)
+        {
+            return Scev::Constant(result);
+        }
+
+        // read the target type
+        let target_type = self.tree.get(to_type);
+        let mir::Type::Int { width, .. } = target_type else {
+            return Scev::Unknown(destination);
+        };
+
+        let width = *width;
+
+        match operator {
+            mir::CastOperator::ZeroExtend => Scev::ZeroExtend {
+                value: Box::new(argument_scev),
+                width,
+            },
+            mir::CastOperator::SignExtend => Scev::SignExtend {
+                value: Box::new(argument_scev),
+                width,
+            },
+            mir::CastOperator::Truncate => Scev::Truncate {
+                value: Box::new(argument_scev),
+                width,
+            },
             _ => Scev::Unknown(destination),
         }
     }
@@ -466,14 +610,31 @@ impl<'a> LoopScevBuilder<'a> {
         // resolve block parameter forwarding
         let latch_arg = self.resolve_forwarded_value(latch_arg);
 
-        // unchanged parameter implies zero step
-        if latch_arg == param_value {
-            let step_zero = zero_constant_for_param(self.tree, self.lp.header, param_index)?;
-            return Some(Scev::Constant(step_zero));
+        // build a zero step for the parameter type
+        let step_zero = zero_constant_for_param(self.tree, self.lp.header, param_index)?;
+        let step_zero = Scev::Constant(step_zero);
+
+        // extract an additive step from the latch expression
+        self.step_from_expression(param_value, latch_arg, &step_zero)
+    }
+
+    /// Extract an additive step for an expression of the form param plus step.
+    fn step_from_expression(
+        &mut self,
+        param_value: mir::Value,
+        value: mir::Value,
+        step_zero: &Scev,
+    ) -> Option<Scev> {
+        // resolve forwarded block parameters
+        let value = self.resolve_forwarded_value(value);
+
+        // param itself represents a zero step
+        if value == param_value {
+            return Some(step_zero.clone());
         }
 
-        // require latch argument to be defined by a binary op
-        let definition = self.definitions.definition_for(latch_arg)?;
+        // require instruction definition
+        let definition = self.definitions.definition_for(value)?;
         let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
             return None;
         };
@@ -489,24 +650,34 @@ impl<'a> LoopScevBuilder<'a> {
             return None;
         };
 
-        // derive the step for supported linear patterns
+        // derive the step for supported additive chains
         match operator {
             mir::BinaryOperator::Add => {
-                if *left == param_value && self.is_invariant_value(*right) {
-                    Some(self.scev_for_value(*right))
-                } else if *right == param_value && self.is_invariant_value(*left) {
-                    Some(self.scev_for_value(*left))
-                } else {
-                    None
+                if self.is_invariant_value(*right)
+                    && let Some(step) = self.step_from_expression(param_value, *left, step_zero)
+                {
+                    let rhs = self.scev_for_value(*right);
+                    return Some(scev_add(step, rhs));
                 }
+
+                if self.is_invariant_value(*left)
+                    && let Some(step) = self.step_from_expression(param_value, *right, step_zero)
+                {
+                    let lhs = self.scev_for_value(*left);
+                    return Some(scev_add(step, lhs));
+                }
+
+                None
             }
             mir::BinaryOperator::Subtract => {
-                if *left == param_value && self.is_invariant_value(*right) {
-                    let step = self.scev_for_value(*right);
-                    Some(scev_negate(step))
-                } else {
-                    None
+                if self.is_invariant_value(*right)
+                    && let Some(step) = self.step_from_expression(param_value, *left, step_zero)
+                {
+                    let rhs = self.scev_for_value(*right);
+                    return Some(scev_sub(step, rhs));
                 }
+
+                None
             }
             _ => None,
         }
@@ -735,7 +906,59 @@ fn scev_add(left: Scev, right: Scev) -> Scev {
         return left;
     }
 
-    Scev::Add(Box::new(left), Box::new(right))
+    match (left, right) {
+        (
+            Scev::AddRec {
+                start,
+                step,
+                loop_header,
+            },
+            Scev::Constant(constant),
+        ) => {
+            let adjusted_start = scev_add(*start, Scev::Constant(constant));
+            Scev::AddRec {
+                start: Box::new(adjusted_start),
+                step,
+                loop_header,
+            }
+        }
+        (
+            Scev::Constant(constant),
+            Scev::AddRec {
+                start,
+                step,
+                loop_header,
+            },
+        ) => {
+            let adjusted_start = scev_add(*start, Scev::Constant(constant));
+            Scev::AddRec {
+                start: Box::new(adjusted_start),
+                step,
+                loop_header,
+            }
+        }
+        (
+            Scev::AddRec {
+                start: left_start,
+                step: left_step,
+                loop_header: left_header,
+            },
+            Scev::AddRec {
+                start: right_start,
+                step: right_step,
+                loop_header: right_header,
+            },
+        ) if left_header == right_header => {
+            let start = scev_add(*left_start, *right_start);
+            let step = scev_add(*left_step, *right_step);
+            Scev::AddRec {
+                start: Box::new(start),
+                step: Box::new(step),
+                loop_header: left_header,
+            }
+        }
+        (left, right) => Scev::Add(Box::new(left), Box::new(right)),
+    }
 }
 
 /// Build a subtractive SCEV with basic simplifications.
@@ -780,7 +1003,294 @@ fn scev_mul(left: Scev, right: Scev) -> Scev {
         return right;
     }
 
-    Scev::Mul(Box::new(left), Box::new(right))
+    // drop one terms
+    if let Scev::Constant(constant) = &left
+        && constant_is_one(Some(constant))
+    {
+        return right;
+    }
+
+    if let Scev::Constant(constant) = &right
+        && constant_is_one(Some(constant))
+    {
+        return left;
+    }
+
+    match (left, right) {
+        (
+            Scev::AddRec {
+                start,
+                step,
+                loop_header,
+            },
+            Scev::Constant(constant),
+        ) => {
+            let multiplier = Scev::Constant(constant.clone());
+            let start = scev_mul(*start, multiplier.clone());
+            let step = scev_mul(*step, multiplier);
+            Scev::AddRec {
+                start: Box::new(start),
+                step: Box::new(step),
+                loop_header,
+            }
+        }
+        (
+            Scev::Constant(constant),
+            Scev::AddRec {
+                start,
+                step,
+                loop_header,
+            },
+        ) => {
+            let multiplier = Scev::Constant(constant.clone());
+            let start = scev_mul(*start, multiplier.clone());
+            let step = scev_mul(*step, multiplier);
+            Scev::AddRec {
+                start: Box::new(start),
+                step: Box::new(step),
+                loop_header,
+            }
+        }
+        (left, right) => Scev::Mul(Box::new(left), Box::new(right)),
+    }
+}
+
+/// Build a signed division SCEV with basic simplifications.
+fn scev_signed_divide(left: Scev, right: Scev) -> Scev {
+    // fold constant division when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::SignedDivide,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // divide by one preserves the left operand
+    if let Scev::Constant(constant) = &right
+        && constant_is_one(Some(constant))
+    {
+        return left;
+    }
+
+    // zero divided by a nonzero constant stays zero
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && constant_is_zero(Some(left_const))
+        && !constant_is_zero(Some(right_const))
+    {
+        return Scev::Constant(constant_zero_like(left_const));
+    }
+
+    // divide by negative one is a negation for wrapping semantics
+    if let Scev::Constant(mir::Constant::Int {
+        value: -1,
+        is_signed: true,
+        ..
+    }) = &right
+    {
+        return scev_negate(left);
+    }
+
+    Scev::SignedDivide(Box::new(left), Box::new(right))
+}
+
+/// Build an unsigned division SCEV with basic simplifications.
+fn scev_unsigned_divide(left: Scev, right: Scev) -> Scev {
+    // fold constant division when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::UnsignedDivide,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // divide by one preserves the left operand
+    if let Scev::Constant(constant) = &right
+        && constant_is_one(Some(constant))
+    {
+        return left;
+    }
+
+    // zero divided by a nonzero constant stays zero
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && constant_is_zero(Some(left_const))
+        && !constant_is_zero(Some(right_const))
+    {
+        return Scev::Constant(constant_zero_like(left_const));
+    }
+
+    Scev::UnsignedDivide(Box::new(left), Box::new(right))
+}
+
+/// Build a signed remainder SCEV with basic simplifications.
+fn scev_signed_remainder(left: Scev, right: Scev) -> Scev {
+    // fold constant remainder when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::SignedRemainder,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // remainder by one yields zero
+    if let Scev::Constant(constant) = &right
+        && constant_is_one(Some(constant))
+    {
+        return Scev::Constant(constant_zero_like(constant));
+    }
+
+    // remainder by negative one yields zero for signed integers
+    if let Scev::Constant(constant) = &right
+        && matches!(
+            constant,
+            mir::Constant::Int {
+                value: -1,
+                is_signed: true,
+                ..
+            }
+        )
+    {
+        return Scev::Constant(constant_zero_like(constant));
+    }
+
+    // zero remainder by a nonzero constant stays zero
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && constant_is_zero(Some(left_const))
+        && !constant_is_zero(Some(right_const))
+    {
+        return Scev::Constant(constant_zero_like(left_const));
+    }
+
+    Scev::SignedRemainder(Box::new(left), Box::new(right))
+}
+
+/// Build an unsigned remainder SCEV with basic simplifications.
+fn scev_unsigned_remainder(left: Scev, right: Scev) -> Scev {
+    // fold constant remainder when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::UnsignedRemainder,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // remainder by one yields zero
+    if let Scev::Constant(constant) = &right
+        && constant_is_one(Some(constant))
+    {
+        return Scev::Constant(constant_zero_like(constant));
+    }
+
+    // zero remainder by a nonzero constant stays zero
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && constant_is_zero(Some(left_const))
+        && !constant_is_zero(Some(right_const))
+    {
+        return Scev::Constant(constant_zero_like(left_const));
+    }
+
+    Scev::UnsignedRemainder(Box::new(left), Box::new(right))
+}
+
+/// Build a shift left SCEV with basic simplifications.
+fn scev_shift_left(left: Scev, right: Scev) -> Scev {
+    // fold constant shifts when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::ShiftLeft,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // zero shifted by anything remains zero
+    if let Scev::Constant(constant) = &left
+        && constant_is_zero(Some(constant))
+    {
+        return left;
+    }
+
+    // shifting by zero preserves the left operand
+    if let Scev::Constant(constant) = &right
+        && constant_is_zero(Some(constant))
+    {
+        return left;
+    }
+
+    Scev::ShiftLeft(Box::new(left), Box::new(right))
+}
+
+/// Build an arithmetic shift right SCEV with basic simplifications.
+fn scev_arithmetic_shift_right(left: Scev, right: Scev) -> Scev {
+    // fold constant shifts when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::ArithmeticShiftRight,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // zero shifted by anything remains zero
+    if let Scev::Constant(constant) = &left
+        && constant_is_zero(Some(constant))
+    {
+        return left;
+    }
+
+    // shifting by zero preserves the left operand
+    if let Scev::Constant(constant) = &right
+        && constant_is_zero(Some(constant))
+    {
+        return left;
+    }
+
+    Scev::ArithmeticShiftRight(Box::new(left), Box::new(right))
+}
+
+/// Build a logical shift right SCEV with basic simplifications.
+fn scev_logical_shift_right(left: Scev, right: Scev) -> Scev {
+    // fold constant shifts when possible
+    if let (Scev::Constant(left_const), Scev::Constant(right_const)) = (&left, &right)
+        && let Some(result) = fold_binary(
+            mir::BinaryOperator::LogicalShiftRight,
+            left_const.clone(),
+            right_const.clone(),
+        )
+    {
+        return Scev::Constant(result);
+    }
+
+    // zero shifted by anything remains zero
+    if let Scev::Constant(constant) = &left
+        && constant_is_zero(Some(constant))
+    {
+        return left;
+    }
+
+    // shifting by zero preserves the left operand
+    if let Scev::Constant(constant) = &right
+        && constant_is_zero(Some(constant))
+    {
+        return left;
+    }
+
+    Scev::LogicalShiftRight(Box::new(left), Box::new(right))
 }
 
 /// Build a negated SCEV with basic simplifications.
@@ -823,11 +1333,22 @@ fn scev_negate(value: Scev) -> Scev {
             }
             other => Scev::Constant(other),
         },
+        Scev::AddRec {
+            start,
+            step,
+            loop_header,
+        } => {
+            let start = scev_negate(*start);
+            let step = scev_negate(*step);
+            Scev::AddRec {
+                start: Box::new(start),
+                step: Box::new(step),
+                loop_header,
+            }
+        }
         other => Scev::Neg(Box::new(other)),
     }
 }
-
-/// Check if a constant is zero.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1087,31 +1608,393 @@ block2(v9: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
-        let param_value = header_block.parameters[0].value;
-
         let block1 = program.tree.get(function.blocks[1]);
         let instruction_id = block1.instructions[1];
         let instruction = program.tree.get(instruction_id);
         let derived_value = instruction.destination().unwrap();
 
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 2,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 1,
+                width: 32,
+                is_signed: true,
+            })),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, derived_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
+    /// Additive sums of add recurrences stay linear.
+    #[test]
+    fn test_addrec_addrec_sum() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = iadd v2, v2
+    v4 = iconst 1i32
+    v5 = iadd v2, v4
+    v6 = icmp_slt v5, v0
+    branch v6, block1(v5), block2(v3)
+block2(v7: i32):
+    return v7
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let block1 = program.tree.get(function.blocks[1]);
+        let instruction = program.tree.get(block1.instructions[0]);
+        let derived_value = instruction.destination().unwrap();
+
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 0,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 2,
+                width: 32,
+                is_signed: true,
+            })),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, derived_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
+    /// Multiplying add recurrences by constants stays linear.
+    #[test]
+    fn test_addrec_mul_constant() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = iconst 2i32
+    v4 = imul v2, v3
+    v5 = iconst 1i32
+    v6 = iadd v2, v5
+    v7 = icmp_slt v6, v0
+    branch v7, block1(v6), block2(v4)
+block2(v8: i32):
+    return v8
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let block1 = program.tree.get(function.blocks[1]);
+        let instruction = program.tree.get(block1.instructions[1]);
+        let derived_value = instruction.destination().unwrap();
+
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 0,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 2,
+                width: 32,
+                is_signed: true,
+            })),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, derived_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
+    /// Nested additive chains still produce linear add recurrences.
+    #[test]
+    fn test_addrec_nested_additive_step() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = iconst 1i32
+    v4 = iadd v2, v3
+    v5 = iconst 2i32
+    v6 = iadd v4, v5
+    v7 = icmp_slt v6, v0
+    branch v7, block1(v6), block2(v6)
+block2(v8: i32):
+    return v8
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let header_block = program.tree.get(function.blocks[1]);
+        let param_value = header_block.parameters[0].value;
+
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 0,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 3,
+                width: 32,
+                is_signed: true,
+            })),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, param_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
+    /// Nested subtractive chains still produce linear add recurrences.
+    #[test]
+    fn test_addrec_nested_subtract_step() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 10i32
+    jump block1(v1)
+block1(v2: i32):
+    v3 = iconst 1i32
+    v4 = isub v2, v3
+    v5 = iconst 2i32
+    v6 = isub v4, v5
+    v7 = icmp_sgt v6, v0
+    branch v7, block1(v6), block2(v6)
+block2(v8: i32):
+    return v8
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let header_block = program.tree.get(function.blocks[1]);
+        let param_value = header_block.parameters[0].value;
+
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 10,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Constant(mir::Constant::Int {
+                value: -3,
+                width: 32,
+                is_signed: true,
+            })),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, param_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
+    /// Extended arithmetic and casts are represented in SCEV.
+    #[test]
+    fn test_scev_extended_operations() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32, v1: i32) -> i64 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    jump block1(v2)
+block1(v3: i32):
+    v4 = iconst 2i32
+    v5 = sdiv v3, v4
+    v6 = iconst 3i32
+    v7 = ishl v3, v6
+    v8 = iconst 1i32
+    v9 = srem v3, v8
+    v10 = sextend v3 -> i64
+    v11 = uextend v3 -> u64
+    v12 = icmp_slt v3, v1
+    branch v12, block1(v3), block2(v10)
+block2(v13: i64):
+    return v13
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let context = program.context();
+
+        let loops = context
+            .analyses
+            .get::<LoopAnalysis>(function, &program.tree, &context);
+        let scev = context
+            .analyses
+            .get::<ScalarEvolution>(function, &program.tree, &context);
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let header_block = program.tree.get(function.blocks[1]);
+        let param_value = header_block.parameters[0].value;
         let param_scev = scev
             .scev_for_value_in_loop(loop_index, param_value)
             .unwrap()
             .clone();
 
-        let expected = Scev::Add(
-            Box::new(param_scev),
+        let block1 = program.tree.get(function.blocks[1]);
+        let divide_value = program
+            .tree
+            .get(block1.instructions[1])
+            .destination()
+            .unwrap();
+        let shift_value = program
+            .tree
+            .get(block1.instructions[3])
+            .destination()
+            .unwrap();
+        let remainder_value = program
+            .tree
+            .get(block1.instructions[5])
+            .destination()
+            .unwrap();
+        let sext_value = program
+            .tree
+            .get(block1.instructions[6])
+            .destination()
+            .unwrap();
+        let uext_value = program
+            .tree
+            .get(block1.instructions[7])
+            .destination()
+            .unwrap();
+
+        let expected_divide = Scev::SignedDivide(
+            Box::new(param_scev.clone()),
             Box::new(Scev::Constant(mir::Constant::Int {
                 value: 2,
                 width: 32,
                 is_signed: true,
             })),
         );
+        let expected_shift = Scev::ShiftLeft(
+            Box::new(param_scev.clone()),
+            Box::new(Scev::Constant(mir::Constant::Int {
+                value: 3,
+                width: 32,
+                is_signed: true,
+            })),
+        );
+        let expected_remainder = Scev::Constant(mir::Constant::Int {
+            value: 0,
+            width: 32,
+            is_signed: true,
+        });
+        let expected_sext = Scev::SignExtend {
+            value: Box::new(param_scev.clone()),
+            width: 64,
+        };
+        let expected_uext = Scev::ZeroExtend {
+            value: Box::new(param_scev.clone()),
+            width: 64,
+        };
 
-        let actual = scev
-            .scev_for_value_in_loop(loop_index, derived_value)
+        let actual_divide = scev
+            .scev_for_value_in_loop(loop_index, divide_value)
             .unwrap();
-        assert_eq!(actual, &expected);
+        let actual_shift = scev
+            .scev_for_value_in_loop(loop_index, shift_value)
+            .unwrap();
+        let actual_remainder = scev
+            .scev_for_value_in_loop(loop_index, remainder_value)
+            .unwrap();
+        let actual_sext = scev.scev_for_value_in_loop(loop_index, sext_value).unwrap();
+        let actual_uext = scev.scev_for_value_in_loop(loop_index, uext_value).unwrap();
+
+        assert_eq!(actual_divide, &expected_divide);
+        assert_eq!(actual_shift, &expected_shift);
+        assert_eq!(actual_remainder, &expected_remainder);
+        assert_eq!(actual_sext, &expected_sext);
+        assert_eq!(actual_uext, &expected_uext);
     }
 }

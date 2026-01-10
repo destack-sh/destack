@@ -73,6 +73,8 @@ impl PostDominatorTree {
 
         // compute immediate postdominators for reachable exits
         let mut immediate_postdominators = HashMap::new();
+
+        // exitless functions skip ipdom computation to avoid vacuous postdominators
         if has_exits {
             let result = compute_immediate_dominators(&successors, &predecessors, virtual_root);
 
@@ -218,6 +220,7 @@ impl PostDominatorTree {
     /// Check if block A postdominates block B.
     ///
     /// Uses preorder numbers for O(1) queries.
+    /// In exitless functions, only identical blocks are treated as postdominators.
     pub fn postdominates(
         &self,
         a: mir::LocalNodeId<mir::Block>,
