@@ -38,6 +38,10 @@ impl TestProgram {
         let (tree, strings) = mir::parse::Parser::parse(source).expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 
+        // copy all strings from parser pool to context pool
+        // (needed for passes that look up/intern strings via context)
+        strings_pool.copy_from_immutable(&strings);
+
         Self {
             tree,
             strings,
@@ -122,7 +126,8 @@ impl TestProgram {
 
     /// Format the MIR back to text.
     pub(crate) fn format(&self) -> String {
-        mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
+        let strings = self.strings_pool.clone().into_immutable();
+        mir::format_mir(&self.tree, &strings, mir::MirFormatOptions::default())
     }
 
     /// Create an optimization context for analysis tests.

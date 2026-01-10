@@ -33,7 +33,7 @@ impl ModulePass for TailCallElim {
     fn run_on_module(
         &self,
         tree: &mut mir::NodeTree,
-        _context: &OptimizationContext<'_>,
+        context: &OptimizationContext<'_>,
     ) -> AnalysisPreservation {
         let mut changed = false;
 
@@ -55,8 +55,8 @@ impl ModulePass for TailCallElim {
             let mut function = function.clone();
 
             // phase 1: try accumulator transformation to enable more tail calls
-            // (this may modify call sites in other functions)
-            if try_accumulator_transform(&mut function, tree, function_id, entry_block) {
+            // (this may modify call sites in other functions, or create wrapper for exported)
+            if try_accumulator_transform(&mut function, tree, function_id, entry_block, context) {
                 changed = true;
             }
 
@@ -101,24 +101,19 @@ struct AccumulatorPattern {
 /// Pattern: `v1 = call @self(...); v2 = OP v1, x; return v2` (or OP x, v1)
 /// Transform: add accumulator parameter, accumulate before recursing.
 ///
-/// SAFETY: This transformation changes the function signature by adding a parameter.
-/// We only perform it for non-exported (local) functions, which guarantees all
-/// callers are within the module. We then update every call site in the module
-/// to pass the identity constant as the new accumulator argument.
+/// For local functions: modifies in place and updates all call sites.
+/// For exported functions: creates internal `@func$impl` with accumulator,
+/// rewrites original as a thin wrapper that calls impl with identity.
 fn try_accumulator_transform(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
+    context: &OptimizationContext<'_>,
 ) -> bool {
     // find all blocks with the accumulator pattern
     let patterns = find_accumulator_patterns(function, tree, current_function_id);
     if patterns.is_empty() {
-        return false;
-    }
-
-    // exported functions can be called from outside the module
-    if function.linkage.is_exported() {
         return false;
     }
 
@@ -137,16 +132,25 @@ fn try_accumulator_transform(
         return false;
     };
 
-    // find base case blocks (return without recursive call)
+    // exported functions need special handling: create impl + wrapper
+    if function.linkage.is_exported() {
+        return try_accumulator_transform_exported(
+            function,
+            tree,
+            current_function_id,
+            entry_block,
+            &patterns,
+            operator,
+            &identity,
+            context,
+        );
+    }
+
+    // local function: transform in place and update call sites
     let base_cases = find_base_case_blocks(function, tree, current_function_id, &identity);
-
-    // collect the blocks with recursive calls (these become jumps, not calls)
     let recursive_call_blocks: Vec<_> = patterns.iter().map(|p| p.block_id).collect();
-
-    // find all external call sites that need updating
     let call_sites = find_external_call_sites(current_function_id, &recursive_call_blocks, tree);
 
-    // find the next value number to use (across the whole module for call sites)
     let mut next_value = find_max_value_in_module(tree) + 1;
 
     // add accumulator parameter to entry block
@@ -190,6 +194,310 @@ fn try_accumulator_transform(
     }
 
     true
+}
+
+/// Transform an exported function using the wrapper approach.
+///
+/// Creates an internal `@func$impl` with the accumulator parameter,
+/// and rewrites the original exported function as a thin wrapper.
+#[allow(clippy::too_many_arguments)]
+fn try_accumulator_transform_exported(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    current_function_id: mir::LocalNodeId<mir::Function>,
+    entry_block: mir::LocalNodeId<mir::Block>,
+    patterns: &[AccumulatorPattern],
+    operator: BinaryOperator,
+    identity: &Constant,
+    context: &OptimizationContext<'_>,
+) -> bool {
+    let return_type = function.return_type;
+
+    // create the impl function name: "func" -> "func$impl"
+    let impl_name_str = format!("{}$impl", &*context.strings.get(function.name));
+    let impl_name = context.strings.intern(&impl_name_str);
+
+    // clone the function to create the impl version
+    let (impl_function_id, impl_entry_block, block_map) =
+        clone_function_as_impl(function, tree, impl_name);
+
+    // find base cases in the IMPL function (using mapped block IDs)
+    let impl_function = tree.get(impl_function_id).clone();
+    let impl_base_cases =
+        find_base_case_blocks(&impl_function, tree, current_function_id, identity);
+    let impl_patterns: Vec<AccumulatorPattern> = patterns
+        .iter()
+        .map(|p| AccumulatorPattern {
+            block_id: block_map[&p.block_id],
+            operator: p.operator,
+            other_operand: p.other_operand,
+            call_index: p.call_index,
+            binary_index: p.binary_index,
+            call_arguments: p.call_arguments,
+        })
+        .collect();
+
+    // update the impl patterns to call impl instead of original
+    // (the cloned call instructions still reference current_function_id)
+    for pattern in &impl_patterns {
+        update_recursive_calls_to_impl(
+            pattern.block_id,
+            current_function_id,
+            impl_function_id,
+            tree,
+        );
+    }
+
+    let mut next_value = find_max_value_in_module(tree) + 1;
+
+    // add accumulator parameter to impl entry block
+    let acc_value = mir::Value::new(next_value);
+    next_value += 1;
+
+    let impl_entry = tree.get(impl_entry_block);
+    let mut new_impl_entry = impl_entry.clone();
+    new_impl_entry.parameters.push(mir::TypedValue {
+        value: acc_value,
+        ty: return_type,
+    });
+    tree.replace(impl_entry_block, new_impl_entry);
+
+    // add to impl function parameters
+    {
+        let impl_func = tree.get_mut(impl_function_id);
+        impl_func.parameters.push(mir::TypedValue {
+            value: acc_value,
+            ty: return_type,
+        });
+    }
+
+    // transform impl function's accumulator blocks
+    for pattern in &impl_patterns {
+        transform_accumulator_block(pattern, impl_entry_block, acc_value, &mut next_value, tree);
+    }
+
+    // transform impl function's base case blocks
+    for &(block_id, is_identity) in &impl_base_cases {
+        transform_base_case_block(
+            block_id,
+            acc_value,
+            operator,
+            is_identity,
+            &mut next_value,
+            tree,
+        );
+    }
+
+    // rewrite original function as wrapper: call impl with identity
+    rewrite_as_wrapper(
+        function,
+        tree,
+        entry_block,
+        impl_function_id,
+        identity,
+        &mut next_value,
+    );
+
+    true
+}
+
+/// Clone a function to create an internal impl version.
+///
+/// Returns (impl_function_id, impl_entry_block, block_mapping).
+#[allow(clippy::type_complexity)]
+fn clone_function_as_impl(
+    original: &mir::Function,
+    tree: &mut mir::NodeTree,
+    impl_name: destack_base::StringId,
+) -> (
+    mir::LocalNodeId<mir::Function>,
+    mir::LocalNodeId<mir::Block>,
+    std::collections::HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+) {
+    use std::collections::HashMap;
+
+    let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>> =
+        HashMap::new();
+
+    // clone all blocks
+    for &old_block_id in &original.blocks {
+        // clone block first to release borrow on tree
+        let old_block = tree.get(old_block_id).clone();
+
+        // clone instructions
+        let mut new_instructions = Vec::new();
+        for &old_instr_id in &old_block.instructions {
+            let old_instr = tree.get(old_instr_id).clone();
+            let new_instr_id = tree.insert(old_instr);
+            new_instructions.push(new_instr_id);
+        }
+
+        // create new block (terminator block refs fixed up later)
+        let new_block = mir::Block {
+            parameters: old_block.parameters.clone(),
+            instructions: new_instructions,
+            terminator: old_block.terminator.clone(),
+        };
+        let new_block_id = tree.insert(new_block);
+        block_map.insert(old_block_id, new_block_id);
+    }
+
+    // fix up terminators to use new block IDs
+    for &new_block_id in block_map.values() {
+        let block = tree.get(new_block_id).clone();
+        let fixed_terminator = remap_terminator_blocks(&block.terminator, &block_map);
+        let mut updated = block;
+        updated.terminator = fixed_terminator;
+        tree.replace(new_block_id, updated);
+    }
+
+    // create impl function
+    let impl_entry = block_map[&original.entry.unwrap()];
+    let impl_blocks: Vec<_> = original.blocks.iter().map(|id| block_map[id]).collect();
+    let mut impl_function = mir::Function::new(
+        impl_name,
+        original.parameters.clone(),
+        original.return_type,
+        impl_entry,
+    );
+    impl_function.return_lifetime = original.return_lifetime.clone();
+    impl_function.linkage = mir::Linkage::Local;
+    impl_function.allocation = original.allocation;
+    impl_function.coroutine = original.coroutine;
+    impl_function.locals = original.locals.clone();
+    impl_function.blocks = impl_blocks;
+
+    // recompute next_value_id after cloning
+    impl_function.recompute_next_value_id(tree);
+
+    let impl_function_id = tree.insert(impl_function);
+
+    (impl_function_id, impl_entry, block_map)
+}
+
+/// Remap block references in a terminator.
+fn remap_terminator_blocks(
+    terminator: &mir::Terminator,
+    block_map: &std::collections::HashMap<
+        mir::LocalNodeId<mir::Block>,
+        mir::LocalNodeId<mir::Block>,
+    >,
+) -> mir::Terminator {
+    match terminator {
+        mir::Terminator::Jump { target, arguments } => mir::Terminator::Jump {
+            target: block_map.get(target).copied().unwrap_or(*target),
+            arguments: arguments.clone(),
+        },
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } => mir::Terminator::Branch {
+            condition: *condition,
+            then_target: block_map.get(then_target).copied().unwrap_or(*then_target),
+            then_arguments: then_arguments.clone(),
+            else_target: block_map.get(else_target).copied().unwrap_or(*else_target),
+            else_arguments: else_arguments.clone(),
+        },
+        mir::Terminator::Switch {
+            value,
+            default,
+            default_arguments,
+            cases,
+        } => mir::Terminator::Switch {
+            value: *value,
+            default: block_map.get(default).copied().unwrap_or(*default),
+            default_arguments: default_arguments.clone(),
+            cases: cases
+                .iter()
+                .map(|case| mir::SwitchCase {
+                    value: case.value,
+                    target: block_map.get(&case.target).copied().unwrap_or(case.target),
+                    arguments: case.arguments.clone(),
+                })
+                .collect(),
+        },
+        // return, unreachable, unwind don't reference blocks
+        other => other.clone(),
+    }
+}
+
+/// Update recursive calls in a block to call the impl function instead.
+fn update_recursive_calls_to_impl(
+    block_id: mir::LocalNodeId<mir::Block>,
+    original_function_id: mir::LocalNodeId<mir::Function>,
+    impl_function_id: mir::LocalNodeId<mir::Function>,
+    tree: &mut mir::NodeTree,
+) {
+    let block = tree.get(block_id).clone();
+
+    for &instr_id in &block.instructions {
+        let instr = tree.get(instr_id).clone();
+        if let Instruction::Call {
+            destination,
+            function,
+            arguments,
+        } = instr
+            && function == original_function_id
+        {
+            let new_instr = Instruction::Call {
+                destination,
+                function: impl_function_id,
+                arguments,
+            };
+            tree.replace(instr_id, new_instr);
+        }
+    }
+}
+
+/// Rewrite a function as a thin wrapper that calls impl with identity.
+fn rewrite_as_wrapper(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    entry_block: mir::LocalNodeId<mir::Block>,
+    impl_function_id: mir::LocalNodeId<mir::Function>,
+    identity: &Constant,
+    next_value: &mut u32,
+) {
+    // create identity constant
+    let identity_value = mir::Value::new(*next_value);
+    *next_value += 1;
+    let const_instr = Instruction::Const {
+        destination: identity_value,
+        value: identity.clone(),
+    };
+    let const_id = tree.insert(const_instr);
+
+    // build call arguments: original params + identity
+    let mut call_args: Vec<mir::Value> = function.parameters.iter().map(|p| p.value).collect();
+    call_args.push(identity_value);
+    let call_arguments = tree.add_arguments(&call_args);
+
+    // create call to impl
+    let result_value = mir::Value::new(*next_value);
+    *next_value += 1;
+    let call_instr = Instruction::Call {
+        destination: Some(result_value),
+        function: impl_function_id,
+        arguments: call_arguments,
+    };
+    let call_id = tree.insert(call_instr);
+
+    // create new entry block with just: const, call, return
+    let entry = tree.get(entry_block);
+    let new_entry = mir::Block {
+        parameters: entry.parameters.clone(),
+        instructions: vec![const_id, call_id],
+        terminator: mir::Terminator::Return {
+            value: Some(result_value),
+        },
+    };
+    tree.replace(entry_block, new_entry);
+
+    // clear other blocks from function (they're now orphaned, DCE will clean up)
+    function.blocks = vec![entry_block];
 }
 
 /// Information about a call site that needs to be updated.
@@ -542,7 +850,6 @@ fn find_base_case_blocks(
             let instr = tree.get(instr_id);
             matches!(instr, Instruction::Call { function, .. } if *function == current_function_id)
         });
-
         if has_recursive_call {
             continue;
         }
@@ -1372,6 +1679,48 @@ block0:
     v7 = iconst 1i32
     v1 = call @factorial(v0, v7)
     return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&TailCallElim);
+        program.assert_output(expected);
+    }
+
+    #[test]
+    fn test_transform_exported_with_wrapper() {
+        // exported factorial: should create impl + wrapper
+        let input = r#"export function @factorial(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 1i32
+    v2 = icmp_sle v0, v1
+    branch v2, block1, block2
+block1:
+    return v1
+block2:
+    v3 = isub v0, v1
+    v4 = call @factorial(v3)
+    v5 = imul v0, v4
+    return v5
+}"#;
+        // exported wrapper calls internal impl with identity
+        // impl has tail-recursive structure
+        let expected = r#"export function @factorial(v0: i32) -> i32 {
+block0(v0: i32):
+    v8 = iconst 1i32
+    v9 = call @factorial$impl(v0, v8)
+    return v9
+}
+function @factorial$impl(v0: i32, v6: i32) -> i32 {
+block0(v0: i32, v6: i32):
+    v1 = iconst 1i32
+    v2 = icmp_sle v0, v1
+    branch v2, block1, block2
+block1:
+    return v6
+block2:
+    v3 = isub v0, v1
+    v7 = imul v6, v0
+    jump block0(v3, v7)
 }"#;
 
         let mut program = TestProgram::new(input);

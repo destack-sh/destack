@@ -173,7 +173,7 @@ impl Analysis for LifetimeAnalysis {
         tree: &mir::NodeTree,
         _context: &OptimizationContext<'_>,
     ) -> Arc<Self> {
-        // FUGU split function, module, and program wide Analysis
+        // FUGU #Architecture: split function, module, and program wide Analysis
         // (this analysis is module-wide, not per-function)
         // we compute lifetimes for ALL functions in the tree
         Arc::new(Self::build(tree))
