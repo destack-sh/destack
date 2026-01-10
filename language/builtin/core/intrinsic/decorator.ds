@@ -157,3 +157,50 @@ export newtype taint = (string,) | ();
 /// function oldAPI() { }
 /// ```
 export newtype tag = (string,) | ();
+
+/// Lifetime annotation for borrow tracking.
+///
+/// Specifies which values a borrowed reference or containing aggregate may
+/// borrow from. Used to resolve ambiguity when conservative inference
+/// (borrow from ALL &T params) is too restrictive.
+///
+/// **On return types:**
+/// - `@lifetime("param")` - return borrows from `param`
+/// - `@lifetime("a", "b")` - return may borrow from `a` or `b`
+/// - `@lifetime("static")` - return borrows from static/global data only
+///
+/// **On function declarations (shorthand for return type):**
+/// - `@lifetime("x") function foo(): &T` is equivalent to `function foo(): @lifetime("x") &T`
+///
+/// **Inference rules (when no annotation):**
+/// - Single `&T` parameter: return borrows from it
+/// - `&self` or `&this` method: return borrows from receiver
+/// - Multiple `&T` parameters: conservative (borrows from all)
+///
+/// ```
+/// // explicit: return borrows only from 'a'
+/// function first(a: &string, b: &string): @lifetime(a) &string {
+///     return a;
+/// }
+///
+/// // explicit: return may borrow from either
+/// function pick(a: &string, b: &string): @lifetime(a, b) &string {
+///     if (cond) { return a; }
+///     return b;
+/// }
+///
+/// // static lifetime: string literal lives forever
+/// function constant(): @lifetime("static") &string {
+///     return &"hello";
+/// }
+///
+/// // struct containing borrowed reference
+/// function makeTokenizer(source: &string): @lifetime(source) Tokenizer {
+///     return Tokenizer { source, pos: 0 };
+/// }
+/// ```
+///
+/// The compiler verifies that the annotated lifetime is valid:
+/// returning a value that doesn't actually borrow from the declared
+/// parameters is a compile error.
+export newtype lifetime = string;
