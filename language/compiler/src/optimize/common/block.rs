@@ -332,47 +332,47 @@ pub fn terminator_substitute_uses(
             failure,
         } => {
             let constraint = match constraint {
-                mir::CheckConsstraint::Bounds {
+                mir::CheckConstraint::Bounds {
                     index,
                     length,
                     collection,
                     is_signed,
-                } => mir::CheckConsstraint::Bounds {
+                } => mir::CheckConstraint::Bounds {
                     index: substitute(index),
                     length: substitute(length),
                     collection: substitute(collection),
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+                mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
                     value: substitute(value),
                 },
-                mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+                mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
                     divisor: substitute(divisor),
                 },
-                mir::CheckConsstraint::ShiftRange {
+                mir::CheckConstraint::ShiftRange {
                     value,
                     bit_width,
                     is_signed,
-                } => mir::CheckConsstraint::ShiftRange {
+                } => mir::CheckConstraint::ShiftRange {
                     value: substitute(value),
                     bit_width: *bit_width,
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Narrow {
+                mir::CheckConstraint::Narrow {
                     value,
                     to_width,
                     is_signed,
-                } => mir::CheckConsstraint::Narrow {
+                } => mir::CheckConstraint::Narrow {
                     value: substitute(value),
                     to_width: *to_width,
                     is_signed: *is_signed,
                 },
-                mir::CheckConsstraint::Overflow {
+                mir::CheckConstraint::Overflow {
                     operator,
                     left,
                     right,
                     is_signed,
-                } => mir::CheckConsstraint::Overflow {
+                } => mir::CheckConstraint::Overflow {
                     operator: *operator,
                     left: substitute(left),
                     right: substitute(right),

@@ -131,7 +131,7 @@ struct RotationCandidate {
     /// True if then-branch goes to body (false means then-branch goes to exit).
     then_to_body: bool,
     /// The check kind if the header uses a check terminator.
-    check_kind: Option<mir::CheckConsstraint>,
+    check_kind: Option<mir::CheckConstraint>,
 }
 
 /// Check if a loop can be rotated and gather the necessary information.
@@ -296,51 +296,51 @@ fn rotate_loop(
                       map: &HashMap<mir::Value, mir::Value>|
      -> Vec<mir::Value> { args.iter().map(|v| remap(*v, map)).collect() };
 
-    let remap_kind = |kind: &mir::CheckConsstraint,
+    let remap_kind = |kind: &mir::CheckConstraint,
                       map: &HashMap<mir::Value, mir::Value>|
-     -> mir::CheckConsstraint {
+     -> mir::CheckConstraint {
         match kind {
-            mir::CheckConsstraint::Bounds {
+            mir::CheckConstraint::Bounds {
                 index,
                 length,
                 collection,
                 is_signed,
-            } => mir::CheckConsstraint::Bounds {
+            } => mir::CheckConstraint::Bounds {
                 index: remap(*index, map),
                 length: remap(*length, map),
                 collection: remap(*collection, map),
                 is_signed: *is_signed,
             },
-            mir::CheckConsstraint::Null { value } => mir::CheckConsstraint::Null {
+            mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
                 value: remap(*value, map),
             },
-            mir::CheckConsstraint::DivZero { divisor } => mir::CheckConsstraint::DivZero {
+            mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
                 divisor: remap(*divisor, map),
             },
-            mir::CheckConsstraint::ShiftRange {
+            mir::CheckConstraint::ShiftRange {
                 value,
                 bit_width,
                 is_signed,
-            } => mir::CheckConsstraint::ShiftRange {
+            } => mir::CheckConstraint::ShiftRange {
                 value: remap(*value, map),
                 bit_width: *bit_width,
                 is_signed: *is_signed,
             },
-            mir::CheckConsstraint::Narrow {
+            mir::CheckConstraint::Narrow {
                 value,
                 to_width,
                 is_signed,
-            } => mir::CheckConsstraint::Narrow {
+            } => mir::CheckConstraint::Narrow {
                 value: remap(*value, map),
                 to_width: *to_width,
                 is_signed: *is_signed,
             },
-            mir::CheckConsstraint::Overflow {
+            mir::CheckConstraint::Overflow {
                 operator,
                 left,
                 right,
                 is_signed,
-            } => mir::CheckConsstraint::Overflow {
+            } => mir::CheckConstraint::Overflow {
                 operator: *operator,
                 left: remap(*left, map),
                 right: remap(*right, map),

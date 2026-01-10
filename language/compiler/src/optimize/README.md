@@ -26,7 +26,7 @@ The backend handles low-level optimizations such as register allocation, instruc
 | Level | Use Case | What Runs |
 |-------|----------|-----------|
 | `O0` | Debug | Verification only |
-| `O1` | Comptime, dev | Verification + local scalar + SSA/memory canonicalization |
+| `O1` | Comptime, dev | Verification + local scalar + SSA/memory canonicalization + type cleanup |
 | `O2` | Release | O1 + global scalar, memory, and loop optimizations |
 | `O3` | Hot paths | O2 + aggressive loop, vectorization, and interprocedural transforms |
 
@@ -41,46 +41,33 @@ Analysis results are shared across passes until invalidated.
 ### Dependency Graph
 
 ```
-                              ┌─────────┐
-                              │   cfg   │
-                              └────┬────┘
-                                   │
-            ┌──────────┬───────────┼───────────┬───────────────┬───────────┬─────────────┬──────────┐
-            │          │           │           │               │           │             │          │
-            ▼          ▼           ▼           ▼               ▼           ▼             ▼          ▼
-      ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌─────────────┐ ┌──────────┐
-      │ domtree  │ │ postdom  │ │ liveness │ │ constant-prop │ │ ownership│ │reaching-defs│ │  range   │
-      └────┬─────┘ └──────────┘ └────┬─────┘ └──────────────┘ └──────────┘ └─────────────┘ └──────────┘
-           │                         │
-           ▼                         ▼
-    ┌──────────┬───────────────┬──────────┐    ┌─────────┐
-    │  loops   │ available-exprs│ type-flow│    │ borrow  │
-    └────┬─────┘ └───────────────┘ └──────────┘  └─────────┘
-         │
-         ▼
-  ┌──────────────────┐
-  │ scalar-evolution │
-  └────┬─────────────┘
-       ▼
-   ┌──────────┐
-   │dependence│
-   └──────────┘
+           ┌─────────┐
+           │   cfg   │
+           └────┬────┘
+                │
+   ┌────────────┼───────────┬───────────┬──────────────┬──────────┐
+   │            │           │           │              │          │
+   ▼            ▼           ▼           ▼              ▼          ▼
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌──────────┐
+│ domtree  │ │ postdom  │ │ liveness │ │ constant-prop│ │ ownership│ │  range   │
+└────┬─────┘ └──────────┘ └────┬─────┘ └──────────────┘ └──────────┘ └──────────┘
+     │                         │
+     ▼                         ▼
+  ┌───────┐               ┌────────┐
+  │ loops │               │ borrow │
+  └───┬───┘               └────────┘
+      ▼
+┌──────────────────┐
+│ scalar-evolution │
+└──────────────────┘
 
-  ┌───────────┐
-  │ callgraph │
-  └────┬──────┘
-       ▼
-  ┌──────────┐
-  │  escape  │
-  └──────────┘
+┌──────────┐
+│  alias   │
+└──────────┘
 
-  ┌──────────┐       ┌──────────────┐
-  │  alias   │──────▶│  memory-ssa  │
-  └──────────┘       └──────────────┘
-
-  ┌──────────┐
-  │ lifetime │
-  └──────────┘
+┌──────────┐
+│ lifetime │
+└──────────┘
 ```
 
 ### Analysis Reference
@@ -100,7 +87,7 @@ Analysis results are shared across passes until invalidated.
 | `callgraph` | CallGraph | module | | — | Which functions call which, with call sites |
 | `escape` | EscapeAnalysis | module | | callgraph | Which allocations escape their scope |
 | `ownership` | OwnershipAnalysis | function | ✓ | cfg | Value ownership and move/copy semantics |
-| `borrow` | BorrowAnalysis | function | ✓ | cfg, liveness | Active borrows across control flow |
+| `borrow` | BorrowAnalysis | function | ✓ | liveness | Active borrows across control flow |
 | `lifetime` | LifetimeAnalysis | function | ✓ | — | Lifetime bounds for borrowed returns |
 | `type-flow` | TypeFlowAnalysis | function | | domtree | Concrete types at each point (for devirtualization) |
 | `scalar-evolution` | ScalarEvolution | function | ✓ | loops | Symbolic expressions for induction variables and trip counts |
@@ -152,7 +139,7 @@ Local and global optimizations within a single function.
 | `sink` | CodeSinking | function | O2 | ✓ | cfg, domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | | domtree | Move identical instructions to common dominator |
 | `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
-| `tail-call-eliminate` | TailCallEliminate | function | O2 | | cfg | Convert tail calls to jumps |
+| `tail-call-eliminate` | TailCallEliminate | module | O2 | ✓ | — | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | | domtree | Use dominating conditions to narrow value ranges |
 | `if-convert` | IfConvert | function | O2 | | cfg | Convert simple if-then-else diamonds to select/conditional-move |
 | `narrow` | Narrow | function | O2 | | — | Use narrower integer types when upper bits are unused |
@@ -216,7 +203,7 @@ These are MIR-only optimizations that justify having an optimizer above the back
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `devirtualize` | Devirtualize | function | O2 | | type-flow | Convert virtual calls to direct when concrete type is known |
-| `bounds-check-eliminate` | BoundsCheckEliminate | function | O2 | | range | Remove array bounds checks when provably safe |
+| `bounds-check-eliminate` | BoundsCheckEliminate | function | O1 | ✓ | range | Remove array bounds checks when provably safe |
 | `null-check-eliminate` | NullCheckEliminate | function | O2 | | type-flow | Remove null checks when provably non-null |
 | `specialize` | FunctionSpecialize | module | O3 | | callgraph | Create specialized versions for constant arguments |
 
