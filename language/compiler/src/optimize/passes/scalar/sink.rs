@@ -4,39 +4,13 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis};
-use crate::optimize::common::{build_use_def_maps, instruction_is_pure};
+use crate::optimize::common::{
+    build_use_def_maps, instruction_is_memory_read, instruction_is_pure,
+    instruction_may_affect_memory,
+};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, OptimizationContext, Pass, PassMetadata,
 };
-use mir::Instruction;
-
-/// Check if an instruction is a memory read (load, local get).
-fn instruction_is_memory_read(instruction: &Instruction) -> bool {
-    matches!(
-        instruction,
-        Instruction::Load { .. } | Instruction::LocalGet { .. }
-    )
-}
-
-/// Check if an instruction may write memory or have other side effects
-/// that could affect a subsequent load.
-fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
-    matches!(
-        instruction,
-        Instruction::Store { .. }
-            | Instruction::LocalSet { .. }
-            | Instruction::Call { .. }
-            | Instruction::CallIndirect { .. }
-            | Instruction::Intrinsic { .. }
-            | Instruction::ManagedAlloc { .. }
-            | Instruction::ManagedAllocArray { .. }
-            | Instruction::RawAlloc { .. }
-            | Instruction::RawFree { .. }
-            | Instruction::RawDrop { .. }
-            | Instruction::StackAlloc { .. }
-            | Instruction::StackDrop { .. }
-    )
-}
 
 declare_pass! {
     /// Sink instructions closer to their uses.

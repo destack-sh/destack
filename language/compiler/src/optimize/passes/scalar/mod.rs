@@ -7,6 +7,7 @@ mod local_cse;
 mod sccp;
 mod simplify_cfg;
 mod sink;
+mod tail_call_elim;
 
 pub use constant_fold::*;
 pub use copy_propagate::*;
@@ -17,3 +18,4 @@ pub use local_cse::*;
 pub use sccp::*;
 pub use simplify_cfg::*;
 pub use sink::*;
+pub use tail_call_elim::*;

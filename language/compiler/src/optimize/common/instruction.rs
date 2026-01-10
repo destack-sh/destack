@@ -112,6 +112,41 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
     }
 }
 
+/// Check if an instruction reads from memory.
+///
+/// Memory reads include loads from pointers and gets from locals. These
+/// instructions don't have side effects but read mutable state, so they
+/// cannot be freely reordered past memory writes.
+pub fn instruction_is_memory_read(instruction: &Instruction) -> bool {
+    matches!(
+        instruction,
+        Instruction::Load { .. } | Instruction::LocalGet { .. }
+    )
+}
+
+/// Check if an instruction may write memory or have other side effects that could affect memory.
+///
+/// This is used to determine if it's safe to sink loads past an instruction.
+/// Any instruction that writes memory, calls functions (which might write memory),
+/// or performs allocations/deallocations is considered to affect memory.
+pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
+    matches!(
+        instruction,
+        Instruction::Store { .. }
+            | Instruction::LocalSet { .. }
+            | Instruction::Call { .. }
+            | Instruction::CallIndirect { .. }
+            | Instruction::Intrinsic { .. }
+            | Instruction::ManagedAlloc { .. }
+            | Instruction::ManagedAllocArray { .. }
+            | Instruction::RawAlloc { .. }
+            | Instruction::RawFree { .. }
+            | Instruction::RawDrop { .. }
+            | Instruction::StackAlloc { .. }
+            | Instruction::StackDrop { .. }
+    )
+}
+
 /// Collect all values that are used by instructions or terminators in a function.
 ///
 /// This is useful for dead code elimination and other analyses that need to know
