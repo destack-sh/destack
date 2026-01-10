@@ -3,6 +3,7 @@ mod expression;
 mod operator;
 mod process;
 mod range;
+mod resolution;
 mod tagged;
 mod tree;
 mod r#type;

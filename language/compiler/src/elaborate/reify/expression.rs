@@ -175,6 +175,12 @@ impl Compiler {
                     module,
                 )?;
                 self.reify_operator_expression(expression_id, tree, symbols, types)?;
+                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+            }
+
+            // unary operators may have resolutions
+            Expression::Unary { .. } => {
+                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
             }
 
             // assign binary should be desugared during bind
@@ -231,6 +237,17 @@ impl Compiler {
                     types,
                     module,
                 )?;
+                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+            }
+
+            // member access may have resolutions (for union types with different fields)
+            Expression::Member { .. } => {
+                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
+            }
+
+            // index access may have resolutions (for union types with different Index implementations)
+            Expression::Index { .. } => {
+                self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
             }
 
             // type expressions to runtime type descriptors
