@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, CheckConsstraint, CheckTarget, Constant,
+    AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint, CheckTarget, Constant,
     Copyability, Field, Function, Global, GlobalInitializer, Instruction, Intrinsic, Lifetime,
     Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership, ReferenceKind,
     SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
@@ -1216,7 +1216,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a check kind and its operands.
-    fn parse_check_kind(&mut self) -> ParseResult<CheckConsstraint> {
+    fn parse_check_kind(&mut self) -> ParseResult<CheckConstraint> {
         // parse the kind identifier
         let kind_token = self.eat_token(TokenType::Identifier)?;
         let kind_text = kind_token.text;
@@ -1259,7 +1259,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Comma)?;
                 let collection = self.parse_value()?;
 
-                Ok(CheckConsstraint::Bounds {
+                Ok(CheckConstraint::Bounds {
                     index,
                     length,
                     collection,
@@ -1277,7 +1277,7 @@ impl<'a> Parser<'a> {
 
                 // parse the null checked value
                 let value = self.parse_value()?;
-                Ok(CheckConsstraint::Null { value })
+                Ok(CheckConstraint::Null { value })
             }
             "div_zero" => {
                 // reject extra segments
@@ -1290,7 +1290,7 @@ impl<'a> Parser<'a> {
 
                 // parse the divisor
                 let divisor = self.parse_value()?;
-                Ok(CheckConsstraint::DivZero { divisor })
+                Ok(CheckConstraint::DivZero { divisor })
             }
             "shift" => {
                 // parse signedness
@@ -1323,7 +1323,7 @@ impl<'a> Parser<'a> {
                 let bit_width = u8::try_from(bit_width)
                     .map_err(|_| ParseError::invalid("check bit width", kind_start))?;
 
-                Ok(CheckConsstraint::ShiftRange {
+                Ok(CheckConstraint::ShiftRange {
                     value,
                     bit_width,
                     is_signed,
@@ -1360,7 +1360,7 @@ impl<'a> Parser<'a> {
                 let to_width = u8::try_from(to_width)
                     .map_err(|_| ParseError::invalid("check width", kind_start))?;
 
-                Ok(CheckConsstraint::Narrow {
+                Ok(CheckConstraint::Narrow {
                     value,
                     to_width,
                     is_signed,
@@ -1401,7 +1401,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::Comma)?;
                 let right = self.parse_value()?;
 
-                Ok(CheckConsstraint::Overflow {
+                Ok(CheckConstraint::Overflow {
                     operator,
                     left,
                     right,

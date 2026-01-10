@@ -1,7 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, CheckConsstraint, CheckTarget, Constant,
+    AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint, CheckTarget, Constant,
     Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local, LocalNodeId,
     MemoryOrdering, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator,
     Value,
@@ -558,10 +558,10 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Replace values referenced by a check kind.
-    fn replace_values_in_check_kind(kind: &mut CheckConsstraint, from: Value, to: Value) {
+    fn replace_values_in_check_kind(kind: &mut CheckConstraint, from: Value, to: Value) {
         // update values stored in the check kind
         match kind {
-            CheckConsstraint::Bounds {
+            CheckConstraint::Bounds {
                 index,
                 length,
                 collection,
@@ -571,19 +571,19 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_value_in_slot(length, from, to);
                 Self::replace_value_in_slot(collection, from, to);
             }
-            CheckConsstraint::Null { value } => {
+            CheckConstraint::Null { value } => {
                 Self::replace_value_in_slot(value, from, to);
             }
-            CheckConsstraint::DivZero { divisor } => {
+            CheckConstraint::DivZero { divisor } => {
                 Self::replace_value_in_slot(divisor, from, to);
             }
-            CheckConsstraint::ShiftRange { value, .. } => {
+            CheckConstraint::ShiftRange { value, .. } => {
                 Self::replace_value_in_slot(value, from, to);
             }
-            CheckConsstraint::Narrow { value, .. } => {
+            CheckConstraint::Narrow { value, .. } => {
                 Self::replace_value_in_slot(value, from, to);
             }
-            CheckConsstraint::Overflow { left, right, .. } => {
+            CheckConstraint::Overflow { left, right, .. } => {
                 Self::replace_value_in_slot(left, from, to);
                 Self::replace_value_in_slot(right, from, to);
             }
@@ -1319,7 +1319,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn check(
         &mut self,
         condition_value: Value,
-        constraint: CheckConsstraint,
+        constraint: CheckConstraint,
         success_block: LocalNodeId<Block>,
         failure_block: LocalNodeId<Block>,
     ) {

@@ -60,7 +60,7 @@ pub struct CheckTarget {
 
 /// Semantic constraint for a runtime check.
 #[derive(Debug, Clone, PartialEq)]
-pub enum CheckConsstraint {
+pub enum CheckConstraint {
     /// Bounds check on an index into a collection.
     Bounds {
         /// The index being checked.
@@ -113,22 +113,22 @@ pub enum CheckConsstraint {
     },
 }
 
-impl CheckConsstraint {
+impl CheckConstraint {
     /// Get values used by this check kind.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         // collect values referenced by the check kind
         match self {
-            CheckConsstraint::Bounds {
+            CheckConstraint::Bounds {
                 index,
                 length,
                 collection,
                 ..
             } => smallvec![*index, *length, *collection],
-            CheckConsstraint::Null { value } => smallvec![*value],
-            CheckConsstraint::DivZero { divisor } => smallvec![*divisor],
-            CheckConsstraint::ShiftRange { value, .. } => smallvec![*value],
-            CheckConsstraint::Narrow { value, .. } => smallvec![*value],
-            CheckConsstraint::Overflow { left, right, .. } => smallvec![*left, *right],
+            CheckConstraint::Null { value } => smallvec![*value],
+            CheckConstraint::DivZero { divisor } => smallvec![*divisor],
+            CheckConstraint::ShiftRange { value, .. } => smallvec![*value],
+            CheckConstraint::Narrow { value, .. } => smallvec![*value],
+            CheckConstraint::Overflow { left, right, .. } => smallvec![*left, *right],
         }
     }
 }
@@ -169,7 +169,7 @@ pub enum Terminator {
         /// The boolean condition being checked.
         condition: Value,
         /// Semantic constraint for the check.
-        constraint: CheckConsstraint,
+        constraint: CheckConstraint,
         /// The block to jump to when the check succeeds.
         success: CheckTarget,
         /// The block to jump to when the check fails.

@@ -5,8 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    Block, CheckConsstraint, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter,
-    Terminator, Value,
+    Block, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter, Terminator,
+    Value,
 };
 
 impl<'a> FormatMirNode<'a, Block> for Block {
@@ -231,13 +231,10 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 }
 
 /// Format a check kind and its operands.
-fn format_check_kind<'a>(
-    kind: &CheckConsstraint,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_check_kind<'a>(kind: &CheckConstraint, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     // write the check kind header
     match kind {
-        CheckConsstraint::Bounds {
+        CheckConstraint::Bounds {
             index,
             length,
             collection,
@@ -263,13 +260,13 @@ fn format_check_kind<'a>(
                 ]
             )
         }
-        CheckConsstraint::Null { value } => {
+        CheckConstraint::Null { value } => {
             write!(f, [token("null"), space(), value])
         }
-        CheckConsstraint::DivZero { divisor } => {
+        CheckConstraint::DivZero { divisor } => {
             write!(f, [token("div_zero"), space(), divisor])
         }
-        CheckConsstraint::ShiftRange {
+        CheckConstraint::ShiftRange {
             value,
             bit_width,
             is_signed,
@@ -291,7 +288,7 @@ fn format_check_kind<'a>(
                 ]
             )
         }
-        CheckConsstraint::Narrow {
+        CheckConstraint::Narrow {
             value,
             to_width,
             is_signed,
@@ -313,7 +310,7 @@ fn format_check_kind<'a>(
                 ]
             )
         }
-        CheckConsstraint::Overflow {
+        CheckConstraint::Overflow {
             operator,
             left,
             right,
