@@ -105,3 +105,101 @@ function floatNegate(a: number): number {
         Value::float64(-3.14),
     );
 }
+
+/// Verify int64 arithmetic operations.
+#[test]
+fn test_int64_arithmetic() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function addInt64(a: int64, b: int64): int64 {
+    return a + b;
+}
+function mulInt64(a: int64, b: int64): int64 {
+    return a * b;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // large values that exceed int32 range
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "addInt64",
+        &[Value::int64(3_000_000_000), Value::int64(2_000_000_000)],
+        Value::int64(5_000_000_000),
+    );
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "mulInt64",
+        &[Value::int64(100_000), Value::int64(100_000)],
+        Value::int64(10_000_000_000),
+    );
+}
+
+/// Verify float32 arithmetic operations.
+#[test]
+fn test_float32_arithmetic() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function addFloat32(a: float32, b: float32): float32 {
+    return a + b;
+}
+function mulFloat32(a: float32, b: float32): float32 {
+    return a * b;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "addFloat32",
+        &[Value::float32(1.5), Value::float32(2.5)],
+        Value::float32(4.0),
+    );
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "mulFloat32",
+        &[Value::float32(3.0), Value::float32(4.0)],
+        Value::float32(12.0),
+    );
+}
+
+/// Verify mixed integer widths with explicit casts.
+#[test]
+fn test_integer_widening() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function widen(a: int32): int64 {
+    return a as int64;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "widen",
+        &[Value::int32(42)],
+        Value::int64(42),
+    );
+}
