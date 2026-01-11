@@ -954,7 +954,7 @@ pub struct TsCompilerOptions {
     pub no_implicit_override: bool,
     /// Report errors when not all code paths return a value.
     pub no_implicit_returns: bool,
-    /// Add `undefined` to indexed access results.
+    /// Add `undefined` to index signature access results.
     pub no_unchecked_indexed_access: bool,
     /// Report errors on unused local variables.
     pub no_unused_locals: bool,
@@ -1389,7 +1389,7 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#noImplicitThis>
     pub no_implicit_this: Option<bool>,
 
-    /// Add `undefined` to indexed access results.
+    /// Add `undefined` to index signature access results.
     /// <https://www.typescriptlang.org/tsconfig/#noUncheckedIndexedAccess>
     pub no_unchecked_indexed_access: Option<bool>,
 

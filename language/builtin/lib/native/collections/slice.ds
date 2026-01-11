@@ -25,13 +25,13 @@ extension<T> for Slice<T> implements Index<number, T>, Iterable<T> {
         this.length == 0
     }
 
-    /// Get element at index (bounds checked).
-    index(i: number): T | undefined {
+    /// Get the element at the index with bounds checks.
+    index(i: number): T {
         if i < 0 || i >= this.length as number {
-            return undefined;
+            undefined!
         }
         // #Incomplete
-        undefined!
+        this.unsafeGet(i as uint32)
     }
 
     /// Get element at index (unchecked).
@@ -92,19 +92,19 @@ extension<T> for MutSlice<T> implements Index<number, T>, IndexSet<number, T>, I
         this.length == 0
     }
 
-    /// Get element at index (bounds checked).
-    index(i: number): T | undefined {
+    /// Get the element at the index with bounds checks.
+    index(i: number): T {
         if i < 0 || i >= this.length as number {
-            return undefined;
+            undefined!
         }
         // #Incomplete
         undefined!
     }
 
-    /// Set element at index (bounds checked).
+    /// Set the element at the index with bounds checks.
     indexSet(i: number, value: T): void {
         if i < 0 || i >= this.length as number {
-            return;
+            undefined!
         }
         // #Incomplete
     }
