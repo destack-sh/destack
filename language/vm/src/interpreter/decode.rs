@@ -13,6 +13,11 @@ use super::threaded::{
     UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT, pack_optional_value,
 };
 
+// switch table density threshold
+const SWITCH_TABLE_MIN_DENSITY: f64 = 0.5;
+// cap the number of jump table entries
+const SWITCH_TABLE_MAX_RANGE: usize = 2048;
+
 /// Storage class for pointer-like values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PointerStorage {
@@ -614,6 +619,15 @@ fn select_switch_handler(value_kinds: &ValueKinds, value: mir::Value) -> Threade
     }
 }
 
+/// Pick a switch table handler based on inferred value kind.
+fn select_switch_table_handler(value_kinds: &ValueKinds, value: mir::Value) -> ThreadedHandler {
+    // resolve switch value kind
+    match value_kinds.get(value) {
+        Some(ValueKind::Int { .. }) => dispatch::handle_switch_table_int,
+        _ => dispatch::handle_switch_table,
+    }
+}
+
 /// Convert a MIR function to threaded form for fast execution.
 pub(super) fn thread_function(
     tree: &mir::NodeTree,
@@ -1185,8 +1199,37 @@ fn try_fuse_compare_branch(
         return None;
     }
 
+    // resolve const operand from the previous instruction
+    let mut const_value = None;
+    let mut left_value = *left;
+    let mut operator = *operator;
+    let mut pop_const = false;
+    if let Some(prev_inst_id) = block
+        .instructions
+        .get(block.instructions.len().saturating_sub(2))
+    {
+        let prev_inst = tree.get(*prev_inst_id);
+        if let mir::Instruction::Const { destination, value } = prev_inst {
+            let uses = value_uses.get(destination.0 as usize).copied().unwrap_or(0);
+            if uses == 1 {
+                if *destination == *right {
+                    const_value = Some(Value::from(value));
+                    pop_const = true;
+                } else if *destination == *left {
+                    const_value = Some(Value::from(value));
+                    left_value = *right;
+                    operator = swap_compare_operator(operator);
+                    pop_const = true;
+                }
+            }
+        }
+    }
+
     // remove the compare instruction (it's now fused)
     instructions.pop();
+    if pop_const {
+        instructions.pop();
+    }
 
     // resolve branch target parameters
     let then_index = block_index_map[then_target];
@@ -1203,15 +1246,29 @@ fn try_fuse_compare_branch(
     let else_copies = push_copy_range(copy_pool, else_parameters, else_arguments);
 
     // select specialized handler based on operator
-    let handler = select_compare_branch_handler(*operator);
+    if let Some(right_const) = const_value {
+        let handler = select_compare_branch_const_handler(operator);
+        return Some(ThreadedInstruction {
+            handler,
+            data: ThreadedInstructionData::CompareAndBranchConst {
+                left: left_value,
+                right_const,
+                operator,
+                then_target: then_index as u32,
+                then_copies,
+                else_target: else_index as u32,
+                else_copies,
+            },
+        });
+    }
 
-    // emit fused compare-and-branch
+    let handler = select_compare_branch_handler(operator);
     Some(ThreadedInstruction {
         handler,
         data: ThreadedInstructionData::CompareAndBranch {
             left: *left,
             right: *right,
-            operator: *operator,
+            operator,
             then_target: then_index as u32,
             then_copies,
             else_target: else_index as u32,
@@ -1244,6 +1301,58 @@ fn select_compare_branch_handler(operator: mir::BinaryOperator) -> ThreadedHandl
         | mir::BinaryOperator::FloatGreaterEqual => dispatch::handle_compare_and_branch_float,
         // fallback for non-comparison operators (should not happen)
         _ => dispatch::handle_compare_and_branch,
+    }
+}
+
+/// Pick a compare-and-branch handler for constant right operands.
+fn select_compare_branch_const_handler(operator: mir::BinaryOperator) -> ThreadedHandler {
+    match operator {
+        // signed integer comparisons (most common in loops)
+        mir::BinaryOperator::Equal
+        | mir::BinaryOperator::NotEqual
+        | mir::BinaryOperator::SignedLessThan
+        | mir::BinaryOperator::SignedLessEqual
+        | mir::BinaryOperator::SignedGreaterThan
+        | mir::BinaryOperator::SignedGreaterEqual => dispatch::handle_compare_and_branch_const_int,
+        // unsigned integer comparisons
+        mir::BinaryOperator::UnsignedLessThan
+        | mir::BinaryOperator::UnsignedLessEqual
+        | mir::BinaryOperator::UnsignedGreaterThan
+        | mir::BinaryOperator::UnsignedGreaterEqual => {
+            dispatch::handle_compare_and_branch_const_uint
+        }
+        // float comparisons
+        mir::BinaryOperator::FloatEqual
+        | mir::BinaryOperator::FloatNotEqual
+        | mir::BinaryOperator::FloatLessThan
+        | mir::BinaryOperator::FloatLessEqual
+        | mir::BinaryOperator::FloatGreaterThan
+        | mir::BinaryOperator::FloatGreaterEqual => dispatch::handle_compare_and_branch_const_float,
+        // fallback for non-comparison operators (should not happen)
+        _ => dispatch::handle_compare_and_branch_const,
+    }
+}
+
+/// Swap comparison operator when the constant appears on the left.
+fn swap_compare_operator(operator: mir::BinaryOperator) -> mir::BinaryOperator {
+    match operator {
+        mir::BinaryOperator::Equal => mir::BinaryOperator::Equal,
+        mir::BinaryOperator::NotEqual => mir::BinaryOperator::NotEqual,
+        mir::BinaryOperator::SignedLessThan => mir::BinaryOperator::SignedGreaterThan,
+        mir::BinaryOperator::SignedLessEqual => mir::BinaryOperator::SignedGreaterEqual,
+        mir::BinaryOperator::SignedGreaterThan => mir::BinaryOperator::SignedLessThan,
+        mir::BinaryOperator::SignedGreaterEqual => mir::BinaryOperator::SignedLessEqual,
+        mir::BinaryOperator::UnsignedLessThan => mir::BinaryOperator::UnsignedGreaterThan,
+        mir::BinaryOperator::UnsignedLessEqual => mir::BinaryOperator::UnsignedGreaterEqual,
+        mir::BinaryOperator::UnsignedGreaterThan => mir::BinaryOperator::UnsignedLessThan,
+        mir::BinaryOperator::UnsignedGreaterEqual => mir::BinaryOperator::UnsignedLessEqual,
+        mir::BinaryOperator::FloatLessThan => mir::BinaryOperator::FloatGreaterThan,
+        mir::BinaryOperator::FloatLessEqual => mir::BinaryOperator::FloatGreaterEqual,
+        mir::BinaryOperator::FloatGreaterThan => mir::BinaryOperator::FloatLessThan,
+        mir::BinaryOperator::FloatGreaterEqual => mir::BinaryOperator::FloatLessEqual,
+        mir::BinaryOperator::FloatEqual => mir::BinaryOperator::FloatEqual,
+        mir::BinaryOperator::FloatNotEqual => mir::BinaryOperator::FloatNotEqual,
+        _ => operator,
     }
 }
 
@@ -2573,6 +2682,90 @@ fn push_switch_case_range(
     }
 }
 
+/// Append a switch jump table to the pool when density is high enough.
+fn push_switch_table_range(
+    switch_case_pool: &mut Vec<SwitchCase>,
+    copy_pool: &mut Vec<CopyPair>,
+    block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
+    block_parameters: &[Vec<mir::Value>],
+    cases: &[mir::SwitchCase],
+    default_target: u32,
+    default_copies: CopyRange,
+) -> Option<(i64, SwitchRange)> {
+    // bail if there are no cases
+    if cases.is_empty() {
+        return None;
+    }
+
+    // compute min and max case values
+    let mut min_value = cases[0].value;
+    let mut max_value = cases[0].value;
+    for case in cases {
+        min_value = min_value.min(case.value);
+        max_value = max_value.max(case.value);
+    }
+
+    // compute range length with overflow protection
+    let range_len = i128::from(max_value) - i128::from(min_value) + 1;
+    if range_len <= 0 {
+        return None;
+    }
+    if range_len > SWITCH_TABLE_MAX_RANGE as i128 {
+        return None;
+    }
+    if range_len > u32::MAX as i128 {
+        return None;
+    }
+
+    // require sufficient density
+    let range_len = range_len as usize;
+    let density = cases.len() as f64 / range_len as f64;
+    if density < SWITCH_TABLE_MIN_DENSITY {
+        return None;
+    }
+
+    // reserve table slots
+    let start = switch_case_pool.len();
+    debug_assert!(
+        start + range_len <= u32::MAX as usize,
+        "switch case pool overflow"
+    );
+
+    // seed with default targets
+    for offset in 0..range_len {
+        let value = min_value + offset as i64;
+        switch_case_pool.push(SwitchCase {
+            value,
+            target: default_target,
+            copies: default_copies,
+        });
+    }
+
+    // populate explicit cases
+    for case in cases {
+        let target_index = block_index_map[&case.target];
+        let target_parameters = block_parameters
+            .get(target_index)
+            .map(|params| params.as_slice())
+            .unwrap_or_default();
+        let copies = push_copy_range(copy_pool, target_parameters, &case.arguments);
+        let offset = (case.value - min_value) as usize;
+        let slot = &mut switch_case_pool[start + offset];
+        slot.value = case.value;
+        slot.target = target_index as u32;
+        slot.copies = copies;
+    }
+
+    // return table range
+    Some((
+        min_value,
+        SwitchRange {
+            start: start as u32,
+            len: range_len as u32,
+        },
+    ))
+}
+
 /// Convert a MIR terminator to threaded form.
 #[allow(clippy::too_many_arguments)]
 fn thread_terminator(
@@ -2689,14 +2882,7 @@ fn thread_terminator(
             default,
             default_arguments,
         } => {
-            // resolve switch case copies
-            let cases = push_switch_case_range(
-                switch_case_pool,
-                copy_pool,
-                block_index_map,
-                block_parameters,
-                cases,
-            );
+            // resolve default block copies
             let default_index = block_index_map[default];
             let default_parameters = block_parameters
                 .get(default_index)
@@ -2704,15 +2890,45 @@ fn thread_terminator(
                 .unwrap_or_default();
             let default_copies = push_copy_range(copy_pool, default_parameters, default_arguments);
 
-            // assemble threaded switch
-            ThreadedInstruction {
-                handler: select_switch_handler(value_kinds, *value),
-                data: ThreadedInstructionData::Switch {
-                    value: *value,
+            // try jump table for dense switches
+            if let Some((min_value, table_range)) = push_switch_table_range(
+                switch_case_pool,
+                copy_pool,
+                block_index_map,
+                block_parameters,
+                cases,
+                default_index as u32,
+                default_copies,
+            ) {
+                ThreadedInstruction {
+                    handler: select_switch_table_handler(value_kinds, *value),
+                    data: ThreadedInstructionData::SwitchTable {
+                        value: *value,
+                        min: min_value,
+                        table: table_range,
+                        default_target: default_index as u32,
+                        default_copies,
+                    },
+                }
+            }
+            // fall back to linear scan
+            else {
+                let cases = push_switch_case_range(
+                    switch_case_pool,
+                    copy_pool,
+                    block_index_map,
+                    block_parameters,
                     cases,
-                    default_target: default_index as u32,
-                    default_copies,
-                },
+                );
+                ThreadedInstruction {
+                    handler: select_switch_handler(value_kinds, *value),
+                    data: ThreadedInstructionData::Switch {
+                        value: *value,
+                        cases,
+                        default_target: default_index as u32,
+                        default_copies,
+                    },
+                }
             }
         }
 

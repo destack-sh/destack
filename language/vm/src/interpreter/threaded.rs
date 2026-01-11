@@ -511,10 +511,30 @@ pub enum ThreadedInstructionData {
         else_copies: CopyRange,
     },
 
+    /// Fused compare and branch with constant right operand.
+    CompareAndBranchConst {
+        left: mir::Value,
+        right_const: Value,
+        operator: mir::BinaryOperator,
+        then_target: u32,
+        then_copies: CopyRange,
+        else_target: u32,
+        else_copies: CopyRange,
+    },
+
     /// Switch on integer.
     Switch {
         value: mir::Value,
         cases: SwitchRange,
+        default_target: u32,
+        default_copies: CopyRange,
+    },
+
+    /// Switch via dense jump table.
+    SwitchTable {
+        value: mir::Value,
+        min: i64,
+        table: SwitchRange,
         default_target: u32,
         default_copies: CopyRange,
     },
@@ -598,7 +618,9 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::Jump { .. } => "jump",
             ThreadedInstructionData::Branch { .. } => "branch",
             ThreadedInstructionData::CompareAndBranch { .. } => "compare_and_branch",
+            ThreadedInstructionData::CompareAndBranchConst { .. } => "compare_and_branch_const",
             ThreadedInstructionData::Switch { .. } => "switch",
+            ThreadedInstructionData::SwitchTable { .. } => "switch_table",
             ThreadedInstructionData::Unreachable => "unreachable",
             ThreadedInstructionData::Unsupported { .. } => "unsupported",
             ThreadedInstructionData::TailCall { .. } => "tail_call",
@@ -811,6 +833,23 @@ impl<'a> ThreadedState<'a> {
         self.argument_pool_len = threaded.argument_pool.len();
         self.switch_case_pool = threaded.switch_case_pool.as_ptr();
         self.switch_case_pool_len = threaded.switch_case_pool.len();
+    }
+
+    /// Move the state to a new frame and threaded function.
+    pub fn enter_frame(&mut self, frame_index: usize, threaded: &ThreadedFunction) {
+        // validate frame index in debug builds
+        debug_assert!(
+            frame_index < self.interpreter.call_stack.len(),
+            "frame index out of bounds"
+        );
+
+        // update cached frame pointer
+        let frame = unsafe { self.interpreter.call_stack.get_unchecked_mut(frame_index) };
+        self.frame_index = frame_index;
+        self.frame = frame as *mut Frame;
+
+        // refresh cached pointers
+        self.refresh_for_threaded(threaded);
     }
 
     /// Record a profile sample for the current instruction when enabled.
