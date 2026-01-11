@@ -85,6 +85,19 @@ Lower receives "canonical" typed DIR after Analyze, Elaborate, and Execute (see 
 - All polymorphic instances created ("Instances")
 - All comptime blocks executed and results patched in
 
+### Elaborate Transforms
+
+The following constructs are transformed by Elaborate before Lower sees them:
+- **Destructuring patterns** → explicit field/element access
+- **Spread/rest operators** → explicit array operations
+- **Range literals** → `RangeExclusive`/`RangeInclusive` structs
+- **Match expressions** → decision trees with `is` type checks
+- **Default arguments** → `arg === undefined ? default : arg` checks
+- **Null coalescing** (`??`, `?.`) → explicit null checks
+
+Lower receives canonical DIR with these constructs already desugared.
+See [elaborate/README.md](../elaborate/README.md) for transform details.
+
 ### Output: Target-Specific MIR
 
 MIR is generated per-target with target-specific decisions:
@@ -137,6 +150,53 @@ Lower behavior is configured by target policies (see [Target Configuration](#tar
 | `borrowMode` | Hint vs strict borrow enforcement |
 | `relocationModel` | PIC/PIE/static code generation |
 | `linkMode` | Static vs dynamic linking preference |
+
+## Semantic Guarantees
+
+Lower preserves JavaScript/TypeScript semantics unless explicitly noted.
+These guarantees are fundamental to TS compatibility and cannot be changed without breaking user code.
+
+### String Equality
+
+`===` on strings is **value equality** (content comparison), not reference equality.
+String interning is an optimization detail with no semantic guarantees.
+
+```ds
+const a = "hello";
+const b = "hel" + "lo";
+a === b  // true (same content)
+```
+
+### Symbol Identity
+
+- `Symbol("desc")` creates a **unique** symbol each call
+- `Symbol.for("key")` returns the **same** symbol for a given key (global registry)
+- `===` compares symbol identity (interned integer comparison)
+
+```ds
+Symbol("a") === Symbol("a")        // false (unique each call)
+Symbol.for("a") === Symbol.for("a") // true (same from registry)
+```
+
+**Registry scope:** The `Symbol.for()` registry is global across all modules in a compilation unit.
+If module A calls `Symbol.for("key")` and module B calls `Symbol.for("key")`, they get the same symbol.
+This matches JavaScript's global symbol registry behavior.
+
+### Property Enumeration
+
+Object properties enumerate in **insertion order**, matching ES2015+.
+This applies to `Object.keys()`, `for...in`, and RTTI field iteration.
+
+### Default Arguments
+
+Default argument expressions evaluate **per-call** when the argument is `undefined`.
+Evaluation occurs in the function's scope, not at definition time.
+
+```ds
+function log(timestamp = Date.now()) { ... }
+log()  // evaluates Date.now() on this call
+log()  // evaluates Date.now() again (different value)
+```
 
 ## Native Runtime Library
 
@@ -265,7 +325,7 @@ struct ITab {
 }
 ```
 
-**TypeDescriptor generation:** For types that need RTTI (used with `instanceof`, `T.is`, `typeOf`, stored in `any`):
+**TypeDescriptor generation:** For types that need RTTI (used with `instanceof`, `T.is`, `typeOf`, stored in `unknown`):
 ```
 struct TypeDescriptor {
     id: uint32                  // index into RTTI table
@@ -466,7 +526,7 @@ Elaborate has already generated the symbol-dispatch logic; Lower just emits it.
 **Union method dispatch:**
 ```ds
 function render(obj: Mesh | Light) {
-    // Mesh.draw and Light.draw have different implementations
+    // different implementations for Mesh.draw and Light.draw
     obj.draw(ctx);
 }
 ```
@@ -478,8 +538,8 @@ type @ObjectWithVTable = struct { ref<raw void> }
 
 function @render(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>) -> void {
 block0(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>):
-    v1 = field.get v0, 0       ; load vtablePtr
-    v2 = field.get v1, 0       ; load typeDescriptor from vtable slot 0
+    v1 = field.get v0, 0       ; vtable pointer
+    v2 = field.get v1, 0       ; type descriptor from vtable slot 0
     v3 = global.const @Mesh_TypeDescriptor
     v4 = icmp_eq v2, v3
     branch v4, block1, block2
@@ -516,6 +576,17 @@ All layouts here are post-monomorphization and target-specific.
 | `float32`, `float64` | `Float { width }` | IEEE 754 float |
 | `void` | `Void` | Zero-sized |
 
+#### Integer Semantics
+
+| Type | Width | Notes |
+|------|-------|-------|
+| `int` | 64-bit signed | Alias for `int64`, fixed across all platforms |
+| `uint` | 64-bit unsigned | Alias for `uint64`, fixed across all platforms |
+| `int32`, `uint32`, etc. | As named | Explicit width types |
+
+**Rationale:** Fixed 64-bit default ensures predictable overflow behavior across platforms.
+32-bit platforms are rare (<1% of modern targets).
+
 ### Overflow Behavior
 
 Integer arithmetic has defined overflow semantics (unlike C, inspired by Zig and Rust).
@@ -547,9 +618,13 @@ MIR representation:
 
 ### Null and Undefined
 
-TypeScript has both `null` and `undefined`. For native:
+TypeScript has both `null` and `undefined`. For native targets, both use the same runtime representation:
 - `null`: Zero/null pointer (0x0)
-- `undefined`: Distinguished sentinel value (0x1 or special pattern)
+- `undefined`: Distinguished sentinel value (0x1)
+
+The distinction between `null` and `undefined` exists only at the type system level.
+At runtime, code that needs to distinguish them (rare) uses the sentinel values.
+Most code treats them equivalently: "no value present."
 
 For pointer types, we use **niche optimization** (like Rust's `Option<&T>`).
 The null pointer (0x0) is an invalid address for valid objects, so we can use it
@@ -576,7 +651,9 @@ Like Rust, we can exploit invalid bit patterns to save space in type layouts:
 
 ### BigInt
 
-TypeScript's `bigint` is arbitrary-precision.
+BigInt (`bigint` type, `42n` literals) is a **library type with operator overloading**.
+It is not a compiler intrinsic; it's defined in `language/builtin/lib/native/` and uses the standard operator interfaces (`Add`, `Subtract`, `Multiply`, etc.).
+
 For native, we use a tagged pointer representation with small-integer optimization.
 (This is similar to what many JS runtimes do internally as well.)
 
@@ -601,6 +678,16 @@ The native `bigint` has TypeScript semantics:
 - `===` compares values, not identity (bigints are value types semantically, same as JS/TS)
 - Small bigints compare inline; large bigints compare limb-by-limb
 - Overflow from small to large is automatic and transparent (same layout size)
+
+**Operators:**
+BigInt implements `Add<bigint>`, `Subtract<bigint>`, `Multiply<bigint>`, etc.
+Operators lower to method calls: `a + b` → `a.add(b)`.
+
+**Mixed operations:**
+`bigint + int` requires explicit conversion. No implicit coercion between bigint and other numeric types.
+
+**Division:**
+`/` returns `bigint` (truncated). Use library methods for remainder, divmod.
 
 ### Symbol
 
@@ -664,6 +751,12 @@ String literals are interned at compile time in a read-only data section:
 const s = "hello"   // pointer to static data (never collected)
 ```
 
+**Interning scope:** String literals are globally deduplicated within a compilation unit.
+The same literal `"hello"` appearing in multiple modules resolves to the same address.
+However, runtime-created strings are NOT guaranteed to be interned.
+`"hel" + "lo"` at runtime creates a new string, even if `"hello"` exists as a literal.
+String equality (`===`) is always value comparison, never reference comparison.
+
 #### Template Literals
 
 ```ds
@@ -714,7 +807,7 @@ Arrays are heap-allocated, dynamically-sized collections (like Rust's `Vec<T>`).
 | `TypedArray` | `Type::Reference(kind: Raw)` to buffer | Direct memory access |
 
 **Important:** `T[]` is NOT `Array<unknown>`. After monomorphization, we know T.
-`Array<unknown>` or `any[]` boxes elements and uses RTTI for type checks.
+`Array<unknown>` boxes elements and uses RTTI for type checks.
 
 **Array operations:**
 ```mir
@@ -811,7 +904,7 @@ Polymorphic classes store a vtable pointer in the object layout for virtual disp
 Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
 Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
-Interface and `any` values carry `TypeDescriptor` in fat pointers.
+Interface and `unknown` values carry `TypeDescriptor` in fat pointers.
 Class references are thin pointers, so the vtable pointer must live in the object layout when present.
 
 GC metadata lookup only applies to managed references.
@@ -819,7 +912,7 @@ Non-managed values require explicit tags (union tags or fat pointers) or compile
 
 RTTI is only emitted when runtime type checks are possible:
 - Used with `instanceof`, `T.is`, or `typeOf` on unknown values
-- Stored in `any` or `unknown`
+- Stored in `unknown`
 - Used in runtime reflection
 - Used in untagged unions that require runtime discrimination
 
@@ -1026,12 +1119,12 @@ This is a very common pattern in TypeScript, and we can optimize it nicely for n
 We intern these string tags to integer discriminants at compile time; conceptually this looks like this:
 
 ```
-// compile-time tag mapping
+// tag mapping (compile time)
 const TAG_LOADING: uint8 = 0   // "loading"
 const TAG_SUCCESS: uint8 = 1   // "success"
 const TAG_ERROR: uint8 = 2     // "error"
 
-// reverse mapping for runtime string access
+// reverse mapping: runtime string access
 const TAG_STRINGS: string[] = ["loading", "success", "error"]
 
 // runtime representation
@@ -1046,6 +1139,11 @@ struct ErrorState { tag: uint8, msg: string }
 
 This preserves TS semantics while enabling efficient native dispatch.
 
+**Tag assignment determinism:** Tag integers are assigned deterministically within a compilation unit.
+The same union type always gets the same tag assignments in the same compilation.
+However, tag values are NOT stable across different compilations or compiler versions.
+Code should never serialize or persist tag integers; use the string values for serialization.
+
 #### TypeId Interning
 
 We use the same interning mechanism for type identifiers (`TypeId`).
@@ -1053,14 +1151,14 @@ At the source level, `TypeId` is a string like `"@destack-sh/ui/components/butto
 At runtime, it's an interned integer for fast comparison:
 
 ```
-// source-level API
+// source level API
 newtype TypeId = string;   // "myapp/models:User"
 
-// compile-time interning
+// interning (compile time)
 const TYPEID_USER: uint32 = 42;         // interned id for "myapp/models:User"
 const TYPEID_ORDER: uint32 = 43;        // interned id for "myapp/models:Order"
 
-// reverse mapping for reflection
+// reverse mapping: reflection
 const TYPEID_STRINGS: string[] = [..., "myapp/models:User", ...];
 ```
 
@@ -1096,7 +1194,6 @@ Lower chooses union representation based on these rules (in order):
 3. **Boxed** - Large or heterogeneous unions, or when runtime discrimination
    needs RTTI but the variants are not tagged:
    ```
-   any                 →  { typeDescriptor: &TypeDescriptor, payload: word }
    unknown             →  { typeDescriptor: &TypeDescriptor, payload: word }
    LargeA | LargeB     →  { tag: u8, data: ref<variant> }
    ```
@@ -1106,12 +1203,22 @@ The inline size threshold is fixed per target for ABI stability.
 without additional RTTI. If RTTI is required for drop, the union is boxed with an explicit tag.
 The `typeDescriptor` in boxed unions points at the RTTI descriptor.
 
-### Dynamic Types (any, unknown)
+### Dynamic Types (unknown)
 
-`any` and `unknown` use a shared fat-pointer layout:
+**Native targets do not support `any`.** Only `unknown` is available, requiring explicit type checks via RTTI before use. This matches Rust's approach: dynamic typing requires explicit casts and runtime checks.
+
+```ds
+const value: unknown = getUnknownValue();
+value.foo()              // ERROR: cannot access property on unknown
+if (value is User) {
+    value.name           // OK: narrowed to User
+}
+```
+
+`unknown` uses a fat-pointer layout:
 
 ```
-struct any {
+struct unknown {
     typeDescriptor: &TypeDescriptor
     payload: word
 }
@@ -1122,7 +1229,9 @@ The `payload` is a pointer-sized word interpreted by `typeDescriptor`.
 Managed references store the object pointer in `payload`.
 Small primitives store their bitwise representation directly in `payload`.
 Large values are boxed into managed memory and referenced by `payload`.
-In `@noManaged` and `@stackOnly` contexts, converting to `any` is a compile error unless the value is already boxed.
+
+**JS targets:** Both `any` and `unknown` are supported with standard TypeScript semantics.
+`any` bypasses type checking; `unknown` requires narrowing. For portable code, prefer `unknown`.
 
 ### Reflection
 
@@ -1151,7 +1260,7 @@ const PROP_COUNT = comptime User.properties.length;    // → literal 3
 const HAS_NAME = comptime User.properties.some(p => p.name == "name");  // → true
 
 if (comptime User.properties.some(p => p.type == string)) {
-    // branch selected at compile time, other branch eliminated
+    // branch selected at compile time, other eliminated
 }
 ```
 
@@ -1161,7 +1270,7 @@ The native RTTI representation is a compact binary format that maps to the high-
 `Type<T>` API from `language/builtin/core/reflect/type.ds`:
 
 ```ds
-// high-level API
+// high level API
 newtype Type<T> = StructType<T> | ClassType<T> | EnumType<T> | ...
 
 struct StructType<T> {
@@ -1173,7 +1282,7 @@ struct StructType<T> {
     description?: string
 }
 
-// native RTTI (binary format, what the runtime uses)
+// native RTTI: binary format, used by runtime
 struct TypeDescriptor {
     id: uint32                  // index into RTTI table
     typeIdOffset: uint32        // offset to TypeId string ("myapp/models:User")
@@ -1204,7 +1313,7 @@ At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `T
 data is accessed directly.
 (Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
 Runtime type tags are pointers to TypeDescriptor values.
-When a vtable exists, slot 0 stores the TypeDescriptor pointer. Interface and `any` values carry it in fat pointers,
+When a vtable exists, slot 0 stores the TypeDescriptor pointer. Interface and `unknown` values carry it in fat pointers,
 and thin pointers recover it via GC metadata when needed.
 
 **Lowering Type<T> operations:**
@@ -1222,15 +1331,22 @@ and thin pointers recover it via GC metadata when needed.
 When a value is a thin pointer without an embedded type tag, we get the TypeDescriptor pointer from GC metadata for comparison.
 
 **RTTI generation rules:**
-RTTI is only emitted for types that need it at runtime:
-- Types used with `instanceof` or `T.is` on unknown values
-- Types used with `typeOf()` on unknown values
-- Types stored in `any` or `unknown`
+RTTI (TypeDescriptor) is only emitted for types that need runtime type checks.
+Lower conservatively emits RTTI for any type that might need it:
+- Types used with `instanceof` or `T.is` on values of unknown concrete type
+- Types used with `typeOf()` on values of unknown concrete type
+- Types stored in `unknown` (need RTTI for later extraction)
 - Types with runtime reflection (non-comptime `.properties`, `.name`, etc.)
+- Types used in untagged unions that require runtime discrimination
 
-These are the same rules described above.
-If all type operations are comptime, no RTTI overhead appears in the binary.
-Dead code elimination removes unused RTTI entries.
+Lower does NOT emit RTTI for:
+- Types only used with statically-known concrete types
+- Types where all `instanceof`/`T.is` checks are eliminated by type narrowing
+- Primitives (handled by tag bits, not full TypeDescriptor)
+- Newtypes (erased at runtime)
+
+Dead code elimination in the Optimize phase removes unused RTTI entries.
+If all type operations resolve at comptime, no RTTI overhead appears in the binary.
 
 ## Dispatch
 
@@ -1251,7 +1367,7 @@ The vtable is an array of function pointers, one per virtual method.
 struct VTable {
     typeDescriptor: &TypeDescriptor    // for instanceof, T.is, and typeOf
     destructor: () => void       // cleanup function
-    methods: ((...args) => any)[] // virtual method pointers
+    methods: ((...args: unknown[]) => unknown)[] // virtual method pointers
 }
 ```
 
@@ -1268,11 +1384,18 @@ Sprite vtable (inherits Node):
   slot 2: update = Sprite.update      // overrides Node::update
 ```
 
-**Slot assignment:**
-- Slots are assigned in declaration order, starting from parent
-- Child classes inherit parent's slot assignments
-- Overriding methods use the same slot as parent
-- New methods get new slots after inherited ones
+**Slot assignment (inheritance-preserving):**
+- Slot 0: always `typeDescriptor` (for `instanceof`, `T.is`, `typeOf`)
+- Slot 1: always `destructor` (drop glue)
+- Slots 2+: virtual methods in declaration order
+- Child classes inherit all parent slots at the same indices
+- Overriding methods reuse the parent's slot index
+- New methods append after the last inherited slot
+
+This inheritance-preserving order ensures:
+- Upcasting requires no vtable adjustment (same slots, same indices)
+- Parent code works on child objects without recompilation
+- Binary compatibility when adding methods to leaf classes
 
 **Virtual call lowering:**
 ```mir
@@ -1332,21 +1455,24 @@ When a `Circle` is used as `Drawable`, we create a fat pointer:
 ```
 // fat pointer representation
 struct InterfaceRef<I> {
-    objectPtr: &void          // pointer to the actual object
-    itabPtr: &InterfaceItab<I>  // pointer to interface itab
+    objectPtr: &unknown       // actual object (type erased)
+    itabPtr: &InterfaceItab<I>  // interface itab
 }
 ```
+
+**Fat pointer size:** Interface references are exactly `2 * sizeof(usize)` (16 bytes on 64-bit).
+The layout is `(objectPtr, itabPtr)` with no padding. This matches Go's interface representation.
 
 Each (Type, Interface) pair generates its own itab:
 
 ```
-// Circle as Drawable
+// circle as Drawable
 const Circle_Drawable_itab: InterfaceItab<Drawable> = {
     typeDescriptor: &Circle_TypeDescriptor,
     draw: @Circle.draw
 }
 
-// Rectangle as Drawable
+// rectangle as Drawable
 const Rectangle_Drawable_itab: InterfaceItab<Drawable> = {
     typeDescriptor: &Rectangle_TypeDescriptor,
     draw: @Rectangle.draw
@@ -1384,10 +1510,26 @@ Nominal interfaces (`newtype interface`) use the same fat pointer representation
 The difference is typing: nominal interfaces require explicit `implements` declarations.
 This makes itabs fully known at compile time and avoids runtime method-set checks.
 
-**Multiple interface implementation:** When a type implements multiple interfaces, methods are
-appended to the itab in declaration order. If two interfaces require methods with the same
-signature, one implementation satisfies both. If signatures differ, the compiler requires
-explicit disambiguation (compile error with guidance).
+**Multiple interface implementation:** When a type implements multiple interfaces, each (Type, Interface)
+pair gets its own itab. Methods are listed in that interface's declaration order.
+
+**Method ambiguity resolution:** If two interfaces require methods with the same name and signature,
+one implementation satisfies both. If signatures differ (same name, different types), the compiler
+emits a compile error with guidance on disambiguation:
+
+```ds
+interface Reader { read(): bytes }
+interface JsonReader { read(): JsonValue }  // different return type
+
+// ERROR: Ambiguous implementation of 'read' for FileParser
+// Hint: Use explicit interface qualification or rename one method
+class FileParser implements Reader, JsonReader { ... }
+```
+
+Resolution options:
+1. Rename one method in the interface (if you control it)
+2. Use wrapper types with explicit delegation
+3. Implement only one interface directly, delegate the other
 
 ```
 newtype interface Hashable {
@@ -1406,7 +1548,7 @@ For each (Type, Interface) pair where the type implements the interface:
 1. Create a static itab with method pointers in interface declaration order
 2. Store the itab as a global constant
 3. When creating an interface reference, pair the object with the appropriate itab
-4. For `any` or dynamic casts, build and cache the itab at runtime on first use
+4. For `unknown` or dynamic casts, build and cache the itab at runtime on first use
 5. The cache is global per runtime and keyed by `(concrete TypeDescriptor, interface TypeDescriptor)`
 
 **Itab layout:**
@@ -1482,6 +1624,27 @@ c.area          // call @Circle.get_area(c)
 c.radius = 5    // call @Circle.set_radius(c, 5)
 ```
 
+#### Pattern Matching with Getters
+
+When pattern matching on an object with getters:
+- Getter is called **once** per pattern
+- Result is bound to the pattern variable
+- Evaluation order: left-to-right in pattern
+
+```ds
+match (obj) {
+    { foo: 0 } => ...  // calls obj.foo getter, compares to 0
+    { foo: x } => ...  // calls obj.foo getter, binds to x
+}
+```
+
+Equivalent to:
+```ds
+const __foo = obj.foo;  // one getter call
+if (__foo === 0) { ... }
+else { const x = __foo; ... }
+```
+
 ## Memory Model
 
 Memory allocation and ownership at the MIR level.
@@ -1526,7 +1689,45 @@ Managed allocations do not include per object headers.
 The allocator side tables store mark bits, size class, and the TypeDescriptor pointer used for scanning.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
-The general approach is Go-like: insertion write barriers with a concurrent mark phase.
+The general approach (when GC is enabled) is Go-like: insertion write barriers with a concurrent mark phase.
+
+**Target-dependent behavior:**
+GC features are conditional on target configuration. 
+For targets without GC (freestanding, `@noManaged` code):
+- No write barriers are emitted
+- No stack maps are generated
+- Managed allocations are a compile error
+- Only `^T` ownership and `&T` borrows are available
+
+Lower queries the target profile to determine which GC features to emit.
+The runtime provides the actual GC implementation; Lower just emits the hooks.
+
+#### Safepoints and Stack Maps
+
+*Safepoints and stack maps only apply when GC is enabled for the target.*
+With a Go-style concurrent GC, true "stop-the-world" pauses are minimal.
+However, the GC still needs to find roots on each thread's stack during the mark phase.
+This requires knowing which stack slots contain managed references at any given instruction.
+
+**Why stack maps (not traditional safepoints):**
+Go and similar runtimes use conservative stack scanning or async preemption.
+For precise GC with AOT compilation, we generate stack maps that describe root locations.
+The GC can scan roots at any point by consulting the stack map for the current PC.
+
+**Stack map generation:**
+Lower emits stack map metadata at:
+1. **Function calls** - roots must be live across the call
+2. **Allocation sites** - GC may trigger, need current roots
+3. **Loop back-edges** - for long-running loops (optional, for latency)
+
+The stack map covers the full function; codegen generates per-PC maps for call sites.
+Between calls, the GC can async-preempt and scan conservatively if needed (like Go 1.14+).
+
+**Stack maps:**
+Each safepoint has an associated stack map describing which stack slots and registers
+contain managed references at that point. 
+Codegen emits these as metadata attached to the safepoint location. 
+The GC uses stack maps to find roots during collection.
 
 #### Raw Allocation
 
@@ -1573,9 +1774,22 @@ The optimizer promotes `raw.alloc` to `stack.alloc` via escape analysis when the
 
 The drop instructions (`raw.drop`, `stack.drop`) perform **drop glue**:
 
-1. **Drop owned fields** in reverse declaration order (LIFO)
+1. **Drop owned fields** in reverse declaration order (LIFO, like Rust/C++)
 2. **Call dispose** (`Symbol.dispose`) if the type implements `Drop`
 3. **Deallocate** (only for `raw.drop`; `stack.drop` skips this)
+
+**Field drop order:** Fields are dropped in reverse declaration order.
+This matches C++ and Rust destruction semantics: last declared, first destroyed.
+For inherited classes, child fields drop before parent fields.
+
+```ds
+class Resource {
+    a: ^FileHandle;  // declared first, dropped last
+    b: ^Connection;  // declared second, dropped second
+    c: ^Buffer;      // declared last, dropped first
+}
+// drop order: c, b, a
+```
 
 Drop glue metadata is attached to MIR type definitions during lowering.
 Lower has full DIR type information (including `Drop` trait bounds) and generates the appropriate drop glue for each type.
@@ -1692,6 +1906,15 @@ The closure value pairs the function pointer with the environment:
 - `fnPtr: FunctionPointer`
 - `env: ManagedReference<ClosureEnv>`
 
+**Capture semantics:**
+- `const` bindings are captured by value (copied into closure struct)
+- `let` bindings are captured by reference (pointer to original location)
+- This matches JavaScript's closure semantics
+
+**Environment layout:**
+Captured variables are stored in the closure struct in declaration order (order of first capture).
+The struct is alignment-packed to minimize size. Interior pointers are used for reference captures.
+
 The closure body receives `env` as an implicit first parameter.
 Closure calls: load `fnPtr` and `env`, call with env prepended to arguments.
 
@@ -1706,10 +1929,34 @@ When a function returns a locally-constructed value, we allocate directly into t
 **Named RVO (NRVO):**
 Extends RVO to named variables when there's a single return path.
 
+**Inline hints:**
+The `@inline` decorator is a hint, not a directive. Lower emits the function normally.
+The Optimize phase decides whether to actually inline based on:
+- Function size and complexity
+- Call site frequency (from profiling if available)
+- Whether inlining enables further optimizations
+`@inline("always")` is a stronger hint but still not guaranteed.
+`@inline("never")` prevents inlining (useful for debugging, code size).
+
 **Move Semantics:**
 By default, Destack uses TypeScript semantics: objects are GC-managed references.
 Assignment shares references; variables remain valid after being passed to functions.
 Move semantics only apply with explicit `^T` value types.
+
+### Stack Safety
+
+#### Stack Overflow
+
+Native targets use **guard pages** for stack overflow detection.
+Overflow triggers immediate abort with diagnostic (like Go/Rust).
+
+Stack overflow is treated as a bug (infinite recursion), not a recoverable condition.
+No stack check prologue overhead in normal functions.
+
+#### Stack Size
+
+Default stack size is target-dependent (typically 1-8 MB).
+Configurable via target profile or runtime initialization.
 
 ## Control Flow
 
@@ -1822,11 +2069,25 @@ The "magic" is in how the runtime connects yield terminators to Promise continua
 
 #### State Machine Transformation
 
-Lower transforms each async function into:
+Lower transforms each async function into a **tagged union state machine**.
+The state is represented as an explicit enum, and all locals that survive across await points
+are stored in the state machine struct.
 
+**Components:**
 1. **State machine struct** - captures locals that live across await points
 2. **Entry function** - creates Promise, starts execution, returns Promise
 3. **Poll function** - advances state machine, called on each resume
+
+**State representation:**
+The state field is a `uint8` (or larger if needed) representing which await point we're at:
+- State 0: initial entry, before first await
+- State N: suspended at await point N, waiting for promise
+- State MAX: completed (terminal state)
+
+**Local storage strategy:**
+All locals that are potentially live across ANY await point are stored in the state struct.
+This is conservative but correct. The optimizer may later prove some locals don't need storage.
+Locals that are only used between await points are stack-allocated in the poll function.
 
 ```ds
 // source
@@ -1972,14 +2233,14 @@ The runtime interprets `yield` terminators by:
 3. When promise resolves, closure calls resume block with result
 
 ```ds
-// runtime pseudocode for handling yield
-function handleYield(
+// runtime pseudocode: handling yield
+function handleYield<T>(
     awaitedPromise: Promise<T>,
-    resumeBlock: (T) => void,
-    resumeArgs: any[]
+    resumeBlock: (T, ...args: unknown[]) => void,
+    resumeArgs: unknown[]
 ): void {
     awaitedPromise.then(value => {
-        // schedule as microtask (JS semantics)
+        // schedule as microtask per JS semantics
         queueMicrotask(() => {
             resumeBlock(value, ...resumeArgs);
         });
@@ -2148,6 +2409,40 @@ async function* fetchPages(urls: string[]): AsyncGenerator<Page> {
 On JS targets, async functions compile directly to JS async/await.
 No state machine transformation is needed; the JS runtime handles it natively.
 This preserves perfect Promise interop with existing JS code and avoids double-transformation overhead.
+
+### Iterator Protocol
+
+`for...of` uses the JavaScript iterator protocol.
+
+**Interfaces:**
+```ds
+interface Iterator<T> {
+    next(): { value: T, done: boolean }
+}
+
+interface Iterable<T> {
+    [Symbol.iterator](): Iterator<T>
+}
+```
+
+**Lowering:**
+```mir
+; for (const x of iterable) { body }
+v0 = call iterable[Symbol.iterator]()
+block_loop:
+    v1 = call v0.next()
+    v2 = field.get v1, "done"
+    branch v2, block_exit, block_body
+block_body:
+    v3 = field.get v1, "value"
+    ; ... body with x = v3 ...
+    jump block_loop
+block_exit:
+```
+
+**Range Iteration:**
+Elaborate transforms `0..10` to `RangeExclusive { start: 0, end: 10 }`.
+Range types implement `Iterable<int>`.
 
 ## Concurrency
 
@@ -2377,7 +2672,28 @@ Each module may have initialization code that runs before `main()`:
 Lower generates a `__init` function per module containing this code.
 Initialization order follows import dependencies: if module A imports module B, B's `__init` runs first.
 
-Circular dependencies are detected during Analyze phase and produce a compile error.
+### Initialization Order
+
+1. Imports are initialized in depth-first order
+2. Each module's `__init` runs exactly once
+3. Top-level statements execute in source order within a module
+4. `main()` runs after all `__init` functions complete
+
+### Cycle Detection
+
+**Value-evaluation cycles are a compile error.**
+The Analyze phase performs static analysis to detect cycles involving evaluated expressions.
+
+**Allowed:**
+- Type-only imports in cycles (types have no initialization code)
+- Function references (not called at init time)
+- Lazy values (computed on first access, not at init)
+
+**Forbidden (compile error):**
+- `const x = otherModule.y` where `otherModule.y` depends on `x`
+- Circular `using` declarations
+- Any cycle where module A's init reads a value from module B, and B's init reads from A
+
 This is the same approach Go uses: deterministic initialization order, no runtime cycle detection.
 
 ```ds

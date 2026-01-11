@@ -117,11 +117,127 @@ map[computedKey]  // works: Map implements Index<K, V>
 record[key]       // works: Record<K, V> aliases to Map<K, V>
 ```
 
-Types with index signatures (`{ [key: string]: T }`) support dynamic keys (without requiring
-`Index/IndexSet` overloads):
+### Index Signatures with Static Fields
 
-- If the key is a compile-time literal and the type has a known field, lower to `field.get/set` for aggregate values or `field.addr` plus `load`/`store` for references
-- Otherwise, lower to runtime index intrinsics (`intrinsic.index_get/index_set`)
+Types with index signatures (`{ [key: string]: T }`) are supported when the actual fields are statically known:
+
+```ds
+interface Config {
+    [key: string]: string;  // index signature
+    host: string;           // statically known field
+    port: string;           // statically known field
+}
+
+const config: Config = { host: "localhost", port: "8080" };
+config.host              // field access (compile-time offset)
+config["host"]           // also field access (literal key)
+Object.keys(config)      // returns ["host", "port"] via RTTI
+for (const k of Object.keys(config)) { ... }  // iterates known fields
+```
+
+**Lowering rules:**
+- Type lowers to a struct with the declared fields
+- Literal key access (`obj["field"]`) → `field.get`/`field.set`
+- `Object.keys/values/entries` → RTTI field list iteration
+- `for...in` → same as `Object.keys()` iteration
+
+**Iteration with indexed access:**
+```ds
+for (const k of Object.keys(config)) {
+    console.log(config[k]);  // OK: compiler tracks k comes from Object.keys
+}
+```
+The compiler recognizes this pattern and lowers to RTTI-based field iteration:
+```mir
+for each field in TypeDescriptor.fields:
+    value = intrinsic.rtti_field_get(obj, field)
+```
+
+**What's NOT allowed on native (compile error):**
+```ds
+const key = getUserInput();
+config[key]              // ERROR: runtime key on static shape
+config[someVariable]     // ERROR: even if variable holds "host"
+```
+
+For truly dynamic keys, use `Map<K, V>` or `Record<K, V>` (which aliases to Map on native).
+
+### Choosing Between Index Signatures and Map
+
+Index signatures and Map serve different purposes on native targets. Choose based on your access pattern:
+
+| Pattern | Use Index Signature (struct) | Use Map |
+|---------|------------------------------|---------|
+| Keys known at compile time | ✓ | |
+| Keys determined at runtime | | ✓ |
+| Access by literal: `obj["key"]` | ✓ | ✓ |
+| Access by variable: `obj[key]` | Only if `key` from `Object.keys()` | ✓ |
+| Iterate all entries | ✓ (via RTTI) | ✓ |
+| Add/remove keys at runtime | | ✓ |
+| O(1) lookup by arbitrary key | | ✓ |
+
+**Examples:**
+
+```ds
+// CONFIG: Keys known at compile time → index signature works
+interface Config {
+    [key: string]: string;
+    host: string;
+    port: string;
+}
+const config: Config = { host: "localhost", port: "8080" };
+config.host              // ✓ field access
+config["port"]           // ✓ literal key
+for (const k of Object.keys(config)) {
+    console.log(config[k]);  // ✓ iteration pattern
+}
+
+// ROUTER: Dynamic lookup at runtime → use Map
+const router = new Map<string, (req: Request) => Response>([
+    ["/home", handleHome],
+    ["/about", handleAbout],
+]);
+router.get(request.path)  // ✓ O(1) lookup by runtime key
+
+// CACHE: Keys added dynamically → use Map (or Record, which aliases to Map)
+const cache: Record<string, User> = {};
+cache[userId] = user;       // ✓ Map supports dynamic keys
+```
+
+**Rule of thumb:** If you're building a lookup table where keys come from user input, network requests, or other runtime sources, use `Map`. If you're defining a structured object where the fields are part of your API, use a struct (with or without index signature).
+
+### Inferred Static Shapes
+
+Object literals with index signature types infer their shape from construction:
+
+```ds
+const obj: { [key: string]: number } = { x: 1, y: 2 };
+// Inferred shape: { x: number, y: number }
+// Lowers to struct, not Map
+obj.x                    // OK: known field
+obj["y"]                 // OK: literal key
+Object.keys(obj)         // ["x", "y"]
+```
+
+If additional properties are added dynamically, use explicit `Map`:
+```ds
+const obj = new Map<string, number>([["x", 1], ["y", 2]]);
+obj.set(dynamicKey, 3);  // OK: Map supports dynamic keys
+```
+
+### Computed Property Names
+
+**Native targets:** Computed property keys must be **comptime-known**.
+```ds
+const key = comptime "dynamicKey";
+const obj = { [key]: value };  // OK: key is comptime
+const obj = { [runtimeKey]: value };  // ERROR on native
+```
+
+**JS targets:** Runtime computed keys are allowed (standard JS behavior).
+For dynamic keys on native, use `Map<K, V>` or `Record<K, V>` (which aliases to Map).
+This restriction exists because native objects have fixed layouts determined at compile time.
+RTTI and structural interfaces with index signatures provide alternatives for dynamic access patterns.
 
 ## Semantic Differences
 
@@ -282,8 +398,11 @@ FFI uses the C ABI for interoperability with native libraries.
 **External functions** use `@extern`:
 ```ds
 @extern("C")
-declare function printf(format: &uint8, ...args: any[]): int32;
+declare function printf(format: &uint8, ...args: unknown[]): int32;
 ```
+
+Note: Variadic FFI args use `unknown[]` but are passed as raw C values per the calling convention.
+This is inherently unsafe; the compiler trusts the format string matches the argument types.
 
 **Exports** use `@export`:
 ```ds

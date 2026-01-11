@@ -96,15 +96,38 @@ These allow the optimizer to assume no overflow occurs.
 | `ptr_offset_from` | `(ptr, ptr) -> isize` | Byte offset between pointers |
 | `raw_eq` | `(T, T) -> bool` | Byte-wise equality comparison |
 
+### Transmute Safety
+
+`transmute<T, U>(value: T) -> U` reinterprets the bytes of `value` as type `U`.
+This is inherently unsafe and bypasses the type system.
+
+**Requirements (undefined behavior if violated):**
+- `sizeof(T) == sizeof(U)` - sizes must match exactly
+- `alignof(U) <= alignof(T)` - destination alignment must not exceed source
+- Both types must be `Copy` (no drop glue, no managed references)
+
+**Allowed transmutes:**
+- `int64` ↔ `float64` (same size, both primitive)
+- `[uint8; 4]` ↔ `uint32` (same size, both value types)
+- `&T` → `&U` where layouts are compatible
+
+**Forbidden transmutes (compile error or UB):**
+- Anything involving managed references (GC pointers are opaque)
+- Types with different sizes
+- Creating invalid enum discriminants
+- Creating invalid UTF-8 in strings
+
+The compiler checks size and alignment at compile time.
+Other invariants (valid discriminants, UTF-8) are the programmer's responsibility.
+
 ## Garbage Collection
 
-These are inserted by Lower for GC write barriers.
-The specific GC algorithm is runtime-dependent.
+Lower inserts write barriers for GC-enabled targets.
+The specific GC algorithm is runtime-dependent; the intrinsic is a hook.
 
 | Intrinsic | Signature | Description |
 |-----------|-----------|-------------|
 | `gc.write_barrier` | `(ptr, val) -> ()` | Write barrier for concurrent marking |
-| `gc.read_barrier` | `(ptr) -> ()` | Read barrier (if required by GC) |
 
 ### Write Barrier Insertion
 
@@ -141,10 +164,18 @@ class WeakRef<T> {
 }
 ```
 
+**Clearing semantics:** Weak references are cleared during GC collection, not immediately when the last strong reference is dropped.
+This matches JavaScript's `WeakRef` behavior: `deref()` may return a value for some time after the object becomes unreachable.
+
 For GC targets, when an object becomes unreachable (ignoring weak refs), the runtime:
-1. Clears all weak references pointing to it
-2. Removes WeakMap/WeakSet entries where the key was collected
-3. Collects the object
+1. During the mark phase, weak refs are not traversed (don't keep referent alive)
+2. During the sweep/collection phase, weak refs to unreachable objects are cleared
+3. WeakMap/WeakSet entries where the key was collected are removed
+4. The object is collected
+
+**Determinism:** Weak reference clearing is non-deterministic from the program's perspective.
+Code must not rely on when `deref()` starts returning `null`.
+Use strong references or explicit cleanup patterns when deterministic lifetime is needed.
 
 No intrinsics needed; Lower handles these like other well-known types (`String`, `Array<T>`, `Promise<T>`).
 
