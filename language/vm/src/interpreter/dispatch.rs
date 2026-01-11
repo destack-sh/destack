@@ -8,13 +8,14 @@ use smallvec::SmallVec;
 use crate::diagnostic::Error;
 use crate::memory::{ReferenceMeta, Value, ValueTag};
 
+use super::call::copy_values_with_plan;
 use super::statistics::stat_inc;
 use super::threaded::{
     ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, ThreadedFunction,
     ThreadedInstruction, ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT,
     is_invalid_value,
 };
-use super::{instruction, operator, resize_and_clear_stack};
+use super::{Frame, instruction, operator, resize_and_clear_stack};
 
 // helper macro: do work, then become next handler
 macro_rules! next {
@@ -1418,6 +1419,95 @@ pub(super) fn handle_call(
     else {
         unreachable!()
     };
+
+    // resolve target function id
+    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats && state.interpreter.options.max_instructions.is_none();
+
+    // try direct threaded call when possible
+    if allow_direct && !state.interpreter.threaded_functions.is_import(function_id) {
+        let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
+            state.interpreter.threaded_functions.index_for(function_id)
+        } else {
+            Some(*callee_index)
+        };
+        let callee_ptr = resolved_index
+            .and_then(|index| state.interpreter.threaded_functions.get_ptr_by_index(index));
+        if let Some(callee_ptr) = callee_ptr {
+            let callee = unsafe { callee_ptr.as_ref() };
+
+            // check stack overflow
+            if state.interpreter.call_stack.len() >= state.interpreter.options.max_stack_depth {
+                return ControlFlow::Error(Error::StackOverflow);
+            }
+
+            // store return destination and resume pc on caller frame
+            {
+                let caller = state.current_frame_mut();
+                caller.return_destination = *dest;
+                caller.resume_pc = pc + 1;
+            }
+
+            // allocate new frame for callee
+            let value_base = state.interpreter.value_stack.len();
+            let local_base = state.interpreter.local_stack.len();
+            state
+                .interpreter
+                .value_stack
+                .resize(value_base + callee.value_count, Value::VOID);
+            state
+                .interpreter
+                .local_stack
+                .resize(local_base + callee.local_count, Value::VOID);
+            let entry_block = &callee.blocks[callee.entry as usize];
+            let entry_block_id = entry_block.mir_block;
+            let entry_block_ptr = NonNull::from(entry_block);
+            let new_frame = Frame::new(
+                function_id,
+                callee_ptr,
+                entry_block_ptr,
+                entry_block_id,
+                callee.entry as usize,
+                value_base,
+                callee.value_count,
+                local_base,
+                callee.local_count,
+            );
+
+            // bind parameters from caller values
+            let caller_index = state.frame_index;
+            let current_threaded_ptr = {
+                let frame = state.current_frame_mut();
+                frame.threaded
+            };
+            let current_func = unsafe { current_threaded_ptr.as_ref() };
+            let caller_ptr = {
+                let Ok(caller) = state.frame_by_index(caller_index) else {
+                    return ControlFlow::Error(Error::InvalidHeapHandle);
+                };
+                caller as *const Frame
+            };
+            let caller = unsafe { &*caller_ptr };
+            copy_values_with_plan(
+                &mut state.interpreter.value_stack,
+                caller,
+                &new_frame,
+                *copies,
+                current_func.copy_pool.as_slice(),
+            );
+
+            // push new frame and refresh state
+            state.interpreter.call_stack.push(new_frame);
+            let new_index = state.interpreter.call_stack.len() - 1;
+            state.enter_frame(new_index, callee);
+
+            // continue at entry block
+            let entry_instructions = entry_block.instructions.as_slice();
+            become (entry_instructions[0].handler)(state, entry_instructions, 0)
+        }
+    }
 
     // return control to trampoline
     ControlFlow::Call {
@@ -4531,6 +4621,243 @@ pub(super) fn handle_compare_and_branch(
     }
 }
 
+/// Handle fused compare-and-branch with constant right operand for signed integers.
+#[inline(always)]
+pub(super) fn handle_compare_and_branch_const_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranchConst {
+        left,
+        right_const,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands as signed integers
+    let lhs = state.get(*left).raw_data() as i64;
+    let rhs = right_const.raw_data() as i64;
+
+    // perform comparison
+    let is_truthy = match operator {
+        mir::BinaryOperator::Equal => lhs == rhs,
+        mir::BinaryOperator::NotEqual => lhs != rhs,
+        mir::BinaryOperator::SignedLessThan => lhs < rhs,
+        mir::BinaryOperator::SignedLessEqual => lhs <= rhs,
+        mir::BinaryOperator::SignedGreaterThan => lhs > rhs,
+        mir::BinaryOperator::SignedGreaterEqual => lhs >= rhs,
+        _ => unreachable!(),
+    };
+
+    // update branch statistics
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
+/// Handle fused compare-and-branch with constant right operand for unsigned integers.
+#[inline(always)]
+pub(super) fn handle_compare_and_branch_const_uint(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranchConst {
+        left,
+        right_const,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands as unsigned integers
+    let lhs = state.get(*left).raw_data();
+    let rhs = right_const.raw_data();
+
+    // perform comparison
+    let is_truthy = match operator {
+        mir::BinaryOperator::UnsignedLessThan => lhs < rhs,
+        mir::BinaryOperator::UnsignedLessEqual => lhs <= rhs,
+        mir::BinaryOperator::UnsignedGreaterThan => lhs > rhs,
+        mir::BinaryOperator::UnsignedGreaterEqual => lhs >= rhs,
+        _ => unreachable!(),
+    };
+
+    // update branch statistics
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
+/// Handle fused compare-and-branch with constant right operand for floats.
+#[inline(always)]
+pub(super) fn handle_compare_and_branch_const_float(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranchConst {
+        left,
+        right_const,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands as floats
+    let lhs = state.get(*left).as_float64();
+    let rhs = right_const.as_float64();
+
+    // perform comparison
+    let is_truthy = match operator {
+        mir::BinaryOperator::FloatEqual => lhs == rhs,
+        mir::BinaryOperator::FloatNotEqual => lhs != rhs,
+        mir::BinaryOperator::FloatLessThan => lhs < rhs,
+        mir::BinaryOperator::FloatLessEqual => lhs <= rhs,
+        mir::BinaryOperator::FloatGreaterThan => lhs > rhs,
+        mir::BinaryOperator::FloatGreaterEqual => lhs >= rhs,
+        _ => unreachable!(),
+    };
+
+    // update branch statistics
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
+/// Handle fused compare-and-branch with constant right operand (generic fallback).
+pub(super) fn handle_compare_and_branch_const(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::CompareAndBranchConst {
+        left,
+        right_const,
+        operator,
+        then_target,
+        then_copies,
+        else_target,
+        else_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load operands
+    let lhs = state.get(*left);
+    let rhs = *right_const;
+
+    // perform comparison inline
+    let is_truthy = match operator {
+        mir::BinaryOperator::Equal => lhs.raw_data() == rhs.raw_data(),
+        mir::BinaryOperator::NotEqual => lhs.raw_data() != rhs.raw_data(),
+        mir::BinaryOperator::SignedLessThan => (lhs.raw_data() as i64) < (rhs.raw_data() as i64),
+        mir::BinaryOperator::SignedLessEqual => (lhs.raw_data() as i64) <= (rhs.raw_data() as i64),
+        mir::BinaryOperator::SignedGreaterThan => (lhs.raw_data() as i64) > (rhs.raw_data() as i64),
+        mir::BinaryOperator::SignedGreaterEqual => {
+            (lhs.raw_data() as i64) >= (rhs.raw_data() as i64)
+        }
+        mir::BinaryOperator::UnsignedLessThan => lhs.raw_data() < rhs.raw_data(),
+        mir::BinaryOperator::UnsignedLessEqual => lhs.raw_data() <= rhs.raw_data(),
+        mir::BinaryOperator::UnsignedGreaterThan => lhs.raw_data() > rhs.raw_data(),
+        mir::BinaryOperator::UnsignedGreaterEqual => lhs.raw_data() >= rhs.raw_data(),
+        mir::BinaryOperator::FloatEqual => lhs.as_float64() == rhs.as_float64(),
+        mir::BinaryOperator::FloatNotEqual => lhs.as_float64() != rhs.as_float64(),
+        mir::BinaryOperator::FloatLessThan => lhs.as_float64() < rhs.as_float64(),
+        mir::BinaryOperator::FloatLessEqual => lhs.as_float64() <= rhs.as_float64(),
+        mir::BinaryOperator::FloatGreaterThan => lhs.as_float64() > rhs.as_float64(),
+        mir::BinaryOperator::FloatGreaterEqual => lhs.as_float64() >= rhs.as_float64(),
+        _ => unreachable!("compare-and-branch with non-comparison operator"),
+    };
+
+    // update branch statistics
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
+
+    // branch based on comparison result
+    if is_truthy {
+        ControlFlow::Jump {
+            block: *then_target,
+            copies: *then_copies,
+        }
+    } else {
+        ControlFlow::Jump {
+            block: *else_target,
+            copies: *else_copies,
+        }
+    }
+}
+
 /// Handle switch (exits tail-call chain).
 pub(super) fn handle_switch(
     state: &mut ThreadedState,
@@ -4579,6 +4906,58 @@ pub(super) fn handle_switch(
     }
 }
 
+/// Handle switch via dense jump table (exits tail-call chain).
+pub(super) fn handle_switch_table(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::SwitchTable {
+        value,
+        min,
+        table,
+        default_target,
+        default_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load switch value
+    let switch_val = state.get(*value);
+    let int_val = switch_val.as_int().unwrap_or(0);
+
+    // update branch statistics
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
+
+    // resolve jump table entry
+    if int_val < *min {
+        return ControlFlow::Jump {
+            block: *default_target,
+            copies: *default_copies,
+        };
+    }
+    let offset = (int_val - *min) as usize;
+    let case_slice = state.switch_cases(*table);
+    let Some(case) = case_slice.get(offset) else {
+        return ControlFlow::Jump {
+            block: *default_target,
+            copies: *default_copies,
+        };
+    };
+
+    // jump to resolved case
+    ControlFlow::Jump {
+        block: case.target,
+        copies: case.copies,
+    }
+}
+
 /// Handle integer switch (exits tail-call chain).
 pub(super) fn handle_switch_int(
     state: &mut ThreadedState,
@@ -4624,6 +5003,58 @@ pub(super) fn handle_switch_int(
     ControlFlow::Jump {
         block: *default_target,
         copies: *default_copies,
+    }
+}
+
+/// Handle integer switch via dense jump table (exits tail-call chain).
+pub(super) fn handle_switch_table_int(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::SwitchTable {
+        value,
+        min,
+        table,
+        default_target,
+        default_copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load switch value
+    let switch_val = state.get(*value);
+    let int_val = switch_val.raw_data() as i64;
+
+    // update branch statistics
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
+
+    // resolve jump table entry
+    if int_val < *min {
+        return ControlFlow::Jump {
+            block: *default_target,
+            copies: *default_copies,
+        };
+    }
+    let offset = (int_val - *min) as usize;
+    let case_slice = state.switch_cases(*table);
+    let Some(case) = case_slice.get(offset) else {
+        return ControlFlow::Jump {
+            block: *default_target,
+            copies: *default_copies,
+        };
+    };
+
+    // jump to resolved case
+    ControlFlow::Jump {
+        block: case.target,
+        copies: case.copies,
     }
 }
 
