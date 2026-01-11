@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, StructLayout};
 
-use super::FunctionContext;
+use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a tuple expression to an aggregate value.

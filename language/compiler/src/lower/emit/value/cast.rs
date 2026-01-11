@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
 
-use super::FunctionContext;
+use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a cast operator into a MIR cast operator.
