@@ -66,11 +66,9 @@ impl ValueRange {
             mir::Constant::Float { bits, width } => {
                 let width = *width;
                 let value = if width == 32 {
-                    let value = f32::from_bits(*bits as u32);
-                    value as f64
+                    f32::from_bits(*bits as u32) as f64
                 } else if width == 64 {
-                    let value = f64::from_bits(*bits);
-                    value
+                    f64::from_bits(*bits)
                 } else {
                     return None;
                 };
@@ -1580,56 +1578,48 @@ fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     }
 
     // handle infinity multiplied by finite values
-    if left_pos_inf {
-        if let Some(right_bounds) = right_bounds {
-            if float_bounds_contains_zero(&right_bounds) {
-                can_be_nan = true;
-            }
-            if float_bounds_can_be_positive(&right_bounds) {
-                can_be_pos_inf = true;
-            }
-            if float_bounds_can_be_negative(&right_bounds) {
-                can_be_neg_inf = true;
-            }
+    if left_pos_inf && let Some(right_bounds) = right_bounds {
+        if float_bounds_contains_zero(&right_bounds) {
+            can_be_nan = true;
+        }
+        if float_bounds_can_be_positive(&right_bounds) {
+            can_be_pos_inf = true;
+        }
+        if float_bounds_can_be_negative(&right_bounds) {
+            can_be_neg_inf = true;
         }
     }
-    if left_neg_inf {
-        if let Some(right_bounds) = right_bounds {
-            if float_bounds_contains_zero(&right_bounds) {
-                can_be_nan = true;
-            }
-            if float_bounds_can_be_positive(&right_bounds) {
-                can_be_neg_inf = true;
-            }
-            if float_bounds_can_be_negative(&right_bounds) {
-                can_be_pos_inf = true;
-            }
+    if left_neg_inf && let Some(right_bounds) = right_bounds {
+        if float_bounds_contains_zero(&right_bounds) {
+            can_be_nan = true;
+        }
+        if float_bounds_can_be_positive(&right_bounds) {
+            can_be_neg_inf = true;
+        }
+        if float_bounds_can_be_negative(&right_bounds) {
+            can_be_pos_inf = true;
         }
     }
-    if right_pos_inf {
-        if let Some(left_bounds) = left_bounds {
-            if float_bounds_contains_zero(&left_bounds) {
-                can_be_nan = true;
-            }
-            if float_bounds_can_be_positive(&left_bounds) {
-                can_be_pos_inf = true;
-            }
-            if float_bounds_can_be_negative(&left_bounds) {
-                can_be_neg_inf = true;
-            }
+    if right_pos_inf && let Some(left_bounds) = left_bounds {
+        if float_bounds_contains_zero(&left_bounds) {
+            can_be_nan = true;
+        }
+        if float_bounds_can_be_positive(&left_bounds) {
+            can_be_pos_inf = true;
+        }
+        if float_bounds_can_be_negative(&left_bounds) {
+            can_be_neg_inf = true;
         }
     }
-    if right_neg_inf {
-        if let Some(left_bounds) = left_bounds {
-            if float_bounds_contains_zero(&left_bounds) {
-                can_be_nan = true;
-            }
-            if float_bounds_can_be_positive(&left_bounds) {
-                can_be_neg_inf = true;
-            }
-            if float_bounds_can_be_negative(&left_bounds) {
-                can_be_pos_inf = true;
-            }
+    if right_neg_inf && let Some(left_bounds) = left_bounds {
+        if float_bounds_contains_zero(&left_bounds) {
+            can_be_nan = true;
+        }
+        if float_bounds_can_be_positive(&left_bounds) {
+            can_be_neg_inf = true;
+        }
+        if float_bounds_can_be_negative(&left_bounds) {
+            can_be_pos_inf = true;
         }
     }
 
@@ -1781,24 +1771,20 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     }
 
     // handle infinite numerator divided by finite denominator
-    if left_pos_inf {
-        if let Some(right_bounds) = right_bounds {
-            if float_bounds_can_be_positive(&right_bounds) {
-                can_be_pos_inf = true;
-            }
-            if float_bounds_can_be_negative(&right_bounds) {
-                can_be_neg_inf = true;
-            }
+    if left_pos_inf && let Some(right_bounds) = right_bounds {
+        if float_bounds_can_be_positive(&right_bounds) {
+            can_be_pos_inf = true;
+        }
+        if float_bounds_can_be_negative(&right_bounds) {
+            can_be_neg_inf = true;
         }
     }
-    if left_neg_inf {
-        if let Some(right_bounds) = right_bounds {
-            if float_bounds_can_be_positive(&right_bounds) {
-                can_be_neg_inf = true;
-            }
-            if float_bounds_can_be_negative(&right_bounds) {
-                can_be_pos_inf = true;
-            }
+    if left_neg_inf && let Some(right_bounds) = right_bounds {
+        if float_bounds_can_be_positive(&right_bounds) {
+            can_be_neg_inf = true;
+        }
+        if float_bounds_can_be_negative(&right_bounds) {
+            can_be_pos_inf = true;
         }
     }
 
@@ -2603,10 +2589,8 @@ block3(v5: f32, v6: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -2644,10 +2628,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -2693,10 +2675,8 @@ block3(v5: f32, v6: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -2734,10 +2714,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -2862,10 +2840,8 @@ block6(v7: f32, v8: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block6 = function.blocks[6];
         let block = program.tree.get(block6);
@@ -3008,10 +2984,8 @@ block3(v3: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -3057,10 +3031,8 @@ block3(v5: f32, v6: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -3105,10 +3077,8 @@ block3(v3: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -3154,10 +3124,8 @@ block3(v5: f32, v6: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -3195,10 +3163,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3236,10 +3202,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3277,10 +3241,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3433,10 +3395,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3552,10 +3512,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3588,10 +3546,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3625,10 +3581,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3669,10 +3623,8 @@ block3(v4: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
         let block = program.tree.get(block3);
@@ -3704,10 +3656,8 @@ block3(v3: f32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let merge_block = function.blocks[3];
         let merge = program.tree.get(merge_block);
@@ -3786,10 +3736,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);
@@ -3869,10 +3817,8 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-        let ranges = context
-            .analyses
-            .get::<RangeAnalysis>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
         let block = program.tree.get(block0);

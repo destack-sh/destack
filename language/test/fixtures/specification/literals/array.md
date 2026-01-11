@@ -81,24 +81,9 @@ values satisfies Array<number>;
 
 ## index access
 
-### noUncheckedIndexedAccess adds undefined to array reads
+### index access returns element type
 
-```ds
-const values = [1, 2, 3];
-let value: number = values[0];
-```
-
-- contains: not assignable
-
-### noUncheckedIndexedAccess false allows array reads
-
-```ds:dsconfig.json
-{ "compilerOptions": { "noUncheckedIndexedAccess": false } }
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
+> Array index access is bounds checked and returns the element type.
 
 ```ds
 const values = [1, 2, 3];

@@ -243,6 +243,13 @@ RTTI and structural interfaces with index signatures provide alternatives for dy
 
 Some TypeScript patterns have different semantics in native vs JS targets, even though we try to preserve the surface area and core semantics.
 
+### Arrays and Indexing
+
+JavaScript arrays allow holes and out of bounds reads yield `undefined`.
+Native Destack arrays are dense, `a[i]` is bounds checked, and out of bounds access
+triggers the configured check failure.
+When targeting JS, the compiler inserts bounds checks so `a[i]` matches native behavior.
+
 ### Record Types
 
 In TypeScript, `Record<string, T>` is an object with dynamic string keys:

@@ -5,9 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, RangeMap, ScalarEvolution,
-    ValueRange,
+    Scev, ValueRange,
 };
-use crate::optimize::common::BlockParamForwarding;
+use crate::optimize::common::{BlockParamForwarding, constant_zero_like};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -194,6 +194,22 @@ impl ValueDefinitions {
     }
 }
 
+/// Affine representation for a loop value.
+#[derive(Debug, Clone)]
+struct AffineValue {
+    /// Base symbolic expression.
+    base: Scev,
+    /// Constant offset applied to the base.
+    offset: i128,
+}
+
+impl AffineValue {
+    /// Return true when the base expression matches another.
+    fn base_matches(&self, other: &Self) -> bool {
+        self.base == other.base
+    }
+}
+
 /// Loop guard constraint derived from a comparison.
 #[derive(Debug, Clone, Copy)]
 struct LoopGuard {
@@ -235,8 +251,10 @@ fn run_loop_bounds_check_eliminate(
     definitions: &ValueDefinitions,
     forwarding: &BlockParamForwarding,
 ) -> bool {
+    // TODO #Performance: expand loop guard inference for additional exit shapes
     // collect guards for each loop
     let mut loop_guards: HashMap<usize, LoopGuards> = HashMap::new();
+
     for (loop_index, lp) in loops.loops().iter().enumerate() {
         // derive guards from exiting blocks
         let guards = collect_loop_guards(lp, tree, definitions, ranges);
@@ -249,6 +267,7 @@ fn run_loop_bounds_check_eliminate(
 
     // remove redundant checks
     let mut changed = false;
+
     for (loop_index, lp) in loops.loops().iter().enumerate() {
         // skip loops without guards
         let Some(guards) = loop_guards.get(&loop_index) else {
@@ -281,26 +300,25 @@ fn run_loop_bounds_check_eliminate(
 
             // find a guard that implies the bounds check
             let mut guard_implies = false;
+
             for guard in &guards.bounds {
-                // skip guards in the same block
-                if guard.block == block_id {
-                    continue;
-                }
-
-                // require guard dominance
-                if !domtree.dominates(guard.block, block_id) {
-                    continue;
-                }
-
-                // require matching signedness
-                if guard.is_signed != *is_signed {
-                    continue;
-                }
-
-                // require equivalent index and length values
-                if !values_equivalent(*index, guard.index, loop_index, scev, forwarding)
-                    || !values_equivalent(*length, guard.length, loop_index, scev, forwarding)
+                // skip guards that cannot imply the check
+                if guard.block == block_id
+                    || !domtree.dominates(guard.block, block_id)
+                    || guard.is_signed != *is_signed
                 {
+                    continue;
+                }
+
+                // compare affine forms for guard and check values
+                let guard_index = affine_value_for_loop(guard.index, loop_index, scev, forwarding);
+                let guard_length =
+                    affine_value_for_loop(guard.length, loop_index, scev, forwarding);
+                let check_index = affine_value_for_loop(*index, loop_index, scev, forwarding);
+                let check_length = affine_value_for_loop(*length, loop_index, scev, forwarding);
+
+                // require guard to imply the bounds
+                if !guard_implies_bounds(&guard_index, &guard_length, &check_index, &check_length) {
                     continue;
                 }
 
@@ -349,7 +367,9 @@ fn collect_loop_guards(
     let mut bounds = Vec::new();
     let mut non_negative = Vec::new();
 
+    // scan exiting blocks for guards
     for &block_id in &lp.exiting_blocks {
+        // read the exiting block
         let block = tree.get(block_id);
 
         // collect bounds from check terminators when available
@@ -366,6 +386,7 @@ fn collect_loop_guards(
                 ..
             } = constraint
         {
+            // ensure the success edge stays inside the loop
             let success_in_loop = lp.blocks.contains(&success.target);
             let failure_in_loop = lp.blocks.contains(&failure.target);
             if success_in_loop != failure_in_loop && success_in_loop {
@@ -376,6 +397,7 @@ fn collect_loop_guards(
                     is_signed: *is_signed,
                 });
 
+                // record signed guards as non negative proofs
                 if *is_signed {
                     non_negative.push(NonNegativeGuard {
                         block: block_id,
@@ -464,12 +486,14 @@ fn guard_condition(terminator: mir::Terminator, lp: &Loop) -> Option<(mir::Value
             else_target,
             ..
         } => {
+            // determine which branch stays inside the loop
             let then_in_loop = lp.blocks.contains(&then_target);
             let else_in_loop = lp.blocks.contains(&else_target);
             if then_in_loop == else_in_loop {
                 return None;
             }
 
+            // return the guard value for the in loop edge
             let guard_is_true = then_in_loop;
             Some((condition, guard_is_true))
         }
@@ -479,15 +503,18 @@ fn guard_condition(terminator: mir::Terminator, lp: &Loop) -> Option<(mir::Value
             failure,
             ..
         } => {
+            // determine which check edge stays inside the loop
             let success_in_loop = lp.blocks.contains(&success.target);
             let failure_in_loop = lp.blocks.contains(&failure.target);
             if success_in_loop == failure_in_loop {
                 return None;
             }
 
+            // return the guard value for the in loop edge
             let guard_is_true = success_in_loop;
             Some((condition, guard_is_true))
         }
+        // no guard for other terminators
         _ => None,
     }
 }
@@ -579,8 +606,10 @@ fn guard_non_negative(
         return None;
     }
 
+    // fall back to range analysis for the bound value
     let bound_min = signed_range_min(bound_value, ranges)?;
 
+    // evaluate the range based lower bound
     if inclusive {
         if bound_min >= 0 {
             return Some(value);
@@ -594,6 +623,7 @@ fn guard_non_negative(
 
 /// Flip a signed comparison when swapping operands.
 fn flip_signed_comparison(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
+    // map signed comparisons to flipped operators
     match operator {
         mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterThan),
         mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterEqual),
@@ -603,30 +633,131 @@ fn flip_signed_comparison(operator: mir::BinaryOperator) -> Option<mir::BinaryOp
     }
 }
 
-/// Check if two values are equivalent within a loop.
-fn values_equivalent(
-    left: mir::Value,
-    right: mir::Value,
+/// Build an affine representation for a loop value.
+fn affine_value_for_loop(
+    value: mir::Value,
     loop_index: usize,
     scev: &ScalarEvolution,
     forwarding: &BlockParamForwarding,
-) -> bool {
-    // resolve forwarded parameters first
-    let left = forwarding.resolve(left);
-    let right = forwarding.resolve(right);
-    if left == right {
-        return true;
+) -> AffineValue {
+    // resolve forwarded values
+    let value = forwarding.resolve(value);
+
+    // prefer scalar evolution when available
+    let scev = scev
+        .scev_for_value_in_loop(loop_index, value)
+        .cloned()
+        .unwrap_or(Scev::Unknown(value));
+
+    // split constant offsets when possible
+    affine_from_scev(&scev)
+}
+
+/// Build an affine value from a scalar evolution expression.
+fn affine_from_scev(scev: &Scev) -> AffineValue {
+    // use constant splitting when available
+    if let Some((base, offset)) = split_scev_offset(scev) {
+        return AffineValue { base, offset };
     }
 
-    // compare scalar evolution expressions
-    let Some(left_scev) = scev.scev_for_value_in_loop(loop_index, left) else {
-        return false;
-    };
-    let Some(right_scev) = scev.scev_for_value_in_loop(loop_index, right) else {
-        return false;
-    };
+    // fall back to the original expression
+    AffineValue {
+        base: scev.clone(),
+        offset: 0,
+    }
+}
 
-    left_scev == right_scev
+/// Return true when a guard implies a bounds check.
+fn guard_implies_bounds(
+    guard_index: &AffineValue,
+    guard_length: &AffineValue,
+    check_index: &AffineValue,
+    check_length: &AffineValue,
+) -> bool {
+    // require matching base expressions
+    if !guard_index.base_matches(check_index) || !guard_length.base_matches(check_length) {
+        return false;
+    }
+
+    // require check index offset no larger than guard index offset
+    if check_index.offset > guard_index.offset {
+        return false;
+    }
+
+    // require check length offset no smaller than guard length offset
+    if check_length.offset < guard_length.offset {
+        return false;
+    }
+
+    true
+}
+
+/// Split constant offsets from a scalar evolution expression when possible.
+fn split_scev_offset(scev: &Scev) -> Option<(Scev, i128)> {
+    // extract constants directly
+    if let Some(constant) = scev_constant(scev) {
+        let offset = constant_to_i128(constant)?;
+        let base = Scev::Constant(constant_zero_like(constant));
+        return Some((base, offset));
+    }
+
+    // fold constants on additive expressions
+    if let Scev::Add(left, right) = scev {
+        // handle constants on the right side
+        if let Some(constant) = scev_constant(right) {
+            let offset = constant_to_i128(constant)?;
+            let (base, base_offset) =
+                split_scev_offset(left).unwrap_or_else(|| (left.as_ref().clone(), 0));
+            return Some((base, base_offset + offset));
+        }
+
+        // handle constants on the left side
+        if let Some(constant) = scev_constant(left) {
+            let offset = constant_to_i128(constant)?;
+            let (base, base_offset) =
+                split_scev_offset(right).unwrap_or_else(|| (right.as_ref().clone(), 0));
+            return Some((base, base_offset + offset));
+        }
+    }
+
+    // split constant starts from additive recurrences
+    if let Scev::AddRec {
+        start,
+        step,
+        loop_header,
+    } = scev
+        && let Scev::Constant(constant) = start.as_ref()
+    {
+        let offset = constant_to_i128(constant)?;
+        let base = Scev::AddRec {
+            start: Box::new(Scev::Constant(constant_zero_like(constant))),
+            step: step.clone(),
+            loop_header: *loop_header,
+        };
+        return Some((base, offset));
+    }
+
+    // no constant offset found
+    None
+}
+
+/// Return the constant for a scalar evolution expression when available.
+fn scev_constant(scev: &Scev) -> Option<&mir::Constant> {
+    // extract the constant node when present
+    match scev {
+        Scev::Constant(constant) => Some(constant),
+        _ => None,
+    }
+}
+
+/// Convert a constant into a signed offset.
+fn constant_to_i128(constant: &mir::Constant) -> Option<i128> {
+    // convert integer constants to a signed offset
+    match constant {
+        mir::Constant::Int { value, .. } => Some(i128::from(*value)),
+        mir::Constant::UInt { value, .. } => Some(i128::from(*value)),
+        _ => None,
+    }
 }
 
 /// Check if an index is known non negative from guard comparisons.
@@ -639,17 +770,29 @@ fn index_non_negative_from_guards(
     domtree: &DominatorTree,
     non_negative: &[NonNegativeGuard],
 ) -> bool {
-    // match against guard values using scev equivalence
+    // build the affine form for the index
+    let index_affine = affine_value_for_loop(value, loop_index, scev, forwarding);
+
+    // match against guard values using base and offset comparisons
     non_negative.iter().any(|guard| {
+        // ignore guards from the same block
         if guard.block == block_id {
             return false;
         }
 
+        // require the guard to dominate the check block
         if !domtree.dominates(guard.block, block_id) {
             return false;
         }
 
-        values_equivalent(value, guard.value, loop_index, scev, forwarding)
+        // compare the base expression for the guard
+        let guard_affine = affine_value_for_loop(guard.value, loop_index, scev, forwarding);
+        if !guard_affine.base_matches(&index_affine) {
+            return false;
+        }
+
+        // require the guard offset to be no larger than the index offset
+        index_affine.offset >= guard_affine.offset
     })
 }
 
@@ -662,22 +805,29 @@ fn index_non_negative(
 ) -> bool {
     // use the forwarded value for range queries
     let value = forwarding.resolve(value);
+
+    // read the range at the block entry
     let range = ranges.entry(block_id).get(value);
     let Some(ValueRange::Integer { min, is_signed, .. }) = range else {
         return false;
     };
 
+    // reject unsigned ranges
     if !*is_signed {
         return false;
     }
 
+    // require a non negative minimum bound
     *min >= 0
 }
 
 /// Extract an integer constant from a value range.
 fn signed_constant_from_range(value: mir::Value, ranges: &RangeMap) -> Option<i128> {
+    // read the constant range when available
     let range = ranges.get(value)?;
     let constant = range.as_constant()?;
+
+    // extract signed integer values
     match constant {
         mir::Constant::Int { value, .. } => Some(value as i128),
         _ => None,
@@ -686,10 +836,13 @@ fn signed_constant_from_range(value: mir::Value, ranges: &RangeMap) -> Option<i1
 
 /// Extract the minimum signed bound for a value range.
 fn signed_range_min(value: mir::Value, ranges: &RangeMap) -> Option<i128> {
+    // resolve the integer range for the value
     let range = ranges.get(value)?;
     let ValueRange::Integer { min, is_signed, .. } = range else {
         return None;
     };
+
+    // require a signed range
     if !*is_signed {
         return None;
     }
@@ -1245,6 +1398,226 @@ block2:
 block3:
     v7 = iadd v4, v2
     jump block1(v7)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopBoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Guard offsets still eliminate redundant bounds checks.
+    #[test]
+    fn test_eliminate_guard_with_positive_offset() {
+        // source program
+        let input = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = iadd v4, v2
+    v6 = icmp_ult v5, v3
+    branch v6, block2, block5
+block2:
+    v7 = icmp_ult v4, v3
+    check v7, bounds.unsigned v4, v3, v0, block3, block4
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = iadd v4, v2
+    v6 = icmp_ult v5, v3
+    branch v6, block2, block5
+block2:
+    v7 = icmp_ult v4, v3
+    jump block3
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopBoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Checks with larger offsets are preserved.
+    #[test]
+    fn test_preserve_check_with_positive_offset() {
+        // source program
+        let input = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = icmp_ult v4, v3
+    branch v5, block2, block5
+block2:
+    v6 = iadd v4, v2
+    v7 = icmp_ult v6, v3
+    check v7, bounds.unsigned v6, v3, v0, block3, block4
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = icmp_ult v4, v3
+    branch v5, block2, block5
+block2:
+    v6 = iadd v4, v2
+    v7 = icmp_ult v6, v3
+    check v7, bounds.unsigned v6, v3, v0, block3, block4
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopBoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Guards with smaller length offsets eliminate checks.
+    #[test]
+    fn test_eliminate_guard_with_length_offset() {
+        // source program
+        let input = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = isub v3, v2
+    v6 = icmp_ult v4, v5
+    branch v6, block2, block5
+block2:
+    v7 = icmp_ult v4, v3
+    check v7, bounds.unsigned v4, v3, v0, block3, block4
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = isub v3, v2
+    v6 = icmp_ult v4, v5
+    branch v6, block2, block5
+block2:
+    v7 = icmp_ult v4, v3
+    jump block3
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopBoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Guards with larger length offsets preserve checks.
+    #[test]
+    fn test_preserve_guard_with_larger_length_offset() {
+        // source program
+        let input = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = iadd v3, v2
+    v6 = icmp_ult v4, v5
+    branch v6, block2, block5
+block2:
+    v7 = icmp_ult v4, v3
+    check v7, bounds.unsigned v4, v3, v0, block3, block4
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block4:
+    unreachable
+block5:
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = iadd v3, v2
+    v6 = icmp_ult v4, v5
+    branch v6, block2, block5
+block2:
+    v7 = icmp_ult v4, v3
+    check v7, bounds.unsigned v4, v3, v0, block3, block4
+block3:
+    v8 = iadd v4, v2
+    jump block1(v8)
 block4:
     unreachable
 block5:

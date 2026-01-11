@@ -431,6 +431,7 @@ fn collect_value_use_counts(
 }
 
 /// Resolve a single edge to a threaded target using edge specific facts.
+#[allow(clippy::too_many_arguments)]
 fn resolve_edge_target(
     source_block: mir::LocalNodeId<mir::Block>,
     condition: mir::Value,
@@ -709,9 +710,7 @@ fn resolve_condition_value(
     }
 
     // evaluate comparison conditions from operand ranges
-    let Some(&definition_id) = value_definitions.get(&condition) else {
-        return None;
-    };
+    let &definition_id = value_definitions.get(&condition)?;
     let instruction = tree.get(definition_id);
     let mir::Instruction::Binary {
         operator,
