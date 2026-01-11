@@ -61,6 +61,26 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
     }
 }
 
+/// Check if an instruction can be speculated without trapping.
+///
+/// This is a stricter predicate than purity: some pure operations may trap.
+pub fn instruction_is_speculatable(instruction: &Instruction) -> bool {
+    match instruction {
+        // assumptions must not be speculated across control flow
+        Instruction::Assume { .. } => false,
+        // integer division and remainder may trap
+        Instruction::Binary {
+            operator:
+                mir::BinaryOperator::SignedDivide
+                | mir::BinaryOperator::UnsignedDivide
+                | mir::BinaryOperator::SignedRemainder
+                | mir::BinaryOperator::UnsignedRemainder,
+            ..
+        } => false,
+        _ => instruction_is_pure(instruction),
+    }
+}
+
 /// Check if an instruction has side effects and cannot be removed even if unused.
 ///
 /// Instructions with side effects must be preserved regardless of whether their

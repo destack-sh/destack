@@ -5,7 +5,10 @@ use destack_mir as mir;
 use mir::{Instruction, Terminator};
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
+use crate::optimize::common::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+
+// TODO #Performance: add pruned SSA placement driven by liveness
 
 declare_pass! {
     /// Memory to register promotion pass.
@@ -43,12 +46,14 @@ declare_pass! {
 }
 
 impl FunctionPass for Mem2Reg {
+    /// Run memory to register promotion on a function.
     fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // skip functions without locals
         if function.locals.is_empty() {
             return AnalysisPreservation::all();
         }
@@ -64,6 +69,8 @@ impl FunctionPass for Mem2Reg {
 
         // run mem2reg
         let changed = run_mem2reg(function, tree, &cfg, &domtree);
+
+        // select preservation based on mem2reg changes
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -71,10 +78,12 @@ impl FunctionPass for Mem2Reg {
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "Mem2Reg"
     }
 
+    /// Return the pass identifier.
     fn id(&self) -> &'static str {
         "mem2reg"
     }
@@ -181,7 +190,7 @@ fn compute_dominance_frontiers(
     }
 
     // for each block, compute its dominance frontier using the standard algorithm:
-    // DF(X) = {Y : Y has a predecessor Z where X dominates Z but X does not strictly dominate Y}
+    // df(x) = {y : y has a predecessor z where x dominates z but x does not strictly dominate y}
     for &block in &function.blocks {
         let preds = cfg.predecessors(block);
         if preds.len() >= 2 {
@@ -377,7 +386,7 @@ fn rename_variables(
     // track value substitutions (LocalGet destination -> actual value)
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
 
-    // DFS in dominator tree order
+    // dfs in dominator tree order
     let mut worklist: Vec<RenameWorklistEntry> = vec![(entry, Vec::new())];
     while let Some((block_id, stack_depths)) = worklist.pop() {
         // restore stack depths from when we entered this block
@@ -463,16 +472,17 @@ fn rename_variables(
                 continue;
             }
 
-            let instruction = tree.get(instruction_id);
-            let new_instruction = substitute_instruction_uses(instruction, &substitutions);
-            if new_instruction != *instruction {
+            let instruction = tree.get(instruction_id).clone();
+            let new_instruction =
+                instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+            if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
             }
         }
 
         // apply substitutions to terminator
         let block = tree.get(block_id);
-        let new_terminator = substitute_terminator_uses(&block.terminator, &substitutions);
+        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
         if new_terminator != block.terminator {
             let mut new_block = block.clone();
             new_block.terminator = new_terminator;
@@ -764,333 +774,6 @@ fn extend_arguments(
     args
 }
 
-/// Substitute uses in an instruction.
-fn substitute_instruction_uses(
-    instruction: &Instruction,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Instruction {
-    match instruction {
-        Instruction::Binary {
-            destination,
-            operator,
-            left,
-            right,
-        } => Instruction::Binary {
-            destination: *destination,
-            operator: *operator,
-            left: resolve_value(*left, substitutions),
-            right: resolve_value(*right, substitutions),
-        },
-        Instruction::Unary {
-            destination,
-            operator,
-            argument,
-        } => Instruction::Unary {
-            destination: *destination,
-            operator: *operator,
-            argument: resolve_value(*argument, substitutions),
-        },
-        Instruction::Cast {
-            destination,
-            operator,
-            argument,
-            to_type,
-        } => Instruction::Cast {
-            destination: *destination,
-            operator: *operator,
-            argument: resolve_value(*argument, substitutions),
-            to_type: *to_type,
-        },
-        Instruction::Select {
-            destination,
-            condition,
-            then_value,
-            else_value,
-        } => Instruction::Select {
-            destination: *destination,
-            condition: resolve_value(*condition, substitutions),
-            then_value: resolve_value(*then_value, substitutions),
-            else_value: resolve_value(*else_value, substitutions),
-        },
-        Instruction::LocalSet { local, value } => Instruction::LocalSet {
-            local: *local,
-            value: resolve_value(*value, substitutions),
-        },
-        Instruction::Load {
-            destination,
-            pointer,
-        } => Instruction::Load {
-            destination: *destination,
-            pointer: resolve_value(*pointer, substitutions),
-        },
-        Instruction::Store { pointer, value } => Instruction::Store {
-            pointer: resolve_value(*pointer, substitutions),
-            value: resolve_value(*value, substitutions),
-        },
-        Instruction::RawDrop { value } => Instruction::RawDrop {
-            value: resolve_value(*value, substitutions),
-        },
-        Instruction::StackDrop { value } => Instruction::StackDrop {
-            value: resolve_value(*value, substitutions),
-        },
-        Instruction::Assume { condition } => Instruction::Assume {
-            condition: resolve_value(*condition, substitutions),
-        },
-        Instruction::FieldGet {
-            destination,
-            aggregate,
-            index,
-        } => Instruction::FieldGet {
-            destination: *destination,
-            aggregate: resolve_value(*aggregate, substitutions),
-            index: *index,
-        },
-        Instruction::FieldAddr {
-            destination,
-            aggregate,
-            index,
-        } => Instruction::FieldAddr {
-            destination: *destination,
-            aggregate: resolve_value(*aggregate, substitutions),
-            index: *index,
-        },
-        Instruction::FieldSet {
-            destination,
-            aggregate,
-            index,
-            value,
-        } => Instruction::FieldSet {
-            destination: *destination,
-            aggregate: resolve_value(*aggregate, substitutions),
-            index: *index,
-            value: resolve_value(*value, substitutions),
-        },
-        Instruction::ElementGet {
-            destination,
-            array,
-            index,
-        } => Instruction::ElementGet {
-            destination: *destination,
-            array: resolve_value(*array, substitutions),
-            index: resolve_value(*index, substitutions),
-        },
-        Instruction::ElementAddr {
-            destination,
-            array,
-            index,
-        } => Instruction::ElementAddr {
-            destination: *destination,
-            array: resolve_value(*array, substitutions),
-            index: resolve_value(*index, substitutions),
-        },
-        Instruction::ElementSet {
-            destination,
-            array,
-            index,
-            value,
-        } => Instruction::ElementSet {
-            destination: *destination,
-            array: resolve_value(*array, substitutions),
-            index: resolve_value(*index, substitutions),
-            value: resolve_value(*value, substitutions),
-        },
-        Instruction::ManagedAllocArray {
-            destination,
-            element,
-            length,
-        } => Instruction::ManagedAllocArray {
-            destination: *destination,
-            element: *element,
-            length: resolve_value(*length, substitutions),
-        },
-        Instruction::RawFree { pointer } => Instruction::RawFree {
-            pointer: resolve_value(*pointer, substitutions),
-        },
-        // instructions with no value uses or external arguments
-        Instruction::Const { .. }
-        | Instruction::LocalGet { .. }
-        | Instruction::GlobalAddr { .. }
-        | Instruction::GlobalConst { .. }
-        | Instruction::Struct { .. }
-        | Instruction::Tuple { .. }
-        | Instruction::Array { .. }
-        | Instruction::Call { .. }
-        | Instruction::CallIndirect { .. }
-        | Instruction::ManagedAlloc { .. }
-        | Instruction::RawAlloc { .. }
-        | Instruction::StackAlloc { .. }
-        | Instruction::Intrinsic { .. } => instruction.clone(),
-    }
-}
-
-/// Substitute uses in a terminator.
-fn substitute_terminator_uses(
-    terminator: &Terminator,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Terminator {
-    match terminator {
-        Terminator::Jump { target, arguments } => Terminator::Jump {
-            target: *target,
-            arguments: arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-        },
-        Terminator::Branch {
-            condition,
-            then_target,
-            then_arguments,
-            else_target,
-            else_arguments,
-        } => Terminator::Branch {
-            condition: resolve_value(*condition, substitutions),
-            then_target: *then_target,
-            then_arguments: then_arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-            else_target: *else_target,
-            else_arguments: else_arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-        },
-        Terminator::Check {
-            condition,
-            constraint,
-            success,
-            failure,
-        } => {
-            let constraint = match constraint {
-                mir::CheckConstraint::Bounds {
-                    index,
-                    length,
-                    collection,
-                    is_signed,
-                } => mir::CheckConstraint::Bounds {
-                    index: resolve_value(*index, substitutions),
-                    length: resolve_value(*length, substitutions),
-                    collection: resolve_value(*collection, substitutions),
-                    is_signed: *is_signed,
-                },
-                mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
-                    value: resolve_value(*value, substitutions),
-                },
-                mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
-                    divisor: resolve_value(*divisor, substitutions),
-                },
-                mir::CheckConstraint::ShiftRange {
-                    value,
-                    bit_width,
-                    is_signed,
-                } => mir::CheckConstraint::ShiftRange {
-                    value: resolve_value(*value, substitutions),
-                    bit_width: *bit_width,
-                    is_signed: *is_signed,
-                },
-                mir::CheckConstraint::Narrow {
-                    value,
-                    to_width,
-                    is_signed,
-                } => mir::CheckConstraint::Narrow {
-                    value: resolve_value(*value, substitutions),
-                    to_width: *to_width,
-                    is_signed: *is_signed,
-                },
-                mir::CheckConstraint::Overflow {
-                    operator,
-                    left,
-                    right,
-                    is_signed,
-                } => mir::CheckConstraint::Overflow {
-                    operator: *operator,
-                    left: resolve_value(*left, substitutions),
-                    right: resolve_value(*right, substitutions),
-                    is_signed: *is_signed,
-                },
-            };
-            Terminator::Check {
-                condition: resolve_value(*condition, substitutions),
-                constraint,
-                success: mir::CheckTarget {
-                    target: success.target,
-                    arguments: success
-                        .arguments
-                        .iter()
-                        .map(|&v| resolve_value(v, substitutions))
-                        .collect(),
-                },
-                failure: mir::CheckTarget {
-                    target: failure.target,
-                    arguments: failure
-                        .arguments
-                        .iter()
-                        .map(|&v| resolve_value(v, substitutions))
-                        .collect(),
-                },
-            }
-        }
-        Terminator::Switch {
-            value,
-            default,
-            default_arguments,
-            cases,
-        } => Terminator::Switch {
-            value: resolve_value(*value, substitutions),
-            default: *default,
-            default_arguments: default_arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-            cases: cases
-                .iter()
-                .map(|c| mir::SwitchCase {
-                    value: c.value,
-                    target: c.target,
-                    arguments: c
-                        .arguments
-                        .iter()
-                        .map(|&v| resolve_value(v, substitutions))
-                        .collect(),
-                })
-                .collect(),
-        },
-        Terminator::Return { value } => Terminator::Return {
-            value: value.map(|v| resolve_value(v, substitutions)),
-        },
-        Terminator::Yield {
-            value,
-            resume,
-            resume_arguments,
-        } => Terminator::Yield {
-            value: resolve_value(*value, substitutions),
-            resume: *resume,
-            resume_arguments: resume_arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-        },
-        Terminator::Unreachable => Terminator::Unreachable,
-        Terminator::TailCall {
-            function,
-            arguments,
-        } => Terminator::TailCall {
-            function: *function,
-            arguments: arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-        },
-        Terminator::TailCallIndirect { callee, arguments } => Terminator::TailCallIndirect {
-            callee: resolve_value(*callee, substitutions),
-            arguments: arguments
-                .iter()
-                .map(|&v| resolve_value(v, substitutions))
-                .collect(),
-        },
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1369,6 +1052,32 @@ block2:
     jump block3(v3)
 block3(v5: i32):
     return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&Mem2Reg);
+        program.assert_output(expected);
+    }
+
+    /// Call arguments are rewritten after local promotion.
+    #[test]
+    fn test_promote_call_arguments() {
+        let input = r#"extern function @sink(i32) -> void
+function @test() -> void {
+    local0: i32 ; owned, mut
+block0:
+    v0 = iconst 7i32
+    local.set local0, v0
+    v1 = local.get local0
+    call @sink(v1)
+    return
+}"#;
+        let expected = r#"extern function @sink(i32) -> void
+function @test() -> void {
+block0:
+    v0 = iconst 7i32
+    call @sink(v0)
+    return
 }"#;
 
         let mut program = TestProgram::new(input);

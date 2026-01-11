@@ -3,9 +3,14 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{DominatorTree, Loop, LoopAnalysis};
-use crate::optimize::common::{instruction_map, terminator_remap};
+use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
+use crate::optimize::common::{
+    SuccessorArguments, instruction_map, terminator_arguments_for_successor_checked,
+    terminator_remap,
+};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+
+// NOTE #Performance: add profile guided unswitch heuristics and partial unswitching
 
 declare_pass! {
     /// Move loop-invariant conditionals outside of loops by duplicating the loop.
@@ -46,6 +51,7 @@ declare_pass! {
     /// Restrictions:
     /// - Only unswitches branches with loop-invariant conditions
     /// - Only unswitches small loops to avoid excessive code growth
+    /// - Limits unswitching to a small number of disjoint loops per run
     /// - Requires canonical loop form from LoopSimplify
     #[pass(id = "loop-unswitch")]
     pub LoopUnswitch,
@@ -54,32 +60,26 @@ declare_pass! {
 
 /// Maximum number of instructions in a loop to consider for unswitching.
 const MAX_LOOP_SIZE: usize = 50;
+/// Maximum number of unswitch operations per function invocation.
+const MAX_UNSWITCHES_PER_FUNCTION: usize = 2;
 
 impl FunctionPass for LoopUnswitch {
+    /// Run loop unswitching on a function.
     fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // skip empty functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        // get analyses
-        let (loops, domtree) = {
-            let analyses = FunctionAnalyses::new(function, tree);
-            (
-                analyses.get::<LoopAnalysis>().clone(),
-                analyses.get::<DominatorTree>().clone(),
-            )
-        };
-        if loops.num_loops() == 0 {
-            return AnalysisPreservation::all();
-        }
-
         // run loop unswitching
-        let changed = run_loop_unswitch(function, tree, &loops, &domtree);
+        let changed = run_loop_unswitch(function, tree);
+
+        // select preservation based on unswitch changes
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -87,41 +87,106 @@ impl FunctionPass for LoopUnswitch {
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "LoopUnswitch"
     }
 
+    /// Return the pass identifier.
     fn id(&self) -> &'static str {
         "loop-unswitch"
     }
 }
 
 /// Core loop unswitching logic. Returns true if changes were made.
-fn run_loop_unswitch(
-    function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
-    loops: &LoopAnalysis,
-    domtree: &DominatorTree,
-) -> bool {
-    // find first unswitchable loop (innermost first)
-    let mut candidate: Option<UnswitchCandidate> = None;
-    for lp in loops.loops().iter().rev() {
-        if let Some(c) = find_unswitchable_loop(lp, function, tree, domtree) {
-            candidate = Some(c);
+fn run_loop_unswitch(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // track progress and exclusions
+    let mut changed = false;
+    let mut unswitched = 0;
+    let mut unswitched_headers: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+    let mut unswitched_blocks: Vec<HashSet<mir::LocalNodeId<mir::Block>>> = Vec::new();
+
+    // iterate unswitch attempts within the limit
+    while unswitched < MAX_UNSWITCHES_PER_FUNCTION {
+        // refresh analyses after each transform
+        let (loops, domtree, cfg) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<LoopAnalysis>().clone(),
+                analyses.get::<DominatorTree>().clone(),
+                analyses.get::<ControlFlowGraph>().clone(),
+            )
+        };
+
+        // stop when there are no loops to process
+        if loops.num_loops() == 0 {
             break;
+        }
+
+        // prepare loop ordering for selection
+        let mut candidate: Option<UnswitchCandidate> = None;
+        let mut ordered_loops: Vec<&Loop> = loops.loops().iter().collect();
+        ordered_loops.sort_by_key(|lp| (std::cmp::Reverse(lp.depth), lp.blocks.len(), lp.header));
+
+        // find first unswitchable loop
+        for lp in ordered_loops {
+            // skip loops rejected by earlier transformations
+            if !loop_is_candidate(lp, &unswitched_headers, &unswitched_blocks) {
+                continue;
+            }
+
+            // capture the first loop that can be unswitched
+            if let Some(c) = find_unswitchable_loop(lp, function, tree, &cfg, &domtree) {
+                candidate = Some(c);
+                break;
+            }
+        }
+
+        // stop when no candidate was found
+        let Some(candidate) = candidate else {
+            break;
+        };
+
+        // apply the unswitch transform
+        function.recompute_next_value_id(tree);
+        unswitched_headers.insert(candidate.header);
+        unswitched_blocks.push(candidate.loop_blocks.clone());
+        unswitch_loop(function, tree, &candidate);
+        unswitched += 1;
+        changed = true;
+    }
+
+    changed
+}
+
+/// Return true when a loop is disjoint from previously unswitched blocks.
+fn loop_is_disjoint(lp: &Loop, unswitched: &[HashSet<mir::LocalNodeId<mir::Block>>]) -> bool {
+    // check all prior unswitched block sets
+    unswitched
+        .iter()
+        .all(|blocks| blocks.is_disjoint(&lp.blocks))
+}
+
+/// Return true when a loop can be unswitched given prior transformations.
+fn loop_is_candidate(
+    lp: &Loop,
+    unswitched_headers: &HashSet<mir::LocalNodeId<mir::Block>>,
+    unswitched_blocks: &[HashSet<mir::LocalNodeId<mir::Block>>],
+) -> bool {
+    // reject overlap with previously unswitched blocks
+    if !loop_is_disjoint(lp, unswitched_blocks) {
+        return false;
+    }
+
+    // scan headers that must not appear in the loop
+    for header in unswitched_headers {
+        // abort when a prior header is inside the loop
+        if lp.blocks.contains(header) {
+            return false;
         }
     }
 
-    // unswitch at most one loop per pass invocation
-    let candidate = match candidate {
-        Some(c) => c,
-        None => return false,
-    };
-
-    function.recompute_next_value_id(tree);
-
-    unswitch_loop(function, tree, &candidate);
-
+    // accept remaining loops
     true
 }
 
@@ -156,6 +221,7 @@ fn find_unswitchable_loop(
     lp: &Loop,
     function: &mir::Function,
     tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
 ) -> Option<UnswitchCandidate> {
     // need a preheader
@@ -176,15 +242,17 @@ fn find_unswitchable_loop(
         return None;
     }
 
-    // collect invariant values (defined outside the loop)
-    let invariant_values = collect_invariant_values(lp, function, tree);
-
     // get preheader to header arguments
     let preheader_block = tree.get(preheader);
     let preheader_to_header_args = match &preheader_block.terminator {
         mir::Terminator::Jump { target, arguments } if *target == header => arguments.clone(),
         _ => return None,
     };
+
+    // collect invariant values (defined outside the loop)
+    let invariant_values = collect_invariant_values(lp, function, tree);
+    let header_param_rewrites =
+        collect_header_param_rewrites(lp, tree, cfg, &invariant_values, &preheader_to_header_args);
 
     // scan all loop blocks for an invariant branch (prefer header first for stability)
     let mut sorted_blocks: Vec<_> = lp.blocks.iter().copied().collect();
@@ -231,10 +299,16 @@ fn find_unswitchable_loop(
                 _ => continue,
             };
 
-        // condition must be loop-invariant
-        if !invariant_values.contains(&condition) {
+        // condition must be loop-invariant (after header parameter rewrite)
+        let condition_value = header_param_rewrites
+            .get(&condition)
+            .copied()
+            .unwrap_or(condition);
+        if !invariant_values.contains(&condition_value) {
             continue;
         }
+        let check_kind =
+            check_kind.map(|constraint| remap_check_constraint(constraint, &header_param_rewrites));
         if let Some(kind) = &check_kind
             && !kind
                 .uses()
@@ -260,7 +334,7 @@ fn find_unswitchable_loop(
             preheader,
             header,
             branch_block: block_id,
-            condition,
+            condition: condition_value,
             then_target,
             then_arguments,
             else_target,
@@ -307,6 +381,136 @@ fn collect_invariant_values(
     }
 
     invariant
+}
+
+/// Collect invariant header parameter rewrites based on preheader arguments.
+fn collect_header_param_rewrites(
+    lp: &Loop,
+    tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    invariant_values: &HashSet<mir::Value>,
+    preheader_args: &[mir::Value],
+) -> HashMap<mir::Value, mir::Value> {
+    // skip when there are no header parameters
+    let header_block = tree.get(lp.header);
+    if header_block.parameters.is_empty() {
+        return HashMap::new();
+    }
+
+    // verify preheader argument count matches
+    if preheader_args.len() != header_block.parameters.len() {
+        return HashMap::new();
+    }
+
+    // build rewrite mapping for invariant parameters
+    let mut rewrites = HashMap::new();
+    for (index, param) in header_block.parameters.iter().enumerate() {
+        let preheader_arg = preheader_args[index];
+
+        // require invariant preheader argument
+        if !invariant_values.contains(&preheader_arg) {
+            continue;
+        }
+
+        // verify all predecessors pass invariant values
+        let mut is_invariant = true;
+        for &pred in cfg.predecessors(lp.header) {
+            // read arguments flowing into the header
+            let args = match terminator_arguments_for_successor_checked(
+                &tree.get(pred).terminator,
+                lp.header,
+            ) {
+                SuccessorArguments::Consistent(args) => args,
+                SuccessorArguments::Missing | SuccessorArguments::Conflict => {
+                    return HashMap::new();
+                }
+            };
+
+            // reject mismatched argument counts
+            if args.len() != header_block.parameters.len() {
+                return HashMap::new();
+            }
+
+            // check for variant argument values
+            let arg = args[index];
+
+            // detect arguments that differ from invariant candidates
+            let is_preheader_match = arg == preheader_arg;
+            let is_param_match = arg == param.value;
+            if !is_preheader_match && !is_param_match {
+                is_invariant = false;
+                break;
+            }
+        }
+
+        // record invariant rewrite
+        if is_invariant {
+            rewrites.insert(param.value, preheader_arg);
+        }
+    }
+
+    // return rewrites for header parameters
+    rewrites
+}
+
+/// Remap values inside a check constraint using the rewrite map.
+fn remap_check_constraint(
+    constraint: mir::CheckConstraint,
+    rewrites: &HashMap<mir::Value, mir::Value>,
+) -> mir::CheckConstraint {
+    // remap values through rewrite map
+    let remap =
+        |value: mir::Value| -> mir::Value { rewrites.get(&value).copied().unwrap_or(value) };
+
+    // rebuild the constraint with remapped values
+    match constraint {
+        mir::CheckConstraint::Bounds {
+            index,
+            length,
+            collection,
+            is_signed,
+        } => mir::CheckConstraint::Bounds {
+            index: remap(index),
+            length: remap(length),
+            collection: remap(collection),
+            is_signed,
+        },
+        mir::CheckConstraint::Null { value } => mir::CheckConstraint::Null {
+            value: remap(value),
+        },
+        mir::CheckConstraint::DivZero { divisor } => mir::CheckConstraint::DivZero {
+            divisor: remap(divisor),
+        },
+        mir::CheckConstraint::ShiftRange {
+            value,
+            bit_width,
+            is_signed,
+        } => mir::CheckConstraint::ShiftRange {
+            value: remap(value),
+            bit_width,
+            is_signed,
+        },
+        mir::CheckConstraint::Narrow {
+            value,
+            to_width,
+            is_signed,
+        } => mir::CheckConstraint::Narrow {
+            value: remap(value),
+            to_width,
+            is_signed,
+        },
+        mir::CheckConstraint::Overflow {
+            operator,
+            left,
+            right,
+            is_signed,
+        } => mir::CheckConstraint::Overflow {
+            operator,
+            left: remap(left),
+            right: remap(right),
+            is_signed,
+        },
+    }
 }
 
 /// Perform loop unswitching transformation.
@@ -781,6 +985,40 @@ block9(v21: i32):
         program.assert_output(expected);
     }
 
+    /// Loop header parameters can be rewritten to preheader arguments.
+    #[test]
+    fn test_unswitch_header_param_condition() {
+        let input = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    jump block1(v0)
+block1(v1: bool):
+    branch v1, block2, block3
+block2:
+    jump block1(v1)
+block3:
+    return
+}"#;
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    branch v0, block1(v0), block4(v0)
+block1(v1: bool):
+    jump block2
+block2:
+    jump block1(v1)
+block3:
+    return
+block4(v2: bool):
+    jump block3
+block5:
+    jump block4(v2)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnswitch);
+        program.assert_output(expected);
+    }
+
     /// Loop exceeding size limit is preserved.
     #[test]
     fn test_preserve_large_loop() {
@@ -811,7 +1049,7 @@ block4:
         program.assert_output(&before);
     }
 
-    /// Inner loop is unswitched before outer loop.
+    /// Inner loop is unswitched first, then an outer loop may also unswitch.
     #[test]
     fn test_unswitch_inner_loop_first() {
         let input = r#"function @test(v0: bool, v1: bool) -> void {
@@ -829,12 +1067,12 @@ block5:
     return
 }"#;
         // inner loop (block2-block3) is unswitched on v0
-        // the outer loop structure is preserved
+        // the outer loop may also unswitch in a subsequent iteration
         let expected = r#"function @test(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
-    jump block1
+    branch v0, block1, block8
 block1:
-    branch v0, block2, block6
+    jump block2
 block2:
     jump block3
 block3:
@@ -847,6 +1085,12 @@ block6:
     jump block4
 block7:
     jump block6
+block8:
+    jump block10
+block9:
+    branch v1, block8, block5
+block10:
+    jump block9
 }"#;
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
