@@ -1,0 +1,33 @@
+
+function @binary_int_mix(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 12345i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = iconst 1i64
+    v7 = iadd v4, v3
+    v8 = isub v7, v6
+    v9 = imul v8, v6
+    v10 = iconst 7i64
+    v11 = sdiv v9, v10
+    v12 = iconst 13i64
+    v13 = srem v11, v12
+    v14 = iconst 3i64
+    v15 = ishl v13, v14
+    v16 = iconst 1i64
+    v17 = sshr v15, v16
+    v18 = iconst 255i64
+    v19 = band v17, v18
+    v20 = iconst 170i64
+    v21 = bxor v19, v20
+    v22 = iconst 85i64
+    v23 = bor v21, v22
+    v24 = iadd v3, v6
+    jump block1(v24, v23)
+block3(v25: i64):
+    return v25
+}

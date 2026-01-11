@@ -1,0 +1,73 @@
+
+function @json_like_scan(v0: i64, v1: i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iconst 1i64
+    v3 = icmp_slt v1, v2
+    branch v3, block1, block2
+block1:
+    v4 = iconst 1i64
+    jump block3(v4)
+block2:
+    jump block3(v1)
+block3(v5: i64):
+    v6 = iconst 0i64
+    v7 = iconst 0i64
+    v8 = iconst 0i64
+    v9 = iconst 0i64
+    jump block4(v6, v7, v8, v9, v5)
+block4(v10: i64, v11: i64, v12: i64, v13: i64, v14: i64):
+    v15 = icmp_sge v10, v0
+    branch v15, block21(v11, v12, v13), block5
+block5:
+    v16 = srem v10, v14
+    v17 = iconst 3i64
+    v18 = imul v10, v17
+    v19 = iadd v18, v16
+    v20 = iconst 8i64
+    v21 = srem v19, v20
+    v22 = iconst 1i64
+    v23 = icmp_eq v13, v22
+    branch v23, block6, block9
+block6:
+    v24 = iconst 4i64
+    v25 = icmp_eq v21, v24
+    branch v25, block7, block8
+block7:
+    v26 = iconst 0i64
+    jump block20(v11, v12, v26, v10, v14)
+block8:
+    jump block20(v11, v12, v13, v10, v14)
+block9:
+    switch v21, block19, 0 => block10, 1 => block11, 2 => block10, 3 => block11, 4 => block12, 5 => block13, 6 => block13
+block10:
+    v27 = iconst 1i64
+    v28 = iadd v11, v27
+    jump block20(v28, v12, v13, v10, v14)
+block11:
+    v29 = iconst 0i64
+    v30 = icmp_sgt v11, v29
+    branch v30, block14, block15
+block14:
+    v31 = iconst 1i64
+    v32 = isub v11, v31
+    jump block20(v32, v12, v13, v10, v14)
+block15:
+    jump block20(v11, v12, v13, v10, v14)
+block12:
+    v33 = iconst 1i64
+    jump block20(v11, v12, v33, v10, v14)
+block13:
+    v34 = iconst 1i64
+    v35 = iadd v12, v34
+    jump block20(v11, v35, v13, v10, v14)
+block19:
+    jump block20(v11, v12, v13, v10, v14)
+block20(v36: i64, v37: i64, v38: i64, v39: i64, v40: i64):
+    v41 = iconst 1i64
+    v42 = iadd v39, v41
+    jump block4(v42, v36, v37, v38, v40)
+block21(v43: i64, v44: i64, v45: i64):
+    v46 = iadd v43, v44
+    v47 = iadd v46, v45
+    return v47
+}

@@ -1,0 +1,76 @@
+use super::Program;
+
+mod aggregate_update;
+mod alloc_array_large;
+mod alloc_array_small;
+mod alloc_burst;
+mod alloc_single;
+mod alloc_struct_large;
+mod arena_copy;
+mod array_map_reduce;
+mod array_random_access;
+mod array_walk;
+mod field_access;
+mod global_counter;
+mod graph_traversal;
+mod hash_table_probe;
+mod linked_walk;
+mod load_store;
+mod local_accumulate;
+mod nested_array_sum;
+mod object_graph_mark;
+mod raw_alloc_drop;
+mod raw_alloc_free;
+mod soa_vs_aos_update;
+mod stack_scratch;
+
+pub(crate) use aggregate_update::AGGREGATE_UPDATE;
+pub(crate) use alloc_array_large::ALLOC_ARRAY_LARGE;
+pub(crate) use alloc_array_small::ALLOC_ARRAY_SMALL;
+pub(crate) use alloc_burst::ALLOC_BURST;
+pub(crate) use alloc_single::ALLOC_SINGLE;
+pub(crate) use alloc_struct_large::ALLOC_STRUCT_LARGE;
+pub(crate) use arena_copy::ARENA_COPY;
+pub(crate) use array_map_reduce::ARRAY_MAP_REDUCE;
+pub(crate) use array_random_access::ARRAY_RANDOM_ACCESS;
+pub(crate) use array_walk::ARRAY_WALK;
+pub(crate) use field_access::FIELD_ACCESS;
+pub(crate) use global_counter::GLOBAL_COUNTER;
+pub(crate) use graph_traversal::GRAPH_TRAVERSAL;
+pub(crate) use hash_table_probe::HASH_TABLE_PROBE;
+pub(crate) use linked_walk::LINKED_WALK;
+pub(crate) use load_store::LOAD_STORE;
+pub(crate) use local_accumulate::LOCAL_ACCUMULATE;
+pub(crate) use nested_array_sum::NESTED_ARRAY_SUM;
+pub(crate) use object_graph_mark::OBJECT_GRAPH_MARK;
+pub(crate) use raw_alloc_drop::RAW_ALLOC_DROP;
+pub(crate) use raw_alloc_free::RAW_ALLOC_FREE;
+pub(crate) use soa_vs_aos_update::SOA_VS_AOS_UPDATE;
+pub(crate) use stack_scratch::STACK_SCRATCH;
+
+/// All benchmark programs in this category.
+pub(crate) const ALL: &[&Program] = &[
+    &ALLOC_SINGLE,
+    &ALLOC_BURST,
+    &ALLOC_ARRAY_SMALL,
+    &ALLOC_ARRAY_LARGE,
+    &ALLOC_STRUCT_LARGE,
+    &AGGREGATE_UPDATE,
+    &RAW_ALLOC_FREE,
+    &RAW_ALLOC_DROP,
+    &LOAD_STORE,
+    &LOCAL_ACCUMULATE,
+    &STACK_SCRATCH,
+    &GLOBAL_COUNTER,
+    &ARRAY_MAP_REDUCE,
+    &LINKED_WALK,
+    &FIELD_ACCESS,
+    &ARRAY_WALK,
+    &ARRAY_RANDOM_ACCESS,
+    &NESTED_ARRAY_SUM,
+    &HASH_TABLE_PROBE,
+    &OBJECT_GRAPH_MARK,
+    &ARENA_COPY,
+    &SOA_VS_AOS_UPDATE,
+    &GRAPH_TRAVERSAL,
+];

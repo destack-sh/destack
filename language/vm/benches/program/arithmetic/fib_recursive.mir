@@ -1,0 +1,18 @@
+
+function @fib(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 2i64
+    v2 = icmp_slt v0, v1
+    branch v2, block1, block2
+block1:
+    return v0
+block2:
+    v3 = iconst 1i64
+    v4 = isub v0, v3
+    v5 = call @fib(v4)
+    v6 = iconst 2i64
+    v7 = isub v0, v6
+    v8 = call @fib(v7)
+    v9 = iadd v5, v8
+    return v9
+}

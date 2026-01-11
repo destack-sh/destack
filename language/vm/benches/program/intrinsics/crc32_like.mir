@@ -1,0 +1,32 @@
+
+function @crc32_like(v0: i64, v1: i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iconst 0i64
+    jump block1(v2, v1)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = iconst 31i64
+    v7 = imul v3, v6
+    v8 = iconst 17i64
+    v9 = iadd v7, v8
+    v10 = iconst 255i64
+    v11 = band v9, v10
+    v12 = bxor v4, v11
+    v13 = iconst 5i64
+    v14 = intrinsic.rotate_left(v12, v13)
+    v15 = intrinsic.byte_swap(v14)
+    v16 = iconst 517762881i64
+    v17 = imul v15, v16
+    v18 = bxor v17, v11
+    v19 = iconst 11i64
+    v20 = intrinsic.rotate_right(v18, v19)
+    v21 = iconst 2246822519i64
+    v22 = imul v20, v21
+    v23 = iconst 1i64
+    v24 = iadd v3, v23
+    jump block1(v24, v22)
+block3(v25: i64):
+    return v25
+}

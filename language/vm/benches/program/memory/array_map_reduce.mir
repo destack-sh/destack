@@ -1,0 +1,36 @@
+
+function @array_map_reduce(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = managed.alloc_array i64, v0
+    v2 = iconst 0i64
+    jump block1(v2, v1)
+block1(v3: i64, v4: ref<managed i64>):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+block2:
+    v6 = element.addr v4, v3
+    store v6, v3
+    v7 = iconst 1i64
+    v8 = iadd v3, v7
+    jump block1(v8, v4)
+block3(v9: ref<managed i64>):
+    v10 = iconst 0i64
+    v11 = iconst 0i64
+    jump block4(v10, v11, v9)
+block4(v12: i64, v13: i64, v14: ref<managed i64>):
+    v15 = icmp_sge v12, v0
+    branch v15, block6(v13), block5
+block5:
+    v16 = element.addr v14, v12
+    v17 = load v16
+    v18 = iconst 3i64
+    v19 = imul v17, v18
+    v20 = iconst 7i64
+    v21 = iadd v19, v20
+    v22 = iadd v13, v21
+    v23 = iconst 1i64
+    v24 = iadd v12, v23
+    jump block4(v24, v22, v14)
+block6(v25: i64):
+    return v25
+}

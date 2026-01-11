@@ -1,0 +1,81 @@
+
+function @bytecode_vm(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 1i64
+    v3 = iconst 3i64
+    jump block1(v1, v2, v3)
+block1(v4: i64, v5: i64, v6: i64):
+    v7 = icmp_sge v4, v0
+    branch v7, block14(v5), block2
+block2:
+    v8 = iconst 1103515245i64
+    v9 = imul v4, v8
+    v10 = iconst 12345i64
+    v11 = iadd v9, v10
+    v12 = iconst 255i64
+    v13 = band v11, v12
+    v14 = iconst 192i64
+    v15 = icmp_slt v13, v14
+    branch v15, block3, block4
+block3:
+    v16 = iconst 4i64
+    v17 = srem v13, v16
+    jump block5(v17, v4, v5, v6)
+block4:
+    v18 = iconst 3i64
+    v19 = srem v13, v18
+    v20 = iconst 4i64
+    v21 = iadd v19, v20
+    jump block5(v21, v4, v5, v6)
+block5(v22: i64, v23: i64, v24: i64, v25: i64):
+    switch v22, block13, 0 => block6, 1 => block7, 2 => block8, 3 => block9, 4 => block10, 5 => block11, 6 => block12
+block6:
+    v26 = iadd v24, v25
+    jump block15(v26, v25, v23)
+block7:
+    v27 = iconst 1i64
+    v28 = ishl v25, v27
+    v29 = bxor v24, v28
+    v30 = iconst 3i64
+    v31 = iadd v25, v30
+    jump block15(v29, v31, v23)
+block8:
+    v32 = iconst 3i64
+    v33 = imul v24, v32
+    v34 = iadd v33, v25
+    jump block15(v34, v25, v23)
+block9:
+    v35 = isub v24, v25
+    jump block15(v35, v25, v23)
+block10:
+    v36 = iconst 5i64
+    v37 = iadd v25, v36
+    v38 = bxor v24, v37
+    jump block15(v38, v37, v23)
+block11:
+    v39 = iconst 1i64
+    v40 = band v25, v39
+    v41 = icmp_eq v40, v39
+    branch v41, block16, block17
+block16:
+    v42 = iadd v24, v25
+    jump block15(v42, v25, v23)
+block17:
+    v43 = isub v24, v25
+    jump block15(v43, v25, v23)
+block12:
+    v44 = iconst 7i64
+    v45 = iadd v24, v44
+    jump block15(v45, v25, v23)
+block13:
+    v46 = iconst 2i64
+    v47 = iadd v24, v46
+    jump block15(v47, v25, v23)
+block15(v48: i64, v49: i64, v50: i64):
+    v51 = iconst 1i64
+    v52 = iadd v50, v51
+    jump block1(v52, v48, v49)
+block14(v53: i64):
+    return v53
+}
