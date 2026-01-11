@@ -4708,11 +4708,10 @@ pub(super) fn handle_tail_call(
             copies: Some(*copies),
         };
     };
-    let Some(callee) = state
+    let Some(callee_ptr) = state
         .interpreter
         .threaded_functions
-        .get_by_index(resolved_index)
-        .cloned()
+        .get_ptr_by_index(resolved_index)
     else {
         return ControlFlow::TailCall {
             function: *function,
@@ -4721,6 +4720,7 @@ pub(super) fn handle_tail_call(
             copies: Some(*copies),
         };
     };
+    let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
     let argument_values = {
@@ -4743,7 +4743,7 @@ pub(super) fn handle_tail_call(
     };
 
     // enter tail call fast path
-    enter_tail_call(state, function_id, callee.as_ref(), &argument_values);
+    enter_tail_call(state, function_id, callee, &argument_values);
 
     // continue at entry block
     let entry_block_ptr = state.current_frame_mut().block_ptr;
@@ -4851,11 +4851,10 @@ pub(super) fn handle_tail_call_indirect(
             copies: None,
         };
     };
-    let Some(callee) = state
+    let Some(callee_ptr) = state
         .interpreter
         .threaded_functions
-        .get_by_index(resolved_index)
-        .cloned()
+        .get_ptr_by_index(resolved_index)
     else {
         return ControlFlow::TailCall {
             function,
@@ -4864,12 +4863,13 @@ pub(super) fn handle_tail_call_indirect(
             copies: None,
         };
     };
+    let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
     let argument_values = collect_values(state, *arguments);
 
     // enter tail call fast path
-    enter_tail_call(state, function_id, callee.as_ref(), &argument_values);
+    enter_tail_call(state, function_id, callee, &argument_values);
 
     // continue at entry block
     let entry_block_ptr = state.current_frame_mut().block_ptr;

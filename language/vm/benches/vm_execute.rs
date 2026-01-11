@@ -173,6 +173,7 @@ fn print_stats() {
         false,
         None,
         false,
+        false,
     );
     program::print_stats(&options);
 }

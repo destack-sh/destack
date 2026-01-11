@@ -48,6 +48,10 @@ struct Args {
     #[arg(long)]
     deterministic: bool,
 
+    /// Disable runtime checks for faster benchmarking.
+    #[arg(long)]
+    fast: bool,
+
     /// Number of timing repeats.
     #[arg(long)]
     repeat: Option<u32>,
@@ -139,6 +143,7 @@ fn main() {
         args.perf,
         time_budget,
         args.deterministic,
+        args.fast,
     );
 
     // run validation mode

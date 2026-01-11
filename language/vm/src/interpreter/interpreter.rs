@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use destack_base::ImmutableStringPool;
@@ -122,6 +123,13 @@ impl ThreadedFunctionTable {
     /// Get a threaded function by index.
     pub(super) fn get_by_index(&self, index: u32) -> Option<&Arc<ThreadedFunction>> {
         self.functions.get(index as usize)
+    }
+
+    /// Get a threaded function pointer by index.
+    pub(super) fn get_ptr_by_index(&self, index: u32) -> Option<NonNull<ThreadedFunction>> {
+        self.functions
+            .get(index as usize)
+            .map(|func| NonNull::from(func.as_ref()))
     }
 }
 

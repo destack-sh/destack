@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use clap::ValueEnum;
 use destack_mir as mir;
 use destack_mir::parse::Parser;
-use destack_vm::interpreter::{Interpreter, MachineOptions};
+use destack_vm::interpreter::{CheckPolicy, Interpreter, MachineOptions};
 use destack_vm::memory::Value;
 
 use super::{arithmetic, calls, dispatch, function_id_by_name, intrinsics, memory, perf};
@@ -158,7 +158,7 @@ fn output_json(
     // add profile metadata
     let _ = write!(
         out,
-        "\"profile\":\"{:?}\",\"repeat\":{},\"min_duration_ms\":{},\"warmup_ms\":{},\"target_duration_ms\":{},\"calibrated\":{},\"deterministic\":{},\"time_budget_ms\":",
+        "\"profile\":\"{:?}\",\"repeat\":{},\"min_duration_ms\":{},\"warmup_ms\":{},\"target_duration_ms\":{},\"calibrated\":{},\"deterministic\":{},\"fast\":{},\"time_budget_ms\":",
         profile.kind,
         profile.repeat.max(1),
         min_duration.as_millis(),
@@ -166,6 +166,7 @@ fn output_json(
         target_duration.as_millis(),
         calibrate,
         options.deterministic,
+        options.fast,
     );
     if let Some(budget) = options.time_budget {
         let _ = write!(out, "{}", budget.as_millis());
@@ -254,7 +255,7 @@ fn output_csv(
 ) {
     // emit csv header
     println!(
-        "profile,repeat,min_duration_ms,warmup_ms,target_duration_ms,calibrated,deterministic,time_budget_ms,category,name,full_name,mops,min_mops,max_mops,mir,threaded,calls,stack,alloc,gc,freed,branches,mem,range,scale,perf_branch_misses,perf_l1_misses,perf_l1_accesses,perf_l1_miss_rate,elapsed_secs"
+        "profile,repeat,min_duration_ms,warmup_ms,target_duration_ms,calibrated,deterministic,fast,time_budget_ms,category,name,full_name,mops,min_mops,max_mops,mir,threaded,calls,stack,alloc,gc,freed,branches,mem,range,scale,perf_branch_misses,perf_l1_misses,perf_l1_accesses,perf_l1_miss_rate,elapsed_secs"
     );
 
     // format shared metadata
@@ -270,6 +271,7 @@ fn output_csv(
     } else {
         "false"
     };
+    let fast_label = if options.fast { "true" } else { "false" };
 
     // print row records
     for row in rows {
@@ -292,7 +294,7 @@ fn output_csv(
         let budget_ms = budget_ms.map(|value| value.to_string()).unwrap_or_default();
 
         println!(
-            "{},{},{},{},{},{},{},{},{},{},{},{:.3},{:.3},{:.3},{},{},{},{},{},{:.4},{:.4},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{:.3},{:.3},{:.3},{},{},{},{},{},{:.4},{:.4},{},{},{},{},{},{},{},{},{}",
             csv_escape(&profile_label),
             repeat,
             min_ms,
@@ -300,6 +302,7 @@ fn output_csv(
             target_ms,
             calibrate_label,
             deterministic_label,
+            fast_label,
             budget_ms,
             csv_escape(row.category),
             csv_escape(row.name),
@@ -331,7 +334,7 @@ fn output_csv(
         .map(|value| format!("{value:.3}"))
         .unwrap_or_default();
     println!(
-        "{},{},{},{},{},{},{},{},summary,average,,{},,,,,,,,,,,,,,,,{:.3}",
+        "{},{},{},{},{},{},{},{},{},summary,average,,{},,,,,,,,,,,,,,,,{:.3}",
         csv_escape(&profile_label),
         repeat,
         min_ms,
@@ -339,6 +342,7 @@ fn output_csv(
         target_ms,
         calibrate_label,
         deterministic_label,
+        fast_label,
         budget_ms.map(|value| value.to_string()).unwrap_or_default(),
         average_label,
         total_elapsed.as_secs_f64()
@@ -445,6 +449,8 @@ pub(crate) struct BenchOptions {
     pub time_budget: Option<Duration>,
     /// Whether to disable time based scaling for reproducibility.
     pub deterministic: bool,
+    /// Whether to disable runtime checks for speed.
+    pub fast: bool,
 }
 
 #[allow(dead_code)]
@@ -459,6 +465,7 @@ impl BenchOptions {
         perf_counters: bool,
         time_budget: Option<Duration>,
         deterministic: bool,
+        fast: bool,
     ) -> Self {
         // assemble options
         Self {
@@ -470,6 +477,7 @@ impl BenchOptions {
             perf_counters,
             time_budget,
             deterministic,
+            fast,
         }
     }
 
@@ -489,6 +497,7 @@ impl BenchOptions {
             perf_counters: false,
             time_budget: Some(QUICK_TIME_BUDGET),
             deterministic: false,
+            fast: false,
         }
     }
 }
@@ -568,6 +577,106 @@ struct BenchRow {
     scale_label: String,
     /// Optional perf counters.
     perf: Option<BenchPerf>,
+}
+
+/// Row data for a stats report.
+struct StatsRow {
+    /// Program name including category.
+    full_name: String,
+    /// Total MIR instructions for a single invocation.
+    mir_instructions: u64,
+    /// Total threaded instructions for a single invocation.
+    threaded_instructions: u64,
+    /// Function calls for a single invocation.
+    calls: u64,
+    /// Maximum stack depth for a single invocation.
+    max_stack_depth: usize,
+    /// Heap allocations for a single invocation.
+    heap_allocations: u64,
+    /// Scale label for program inputs.
+    scale_label: String,
+}
+
+/// Table column widths for stats output.
+struct StatsWidths {
+    /// Width for the program column.
+    program: usize,
+    /// Width for the mir column.
+    mir: usize,
+    /// Width for the threaded column.
+    threaded: usize,
+    /// Width for the calls column.
+    calls: usize,
+    /// Width for the stack column.
+    stack: usize,
+    /// Width for the heap column.
+    heap: usize,
+    /// Width for the scale column.
+    scale: usize,
+}
+
+impl StatsWidths {
+    /// Build base widths from header labels.
+    fn new() -> Self {
+        // seed widths from headers
+        let program = "Program".len();
+        let mir = "MIR".len();
+        let threaded = "Threaded".len();
+        let calls = "Calls".len();
+        let stack = "Stack".len();
+        let heap = "Heap".len();
+        let scale = "Scale".len();
+
+        // assemble widths
+        Self {
+            program,
+            mir,
+            threaded,
+            calls,
+            stack,
+            heap,
+            scale,
+        }
+    }
+
+    /// Expand widths to fit row data.
+    fn update_with_row(&mut self, row: &StatsRow) {
+        // compute row widths
+        let program = row.full_name.len();
+        let mir = row.mir_instructions.to_string().len();
+        let threaded = row.threaded_instructions.to_string().len();
+        let calls = row.calls.to_string().len();
+        let stack = row.max_stack_depth.to_string().len();
+        let heap = row.heap_allocations.to_string().len();
+        let scale = row.scale_label.len();
+
+        // update stored widths
+        self.program = self.program.max(program);
+        self.mir = self.mir.max(mir);
+        self.threaded = self.threaded.max(threaded);
+        self.calls = self.calls.max(calls);
+        self.stack = self.stack.max(stack);
+        self.heap = self.heap.max(heap);
+        self.scale = self.scale.max(scale);
+    }
+
+    /// Return the full table width in characters.
+    fn total_width(&self) -> usize {
+        // sum column widths
+        let columns = self.program
+            + self.mir
+            + self.threaded
+            + self.calls
+            + self.stack
+            + self.heap
+            + self.scale;
+
+        // add column gaps
+        let gaps = COLUMN_GAP.len() * (STATS_COLUMN_COUNT - 1);
+
+        // return total width
+        columns + gaps
+    }
 }
 
 /// Summarize benchmark samples with median and range.
@@ -852,6 +961,27 @@ impl Program {
         Interpreter::with_options(tree, strings, options)
     }
 
+    /// Create an interpreter with benchmark options applied.
+    pub(crate) fn interpreter_with_options(&self, bench_options: &BenchOptions) -> Interpreter {
+        let (tree, strings) = Parser::parse(self.source)
+            .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
+
+        // relax runtime limits for benchmarks
+        let mut options = MachineOptions::unbounded();
+        options.max_stack_depth = 4096;
+        options.max_heap_cells = 5_000_000;
+
+        // disable runtime checks for fast benchmarking
+        if bench_options.fast {
+            options.bounds_checks = CheckPolicy::Never;
+            options.null_checks = CheckPolicy::Never;
+            options.enforce_reference_kinds = false;
+            options.enforce_reference_mutability = false;
+        }
+
+        Interpreter::with_options(tree, strings, options)
+    }
+
     /// Resolve the entry function id for this program.
     pub(crate) fn entry_id(&self, interp: &Interpreter) -> mir::LocalNodeId<mir::Function> {
         function_id_by_name(interp, self.entry)
@@ -939,6 +1069,7 @@ const CYAN: &str = "\x1b[36m";
 const RED: &str = "\x1b[31m";
 const COLUMN_GAP: &str = "  ";
 const COLUMN_COUNT: usize = 13;
+const STATS_COLUMN_COUNT: usize = 7;
 const MIN_PROGRAM_WIDTH: usize = 28;
 const MIN_MOPS_WIDTH: usize = 7;
 const MIN_MIR_WIDTH: usize = 8;
@@ -1320,7 +1451,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
         let full_name = format!("{}/{}", entry.category, entry.program.name);
 
         // build interpreter and arguments
-        let mut interp = entry.program.interpreter();
+        let mut interp = entry.program.interpreter_with_options(options);
         let entry_id = entry.program.entry_id(&interp);
         let mut args = entry.program.args_for_profile(&interp, profile.kind);
 
@@ -1515,6 +1646,7 @@ pub(crate) fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>
         false,
         None,
         false,
+        false,
     );
 
     let programs = program_entries();
@@ -1553,40 +1685,90 @@ pub(crate) fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>
 /// Print detailed execution stats for all programs (single run).
 #[allow(dead_code)]
 pub(crate) fn print_stats(options: &BenchOptions) {
+    // print leading spacing
     println!();
-    println!(
-        "{BOLD}{:<32}  {:>10} {:>10}  {:>8} {:>6} {:>8}  {:<18}{RESET}",
-        "Program", "MIR", "Threaded", "Calls", "Stack", "Heap", "Scale"
-    );
-    println!("{DIM}{}{RESET}", "─".repeat(104));
 
+    // collect stats rows
+    let mut rows = Vec::new();
     for entry in program_entries() {
         if !matches_filters(&entry, options) {
             continue;
         }
 
-        let mut interp = entry.program.interpreter();
+        // build interpreter and arguments
+        let mut interp = entry.program.interpreter_with_options(options);
         let args = entry
             .program
             .args_for_profile(&interp, options.profile.kind);
         let entry_id = entry.program.entry_id(&interp);
 
+        // run program and capture stats
         let result = interp
             .run_function(entry_id, &args)
             .expect("execution failed");
-
-        let stats = &result.statistics;
+        let stats = result.statistics;
         let label = scale_label(entry.program, &args);
+        rows.push(StatsRow {
+            full_name: format!("{}/{}", entry.category, entry.program.name),
+            mir_instructions: stats.mir_instructions_executed,
+            threaded_instructions: stats.threaded_instructions_executed,
+            calls: stats.calls_made,
+            max_stack_depth: stats.max_stack_depth,
+            heap_allocations: stats.heap_allocations,
+            scale_label: label,
+        });
+    }
+
+    // compute column widths
+    let mut widths = StatsWidths::new();
+    for row in &rows {
+        widths.update_with_row(row);
+    }
+
+    // print header row
+    println!(
+        "{BOLD}{:<program_width$}{RESET}{gap}{:>mir_width$}{gap}{:>threaded_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>heap_width$}{gap}{:<scale_width$}{RESET}",
+        "Program",
+        "MIR",
+        "Threaded",
+        "Calls",
+        "Stack",
+        "Heap",
+        "Scale",
+        program_width = widths.program,
+        mir_width = widths.mir,
+        threaded_width = widths.threaded,
+        calls_width = widths.calls,
+        stack_width = widths.stack,
+        heap_width = widths.heap,
+        scale_width = widths.scale,
+        gap = COLUMN_GAP,
+    );
+
+    // print header rule
+    println!("{DIM}{}{RESET}", "─".repeat(widths.total_width()));
+
+    // print rows
+    for row in rows {
         println!(
-            "{CYAN}{:<32}{RESET}  {:>10} {DIM}{:>10}{RESET}  {DIM}{:>8} {:>6} {:>8}  {:<18}{RESET}",
-            format!("{}/{}", entry.category, entry.program.name),
-            stats.mir_instructions_executed,
-            stats.threaded_instructions_executed,
-            stats.calls_made,
-            stats.max_stack_depth,
-            stats.heap_allocations,
-            label,
+            "{CYAN}{:<program_width$}{RESET}{gap}{:>mir_width$}{gap}{DIM}{:>threaded_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>heap_width$}{gap}{:<scale_width$}{RESET}",
+            row.full_name,
+            row.mir_instructions,
+            row.threaded_instructions,
+            row.calls,
+            row.max_stack_depth,
+            row.heap_allocations,
+            row.scale_label,
+            program_width = widths.program,
+            mir_width = widths.mir,
+            threaded_width = widths.threaded,
+            calls_width = widths.calls,
+            stack_width = widths.stack,
+            heap_width = widths.heap,
+            scale_width = widths.scale,
+            gap = COLUMN_GAP,
         );
     }
+    // print trailing spacing
     println!();
 }
