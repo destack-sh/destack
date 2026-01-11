@@ -180,7 +180,9 @@ impl ManagedHeap {
     ///
     /// Takes a list of root handles (values reachable from the call stack).
     /// Marks all reachable cells, then sweeps (frees) unmarked cells.
-    pub fn collect(&mut self, roots: &[HeapHandle]) {
+    pub fn collect(&mut self, roots: &[HeapHandle]) -> usize {
+        let before = self.allocated_cells;
+
         // reset all marks
         for cell in self.cells.iter_mut().flatten() {
             cell.marked = false;
@@ -213,6 +215,9 @@ impl ManagedHeap {
                 self.allocated_cells -= 1;
             }
         }
+
+        // return freed cell count
+        before.saturating_sub(self.allocated_cells)
     }
 
     /// Collect heap handles from a value (recursively for aggregates).
