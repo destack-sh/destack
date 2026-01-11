@@ -10,8 +10,9 @@ use crate::memory::{ReferenceMeta, Value, ValueTag};
 
 use super::statistics::stat_inc;
 use super::threaded::{
-    ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, ThreadedInstruction,
-    ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT, is_invalid_value,
+    ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, ThreadedFunction,
+    ThreadedInstruction, ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT,
+    is_invalid_value,
 };
 use super::{instruction, operator};
 
@@ -4617,9 +4618,66 @@ pub(super) fn handle_unsupported(
     })
 }
 
+/// Enter a tail call by reusing the current frame.
+fn enter_tail_call(
+    state: &mut ThreadedState,
+    function_id: mir::LocalNodeId<mir::Function>,
+    callee: &ThreadedFunction,
+    argument_values: &[Value],
+) {
+    // resolve frame bounds
+    let (value_base, local_base) = {
+        let frame = state.current_frame_mut();
+        (frame.value_base, frame.local_base)
+    };
+
+    // clear frame local stack allocations
+    state.current_frame_mut().stack_cells.clear();
+
+    // resize stacks to callee requirements
+    let value_end = value_base + callee.value_count;
+    let local_end = local_base + callee.local_count;
+    state.interpreter.value_stack.resize(value_end, Value::VOID);
+    state.interpreter.local_stack.resize(local_end, Value::VOID);
+
+    // clear reused stack slots
+    state.interpreter.value_stack[value_base..value_end].fill(Value::VOID);
+    state.interpreter.local_stack[local_base..local_end].fill(Value::VOID);
+
+    // update frame metadata
+    let entry_block = &callee.blocks[callee.entry as usize];
+    {
+        let frame = state.current_frame_mut();
+        frame.function = function_id;
+        frame.threaded = NonNull::from(callee);
+        frame.block_ptr = NonNull::from(entry_block);
+        frame.entry_block = entry_block.mir_block;
+        frame.current_block = entry_block.mir_block;
+        frame.block_index = callee.entry as usize;
+        frame.resume_pc = 0;
+        frame.value_count = callee.value_count;
+        frame.local_count = callee.local_count;
+    }
+
+    // refresh cached pointers for the new threaded function
+    state.refresh_for_threaded(callee);
+
+    // bind function parameters
+    let parameter_slice = callee.parameters.slice(callee.argument_pool.as_slice());
+    for (index, param) in parameter_slice.iter().enumerate() {
+        let value = argument_values.get(index).copied().unwrap_or(Value::VOID);
+        state.set(*param, value);
+    }
+
+    // update statistics
+    state.interpreter.statistics.calls_made += 1;
+
+    // keep frame ready for entry execution
+}
+
 /// Handle tail call to function.
 pub(super) fn handle_tail_call(
-    _state: &mut ThreadedState,
+    state: &mut ThreadedState,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4633,13 +4691,65 @@ pub(super) fn handle_tail_call(
         unreachable!()
     };
 
-    // return tail call control to trampoline
-    ControlFlow::TailCall {
-        function: *function,
-        callee_index: *callee_index,
-        arguments: ArgumentRange::empty(),
-        copies: Some(*copies),
-    }
+    // resolve callee index
+    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
+        state.interpreter.threaded_functions.index_for(function_id)
+    } else {
+        Some(*callee_index)
+    };
+
+    // fall back to trampoline for non-threaded targets
+    let Some(resolved_index) = resolved_index else {
+        return ControlFlow::TailCall {
+            function: *function,
+            callee_index: *callee_index,
+            arguments: ArgumentRange::empty(),
+            copies: Some(*copies),
+        };
+    };
+    let Some(callee) = state
+        .interpreter
+        .threaded_functions
+        .get_by_index(resolved_index)
+        .cloned()
+    else {
+        return ControlFlow::TailCall {
+            function: *function,
+            callee_index: *callee_index,
+            arguments: ArgumentRange::empty(),
+            copies: Some(*copies),
+        };
+    };
+
+    // collect argument values
+    let argument_values = {
+        let threaded_ptr = state.current_frame_mut().threaded;
+        let current_func = unsafe { threaded_ptr.as_ref() };
+        let copy_pairs = copies.slice(current_func.copy_pool.as_slice());
+        let mut args: SmallVec<[Value; 16]> = SmallVec::with_capacity(copy_pairs.len());
+
+        for pair in copy_pairs {
+            let value = if pair.src == INVALID_VALUE_ID {
+                Value::VOID
+            } else {
+                let arg_value = mir::Value::new(pair.src);
+                state.get(arg_value)
+            };
+            args.push(value);
+        }
+
+        args
+    };
+
+    // enter tail call fast path
+    enter_tail_call(state, function_id, callee.as_ref(), &argument_values);
+
+    // continue at entry block
+    let entry_block_ptr = state.current_frame_mut().block_ptr;
+    let entry_block = unsafe { entry_block_ptr.as_ref() };
+    let entry_instructions = entry_block.instructions.as_slice();
+    become (entry_instructions[0].handler)(state, entry_instructions, 0)
 }
 
 /// Handle self tail call by reusing the current frame.
@@ -4728,11 +4838,42 @@ pub(super) fn handle_tail_call_indirect(
         }
     };
 
-    // return tail call control to trampoline
-    ControlFlow::TailCall {
-        function,
-        callee_index: INVALID_FUNCTION_INDEX,
-        arguments: *arguments,
-        copies: None,
-    }
+    // resolve callee index
+    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+    let resolved_index = state.interpreter.threaded_functions.index_for(function_id);
+
+    // fall back to trampoline for non-threaded targets
+    let Some(resolved_index) = resolved_index else {
+        return ControlFlow::TailCall {
+            function,
+            callee_index: INVALID_FUNCTION_INDEX,
+            arguments: *arguments,
+            copies: None,
+        };
+    };
+    let Some(callee) = state
+        .interpreter
+        .threaded_functions
+        .get_by_index(resolved_index)
+        .cloned()
+    else {
+        return ControlFlow::TailCall {
+            function,
+            callee_index: INVALID_FUNCTION_INDEX,
+            arguments: *arguments,
+            copies: None,
+        };
+    };
+
+    // collect argument values
+    let argument_values = collect_values(state, *arguments);
+
+    // enter tail call fast path
+    enter_tail_call(state, function_id, callee.as_ref(), &argument_values);
+
+    // continue at entry block
+    let entry_block_ptr = state.current_frame_mut().block_ptr;
+    let entry_block = unsafe { entry_block_ptr.as_ref() };
+    let entry_instructions = entry_block.instructions.as_slice();
+    become (entry_instructions[0].handler)(state, entry_instructions, 0)
 }
