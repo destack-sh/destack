@@ -128,7 +128,7 @@ Local and global optimizations within a single function.
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `constant-fold` | ConstantFold | function | O1 | ✓ | constant-propagation | Evaluate operations on constants at compile time |
-| `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | constant-propagation, range | Branch folding, jump threading, block merging, unreachable elimination |
+| `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | constant-propagation, range | Branch folding, edge threading, jump threading, block merging, unreachable elimination |
 | `dead-code-eliminate` | DeadCodeEliminate | function | O1 | ✓ | — | Remove dead instructions via backwards liveness (ADCE) |
 | `instruction-combine` | InstructionCombine | function | O1 | ✓ | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
 | `copy-propagate` | CopyPropagate | function | O1 | ✓ | — | Replace uses of `v1 = v0` with `v0` directly |
@@ -183,7 +183,7 @@ Loop-specific transformations.
 |----|------|-------|-------|------|----------|-------------|
 | `loop-simplify` | LoopSimplify | function | O2 | ✓ | loops, cfg | Canonicalize loops (preheader, single latch, dedicated exits) |
 | `loop-rotate` | LoopRotate | function | O2 | ✓ | loops, cfg, domtree | Rotate simple loops (header with no instructions) |
-| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree, range | Move pure loop-invariant computations to preheader |
+| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree, range, alias | Move loop invariant computations and safe loads to preheader |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✓ | loops, cfg, scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✓ | loops, cfg, domtree, scalar-evolution, ownership, range | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |

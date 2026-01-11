@@ -8,8 +8,6 @@ use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
-// TODO #Performance: add pruned SSA placement driven by liveness
-
 declare_pass! {
     /// Memory to register promotion pass.
     ///
@@ -111,9 +109,17 @@ fn run_mem2reg(
     // find definition blocks for each promotable local
     let def_blocks = find_definition_blocks(&promotable, function, tree);
 
-    // compute where block parameters are needed (dominance frontier + live uses)
-    let param_placements =
-        compute_parameter_placements(&promotable, &def_blocks, &frontiers, function, tree);
+    // compute local liveness for pruned SSA placement
+    let local_liveness = compute_local_liveness(&promotable, function, tree);
+
+    // compute where block parameters are needed (dominance frontier pruned by liveness)
+    let param_placements = compute_parameter_placements(
+        &promotable,
+        &def_blocks,
+        &frontiers,
+        &local_liveness,
+        function,
+    );
 
     // insert block parameters for locals
     let block_params = insert_block_parameters(&param_placements, &promotable, function, tree);
@@ -194,7 +200,7 @@ fn compute_dominance_frontiers(
     for &block in &function.blocks {
         let preds = cfg.predecessors(block);
         if preds.len() >= 2 {
-            // block is a join point - check each predecessor
+            // block is a join point, check each predecessor
             for &pred in preds {
                 let mut runner = pred;
                 // walk up the dominator tree until we reach block's immediate dominator
@@ -240,17 +246,17 @@ fn find_definition_blocks(
 
 /// Compute where block parameters are needed for each local.
 ///
-/// In block-parameter SSA, values must be explicitly passed between blocks.
-/// A block needs a parameter for a local if:
-/// 1. It's at a dominance frontier (multiple definitions can reach it)
-/// 2. It uses the local (LocalGet before LocalSet) and is not the entry block
+/// In block parameter SSA, values must be explicitly passed between blocks.
+/// A block needs a parameter for a local when it is in the dominance frontier
+/// of a definition and the local is live in to that block.
 fn compute_parameter_placements(
     promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     def_blocks: &HashMap<mir::LocalNodeId<mir::Local>, HashSet<mir::LocalNodeId<mir::Block>>>,
     frontiers: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
+    local_liveness: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>>,
     function: &mir::Function,
-    tree: &mir::NodeTree,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> {
+    // initialize block parameter placement map
     let mut param_placements: HashMap<
         mir::LocalNodeId<mir::Block>,
         HashSet<mir::LocalNodeId<mir::Local>>,
@@ -260,9 +266,7 @@ fn compute_parameter_placements(
         .map(|&b| (b, HashSet::new()))
         .collect();
 
-    let entry = function.entry.expect("function has entry");
-
-    // 1) add block parameters at dominance frontiers (merge points)
+    // add block parameters at dominance frontiers pruned by liveness
     for &local in promotable.keys() {
         let defs = &def_blocks[&local];
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = defs.iter().copied().collect();
@@ -270,6 +274,14 @@ fn compute_parameter_placements(
 
         while let Some(block) = worklist.pop_front() {
             for &frontier_block in &frontiers[&block] {
+                let is_live = local_liveness
+                    .get(&frontier_block)
+                    .map(|locals| locals.contains(&local))
+                    .unwrap_or(false);
+                if !is_live {
+                    continue;
+                }
+
                 if !param_placements[&frontier_block].contains(&local) {
                     param_placements
                         .get_mut(&frontier_block)
@@ -284,39 +296,104 @@ fn compute_parameter_placements(
         }
     }
 
-    // 2) add parameters for blocks that *use* a local (LocalGet before LocalSet)
-    //    (and are not the entry block, which gets values from function parameters)
+    param_placements
+}
+
+/// Compute local liveness for promotable locals.
+fn compute_local_liveness(
+    promotable: &HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> {
+    // initialize per block use and def sets
+    let mut block_use: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        HashSet<mir::LocalNodeId<mir::Local>>,
+    > = HashMap::new();
+    let mut block_def: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        HashSet<mir::LocalNodeId<mir::Local>>,
+    > = HashMap::new();
+
+    // compute local use and def sets
     for &block_id in &function.blocks {
-        if block_id == entry {
-            continue;
+        let block = tree.get(block_id);
+        let mut seen_defs: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
+        let mut uses: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
+        let mut defs: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
+
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            match instruction {
+                Instruction::LocalGet { local, .. } if promotable.contains_key(local) => {
+                    let was_defined = seen_defs.contains(local);
+                    if !was_defined {
+                        uses.insert(*local);
+                    }
+                }
+                Instruction::LocalSet { local, .. } if promotable.contains_key(local) => {
+                    seen_defs.insert(*local);
+                    defs.insert(*local);
+                }
+                _ => {}
+            }
         }
 
-        let block = tree.get(block_id);
-        for local in promotable.keys() {
-            // check if this block uses the local before defining it
-            let mut used_before_def = false;
-            for &instruction_id in &block.instructions {
-                let instr = tree.get(instruction_id);
-                match instr {
-                    Instruction::LocalSet { local: l, .. } if l == local => {
-                        // found a definition before any use - this local is not live-in
-                        break;
-                    }
-                    Instruction::LocalGet { local: l, .. } if l == local => {
-                        // found a use before any definition - this local is live-in
-                        used_before_def = true;
-                        break;
-                    }
-                    _ => {}
+        block_use.insert(block_id, uses);
+        block_def.insert(block_id, defs);
+    }
+
+    // initialize liveness state
+    let mut live_in: HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> =
+        HashMap::new();
+    let mut live_out: HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Local>>> =
+        HashMap::new();
+
+    for &block_id in &function.blocks {
+        live_in.insert(block_id, HashSet::new());
+        live_out.insert(block_id, HashSet::new());
+    }
+
+    // run backward dataflow to fixed point
+    let mut changed = true;
+    while changed {
+        // reset convergence flag for this iteration
+        changed = false;
+
+        // update blocks in reverse order for faster convergence
+        for &block_id in function.blocks.iter().rev() {
+            let block = tree.get(block_id);
+
+            // live_out is union of successor live_in sets
+            let mut new_live_out: HashSet<mir::LocalNodeId<mir::Local>> = HashSet::new();
+            for successor in block.terminator.successors() {
+                if let Some(successor_live_in) = live_in.get(&successor) {
+                    new_live_out.extend(successor_live_in.iter().copied());
                 }
             }
-            if used_before_def {
-                param_placements.get_mut(&block_id).unwrap().insert(*local);
+
+            // live_in = use ∪ (live_out - def)
+            let block_uses = block_use.get(&block_id).expect("block use missing");
+            let block_defs = block_def.get(&block_id).expect("block def missing");
+            let mut new_live_in: HashSet<mir::LocalNodeId<mir::Local>> =
+                new_live_out.difference(block_defs).copied().collect();
+            new_live_in.extend(block_uses.iter().copied());
+
+            // update maps when changed
+            let live_in_changed = new_live_in != *live_in.get(&block_id).unwrap();
+            let live_out_changed = new_live_out != *live_out.get(&block_id).unwrap();
+            if live_in_changed {
+                live_in.insert(block_id, new_live_in);
+                changed = true;
+            }
+            if live_out_changed {
+                live_out.insert(block_id, new_live_out);
+                changed = true;
             }
         }
     }
 
-    param_placements
+    live_in
 }
 
 /// Insert block parameters for promoted locals.
@@ -394,12 +471,6 @@ fn rename_variables(
             value_stacks.get_mut(local).unwrap().truncate(*depth);
         }
 
-        // record current stack depths for children
-        let current_depths: Vec<(mir::LocalNodeId<mir::Local>, usize)> = promotable
-            .keys()
-            .map(|&k| (k, value_stacks[&k].len()))
-            .collect();
-
         // process block parameters for this block
         for (&(param_block, local), &param_value) in block_params {
             if param_block == block_id {
@@ -454,6 +525,12 @@ fn rename_variables(
             new_block.terminator = new_terminator;
             tree.replace(block_id, new_block);
         }
+
+        // record current stack depths for children
+        let current_depths: Vec<(mir::LocalNodeId<mir::Local>, usize)> = promotable
+            .keys()
+            .map(|&k| (k, value_stacks[&k].len()))
+            .collect();
 
         // push dominator tree children onto worklist
         for &child_block in &function.blocks {
@@ -811,13 +888,11 @@ block1:
     v1 = local.get local0
     return v1
 }"#;
-        // v0, v1 exist in input -> next_value_id = 2
-        // new block parameter is v2
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    jump block1(v0)
-block1(v2: i32):
-    return v2
+    jump block1
+block1:
+    return v0
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -941,22 +1016,20 @@ block3:
     return v6
 }"#;
         // block1 is at dominance frontier (join point from block0 and block2)
-        // block3 also needs a parameter since local is read there via local.get
         // v0-v6 exist in input -> next_value_id = 7
-        // blocks processed in ID order: block1 gets v7, block3 gets v8
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
     jump block1(v1)
 block1(v7: i32):
     v3 = icmp_slt v7, v0
-    branch v3, block2, block3(v7)
+    branch v3, block2, block3
 block2:
     v4 = iconst 1i32
     v5 = iadd v7, v4
     jump block1(v5)
-block3(v8: i32):
-    return v8
+block3:
+    return v7
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -1000,14 +1073,12 @@ block1(v2: i32):
     v4 = iadd v2, v3
     return v4
 }"#;
-        // block1 already has parameter v2, gets another for local0
-        // v0-v4 exist in input -> next_value_id = 5
-        // new block parameter is v5
+        // block1 keeps its existing parameter, local0 value is dominated by entry
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    jump block1(v1, v0)
-block1(v2: i32, v5: i32):
-    v4 = iadd v2, v5
+    jump block1(v1)
+block1(v2: i32):
+    v4 = iadd v2, v0
     return v4
 }"#;
 

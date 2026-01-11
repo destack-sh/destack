@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ControlFlowGraph, LoopAnalysis, ScalarEvolution, Scev};
 use crate::optimize::common::{
     BlockParamForwarding, TypeKey, instruction_substitute_uses_in_tree,
-    terminator_arguments_for_successor, terminator_substitute_uses,
+    resolve_substitution_chains, terminator_arguments_for_successor, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -296,33 +296,6 @@ fn run_induction_simplify(
     }
 
     true
-}
-
-/// Resolve transitive substitution chains.
-fn resolve_substitution_chains(
-    mut substitutions: HashMap<mir::Value, mir::Value>,
-) -> HashMap<mir::Value, mir::Value> {
-    // collect keys to avoid borrowing during mutation
-    let keys: Vec<_> = substitutions.keys().copied().collect();
-
-    // follow substitution chains to their final targets
-    for key in keys {
-        let mut current = substitutions[&key];
-
-        // walk the chain to the final target
-        while let Some(&next) = substitutions.get(&current) {
-            if next == current {
-                break;
-            }
-
-            current = next;
-        }
-
-        // store the resolved target
-        substitutions.insert(key, current);
-    }
-
-    substitutions
 }
 
 /// Remove arguments at specified indices from terminator targets.

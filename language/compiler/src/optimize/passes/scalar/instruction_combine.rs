@@ -7,7 +7,8 @@ use mir::{BinaryOperator, Constant, UnaryOperator};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
-    constant_is_zero, constant_zero_like, instruction_substitute_uses, terminator_substitute_uses,
+    constant_is_zero, constant_zero_like, instruction_substitute_uses, resolve_substitution_chains,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -480,29 +481,6 @@ fn simplify_same_binary_operand(
 
         _ => None,
     }
-}
-
-/// Resolve transitive substitution chains.
-///
-/// If we have v4 -> v2 and v2 -> v0, this produces v4 -> v0 and v2 -> v0.
-fn resolve_substitution_chains(
-    mut substitutions: HashMap<mir::Value, mir::Value>,
-) -> HashMap<mir::Value, mir::Value> {
-    let keys: Vec<_> = substitutions.keys().copied().collect();
-    for key in keys {
-        let mut current = substitutions[&key];
-
-        // follow the chain
-        while let Some(&next) = substitutions.get(&current) {
-            if next == current {
-                break; // avoid infinite loop
-            }
-            current = next;
-        }
-
-        substitutions.insert(key, current);
-    }
-    substitutions
 }
 
 /// Try to simplify a unary operation.

@@ -4,12 +4,13 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    ConstantPropagation, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, ValueRange,
+    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
+    ValueRange,
 };
-use crate::optimize::common::instruction_is_speculatable;
+use crate::optimize::common::{
+    MemoryLocation, instruction_is_speculatable, instruction_may_affect_memory,
+};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
-
-// TODO #Performance: hoist loop invariant memory reads with alias tracking
 
 declare_pass! {
     /// Move loop-invariant computations outside of loops.
@@ -24,8 +25,8 @@ declare_pass! {
     /// - Pure aggregate operations (FieldGet, FieldSet, FieldAddr, ElementGet, ElementSet, ElementAddr)
     /// - Immutable global references (GlobalConst, GlobalAddr)
     ///
-    /// Memory operations (Load, Store, LocalGet, LocalSet) require alias analysis
-    /// and are not hoisted in this implementation.
+    /// Loop invariant loads are hoisted when alias analysis proves the memory
+    /// location is not clobbered inside the loop.
     ///
     /// Potentially trapping instructions (e.g. integer division) are only hoisted
     /// when range analysis proves the operation is safe.
@@ -50,13 +51,14 @@ impl FunctionPass for Licm {
         };
 
         // get analyses
-        let (loops, domtree, ranges, constants) = {
+        let (loops, domtree, ranges, constants, alias) = {
             let analyses = FunctionAnalyses::new(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<DominatorTree>().clone(),
                 analyses.get::<RangeAnalysis>().clone(),
                 analyses.get::<ConstantPropagation>().clone(),
+                analyses.get::<AliasAnalysis>().clone(),
             )
         };
         if loops.num_loops() == 0 {
@@ -64,7 +66,9 @@ impl FunctionPass for Licm {
         }
 
         // run LICM
-        let changed = run_licm(entry, function, tree, &loops, &domtree, &ranges, &constants);
+        let changed = run_licm(
+            entry, function, tree, &loops, &domtree, &ranges, &constants, &alias,
+        );
 
         if changed {
             AnalysisPreservation::none()
@@ -93,6 +97,7 @@ fn run_licm(
     domtree: &DominatorTree,
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
+    alias: &AliasAnalysis,
 ) -> bool {
     // collect hoisting work for each loop, outermost first
     let mut all_work: Vec<HoistWork> = Vec::new();
@@ -152,8 +157,16 @@ fn run_licm(
                             .uses()
                             .iter()
                             .all(|v| invariant_values.contains(v));
-                        let can_hoist =
-                            instruction_is_hoistable(instruction, block_id, ranges, constants);
+                        let can_hoist = instruction_is_hoistable(
+                            instruction_id,
+                            instruction,
+                            &lp.blocks,
+                            tree,
+                            alias,
+                            block_id,
+                            ranges,
+                            constants,
+                        );
                         if can_hoist && operands_invariant {
                             invariant_values.insert(destination);
                             changed = true;
@@ -183,8 +196,16 @@ fn run_licm(
                         .all(|v| invariant_values.contains(v));
 
                     // hoist if pure and all operands are invariant
-                    let can_hoist =
-                        instruction_is_hoistable(instruction, block_id, ranges, constants);
+                    let can_hoist = instruction_is_hoistable(
+                        instruction_id,
+                        instruction,
+                        &lp.blocks,
+                        tree,
+                        alias,
+                        block_id,
+                        ranges,
+                        constants,
+                    );
                     if can_hoist && invariant_values.contains(&destination) && operands_invariant {
                         already_queued.insert((block_id, index));
                         all_work.push(HoistWork {
@@ -260,7 +281,11 @@ fn run_licm(
 
 /// Return true when an instruction can be hoisted safely.
 fn instruction_is_hoistable(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
+    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
@@ -268,6 +293,11 @@ fn instruction_is_hoistable(
     // accept speculatable instructions immediately
     if instruction_is_speculatable(instruction) {
         return true;
+    }
+
+    // allow invariant loads when the location is not clobbered in the loop
+    if let mir::Instruction::Load { pointer, .. } = instruction {
+        return load_is_hoistable(instruction_id, *pointer, loop_blocks, tree, alias);
     }
 
     // handle divisions with explicit safety checks
@@ -289,6 +319,42 @@ fn instruction_is_hoistable(
         }
         _ => false,
     }
+}
+
+/// Return true when a loop invariant load is not clobbered in the loop.
+fn load_is_hoistable(
+    load_id: mir::LocalNodeId<mir::Instruction>,
+    pointer: mir::Value,
+    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
+) -> bool {
+    // scan loop instructions for clobbers
+    let location = MemoryLocation::from_ptr(pointer);
+    for block_id in loop_blocks {
+        let block = tree.get(*block_id);
+        for &instruction_id in &block.instructions {
+            // skip the load itself
+            if instruction_id == load_id {
+                continue;
+            }
+
+            // skip instructions that do not affect memory
+            let instruction = tree.get(instruction_id);
+            let affects_memory = instruction_may_affect_memory(instruction);
+            if !affects_memory {
+                continue;
+            }
+
+            // reject any potential clobber
+            let may_clobber = alias.may_clobber(instruction_id, &location);
+            if may_clobber {
+                return false;
+            }
+        }
+    }
+
+    true
 }
 
 /// Return true when a division or remainder cannot trap in the loop.
@@ -718,6 +784,84 @@ block2:
         let before = program.format();
         program.run_pass(&Licm);
         program.assert_output(&before);
+    }
+
+    /// Invariant load with no clobbering stores is hoisted.
+    #[test]
+    fn test_hoist_invariant_load() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32
+    v2 = stack.alloc i32
+    v3 = iconst 1i32
+    store v1, v3
+    jump block1
+block1:
+    v4 = iconst 2i32
+    store v2, v4
+    v5 = load v1
+    branch v0, block1, block2
+block2:
+    return v5
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32
+    v2 = stack.alloc i32
+    v3 = iconst 1i32
+    store v1, v3
+    v4 = iconst 2i32
+    v5 = load v1
+    jump block1
+block1:
+    store v2, v4
+    branch v0, block1, block2
+block2:
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(expected);
+    }
+
+    /// Invariant load is not hoisted when the loop writes the same location.
+    #[test]
+    fn test_skip_hoist_clobbered_load() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v1, v2
+    jump block1
+block1:
+    v3 = load v1
+    v4 = iconst 2i32
+    store v1, v4
+    branch v0, block1, block2
+block2:
+    return v3
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v1, v2
+    v4 = iconst 2i32
+    jump block1
+block1:
+    v3 = load v1
+    store v1, v4
+    branch v0, block1, block2
+block2:
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(expected);
     }
 
     /// Multiple independent loops each get their invariants hoisted.

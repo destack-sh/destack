@@ -3,22 +3,21 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, ValueRange};
+use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
     instruction_substitute_uses, terminator_substitute_uses,
 };
 
-// TODO #Performance: add path sensitive jump threading with edge specific range facts
-
 declare_pass! {
     /// Simplify the control flow graph.
     ///
     /// This pass performs several CFG simplifications:
-    /// 1. Branch folding: converts `branch cond, A, B` to `jump` when cond is constant or range-proven
-    /// 2. Jump threading: threads jumps through empty or passthrough blocks
-    /// 3. Block merging: merges blocks with single predecessor/successor
-    /// 4. Unreachable block elimination: removes blocks not reachable from entry
+    /// 1. Branch folding: converts `branch cond, A, B` to `jump` when cond is constant or range proven
+    /// 2. Path sensitive threading: threads edges using edge specific range facts
+    /// 3. Jump threading: threads jumps through empty or passthrough blocks
+    /// 4. Block merging: merges blocks with single predecessor/successor
+    /// 5. Unreachable block elimination: removes blocks not reachable from entry
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -96,17 +95,21 @@ fn run_simplify_cfg(
     // converts `branch always_true, A, B` -> `jump A`
     changed |= fold_branches(function, tree, constants, ranges);
 
-    // phase 2: jump threading
+    // phase 2: path sensitive jump threading
+    // threads edges using edge specific range facts
+    changed |= thread_edge_conditions(function, tree, constants, ranges);
+
+    // phase 3: jump threading
     // threads jumps through empty blocks
     changed |= thread_jumps(function, tree);
 
-    // phase 3: block merging
+    // phase 4: block merging
     // merges blocks with single predecessor/successor
     if let Some(entry) = function.entry {
         changed |= merge_blocks(function, tree, entry);
     }
 
-    // phase 4: eliminate unreachable blocks
+    // phase 5: eliminate unreachable blocks
     if let Some(entry) = function.entry {
         changed |= eliminate_unreachable_blocks(function, tree, entry);
     }
@@ -124,7 +127,7 @@ fn fold_branches(
 ) -> bool {
     let mut changed = false;
 
-    // fold branches with constant or range-proven conditions
+    // fold branches with constant or range proven conditions
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         let exit_ranges = ranges.exit(block_id);
@@ -213,6 +216,876 @@ fn fold_branches(
     }
 
     changed
+}
+
+/// Thread edges through empty or condition only blocks using edge specific facts.
+fn thread_edge_conditions(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    constants: &ConstantPropagation,
+    ranges: &RangeAnalysis,
+) -> bool {
+    // build value definition and use maps
+    let value_definitions = build_value_definitions(function, tree);
+    let value_use_counts = collect_value_use_counts(function, tree);
+
+    let mut changed = false;
+
+    // scan blocks for edge threading opportunities
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let new_terminator = match &block.terminator {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => {
+                // resolve then and else edges using edge specific ranges
+                let then_edge = resolve_edge_target(
+                    block_id,
+                    *condition,
+                    true,
+                    *then_target,
+                    then_arguments,
+                    tree,
+                    constants,
+                    ranges,
+                    &value_definitions,
+                    &value_use_counts,
+                );
+                let else_edge = resolve_edge_target(
+                    block_id,
+                    *condition,
+                    false,
+                    *else_target,
+                    else_arguments,
+                    tree,
+                    constants,
+                    ranges,
+                    &value_definitions,
+                    &value_use_counts,
+                );
+
+                // select rewritten or original edges
+                let (new_then_target, new_then_args) =
+                    then_edge.unwrap_or((*then_target, then_arguments.clone()));
+                let (new_else_target, new_else_args) =
+                    else_edge.unwrap_or((*else_target, else_arguments.clone()));
+
+                // update terminator when edges change
+                let changed_edge = new_then_target != *then_target
+                    || new_else_target != *else_target
+                    || new_then_args != *then_arguments
+                    || new_else_args != *else_arguments;
+                if changed_edge {
+                    Some(mir::Terminator::Branch {
+                        condition: *condition,
+                        then_target: new_then_target,
+                        then_arguments: new_then_args,
+                        else_target: new_else_target,
+                        else_arguments: new_else_args,
+                    })
+                } else {
+                    None
+                }
+            }
+            mir::Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                // resolve success and failure edges using edge specific ranges
+                let success_edge = resolve_edge_target(
+                    block_id,
+                    *condition,
+                    true,
+                    success.target,
+                    &success.arguments,
+                    tree,
+                    constants,
+                    ranges,
+                    &value_definitions,
+                    &value_use_counts,
+                );
+                let failure_edge = resolve_edge_target(
+                    block_id,
+                    *condition,
+                    false,
+                    failure.target,
+                    &failure.arguments,
+                    tree,
+                    constants,
+                    ranges,
+                    &value_definitions,
+                    &value_use_counts,
+                );
+
+                // select rewritten or original edges
+                let (new_success_target, new_success_args) =
+                    success_edge.unwrap_or((success.target, success.arguments.clone()));
+                let (new_failure_target, new_failure_args) =
+                    failure_edge.unwrap_or((failure.target, failure.arguments.clone()));
+
+                // update terminator when edges change
+                let changed_edge = new_success_target != success.target
+                    || new_failure_target != failure.target
+                    || new_success_args != success.arguments
+                    || new_failure_args != failure.arguments;
+                if changed_edge {
+                    Some(mir::Terminator::Check {
+                        condition: *condition,
+                        constraint: constraint.clone(),
+                        success: mir::CheckTarget {
+                            target: new_success_target,
+                            arguments: new_success_args,
+                        },
+                        failure: mir::CheckTarget {
+                            target: new_failure_target,
+                            arguments: new_failure_args,
+                        },
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        // update block terminator when changes were made
+        if let Some(terminator) = new_terminator {
+            let mut new_block = block.clone();
+            new_block.terminator = terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Build a mapping from SSA values to their defining instructions.
+fn build_value_definitions(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
+    // collect destination values for every instruction
+    let mut definitions = HashMap::new();
+
+    // scan blocks in order
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // record instruction destinations for this block
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+
+            // track each destination value
+            if let Some(destination) = instruction.destination() {
+                definitions.insert(destination, instruction_id);
+            }
+        }
+    }
+
+    definitions
+}
+
+/// Count value uses across instructions and terminators.
+fn collect_value_use_counts(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, usize> {
+    // initialize per value use counters
+    let mut counts: HashMap<mir::Value, usize> = HashMap::new();
+
+    // scan blocks for uses
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // scan instruction uses
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+
+            // count inline operands
+            for value in instruction.uses() {
+                *counts.entry(value).or_insert(0) += 1;
+            }
+
+            // count external argument slices
+            if let Some(args_slice) = instruction.argument_slice() {
+                for &arg in tree.get_arguments(args_slice) {
+                    *counts.entry(arg).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // count terminator operands
+        for value in block.terminator.uses() {
+            *counts.entry(value).or_insert(0) += 1;
+        }
+    }
+
+    counts
+}
+
+/// Resolve a single edge to a threaded target using edge specific facts.
+fn resolve_edge_target(
+    source_block: mir::LocalNodeId<mir::Block>,
+    condition: mir::Value,
+    is_true: bool,
+    target: mir::LocalNodeId<mir::Block>,
+    arguments: &[mir::Value],
+    tree: &mir::NodeTree,
+    constants: &ConstantPropagation,
+    ranges: &RangeAnalysis,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    value_use_counts: &HashMap<mir::Value, usize>,
+) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+    // fetch the edge target block
+    let block = tree.get(target);
+
+    // require an empty or condition only block
+    if !is_threadable_condition_block(block, &block.terminator, tree, value_use_counts) {
+        return None;
+    }
+
+    // build parameter substitutions for this edge
+    let mut param_substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
+        param_substitutions.insert(param.value, *arg);
+    }
+
+    // build edge specific ranges and apply parameter ranges
+    let edge_ranges = edge_ranges_for_condition(
+        source_block,
+        condition,
+        is_true,
+        ranges,
+        constants,
+        value_definitions,
+        tree,
+    );
+    let mut target_ranges = edge_ranges.clone();
+    apply_block_param_ranges_for_edge(block, arguments, &edge_ranges, &mut target_ranges);
+
+    // resolve the target terminator
+    let resolved = match &block.terminator {
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } => {
+            let condition_value = resolve_condition_value(
+                *condition,
+                target,
+                &target_ranges,
+                constants,
+                value_definitions,
+                tree,
+            )?;
+            // choose the resolved branch target
+            let (target, args) = if condition_value {
+                (*then_target, then_arguments.as_slice())
+            } else {
+                (*else_target, else_arguments.as_slice())
+            };
+            let resolved_args = substitute_values(args, &param_substitutions);
+            Some((target, resolved_args))
+        }
+        mir::Terminator::Check {
+            condition,
+            success,
+            failure,
+            ..
+        } => {
+            let condition_value = resolve_condition_value(
+                *condition,
+                target,
+                &target_ranges,
+                constants,
+                value_definitions,
+                tree,
+            )?;
+            // choose the resolved check target
+            let (target, args) = if condition_value {
+                (success.target, success.arguments.as_slice())
+            } else {
+                (failure.target, failure.arguments.as_slice())
+            };
+            let resolved_args = substitute_values(args, &param_substitutions);
+            Some((target, resolved_args))
+        }
+        mir::Terminator::Switch {
+            value,
+            default,
+            default_arguments,
+            cases,
+        } => {
+            let resolved = resolve_switch_target(
+                *value,
+                target,
+                *default,
+                default_arguments,
+                cases,
+                constants,
+                &target_ranges,
+            )?;
+            // forward the resolved switch edge
+            let (target, args) = resolved;
+            let resolved_args = substitute_values(&args, &param_substitutions);
+            Some((target, resolved_args))
+        }
+        _ => None,
+    }?;
+
+    Some(resolved)
+}
+
+/// Return true when a block is safe to bypass for edge threading.
+fn is_threadable_condition_block(
+    block: &mir::Block,
+    terminator: &mir::Terminator,
+    tree: &mir::NodeTree,
+    value_use_counts: &HashMap<mir::Value, usize>,
+) -> bool {
+    // accept empty blocks
+    if block.instructions.is_empty() {
+        return true;
+    }
+
+    // require a single instruction for condition only blocks
+    if block.instructions.len() != 1 {
+        return false;
+    }
+
+    // fetch the condition value used by the terminator
+    let condition_value = match terminator {
+        mir::Terminator::Branch { condition, .. } => Some(*condition),
+        mir::Terminator::Check { condition, .. } => Some(*condition),
+        mir::Terminator::Switch { value, .. } => Some(*value),
+        _ => None,
+    };
+    let Some(condition_value) = condition_value else {
+        return false;
+    };
+
+    // require the single instruction to define the condition value
+    let instruction_id = block.instructions[0];
+    let instruction = tree.get(instruction_id);
+    let Some(destination) = instruction.destination() else {
+        return false;
+    };
+    if destination != condition_value {
+        return false;
+    }
+
+    // require that the condition is used only by the terminator
+    let use_count = value_use_counts.get(&destination).copied().unwrap_or(0);
+    use_count == 1
+}
+
+/// Build edge specific ranges for a branch condition.
+fn edge_ranges_for_condition(
+    block_id: mir::LocalNodeId<mir::Block>,
+    condition: mir::Value,
+    is_true: bool,
+    ranges: &RangeAnalysis,
+    constants: &ConstantPropagation,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+) -> RangeMap {
+    // seed ranges from the source block exit
+    let mut edge_ranges = ranges.exit(block_id).clone();
+
+    // constrain the condition value for this edge
+    let condition_range = ValueRange::Boolean {
+        can_be_true: is_true,
+        can_be_false: !is_true,
+    };
+    edge_ranges.insert(condition, condition_range);
+
+    // apply comparison derived constraints when available
+    apply_comparison_constraint(
+        condition,
+        is_true,
+        block_id,
+        constants,
+        value_definitions,
+        tree,
+        &mut edge_ranges,
+    );
+
+    edge_ranges
+}
+
+/// Apply branch comparison constraints to the edge ranges when possible.
+fn apply_comparison_constraint(
+    condition: mir::Value,
+    is_true: bool,
+    block_id: mir::LocalNodeId<mir::Block>,
+    constants: &ConstantPropagation,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    edge_ranges: &mut RangeMap,
+) {
+    // look up the condition definition
+    let Some(&definition_id) = value_definitions.get(&condition) else {
+        return;
+    };
+    let instruction = tree.get(definition_id);
+    let mir::Instruction::Binary {
+        operator,
+        left,
+        right,
+        ..
+    } = instruction
+    else {
+        return;
+    };
+    // ignore non comparison instructions
+    if !operator.is_comparison() || operator.is_float() {
+        return;
+    }
+
+    // resolve constant operands when possible
+    let left_const = resolve_integer_constant(*left, edge_ranges, constants, block_id);
+    let right_const = resolve_integer_constant(*right, edge_ranges, constants, block_id);
+
+    // refine the left operand when the right is constant
+    if let (None, Some(right_const)) = (left_const, right_const) {
+        refine_range_for_comparison(edge_ranges, *left, *operator, is_true, right_const);
+    }
+
+    // refine the right operand when the left is constant
+    if let (Some(left_const), None) = (left_const, right_const) {
+        let Some(swapped) = swap_comparison_operator(*operator) else {
+            return;
+        };
+        refine_range_for_comparison(edge_ranges, *right, swapped, is_true, left_const);
+    }
+}
+
+/// Apply block parameter ranges for a single edge.
+fn apply_block_param_ranges_for_edge(
+    block: &mir::Block,
+    arguments: &[mir::Value],
+    source_ranges: &RangeMap,
+    target_ranges: &mut RangeMap,
+) {
+    // map each parameter to the range of its incoming argument
+    for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
+        if let Some(range) = source_ranges.get(*arg) {
+            target_ranges.insert(param.value, range.clone());
+        } else {
+            target_ranges.remove(param.value);
+        }
+    }
+}
+
+/// Resolve a boolean condition using ranges or comparison evaluation.
+fn resolve_condition_value(
+    condition: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeMap,
+    constants: &ConstantPropagation,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+) -> Option<bool> {
+    // check constant propagation facts
+    let constant = constants
+        .constant_at_entry(block_id, condition)
+        .or_else(|| constants.constant_at_exit(block_id, condition));
+    if let Some(mir::Constant::Boolean { value }) = constant {
+        return Some(*value);
+    }
+
+    // check range derived booleans
+    if let Some(value) = bool_from_range(ranges.get(condition)) {
+        return Some(value);
+    }
+
+    // evaluate comparison conditions from operand ranges
+    let Some(&definition_id) = value_definitions.get(&condition) else {
+        return None;
+    };
+    let instruction = tree.get(definition_id);
+    let mir::Instruction::Binary {
+        operator,
+        left,
+        right,
+        ..
+    } = instruction
+    else {
+        return None;
+    };
+    if !operator.is_comparison() || operator.is_float() {
+        return None;
+    }
+
+    evaluate_integer_comparison(*operator, *left, *right, ranges)
+}
+
+/// Resolve a switch to a single target using edge specific ranges.
+fn resolve_switch_target(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    default: mir::LocalNodeId<mir::Block>,
+    default_arguments: &[mir::Value],
+    cases: &[mir::SwitchCase],
+    constants: &ConstantPropagation,
+    ranges: &RangeMap,
+) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+    // check constant propagation first
+    let constant = constants
+        .constant_at_entry(block_id, value)
+        .or_else(|| constants.constant_at_exit(block_id, value));
+    if let Some(mir::Constant::Int {
+        value: constant_value,
+        is_signed,
+        ..
+    }) = constant
+    {
+        let terminator = resolve_switch_case(
+            *constant_value as i128,
+            default,
+            default_arguments,
+            cases,
+            *is_signed,
+        );
+        return extract_switch_target(terminator);
+    }
+    if let Some(mir::Constant::UInt {
+        value: constant_value,
+        ..
+    }) = constant
+    {
+        let terminator = resolve_switch_case(
+            *constant_value as i128,
+            default,
+            default_arguments,
+            cases,
+            false,
+        );
+        return extract_switch_target(terminator);
+    }
+
+    // fall back to a single valued integer range
+    let ValueRange::Integer {
+        min,
+        max,
+        is_signed,
+        ..
+    } = ranges.get(value)?
+    else {
+        return None;
+    };
+    if min != max {
+        return None;
+    }
+
+    let terminator = resolve_switch_case(*min, default, default_arguments, cases, *is_signed);
+    extract_switch_target(terminator)
+}
+
+/// Extract the jump target from a switch resolution terminator.
+fn extract_switch_target(
+    terminator: mir::Terminator,
+) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+    match terminator {
+        mir::Terminator::Jump { target, arguments } => Some((target, arguments)),
+        _ => None,
+    }
+}
+
+/// Substitute parameter values using the provided mapping.
+fn substitute_values(
+    values: &[mir::Value],
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> Vec<mir::Value> {
+    values
+        .iter()
+        .map(|value| substitutions.get(value).copied().unwrap_or(*value))
+        .collect()
+}
+
+/// Evaluate integer comparisons using range information.
+fn evaluate_integer_comparison(
+    operator: mir::BinaryOperator,
+    left: mir::Value,
+    right: mir::Value,
+    ranges: &RangeMap,
+) -> Option<bool> {
+    // extract integer ranges for both operands
+    let ValueRange::Integer {
+        min: left_min,
+        max: left_max,
+        width: left_width,
+        is_signed: left_signed,
+    } = ranges.get(left)?
+    else {
+        return None;
+    };
+    let ValueRange::Integer {
+        min: right_min,
+        max: right_max,
+        width: right_width,
+        is_signed: right_signed,
+    } = ranges.get(right)?
+    else {
+        return None;
+    };
+    // reject mismatched integer widths or signedness
+    if left_width != right_width || left_signed != right_signed {
+        return None;
+    }
+
+    // reject comparisons that do not match operand signedness
+    let expects_signed = matches!(
+        operator,
+        mir::BinaryOperator::SignedLessThan
+            | mir::BinaryOperator::SignedLessEqual
+            | mir::BinaryOperator::SignedGreaterThan
+            | mir::BinaryOperator::SignedGreaterEqual
+    );
+    let expects_unsigned = matches!(
+        operator,
+        mir::BinaryOperator::UnsignedLessThan
+            | mir::BinaryOperator::UnsignedLessEqual
+            | mir::BinaryOperator::UnsignedGreaterThan
+            | mir::BinaryOperator::UnsignedGreaterEqual
+    );
+    if expects_signed && !*left_signed {
+        return None;
+    }
+    if expects_unsigned && *left_signed {
+        return None;
+    }
+
+    // evaluate comparison from range relationships
+    match operator {
+        mir::BinaryOperator::Equal => {
+            let is_single = left_min == left_max && right_min == right_max;
+            if is_single && left_min == right_min {
+                Some(true)
+            } else if left_max < right_min || left_min > right_max {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::NotEqual => {
+            let is_single = left_min == left_max && right_min == right_max;
+            if left_max < right_min || left_min > right_max {
+                Some(true)
+            } else if is_single && left_min == right_min {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+            if left_max < right_min {
+                Some(true)
+            } else if left_min >= right_max {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+            if left_max <= right_min {
+                Some(true)
+            } else if left_min > right_max {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+            if left_min > right_max {
+                Some(true)
+            } else if left_max <= right_min {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+            if left_min >= right_max {
+                Some(true)
+            } else if left_max < right_min {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Resolve an integer constant from range or constant propagation.
+fn resolve_integer_constant(
+    value: mir::Value,
+    ranges: &RangeMap,
+    constants: &ConstantPropagation,
+    block_id: mir::LocalNodeId<mir::Block>,
+) -> Option<i128> {
+    // consult constant propagation first
+    let constant = constants
+        .constant_at_exit(block_id, value)
+        .or_else(|| constants.constant_at_entry(block_id, value));
+    if let Some(constant) = constant {
+        return integer_constant_to_i128(constant);
+    }
+
+    // fall back to range based constants
+    let range_constant = ranges.get(value)?.as_constant()?;
+    integer_constant_to_i128(&range_constant)
+}
+
+/// Convert integer constants into i128 values.
+fn integer_constant_to_i128(constant: &mir::Constant) -> Option<i128> {
+    match constant {
+        mir::Constant::Int { value, .. } => Some(*value as i128),
+        mir::Constant::UInt { value, .. } => Some(*value as i128),
+        _ => None,
+    }
+}
+
+/// Swap a comparison operator by exchanging operands.
+fn swap_comparison_operator(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
+    match operator {
+        mir::BinaryOperator::Equal | mir::BinaryOperator::NotEqual => Some(operator),
+        mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterThan),
+        mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterEqual),
+        mir::BinaryOperator::SignedGreaterThan => Some(mir::BinaryOperator::SignedLessThan),
+        mir::BinaryOperator::SignedGreaterEqual => Some(mir::BinaryOperator::SignedLessEqual),
+        mir::BinaryOperator::UnsignedLessThan => Some(mir::BinaryOperator::UnsignedGreaterThan),
+        mir::BinaryOperator::UnsignedLessEqual => Some(mir::BinaryOperator::UnsignedGreaterEqual),
+        mir::BinaryOperator::UnsignedGreaterThan => Some(mir::BinaryOperator::UnsignedLessThan),
+        mir::BinaryOperator::UnsignedGreaterEqual => Some(mir::BinaryOperator::UnsignedLessEqual),
+        _ => None,
+    }
+}
+
+/// Refine an integer range based on a comparison with a constant.
+fn refine_range_for_comparison(
+    ranges: &mut RangeMap,
+    value: mir::Value,
+    operator: mir::BinaryOperator,
+    is_true: bool,
+    constant: i128,
+) {
+    // extract the existing integer range
+    let Some(range) = ranges.get(value) else {
+        return;
+    };
+    let ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    } = range
+    else {
+        return;
+    };
+    let min = *min;
+    let max = *max;
+    let width = *width;
+    let is_signed = *is_signed;
+
+    // reject comparisons that do not match signedness
+    let expects_signed = matches!(
+        operator,
+        mir::BinaryOperator::SignedLessThan
+            | mir::BinaryOperator::SignedLessEqual
+            | mir::BinaryOperator::SignedGreaterThan
+            | mir::BinaryOperator::SignedGreaterEqual
+    );
+    let expects_unsigned = matches!(
+        operator,
+        mir::BinaryOperator::UnsignedLessThan
+            | mir::BinaryOperator::UnsignedLessEqual
+            | mir::BinaryOperator::UnsignedGreaterThan
+            | mir::BinaryOperator::UnsignedGreaterEqual
+    );
+    if expects_unsigned && is_signed {
+        return;
+    }
+    if expects_signed && !is_signed {
+        return;
+    }
+    // reject negative constants for unsigned comparisons
+    if expects_unsigned && constant < 0 {
+        return;
+    }
+
+    // compute bounds implied by the comparison
+    let new_bounds = comparison_bounds(operator, is_true, constant);
+    let Some((bound_min, bound_max)) = new_bounds else {
+        return;
+    };
+
+    // intersect new bounds with the current range
+    let updated_min = min.max(bound_min);
+    let updated_max = max.min(bound_max);
+    if updated_min > updated_max {
+        return;
+    }
+
+    // store the refined range
+    let updated_range = ValueRange::Integer {
+        min: updated_min,
+        max: updated_max,
+        width,
+        is_signed,
+    };
+    ranges.insert(value, updated_range);
+}
+
+/// Return bounds implied by a comparison with a constant.
+fn comparison_bounds(
+    operator: mir::BinaryOperator,
+    is_true: bool,
+    constant: i128,
+) -> Option<(i128, i128)> {
+    match operator {
+        mir::BinaryOperator::Equal if is_true => Some((constant, constant)),
+        mir::BinaryOperator::NotEqual if !is_true => Some((constant, constant)),
+        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+            if is_true {
+                Some((i128::MIN, constant.saturating_sub(1)))
+            } else {
+                Some((constant, i128::MAX))
+            }
+        }
+        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+            if is_true {
+                Some((i128::MIN, constant))
+            } else {
+                Some((constant.saturating_add(1), i128::MAX))
+            }
+        }
+        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+            if is_true {
+                Some((constant.saturating_add(1), i128::MAX))
+            } else {
+                Some((i128::MIN, constant))
+            }
+        }
+        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+            if is_true {
+                Some((constant, i128::MAX))
+            } else {
+                Some((i128::MIN, constant.saturating_sub(1)))
+            }
+        }
+        _ => None,
+    }
 }
 
 /// Convert a boolean range into a constant when possible.
@@ -1226,6 +2099,53 @@ block1:
     return v1
 block2:
     return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Edge specific ranges thread through a condition only block.
+    #[test]
+    fn test_thread_edge_condition_with_ranges() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 20u32
+    v3 = select v0, v1, v2
+    v4 = iconst 10u32
+    v5 = iconst 15u32
+    v6 = icmp_ult v3, v4
+    branch v6, block1, block2
+block1:
+    v7 = icmp_ult v3, v5
+    branch v7, block3, block4
+block2:
+    v8 = iconst 1i32
+    return v8
+block3:
+    v9 = iconst 2i32
+    return v9
+block4:
+    v10 = iconst 3i32
+    return v10
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 20u32
+    v3 = select v0, v1, v2
+    v4 = iconst 10u32
+    v5 = iconst 15u32
+    v6 = icmp_ult v3, v4
+    branch v6, block2, block1
+block1:
+    v8 = iconst 1i32
+    return v8
+block2:
+    v9 = iconst 2i32
+    return v9
 }"#;
 
         let mut program = TestProgram::new(input);
