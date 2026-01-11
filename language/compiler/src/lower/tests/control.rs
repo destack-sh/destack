@@ -298,6 +298,168 @@ function sign(n: number): number {
     );
 }
 
+/// Lower nested loops with inner break.
+#[test]
+fn test_nested_loops() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function nestedSum(rows: number, cols: number): number {
+    let sum: number = 0.0;
+    let i: number = 0.0;
+    while (i < rows) {
+        let j: number = 0.0;
+        while (j < cols) {
+            sum = sum + 1.0;
+            j = j + 1.0;
+        }
+        i = i + 1.0;
+    }
+    return sum;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // 3 rows * 4 cols = 12 iterations
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "nestedSum",
+        &[Value::float64(3.0), Value::float64(4.0)],
+        Value::float64(12.0),
+    );
+}
+
+/// Lower multiple functions that call each other.
+#[test]
+fn test_mutual_function_calls() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function double(x: number): number {
+    return x * 2.0;
+}
+
+function triple(x: number): number {
+    return x * 3.0;
+}
+
+function combine(x: number): number {
+    return double(x) + triple(x);
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // double(5) + triple(5) = 10 + 15 = 25
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "combine",
+        &[Value::float64(5.0)],
+        Value::float64(25.0),
+    );
+}
+
+/// Lower nested if-else chains.
+#[test]
+fn test_nested_if_else() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function classify(x: number, y: number): number {
+    let result: number = 0.0;
+    if (x > 0.0) {
+        if (y > 0.0) {
+            result = 1.0;
+        } else {
+            result = 4.0;
+        }
+    } else {
+        if (y > 0.0) {
+            result = 2.0;
+        } else {
+            result = 3.0;
+        }
+    }
+    return result;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "classify",
+        &[Value::float64(1.0), Value::float64(1.0)],
+        Value::float64(1.0),
+    );
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "classify",
+        &[Value::float64(-1.0), Value::float64(1.0)],
+        Value::float64(2.0),
+    );
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "classify",
+        &[Value::float64(-1.0), Value::float64(-1.0)],
+        Value::float64(3.0),
+    );
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "classify",
+        &[Value::float64(1.0), Value::float64(-1.0)],
+        Value::float64(4.0),
+    );
+}
+
+/// Lower early return from loop.
+#[test]
+fn test_early_return_from_loop() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function findFirst(target: number): number {
+    let i: number = 0.0;
+    while (i < 100.0) {
+        if (i == target) {
+            return i;
+        }
+        i = i + 1.0;
+    }
+    return -1.0;
+}
+"#,
+    );
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "findFirst",
+        &[Value::float64(42.0)],
+        Value::float64(42.0),
+    );
+}
+
 /// Lower and execute a switch statement.
 #[test]
 fn test_switch_statement() {

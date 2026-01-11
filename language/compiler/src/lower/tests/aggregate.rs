@@ -94,6 +94,70 @@ function makeReversed(a: number, b: number): number {
     );
 }
 
+/// Lower nested struct construction and field access.
+#[test]
+fn test_nested_struct_access() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Inner { value: number }
+struct Outer { inner: Inner, scale: number }
+
+function getScaledValue(v: number, s: number): number {
+    let inner: Inner = Inner { value: v };
+    let outer: Outer = Outer { inner: inner, scale: s };
+    return outer.inner.value * outer.scale;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "getScaledValue",
+        &[Value::float64(5.0), Value::float64(3.0)],
+        Value::float64(15.0),
+    );
+}
+
+/// Lower struct with multiple nested levels.
+#[test]
+fn test_deeply_nested_struct() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct A { x: number }
+struct B { a: A }
+struct C { b: B }
+
+function deepAccess(val: number): number {
+    let a: A = A { x: val };
+    let b: B = B { a: a };
+    let c: C = C { b: b };
+    return c.b.a.x;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "deepAccess",
+        &[Value::float64(42.0)],
+        Value::float64(42.0),
+    );
+}
+
 /// Lower struct with a simple method call.
 #[test]
 #[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
