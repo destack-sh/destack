@@ -71,6 +71,7 @@ impl FunctionPass for BoundsCheckEliminate {
             let condition_truth =
                 condition_truth_value(candidate.condition, block_ranges, &definitions, tree);
 
+            // replace checks when the condition is constant
             if let Some(truth_value) = condition_truth {
                 // rewrite to the always taken edge
                 let (target, arguments) = if truth_value == candidate.in_bounds_truth {
@@ -81,7 +82,6 @@ impl FunctionPass for BoundsCheckEliminate {
                         &candidate.out_of_bounds_arguments,
                     )
                 };
-
                 replace_terminator_with_jump(tree, block_id, target, arguments);
                 changed = true;
                 continue;
@@ -100,10 +100,10 @@ impl FunctionPass for BoundsCheckEliminate {
                     block_ranges,
                 )
                 .unwrap_or_default();
-
                 required_constraints.append(&mut constraints);
             }
 
+            // collect constraints from the condition expression
             let mut condition_constraints = constraints_for_condition(
                 candidate.condition,
                 candidate.in_bounds_truth,
@@ -114,9 +114,9 @@ impl FunctionPass for BoundsCheckEliminate {
                 block_ranges,
             )
             .unwrap_or_default();
-
             required_constraints.append(&mut condition_constraints);
 
+            // skip when no constraints were derived
             if required_constraints.is_empty() {
                 continue;
             }
@@ -130,6 +130,7 @@ impl FunctionPass for BoundsCheckEliminate {
                 &equivalence,
             );
 
+            // rewrite the check when constraints imply the bounds
             if constraints_imply {
                 replace_terminator_with_jump(
                     tree,
@@ -141,6 +142,7 @@ impl FunctionPass for BoundsCheckEliminate {
             }
         }
 
+        // return preservation based on whether we rewrote any checks
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -188,7 +190,6 @@ impl ValueDefinitions {
     fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
         // seed value definitions from parameters and instructions
         let mut definitions = HashMap::new();
-
         for &block_id in &function.blocks {
             // record block parameter definitions
             let block = tree.get(block_id);
@@ -307,9 +308,10 @@ impl ValueEquivalence {
         let mut current = value;
         let mut seen = Vec::new();
 
+        // follow the equivalence chain
         while let Some(next) = self.map.get(&current) {
             // stop on cycles
-            if seen.iter().any(|value| *value == current) {
+            if seen.contains(&current) {
                 break;
             }
 
@@ -440,7 +442,6 @@ impl ReachabilityCache {
             // collect reachable blocks with a depth first walk
             let mut visited = HashSet::new();
             let mut stack = vec![start];
-
             while let Some(block_id) = stack.pop() {
                 // skip blocks that are already visited
                 if !visited.insert(block_id) {
@@ -453,7 +454,6 @@ impl ReachabilityCache {
                     if visited.contains(&successor) {
                         continue;
                     }
-
                     stack.push(successor);
                 }
             }
@@ -529,7 +529,6 @@ fn bounds_check_candidate(
 ) -> Option<BoundsCheckCandidate> {
     // inspect the terminator for check patterns
     let terminator = tree.get(block_id).terminator.clone();
-
     match terminator {
         mir::Terminator::Branch {
             condition,
@@ -564,7 +563,6 @@ fn bounds_check_candidate(
                         true,
                     )
                 };
-
             Some(BoundsCheckCandidate {
                 condition,
                 in_bounds_target,
@@ -585,7 +583,6 @@ fn bounds_check_candidate(
             if !matches!(constraint, mir::CheckConstraint::Bounds { .. }) {
                 return None;
             }
-
             Some(BoundsCheckCandidate {
                 condition,
                 in_bounds_target: success.target,
@@ -613,11 +610,11 @@ fn build_block_constraints(
     // create dominator tree children map
     let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
         HashMap::new();
-
     for &block in &function.blocks {
         children.insert(block, Vec::new());
     }
 
+    // link each block to its immediate dominator
     for &block in &function.blocks {
         if let Some(idom) = domtree.immediate_dominator(block) {
             let block_children = children.get_mut(&idom).expect("missing dom child");
@@ -633,7 +630,6 @@ fn build_block_constraints(
     let mut visited = HashSet::new();
     let mut stack = Vec::new();
     stack.push((entry, Vec::new()));
-
     while let Some((block_id, entry_constraints)) = stack.pop() {
         // skip already visited blocks
         if !visited.insert(block_id) {
@@ -645,7 +641,6 @@ fn build_block_constraints(
         let mut exit_constraints = entry_constraints;
         let mut assume_constraints =
             constraints_from_assumes(block_id, tree, definitions, constants, block_ranges);
-
         exit_constraints.append(&mut assume_constraints);
         constraints.exit.insert(block_id, exit_constraints.clone());
 
@@ -654,6 +649,7 @@ fn build_block_constraints(
             continue;
         };
 
+        // propagate constraints into dominated children
         for &child in block_children {
             let mut child_constraints = exit_constraints.clone();
             let mut edge_constraints = constraints_for_edge(
@@ -665,7 +661,6 @@ fn build_block_constraints(
                 block_ranges,
                 &mut reachability,
             );
-
             child_constraints.append(&mut edge_constraints);
             stack.push((child, child_constraints));
         }
@@ -685,13 +680,11 @@ fn constraints_from_assumes(
     // scan instructions for assume operations
     let block = tree.get(block_id);
     let mut constraints = Vec::new();
-
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
         let mir::Instruction::Assume { condition } = instruction else {
             continue;
         };
-
         let mut assume_constraints = constraints_for_condition(
             *condition,
             true,
@@ -702,7 +695,6 @@ fn constraints_from_assumes(
             ranges,
         )
         .unwrap_or_default();
-
         constraints.append(&mut assume_constraints);
     }
 
@@ -721,7 +713,6 @@ fn constraints_for_edge(
 ) -> Vec<BoundsConstraint> {
     // derive truth value for this edge
     let terminator = &tree.get(block_id).terminator;
-
     match terminator {
         mir::Terminator::Branch {
             condition,
@@ -740,7 +731,6 @@ fn constraints_for_edge(
 
             // select the path that reaches the child
             let truth_value = then_reaches;
-
             constraints_for_condition(
                 *condition,
                 truth_value,
@@ -769,7 +759,6 @@ fn constraints_for_edge(
 
             // select the path that reaches the child
             let truth_value = success_reaches;
-
             let mut constraints = constraints_for_check_kind(
                 constraint,
                 truth_value,
@@ -780,7 +769,6 @@ fn constraints_for_edge(
                 ranges,
             )
             .unwrap_or_default();
-
             let mut condition_constraints = constraints_for_condition(
                 *condition,
                 truth_value,
@@ -791,7 +779,6 @@ fn constraints_for_edge(
                 ranges,
             )
             .unwrap_or_default();
-
             constraints.append(&mut condition_constraints);
             constraints
         }
@@ -851,7 +838,6 @@ fn normalize_constraint(
 
     // normalize the bound side
     let bound = normalize_bound_key(&constraint.bound, ranges, equivalence);
-
     BoundsConstraint {
         value,
         bound,
@@ -884,7 +870,6 @@ fn normalize_bound_key(
             let Some(constant_key) = constant_key_from_constant(&constant) else {
                 return BoundKey::Value(canonical);
             };
-
             BoundKey::Constant(constant_key)
         }
         // preserve existing constants
@@ -931,7 +916,6 @@ fn constraint_implies_direct(existing: &BoundsConstraint, required: &BoundsConst
     else {
         return false;
     };
-
     match (existing.relation, required.relation) {
         (ConstraintRelation::UpperExclusive, ConstraintRelation::UpperExclusive) => {
             compare_upper_bounds(existing_bound, required_bound, existing.is_signed, false)
@@ -973,7 +957,6 @@ fn compare_upper_bounds(
     else {
         return false;
     };
-
     if require_strict {
         existing_value < required_value
     } else {
@@ -993,7 +976,6 @@ fn compare_lower_bounds(
     else {
         return false;
     };
-
     if require_strict {
         existing_value > required_value
     } else {
@@ -1056,7 +1038,6 @@ fn constraint_implied_by_ranges(constraint: &BoundsConstraint, ranges: &RangeMap
     let Some(value_range) = integer_range_for_bound(&constraint.value, ranges) else {
         return false;
     };
-
     let Some(bound_range) = integer_range_for_bound(&constraint.bound, ranges) else {
         return false;
     };
@@ -1111,7 +1092,6 @@ fn integer_range_for_bound(bound: &BoundKey, ranges: &RangeMap) -> Option<Intege
             else {
                 return None;
             };
-
             Some(IntegerRangeSnapshot {
                 min: *min,
                 max: *max,
@@ -1217,7 +1197,6 @@ fn evaluate_comparison(
     // compare constant ranges when possible
     let left_range = ranges.get(left)?;
     let right_range = ranges.get(right)?;
-
     if let (Some(left_const), Some(right_const)) =
         (left_range.as_constant(), right_range.as_constant())
     {
@@ -1273,10 +1252,12 @@ fn evaluate_integer_comparison(
         return None;
     };
 
+    // require compatible signedness
     if *left_signed != is_signed || *right_signed != is_signed {
         return None;
     }
 
+    // compare ranges based on the operator
     match operator {
         mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
             if left_max < right_min {
@@ -1339,10 +1320,12 @@ fn constraints_for_check_kind(
         return None;
     };
 
+    // resolve bound keys and initialize constraints
     let index_key = bound_key_for_value(*index, block_id, definitions, tree, constants, ranges);
     let length_key = bound_key_for_value(*length, block_id, definitions, tree, constants, ranges);
     let mut constraints = Vec::new();
 
+    // derive constraints based on the check outcome
     if truth_value {
         // index < length for in bounds
         constraints.push(BoundsConstraint {
@@ -1353,15 +1336,14 @@ fn constraints_for_check_kind(
         });
 
         // index >= 0 for signed in bounds
-        if *is_signed {
-            if let Some(zero_bound) = zero_bound_key_for_value(*index, ranges, *is_signed) {
-                constraints.push(BoundsConstraint {
-                    value: index_key,
-                    bound: zero_bound,
-                    relation: ConstraintRelation::LowerInclusive,
-                    is_signed: *is_signed,
-                });
-            }
+        if *is_signed && let Some(zero_bound) = zero_bound_key_for_value(*index, ranges, *is_signed)
+        {
+            constraints.push(BoundsConstraint {
+                value: index_key,
+                bound: zero_bound,
+                relation: ConstraintRelation::LowerInclusive,
+                is_signed: *is_signed,
+            });
         }
     } else if !*is_signed {
         // unsigned failure implies index >= length
@@ -1389,6 +1371,7 @@ fn constraints_for_condition(
     // resolve the condition definition
     let definition = definitions.get(condition)?;
 
+    // derive constraints based on the definition kind
     match definition {
         ValueDefinition::Instruction { instruction } => {
             let instruction = tree.get(instruction);
@@ -1400,10 +1383,12 @@ fn constraints_for_condition(
                     ..
                 } => match operator {
                     mir::BinaryOperator::And => {
+                        // require true to accumulate and constraints
                         if !truth_value {
                             return None;
                         }
 
+                        // collect constraints from both sides
                         let mut left_constraints = constraints_for_condition(
                             *left,
                             true,
@@ -1414,7 +1399,6 @@ fn constraints_for_condition(
                             ranges,
                         )
                         .unwrap_or_default();
-
                         let mut right_constraints = constraints_for_condition(
                             *right,
                             true,
@@ -1426,14 +1410,17 @@ fn constraints_for_condition(
                         )
                         .unwrap_or_default();
 
+                        // merge constraints into a single set
                         left_constraints.append(&mut right_constraints);
                         Some(left_constraints)
                     }
                     mir::BinaryOperator::Or => {
+                        // require false to accumulate or constraints
                         if truth_value {
                             return None;
                         }
 
+                        // collect constraints from both sides
                         let mut left_constraints = constraints_for_condition(
                             *left,
                             false,
@@ -1444,7 +1431,6 @@ fn constraints_for_condition(
                             ranges,
                         )
                         .unwrap_or_default();
-
                         let mut right_constraints = constraints_for_condition(
                             *right,
                             false,
@@ -1456,14 +1442,17 @@ fn constraints_for_condition(
                         )
                         .unwrap_or_default();
 
+                        // merge constraints into a single set
                         left_constraints.append(&mut right_constraints);
                         Some(left_constraints)
                     }
                     mir::BinaryOperator::Equal | mir::BinaryOperator::NotEqual => {
+                        // require the equality branch to hold
                         if truth_value != matches!(operator, mir::BinaryOperator::Equal) {
                             return None;
                         }
 
+                        // resolve bound keys for both sides
                         let left_key = bound_key_for_value(
                             *left,
                             block_id,
@@ -1481,28 +1470,29 @@ fn constraints_for_condition(
                             ranges,
                         );
 
-                        let Some(is_signed) = signedness_for_bounds(&left_key, &right_key, ranges)
-                        else {
-                            return None;
-                        };
+                        // require compatible signedness
+                        let is_signed = signedness_for_bounds(&left_key, &right_key, ranges)?;
 
-                        let mut constraints = Vec::new();
-                        constraints.push(BoundsConstraint {
-                            value: left_key.clone(),
-                            bound: right_key.clone(),
-                            relation: ConstraintRelation::LowerInclusive,
-                            is_signed,
-                        });
-                        constraints.push(BoundsConstraint {
-                            value: left_key,
-                            bound: right_key,
-                            relation: ConstraintRelation::UpperInclusive,
-                            is_signed,
-                        });
+                        // emit inclusive lower and upper constraints
+                        let constraints = vec![
+                            BoundsConstraint {
+                                value: left_key.clone(),
+                                bound: right_key.clone(),
+                                relation: ConstraintRelation::LowerInclusive,
+                                is_signed,
+                            },
+                            BoundsConstraint {
+                                value: left_key,
+                                bound: right_key,
+                                relation: ConstraintRelation::UpperInclusive,
+                                is_signed,
+                            },
+                        ];
 
                         Some(constraints)
                     }
                     _ => {
+                        // resolve bound keys for comparison
                         let left_key = bound_key_for_value(
                             *left,
                             block_id,
@@ -1520,6 +1510,7 @@ fn constraints_for_condition(
                             ranges,
                         );
 
+                        // build the comparison constraint
                         comparison_constraint(*operator, left_key, right_key, truth_value)
                             .map(|constraint| vec![constraint])
                     }
@@ -1528,15 +1519,18 @@ fn constraints_for_condition(
                     operator: mir::UnaryOperator::Not,
                     argument,
                     ..
-                } => constraints_for_condition(
-                    *argument,
-                    !truth_value,
-                    block_id,
-                    definitions,
-                    tree,
-                    constants,
-                    ranges,
-                ),
+                } => {
+                    // invert the truth value for not
+                    constraints_for_condition(
+                        *argument,
+                        !truth_value,
+                        block_id,
+                        definitions,
+                        tree,
+                        constants,
+                        ranges,
+                    )
+                }
                 _ => None,
             }
         }
@@ -1550,7 +1544,6 @@ fn signedness_for_bounds(left: &BoundKey, right: &BoundKey, ranges: &RangeMap) -
     if let BoundKey::Constant(constant) = left {
         return constant_signedness(constant);
     }
-
     if let BoundKey::Constant(constant) = right {
         return constant_signedness(constant);
     }
@@ -1559,6 +1552,7 @@ fn signedness_for_bounds(left: &BoundKey, right: &BoundKey, ranges: &RangeMap) -
     let left_signedness = integer_signedness_for_bound(left, ranges)?;
     let right_signedness = integer_signedness_for_bound(right, ranges)?;
 
+    // require matching signedness
     if left_signedness == right_signedness {
         Some(left_signedness)
     } else {
@@ -1598,6 +1592,7 @@ fn zero_bound_key_for_value(
     ranges: &RangeMap,
     is_signed: bool,
 ) -> Option<BoundKey> {
+    // resolve integer range details for the value
     let range = ranges.get(value)?;
     let ValueRange::Integer {
         width,
@@ -1608,10 +1603,12 @@ fn zero_bound_key_for_value(
         return None;
     };
 
+    // require matching signedness
     if *range_signed != is_signed {
         return None;
     }
 
+    // build a zero constant key for the value width
     let constant = if is_signed {
         ConstantKey::Int {
             value: 0,
@@ -1638,32 +1635,40 @@ fn bound_key_for_value(
     ranges: &RangeMap,
 ) -> BoundKey {
     // prefer constant propagation results
-    if let Some(constant) = constants.constant_at_exit(block_id, value) {
-        if let Some(constant_key) = constant_key_from_constant(constant) {
-            return BoundKey::Constant(constant_key);
-        }
+    if let Some(constant_key) = constants
+        .constant_at_exit(block_id, value)
+        .and_then(constant_key_from_constant)
+    {
+        return BoundKey::Constant(constant_key);
     }
 
     // fall back to constant ranges
-    if let Some(range) = ranges.get(value) {
-        if let Some(constant) = range.as_constant() {
-            if let Some(constant_key) = constant_key_from_constant(&constant) {
-                return BoundKey::Constant(constant_key);
-            }
-        }
+    if let Some(constant_key) = ranges
+        .get(value)
+        .and_then(|range| range.as_constant())
+        .and_then(|constant| constant_key_from_constant(&constant))
+    {
+        return BoundKey::Constant(constant_key);
     }
 
     // fall back to local constants
-    if let Some(ValueDefinition::Instruction { instruction }) = definitions.get(value) {
+    if let Some(constant_key) = definitions.get(value).and_then(|definition| {
+        // require instruction based values
+        let ValueDefinition::Instruction { instruction } = definition else {
+            return None;
+        };
+
+        // require constant instructions
         let instruction = tree.get(instruction);
-        if let mir::Instruction::Const {
+        let mir::Instruction::Const {
             value: constant, ..
         } = instruction
-        {
-            if let Some(constant_key) = constant_key_from_constant(constant) {
-                return BoundKey::Constant(constant_key);
-            }
-        }
+        else {
+            return None;
+        };
+        constant_key_from_constant(constant)
+    }) {
+        return BoundKey::Constant(constant_key);
     }
 
     BoundKey::Value(value)
@@ -1739,6 +1744,7 @@ mod tests {
     /// Constant in bounds checks fold to an unconditional jump.
     #[test]
     fn test_eliminate_constant_bounds_check() {
+        // source program
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
     v1 = iconst 2u32
@@ -1752,6 +1758,7 @@ block2:
     unreachable
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
     v1 = iconst 2u32
@@ -1765,6 +1772,7 @@ block2:
     unreachable
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -1773,6 +1781,7 @@ block2:
     /// Constant bounds checks expressed as checks are eliminated.
     #[test]
     fn test_eliminate_constant_check_bounds() {
+        // source program
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
     v1 = iconst 2u32
@@ -1786,6 +1795,7 @@ block2:
     unreachable
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
     v1 = iconst 2u32
@@ -1799,6 +1809,7 @@ block2:
     unreachable
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -1807,6 +1818,7 @@ block2:
     /// Redundant dominated bounds checks are removed.
     #[test]
     fn test_eliminate_redundant_bounds_check() {
+        // source program
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1822,6 +1834,7 @@ block3:
     return v5
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1837,6 +1850,7 @@ block3:
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -1845,6 +1859,7 @@ block3:
     /// Redundant check terminators are removed when dominated.
     #[test]
     fn test_eliminate_redundant_check_bounds() {
+        // source program
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1860,6 +1875,7 @@ block3:
     return v5
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1875,6 +1891,7 @@ block3:
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -1883,6 +1900,7 @@ block3:
     /// Checks without provable constraints are preserved.
     #[test]
     fn test_preserve_unknown_bounds_check() {
+        // source program
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1895,6 +1913,7 @@ block2:
     unreachable
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_unchanged(input);
@@ -1903,6 +1922,7 @@ block2:
     /// Conjoined lower and upper bound checks are recognized.
     #[test]
     fn test_eliminate_conjoined_bounds_check() {
+        // source program
         let input = r#"function @test(v0: [i32; 8]) -> i32 {
 block0(v0: [i32; 8]):
     v1 = iconst 3i32
@@ -1919,6 +1939,7 @@ block2:
     unreachable
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> i32 {
 block0(v0: [i32; 8]):
     v1 = iconst 3i32
@@ -1935,6 +1956,7 @@ block2:
     unreachable
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -1943,6 +1965,7 @@ block2:
     /// Assume instructions imply bounds checks in the same block.
     #[test]
     fn test_assume_implies_bounds_check() {
+        // source program
         let input = r#"function @test(v0: [i32; 16], v1: u32) -> i32 {
 block0(v0: [i32; 16], v1: u32):
     v2 = iconst 16u32
@@ -1957,6 +1980,7 @@ block2:
     unreachable
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 16], v1: u32) -> i32 {
 block0(v0: [i32; 16], v1: u32):
     v2 = iconst 16u32
@@ -1971,6 +1995,7 @@ block2:
     unreachable
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -1979,6 +2004,7 @@ block2:
     /// Signed bounds checks use both lower and upper constraints.
     #[test]
     fn test_signed_bounds_constraints() {
+        // source program
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> i32 {
 block0(v0: [i32; 8], v1: i32):
     v2 = iconst 0i32
@@ -1996,6 +2022,7 @@ block3:
     return v7
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 8], v1: i32) -> i32 {
 block0(v0: [i32; 8], v1: i32):
     v2 = iconst 0i32
@@ -2013,6 +2040,7 @@ block3:
     return v7
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -2021,6 +2049,7 @@ block3:
     /// Dominated checks beyond the immediate successor are removed.
     #[test]
     fn test_eliminate_dominated_bounds_check() {
+        // source program
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2038,6 +2067,7 @@ block4:
     return v5
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2055,6 +2085,7 @@ block4:
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
@@ -2063,6 +2094,7 @@ block4:
     /// Block parameter aliases are honored when proving redundancy.
     #[test]
     fn test_eliminate_bounds_check_with_block_param() {
+        // source program
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2078,6 +2110,7 @@ block3:
     return v6
 }"#;
 
+        // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2093,8 +2126,144 @@ block3:
     return v6
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_output(expected);
+    }
+
+    /// Bounds checks are removed when the trap target is the then branch.
+    #[test]
+    fn test_eliminate_bounds_check_trap_then_target() {
+        // source program
+        let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 2u32
+    v3 = iconst 4u32
+    v4 = icmp_uge v2, v3
+    branch v4, block2, block1
+block1:
+    v5 = element.get v0, v1
+    return v5
+block2:
+    unreachable
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 2u32
+    v3 = iconst 4u32
+    v4 = icmp_uge v2, v3
+    jump block1
+block1:
+    v5 = element.get v0, v1
+    return v5
+block2:
+    unreachable
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Dominating assumes eliminate bounds checks in successors.
+    #[test]
+    fn test_assume_in_predecessor_implies_bounds_check() {
+        // source program
+        let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 4u32
+    v3 = icmp_ult v1, v2
+    assume v3
+    jump block1
+block1:
+    v4 = icmp_ult v1, v2
+    check v4, bounds.unsigned v1, v2, v0, block2, block3
+block2:
+    v5 = element.get v0, v1
+    return v5
+block3:
+    unreachable
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 4u32
+    v3 = icmp_ult v1, v2
+    assume v3
+    jump block1
+block1:
+    v4 = icmp_ult v1, v2
+    jump block2
+block2:
+    v5 = element.get v0, v1
+    return v5
+block3:
+    unreachable
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Bounds checks are preserved when both branch paths reach the target.
+    #[test]
+    fn test_preserve_bounds_check_when_else_reaches_target() {
+        // source program
+        let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 4u32
+    v3 = icmp_ult v1, v2
+    branch v3, block1(v1), block2
+block1(v4: u32):
+    v5 = icmp_ult v4, v2
+    check v5, bounds.unsigned v4, v2, v0, block3, block4
+block2:
+    jump block1(v1)
+block3:
+    v6 = element.get v0, v4
+    return v6
+block4:
+    unreachable
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BoundsCheckEliminate);
+        program.assert_unchanged(input);
+    }
+
+    /// Conflicting block parameters prevent redundancy elimination.
+    #[test]
+    fn test_preserve_bounds_check_with_conflicting_block_param() {
+        // source program
+        let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 4u32
+    v3 = icmp_ult v1, v2
+    branch v3, block1(v1), block2
+block1(v4: u32):
+    v5 = icmp_ult v4, v2
+    check v5, bounds.unsigned v4, v2, v0, block3, block4
+block2:
+    v6 = iconst 1u32
+    jump block1(v6)
+block3:
+    v7 = element.get v0, v4
+    return v7
+block4:
+    unreachable
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BoundsCheckEliminate);
+        program.assert_unchanged(input);
     }
 }
