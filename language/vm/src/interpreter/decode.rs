@@ -2363,6 +2363,17 @@ fn push_argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> 
         return ArgumentRange::empty();
     }
 
+    // detect contiguous argument ids
+    let mut is_contiguous = true;
+    let contiguous_start = arguments[0].0;
+    for (offset, argument) in arguments.iter().enumerate() {
+        let expected = contiguous_start + offset as u32;
+        if argument.0 != expected {
+            is_contiguous = false;
+            break;
+        }
+    }
+
     // compute range start
     let start = pool.len();
 
@@ -2379,6 +2390,8 @@ fn push_argument_range(pool: &mut Vec<mir::Value>, arguments: &[mir::Value]) -> 
     ArgumentRange {
         start: start as u32,
         len: arguments.len() as u32,
+        is_contiguous,
+        contiguous_start: if is_contiguous { contiguous_start } else { 0 },
     }
 }
 
@@ -2393,6 +2406,11 @@ fn push_copy_range(
         return CopyRange::empty();
     }
 
+    // detect contiguous copy pairs
+    let mut is_contiguous = true;
+    let mut contiguous_src = 0;
+    let mut contiguous_dest = 0;
+
     // compute range start
     let start = pool.len();
 
@@ -2408,6 +2426,19 @@ fn push_copy_range(
             .get(index)
             .map(|value| value.0)
             .unwrap_or(INVALID_VALUE_ID);
+        if index == 0 {
+            contiguous_dest = param.0;
+            contiguous_src = src;
+            if src == INVALID_VALUE_ID {
+                is_contiguous = false;
+            }
+        } else if is_contiguous {
+            let expected_src = contiguous_src + index as u32;
+            let expected_dest = contiguous_dest + index as u32;
+            if src != expected_src || param.0 != expected_dest {
+                is_contiguous = false;
+            }
+        }
         pool.push(CopyPair { dest: param.0, src });
     }
 
@@ -2415,6 +2446,9 @@ fn push_copy_range(
     CopyRange {
         start: start as u32,
         len: parameters.len() as u32,
+        is_contiguous,
+        contiguous_src: if is_contiguous { contiguous_src } else { 0 },
+        contiguous_dest: if is_contiguous { contiguous_dest } else { 0 },
     }
 }
 
@@ -2429,6 +2463,11 @@ fn push_copy_range_from_params(
         return CopyRange::empty();
     }
 
+    // detect contiguous copy pairs
+    let mut is_contiguous = true;
+    let mut contiguous_src = 0;
+    let mut contiguous_dest = 0;
+
     // compute range start
     let start = pool.len();
 
@@ -2444,6 +2483,19 @@ fn push_copy_range_from_params(
             .get(index)
             .map(|value| value.0)
             .unwrap_or(INVALID_VALUE_ID);
+        if index == 0 {
+            contiguous_dest = param.value.0;
+            contiguous_src = src;
+            if src == INVALID_VALUE_ID {
+                is_contiguous = false;
+            }
+        } else if is_contiguous {
+            let expected_src = contiguous_src + index as u32;
+            let expected_dest = contiguous_dest + index as u32;
+            if src != expected_src || param.value.0 != expected_dest {
+                is_contiguous = false;
+            }
+        }
         pool.push(CopyPair {
             dest: param.value.0,
             src,
@@ -2454,6 +2506,9 @@ fn push_copy_range_from_params(
     CopyRange {
         start: start as u32,
         len: parameters.len() as u32,
+        is_contiguous,
+        contiguous_src: if is_contiguous { contiguous_src } else { 0 },
+        contiguous_dest: if is_contiguous { contiguous_dest } else { 0 },
     }
 }
 

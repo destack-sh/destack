@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
@@ -14,6 +13,9 @@ use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
 pub type ExternalFn = Box<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
+
+/// Cached external handler pointer.
+type ExternalFnPtr = NonNull<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
 
 /// Output from executing MIR code.
 #[derive(Debug, Clone)]
@@ -46,6 +48,8 @@ pub struct Interpreter {
     pub(super) globals: GlobalStorage,
     /// External function handlers.
     pub(super) externals: HashMap<String, ExternalFn>,
+    /// Cached external handlers by function id.
+    pub(super) externals_by_id: Vec<Option<ExternalFnPtr>>,
     /// Lookup table for function ids by name.
     pub(super) function_name_map: HashMap<String, mir::LocalNodeId<mir::Function>>,
     /// Configuration options.
@@ -65,24 +69,34 @@ pub struct Interpreter {
 /// Threaded function registry for fast lookup.
 pub(super) struct ThreadedFunctionTable {
     /// Threaded functions by dense index.
-    functions: Vec<Arc<ThreadedFunction>>,
+    functions: Vec<ThreadedFunction>,
     /// Mapping from function id to threaded index (INVALID_FUNCTION_INDEX if missing).
     index_by_id: Vec<u32>,
+    /// Import status by function id.
+    is_import_by_id: Vec<bool>,
 }
 
 impl ThreadedFunctionTable {
     /// Build a threaded function table for the MIR tree.
     pub(super) fn new(tree: &mir::NodeTree) -> Self {
-        // collect threadable function ids
-        let mut function_ids = Vec::new();
+        // size tables using the max function id
         let mut max_id = 0usize;
+        for (func_id, _) in tree.iter_nodes::<mir::Function>() {
+            max_id = max_id.max(func_id.id as usize);
+        }
+
+        // collect threadable function ids and import flags
+        let mut function_ids = Vec::new();
+        let mut is_import_by_id = vec![false; max_id + 1];
         for (func_id, func) in tree.iter_nodes::<mir::Function>() {
+            // record import status
+            is_import_by_id[func_id.id as usize] = func.is_import();
+
             // skip imports and declarations without entry blocks
             if func.is_import() || func.entry.is_none() {
                 continue;
             }
             function_ids.push(func_id);
-            max_id = max_id.max(func_id.id as usize);
         }
 
         // build id to index mapping
@@ -96,13 +110,14 @@ impl ThreadedFunctionTable {
         for func_id in &function_ids {
             let threaded = thread_function(tree, *func_id, &index_by_id)
                 .unwrap_or_else(|| panic!("failed to thread function: {func_id:?}"));
-            functions.push(Arc::new(threaded));
+            functions.push(threaded);
         }
 
         // assemble table
         Self {
             functions,
             index_by_id,
+            is_import_by_id,
         }
     }
 
@@ -121,15 +136,21 @@ impl ThreadedFunctionTable {
     }
 
     /// Get a threaded function by index.
-    pub(super) fn get_by_index(&self, index: u32) -> Option<&Arc<ThreadedFunction>> {
+    pub(super) fn get_by_index(&self, index: u32) -> Option<&ThreadedFunction> {
         self.functions.get(index as usize)
     }
 
     /// Get a threaded function pointer by index.
     pub(super) fn get_ptr_by_index(&self, index: u32) -> Option<NonNull<ThreadedFunction>> {
-        self.functions
-            .get(index as usize)
-            .map(|func| NonNull::from(func.as_ref()))
+        self.functions.get(index as usize).map(NonNull::from)
+    }
+
+    /// Report whether a function id references an import.
+    pub(super) fn is_import(&self, func_id: mir::LocalNodeId<mir::Function>) -> bool {
+        self.is_import_by_id
+            .get(func_id.id as usize)
+            .copied()
+            .unwrap_or(false)
     }
 }
 
@@ -175,6 +196,7 @@ impl Interpreter {
             raw_heap: RawHeap::new(),
             globals,
             externals: HashMap::new(),
+            externals_by_id: Vec::new(),
             function_name_map,
             options,
             threaded_functions,
@@ -309,6 +331,17 @@ impl Interpreter {
         F: Fn(&[Value]) -> Result<Value, Error> + Send + Sync + 'static,
     {
         self.externals.insert(name.to_string(), Box::new(handler));
+
+        // cache handler pointer for direct id lookup
+        if let Some(func_id) = self.function_name_map.get(name).copied() {
+            let index = func_id.id as usize;
+            if self.externals_by_id.len() <= index {
+                self.externals_by_id.resize(index + 1, None);
+            }
+            if let Some(handler) = self.externals.get(name) {
+                self.externals_by_id[index] = Some(NonNull::from(handler.as_ref()));
+            }
+        }
     }
 
     /// Resolve a function id by name.
@@ -325,6 +358,32 @@ impl Interpreter {
 
         // return function id
         Ok(func_id)
+    }
+
+    /// Resolve an external handler for an imported function id.
+    pub(super) fn external_for_id(
+        &mut self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> Result<ExternalFnPtr, RuntimeError> {
+        let index = function_id.id as usize;
+        if let Some(handler) = self.externals_by_id.get(index).copied().flatten() {
+            return Ok(handler);
+        }
+
+        if self.externals_by_id.len() <= index {
+            self.externals_by_id.resize(index + 1, None);
+        }
+
+        let func = self.tree.get(function_id);
+        let name = self.strings.get(func.name).to_string();
+        let handler = self
+            .externals
+            .get(&name)
+            .ok_or_else(|| self.make_error(Error::ExternalFunctionNotFound { name }))?;
+        let handler_ptr = NonNull::from(handler.as_ref());
+        self.externals_by_id[index] = Some(handler_ptr);
+
+        Ok(handler_ptr)
     }
 
     /// Create an error with current call stack.

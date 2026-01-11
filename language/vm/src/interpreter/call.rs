@@ -10,23 +10,97 @@ use super::threaded::{
     ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedState, is_invalid_value,
 };
-use super::{ExecutionOutput, Frame, Interpreter};
+use super::{ExecutionOutput, Frame, Interpreter, resize_and_clear_stack};
+
+// tuning: small contiguous ranges copy faster with a loop
+const CONTIGUOUS_COPY_THRESHOLD: usize = 8;
 
 /// Copy argument values from one frame into another.
 fn copy_values_between_frames(
     values: &mut [Value],
     source_frame: &Frame,
     dest_frame: &Frame,
-    params: &[mir::Value],
-    arguments: &[mir::Value],
+    param_pool: &[mir::Value],
+    params: ArgumentRange,
+    argument_pool: &[mir::Value],
+    arguments: ArgumentRange,
 ) {
+    // resolve argument and parameter slices
+    let argument_slice = arguments.slice(argument_pool);
+    let param_slice = params.slice(param_pool);
+
+    // fast path: contiguous params and arguments
+    if let (Some((src_start, src_len)), Some((dest_start, dest_len))) =
+        (arguments.contiguous_range(), params.contiguous_range())
+    {
+        if src_len == dest_len {
+            let src_index = source_frame.value_base + src_start as usize;
+            let dest_index = dest_frame.value_base + dest_start as usize;
+
+            // validate bounds in debug builds
+            debug_assert!(
+                (src_start as usize) + src_len <= source_frame.value_count,
+                "ssa value out of bounds: {src_start}"
+            );
+            debug_assert!(
+                (dest_start as usize) + src_len <= dest_frame.value_count,
+                "ssa value out of bounds: {dest_start}"
+            );
+
+            // copy argument range
+            let values_ptr = values.as_mut_ptr();
+            unsafe {
+                if std::ptr::eq(source_frame, dest_frame) {
+                    std::ptr::copy(
+                        values_ptr.add(src_index),
+                        values_ptr.add(dest_index),
+                        src_len,
+                    );
+                } else {
+                    std::ptr::copy_nonoverlapping(
+                        values_ptr.add(src_index),
+                        values_ptr.add(dest_index),
+                        src_len,
+                    );
+                }
+            }
+            return;
+        }
+    }
+
     // use raw pointer to avoid repeated bounds checks
     let values_ptr = values.as_mut_ptr();
 
+    // fast path: arguments cover all parameters
+    if argument_slice.len() >= param_slice.len() {
+        // move arguments into destination parameters
+        for (index, param) in param_slice.iter().enumerate() {
+            // load argument value
+            let argument = argument_slice[index];
+            let arg_index = source_frame.value_base + argument.0 as usize;
+            debug_assert!(
+                (argument.0 as usize) < source_frame.value_count,
+                "ssa value out of bounds: {argument:?}"
+            );
+            let value = unsafe { *values_ptr.add(arg_index) };
+
+            // write parameter value
+            let dest_index = dest_frame.value_base + param.0 as usize;
+            debug_assert!(
+                (param.0 as usize) < dest_frame.value_count,
+                "ssa value out of bounds: {param:?}"
+            );
+            unsafe {
+                *values_ptr.add(dest_index) = value;
+            }
+        }
+        return;
+    }
+
     // move arguments into destination parameters
-    for (index, param) in params.iter().enumerate() {
+    for (index, param) in param_slice.iter().enumerate() {
         // load argument value
-        let value = if let Some(argument) = arguments.get(index) {
+        let value = if let Some(argument) = argument_slice.get(index) {
             let arg_index = source_frame.value_base + argument.0 as usize;
             debug_assert!(
                 (argument.0 as usize) < source_frame.value_count,
@@ -54,10 +128,11 @@ fn copy_values_with_plan(
     values: &mut [Value],
     source_frame: &Frame,
     dest_frame: &Frame,
-    pairs: &[CopyPair],
+    copies: CopyRange,
+    copy_pool: &[CopyPair],
 ) {
     // fast path: contiguous copy pairs
-    if let Some((src_start, dest_start, len)) = contiguous_copy_plan(pairs) {
+    if let Some((src_start, dest_start, len)) = copies.contiguous_plan() {
         let src_index = source_frame.value_base + src_start as usize;
         let dest_index = dest_frame.value_base + dest_start as usize;
 
@@ -89,6 +164,9 @@ fn copy_values_with_plan(
 
     // use raw pointer to avoid repeated bounds checks
     let values_ptr = values.as_mut_ptr();
+
+    // resolve copy pairs
+    let pairs = copies.slice(copy_pool);
 
     // move values into destination parameters
     for pair in pairs {
@@ -122,42 +200,46 @@ fn copy_values_with_plan(
     }
 }
 
-/// Detect contiguous copy pairs for bulk copying.
-fn contiguous_copy_plan(pairs: &[CopyPair]) -> Option<(u32, u32, usize)> {
-    // require at least one pair
-    let first = pairs.first()?;
-
-    // reject missing sources
-    if first.src == INVALID_VALUE_ID {
-        return None;
-    }
-
-    let src_start = first.src;
-    let dest_start = first.dest;
-
-    // validate contiguous sequence
-    for (offset, pair) in pairs.iter().enumerate() {
-        let expected_src = src_start + offset as u32;
-        let expected_dest = dest_start + offset as u32;
-        if pair.src != expected_src || pair.dest != expected_dest {
-            return None;
-        }
-    }
-
-    Some((src_start, dest_start, pairs.len()))
-}
-
 /// Collect argument values from a frame into a smallvec.
-fn collect_argument_values(
+fn collect_argument_values_range(
     values: &[Value],
     frame: &Frame,
-    arguments: &[mir::Value],
+    argument_pool: &[mir::Value],
+    arguments: ArgumentRange,
 ) -> SmallVec<[Value; 16]> {
+    // fast path: contiguous argument ids
+    if let Some((start, len)) = arguments.contiguous_range() {
+        debug_assert!(
+            (start as usize) + len <= frame.value_count,
+            "ssa value out of bounds for contiguous args"
+        );
+        let mut args = SmallVec::with_capacity(len);
+        if len <= CONTIGUOUS_COPY_THRESHOLD {
+            let start_index = frame.value_base + start as usize;
+            let values_ptr = values.as_ptr();
+            for offset in 0..len {
+                unsafe {
+                    args.push(*values_ptr.add(start_index + offset));
+                }
+            }
+            return args;
+        }
+        unsafe {
+            args.set_len(len);
+            let src_index = frame.value_base + start as usize;
+            std::ptr::copy_nonoverlapping(values.as_ptr().add(src_index), args.as_mut_ptr(), len);
+        }
+        return args;
+    }
+
+    // resolve argument slice
+    let argument_slice = arguments.slice(argument_pool);
+
     // allocate argument buffer
-    let mut args = SmallVec::with_capacity(arguments.len());
+    let mut args = SmallVec::with_capacity(argument_slice.len());
 
     // resolve argument values
-    for argument in arguments {
+    for argument in argument_slice {
         let index = frame.value_base + argument.0 as usize;
         debug_assert!(
             (argument.0 as usize) < frame.value_count,
@@ -175,8 +257,37 @@ fn collect_argument_values(
 fn collect_argument_values_from_copies(
     values: &[Value],
     frame: &Frame,
-    pairs: &[CopyPair],
+    copy_pool: &[CopyPair],
+    copies: CopyRange,
 ) -> SmallVec<[Value; 16]> {
+    // fast path: contiguous copy pairs
+    if let Some((src_start, _dest_start, len)) = copies.contiguous_plan() {
+        debug_assert!(
+            (src_start as usize) + len <= frame.value_count,
+            "ssa value out of bounds for contiguous args"
+        );
+        let mut args = SmallVec::with_capacity(len);
+        if len <= CONTIGUOUS_COPY_THRESHOLD {
+            let start_index = frame.value_base + src_start as usize;
+            let values_ptr = values.as_ptr();
+            for offset in 0..len {
+                unsafe {
+                    args.push(*values_ptr.add(start_index + offset));
+                }
+            }
+            return args;
+        }
+        unsafe {
+            args.set_len(len);
+            let src_index = frame.value_base + src_start as usize;
+            std::ptr::copy_nonoverlapping(values.as_ptr().add(src_index), args.as_mut_ptr(), len);
+        }
+        return args;
+    }
+
+    // resolve copy pairs
+    let pairs = copies.slice(copy_pool);
+
     // allocate argument buffer
     let mut args = SmallVec::with_capacity(pairs.len());
 
@@ -208,14 +319,58 @@ fn collect_argument_values_from_copies(
 fn bind_parameters_from_values(
     values: &mut [Value],
     frame: &Frame,
-    params: &[mir::Value],
+    param_pool: &[mir::Value],
+    params: ArgumentRange,
     arguments: &[Value],
 ) {
+    // resolve parameter slice
+    let param_slice = params.slice(param_pool);
+
+    // fast path: contiguous params with full argument list
+    if let Some((dest_start, len)) = params.contiguous_range() {
+        if len == arguments.len() {
+            let dest_index = frame.value_base + dest_start as usize;
+
+            // validate bounds in debug builds
+            debug_assert!(
+                (dest_start as usize) + len <= frame.value_count,
+                "ssa value out of bounds: {dest_start}"
+            );
+
+            // copy argument values
+            let values_ptr = values.as_mut_ptr();
+            unsafe {
+                std::ptr::copy_nonoverlapping(arguments.as_ptr(), values_ptr.add(dest_index), len);
+            }
+            return;
+        }
+    }
+
     // use raw pointer to avoid repeated bounds checks
     let values_ptr = values.as_mut_ptr();
 
+    // fast path: arguments cover all parameters
+    if arguments.len() >= param_slice.len() {
+        // write parameter values
+        for (index, param) in param_slice.iter().enumerate() {
+            // load argument value
+            let value = arguments[index];
+
+            // write parameter value
+            let dest_index = frame.value_base + param.0 as usize;
+            debug_assert!(
+                (param.0 as usize) < frame.value_count,
+                "ssa value out of bounds: {param:?}"
+            );
+            unsafe {
+                *values_ptr.add(dest_index) = value;
+            }
+        }
+        return;
+    }
+
     // write parameter values
-    for (index, param) in params.iter().enumerate() {
+    for (index, param) in param_slice.iter().enumerate() {
         // load argument value
         let value = arguments.get(index).copied().unwrap_or(Value::VOID);
 
@@ -232,13 +387,9 @@ fn bind_parameters_from_values(
 }
 
 /// Resolve an argument range into a slice.
+#[inline(always)]
 fn argument_slice(argument_pool: &[mir::Value], arguments: ArgumentRange) -> &[mir::Value] {
     arguments.slice(argument_pool)
-}
-
-/// Resolve a copy range into a slice.
-fn copy_pairs(copy_pool: &[CopyPair], copies: CopyRange) -> &[CopyPair] {
-    copies.slice(copy_pool)
 }
 
 impl Interpreter {
@@ -282,13 +433,11 @@ impl Interpreter {
         // handle imported or external functions
         if function.is_import() {
             // resolve external handler
-            let name = self.strings.get(function.name).to_string();
-            let handler = self
-                .externals
-                .get(&name)
-                .ok_or_else(|| self.make_error(Error::ExternalFunctionNotFound { name }))?;
+            let handler = self.external_for_id(func_id)?;
 
             // execute external handler
+            // safety: handler pointer is stable for interpreter lifetime
+            let handler = unsafe { handler.as_ref() };
             let value = handler(arguments).map_err(|e| self.make_error(e))?;
 
             // return external result
@@ -333,8 +482,7 @@ impl Interpreter {
         let threaded = self
             .threaded_functions
             .get_by_index(threaded_index)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?
-            .clone();
+            .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?;
 
         // create initial frame
         let entry_block = &threaded.blocks[threaded.entry as usize];
@@ -346,7 +494,7 @@ impl Interpreter {
             .resize(value_base + threaded.value_count, Value::VOID);
         self.local_stack
             .resize(local_base + threaded.local_count, Value::VOID);
-        let threaded_ptr = NonNull::from(threaded.as_ref());
+        let threaded_ptr = NonNull::from(threaded);
         let frame = Frame::new(
             func_id,
             threaded_ptr,
@@ -442,12 +590,17 @@ impl Interpreter {
                 } => {
                     // bind block parameters for target block
                     let target_block = &current_func.blocks[target as usize];
-                    let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
                     let frame = self
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    copy_values_with_plan(&mut self.value_stack, frame, frame, copy_pairs);
+                    copy_values_with_plan(
+                        &mut self.value_stack,
+                        frame,
+                        frame,
+                        copies,
+                        current_func.copy_pool.as_slice(),
+                    );
 
                     // update current block
                     let frame = self
@@ -471,8 +624,9 @@ impl Interpreter {
                     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
                     // check for external or imported function
-                    let func: &mir::Function = self.tree.get(function_id);
-                    if func.is_import() {
+                    if callee_index == INVALID_FUNCTION_INDEX
+                        && self.threaded_functions.is_import(function_id)
+                    {
                         let caller = self
                             .call_stack
                             .last()
@@ -480,25 +634,27 @@ impl Interpreter {
 
                         // resolve arguments from caller
                         let args = if let Some(copies) = copies {
-                            let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
                             collect_argument_values_from_copies(
                                 &self.value_stack,
                                 caller,
-                                copy_pairs,
+                                current_func.copy_pool.as_slice(),
+                                copies,
                             )
                         } else {
-                            let argument_values =
-                                argument_slice(current_func.argument_pool.as_slice(), arguments);
-                            collect_argument_values(&self.value_stack, caller, argument_values)
+                            collect_argument_values_range(
+                                &self.value_stack,
+                                caller,
+                                current_func.argument_pool.as_slice(),
+                                arguments,
+                            )
                         };
 
                         // resolve external handler
-                        let name = self.strings.get(func.name).to_string();
-                        let handler = self.externals.get(&name).ok_or_else(|| {
-                            self.make_error(Error::ExternalFunctionNotFound { name })
-                        })?;
+                        let handler = self.external_for_id(function_id)?;
 
                         // execute external handler
+                        // safety: handler pointer is stable for interpreter lifetime
+                        let handler = unsafe { handler.as_ref() };
                         let result = handler(&args).map_err(|e| self.make_error(e))?;
 
                         // store result and continue from resume_pc
@@ -535,13 +691,6 @@ impl Interpreter {
                             })
                         })?;
 
-                    // resolve argument values if needed
-                    let argument_values = if copies.is_some() {
-                        &[]
-                    } else {
-                        argument_slice(current_func.argument_pool.as_slice(), arguments)
-                    };
-
                     // check stack overflow
                     if self.call_stack.len() >= self.options.max_stack_depth {
                         return Err(self.make_error(Error::StackOverflow));
@@ -553,11 +702,7 @@ impl Interpreter {
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     let caller_info = (caller_frame.value_base, caller_frame.value_count);
-                    caller_frame.return_destination = if is_invalid_value(destination) {
-                        None
-                    } else {
-                        Some(destination)
-                    };
+                    caller_frame.return_destination = destination;
                     caller_frame.resume_pc = resume_pc;
 
                     // create new frame for callee
@@ -570,7 +715,7 @@ impl Interpreter {
                     let entry_block = &callee.blocks[callee.entry as usize];
                     let entry_block_id = entry_block.mir_block;
                     let entry_block_ptr = NonNull::from(entry_block);
-                    let callee_ptr = NonNull::from(callee.as_ref());
+                    let callee_ptr = NonNull::from(callee);
                     let new_frame = Frame::new(
                         function_id,
                         callee_ptr,
@@ -594,23 +739,23 @@ impl Interpreter {
                     );
                     if let Some(copies) = copies {
                         // copy with precomputed plan
-                        let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
                         copy_values_with_plan(
                             &mut self.value_stack,
                             caller,
                             &new_frame,
-                            copy_pairs,
+                            copies,
+                            current_func.copy_pool.as_slice(),
                         );
                     } else {
                         // copy with parameter slices
-                        let parameter_slice =
-                            argument_slice(callee.argument_pool.as_slice(), callee.parameters);
                         copy_values_between_frames(
                             &mut self.value_stack,
                             caller,
                             &new_frame,
-                            parameter_slice,
-                            argument_values,
+                            callee.argument_pool.as_slice(),
+                            callee.parameters,
+                            current_func.argument_pool.as_slice(),
+                            arguments,
                         );
                     }
 
@@ -638,24 +783,29 @@ impl Interpreter {
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     let argument_values = if let Some(copies) = copies {
-                        let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
-                        collect_argument_values_from_copies(&self.value_stack, caller, copy_pairs)
+                        collect_argument_values_from_copies(
+                            &self.value_stack,
+                            caller,
+                            current_func.copy_pool.as_slice(),
+                            copies,
+                        )
                     } else {
-                        let argument_values =
-                            argument_slice(current_func.argument_pool.as_slice(), arguments);
-                        collect_argument_values(&self.value_stack, caller, argument_values)
+                        collect_argument_values_range(
+                            &self.value_stack,
+                            caller,
+                            current_func.argument_pool.as_slice(),
+                            arguments,
+                        )
                     };
 
                     // check for external or imported function
-                    let func: &mir::Function = self.tree.get(function_id);
-                    if func.is_import() {
+                    if self.threaded_functions.is_import(function_id) {
                         // resolve external handler
-                        let name = self.strings.get(func.name).to_string();
-                        let handler = self.externals.get(&name).ok_or_else(|| {
-                            self.make_error(Error::ExternalFunctionNotFound { name })
-                        })?;
+                        let handler = self.external_for_id(function_id)?;
 
                         // execute external handler
+                        // safety: handler pointer is stable for interpreter lifetime
+                        let handler = unsafe { handler.as_ref() };
                         let result = handler(&argument_values).map_err(|e| self.make_error(e))?;
 
                         // pop completed frame
@@ -676,7 +826,9 @@ impl Interpreter {
                             .call_stack
                             .last_mut()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        if let Some(dest) = caller.return_destination.take() {
+                        let dest = caller.return_destination;
+                        if !is_invalid_value(dest) {
+                            caller.return_destination = mir::Value(INVALID_VALUE_ID);
                             caller.set_value(&mut self.value_stack, dest, result);
                         }
                         continue;
@@ -718,17 +870,13 @@ impl Interpreter {
                     frame.stack_cells.clear();
 
                     // resize stacks to callee requirements
-                    self.value_stack.resize(value_end, Value::VOID);
-                    self.local_stack.resize(local_end, Value::VOID);
-
-                    // clear reused stack slots
-                    self.value_stack[value_base..value_end].fill(Value::VOID);
-                    self.local_stack[local_base..local_end].fill(Value::VOID);
+                    resize_and_clear_stack(&mut self.value_stack, value_base, value_end);
+                    resize_and_clear_stack(&mut self.local_stack, local_base, local_end);
 
                     // update frame metadata
                     let entry_block = &callee.blocks[callee.entry as usize];
                     frame.function = function_id;
-                    frame.threaded = NonNull::from(callee.as_ref());
+                    frame.threaded = NonNull::from(callee);
                     frame.block_ptr = NonNull::from(entry_block);
                     frame.entry_block = entry_block.mir_block;
                     frame.current_block = entry_block.mir_block;
@@ -738,12 +886,11 @@ impl Interpreter {
                     frame.local_count = callee.local_count;
 
                     // bind callee parameters
-                    let parameter_slice =
-                        argument_slice(callee.argument_pool.as_slice(), callee.parameters);
                     bind_parameters_from_values(
                         &mut self.value_stack,
                         frame,
-                        parameter_slice,
+                        callee.argument_pool.as_slice(),
+                        callee.parameters,
                         &argument_values,
                     );
 
@@ -772,7 +919,9 @@ impl Interpreter {
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    if let Some(dest) = caller.return_destination.take() {
+                    let dest = caller.return_destination;
+                    if !is_invalid_value(dest) {
+                        caller.return_destination = mir::Value(INVALID_VALUE_ID);
                         caller.set_value(&mut self.value_stack, dest, value);
                     }
                 }
