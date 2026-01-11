@@ -1110,7 +1110,10 @@ impl Compiler {
         );
     }
 
-    /// Infer builtin index access for arrays and tuples.
+    /// Infer builtin index access for arrays, tuples, and index signatures.
+    ///
+    /// Array and tuple access always return the element type. The
+    /// `include_undefined` flag only applies to index signatures.
     fn infer_builtin_index_access(
         &self,
         receiver_ty: &Type,
@@ -1143,7 +1146,7 @@ impl Compiler {
                         receiver_ty_id,
                     )
                 });
-                Some(add_unchecked_undefined(element_ty_id, types))
+                Some(element_ty_id)
             }
             Type::Tuple { elements } => {
                 if elements.is_empty() {
@@ -1165,7 +1168,7 @@ impl Compiler {
 
                 let elements = elements.iter().map(|element| element.ty).collect();
                 let union_ty_id = self.union_type_from_list(elements, receiver_ty_id, types);
-                Some(add_unchecked_undefined(union_ty_id, types))
+                Some(union_ty_id)
             }
             Type::Object {
                 fields,

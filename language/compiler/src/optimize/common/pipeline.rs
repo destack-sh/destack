@@ -659,8 +659,8 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 
 fn optimize_types() -> Vec<Box<dyn FunctionPass>> {
     vec![
-        Box::new(BoundsCheckEliminate),
         Box::new(LoopBoundsCheckEliminate),
+        Box::new(BoundsCheckEliminate),
     ]
 }
 

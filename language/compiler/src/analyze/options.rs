@@ -35,7 +35,7 @@ pub struct AnalyzeOptions {
     pub no_implicit_returns: bool,
     /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: bool,
-    /// Add `undefined` to indexed access results.
+    /// Add `undefined` to index signature access results.
     pub no_unchecked_indexed_access: bool,
     /// Disallow property access from index signatures without explicit index access.
     pub no_property_access_from_index_signature: bool,

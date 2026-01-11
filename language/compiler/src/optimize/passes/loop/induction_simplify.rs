@@ -22,9 +22,13 @@ declare_pass! {
     ///     v0 = iconst 0i32
     ///     jump block1(v0, v0)
     /// block1(v1: i32, v2: i32):
-    ///     v3 = icmp_slt v1, v0
-    ///     v4 = iadd v1, v2
-    ///     jump block1(v1, v2)
+    ///     v3 = iadd v1, v2
+    ///     v4 = iconst 1i32
+    ///     v5 = iadd v1, v4
+    ///     v6 = icmp_slt v5, v0
+    ///     branch v6, block1(v5, v5), block2(v2)
+    /// block2(v7: i32):
+    ///     return v7
     /// }
     /// ```
     /// becomes:
@@ -32,11 +36,15 @@ declare_pass! {
     /// function @after() -> i32 {
     /// block0:
     ///     v0 = iconst 0i32
-    ///     jump block1(v0, v0)
-    /// block1(v1: i32, v2: i32):
-    ///     v3 = icmp_slt v1, v0
-    ///     v4 = iadd v1, v1
-    ///     jump block1(v1, v2)
+    ///     jump block1(v0)
+    /// block1(v1: i32):
+    ///     v3 = iadd v1, v1
+    ///     v4 = iconst 1i32
+    ///     v5 = iadd v1, v4
+    ///     v6 = icmp_slt v5, v0
+    ///     branch v6, block1(v5), block2(v1)
+    /// block2(v7: i32):
+    ///     return v7
     /// }
     /// ```
     #[pass(id = "induction-simplify")]
@@ -67,6 +75,8 @@ impl FunctionPass for InductionVariableSimplify {
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
+
+        // TODO #Performance: extend equivalence to affine offset matches
 
         // run the simplification pass
         let changed = run_induction_simplify(function, tree, &loops, &scev, &cfg);
@@ -127,6 +137,8 @@ fn run_induction_simplify(
 ) -> bool {
     // collect substitutions for redundant induction variables
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+
+    // build forwarding information for header parameters
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
     // scan loops for redundant recurrences
@@ -148,8 +160,10 @@ fn run_induction_simplify(
             // derive a structural type key for comparisons
             let param_type = TypeKey::from_type(tree.get(param.ty), tree);
 
-            // resolve the parameter signature and recurrence key
+            // resolve the parameter signature
             let signature = param_signature(lp.header, param_index, tree, cfg, &forwarding);
+
+            // resolve the recurrence key for the parameter
             let scev_key = scev
                 .scev_for_value_in_loop(loop_index, param.value)
                 .and_then(|scev_value| {
@@ -163,8 +177,8 @@ fn run_induction_simplify(
                     Some(scev_value)
                 });
 
-            // map to an existing canonical value if possible
-            let mut canonical_value = signature.as_ref().and_then(|signature| {
+            // find a canonical value using the signature
+            let signature_match = signature.as_ref().and_then(|signature| {
                 canonical_signatures.iter().find_map(|entry| {
                     if entry.ty == param_type && entry.signature == *signature {
                         Some(entry.value)
@@ -174,8 +188,9 @@ fn run_induction_simplify(
                 })
             });
 
-            if canonical_value.is_none() {
-                canonical_value = scev_key.as_ref().and_then(|scev_key| {
+            // fall back to recurrence equivalence when needed
+            let scev_match = if signature_match.is_none() {
+                scev_key.as_ref().and_then(|scev_key| {
                     canonical_scevs.iter().find_map(|entry| {
                         if entry.ty == param_type && entry.scev == *scev_key {
                             Some(entry.value)
@@ -183,14 +198,18 @@ fn run_induction_simplify(
                             None
                         }
                     })
-                });
-            }
+                })
+            } else {
+                None
+            };
 
-            let canonical_value = canonical_value.unwrap_or(param.value);
+            // record substitutions for redundant parameters
+            let canonical_value = signature_match.or(scev_match).unwrap_or(param.value);
             if canonical_value != param.value {
                 substitutions.insert(param.value, canonical_value);
             }
 
+            // record canonical signature entries
             if let Some(signature) = signature {
                 let has_signature = canonical_signatures
                     .iter()
@@ -204,6 +223,7 @@ fn run_induction_simplify(
                 }
             }
 
+            // record canonical recurrence entries
             if let Some(scev_key) = scev_key {
                 let has_scev = canonical_scevs
                     .iter()
@@ -230,6 +250,7 @@ fn run_induction_simplify(
     // collect removed parameter indices
     let mut removed_indices: HashMap<mir::LocalNodeId<mir::Block>, Vec<usize>> = HashMap::new();
     for &block_id in &function.blocks {
+        // collect indices for parameters that will be removed
         let block = tree.get(block_id);
         let indices: Vec<usize> = block
             .parameters
@@ -270,6 +291,7 @@ fn run_induction_simplify(
 
     // apply substitutions to terminators and parameters
     for &block_id in &function.blocks {
+        // read the current block
         let block = tree.get(block_id);
 
         // rewrite terminator uses
@@ -453,18 +475,19 @@ fn remove_arguments_at_indices(
 
 /// Filter out values at the specified indices.
 fn filter_indices(values: &[mir::Value], indices_to_remove: &[usize]) -> Vec<mir::Value> {
-    // filter by indices to remove
-    values
-        .iter()
-        .enumerate()
-        .filter_map(|(index, value)| {
-            if indices_to_remove.contains(&index) {
-                None
-            } else {
-                Some(*value)
-            }
-        })
-        .collect()
+    // collect values that are not removed
+    let mut filtered = Vec::with_capacity(values.len());
+
+    for (index, value) in values.iter().enumerate() {
+        // skip values at removed indices
+        if indices_to_remove.contains(&index) {
+            continue;
+        }
+
+        filtered.push(*value);
+    }
+
+    filtered
 }
 
 /// Build a header parameter signature based on predecessor arguments.
@@ -591,6 +614,49 @@ block1(v2: i32):
     v9 = icmp_slt v8, v0
     branch v9, block1(v8), block2(v2)
 block2(v10: i32):
+    return v10
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InductionVariableSimplify);
+        program.assert_output(expected);
+    }
+
+    /// Forwarded predecessor arguments still permit signature matching.
+    #[test]
+    fn test_simplify_forwarded_signature_match() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1, v1)
+block1(v2: i32, v3: i32):
+    jump block2(v2, v3)
+block2(v4: i32, v5: i32):
+    v6 = iadd v4, v5
+    v7 = iconst 1i32
+    v8 = iadd v4, v7
+    v9 = icmp_slt v8, v0
+    branch v9, block2(v8, v8), block3(v5)
+block3(v10: i32):
+    return v10
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    jump block1(v1, v1)
+block1(v2: i32, v3: i32):
+    jump block2(v2)
+block2(v4: i32):
+    v6 = iadd v4, v4
+    v7 = iconst 1i32
+    v8 = iadd v4, v7
+    v9 = icmp_slt v8, v0
+    branch v9, block2(v8), block3(v4)
+block3(v10: i32):
     return v10
 }"#;
 

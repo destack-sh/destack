@@ -46,15 +46,15 @@ declare_pass! {
     ///     v2 = iconst 4i32
     ///     v3 = iconst 1i32
     ///     jump block1(v1, v1)
-    /// block1(v4: i32, v8: i32):
+    /// block1(v4: i32, v9: i32):
     ///     v5 = icmp_slt v4, v0
     ///     branch v5, block2, block3
     /// block2:
     ///     v6 = imul v4, v2
-    ///     v7 = iadd v8, v3
-    ///     v9 = iadd v8, v2
-    ///     v10 = iadd v4, v3
-    ///     jump block1(v10, v9)
+    ///     v7 = iadd v9, v3
+    ///     v8 = iadd v4, v3
+    ///     v10 = iadd v9, v2
+    ///     jump block1(v8, v10)
     /// block3:
     ///     return v4
     /// }
@@ -90,6 +90,8 @@ impl FunctionPass for LoopStrengthReduce {
         if loops.num_loops() == 0 {
             return AnalysisPreservation::all();
         }
+
+        // TODO #Performance: allow widening to chained affine recurrences
 
         // run the strength reduction pass
         let context = StrengthReduceContext {
@@ -322,7 +324,7 @@ impl<'a> CandidateContext<'a> {
                 continue;
             }
 
-            // require a canonical preheader
+            // resolve the canonical preheader and latch
             let Some(preheader) = find_preheader(lp, self.cfg, self.domtree) else {
                 continue;
             };
@@ -351,6 +353,7 @@ impl<'a> CandidateContext<'a> {
                 // scan instructions in the block
                 let block = self.tree.get(block_id);
                 for &instruction_id in &block.instructions {
+                    // read the instruction and its destination
                     let instruction = self.tree.get(instruction_id);
                     let Some(destination) = instruction.destination() else {
                         continue;
@@ -559,6 +562,7 @@ fn run_loop_strength_reduce(
 
     // apply substitutions to terminators
     for &block_id in &function.blocks {
+        // read the current block
         let block = tree.get(block_id);
 
         // rewrite terminator uses
@@ -1707,6 +1711,52 @@ block2:
     v7 = iadd v9, v2
     v8 = iadd v4, v2
     v10 = iadd v9, v3
+    jump block1(v8, v10)
+block3:
+    return v4
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Loop derived multiplications with invariant factors are rewritten.
+    #[test]
+    fn test_strength_reduce_invariant_multiplier() {
+        // source program
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    v3 = iconst 1i32
+    jump block1(v2)
+block1(v4: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3
+block2:
+    v6 = imul v4, v1
+    v7 = iadd v6, v3
+    v8 = iadd v4, v3
+    jump block1(v8)
+block3:
+    return v4
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    v3 = iconst 1i32
+    jump block1(v2, v2)
+block1(v4: i32, v9: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3
+block2:
+    v6 = imul v4, v1
+    v7 = iadd v9, v3
+    v8 = iadd v4, v3
+    v10 = iadd v9, v1
     jump block1(v8, v10)
 block3:
     return v4

@@ -427,6 +427,43 @@ impl<'a> LoopScevBuilder<'a> {
             mir::BinaryOperator::Multiply => {
                 let left_scev = self.scev_for_value(left);
                 let right_scev = self.scev_for_value(right);
+
+                // allow invariant multipliers to keep linear recurrences
+                if let Scev::AddRec {
+                    start,
+                    step,
+                    loop_header,
+                } = &left_scev
+                    && self.is_invariant_value(right)
+                {
+                    let invariant = right_scev.clone();
+                    let start = scev_mul(start.as_ref().clone(), invariant.clone());
+                    let step = scev_mul(step.as_ref().clone(), invariant);
+                    return Scev::AddRec {
+                        start: Box::new(start),
+                        step: Box::new(step),
+                        loop_header: *loop_header,
+                    };
+                }
+
+                // allow invariant multipliers on the right side as well
+                if let Scev::AddRec {
+                    start,
+                    step,
+                    loop_header,
+                } = &right_scev
+                    && self.is_invariant_value(left)
+                {
+                    let invariant = left_scev.clone();
+                    let start = scev_mul(start.as_ref().clone(), invariant.clone());
+                    let step = scev_mul(step.as_ref().clone(), invariant);
+                    return Scev::AddRec {
+                        start: Box::new(start),
+                        step: Box::new(step),
+                        loop_header: *loop_header,
+                    };
+                }
+
                 scev_mul(left_scev, right_scev)
             }
             mir::BinaryOperator::SignedDivide => {
@@ -1659,6 +1696,58 @@ block2(v8: i32):
         assert_eq!(actual, &expected);
     }
 
+    /// Multiplying add recurrences by invariants stays linear.
+    #[test]
+    fn test_addrec_mul_invariant() {
+        let program = TestProgram::new(
+            r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    jump block1(v2)
+block1(v3: i32):
+    v4 = imul v3, v1
+    v5 = iconst 1i32
+    v6 = iadd v3, v5
+    v7 = icmp_slt v6, v0
+    branch v7, block1(v6), block2(v4)
+block2(v8: i32):
+    return v8
+}"#,
+        );
+
+        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
+
+        let loop_index = loops
+            .loops()
+            .iter()
+            .position(|lp| lp.header == function.blocks[1])
+            .unwrap();
+
+        let block1 = program.tree.get(function.blocks[1]);
+        let instruction = program.tree.get(block1.instructions[0]);
+        let derived_value = instruction.destination().unwrap();
+
+        let invariant_value = function.parameters[1].value;
+        let expected = Scev::AddRec {
+            start: Box::new(Scev::Constant(mir::Constant::Int {
+                value: 0,
+                width: 32,
+                is_signed: true,
+            })),
+            step: Box::new(Scev::Unknown(invariant_value)),
+            loop_header: function.blocks[1],
+        };
+
+        let actual = scev
+            .scev_for_value_in_loop(loop_index, derived_value)
+            .unwrap();
+        assert_eq!(actual, &expected);
+    }
+
     /// Nested additive chains still produce linear add recurrences.
     #[test]
     fn test_addrec_nested_additive_step() {
@@ -1791,14 +1880,9 @@ block2(v8: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()
@@ -1852,14 +1936,9 @@ block2(v8: i32):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let context = program.context();
-
-        let loops = context
-            .analyses
-            .get::<LoopAnalysis>(function, &program.tree, &context);
-        let scev = context
-            .analyses
-            .get::<ScalarEvolution>(function, &program.tree, &context);
+        let analyses = program.function_analyses(function);
+        let loops = analyses.get::<LoopAnalysis>();
+        let scev = analyses.get::<ScalarEvolution>();
 
         let loop_index = loops
             .loops()

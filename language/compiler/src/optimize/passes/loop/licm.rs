@@ -89,6 +89,7 @@ impl FunctionPass for Licm {
 }
 
 /// Core LICM logic. Returns true if changes were made.
+#[allow(clippy::too_many_arguments)]
 fn run_licm(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
@@ -280,6 +281,7 @@ fn run_licm(
 }
 
 /// Return true when an instruction can be hoisted safely.
+#[allow(clippy::too_many_arguments)]
 fn instruction_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
