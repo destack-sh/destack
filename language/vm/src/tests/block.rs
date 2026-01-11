@@ -4,7 +4,7 @@ use destack_mir::parse::Parser;
 use crate::diagnostic::Error;
 use crate::interpreter::{Interpreter, MachineOptions};
 use crate::memory::Value;
-use crate::tests::{run_mir, run_mir_expect};
+use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -266,6 +266,85 @@ block0(v0: fn(i32) -> i32, v1: i32):
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::TypeMismatch { .. }));
+}
+
+/// Tail calls reuse the current frame without growing the stack.
+#[test]
+fn test_tail_call_direct() {
+    let mir = r#"
+function @countdown(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    v3 = icmp_eq v0, v2
+    branch v3, block2, block1
+block1:
+    v4 = iconst 1i32
+    v5 = isub v0, v4
+    v6 = iadd v1, v4
+    tailcall @countdown(v5, v6)
+block2:
+    return v1
+}
+
+function @entry(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    tailcall @countdown(v0, v1)
+}
+"#;
+
+    // run tail call with depth beyond the test stack limit
+    let output = run_mir_ok(mir, "entry", &[Value::int32(200)]);
+    assert_eq!(output.value, Value::int32(200));
+    assert_eq!(output.statistics.max_stack_depth, 1);
+}
+
+/// Tail call indirect reuses the current frame without growing the stack.
+#[test]
+fn test_tail_call_indirect() {
+    let mir_text = r#"
+function @countdown(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    v3 = icmp_eq v0, v2
+    branch v3, block2, block1
+block1:
+    v4 = iconst 1i32
+    v5 = isub v0, v4
+    v6 = iadd v1, v4
+    tailcall @countdown(v5, v6)
+block2:
+    return v1
+}
+
+function @entry(v0: i32, v1: fn(i32, i32) -> i32) -> i32 {
+block0(v0: i32, v1: fn(i32, i32) -> i32):
+    v2 = iconst 0i32
+    tailcall.indirect v1(v0, v2)
+}
+"#;
+
+    // parse the MIR
+    let (tree, strings) = Parser::parse(mir_text).expect("failed to parse MIR");
+
+    // find the @countdown function id
+    let countdown_id = tree
+        .iter_nodes::<mir::Function>()
+        .find(|(_, f)| strings.get(f.name) == "countdown")
+        .map(|(id, _)| id)
+        .expect("countdown not found");
+
+    // create interpreter and run
+    let mut interpreter = Interpreter::with_options(tree, strings, MachineOptions::test());
+    let result = interpreter
+        .run_function_by_name(
+            "entry",
+            &[Value::int32(200), Value::function_pointer(countdown_id)],
+        )
+        .expect("execution failed");
+
+    assert_eq!(result.value, Value::int32(200));
+    assert_eq!(result.statistics.max_stack_depth, 1);
 }
 
 /// Block parameters are correctly passed via jump.

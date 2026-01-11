@@ -53,6 +53,15 @@ impl ManagedHeap {
         })
     }
 
+    /// Allocate a cell with exactly 1 slot value (avoids Vec allocation).
+    #[inline]
+    pub fn allocate_single(&mut self, value: Value) -> HeapHandle {
+        self.allocate_cell(HeapCell {
+            slots: SlotStorage::from_single(value),
+            marked: false,
+        })
+    }
+
     /// Internal: allocate a cell, reusing free slots if available.
     #[inline]
     fn allocate_cell(&mut self, cell: HeapCell) -> HeapHandle {
