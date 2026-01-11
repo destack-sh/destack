@@ -4,9 +4,9 @@ use destack_mir as mir;
 
 use crate::{LowerError, LowerResult};
 
-use super::super::BlockLowerer;
+use super::FunctionContext;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Lower a member access expression to a field_get.
     pub(crate) fn lower_member_expression(
         &mut self,

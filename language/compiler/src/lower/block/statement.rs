@@ -5,9 +5,9 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::block::{BlockLowerer, LocalBinding, LoopContext, Terminates};
+use super::{FunctionContext, LocalBinding, LoopContext, Terminates};
 
-impl<'a, 'b> BlockLowerer<'a, 'b> {
+impl FunctionContext<'_> {
     /// Lower a statement expression.
     pub(crate) fn lower_statement_expression(
         &mut self,

@@ -3,9 +3,9 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, StructLayout};
 
-use super::super::BlockLowerer;
+use super::FunctionContext;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Lower a tuple expression to an aggregate value.
     pub(crate) fn lower_tuple_expression(
         &mut self,

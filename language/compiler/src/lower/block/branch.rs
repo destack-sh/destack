@@ -3,9 +3,9 @@ use destack_mir as mir;
 
 use crate::{LowerError, LowerResult};
 
-use super::super::BlockLowerer;
+use super::FunctionContext;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Lower a conditional (ternary) expression.
     ///
     /// Conditional expressions like `a ? b : c` evaluate condition `a`,
