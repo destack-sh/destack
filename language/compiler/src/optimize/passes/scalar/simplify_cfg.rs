@@ -3,18 +3,20 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::ConstantPropagation;
+use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, ValueRange};
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
     instruction_substitute_uses, terminator_substitute_uses,
 };
 
+// TODO #Performance: add path sensitive jump threading with edge specific range facts
+
 declare_pass! {
     /// Simplify the control flow graph.
     ///
     /// This pass performs several CFG simplifications:
-    /// 1. Constant branch folding: converts `branch const, A, B` to `jump`
-    /// 2. Jump threading: threads jumps through empty blocks
+    /// 1. Branch folding: converts `branch cond, A, B` to `jump` when cond is constant or range-proven
+    /// 2. Jump threading: threads jumps through empty or passthrough blocks
     /// 3. Block merging: merges blocks with single predecessor/successor
     /// 4. Unreachable block elimination: removes blocks not reachable from entry
     ///
@@ -43,31 +45,39 @@ declare_pass! {
 }
 
 impl FunctionPass for SimplifyCfg {
+    /// Run CFG simplification on a function.
     fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // get constant propagation analysis
-        let constants = {
+        // get constant propagation and range analyses
+        let (constants, ranges) = {
             let analyses = FunctionAnalyses::new(function, tree);
-            analyses.get::<ConstantPropagation>().clone()
+            (
+                analyses.get::<ConstantPropagation>().clone(),
+                analyses.get::<RangeAnalysis>().clone(),
+            )
         };
 
         // run simplify CFG
-        let changed = run_simplify_cfg(function, tree, &constants);
+        let changed = run_simplify_cfg(function, tree, &constants, &ranges);
+
+        // select preservation based on CFG changes
         if changed {
-            AnalysisPreservation::none() // CFG changed
+            AnalysisPreservation::none()
         } else {
             AnalysisPreservation::all()
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "SimplifyCfg"
     }
 
+    /// Return the pass identifier.
     fn id(&self) -> &'static str {
         "simplify-cfg"
     }
@@ -78,12 +88,13 @@ fn run_simplify_cfg(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     constants: &ConstantPropagation,
+    ranges: &RangeAnalysis,
 ) -> bool {
     let mut changed = false;
 
-    // phase 1: constant branch folding
-    // converts `branch const_true, A, B` -> `jump A`
-    changed |= fold_constant_branches(function, tree, constants);
+    // phase 1: branch folding
+    // converts `branch always_true, A, B` -> `jump A`
+    changed |= fold_branches(function, tree, constants, ranges);
 
     // phase 2: jump threading
     // threads jumps through empty blocks
@@ -105,16 +116,18 @@ fn run_simplify_cfg(
 
 /// Fold branches on constant conditions into unconditional jumps.
 /// Returns true if any branches were folded.
-fn fold_constant_branches(
+fn fold_branches(
     function: &mir::Function,
     tree: &mut mir::NodeTree,
     constants: &ConstantPropagation,
+    ranges: &RangeAnalysis,
 ) -> bool {
     let mut changed = false;
 
-    // fold constant branches
+    // fold branches with constant or range-proven conditions
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+        let exit_ranges = ranges.exit(block_id);
         match &block.terminator {
             mir::Terminator::Branch {
                 condition,
@@ -129,6 +142,8 @@ fn fold_constant_branches(
                     Some(mir::Constant::Boolean { value }) => Some(*value),
                     _ => None,
                 };
+                let condition_value =
+                    condition_value.or_else(|| bool_from_range(exit_ranges.get(*condition)));
 
                 if let Some(is_true) = condition_value {
                     let (target, arguments) = if is_true {
@@ -155,6 +170,8 @@ fn fold_constant_branches(
                     Some(mir::Constant::Boolean { value }) => Some(*value),
                     _ => None,
                 };
+                let condition_value =
+                    condition_value.or_else(|| bool_from_range(exit_ranges.get(*condition)));
 
                 if let Some(is_true) = condition_value {
                     let (target, arguments) = if is_true {
@@ -169,6 +186,28 @@ fn fold_constant_branches(
                     changed = true;
                 }
             }
+            mir::Terminator::Switch {
+                value,
+                default,
+                default_arguments,
+                cases,
+            } => {
+                let constant_value = constants.constant_at_exit(block_id, *value);
+                let range_value = exit_ranges.get(*value);
+                if let Some(new_terminator) = fold_switch(
+                    *value,
+                    *default,
+                    default_arguments,
+                    cases,
+                    constant_value,
+                    range_value,
+                ) {
+                    let mut new_block = block.clone();
+                    new_block.terminator = new_terminator;
+                    tree.replace(block_id, new_block);
+                    changed = true;
+                }
+            }
             _ => {}
         }
     }
@@ -176,32 +215,177 @@ fn fold_constant_branches(
     changed
 }
 
-/// Thread jumps through empty blocks.
+/// Convert a boolean range into a constant when possible.
+fn bool_from_range(range: Option<&ValueRange>) -> Option<bool> {
+    let ValueRange::Boolean {
+        can_be_true,
+        can_be_false,
+    } = range?
+    else {
+        return None;
+    };
+
+    match (*can_be_true, *can_be_false) {
+        (true, false) => Some(true),
+        (false, true) => Some(false),
+        _ => None,
+    }
+}
+
+/// Fold switch terminators using constant or range information.
+fn fold_switch(
+    value: mir::Value,
+    default: mir::LocalNodeId<mir::Block>,
+    default_arguments: &[mir::Value],
+    cases: &[mir::SwitchCase],
+    constant_value: Option<&mir::Constant>,
+    range_value: Option<&ValueRange>,
+) -> Option<mir::Terminator> {
+    // select a single known constant case
+    if let Some(mir::Constant::Int {
+        value, is_signed, ..
+    }) = constant_value
+    {
+        return Some(resolve_switch_case(
+            *value as i128,
+            default,
+            default_arguments,
+            cases,
+            *is_signed,
+        ));
+    }
+    if let Some(mir::Constant::UInt { value, .. }) = constant_value {
+        return Some(resolve_switch_case(
+            *value as i128,
+            default,
+            default_arguments,
+            cases,
+            false,
+        ));
+    }
+
+    // narrow cases by integer range when possible
+    let ValueRange::Integer {
+        min,
+        max,
+        is_signed,
+        ..
+    } = range_value?
+    else {
+        return None;
+    };
+
+    if min == max {
+        return Some(resolve_switch_case(
+            *min,
+            default,
+            default_arguments,
+            cases,
+            *is_signed,
+        ));
+    }
+
+    let mut filtered_cases: Vec<mir::SwitchCase> = Vec::new();
+    for case in cases {
+        let case_value = if *is_signed {
+            case.value as i128
+        } else {
+            case.value as u64 as i128
+        };
+        if case_value >= *min && case_value <= *max {
+            filtered_cases.push(case.clone());
+        }
+    }
+
+    if filtered_cases.len() == cases.len() {
+        return None;
+    }
+
+    if filtered_cases.is_empty() {
+        return Some(mir::Terminator::Jump {
+            target: default,
+            arguments: default_arguments.to_vec(),
+        });
+    }
+
+    Some(mir::Terminator::Switch {
+        value,
+        default,
+        default_arguments: default_arguments.to_vec(),
+        cases: filtered_cases,
+    })
+}
+
+/// Resolve a switch into a jump when the value is known.
+fn resolve_switch_case(
+    value: i128,
+    default: mir::LocalNodeId<mir::Block>,
+    default_arguments: &[mir::Value],
+    cases: &[mir::SwitchCase],
+    is_signed: bool,
+) -> mir::Terminator {
+    // scan cases for a matching value
+    for case in cases {
+        // normalize the case value for comparison
+        let case_value = if is_signed {
+            case.value as i128
+        } else {
+            case.value as u64 as i128
+        };
+
+        // return when the case matches
+        if value == case_value {
+            return mir::Terminator::Jump {
+                target: case.target,
+                arguments: case.arguments.clone(),
+            };
+        }
+    }
+
+    // fall back to the default target
+    mir::Terminator::Jump {
+        target: default,
+        arguments: default_arguments.to_vec(),
+    }
+}
+
+/// Thread jumps through empty or passthrough blocks.
 ///
-/// If a block has no instructions, no parameters, and a simple terminator,
-/// predecessors can absorb that terminator directly. For jump terminators,
-/// we also resolve chains (A->B->C becomes A->C).
+/// If a block has no instructions and either has no parameters or just forwards
+/// them, predecessors can bypass it. For jump terminators, we resolve chains
+/// (A->B->C becomes A->C).
 ///
 /// Returns true if any changes were made.
 fn thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
-    // find all empty blocks (no instructions, no parameters) that can be threaded
-    let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, mir::Terminator> = HashMap::new();
+    // find all empty blocks (no instructions) that can be threaded
+    let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> = HashMap::new();
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
 
-        // block must have no instructions and no parameters to be threadable
-        if !block.instructions.is_empty() || !block.parameters.is_empty() {
+        // block must have no instructions to be threadable
+        if !block.instructions.is_empty() {
             continue;
         }
 
-        // check if terminator can be threaded through
         match &block.terminator {
-            mir::Terminator::Jump { arguments, .. } if arguments.is_empty() => {
-                threadable.insert(block_id, block.terminator.clone());
+            mir::Terminator::Jump { target, arguments } => {
+                if block.parameters.is_empty() && arguments.is_empty() {
+                    threadable.insert(
+                        block_id,
+                        ThreadableBlock::Terminator(block.terminator.clone()),
+                    );
+                } else if is_passthrough_jump(block, arguments) {
+                    threadable.insert(block_id, ThreadableBlock::Forward { target: *target });
+                }
             }
             mir::Terminator::Return { .. } | mir::Terminator::Unreachable => {
-                threadable.insert(block_id, block.terminator.clone());
+                if block.parameters.is_empty() {
+                    threadable.insert(
+                        block_id,
+                        ThreadableBlock::Terminator(block.terminator.clone()),
+                    );
+                }
             }
             _ => {}
         }
@@ -219,27 +403,16 @@ fn thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
 
         let new_terminator = match &block.terminator {
             mir::Terminator::Jump { target, arguments } => {
-                // resolve the target, following jump chains
-                let resolved = resolve_jump_target(*target, &threadable);
+                let resolved = resolve_jump_target(*target, arguments, &threadable);
                 match resolved {
-                    ResolvedTarget::Terminator(t) if arguments.is_empty() => {
-                        // can absorb any terminator when no arguments
-                        Some(t)
-                    }
-                    ResolvedTarget::Terminator(mir::Terminator::Jump {
+                    ResolvedTarget::Terminator(t) if arguments.is_empty() => Some(t),
+                    ResolvedTarget::Jump {
                         target: new_target,
-                        ..
-                    }) => {
-                        // redirect to new target, keeping our arguments
+                        arguments: new_arguments,
+                    } if new_target != *target || &new_arguments != arguments => {
                         Some(mir::Terminator::Jump {
                             target: new_target,
-                            arguments: arguments.clone(),
-                        })
-                    }
-                    ResolvedTarget::Block(new_target) if new_target != *target => {
-                        Some(mir::Terminator::Jump {
-                            target: new_target,
-                            arguments: arguments.clone(),
+                            arguments: new_arguments,
                         })
                     }
                     _ => None,
@@ -252,32 +425,29 @@ fn thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
                 else_target,
                 else_arguments,
             } => {
-                // for branches, resolve each target
-                let then_resolved = resolve_jump_target(*then_target, &threadable);
-                let else_resolved = resolve_jump_target(*else_target, &threadable);
+                let then_resolved = resolve_jump_target(*then_target, then_arguments, &threadable);
+                let else_resolved = resolve_jump_target(*else_target, else_arguments, &threadable);
 
-                let new_then = match then_resolved {
-                    ResolvedTarget::Block(t) if t != *then_target => Some(t),
-                    ResolvedTarget::Terminator(mir::Terminator::Jump { target, .. }) => {
-                        Some(target)
-                    }
-                    _ => None,
+                let (new_then, new_then_args) = match then_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (*then_target, then_arguments.clone()),
                 };
-                let new_else = match else_resolved {
-                    ResolvedTarget::Block(t) if t != *else_target => Some(t),
-                    ResolvedTarget::Terminator(mir::Terminator::Jump { target, .. }) => {
-                        Some(target)
-                    }
-                    _ => None,
+                let (new_else, new_else_args) = match else_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (*else_target, else_arguments.clone()),
                 };
 
-                if new_then.is_some() || new_else.is_some() {
+                if new_then != *then_target
+                    || new_else != *else_target
+                    || new_then_args != *then_arguments
+                    || new_else_args != *else_arguments
+                {
                     Some(mir::Terminator::Branch {
                         condition: *condition,
-                        then_target: new_then.unwrap_or(*then_target),
-                        then_arguments: then_arguments.clone(),
-                        else_target: new_else.unwrap_or(*else_target),
-                        else_arguments: else_arguments.clone(),
+                        then_target: new_then,
+                        then_arguments: new_then_args,
+                        else_target: new_else,
+                        else_arguments: new_else_args,
                     })
                 } else {
                     None
@@ -289,35 +459,35 @@ fn thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
                 success,
                 failure,
             } => {
-                let success_resolved = resolve_jump_target(success.target, &threadable);
-                let failure_resolved = resolve_jump_target(failure.target, &threadable);
+                let success_resolved =
+                    resolve_jump_target(success.target, &success.arguments, &threadable);
+                let failure_resolved =
+                    resolve_jump_target(failure.target, &failure.arguments, &threadable);
 
-                let new_success = match success_resolved {
-                    ResolvedTarget::Block(t) if t != success.target => Some(t),
-                    ResolvedTarget::Terminator(mir::Terminator::Jump { target, .. }) => {
-                        Some(target)
-                    }
-                    _ => None,
+                let (new_success, new_success_args) = match success_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (success.target, success.arguments.clone()),
                 };
-                let new_failure = match failure_resolved {
-                    ResolvedTarget::Block(t) if t != failure.target => Some(t),
-                    ResolvedTarget::Terminator(mir::Terminator::Jump { target, .. }) => {
-                        Some(target)
-                    }
-                    _ => None,
+                let (new_failure, new_failure_args) = match failure_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (failure.target, failure.arguments.clone()),
                 };
 
-                if new_success.is_some() || new_failure.is_some() {
+                if new_success != success.target
+                    || new_failure != failure.target
+                    || new_success_args != success.arguments
+                    || new_failure_args != failure.arguments
+                {
                     Some(mir::Terminator::Check {
                         condition: *condition,
                         constraint: constraint.clone(),
                         success: mir::CheckTarget {
-                            target: new_success.unwrap_or(success.target),
-                            arguments: success.arguments.clone(),
+                            target: new_success,
+                            arguments: new_success_args,
                         },
                         failure: mir::CheckTarget {
-                            target: new_failure.unwrap_or(failure.target),
-                            arguments: failure.arguments.clone(),
+                            target: new_failure,
+                            arguments: new_failure_args,
                         },
                     })
                 } else {
@@ -338,46 +508,94 @@ fn thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
     changed
 }
 
+/// Threadable block metadata.
+enum ThreadableBlock {
+    /// A terminator that can be absorbed by predecessors.
+    Terminator(mir::Terminator),
+    /// A passthrough jump that forwards its parameters unchanged.
+    Forward {
+        target: mir::LocalNodeId<mir::Block>,
+    },
+}
+
 /// Result of resolving a jump target through threadable blocks.
 enum ResolvedTarget {
-    /// Resolved to a final block (followed jump chain but ended at non-threadable block).
-    Block(mir::LocalNodeId<mir::Block>),
-    /// Resolved to a terminator that can be absorbed (return, unreachable, or final jump).
+    /// Resolved to a final jump target with updated arguments.
+    Jump {
+        /// The final target block.
+        target: mir::LocalNodeId<mir::Block>,
+        /// The arguments to pass to the target.
+        arguments: Vec<mir::Value>,
+    },
+    /// Resolved to a terminator that can be absorbed (return or unreachable).
     Terminator(mir::Terminator),
 }
 
 /// Resolve a jump target by following through threadable blocks.
 fn resolve_jump_target(
     target: mir::LocalNodeId<mir::Block>,
-    threadable: &HashMap<mir::LocalNodeId<mir::Block>, mir::Terminator>,
+    arguments: &[mir::Value],
+    threadable: &HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock>,
 ) -> ResolvedTarget {
     let mut current = target;
+    let mut current_args = arguments.to_vec();
     let mut visited = HashSet::new();
 
     loop {
-        let Some(terminator) = threadable.get(&current) else {
-            // not threadable, return current block
-            return ResolvedTarget::Block(current);
+        if !visited.insert(current) {
+            return ResolvedTarget::Jump {
+                target: current,
+                arguments: current_args,
+            };
+        }
+
+        let Some(threadable_block) = threadable.get(&current) else {
+            return ResolvedTarget::Jump {
+                target: current,
+                arguments: current_args,
+            };
         };
 
-        match terminator {
-            mir::Terminator::Jump {
-                target: next,
-                arguments,
-            } if arguments.is_empty() => {
-                // follow the jump chain
-                if !visited.insert(current) {
-                    // cycle detected, stop here
-                    return ResolvedTarget::Block(current);
+        match threadable_block {
+            ThreadableBlock::Forward {
+                target: next_target,
+            } => {
+                current = *next_target;
+            }
+            ThreadableBlock::Terminator(terminator) => match terminator {
+                mir::Terminator::Jump {
+                    target: next_target,
+                    arguments,
+                } if arguments.is_empty() => {
+                    current = *next_target;
+                    current_args = Vec::new();
                 }
-                current = *next;
-            }
-            // non-jump terminator - can be absorbed by predecessor
-            _ => {
-                return ResolvedTarget::Terminator(terminator.clone());
-            }
+                _ => {
+                    return ResolvedTarget::Terminator(terminator.clone());
+                }
+            },
         }
     }
+}
+
+/// Return true if a jump forwards all block parameters unchanged.
+fn is_passthrough_jump(block: &mir::Block, arguments: &[mir::Value]) -> bool {
+    // require exact parameter and argument alignment
+    if block.parameters.len() != arguments.len() {
+        return false;
+    }
+
+    // verify each parameter is forwarded verbatim
+    let mut is_forwarding = true;
+    for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
+        // stop when a parameter does not match
+        if param.value != *arg {
+            is_forwarding = false;
+            break;
+        }
+    }
+
+    is_forwarding
 }
 
 /// Merge blocks where predecessor has single successor and successor has single predecessor.
@@ -713,12 +931,8 @@ block5:
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst true
-    branch v0, block1(v1), block2(v1)
-block1(v2: bool):
-    jump block3(v2)
-block2(v3: bool):
-    jump block3(v3)
-block3(v4: bool):
+    branch v0, block1(v1), block1(v1)
+block1(v4: bool):
     v5 = iconst 1i32
     return v5
 }"#;
@@ -1041,6 +1255,110 @@ block0(v0: bool):
     branch v0, block1(v1), block1(v2)
 block1(v3: i32):
     return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Range-based branch folding collapses branches on bounded conditions.
+    #[test]
+    fn test_fold_range_branch_select() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = select v0, v1, v2
+    v4 = iconst 2u32
+    v5 = icmp_ult v3, v4
+    v6 = iconst 10i32
+    v7 = iconst 20i32
+    branch v5, block1, block2
+block1:
+    return v6
+block2:
+    return v7
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = select v0, v1, v2
+    v4 = iconst 2u32
+    v5 = icmp_ult v3, v4
+    v6 = iconst 10i32
+    v7 = iconst 20i32
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Range-based switch folding prunes impossible cases.
+    #[test]
+    fn test_prune_switch_cases_by_range() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = select v0, v1, v2
+    switch v3, block3, 0 => block1, 1 => block2, 2 => block4
+block1:
+    v4 = iconst 10i32
+    return v4
+block2:
+    v5 = iconst 11i32
+    return v5
+block3:
+    v6 = iconst 12i32
+    return v6
+block4:
+    v7 = iconst 13i32
+    return v7
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = select v0, v1, v2
+    switch v3, block3, 0 => block1, 1 => block2
+block1:
+    v4 = iconst 10i32
+    return v4
+block2:
+    v5 = iconst 11i32
+    return v5
+block3:
+    v6 = iconst 12i32
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Passthrough blocks forward parameters directly to their successor.
+    #[test]
+    fn test_thread_passthrough_block_parameters() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 5i32
+    jump block1(v0)
+block1(v1: i32):
+    jump block2(v1)
+block2(v2: i32):
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 5i32
+    jump block1(v0)
+block1(v2: i32):
+    return v2
 }"#;
 
         let mut program = TestProgram::new(input);

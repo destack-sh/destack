@@ -3,10 +3,13 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
+use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, terminator_substitute_uses,
-    terminator_uses,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    terminator_substitute_uses, terminator_uses,
 };
+
+// TODO #Architecture: rebuild aggregate loads and stores when base pointers are used
 
 declare_pass! {
     /// Scalar Replacement of Aggregates.
@@ -51,19 +54,35 @@ declare_pass! {
 }
 
 impl FunctionPass for Sroa {
+    /// Run scalar replacement of aggregates on a function.
     fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
+        // get constant propagation analysis
+        let constants = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            analyses.get::<ConstantPropagation>().clone()
+        };
+
         // run SROA
-        let changed = run_sroa(function, tree, entry, ctx.options.sroa_max_array_elements);
+        let changed = run_sroa(
+            function,
+            tree,
+            entry,
+            ctx.options.sroa_max_array_elements,
+            &constants,
+        );
+
+        // select preservation based on SROA changes
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -71,10 +90,12 @@ impl FunctionPass for Sroa {
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "Sroa"
     }
 
+    /// Return the pass identifier.
     fn id(&self) -> &'static str {
         "sroa"
     }
@@ -86,9 +107,11 @@ fn run_sroa(
     tree: &mut mir::NodeTree,
     entry: mir::LocalNodeId<mir::Block>,
     max_array_elements: usize,
+    constants: &ConstantPropagation,
 ) -> bool {
     // find splittable allocations
-    let candidates = find_splittable_allocations_core(function, tree, max_array_elements);
+    let candidates =
+        find_splittable_allocations_core(function, tree, max_array_elements, constants);
     if candidates.is_empty() {
         return false;
     }
@@ -133,6 +156,7 @@ fn find_splittable_allocations_core(
     function: &mir::Function,
     tree: &mir::NodeTree,
     max_array_elements: usize,
+    constants: &ConstantPropagation,
 ) -> Vec<SplitCandidate> {
     let mut candidates = Vec::new();
 
@@ -157,10 +181,16 @@ fn find_splittable_allocations_core(
                 };
 
                 // analyze uses to determine if splittable
-                let uses = match analyze_uses(*destination, function, tree) {
+                let uses = match analyze_uses(*destination, function, tree, constants) {
                     Some(uses) => uses,
                     None => continue,
                 };
+                if uses
+                    .iter()
+                    .any(|use_info| use_info.index >= element_types.len())
+                {
+                    continue;
+                }
 
                 candidates.push(SplitCandidate {
                     alloc_instruction: inst_id,
@@ -237,13 +267,11 @@ fn analyze_uses(
     alloc_value: mir::Value,
     function: &mir::Function,
     tree: &mir::NodeTree,
+    constants: &ConstantPropagation,
 ) -> Option<Vec<UseInfo>> {
     let mut uses = Vec::new();
     let mut seen_values: HashSet<mir::Value> = HashSet::new();
     let mut worklist: Vec<mir::Value> = vec![alloc_value];
-
-    // track constant values for array index resolution
-    let constants = collect_constants(function, tree);
 
     while let Some(value) = worklist.pop() {
         if !seen_values.insert(value) {
@@ -281,10 +309,10 @@ fn analyze_uses(
                         index,
                     } if *array == value => {
                         // check if index is a constant
-                        let const_index = constants.get(index)?;
+                        let const_index = resolve_constant_index(*index, block_id, constants)?;
                         uses.push(UseInfo {
                             instruction: inst_id,
-                            index: *const_index,
+                            index: const_index,
                             destination: *destination,
                         });
 
@@ -294,11 +322,15 @@ fn analyze_uses(
 
                     // load and store are fine (they use the derived address, not the base)
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
-                        // loading from field/element address is fine
+                        if value == alloc_value {
+                            return None;
+                        }
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
-                        // storing to field/element address is fine
+                        if value == alloc_value {
+                            return None;
+                        }
                     }
 
                     // calls: check if value is passed as argument (escapes)
@@ -335,26 +367,35 @@ fn analyze_uses(
     Some(uses)
 }
 
-/// Collect constant integer values in the function.
-fn collect_constants(function: &mir::Function, tree: &mir::NodeTree) -> HashMap<mir::Value, usize> {
-    let mut constants = HashMap::new();
+/// Resolve a constant integer index from constant propagation.
+fn resolve_constant_index(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    constants: &ConstantPropagation,
+) -> Option<usize> {
+    // read constant at block exit
+    let constant = constants.constant_at_exit(block_id, value)?;
 
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
+    // convert constant into index
+    constant_to_index(constant)
+}
 
-        for &inst_id in &block.instructions {
-            let inst = tree.get(inst_id);
-
-            if let mir::Instruction::Const { destination, value } = inst
-                && let mir::Constant::Int { value: i, .. } = value
-                && *i >= 0
-            {
-                constants.insert(*destination, *i as usize);
+/// Convert a constant into a usable index value.
+fn constant_to_index(constant: &mir::Constant) -> Option<usize> {
+    // map integer constants to non negative indices
+    match constant {
+        mir::Constant::Int { value, .. } => {
+            // reject negative indices
+            if *value < 0 {
+                return None;
             }
-        }
-    }
 
-    constants
+            // convert the value into an index
+            usize::try_from(*value).ok()
+        }
+        mir::Constant::UInt { value, .. } => usize::try_from(*value).ok(),
+        _ => None,
+    }
 }
 
 /// Split an allocation into individual scalar allocations.
@@ -913,6 +954,60 @@ block1(v2: ref<raw @Point>):
     return
 block2:
     return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&Sroa);
+        program.assert_unchanged(input);
+    }
+
+    /// Constant propagation resolves array indices across block parameters.
+    #[test]
+    fn test_split_array_constant_param_index() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0i64
+    branch v0, block1(v1), block1(v1)
+block1(v2: i64):
+    v3 = stack.alloc [i32; 2]
+    v4 = element.addr v3, v2
+    v5 = iconst 42i32
+    store v4, v5
+    v6 = load v4
+    return v6
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v8 = stack.alloc i32
+    v7 = stack.alloc i32
+    v1 = iconst 0i64
+    branch v0, block1(v1), block1(v1)
+block1(v2: i64):
+    v5 = iconst 42i32
+    store v7, v5
+    v6 = load v7
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&Sroa);
+        program.assert_output(expected);
+    }
+
+    /// Base pointer loads and stores prevent splitting.
+    #[test]
+    fn test_preserve_base_pointer_load_store() {
+        let input = r#"type @Point = { i32, i32 }
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc @Point
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    v3 = struct @Point (v1, v2)
+    store v0, v3
+    v4 = load v0
+    v5 = field.get v4, 0
+    return v5
 }"#;
 
         let mut program = TestProgram::new(input);

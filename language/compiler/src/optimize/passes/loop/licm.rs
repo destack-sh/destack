@@ -3,9 +3,13 @@ use std::collections::HashSet;
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{DominatorTree, Loop, LoopAnalysis};
-use crate::optimize::common::instruction_is_pure;
+use crate::optimize::analyses::{
+    ConstantPropagation, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, ValueRange,
+};
+use crate::optimize::common::instruction_is_speculatable;
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+
+// TODO #Performance: hoist loop invariant memory reads with alias tracking
 
 declare_pass! {
     /// Move loop-invariant computations outside of loops.
@@ -21,7 +25,10 @@ declare_pass! {
     /// - Immutable global references (GlobalConst, GlobalAddr)
     ///
     /// Memory operations (Load, Store, LocalGet, LocalSet) require alias analysis
-    /// and are not hoisted in this basic implementation.
+    /// and are not hoisted in this implementation.
+    ///
+    /// Potentially trapping instructions (e.g. integer division) are only hoisted
+    /// when range analysis proves the operation is safe.
     ///
     /// Requires canonical loop form (preheader, single latch) from LoopSimplify.
     #[pass(id = "licm")]
@@ -30,6 +37,7 @@ declare_pass! {
 }
 
 impl FunctionPass for Licm {
+    /// Run loop invariant code motion on a function.
     fn run(
         &self,
         function: &mut mir::Function,
@@ -42,11 +50,13 @@ impl FunctionPass for Licm {
         };
 
         // get analyses
-        let (loops, domtree) = {
+        let (loops, domtree, ranges, constants) = {
             let analyses = FunctionAnalyses::new(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<DominatorTree>().clone(),
+                analyses.get::<RangeAnalysis>().clone(),
+                analyses.get::<ConstantPropagation>().clone(),
             )
         };
         if loops.num_loops() == 0 {
@@ -54,7 +64,8 @@ impl FunctionPass for Licm {
         }
 
         // run LICM
-        let changed = run_licm(entry, function, tree, &loops, &domtree);
+        let changed = run_licm(entry, function, tree, &loops, &domtree, &ranges, &constants);
+
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -62,10 +73,12 @@ impl FunctionPass for Licm {
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "Licm"
     }
 
+    /// Return the pass identifier.
     fn id(&self) -> &'static str {
         "licm"
     }
@@ -78,6 +91,8 @@ fn run_licm(
     tree: &mut mir::NodeTree,
     loops: &LoopAnalysis,
     domtree: &DominatorTree,
+    ranges: &RangeAnalysis,
+    constants: &ConstantPropagation,
 ) -> bool {
     // collect hoisting work for each loop, outermost first
     let mut all_work: Vec<HoistWork> = Vec::new();
@@ -133,12 +148,13 @@ fn run_licm(
                         if invariant_values.contains(&destination) {
                             continue;
                         }
-                        let is_pure = instruction_is_pure(instruction);
                         let operands_invariant = instruction
                             .uses()
                             .iter()
                             .all(|v| invariant_values.contains(v));
-                        if is_pure && operands_invariant {
+                        let can_hoist =
+                            instruction_is_hoistable(instruction, block_id, ranges, constants);
+                        if can_hoist && operands_invariant {
                             invariant_values.insert(destination);
                             changed = true;
                         }
@@ -161,14 +177,15 @@ fn run_licm(
 
                 let instruction = tree.get(instruction_id);
                 if let Some(destination) = instruction.destination() {
-                    let is_pure = instruction_is_pure(instruction);
                     let operands_invariant = instruction
                         .uses()
                         .iter()
                         .all(|v| invariant_values.contains(v));
 
                     // hoist if pure and all operands are invariant
-                    if is_pure && invariant_values.contains(&destination) && operands_invariant {
+                    let can_hoist =
+                        instruction_is_hoistable(instruction, block_id, ranges, constants);
+                    if can_hoist && invariant_values.contains(&destination) && operands_invariant {
                         already_queued.insert((block_id, index));
                         all_work.push(HoistWork {
                             source_block: block_id,
@@ -239,6 +256,199 @@ fn run_licm(
     }
 
     hoisted_count > 0
+}
+
+/// Return true when an instruction can be hoisted safely.
+fn instruction_is_hoistable(
+    instruction: &mir::Instruction,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+    constants: &ConstantPropagation,
+) -> bool {
+    // accept speculatable instructions immediately
+    if instruction_is_speculatable(instruction) {
+        return true;
+    }
+
+    // handle divisions with explicit safety checks
+    match instruction {
+        mir::Instruction::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } if matches!(
+            operator,
+            mir::BinaryOperator::SignedDivide
+                | mir::BinaryOperator::UnsignedDivide
+                | mir::BinaryOperator::SignedRemainder
+                | mir::BinaryOperator::UnsignedRemainder
+        ) =>
+        {
+            division_is_safe(*operator, *left, *right, block_id, ranges, constants)
+        }
+        _ => false,
+    }
+}
+
+/// Return true when a division or remainder cannot trap in the loop.
+fn division_is_safe(
+    operator: mir::BinaryOperator,
+    left: mir::Value,
+    right: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+    constants: &ConstantPropagation,
+) -> bool {
+    // resolve operand ranges
+    let left_range = integer_range_for_value(left, block_id, ranges, constants);
+    let right_range = integer_range_for_value(right, block_id, ranges, constants);
+    let (left_range, right_range) = match (left_range, right_range) {
+        (Some(left), Some(right)) => (left, right),
+        _ => return false,
+    };
+
+    // require compatible widths and signedness
+    let is_same_width = left_range.width == right_range.width;
+    let is_same_signedness = left_range.is_signed == right_range.is_signed;
+    if !is_same_width || !is_same_signedness {
+        return false;
+    }
+
+    // reject zero divisors
+    if right_range.contains_value(0) {
+        return false;
+    }
+
+    // reject signed overflow case min value divided by negative one
+    if matches!(
+        operator,
+        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder
+    ) {
+        let Some(min_value) = signed_min_for_width(left_range.width) else {
+            return false;
+        };
+
+        // check the negative one overflow case
+        let divisor_is_negative_one = right_range.contains_value(-1);
+        let dividend_is_min = left_range.contains_value(min_value);
+        if divisor_is_negative_one && dividend_is_min {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Resolve a best-effort integer range for a value at a block boundary.
+fn integer_range_for_value(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+    constants: &ConstantPropagation,
+) -> Option<IntegerRange> {
+    // prefer constant propagation facts
+    let constant = constants
+        .constant_at_exit(block_id, value)
+        .or_else(|| constants.constant_at_entry(block_id, value));
+    if let Some(constant) = constant {
+        return integer_range_from_constant(constant);
+    }
+
+    // fall back to range analysis facts
+    if let Some(range) = ranges.exit(block_id).get(value)
+        && let Some(int_range) = integer_range_from_value_range(range)
+    {
+        return Some(int_range);
+    }
+
+    // no known range
+    None
+}
+
+/// Return the minimum signed value for a given bit width.
+fn signed_min_for_width(width: u8) -> Option<i128> {
+    // reject unsupported widths
+    let bits = u32::from(width);
+    let is_zero = bits == 0;
+    let is_too_wide = bits > 127;
+    if is_zero || is_too_wide {
+        return None;
+    }
+
+    // compute minimum signed value
+    let value = 1i128.checked_shl(bits - 1)?;
+
+    Some(-value)
+}
+
+/// Integer range with bit width and signedness metadata.
+#[derive(Clone, Copy)]
+struct IntegerRange {
+    /// The minimum value in the range.
+    min: i128,
+    /// The maximum value in the range.
+    max: i128,
+    /// The integer width in bits.
+    width: u8,
+    /// Whether the range is signed.
+    is_signed: bool,
+}
+
+impl IntegerRange {
+    /// Return true if the range contains a value.
+    fn contains_value(self, value: i128) -> bool {
+        // compare against inclusive bounds
+        value >= self.min && value <= self.max
+    }
+}
+
+/// Convert a value range into an integer range.
+fn integer_range_from_value_range(range: &ValueRange) -> Option<IntegerRange> {
+    // require integer ranges
+    let ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    } = range
+    else {
+        return None;
+    };
+
+    // map to integer range
+    let result = IntegerRange {
+        min: *min,
+        max: *max,
+        width: *width,
+        is_signed: *is_signed,
+    };
+
+    Some(result)
+}
+
+/// Convert a constant into an integer range.
+fn integer_range_from_constant(constant: &mir::Constant) -> Option<IntegerRange> {
+    // convert integer constants into ranges
+    match constant {
+        mir::Constant::Int {
+            value,
+            width,
+            is_signed,
+        } => Some(IntegerRange {
+            min: *value as i128,
+            max: *value as i128,
+            width: *width,
+            is_signed: *is_signed,
+        }),
+        mir::Constant::UInt { value, width } => Some(IntegerRange {
+            min: *value as i128,
+            max: *value as i128,
+            width: *width,
+            is_signed: false,
+        }),
+        _ => None,
+    }
 }
 
 /// Work item for hoisting an instruction.
@@ -551,5 +761,75 @@ block4:
         program.run_pass(&LoopSimplify);
         program.run_pass(&Licm);
         program.assert_output(expected);
+    }
+
+    /// Safe division is hoisted when the divisor is proven non-zero.
+    #[test]
+    fn test_hoist_safe_division() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 0i32
+    v1 = iconst 1i32
+    v2 = iconst 10i32
+    v3 = iconst 2i32
+    jump block1(v0)
+block1(v4: i32):
+    v5 = sdiv v2, v3
+    v6 = icmp_slt v4, v1
+    branch v6, block2, block3
+block2:
+    v7 = iadd v4, v1
+    jump block1(v7)
+block3:
+    return v5
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 0i32
+    v1 = iconst 1i32
+    v2 = iconst 10i32
+    v3 = iconst 2i32
+    v5 = sdiv v2, v3
+    jump block1(v0)
+block1(v4: i32):
+    v6 = icmp_slt v4, v1
+    branch v6, block2, block3
+block2:
+    v7 = iadd v4, v1
+    jump block1(v7)
+block3:
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(expected);
+    }
+
+    /// Potentially trapping division remains in the loop.
+    #[test]
+    fn test_skip_trapping_division() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 10i32
+    jump block1(v1)
+block1(v4: i32):
+    v5 = sdiv v3, v0
+    v6 = icmp_slt v4, v2
+    branch v6, block2, block3
+block2:
+    v7 = iadd v4, v2
+    jump block1(v7)
+block3:
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(input);
     }
 }

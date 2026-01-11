@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{
-    build_use_def_maps, instruction_is_memory_read, instruction_is_pure,
+    build_use_def_maps, instruction_is_memory_read, instruction_is_speculatable,
     instruction_may_affect_memory,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
@@ -58,12 +58,14 @@ declare_pass! {
 }
 
 impl FunctionPass for Sink {
+    /// Run code sinking on a function.
     fn run(
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
@@ -81,6 +83,8 @@ impl FunctionPass for Sink {
 
         // run sink
         let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops);
+
+        // select preservation based on sink changes
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -88,10 +92,12 @@ impl FunctionPass for Sink {
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "Sink"
     }
 
+    /// Return the pass identifier.
     fn id(&self) -> &'static str {
         "sink"
     }
@@ -132,7 +138,7 @@ fn run_sink(
             let instruction = tree.get(instruction_id);
 
             // determine if the instruction can be sunk
-            let can_sink = if instruction_is_pure(instruction) {
+            let can_sink = if instruction_is_speculatable(instruction) {
                 // pure instructions can always be sunk
                 true
             } else if instruction_is_memory_read(instruction) {

@@ -128,7 +128,7 @@ Local and global optimizations within a single function.
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `constant-fold` | ConstantFold | function | O1 | ✓ | constant-propagation | Evaluate operations on constants at compile time |
-| `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | — | Branch folding, jump threading, block merging, unreachable elimination |
+| `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | constant-propagation, range | Branch folding, jump threading, block merging, unreachable elimination |
 | `dead-code-eliminate` | DeadCodeEliminate | function | O1 | ✓ | — | Remove dead instructions via backwards liveness (ADCE) |
 | `instruction-combine` | InstructionCombine | function | O1 | ✓ | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
 | `copy-propagate` | CopyPropagate | function | O1 | ✓ | — | Replace uses of `v1 = v0` with `v0` directly |
@@ -169,8 +169,8 @@ Optimizations for memory allocation and access patterns.
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `mem2reg` | Mem2Reg | function | O1 | ✓ | domtree | Promote stack allocations to SSA values |
-| `sroa` | ScalarReplacementOfAggregates | function | O1 | ✓ | — | Break aggregates into individual scalar values |
+| `mem2reg` | Mem2Reg | function | O1 | ✓ | cfg, domtree | Promote stack allocations to SSA values |
+| `sroa` | ScalarReplacementOfAggregates | function | O1 | ✓ | constant-propagation | Break aggregates into individual scalar values |
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias | Forward stored values to subsequent loads |
 | `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
@@ -183,12 +183,12 @@ Loop-specific transformations.
 |----|------|-------|-------|------|----------|-------------|
 | `loop-simplify` | LoopSimplify | function | O2 | ✓ | loops, cfg | Canonicalize loops (preheader, single latch, dedicated exits) |
 | `loop-rotate` | LoopRotate | function | O2 | ✓ | loops, cfg, domtree | Rotate simple loops (header with no instructions) |
-| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree | Move pure loop-invariant computations to preheader |
+| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree, range | Move pure loop-invariant computations to preheader |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✓ | loops, cfg, scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✓ | loops, cfg, domtree, scalar-evolution, ownership, range | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |
 | `loop-unroll` | LoopUnroll | function | O3 | | scalar-evolution | Unroll loops with known or small trip counts |
-| `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops, domtree | Move loop-invariant conditionals outside the loop |
+| `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops, cfg, domtree | Move loop-invariant conditionals outside the loop |
 | `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | | dependence | Swap loop nesting order for cache locality |
 | `loop-distribute` | LoopDistribute | function | O3 | | dependence | Split loops to enable partial vectorization |
