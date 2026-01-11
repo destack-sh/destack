@@ -19,19 +19,6 @@ export {
     RawBuffer,
 } from "./memory/index.ds";
 
-export {
-    MemoryOrdering,
-    atomicLoad,
-    atomicStore,
-    atomicCas,
-    atomicFetchAdd,
-    atomicFetchSub,
-    atomicFetchOr,
-    atomicFetchAnd,
-    atomicFetchXor,
-    atomicFence,
-} from "./sync/index.ds";
-
 // math (not ambient)
 export {
     // bit manipulation

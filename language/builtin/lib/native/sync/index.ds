@@ -1,15 +1,4 @@
-export {
-    MemoryOrdering,
-    atomicLoad,
-    atomicStore,
-    atomicCas,
-    atomicFetchAdd,
-    atomicFetchSub,
-    atomicFetchOr,
-    atomicFetchAnd,
-    atomicFetchXor,
-    atomicFence,
-} from "./atomic.ds";
+// Synchronization primitives for native target.
 
 // Future:
 // export { Mutex, MutexGuard } from "./mutex.ds";
