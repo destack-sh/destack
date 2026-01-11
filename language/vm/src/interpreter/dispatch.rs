@@ -19,6 +19,7 @@ use super::{instruction, operator, resize_and_clear_stack};
 // helper macro: do work, then become next handler
 macro_rules! next {
     ($state:expr, $block:expr, $pc:expr) => {{
+        $state.maybe_profile_instruction(&$block[$pc]);
         let next_pc = $pc + 1;
         become ($block[next_pc].handler)($state, $block, next_pc)
     }};
@@ -1400,10 +1401,12 @@ pub(super) fn handle_select(
 
 /// Handle function call (returns to trampoline).
 pub(super) fn handle_call(
-    _state: &mut ThreadedState,
+    state: &mut ThreadedState,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Call {
         dest,
@@ -1433,6 +1436,8 @@ pub(super) fn handle_call_indirect(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::CallIndirect {
         dest,
@@ -4156,6 +4161,8 @@ pub(super) fn handle_return(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Return { value } = &block[pc].data else {
         unreachable!()
@@ -4174,10 +4181,12 @@ pub(super) fn handle_return(
 
 /// Handle unconditional jump (exits tail-call chain).
 pub(super) fn handle_jump(
-    _state: &mut ThreadedState,
+    state: &mut ThreadedState,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Jump { target, copies } = &block[pc].data else {
         unreachable!()
@@ -4196,6 +4205,8 @@ pub(super) fn handle_branch(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Branch {
         condition,
@@ -4241,6 +4252,8 @@ pub(super) fn handle_branch_bool(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Branch {
         condition,
@@ -4287,6 +4300,8 @@ pub(super) fn handle_compare_and_branch_int(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::CompareAndBranch {
         left,
@@ -4342,6 +4357,8 @@ pub(super) fn handle_compare_and_branch_uint(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::CompareAndBranch {
         left,
@@ -4395,6 +4412,8 @@ pub(super) fn handle_compare_and_branch_float(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::CompareAndBranch {
         left,
@@ -4449,6 +4468,8 @@ pub(super) fn handle_compare_and_branch(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::CompareAndBranch {
         left,
@@ -4516,6 +4537,8 @@ pub(super) fn handle_switch(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Switch {
         value,
@@ -4562,6 +4585,8 @@ pub(super) fn handle_switch_int(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Switch {
         value,
@@ -4646,20 +4671,24 @@ pub(super) fn handle_aggregate(
 
 /// Handle unreachable (errors).
 pub(super) fn handle_unreachable(
-    _state: &mut ThreadedState,
-    _block: &[ThreadedInstruction],
-    _pc: usize,
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // return unreachable error
     ControlFlow::Error(Error::Unreachable)
 }
 
 /// Handle unsupported instructions (errors).
 pub(super) fn handle_unsupported(
-    _state: &mut ThreadedState,
+    state: &mut ThreadedState,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::Unsupported { name } = &block[pc].data else {
         unreachable!()
@@ -4742,6 +4771,8 @@ pub(super) fn handle_tail_call(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::TailCall {
         function,
@@ -4819,6 +4850,8 @@ pub(super) fn handle_tail_call_self(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::TailCallSelf { entry, arguments } = &block[pc].data else {
         unreachable!()
@@ -4892,6 +4925,8 @@ pub(super) fn handle_tail_call_indirect(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
     // decode instruction data
     let ThreadedInstructionData::TailCallIndirect {
         callee,

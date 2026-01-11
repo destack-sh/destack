@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::ptr::NonNull;
+#[cfg(feature = "stats")]
+use std::time::Duration;
 
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
@@ -8,6 +10,8 @@ use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
 use crate::memory::{ManagedHeap, RawHeap, Value};
 
 use super::decode::thread_function;
+#[cfg(feature = "stats")]
+use super::statistics::InstructionProfile;
 use super::threaded::{INVALID_FUNCTION_INDEX, ThreadedFunction};
 use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
@@ -64,6 +68,9 @@ pub struct Interpreter {
     pub(super) local_stack: Vec<Value>,
     /// Execution statistics.
     pub statistics: Statistics,
+    /// Optional instruction profiling sampler.
+    #[cfg(feature = "stats")]
+    pub(super) instruction_profile: Option<InstructionProfile>,
 }
 
 /// Threaded function registry for fast lookup.
@@ -204,12 +211,42 @@ impl Interpreter {
             value_stack: Vec::new(),
             local_stack: Vec::new(),
             statistics: Statistics::new(),
+            #[cfg(feature = "stats")]
+            instruction_profile: None,
         }
     }
 
     /// Set whether to collect execution statistics.
     pub fn set_collect_stats(&mut self, collect: bool) {
         self.options.collect_stats = collect;
+    }
+
+    /// Enable instruction profiling with the given sampling interval.
+    #[cfg(feature = "stats")]
+    pub fn enable_instruction_profile(&mut self, sample_interval: Duration) {
+        self.instruction_profile = Some(InstructionProfile::new(sample_interval));
+    }
+
+    /// Reset instruction profiling samples without disabling sampling.
+    #[cfg(feature = "stats")]
+    pub fn reset_instruction_profile(&mut self) {
+        if let Some(profile) = self.instruction_profile.as_mut() {
+            profile.reset();
+        }
+    }
+
+    /// Clear instruction profiling data and disable sampling.
+    #[cfg(feature = "stats")]
+    pub fn clear_instruction_profile(&mut self) {
+        self.instruction_profile = None;
+    }
+
+    /// Return a compact instruction profile report if available.
+    #[cfg(feature = "stats")]
+    pub fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
+        self.instruction_profile
+            .as_ref()
+            .map(|profile| profile.summary_target(target_percent).format_compact())
     }
 
     /// Initialize global variables from the MIR tree.

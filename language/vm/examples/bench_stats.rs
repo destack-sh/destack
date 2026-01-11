@@ -36,6 +36,10 @@ struct Args {
     #[arg(long)]
     perf: bool,
 
+    /// Collect instruction profile samples (requires stats feature).
+    #[arg(long)]
+    instruction_profile: bool,
+
     /// Disable calibration of the scale axis.
     #[arg(long)]
     no_calibrate: bool,
@@ -141,10 +145,18 @@ fn main() {
         profile,
         calibrate,
         args.perf,
+        args.instruction_profile,
         time_budget,
         args.deterministic,
         args.fast,
     );
+
+    if args.instruction_profile {
+        #[cfg(not(feature = "stats"))]
+        {
+            println!("instruction profiling requires the stats feature");
+        }
+    }
 
     // run validation mode
     if args.validate {
