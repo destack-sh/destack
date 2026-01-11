@@ -136,6 +136,7 @@ impl Compiler {
             locals_by_symbol: &mut locals_by_symbol,
             loops_by_symbol: &mut loops_by_symbol,
             loop_stack: &mut loop_stack,
+            this_binding: None,
         };
 
         let (value, _) = block_lowerer

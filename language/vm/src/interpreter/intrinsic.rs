@@ -155,8 +155,8 @@ impl Interpreter {
             // prefetch (no-ops in interpreter)
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => Ok(Value::VOID),
 
-            // gc barriers (no-ops in interpreter)
-            mir::Intrinsic::GcWriteBarrier | mir::Intrinsic::GcReadBarrier => Ok(Value::VOID),
+            // gc write barrier (no-op in interpreter)
+            mir::Intrinsic::GcWriteBarrier => Ok(Value::VOID),
 
             // atomics (single-threaded interpreter)
             mir::Intrinsic::AtomicLoad => self.execute_atomic_load(args),

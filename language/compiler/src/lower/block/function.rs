@@ -39,12 +39,14 @@ pub(crate) struct FunctionLowerer<'a> {
     pub(crate) loops_by_symbol: HashMap<GlobalSymbolId, LoopContext>,
     /// Track loop nesting for unlabeled break/continue.
     pub(crate) loop_stack: Vec<LoopContext>,
+    /// Binding for `this` in method bodies.
+    pub(crate) this_binding: Option<LocalBinding>,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionLowerer<'a> {
     /// Create a new function lowerer with the given builder.
-    fn new(
+    pub(crate) fn new(
         module_id: ModuleId,
         profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
@@ -70,11 +72,12 @@ impl<'a> FunctionLowerer<'a> {
             locals_by_symbol: HashMap::new(),
             loops_by_symbol: HashMap::new(),
             loop_stack: Vec::new(),
+            this_binding: None,
         }
     }
 
     /// Lower a function body to MIR and return whether it terminates.
-    fn lower_body(
+    pub(crate) fn lower_body(
         &mut self,
         body_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Terminates> {
@@ -92,6 +95,7 @@ impl<'a> FunctionLowerer<'a> {
             locals_by_symbol: &mut self.locals_by_symbol,
             loops_by_symbol: &mut self.loops_by_symbol,
             loop_stack: &mut self.loop_stack,
+            this_binding: self.this_binding,
         };
 
         block_lowerer.lower_statement_expression(body_id)

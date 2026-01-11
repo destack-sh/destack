@@ -356,9 +356,8 @@ impl BasicAA {
             // fence is a barrier but doesn't access specific memory
             Intrinsic::AtomicFence => ModRefInfo::NO_MOD_REF,
 
-            // GC barriers
+            // GC write barrier
             Intrinsic::GcWriteBarrier => ModRefInfo::MOD,
-            Intrinsic::GcReadBarrier => ModRefInfo::REF,
 
             // volatile memory access
             Intrinsic::VolatileLoad => ModRefInfo::REF,

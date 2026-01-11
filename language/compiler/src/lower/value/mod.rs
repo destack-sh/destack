@@ -5,4 +5,3 @@ mod dispatch;
 mod literal;
 mod operator;
 mod projection;
-mod resolve;

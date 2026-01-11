@@ -1,10 +1,11 @@
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, Resolution};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
+use super::super::BlockLowerer;
 use super::super::block::LocalBinding;
-use super::super::{BlockLowerer, ScalarType};
+use super::ScalarType;
 
 impl BlockLowerer<'_, '_> {
     /// Resolve the MIR type for a typed expression.
@@ -29,7 +30,7 @@ impl BlockLowerer<'_, '_> {
         }
 
         // for non-scalar types, check the type cache
-        let type_id = self.dir_type_id_for_expression(expression_id)?;
+        let type_id = self.dir_type_for_expression(expression_id)?;
 
         // direct cache lookup first
         if let Some(&mir_type) = self.type_lowerer.type_cache.get(&type_id) {
@@ -52,13 +53,13 @@ impl BlockLowerer<'_, '_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<ScalarType> {
-        let type_id = self.dir_type_id_for_expression(expression_id)?;
+        let type_id = self.dir_type_for_expression(expression_id)?;
         let dir_type = self.types.get_type(type_id);
         self.type_lowerer.scalar_type_for_dir_type(dir_type)
     }
 
     /// Resolve the DIR type id for a typed expression.
-    pub(crate) fn dir_type_id_for_expression(
+    pub(crate) fn dir_type_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::LocalTypeId> {
@@ -107,5 +108,17 @@ impl BlockLowerer<'_, '_> {
         })?;
 
         Ok(*binding)
+    }
+
+    /// Get the resolution for an expression from the TypeTable.
+    ///
+    /// Returns the Resolution if one is attached to this expression, or None.
+    pub(crate) fn get_resolution(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<&Resolution> {
+        let node_id = expression_id.into_global_any(self.module_id);
+        let resolution_id = self.types.get_resolution_for_node(node_id)?;
+        Some(self.types.get_resolution(resolution_id))
     }
 }
