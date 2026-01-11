@@ -118,6 +118,9 @@ pub struct MachineOptions {
 
     /// Enforce reference mutability rules on stores for debug checks.
     pub enforce_reference_mutability: bool,
+
+    /// Collect execution statistics during runtime.
+    pub collect_stats: bool,
 }
 
 impl Default for MachineOptions {
@@ -135,6 +138,7 @@ impl Default for MachineOptions {
             max_instructions: Some(10_000_000),
             enforce_reference_kinds: false,
             enforce_reference_mutability: false,
+            collect_stats: true,
         }
     }
 }

@@ -1,6 +1,8 @@
 #![allow(elided_lifetimes_in_paths)]
 
+use std::cell::Cell;
 use std::fmt;
+use std::ptr::NonNull;
 
 use destack_mir as mir;
 
@@ -259,6 +261,8 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         callee: mir::Value,
         arguments: ArgumentRange,
+        cached_function: Cell<Option<u32>>,
+        cached_index: Cell<Option<u32>>,
     },
 
     /// Load local variable.
@@ -496,6 +500,8 @@ pub enum ThreadedInstructionData {
     TailCallIndirect {
         callee: mir::Value,
         arguments: ArgumentRange,
+        cached_function: Cell<Option<u32>>,
+        cached_ptr: Cell<Option<NonNull<ThreadedFunction>>>,
     },
 }
 
@@ -563,6 +569,8 @@ pub struct ThreadedState<'a> {
     pub bounds_checks: bool,
     /// Whether null checks are enabled for this execution.
     pub null_checks: bool,
+    /// Whether to collect execution statistics.
+    pub collect_stats: bool,
     /// Pointer to the current frame for fast access.
     frame: *mut Frame,
     /// Pointer to SSA value storage for this frame.
@@ -601,6 +609,7 @@ impl fmt::Debug for ThreadedState<'_> {
             .field("switch_case_pool_len", &self.switch_case_pool_len)
             .field("bounds_checks", &self.bounds_checks)
             .field("null_checks", &self.null_checks)
+            .field("collect_stats", &self.collect_stats)
             .finish()
     }
 }
@@ -617,6 +626,7 @@ impl<'a> ThreadedState<'a> {
         let mode = interpreter.options.execution_mode;
         let bounds_checks = interpreter.options.bounds_checks.is_enabled_for(mode);
         let null_checks = interpreter.options.null_checks.is_enabled_for(mode);
+        let collect_stats = interpreter.options.collect_stats;
 
         // get frame pointer
         // #Safety: frame_index always points at the current frame
@@ -649,6 +659,7 @@ impl<'a> ThreadedState<'a> {
             interpreter,
             bounds_checks,
             null_checks,
+            collect_stats,
             frame,
             values: unsafe { values_ptr.add(value_base) },
             value_count,

@@ -185,6 +185,11 @@ impl Interpreter {
         }
     }
 
+    /// Set whether to collect execution statistics.
+    pub fn set_collect_stats(&mut self, collect: bool) {
+        self.options.collect_stats = collect;
+    }
+
     /// Initialize global variables from the MIR tree.
     fn initialize_globals(tree: &mir::NodeTree, heap: &mut ManagedHeap) -> GlobalStorage {
         let mut globals = GlobalStorage::new();

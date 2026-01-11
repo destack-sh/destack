@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::collections::HashMap;
 
 use destack_mir as mir;
@@ -1380,6 +1381,8 @@ fn thread_instruction(
                     dest: pack_optional_value(*destination),
                     callee: *callee,
                     arguments: args,
+                    cached_function: Cell::new(None),
+                    cached_index: Cell::new(None),
                 },
             }
         }
@@ -2707,6 +2710,8 @@ fn thread_terminator(
                 data: ThreadedInstructionData::TailCallIndirect {
                     callee: *callee,
                     arguments: args,
+                    cached_function: Cell::new(None),
+                    cached_ptr: Cell::new(None),
                 },
             }
         }

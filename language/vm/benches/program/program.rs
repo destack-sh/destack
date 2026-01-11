@@ -1483,6 +1483,11 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             needs_gc = stats.heap_allocations > 0;
         }
 
+        // disable stats for fast timing runs
+        if options.fast {
+            interp.set_collect_stats(false);
+        }
+
         // resolve scale label
         let scale_label = scale_label(entry.program, &args);
 

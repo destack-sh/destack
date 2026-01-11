@@ -321,6 +321,10 @@ impl Interpreter {
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<Value> {
+        // cache stats settings
+        let collect_stats = self.options.collect_stats;
+        let track_instructions = collect_stats || self.options.max_instructions.is_some();
+
         // get pre threaded function
         let threaded_index = self
             .threaded_functions
@@ -365,16 +369,18 @@ impl Interpreter {
 
         // call stack for nested function calls
         self.call_stack.push(frame);
-        self.statistics.max_stack_depth =
-            self.statistics.max_stack_depth.max(self.call_stack.len());
+        if collect_stats {
+            self.statistics.max_stack_depth =
+                self.statistics.max_stack_depth.max(self.call_stack.len());
+        }
 
         // main execution loop (trampoline pattern)
         loop {
             // check step limit
-            if let Some(max) = self.options.max_instructions
-                && self.statistics.threaded_instructions_executed >= max
-            {
-                return Err(self.make_error(Error::StepLimitExceeded));
+            if let Some(max) = self.options.max_instructions {
+                if self.statistics.threaded_instructions_executed >= max {
+                    return Err(self.make_error(Error::StepLimitExceeded));
+                }
             }
 
             // get current frame info
@@ -410,10 +416,12 @@ impl Interpreter {
             };
 
             // update statistics
-            self.statistics.threaded_instructions_executed += (block_len - start_pc) as u64;
-            // only count MIR instructions on first entry to block (start_pc == 0)
-            // to avoid double-counting when resuming after calls
-            if start_pc == 0 {
+            if track_instructions {
+                self.statistics.threaded_instructions_executed += (block_len - start_pc) as u64;
+            }
+            if collect_stats && start_pc == 0 {
+                // only count MIR instructions on first entry to block (start_pc == 0)
+                // to avoid double-counting when resuming after calls
                 self.statistics.mir_instructions_executed += block.mir_instruction_count as u64;
             }
 
@@ -608,9 +616,11 @@ impl Interpreter {
 
                     // push callee frame
                     self.call_stack.push(new_frame);
-                    self.statistics.calls_made += 1;
-                    self.statistics.max_stack_depth =
-                        self.statistics.max_stack_depth.max(self.call_stack.len());
+                    if collect_stats {
+                        self.statistics.calls_made += 1;
+                        self.statistics.max_stack_depth =
+                            self.statistics.max_stack_depth.max(self.call_stack.len());
+                    }
                 }
 
                 ControlFlow::TailCall {
@@ -738,7 +748,9 @@ impl Interpreter {
                     );
 
                     // update statistics
-                    self.statistics.calls_made += 1;
+                    if collect_stats {
+                        self.statistics.calls_made += 1;
+                    }
                 }
 
                 ControlFlow::Return(value) => {
