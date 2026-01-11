@@ -597,8 +597,29 @@ fn instruction_collect_types(
         }
 
         // binary/unary produce primitives (always copy)
-        Instruction::Binary { destination, .. } | Instruction::Unary { destination, .. } => {
+        Instruction::Binary {
+            destination,
+            operator,
+            left,
+            right,
+        } => {
             copy_values.insert(*destination);
+            if !binary_operator_is_comparison(*operator) {
+                let inferred = value_types.get(left).or_else(|| value_types.get(right));
+                if let Some(&ty) = inferred {
+                    value_types.insert(*destination, ty);
+                }
+            }
+        }
+        Instruction::Unary {
+            destination,
+            argument,
+            ..
+        } => {
+            copy_values.insert(*destination);
+            if let Some(&ty) = value_types.get(argument) {
+                value_types.insert(*destination, ty);
+            }
         }
 
         // field/element access: derive type from aggregate
@@ -669,6 +690,30 @@ fn instruction_collect_types(
         // other instructions: no explicit type to collect
         _ => {}
     }
+}
+
+/// Check whether a binary operator yields a boolean result.
+fn binary_operator_is_comparison(operator: mir::BinaryOperator) -> bool {
+    use mir::BinaryOperator::*;
+    matches!(
+        operator,
+        Equal
+            | NotEqual
+            | SignedLessThan
+            | SignedLessEqual
+            | SignedGreaterThan
+            | SignedGreaterEqual
+            | UnsignedLessThan
+            | UnsignedLessEqual
+            | UnsignedGreaterThan
+            | UnsignedGreaterEqual
+            | FloatEqual
+            | FloatNotEqual
+            | FloatLessThan
+            | FloatLessEqual
+            | FloatGreaterThan
+            | FloatGreaterEqual
+    )
 }
 
 /// Check if a value has copy semantics.

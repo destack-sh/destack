@@ -1,0 +1,2114 @@
+use std::collections::{HashMap, HashSet};
+
+use destack_compiler_macros::declare_pass;
+use destack_mir as mir;
+
+use crate::optimize::analyses::{
+    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, OwnershipAnalysis, RangeAnalysis,
+    ScalarEvolution, Scev, ValueRange,
+};
+use crate::optimize::common::{
+    constant_is_zero, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+
+declare_pass! {
+    /// Reduce strength of loop expressions derived from induction variables.
+    ///
+    /// Rewrites loop values with linear recurrences into explicit header
+    /// parameters updated by simple additions in the latch.
+    ///
+    /// ```mir
+    /// function @before(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     v1 = iconst 0i32
+    ///     v2 = iconst 4i32
+    ///     v3 = iconst 1i32
+    ///     jump block1(v1)
+    /// block1(v4: i32):
+    ///     v5 = icmp_slt v4, v0
+    ///     branch v5, block2, block3
+    /// block2:
+    ///     v6 = imul v4, v2
+    ///     v7 = iadd v6, v3
+    ///     v8 = iadd v4, v3
+    ///     jump block1(v8)
+    /// block3:
+    ///     return v4
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: i32) -> i32 {
+    /// block0(v0: i32):
+    ///     v1 = iconst 0i32
+    ///     v2 = iconst 4i32
+    ///     v3 = iconst 1i32
+    ///     jump block1(v1, v1)
+    /// block1(v4: i32, v8: i32):
+    ///     v5 = icmp_slt v4, v0
+    ///     branch v5, block2, block3
+    /// block2:
+    ///     v6 = imul v4, v2
+    ///     v7 = iadd v8, v3
+    ///     v9 = iadd v8, v2
+    ///     v10 = iadd v4, v3
+    ///     jump block1(v10, v9)
+    /// block3:
+    ///     return v4
+    /// }
+    /// ```
+    #[pass(id = "loop-strength-reduce")]
+    pub LoopStrengthReduce,
+    "Reduce strength of loop derived computations"
+}
+
+impl FunctionPass for LoopStrengthReduce {
+    /// Run the loop strength reduction pass.
+    fn run(
+        &self,
+        function: &mut mir::Function,
+        tree: &mut mir::NodeTree,
+        _ctx: &PipelineContext<'_>,
+    ) -> AnalysisPreservation {
+        // skip imported functions
+        if function.entry.is_none() {
+            return AnalysisPreservation::all();
+        }
+
+        // gather analyses
+        let analyses = FunctionAnalyses::new(function, tree);
+        let loops = analyses.get::<LoopAnalysis>().clone();
+        let cfg = analyses.get::<ControlFlowGraph>().clone();
+        let domtree = analyses.get::<DominatorTree>().clone();
+        let scev = analyses.get::<ScalarEvolution>().clone();
+        let ownership = analyses.get::<OwnershipAnalysis>().clone();
+        let ranges = analyses.get::<RangeAnalysis>().clone();
+
+        // skip when no loops are present
+        if loops.num_loops() == 0 {
+            return AnalysisPreservation::all();
+        }
+
+        // run the strength reduction pass
+        let context = StrengthReduceContext {
+            loops: &loops,
+            cfg: &cfg,
+            domtree: &domtree,
+            scev: &scev,
+            ownership: &ownership,
+            ranges: &ranges,
+        };
+        let changed = run_loop_strength_reduce(function, tree, &context);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
+        }
+    }
+
+    /// Return the display name for this pass.
+    fn name(&self) -> &'static str {
+        "LoopStrengthReduce"
+    }
+
+    /// Return the stable id for this pass.
+    fn id(&self) -> &'static str {
+        "loop-strength-reduce"
+    }
+}
+
+/// Candidate for strength reduction in a loop.
+#[derive(Debug, Clone)]
+struct StrengthReductionCandidate {
+    /// Loop header block.
+    header: mir::LocalNodeId<mir::Block>,
+    /// Loop preheader block.
+    preheader: mir::LocalNodeId<mir::Block>,
+    /// Loop latch block.
+    latch: mir::LocalNodeId<mir::Block>,
+    /// Value to replace.
+    value: mir::Value,
+    /// Recurrence start expression.
+    start: Scev,
+    /// Recurrence step expression.
+    step: Scev,
+    /// Type of the value being replaced.
+    value_type: mir::LocalNodeId<mir::Type>,
+    /// Blocks inside the loop.
+    loop_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
+}
+
+/// Plan item for rewriting a loop value.
+#[derive(Debug, Clone)]
+struct StrengthReductionPlanItem {
+    /// Original value to replace.
+    original: mir::Value,
+    /// New header parameter.
+    new_param: mir::TypedValue,
+    /// Start value provided by the preheader.
+    start_value: mir::Value,
+    /// Step value added each iteration.
+    step_value: mir::Value,
+    /// Next value computed in the latch.
+    next_value: mir::Value,
+}
+
+/// Definition kind for a value.
+#[derive(Debug, Clone, Copy)]
+enum ValueDefinitionKind {
+    /// Block parameter definition.
+    Parameter,
+    /// Instruction definition.
+    Instruction,
+}
+
+/// Definition metadata for a value.
+#[derive(Debug, Clone, Copy)]
+struct ValueDefinition {
+    /// Block where the value is defined.
+    block: mir::LocalNodeId<mir::Block>,
+    /// Definition kind.
+    kind: ValueDefinitionKind,
+}
+
+/// Map of values to their definitions.
+#[derive(Debug)]
+struct ValueDefinitions {
+    /// Definitions keyed by value.
+    definitions: HashMap<mir::Value, ValueDefinition>,
+}
+
+impl ValueDefinitions {
+    /// Build a definition map for a function.
+    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+        // collect parameter and instruction definitions
+        let mut definitions = HashMap::new();
+
+        // scan blocks for definitions
+        for &block_id in &function.blocks {
+            // record block parameters
+            let block = tree.get(block_id);
+            for param in block.parameters.iter() {
+                definitions.insert(
+                    param.value,
+                    ValueDefinition {
+                        block: block_id,
+                        kind: ValueDefinitionKind::Parameter,
+                    },
+                );
+            }
+
+            // record instruction destinations
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                if let Some(destination) = instruction.destination() {
+                    definitions.insert(
+                        destination,
+                        ValueDefinition {
+                            block: block_id,
+                            kind: ValueDefinitionKind::Instruction,
+                        },
+                    );
+                }
+            }
+        }
+
+        Self { definitions }
+    }
+
+    /// Get the definition for a value.
+    fn definition_for(&self, value: mir::Value) -> Option<ValueDefinition> {
+        self.definitions.get(&value).copied()
+    }
+}
+
+/// Map of values to the blocks where they are used.
+#[derive(Debug)]
+struct ValueUses {
+    /// Use sites keyed by value.
+    uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>>,
+}
+
+impl ValueUses {
+    /// Build a use map for a function.
+    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+        // collect value uses per block
+        let mut uses: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>> = HashMap::new();
+
+        // scan blocks for uses
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+
+            // scan instructions for uses
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                for value in instruction.uses() {
+                    uses.entry(value).or_default().insert(block_id);
+                }
+
+                // scan external argument slices
+                if let Some(args) = instruction.argument_slice() {
+                    for &value in tree.get_arguments(args) {
+                        uses.entry(value).or_default().insert(block_id);
+                    }
+                }
+            }
+
+            // scan terminator uses
+            for value in block.terminator.uses() {
+                uses.entry(value).or_default().insert(block_id);
+            }
+        }
+
+        Self { uses }
+    }
+
+    /// Get the blocks where a value is used.
+    fn blocks_for(&self, value: mir::Value) -> Option<&HashSet<mir::LocalNodeId<mir::Block>>> {
+        self.uses.get(&value)
+    }
+}
+
+/// Shared context for strength reduction.
+struct StrengthReduceContext<'a> {
+    /// Loop analysis results.
+    loops: &'a LoopAnalysis,
+    /// Control flow graph for the function.
+    cfg: &'a ControlFlowGraph,
+    /// Dominator tree for the function.
+    domtree: &'a DominatorTree,
+    /// Scalar evolution analysis.
+    scev: &'a ScalarEvolution,
+    /// Ownership analysis for value types.
+    ownership: &'a OwnershipAnalysis,
+    /// Range analysis for loop invariants.
+    ranges: &'a RangeAnalysis,
+}
+
+/// Shared context for collecting strength reduction candidates.
+struct CandidateContext<'a> {
+    /// Node tree for the function.
+    tree: &'a mir::NodeTree,
+    /// Loop analysis results.
+    loops: &'a LoopAnalysis,
+    /// Control flow graph for the function.
+    cfg: &'a ControlFlowGraph,
+    /// Dominator tree for the function.
+    domtree: &'a DominatorTree,
+    /// Scalar evolution analysis.
+    scev: &'a ScalarEvolution,
+    /// Ownership analysis for value types.
+    ownership: &'a OwnershipAnalysis,
+    /// Value definition metadata.
+    definitions: &'a ValueDefinitions,
+    /// Value use metadata.
+    uses: &'a ValueUses,
+    /// Range analysis for safety checks.
+    ranges: &'a RangeAnalysis,
+}
+
+impl<'a> CandidateContext<'a> {
+    /// Collect strength reduction candidates from all loops.
+    fn collect_candidates(&self) -> Vec<StrengthReductionCandidate> {
+        // collect candidate values
+        let mut candidates = Vec::new();
+
+        // scan each loop for reducible values
+        for (loop_index, lp) in self.loops.loops().iter().enumerate() {
+            // require a single latch
+            if !lp.has_single_latch() {
+                continue;
+            }
+
+            // require a canonical preheader
+            let Some(preheader) = find_preheader(lp, self.cfg, self.domtree) else {
+                continue;
+            };
+            let latch = lp.latches[0];
+
+            // ensure preheader and latch reach the header
+            if !terminator_has_successor(&self.tree.get(preheader).terminator, lp.header) {
+                continue;
+            }
+
+            // ensure the latch has a back edge to the header
+            if !terminator_has_successor(&self.tree.get(latch).terminator, lp.header) {
+                continue;
+            }
+
+            // scan blocks inside the loop
+            for &block_id in &lp.blocks {
+                // skip blocks owned by nested loops
+                let Some(inner_loop) = self.loops.innermost_loop(block_id) else {
+                    continue;
+                };
+                if inner_loop.header != lp.header {
+                    continue;
+                }
+
+                // scan instructions in the block
+                let block = self.tree.get(block_id);
+                for &instruction_id in &block.instructions {
+                    let instruction = self.tree.get(instruction_id);
+                    let Some(destination) = instruction.destination() else {
+                        continue;
+                    };
+
+                    // require a profitable strength reduction candidate
+                    if !instruction_is_candidate(instruction) {
+                        continue;
+                    }
+
+                    // skip potentially trapping divisions and remainders
+                    if let mir::Instruction::Binary {
+                        operator,
+                        left,
+                        right,
+                        ..
+                    } = instruction
+                        && !division_is_safe(
+                            *operator,
+                            *left,
+                            *right,
+                            block_id,
+                            self.ranges,
+                            self.ownership,
+                            self.tree,
+                        )
+                    {
+                        continue;
+                    }
+
+                    // require an integer type for the value
+                    let Some(value_type) = self.ownership.value_type(destination) else {
+                        continue;
+                    };
+                    if !type_is_integer(value_type, self.tree) {
+                        continue;
+                    }
+
+                    // require a loop recurrence
+                    let Some(scev_value) =
+                        self.scev.scev_for_value_in_loop(loop_index, destination)
+                    else {
+                        continue;
+                    };
+                    let scev_value = scev_value.clone();
+
+                    // require a recurrence anchored on the loop header
+                    let Scev::AddRec {
+                        start,
+                        step,
+                        loop_header,
+                    } = scev_value
+                    else {
+                        continue;
+                    };
+
+                    // skip recurrences from other headers
+                    if loop_header != lp.header {
+                        continue;
+                    }
+
+                    // require invariant start and step
+                    if !start.is_loop_invariant(lp.header) || !step.is_loop_invariant(lp.header) {
+                        continue;
+                    }
+
+                    // skip recurrences with zero step
+                    if scev_is_zero(&step) {
+                        continue;
+                    }
+
+                    // require loop local definition
+                    let Some(definition) = self.definitions.definition_for(destination) else {
+                        continue;
+                    };
+                    if !lp.blocks.contains(&definition.block) {
+                        continue;
+                    }
+
+                    // skip parameters that are already induction variables
+                    if matches!(definition.kind, ValueDefinitionKind::Parameter) {
+                        continue;
+                    }
+
+                    // require uses dominated by the header
+                    if !uses_within_loop(destination, &lp.blocks, self.uses) {
+                        continue;
+                    }
+
+                    // record the candidate for transformation
+                    candidates.push(StrengthReductionCandidate {
+                        header: lp.header,
+                        preheader,
+                        latch,
+                        value: destination,
+                        start: *start,
+                        step: *step,
+                        value_type,
+                        loop_blocks: lp.blocks.clone(),
+                    });
+                }
+            }
+        }
+
+        candidates
+    }
+}
+
+/// Build strength reduction candidates and apply transformations.
+fn run_loop_strength_reduce(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    context: &StrengthReduceContext<'_>,
+) -> bool {
+    // build definition and use metadata
+    let definitions = ValueDefinitions::build(function, tree);
+    let uses = ValueUses::build(function, tree);
+
+    // collect candidates across loops
+    let candidates_context = CandidateContext {
+        tree,
+        loops: context.loops,
+        cfg: context.cfg,
+        domtree: context.domtree,
+        scev: context.scev,
+        ownership: context.ownership,
+        definitions: &definitions,
+        uses: &uses,
+        ranges: context.ranges,
+    };
+    let candidates = candidates_context.collect_candidates();
+
+    // skip when no candidates were found
+    if candidates.is_empty() {
+        return false;
+    }
+
+    // refresh value allocation state
+    function.recompute_next_value_id(tree);
+
+    // group candidates by loop header
+    let mut candidates_by_header: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        Vec<StrengthReductionCandidate>,
+    > = HashMap::new();
+    for candidate in candidates {
+        candidates_by_header
+            .entry(candidate.header)
+            .or_default()
+            .push(candidate);
+    }
+
+    // apply transformations and collect substitutions
+    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut headers: Vec<_> = candidates_by_header.keys().copied().collect();
+    headers.sort();
+
+    // process candidates header by header
+    for header in headers {
+        // gather candidates for the header
+        let mut loop_candidates = candidates_by_header.remove(&header).unwrap_or_default();
+        loop_candidates.sort_by_key(|candidate| candidate.value);
+
+        // apply loop specific rewrites
+        let loop_substitutions = apply_candidates_for_loop(
+            function,
+            tree,
+            &loop_candidates,
+            &definitions,
+            context.ownership,
+            context.ranges,
+            context.domtree,
+        );
+
+        // merge substitutions into the global map
+        for (old_value, new_value) in loop_substitutions {
+            substitutions.insert(old_value, new_value);
+        }
+    }
+
+    // skip if no substitutions were applied
+    if substitutions.is_empty() {
+        return false;
+    }
+
+    // resolve substitution chains
+    let substitutions = resolve_substitution_chains(substitutions);
+
+    // apply substitutions to instructions
+    for &block_id in &function.blocks {
+        // collect instruction ids to avoid borrow issues
+        let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
+
+        // rewrite instruction operands
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id).clone();
+            let new_instruction =
+                instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+
+            // replace instructions that changed
+            if new_instruction != instruction {
+                tree.replace(instruction_id, new_instruction);
+            }
+        }
+    }
+
+    // apply substitutions to terminators
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // rewrite terminator uses
+        let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+
+        // replace blocks that changed
+        if new_terminator != block.terminator {
+            let mut new_block = block.clone();
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+        }
+    }
+
+    true
+}
+
+/// Apply candidates for a single loop and return substitutions.
+fn apply_candidates_for_loop(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    candidates: &[StrengthReductionCandidate],
+    definitions: &ValueDefinitions,
+    ownership: &OwnershipAnalysis,
+    ranges: &RangeAnalysis,
+    domtree: &DominatorTree,
+) -> Vec<(mir::Value, mir::Value)> {
+    // skip empty candidate lists
+    if candidates.is_empty() {
+        return Vec::new();
+    }
+
+    // use the first candidate to get loop metadata
+    let header = candidates[0].header;
+    let preheader = candidates[0].preheader;
+    let latch = candidates[0].latch;
+    let loop_blocks = &candidates[0].loop_blocks;
+
+    // build a materializer for the preheader
+    let mut materializer = ScevMaterializer::new(
+        tree,
+        preheader,
+        loop_blocks,
+        definitions,
+        ownership,
+        ranges,
+        domtree,
+    );
+
+    // build plan items
+    let mut plan_items: Vec<StrengthReductionPlanItem> = Vec::new();
+    for candidate in candidates {
+        // materialize the start value
+        let Some(start_value) = materializer.materialize(function, &candidate.start) else {
+            continue;
+        };
+
+        // materialize the step value
+        let Some(step_value) = materializer.materialize(function, &candidate.step) else {
+            continue;
+        };
+
+        // allocate the new header parameter value
+        let new_param_value = function.next_value();
+        let new_param = mir::TypedValue::new(new_param_value, candidate.value_type);
+
+        // allocate the next value for the latch update
+        let next_value = function.next_value();
+
+        // record the planned rewrite
+        plan_items.push(StrengthReductionPlanItem {
+            original: candidate.value,
+            new_param,
+            start_value,
+            step_value,
+            next_value,
+        });
+    }
+
+    // skip when nothing could be materialized
+    if plan_items.is_empty() {
+        return Vec::new();
+    }
+
+    // compute updated latch terminator
+    let latch_block = tree.get(latch).clone();
+
+    // collect latch arguments in header parameter order
+    let latch_args: Vec<_> = plan_items.iter().map(|item| item.next_value).collect();
+    let Some(latch_terminator) =
+        append_arguments_for_successor(&latch_block.terminator, header, &latch_args)
+    else {
+        return Vec::new();
+    };
+
+    // compute updated preheader terminator
+    let preheader_block = tree.get(preheader).clone();
+
+    // collect preheader arguments in header parameter order
+    let preheader_args: Vec<_> = plan_items.iter().map(|item| item.start_value).collect();
+    let Some(preheader_terminator) =
+        append_arguments_for_successor(&preheader_block.terminator, header, &preheader_args)
+    else {
+        return Vec::new();
+    };
+
+    // update header parameters
+    let mut header_block = tree.get(header).clone();
+
+    // append new parameters in header order
+    for item in &plan_items {
+        header_block.parameters.push(item.new_param);
+    }
+    tree.replace(header, header_block);
+
+    // insert latch updates
+    let mut latch_block = latch_block;
+
+    // insert recurrence updates into the latch
+    for item in &plan_items {
+        let instruction = mir::Instruction::Binary {
+            destination: item.next_value,
+            operator: mir::BinaryOperator::Add,
+            left: item.new_param.value,
+            right: item.step_value,
+        };
+        let instruction_id = tree.insert(instruction);
+        latch_block.instructions.push(instruction_id);
+    }
+
+    // install latch terminator
+    latch_block.terminator = latch_terminator;
+    tree.replace(latch, latch_block);
+
+    // install preheader terminator
+    if preheader_terminator != preheader_block.terminator {
+        let mut new_preheader = preheader_block;
+        new_preheader.terminator = preheader_terminator;
+        tree.replace(preheader, new_preheader);
+    }
+
+    // return substitutions
+    plan_items
+        .iter()
+        .map(|item| (item.original, item.new_param.value))
+        .collect()
+}
+
+/// Check if an instruction is a strength reduction candidate.
+fn instruction_is_candidate(instruction: &mir::Instruction) -> bool {
+    // check supported instruction kinds
+    match instruction {
+        mir::Instruction::Binary { operator, .. } => matches!(
+            operator,
+            mir::BinaryOperator::Multiply
+                | mir::BinaryOperator::SignedDivide
+                | mir::BinaryOperator::UnsignedDivide
+                | mir::BinaryOperator::SignedRemainder
+                | mir::BinaryOperator::UnsignedRemainder
+        ),
+        _ => false,
+    }
+}
+
+/// Check if a SCEV expression is a constant zero.
+fn scev_is_zero(scev: &Scev) -> bool {
+    match scev {
+        Scev::Constant(constant) => constant_is_zero(Some(constant)),
+        _ => false,
+    }
+}
+
+/// Check if a type is an integer.
+fn type_is_integer(ty: mir::LocalNodeId<mir::Type>, tree: &mir::NodeTree) -> bool {
+    // inspect the referenced type
+    matches!(tree.get(ty), mir::Type::Int { .. })
+}
+
+/// Check whether a division or remainder is safe to eliminate.
+fn division_is_safe(
+    operator: mir::BinaryOperator,
+    left: mir::Value,
+    right: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+    ownership: &OwnershipAnalysis,
+    tree: &mir::NodeTree,
+) -> bool {
+    match operator {
+        mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
+            signed_division_is_safe(left, right, block_id, ranges, ownership, tree)
+        }
+        mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder => {
+            unsigned_division_is_safe(right, block_id, ranges)
+        }
+        _ => true,
+    }
+}
+
+/// Check whether a signed division or remainder is proven safe.
+fn signed_division_is_safe(
+    left: mir::Value,
+    right: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+    ownership: &OwnershipAnalysis,
+    tree: &mir::NodeTree,
+) -> bool {
+    // require signed operand ranges
+    let Some(right_range) = signed_integer_range(right, block_id, ranges) else {
+        return false;
+    };
+
+    // divisor must be non zero
+    if !integer_range_excludes_zero(&right_range) {
+        return false;
+    }
+
+    // when divisor may be -1, require dividend to exclude min value
+    if !integer_range_excludes_minus_one(&right_range) {
+        let Some(left_range) = signed_integer_range(left, block_id, ranges) else {
+            return false;
+        };
+
+        let Some(min_value) = signed_min_for_value(left, ownership, tree)
+            .or_else(|| signed_min_from_range(&left_range))
+        else {
+            return false;
+        };
+
+        if left_range.min <= min_value {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Check whether an unsigned division or remainder is proven safe.
+fn unsigned_division_is_safe(
+    right: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+) -> bool {
+    let Some(range) = unsigned_integer_range(right, block_id, ranges) else {
+        return false;
+    };
+
+    range.min > 0
+}
+
+/// Extract a signed integer range for a value.
+fn signed_integer_range(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+) -> Option<IntegerRange> {
+    let range = ranges.exit(block_id).get(value)?;
+    let ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    } = range
+    else {
+        return None;
+    };
+
+    if !*is_signed {
+        return None;
+    }
+
+    Some(IntegerRange {
+        min: *min,
+        max: *max,
+        width: *width,
+        is_signed: *is_signed,
+    })
+}
+
+/// Extract an unsigned integer range for a value.
+fn unsigned_integer_range(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    ranges: &RangeAnalysis,
+) -> Option<IntegerRange> {
+    let range = ranges.exit(block_id).get(value)?;
+    let ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    } = range
+    else {
+        return None;
+    };
+
+    if *is_signed {
+        return None;
+    }
+
+    Some(IntegerRange {
+        min: *min,
+        max: *max,
+        width: *width,
+        is_signed: *is_signed,
+    })
+}
+
+/// Integer range snapshot.
+#[derive(Debug, Clone, Copy)]
+struct IntegerRange {
+    /// Minimum value.
+    min: i128,
+    /// Maximum value.
+    max: i128,
+    /// Bit width.
+    width: u8,
+    /// Signedness.
+    is_signed: bool,
+}
+
+/// Check whether an integer range excludes zero.
+fn integer_range_excludes_zero(range: &IntegerRange) -> bool {
+    range.min > 0 || range.max < 0
+}
+
+/// Check whether an integer range excludes -1.
+fn integer_range_excludes_minus_one(range: &IntegerRange) -> bool {
+    range.min > -1 || range.max < -1
+}
+
+/// Extract the signed minimum for a value type.
+fn signed_min_for_value(
+    value: mir::Value,
+    ownership: &OwnershipAnalysis,
+    tree: &mir::NodeTree,
+) -> Option<i128> {
+    let ty = ownership.value_type(value)?;
+    let mir::Type::Int { width, signed } = tree.get(ty) else {
+        return None;
+    };
+
+    if !*signed {
+        return None;
+    }
+
+    signed_min_for_width(*width)
+}
+
+/// Extract the signed minimum for a range when a type is unavailable.
+fn signed_min_from_range(range: &IntegerRange) -> Option<i128> {
+    if !range.is_signed {
+        return None;
+    }
+
+    signed_min_for_width(range.width as u16)
+}
+
+/// Compute the signed minimum value for a bit width.
+fn signed_min_for_width(width: u16) -> Option<i128> {
+    if width == 0 || width > 127 {
+        return None;
+    }
+
+    let shift = (width - 1) as u32;
+    Some(-(1_i128 << shift))
+}
+
+/// Check if all uses are dominated by the loop header.
+fn uses_within_loop(
+    value: mir::Value,
+    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    uses: &ValueUses,
+) -> bool {
+    // skip values with no uses
+    let Some(use_blocks) = uses.blocks_for(value) else {
+        return false;
+    };
+
+    // ensure all uses stay inside the loop body
+    for &block_id in use_blocks {
+        if !loop_blocks.contains(&block_id) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Find the loop preheader from dominance information.
+fn find_preheader(
+    lp: &Loop,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+) -> Option<mir::LocalNodeId<mir::Block>> {
+    // require immediate dominator outside the loop
+    let preheader = domtree.immediate_dominator(lp.header)?;
+    if lp.blocks.contains(&preheader) {
+        return None;
+    }
+
+    // require a single outside predecessor
+    let outside_preds: Vec<_> = cfg
+        .predecessors(lp.header)
+        .iter()
+        .copied()
+        .filter(|pred| !lp.blocks.contains(pred))
+        .collect();
+    if outside_preds.len() != 1 || outside_preds[0] != preheader {
+        return None;
+    }
+
+    Some(preheader)
+}
+
+/// Check if a terminator has an edge to a successor.
+fn terminator_has_successor(
+    terminator: &mir::Terminator,
+    successor: mir::LocalNodeId<mir::Block>,
+) -> bool {
+    // check successor list
+    terminator.successors().contains(&successor)
+}
+
+/// Append arguments for a successor edge.
+fn append_arguments_for_successor(
+    terminator: &mir::Terminator,
+    successor: mir::LocalNodeId<mir::Block>,
+    new_args: &[mir::Value],
+) -> Option<mir::Terminator> {
+    // skip when nothing to append
+    if new_args.is_empty() {
+        return Some(terminator.clone());
+    }
+
+    // match terminator kinds with successor edges
+    match terminator {
+        mir::Terminator::Jump { target, arguments } => {
+            // ensure the jump targets the successor
+            if *target != successor {
+                return None;
+            }
+
+            // append arguments for the jump
+            let mut updated_args = arguments.clone();
+            updated_args.extend(new_args.iter().copied());
+            Some(mir::Terminator::Jump {
+                target: *target,
+                arguments: updated_args,
+            })
+        }
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } => {
+            // update branch arguments for matching edges
+            let mut updated_then = then_arguments.clone();
+            let mut updated_else = else_arguments.clone();
+            let mut touched = false;
+
+            if *then_target == successor {
+                updated_then.extend(new_args.iter().copied());
+                touched = true;
+            }
+
+            // update else arguments when needed
+            if *else_target == successor {
+                updated_else.extend(new_args.iter().copied());
+                touched = true;
+            }
+
+            // ensure the successor was updated
+            if !touched {
+                return None;
+            }
+
+            Some(mir::Terminator::Branch {
+                condition: *condition,
+                then_target: *then_target,
+                then_arguments: updated_then,
+                else_target: *else_target,
+                else_arguments: updated_else,
+            })
+        }
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            // update check target arguments for matching edges
+            let mut updated_success = success.arguments.clone();
+            let mut updated_failure = failure.arguments.clone();
+            let mut touched = false;
+
+            if success.target == successor {
+                updated_success.extend(new_args.iter().copied());
+                touched = true;
+            }
+
+            // update failure arguments when needed
+            if failure.target == successor {
+                updated_failure.extend(new_args.iter().copied());
+                touched = true;
+            }
+
+            // ensure the successor was updated
+            if !touched {
+                return None;
+            }
+
+            Some(mir::Terminator::Check {
+                condition: *condition,
+                constraint: constraint.clone(),
+                success: mir::CheckTarget {
+                    target: success.target,
+                    arguments: updated_success,
+                },
+                failure: mir::CheckTarget {
+                    target: failure.target,
+                    arguments: updated_failure,
+                },
+            })
+        }
+        mir::Terminator::Switch {
+            value,
+            default,
+            default_arguments,
+            cases,
+        } => {
+            // update switch case arguments for matching edges
+            let mut updated_cases = Vec::new();
+            let mut updated_default = default_arguments.clone();
+            let mut touched = false;
+
+            // update default arguments when needed
+            if *default == successor {
+                updated_default.extend(new_args.iter().copied());
+                touched = true;
+            }
+
+            // update case arguments when needed
+            for case in cases {
+                let mut updated_case_args = case.arguments.clone();
+                if case.target == successor {
+                    updated_case_args.extend(new_args.iter().copied());
+                    touched = true;
+                }
+
+                updated_cases.push(mir::SwitchCase {
+                    value: case.value,
+                    target: case.target,
+                    arguments: updated_case_args,
+                });
+            }
+
+            // ensure the successor was updated
+            if !touched {
+                return None;
+            }
+
+            Some(mir::Terminator::Switch {
+                value: *value,
+                default: *default,
+                default_arguments: updated_default,
+                cases: updated_cases,
+            })
+        }
+        mir::Terminator::Yield {
+            value,
+            resume,
+            resume_arguments,
+        } => {
+            // ensure the yield resumes to the successor
+            if *resume != successor {
+                return None;
+            }
+
+            // append resume arguments
+            let mut updated_args = resume_arguments.clone();
+            updated_args.extend(new_args.iter().copied());
+            Some(mir::Terminator::Yield {
+                value: *value,
+                resume: *resume,
+                resume_arguments: updated_args,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Resolve transitive substitution chains.
+fn resolve_substitution_chains(
+    mut substitutions: HashMap<mir::Value, mir::Value>,
+) -> HashMap<mir::Value, mir::Value> {
+    // collect keys to avoid borrowing during mutation
+    let keys: Vec<_> = substitutions.keys().copied().collect();
+
+    // follow substitution chains to their final targets
+    for key in keys {
+        let mut current = substitutions[&key];
+
+        // walk the chain to the final target
+        while let Some(&next) = substitutions.get(&current) {
+            if next == current {
+                break;
+            }
+
+            current = next;
+        }
+
+        // store the resolved target
+        substitutions.insert(key, current);
+    }
+
+    substitutions
+}
+
+/// Helper for materializing SCEV expressions in the preheader.
+struct ScevMaterializer<'a> {
+    /// Mutable node tree reference.
+    tree: &'a mut mir::NodeTree,
+    /// Preheader block id.
+    preheader: mir::LocalNodeId<mir::Block>,
+    /// Blocks inside the loop.
+    loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
+    /// Value definitions for the function.
+    definitions: &'a ValueDefinitions,
+    /// Ownership metadata for value types.
+    ownership: &'a OwnershipAnalysis,
+    /// Range analysis for invariant checks.
+    ranges: &'a RangeAnalysis,
+    /// Dominator tree for availability checks.
+    domtree: &'a DominatorTree,
+    /// Cached constants in the preheader.
+    constant_cache: Vec<(mir::Constant, mir::Value)>,
+    /// Cached scev to value mappings.
+    scev_cache: Vec<(Scev, mir::Value)>,
+    /// Cached integer types by width and signedness.
+    type_cache: HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+}
+
+impl<'a> ScevMaterializer<'a> {
+    /// Create a new materializer for the preheader.
+    fn new(
+        tree: &'a mut mir::NodeTree,
+        preheader: mir::LocalNodeId<mir::Block>,
+        loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
+        definitions: &'a ValueDefinitions,
+        ownership: &'a OwnershipAnalysis,
+        ranges: &'a RangeAnalysis,
+        domtree: &'a DominatorTree,
+    ) -> Self {
+        // collect constants already in the preheader
+        let mut constant_cache = Vec::new();
+        let preheader_block = tree.get(preheader);
+
+        // scan preheader instructions for constants
+        for &instruction_id in &preheader_block.instructions {
+            let instruction = tree.get(instruction_id);
+            let mir::Instruction::Const { destination, value } = instruction else {
+                continue;
+            };
+
+            constant_cache.push((value.clone(), *destination));
+        }
+
+        Self {
+            tree,
+            preheader,
+            loop_blocks,
+            definitions,
+            ownership,
+            ranges,
+            domtree,
+            constant_cache,
+            scev_cache: Vec::new(),
+            type_cache: HashMap::new(),
+        }
+    }
+
+    /// Materialize a SCEV expression into the preheader.
+    fn materialize(&mut self, function: &mut mir::Function, scev: &Scev) -> Option<mir::Value> {
+        // check cached results
+        if let Some(value) = self.cached_scev_value(scev) {
+            return Some(value);
+        }
+
+        // materialize based on scev kind
+        let value = match scev {
+            Scev::Constant(constant) => self.materialize_constant(function, constant)?,
+            Scev::Unknown(value) => self.materialize_unknown(*value)?,
+            Scev::Neg(inner) => {
+                let argument = self.materialize(function, inner)?;
+                self.insert_unary(function, mir::UnaryOperator::Negate, argument)
+            }
+            Scev::Add(left, right) => {
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(function, mir::BinaryOperator::Add, left_value, right_value)
+            }
+            Scev::Mul(left, right) => {
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::Multiply,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::SignedDivide(left, right) => {
+                // require a non zero divisor for speculative execution
+                if !self.scev_non_zero(right) || !self.scev_signed_division_safe(left, right) {
+                    return None;
+                }
+
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::SignedDivide,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::UnsignedDivide(left, right) => {
+                // require a non zero divisor for speculative execution
+                if !self.scev_non_zero(right) {
+                    return None;
+                }
+
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::UnsignedDivide,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::SignedRemainder(left, right) => {
+                // require a non zero divisor for speculative execution
+                if !self.scev_non_zero(right) || !self.scev_signed_division_safe(left, right) {
+                    return None;
+                }
+
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::SignedRemainder,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::UnsignedRemainder(left, right) => {
+                // require a non zero divisor for speculative execution
+                if !self.scev_non_zero(right) {
+                    return None;
+                }
+
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::UnsignedRemainder,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::ShiftLeft(left, right) => {
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::ShiftLeft,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::ArithmeticShiftRight(left, right) => {
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::ArithmeticShiftRight,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::LogicalShiftRight(left, right) => {
+                let left_value = self.materialize(function, left)?;
+                let right_value = self.materialize(function, right)?;
+                self.insert_binary(
+                    function,
+                    mir::BinaryOperator::LogicalShiftRight,
+                    left_value,
+                    right_value,
+                )
+            }
+            Scev::ZeroExtend { value, width } => {
+                let argument = self.materialize(function, value)?;
+                let to_type = self.int_type(*width, false)?;
+                self.insert_cast(function, mir::CastOperator::ZeroExtend, argument, to_type)
+            }
+            Scev::SignExtend { value, width } => {
+                let argument = self.materialize(function, value)?;
+                let to_type = self.int_type(*width, true)?;
+                self.insert_cast(function, mir::CastOperator::SignExtend, argument, to_type)
+            }
+            Scev::Truncate { value, width } => {
+                let argument = self.materialize(function, value)?;
+                let signed = self.truncate_signedness(argument)?;
+                let to_type = self.int_type(*width, signed)?;
+                self.insert_cast(function, mir::CastOperator::Truncate, argument, to_type)
+            }
+            Scev::AddRec { .. } => return None,
+        };
+
+        // cache the materialized value
+        self.scev_cache.push((scev.clone(), value));
+        Some(value)
+    }
+
+    /// Find a cached value for a SCEV expression.
+    fn cached_scev_value(&self, scev: &Scev) -> Option<mir::Value> {
+        self.scev_cache
+            .iter()
+            .find(|(cached, _)| cached == scev)
+            .map(|(_, value)| *value)
+    }
+
+    /// Check if a SCEV is proven non zero.
+    fn scev_non_zero(&self, scev: &Scev) -> bool {
+        match scev {
+            Scev::Constant(constant) => constant_non_zero(constant).unwrap_or(false),
+            Scev::Unknown(value) => self.value_non_zero(*value),
+            Scev::Neg(inner) => self.scev_non_zero(inner),
+            _ => false,
+        }
+    }
+
+    /// Check if a value is proven non zero at the preheader.
+    fn value_non_zero(&self, value: mir::Value) -> bool {
+        let Some(range) = self.range_for_value_at_preheader(value) else {
+            return false;
+        };
+
+        range_excludes_zero(range)
+    }
+
+    /// Get the range for a value at the preheader.
+    fn range_for_value_at_preheader(&self, value: mir::Value) -> Option<&ValueRange> {
+        let definition = self.definitions.definition_for(value)?;
+
+        let ranges = match definition.kind {
+            ValueDefinitionKind::Parameter => self.ranges.entry(self.preheader),
+            ValueDefinitionKind::Instruction => {
+                if definition.block == self.preheader {
+                    self.ranges.exit(self.preheader)
+                } else {
+                    self.ranges.entry(self.preheader)
+                }
+            }
+        };
+
+        ranges.get(value)
+    }
+
+    /// Materialize a constant in the preheader.
+    fn materialize_constant(
+        &mut self,
+        function: &mut mir::Function,
+        constant: &mir::Constant,
+    ) -> Option<mir::Value> {
+        // reuse existing constants when possible
+        if let Some((_, value)) = self
+            .constant_cache
+            .iter()
+            .find(|(cached, _)| cached == constant)
+        {
+            return Some(*value);
+        }
+
+        // allocate a new constant instruction
+        let destination = function.next_value();
+        let instruction = mir::Instruction::Const {
+            destination,
+            value: constant.clone(),
+        };
+        self.insert_instruction(instruction);
+        self.constant_cache.push((constant.clone(), destination));
+
+        Some(destination)
+    }
+
+    /// Materialize an unknown value if it is loop invariant.
+    fn materialize_unknown(&self, value: mir::Value) -> Option<mir::Value> {
+        // ensure the value is available in the preheader
+        if !self.value_available_in_preheader(value) {
+            return None;
+        }
+
+        Some(value)
+    }
+
+    /// Insert a binary instruction into the preheader.
+    fn insert_binary(
+        &mut self,
+        function: &mut mir::Function,
+        operator: mir::BinaryOperator,
+        left: mir::Value,
+        right: mir::Value,
+    ) -> mir::Value {
+        // allocate a destination value
+        let destination = function.next_value();
+        let instruction = mir::Instruction::Binary {
+            destination,
+            operator,
+            left,
+            right,
+        };
+        self.insert_instruction(instruction);
+        destination
+    }
+
+    /// Insert a unary instruction into the preheader.
+    fn insert_unary(
+        &mut self,
+        function: &mut mir::Function,
+        operator: mir::UnaryOperator,
+        argument: mir::Value,
+    ) -> mir::Value {
+        // allocate a destination value
+        let destination = function.next_value();
+        let instruction = mir::Instruction::Unary {
+            destination,
+            operator,
+            argument,
+        };
+        self.insert_instruction(instruction);
+        destination
+    }
+
+    /// Insert a cast instruction into the preheader.
+    fn insert_cast(
+        &mut self,
+        function: &mut mir::Function,
+        operator: mir::CastOperator,
+        argument: mir::Value,
+        to_type: mir::LocalNodeId<mir::Type>,
+    ) -> mir::Value {
+        // allocate a destination value
+        let destination = function.next_value();
+        let instruction = mir::Instruction::Cast {
+            destination,
+            operator,
+            argument,
+            to_type,
+        };
+        self.insert_instruction(instruction);
+        destination
+    }
+
+    /// Insert an instruction into the preheader block.
+    fn insert_instruction(&mut self, instruction: mir::Instruction) {
+        // append the instruction to the preheader
+        let instruction_id = self.tree.insert(instruction);
+        let mut preheader_block = self.tree.get(self.preheader).clone();
+        preheader_block.instructions.push(instruction_id);
+        self.tree.replace(self.preheader, preheader_block);
+    }
+
+    /// Check if a value is defined inside the loop.
+    fn value_available_in_preheader(&self, value: mir::Value) -> bool {
+        // check definition metadata first
+        let Some(definition) = self.definitions.definition_for(value) else {
+            return false;
+        };
+
+        // reject values defined inside the loop
+        if self.loop_blocks.contains(&definition.block) {
+            return false;
+        }
+
+        self.domtree.dominates(definition.block, self.preheader)
+    }
+
+    /// Get or create an integer type.
+    fn int_type(&mut self, width: u16, signed: bool) -> Option<mir::LocalNodeId<mir::Type>> {
+        // reuse cached types when possible
+        if let Some(existing) = self.type_cache.get(&(width, signed)) {
+            return Some(*existing);
+        }
+
+        // allocate a new type node
+        let ty = mir::Type::Int { width, signed };
+        let type_id = self.tree.insert(ty);
+        self.type_cache.insert((width, signed), type_id);
+
+        Some(type_id)
+    }
+
+    /// Determine signedness for a truncate operation.
+    fn truncate_signedness(&self, argument: mir::Value) -> Option<bool> {
+        // read the argument type
+        let ty_id = self.ownership.value_type(argument)?;
+        let ty = self.tree.get(ty_id);
+        let mir::Type::Int { signed, .. } = ty else {
+            return None;
+        };
+
+        Some(*signed)
+    }
+
+    /// Check whether signed division is safe to hoist.
+    fn scev_signed_division_safe(&self, left: &Scev, right: &Scev) -> bool {
+        if self.scev_excludes_value(right, -1) {
+            return true;
+        }
+
+        self.scev_excludes_signed_min(left)
+    }
+
+    /// Check whether a SCEV excludes a specific integer value.
+    fn scev_excludes_value(&self, scev: &Scev, target: i128) -> bool {
+        match scev {
+            Scev::Constant(constant) => match constant {
+                mir::Constant::Int { value, .. } => i128::from(*value) != target,
+                mir::Constant::UInt { value, .. } => i128::from(*value) != target,
+                _ => false,
+            },
+            Scev::Unknown(value_id) => {
+                let Some(range) = self.range_for_value_at_preheader(*value_id) else {
+                    return false;
+                };
+
+                range_excludes_value(range, target)
+            }
+            _ => false,
+        }
+    }
+
+    /// Check whether a SCEV excludes the signed minimum value for its type.
+    fn scev_excludes_signed_min(&self, scev: &Scev) -> bool {
+        match scev {
+            Scev::Constant(constant) => match constant {
+                mir::Constant::Int {
+                    value,
+                    width,
+                    is_signed,
+                } => {
+                    if !*is_signed {
+                        return true;
+                    }
+
+                    *value as i128 != signed_min_value(*width)
+                }
+                mir::Constant::UInt { .. } => true,
+                _ => false,
+            },
+            Scev::Unknown(value_id) => {
+                let Some(range) = self.range_for_value_at_preheader(*value_id) else {
+                    return false;
+                };
+
+                signed_min_excluded(range)
+            }
+            _ => false,
+        }
+    }
+}
+
+/// Check if a range excludes zero.
+fn range_excludes_zero(range: &ValueRange) -> bool {
+    match range {
+        ValueRange::Integer { min, max, .. } => *min > 0 || *max < 0,
+        ValueRange::Boolean {
+            can_be_true,
+            can_be_false,
+        } => *can_be_true && !*can_be_false,
+        _ => false,
+    }
+}
+
+/// Check if a range excludes a specific integer value.
+fn range_excludes_value(range: &ValueRange, value: i128) -> bool {
+    match range {
+        ValueRange::Integer { min, max, .. } => value < *min || value > *max,
+        _ => false,
+    }
+}
+
+/// Check if a range excludes the signed minimum value.
+fn signed_min_excluded(range: &ValueRange) -> bool {
+    let ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    } = range
+    else {
+        return false;
+    };
+
+    if !*is_signed {
+        return true;
+    }
+
+    let min_value = signed_min_value(*width);
+    min_value < *min || min_value > *max
+}
+
+/// Compute the signed minimum value for a bit width.
+fn signed_min_value(width: u8) -> i128 {
+    let shift = width.saturating_sub(1);
+    -(1_i128 << shift)
+}
+
+/// Check if a constant is non zero.
+fn constant_non_zero(constant: &mir::Constant) -> Option<bool> {
+    match constant {
+        mir::Constant::Int { value, .. } => Some(*value != 0),
+        mir::Constant::UInt { value, .. } => Some(*value != 0),
+        mir::Constant::Boolean { value } => Some(*value),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    /// Loop derived multiplications are rewritten as recurrences.
+    #[test]
+    fn test_strength_reduce_multiply() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    jump block1(v1)
+block1(v4: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3
+block2:
+    v6 = imul v4, v3
+    v7 = iadd v6, v2
+    v8 = iadd v4, v2
+    jump block1(v8)
+block3:
+    return v4
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    jump block1(v1, v1)
+block1(v4: i32, v9: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3
+block2:
+    v6 = imul v4, v3
+    v7 = iadd v9, v2
+    v8 = iadd v4, v2
+    v10 = iadd v9, v3
+    jump block1(v8, v10)
+block3:
+    return v4
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Multiple loop derived values are strength reduced.
+    #[test]
+    fn test_strength_reduce_multiple_candidates() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 2i32
+    v4 = iconst 3i32
+    jump block1(v1)
+block1(v5: i32):
+    v6 = icmp_slt v5, v0
+    branch v6, block2, block3
+block2:
+    v7 = imul v5, v3
+    v8 = iadd v7, v4
+    v9 = iadd v5, v2
+    v10 = imul v5, v4
+    v11 = iadd v10, v2
+    jump block1(v9)
+block3:
+    return v5
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 2i32
+    v4 = iconst 3i32
+    jump block1(v1, v1, v1)
+block1(v5: i32, v12: i32, v14: i32):
+    v6 = icmp_slt v5, v0
+    branch v6, block2, block3
+block2:
+    v7 = imul v5, v3
+    v8 = iadd v12, v4
+    v9 = iadd v5, v2
+    v10 = imul v5, v4
+    v11 = iadd v14, v2
+    v13 = iadd v12, v3
+    v15 = iadd v14, v4
+    jump block1(v9, v13, v15)
+block3:
+    return v5
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Strength reduction requires a canonical preheader.
+    #[test]
+    fn test_strength_reduce_requires_preheader() {
+        // source program
+        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = icmp_eq v0, v0
+    branch v3, block1, block2
+block1:
+    jump block3(v1)
+block2:
+    jump block3(v2)
+block3(v4: i32):
+    v5 = iconst 1i32
+    v6 = icmp_slt v4, v0
+    branch v6, block4, block5
+block4:
+    v7 = imul v4, v5
+    v8 = iadd v4, v5
+    jump block3(v8)
+block5:
+    return v4
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_unchanged(input);
+    }
+
+    /// Strength reduction updates branch preheaders.
+    #[test]
+    fn test_strength_reduce_branch_preheader() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    v4 = icmp_eq v0, v0
+    branch v4, block1(v1), block4
+block1(v5: i32):
+    v6 = icmp_slt v5, v0
+    branch v6, block2, block3
+block2:
+    v7 = imul v5, v3
+    v8 = iadd v7, v2
+    v9 = iadd v5, v2
+    jump block1(v9)
+block3:
+    return v5
+block4:
+    return v1
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    v4 = icmp_eq v0, v0
+    branch v4, block1(v1, v1), block4
+block1(v5: i32, v10: i32):
+    v6 = icmp_slt v5, v0
+    branch v6, block2, block3
+block2:
+    v7 = imul v5, v3
+    v8 = iadd v10, v2
+    v9 = iadd v5, v2
+    v11 = iadd v10, v3
+    jump block1(v9, v11)
+block3:
+    return v5
+block4:
+    return v1
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Strength reduction updates switch preheaders.
+    #[test]
+    fn test_strength_reduce_switch_preheader() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    v4 = iconst 0i32
+    switch v4, block3, 0 => block1(v1)
+block1(v5: i32):
+    v6 = icmp_slt v5, v0
+    branch v6, block2, block3
+block2:
+    v7 = imul v5, v3
+    v8 = iadd v7, v2
+    v9 = iadd v5, v2
+    jump block1(v9)
+block3:
+    return v5
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    v4 = iconst 0i32
+    switch v4, block3, 0 => block1(v1, v1)
+block1(v5: i32, v10: i32):
+    v6 = icmp_slt v5, v0
+    branch v6, block2, block3
+block2:
+    v7 = imul v5, v3
+    v8 = iadd v10, v2
+    v9 = iadd v5, v2
+    v11 = iadd v10, v3
+    jump block1(v9, v11)
+block3:
+    return v5
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Values used outside the loop are still strength reduced.
+    #[test]
+    fn test_strength_reduce_exit_use() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    jump block1(v1)
+block1(v4: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3(v4)
+block2:
+    v6 = imul v4, v3
+    v7 = iadd v4, v2
+    branch v5, block1(v7), block3(v6)
+block3(v8: i32):
+    return v8
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    jump block1(v1, v1)
+block1(v4: i32, v9: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3(v4)
+block2:
+    v6 = imul v4, v3
+    v7 = iadd v4, v2
+    v10 = iadd v9, v3
+    branch v5, block1(v7, v10), block3(v9)
+block3(v8: i32):
+    return v8
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Strength reduction updates check backedges.
+    #[test]
+    fn test_strength_reduce_check_latch() {
+        // source program
+        let input = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = icmp_ult v4, v3
+    branch v5, block2, block3
+block2:
+    v6 = imul v4, v3
+    v7 = iadd v6, v2
+    v8 = iadd v4, v2
+    v9 = icmp_ult v8, v3
+    check v9, bounds.unsigned v8, v3, v0, block1(v8), block4
+block4:
+    return
+block3:
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 8]) -> void {
+block0(v0: [i32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 8u32
+    jump block1(v1, v1)
+block1(v4: u32, v10: u32):
+    v5 = icmp_ult v4, v3
+    branch v5, block2, block4
+block2:
+    v6 = imul v4, v3
+    v7 = iadd v10, v2
+    v8 = iadd v4, v2
+    v9 = icmp_ult v8, v3
+    v11 = iadd v10, v3
+    check v9, bounds.unsigned v8, v3, v0, block1(v8, v11), block3
+block3:
+    return
+block4:
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Cheap induction adds are not strength reduced.
+    #[test]
+    fn test_strength_reduce_skip_add() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    jump block1(v1)
+block1(v3: i32):
+    v4 = icmp_slt v3, v0
+    branch v4, block2, block3
+block2:
+    v5 = iadd v3, v2
+    v6 = iadd v5, v2
+    jump block1(v5)
+block3:
+    return v3
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_unchanged(input);
+    }
+
+    /// Strength reduction skips unsafe invariant divisions.
+    #[test]
+    fn test_strength_reduce_skip_unsafe_division() {
+        // source program
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iconst 0i32
+    v3 = iconst 1i32
+    jump block1(v2)
+block1(v4: i32):
+    v5 = icmp_slt v4, v0
+    branch v5, block2, block3
+block2:
+    v6 = sdiv v0, v1
+    v7 = imul v4, v6
+    v8 = iadd v4, v3
+    jump block1(v8)
+block3:
+    return v4
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_unchanged(input);
+    }
+
+    /// Strength reduction skips signed division with potential min overflow.
+    #[test]
+    fn test_strength_reduce_skip_signed_divide_min_overflow() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 1i32
+    v2 = iconst -1i32
+    jump block1(v0)
+block1(v3: i32):
+    v4 = icmp_slt v3, v1
+    branch v4, block2, block3
+block2:
+    v5 = sdiv v3, v2
+    v6 = iadd v3, v1
+    jump block1(v6)
+block3:
+    return v3
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_unchanged(input);
+    }
+}

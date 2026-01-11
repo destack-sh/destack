@@ -184,8 +184,8 @@ Loop-specific transformations.
 | `loop-simplify` | LoopSimplify | function | O2 | ✓ | loops, cfg | Canonicalize loops (preheader, single latch, dedicated exits) |
 | `loop-rotate` | LoopRotate | function | O2 | ✓ | loops, cfg, domtree | Rotate simple loops (header with no instructions) |
 | `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree | Move pure loop-invariant computations to preheader |
-| `induction-simplify` | InductionVariableSimplify | function | O2 | | scalar-evolution | Simplify or eliminate derived induction variables |
-| `loop-strength-reduce` | LoopStrengthReduce | function | O2 | | scalar-evolution | Replace expensive ops (mul) with cheaper ones (add) |
+| `induction-simplify` | InductionVariableSimplify | function | O2 | ✓ | loops, cfg, scalar-evolution | Simplify or eliminate derived induction variables |
+| `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✓ | loops, cfg, domtree, scalar-evolution, ownership, range | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |
 | `loop-unroll` | LoopUnroll | function | O3 | | scalar-evolution | Unroll loops with known or small trip counts |
 | `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops, domtree | Move loop-invariant conditionals outside the loop |
@@ -203,34 +203,10 @@ These are MIR-only optimizations that justify having an optimizer above the back
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `devirtualize` | Devirtualize | function | O2 | | type-flow | Convert virtual calls to direct when concrete type is known |
-| `bounds-check-eliminate` | BoundsCheckEliminate | function | O1 | ✓ | range | Remove array bounds checks when provably safe |
+| `bounds-check-eliminate` | BoundsCheckEliminate | function | O1 | ✓ | constant-propagation, cfg, domtree, range | Remove array bounds checks when provably safe |
+| `loop-bounds-check-eliminate` | LoopBoundsCheckEliminate | function | O1 | ✓ | loops, cfg, domtree, scalar-evolution, range | Remove loop bounds checks dominated by loop guards |
 | `null-check-eliminate` | NullCheckEliminate | function | O2 | | type-flow | Remove null checks when provably non-null |
 | `specialize` | FunctionSpecialize | module | O3 | | callgraph | Create specialized versions for constant arguments |
-
-## Pass Structure
-
-Passes implement the `FunctionPass` or `ModulePass` interface:
-
-```ds
-interface FunctionPass extends Pass {
-    runOnFunction(
-        function: mut mir.Function,
-        tree: mut mir.NodeTree,
-        context: OptimizationContext,
-    ): AnalysisPreservation
-}
-
-interface ModulePass extends Pass {
-    runOnModule(
-        tree: mut mir.NodeTree,
-        context: OptimizationContext,
-    ): AnalysisPreservation
-}
-```
-
-The `AnalysisPreservation` return value tells the pass manager which cached analyses are still valid.
-Return `AnalysisPreservation.all()` if no changes were made.
-Return `AnalysisPreservation.none()` if any cached analysis may be invalidated.
 
 ## Pipeline
 
