@@ -1,6 +1,7 @@
 mod aggregate;
 mod layout;
 mod lower;
+mod resolve;
 mod scalar;
 
 pub(crate) use layout::*;

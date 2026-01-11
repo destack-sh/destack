@@ -81,4 +81,6 @@ pub(crate) struct BlockLowerer<'a, 'b> {
     pub(crate) loops_by_symbol: &'b mut HashMap<GlobalSymbolId, LoopContext>,
     /// Track loop nesting for unlabeled break/continue.
     pub(crate) loop_stack: &'b mut Vec<LoopContext>,
+    /// Binding for `this` in method bodies.
+    pub(crate) this_binding: Option<LocalBinding>,
 }

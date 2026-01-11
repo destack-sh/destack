@@ -9,7 +9,7 @@ This document describes how Destack's high-level semantic representation (elabor
 ## Objectives
 
 The overarching dream is **Rust performance with TypeScript semantics and ergonomics**.
-Naturally, these two are in some tension, and we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance without requiring any changes:  
+Naturally, performance and ergonomics are in some tension, and we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level reliable performance without _requiring_ additional changes:  
 
 - **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
 - **Average case (target):** Go-tier performance (efficient GC, good concurrency)
@@ -112,7 +112,7 @@ language/builtin/
 |----------|----------|-----|
 | Memory | `memcpy`, `memset`, `alloc`, `free` | `Intrinsic::Memcpy`, etc. |
 | Arithmetic | `add.overflow`, `add.unchecked`, `add.sat` | `Intrinsic::AddOverflow`, etc. |
-| Atomics | `atomic_load`, `atomic_cas` | `Intrinsic::AtomicLoad`, etc. |
+| Atomics | `atomic.load`, `atomic.cas` | `Intrinsic::AtomicLoad`, etc. |
 
 # Interoperability
 
@@ -423,7 +423,7 @@ non-erasable value parameters like `const N: int`.)
 ## Name Mangling
 
 Monomorphized functions need unique, deterministic names for linking.
-We use a human-readable scheme (inspired by Rust/Zig):
+We use a human-readable scheme (inspired by Rust and Zig):
 
 **Format:** `@<module_path>.<type>.<method>__<type_args>__h<hash>`
 
@@ -454,7 +454,8 @@ This is determined by Analyze and attached to DIR nodes.
 - **Dispatch** answers: "How do we invoke that target at runtime?"
 
 Even with `Resolution::Static`, the target may require vtable dispatch if it's a virtual method on a polymorphic type.
-`Resolution::Dynamic` is specifically for *union symbols* where different union variants call different target symbols (but, remember, symbols are polymorphic in DIR so this may be different MIR symbols even for the same DIR symbols).
+Dynamic resolutions are reified into if-else chains with `is` type checks in the Elaborate phase; i.e., the Lower phase only sees `Resolution::Static` and `Resolution::Builtin`.
+(`Resolution::Dynamic` is specifically for *union symbols* where different union variants call different target symbols; but, remember, symbols are polymorphic in DIR so this may be different MIR symbols even for the same DIR symbols).
 
 ### Builtin Resolution
 

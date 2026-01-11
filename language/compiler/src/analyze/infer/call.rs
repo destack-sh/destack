@@ -947,7 +947,6 @@ impl Compiler {
         if let Some(member_symbol) = resolved.member_symbol {
             let mut instance_arguments = resolved.inherited_arguments.clone();
             instance_arguments.extend(resolved.signature.static_arguments.clone());
-
             if !instance_arguments.is_empty() {
                 instance_id = Some(self.register_instance_for_node(
                     expression_id.into_global_any(module.id),

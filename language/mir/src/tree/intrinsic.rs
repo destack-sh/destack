@@ -127,10 +127,6 @@ pub enum Intrinsic {
     /// Called before writing a managed reference to shade the new value grey.
     /// `(ptr, val) -> ()`
     GcWriteBarrier,
-    /// GC read barrier.
-    /// Called when reading a managed reference.
-    /// `(ptr) -> ()`
-    GcReadBarrier,
 
     // atomics
     // Memory ordering is specified via an argument to the instruction.
@@ -354,7 +350,6 @@ impl Intrinsic {
 
             // garbage collection
             Intrinsic::GcWriteBarrier => "gc.write_barrier",
-            Intrinsic::GcReadBarrier => "gc.read_barrier",
 
             // atomics
             Intrinsic::AtomicLoad => "atomic.load",
@@ -509,7 +504,6 @@ impl Intrinsic {
                 | Intrinsic::PrefetchRead
                 | Intrinsic::PrefetchWrite
                 | Intrinsic::GcWriteBarrier
-                | Intrinsic::GcReadBarrier
                 | Intrinsic::AtomicLoad
                 | Intrinsic::AtomicStore
                 | Intrinsic::AtomicCas
@@ -570,7 +564,6 @@ impl FromStr for Intrinsic {
             "ptr_offset_from" => Ok(Intrinsic::PtrOffsetFrom),
             "raw_eq" => Ok(Intrinsic::RawEq),
             "gc.write_barrier" => Ok(Intrinsic::GcWriteBarrier),
-            "gc.read_barrier" => Ok(Intrinsic::GcReadBarrier),
             "atomic.load" => Ok(Intrinsic::AtomicLoad),
             "atomic.store" => Ok(Intrinsic::AtomicStore),
             "atomic.cas" => Ok(Intrinsic::AtomicCas),
@@ -809,7 +802,6 @@ impl Intrinsic {
 
             // garbage collection
             Intrinsic::GcWriteBarrier => IntrinsicSignature::GcBarrier { args: 2 },
-            Intrinsic::GcReadBarrier => IntrinsicSignature::GcBarrier { args: 1 },
 
             // atomics (all require ordering)
             Intrinsic::AtomicLoad => IntrinsicSignature::Atomic {

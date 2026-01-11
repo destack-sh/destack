@@ -93,3 +93,153 @@ function makeReversed(a: number, b: number): number {
         Value::float64(12.0),
     );
 }
+
+/// Lower struct with a simple method call.
+#[test]
+#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
+fn test_struct_method_call() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point {
+    x: int32
+    y: int32
+
+    sum(): int32 {
+        this.x + this.y
+    }
+}
+
+function getSum(a: int32, b: int32): int32 {
+    let p: Point = Point { x: a, y: b };
+    p.sum()
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "getSum",
+        &[Value::int32(3), Value::int32(4)],
+        Value::int32(7),
+    );
+}
+
+/// Lower struct method that returns a new instance of the same type.
+#[test]
+#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
+fn test_struct_method_returning_self() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Counter {
+    value: int32
+
+    increment(): Counter {
+        Counter { value: this.value + 1 }
+    }
+}
+
+function bump(n: int32): int32 {
+    let c: Counter = Counter { value: n };
+    let c2: Counter = c.increment();
+    c2.value
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "bump",
+        &[Value::int32(5)],
+        Value::int32(6),
+    );
+}
+
+/// Lower struct method with parameters.
+#[test]
+#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
+fn test_struct_method_with_parameters() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Adder {
+    base: int32
+
+    add(n: int32): int32 {
+        this.base + n
+    }
+}
+
+function compute(base: int32, delta: int32): int32 {
+    let a: Adder = Adder { base: base };
+    a.add(delta)
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "compute",
+        &[Value::int32(10), Value::int32(5)],
+        Value::int32(15),
+    );
+}
+
+/// Lower chained method calls.
+#[test]
+#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
+fn test_struct_chained_method_calls() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Counter {
+    value: int32
+
+    increment(): Counter {
+        Counter { value: this.value + 1 }
+    }
+
+    getValue(): int32 {
+        this.value
+    }
+}
+
+function bumpTwice(n: int32): int32 {
+    let c: Counter = Counter { value: n };
+    c.increment().increment().getValue()
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "bumpTwice",
+        &[Value::int32(0)],
+        Value::int32(2),
+    );
+}

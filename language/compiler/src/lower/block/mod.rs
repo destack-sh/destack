@@ -4,3 +4,4 @@ mod function;
 mod statement;
 
 pub(crate) use block::*;
+pub(crate) use function::FunctionLowerer;
