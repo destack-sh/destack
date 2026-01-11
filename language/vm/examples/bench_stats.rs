@@ -48,7 +48,7 @@ struct Args {
     #[arg(long)]
     deterministic: bool,
 
-    /// Disable runtime checks for faster benchmarking.
+    /// Disable runtime checks and stats for faster benchmarking.
     #[arg(long)]
     fast: bool,
 

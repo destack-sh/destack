@@ -1438,6 +1438,8 @@ pub(super) fn handle_call_indirect(
         dest,
         callee,
         arguments,
+        cached_function,
+        cached_index,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1457,10 +1459,33 @@ pub(super) fn handle_call_indirect(
         }
     };
 
+    // reuse cached callee index when possible
+    if cached_function.get() == Some(function) {
+        let cached_index = cached_index.get().unwrap_or(INVALID_FUNCTION_INDEX);
+        return ControlFlow::Call {
+            function,
+            callee_index: cached_index,
+            destination: *dest,
+            arguments: *arguments,
+            copies: None,
+            resume_pc: pc + 1,
+        };
+    }
+
+    // resolve callee index and update cache
+    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+    let resolved_index = state
+        .interpreter
+        .threaded_functions
+        .index_for(function_id)
+        .unwrap_or(INVALID_FUNCTION_INDEX);
+    cached_function.set(Some(function));
+    cached_index.set(Some(resolved_index));
+
     // return control to trampoline
     ControlFlow::Call {
         function,
-        callee_index: INVALID_FUNCTION_INDEX,
+        callee_index: resolved_index,
         destination: *dest,
         arguments: *arguments,
         copies: None,
@@ -1580,7 +1605,9 @@ pub(super) fn handle_global_load(
     };
 
     // track loads
-    stat_inc!(state.interpreter.statistics, loads);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, loads);
+    }
 
     // load global value directly
     let global_id = global_id(*global);
@@ -1614,7 +1641,9 @@ pub(super) fn handle_global_store(
     };
 
     // track stores
-    stat_inc!(state.interpreter.statistics, stores);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, stores);
+    }
 
     // load value to store
     let val = state.get(*value);
@@ -2043,7 +2072,9 @@ pub(super) fn handle_field_store_inline(
     };
 
     // track stores
-    stat_inc!(state.interpreter.statistics, stores);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, stores);
+    }
 
     // load aggregate and extract heap handle
     let agg = state.get(*aggregate);
@@ -3834,7 +3865,9 @@ pub(super) fn handle_managed_alloc(
             .managed_heap
             .allocate_with_slots(*slot_count as usize)
     };
-    state.interpreter.statistics.heap_allocations += 1;
+    if state.collect_stats {
+        state.interpreter.statistics.heap_allocations += 1;
+    }
     let value = Value::managed_reference_with_meta(handle, *reference);
 
     // validate reference kind
@@ -3875,7 +3908,9 @@ pub(super) fn handle_managed_alloc_array(
 
     // allocate heap cell with slots
     let handle = state.interpreter.managed_heap.allocate_with_slots(length);
-    state.interpreter.statistics.heap_allocations += 1;
+    if state.collect_stats {
+        state.interpreter.statistics.heap_allocations += 1;
+    }
     let value = Value::managed_reference_with_meta(handle, *reference);
 
     // validate reference kind
@@ -3919,7 +3954,9 @@ pub(super) fn handle_raw_alloc(
             .raw_heap
             .allocate_with_slots(*slot_count as usize)
     };
-    state.interpreter.statistics.heap_allocations += 1;
+    if state.collect_stats {
+        state.interpreter.statistics.heap_allocations += 1;
+    }
     let value = Value::raw_pointer_with_meta(ptr, *reference);
 
     // validate reference kind
@@ -4176,7 +4213,9 @@ pub(super) fn handle_branch(
     let is_truthy = cond.is_truthy();
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // handle truthy branch
     if is_truthy {
@@ -4219,7 +4258,9 @@ pub(super) fn handle_branch_bool(
     let is_truthy = cond.raw_data() != 0;
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // handle truthy branch
     if is_truthy {
@@ -4276,7 +4317,9 @@ pub(super) fn handle_compare_and_branch_int(
     };
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // branch based on comparison result
     if is_truthy {
@@ -4327,7 +4370,9 @@ pub(super) fn handle_compare_and_branch_uint(
     };
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // branch based on comparison result
     if is_truthy {
@@ -4380,7 +4425,9 @@ pub(super) fn handle_compare_and_branch_float(
     };
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // branch based on comparison result
     if is_truthy {
@@ -4445,7 +4492,9 @@ pub(super) fn handle_compare_and_branch(
     };
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // branch based on comparison result
     if is_truthy {
@@ -4483,7 +4532,9 @@ pub(super) fn handle_switch(
     let int_val = switch_val.as_int().unwrap_or(0);
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // find matching case
     let case_slice = state.switch_cases(*cases);
@@ -4527,7 +4578,9 @@ pub(super) fn handle_switch_int(
     let int_val = switch_val.raw_data() as i64;
 
     // update branch statistics
-    stat_inc!(state.interpreter.statistics, branches);
+    if state.collect_stats {
+        stat_inc!(state.interpreter.statistics, branches);
+    }
 
     // find matching case
     let case_slice = state.switch_cases(*cases);
@@ -4670,7 +4723,9 @@ fn enter_tail_call(
     }
 
     // update statistics
-    state.interpreter.statistics.calls_made += 1;
+    if state.collect_stats {
+        state.interpreter.statistics.calls_made += 1;
+    }
 
     // keep frame ready for entry execution
 }
@@ -4766,7 +4821,9 @@ pub(super) fn handle_tail_call_self(
     // collect argument values
     let args = collect_values(state, *arguments);
 
-    state.interpreter.statistics.calls_made += 1;
+    if state.collect_stats {
+        state.interpreter.statistics.calls_made += 1;
+    }
 
     // resolve current function entry block
     let (threaded_ptr, value_base, value_count, local_base, local_count) = {
@@ -4820,7 +4877,13 @@ pub(super) fn handle_tail_call_indirect(
     pc: usize,
 ) -> ControlFlow {
     // decode instruction data
-    let ThreadedInstructionData::TailCallIndirect { callee, arguments } = &block[pc].data else {
+    let ThreadedInstructionData::TailCallIndirect {
+        callee,
+        arguments,
+        cached_function,
+        cached_ptr,
+    } = &block[pc].data
+    else {
         unreachable!()
     };
 
@@ -4838,12 +4901,36 @@ pub(super) fn handle_tail_call_indirect(
         }
     };
 
-    // resolve callee index
+    // resolve callee id
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+
+    // reuse cached callee pointer when possible
+    if cached_function.get() == Some(function) {
+        if let Some(callee_ptr) = cached_ptr.get() {
+            let callee = unsafe { callee_ptr.as_ref() };
+            let argument_values = collect_values(state, *arguments);
+            enter_tail_call(state, function_id, callee, &argument_values);
+            let entry_block_ptr = state.current_frame_mut().block_ptr;
+            let entry_block = unsafe { entry_block_ptr.as_ref() };
+            let entry_instructions = entry_block.instructions.as_slice();
+            become (entry_instructions[0].handler)(state, entry_instructions, 0)
+        }
+
+        return ControlFlow::TailCall {
+            function,
+            callee_index: INVALID_FUNCTION_INDEX,
+            arguments: *arguments,
+            copies: None,
+        };
+    }
+
+    // resolve callee index
     let resolved_index = state.interpreter.threaded_functions.index_for(function_id);
 
     // fall back to trampoline for non-threaded targets
     let Some(resolved_index) = resolved_index else {
+        cached_function.set(Some(function));
+        cached_ptr.set(None);
         return ControlFlow::TailCall {
             function,
             callee_index: INVALID_FUNCTION_INDEX,
@@ -4856,6 +4943,8 @@ pub(super) fn handle_tail_call_indirect(
         .threaded_functions
         .get_ptr_by_index(resolved_index)
     else {
+        cached_function.set(Some(function));
+        cached_ptr.set(None);
         return ControlFlow::TailCall {
             function,
             callee_index: INVALID_FUNCTION_INDEX,
@@ -4863,6 +4952,8 @@ pub(super) fn handle_tail_call_indirect(
             copies: None,
         };
     };
+    cached_function.set(Some(function));
+    cached_ptr.set(Some(callee_ptr));
     let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
