@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
+use crate::optimize::analyses::ControlFlowGraph;
+
 /// Check if a terminator uses a specific value.
 ///
 /// Returns true if the value appears in any operand position of the terminator.
@@ -197,6 +199,118 @@ pub enum SuccessorArguments<'a> {
     Consistent(&'a [mir::Value]),
     /// Multiple edges to the successor disagree on arguments.
     Conflict,
+}
+
+/// Forwarding information for block parameters.
+#[derive(Debug, Clone)]
+pub struct BlockParamForwarding {
+    /// Mapping from block parameters to their forwarded arguments.
+    map: HashMap<mir::Value, mir::Value>,
+}
+
+impl BlockParamForwarding {
+    /// Build forwarding information for block parameters.
+    pub fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+        // map parameters to consistent incoming values
+        let mut map = HashMap::new();
+
+        // scan blocks for forwarded parameters
+        for &block_id in &function.blocks {
+            // read block parameters
+            let block = tree.get(block_id);
+            if block.parameters.is_empty() {
+                continue;
+            }
+
+            // track candidates and conflicts per parameter
+            let mut candidates: Vec<Option<mir::Value>> = vec![None; block.parameters.len()];
+            let mut conflicts = vec![false; block.parameters.len()];
+            let mut saw_pred = false;
+
+            for &pred in cfg.predecessors(block_id) {
+                // read arguments for the predecessor edge
+                let successor_args = terminator_arguments_for_successor_checked(
+                    &tree.get(pred).terminator,
+                    block_id,
+                );
+
+                let args = match successor_args {
+                    SuccessorArguments::Consistent(args) => args,
+                    _ => {
+                        conflicts.fill(true);
+                        continue;
+                    }
+                };
+
+                // mark the presence of a predecessor
+                saw_pred = true;
+
+                // reject mismatched arity
+                if args.len() != block.parameters.len() {
+                    conflicts.fill(true);
+                    continue;
+                }
+
+                // reconcile candidates
+                for (index, arg) in args.iter().enumerate() {
+                    if conflicts[index] {
+                        continue;
+                    }
+
+                    match candidates[index] {
+                        None => candidates[index] = Some(*arg),
+                        Some(existing) if existing == *arg => {}
+                        _ => conflicts[index] = true,
+                    }
+                }
+            }
+
+            // skip blocks with no predecessors
+            if !saw_pred {
+                continue;
+            }
+
+            // record non conflicting mappings
+            for (index, param) in block.parameters.iter().enumerate() {
+                if conflicts[index] {
+                    continue;
+                }
+
+                let Some(candidate) = candidates[index] else {
+                    continue;
+                };
+
+                if candidate != param.value {
+                    map.insert(param.value, candidate);
+                }
+            }
+        }
+
+        Self { map }
+    }
+
+    /// Resolve a value through forwarding chains.
+    pub fn resolve(&self, value: mir::Value) -> mir::Value {
+        // walk forwarding chains
+        let mut current = value;
+        let mut visited: Vec<mir::Value> = Vec::new();
+
+        // follow forwarding links
+        loop {
+            let Some(next) = self.map.get(&current) else {
+                break;
+            };
+
+            if visited.contains(&current) {
+                break;
+            }
+
+            visited.push(current);
+            current = *next;
+        }
+
+        current
+    }
 }
 
 /// Get the arguments passed to a successor, reporting conflicts.

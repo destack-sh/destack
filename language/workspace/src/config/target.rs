@@ -390,7 +390,7 @@ impl SafetyPreset {
 }
 
 /// Runtime check policy bundle for safety presets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RuntimeCheckPolicies {
     /// Overflow check policy.
     pub overflow: OverflowCheckPolicy,
@@ -402,18 +402,6 @@ pub struct RuntimeCheckPolicies {
     pub division: DivisionCheckPolicy,
     /// Shift range check policy.
     pub shift: ShiftCheckPolicy,
-}
-
-impl Default for RuntimeCheckPolicies {
-    fn default() -> Self {
-        Self {
-            overflow: OverflowCheckPolicy::default(),
-            bounds: BoundsCheckPolicy::default(),
-            null: NullCheckPolicy::default(),
-            division: DivisionCheckPolicy::default(),
-            shift: ShiftCheckPolicy::default(),
-        }
-    }
 }
 
 /// Null check policy for reference operations.

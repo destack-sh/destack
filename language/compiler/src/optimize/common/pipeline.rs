@@ -13,10 +13,10 @@ use super::context::DiagnosticEmitter;
 use super::pass::OptimizationLevel;
 use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, ConstantFold, CopyPropagate, DeadCodeEliminate,
-    DeadStoreEliminate, DropInsert, GlobalValueNumbering, InstructionCombine, Licm,
-    LoadStoreForward, LocalCse, LoopDelete, LoopRotate, LoopSimplify, LoopUnswitch, Mem2Reg,
-    MoveCheck, SimplifyCfg, Sink, SparseConditionalConstantPropagation, Sroa, StackCheck,
-    TailCallElim,
+    DeadStoreEliminate, DropInsert, GlobalValueNumbering, InductionVariableSimplify,
+    InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete,
+    LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnswitch, Mem2Reg, MoveCheck, SimplifyCfg,
+    Sink, SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -621,8 +621,13 @@ fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
 }
 
 fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
-    let mut passes: Vec<Box<dyn FunctionPass>> =
-        vec![Box::new(LoopSimplify), Box::new(Licm), Box::new(LoopRotate)];
+    let mut passes: Vec<Box<dyn FunctionPass>> = vec![
+        Box::new(LoopSimplify),
+        Box::new(Licm),
+        Box::new(LoopRotate),
+        Box::new(InductionVariableSimplify),
+        Box::new(LoopStrengthReduce),
+    ];
     if aggressive {
         passes.push(Box::new(LoopUnswitch));
     }
@@ -631,7 +636,10 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 }
 
 fn optimize_types() -> Vec<Box<dyn FunctionPass>> {
-    vec![Box::new(BoundsCheckEliminate)]
+    vec![
+        Box::new(BoundsCheckEliminate),
+        Box::new(LoopBoundsCheckEliminate),
+    ]
 }
 
 fn cleanup() -> Vec<Box<dyn FunctionPass>> {

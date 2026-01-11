@@ -10,6 +10,9 @@ use crate::optimize::{Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, 
 
 use super::Lattice;
 
+// limit block refinement iterations before widening
+const RANGE_WIDEN_THRESHOLD: u32 = 32;
+
 /// Range information for a value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueRange {
@@ -269,6 +272,13 @@ impl RangeMap {
     pub fn remove(&mut self, value: mir::Value) {
         self.ranges.remove(&value);
     }
+
+    /// Widen all ranges to their full type bounds.
+    pub fn widen_all(&mut self) {
+        for range in self.ranges.values_mut() {
+            *range = widen_range(range);
+        }
+    }
 }
 
 impl Lattice for RangeMap {
@@ -318,6 +328,7 @@ impl RangeAnalysis {
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
         let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+        let mut update_counts: HashMap<mir::LocalNodeId<mir::Block>, u32> = HashMap::new();
         worklist.push_back(entry);
         in_worklist.insert(entry);
 
@@ -363,6 +374,14 @@ impl RangeAnalysis {
                 .unwrap_or(true);
 
             if entry_changed || block_id == entry {
+                if entry_changed {
+                    let count = update_counts.entry(block_id).or_insert(0);
+                    *count += 1;
+                    if *count > RANGE_WIDEN_THRESHOLD {
+                        entry_state.widen_all();
+                    }
+                }
+
                 block_entry.insert(block_id, entry_state.clone());
 
                 // transfer through block
@@ -425,6 +444,22 @@ impl FunctionAnalysis for RangeAnalysis {
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
         Self::build(function, tree, &cfg)
+    }
+}
+
+/// Widen a value range to its full type bounds.
+fn widen_range(range: &ValueRange) -> ValueRange {
+    match range {
+        ValueRange::Float { width, .. } => {
+            float_full_range(*width).unwrap_or_else(|| range.clone())
+        }
+        ValueRange::Boolean { .. } => ValueRange::Boolean {
+            can_be_true: true,
+            can_be_false: true,
+        },
+        ValueRange::Integer {
+            width, is_signed, ..
+        } => integer_full_range(*width, *is_signed).unwrap_or_else(|| range.clone()),
     }
 }
 

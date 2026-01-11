@@ -3,9 +3,8 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    SuccessorArguments, constant_from_global, constant_is_one, constant_is_zero,
+    BlockParamForwarding, constant_from_global, constant_is_one, constant_is_zero,
     constant_zero_for_type, constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
-    terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
@@ -140,10 +139,14 @@ impl ScalarEvolution {
         // build definition metadata for values
         let definitions = ValueDefinitions::build(function, tree);
 
+        // build block parameter forwarding
+        let forwarding = BlockParamForwarding::build(function, tree, cfg);
+
         // compute per loop SCEV maps
         let mut loop_scev = HashMap::new();
         for (loop_index, lp) in loops.loops().iter().enumerate() {
-            let mut builder = LoopScevBuilder::new(function, tree, cfg, lp, &definitions);
+            let mut builder =
+                LoopScevBuilder::new(function, tree, cfg, lp, &definitions, &forwarding);
             let scev_map = builder.build();
             loop_scev.insert(loop_index, scev_map);
         }
@@ -267,6 +270,8 @@ struct LoopScevBuilder<'a> {
     lp: &'a Loop,
     /// Value definition metadata.
     definitions: &'a ValueDefinitions,
+    /// Block parameter forwarding information.
+    forwarding: &'a BlockParamForwarding,
     /// Loop invariant values.
     invariants: HashSet<mir::Value>,
     /// Cached SCEV expressions.
@@ -283,6 +288,7 @@ impl<'a> LoopScevBuilder<'a> {
         cfg: &'a ControlFlowGraph,
         lp: &'a Loop,
         definitions: &'a ValueDefinitions,
+        forwarding: &'a BlockParamForwarding,
     ) -> Self {
         let invariants = collect_loop_invariants(function, tree, lp, definitions);
 
@@ -291,6 +297,7 @@ impl<'a> LoopScevBuilder<'a> {
             cfg,
             lp,
             definitions,
+            forwarding,
             invariants,
             cache: HashMap::new(),
             in_progress: HashSet::new(),
@@ -605,7 +612,7 @@ impl<'a> LoopScevBuilder<'a> {
         param_index: usize,
     ) -> Option<Scev> {
         // resolve block parameter forwarding
-        let latch_arg = self.resolve_forwarded_value(latch_arg);
+        let latch_arg = self.forwarding.resolve(latch_arg);
 
         // build a zero step for the parameter type
         let step_zero = zero_constant_for_param(self.tree, self.lp.header, param_index)?;
@@ -623,7 +630,7 @@ impl<'a> LoopScevBuilder<'a> {
         step_zero: &Scev,
     ) -> Option<Scev> {
         // resolve forwarded block parameters
-        let value = self.resolve_forwarded_value(value);
+        let value = self.forwarding.resolve(value);
 
         // param itself represents a zero step
         if value == param_value {
@@ -677,70 +684,6 @@ impl<'a> LoopScevBuilder<'a> {
                 None
             }
             _ => None,
-        }
-    }
-
-    /// Resolve forwarded block parameters to their consistent arguments.
-    fn resolve_forwarded_value(&self, value: mir::Value) -> mir::Value {
-        let mut current = value;
-        let mut visited = HashSet::new();
-
-        // follow consistent parameter forwarding chains
-        loop {
-            if !visited.insert(current) {
-                return current;
-            }
-
-            let Some(definition) = self.definitions.definition_for(current) else {
-                return current;
-            };
-
-            let ValueDefinitionKind::Parameter { index } = definition.kind else {
-                return current;
-            };
-
-            let block_id = definition.block;
-            let block = self.tree.get(block_id);
-            if block.parameters.len() <= index {
-                return current;
-            }
-
-            let mut forwarded: Option<mir::Value> = None;
-            let mut saw_pred = false;
-
-            for &pred in self.cfg.predecessors(block_id) {
-                let args = match terminator_arguments_for_successor_checked(
-                    &self.tree.get(pred).terminator,
-                    block_id,
-                ) {
-                    SuccessorArguments::Missing => continue,
-                    SuccessorArguments::Conflict => return current,
-                    SuccessorArguments::Consistent(args) => args,
-                };
-
-                saw_pred = true;
-                let Some(arg) = args.get(index).copied() else {
-                    return current;
-                };
-
-                if let Some(existing) = forwarded {
-                    if existing != arg {
-                        return current;
-                    }
-                } else {
-                    forwarded = Some(arg);
-                }
-            }
-
-            if !saw_pred {
-                return current;
-            }
-
-            let Some(arg) = forwarded else {
-                return current;
-            };
-
-            current = arg;
         }
     }
 
