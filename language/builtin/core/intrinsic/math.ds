@@ -1,0 +1,116 @@
+// Floating-point math intrinsics.
+//
+// Mathematical functions that map to hardware instructions when available.
+// These operate on floating-point types (float32, float64/number).
+
+import { intrinsic } from "./decorator.ds";
+
+// unary functions
+
+/// Square root.
+@intrinsic("sqrt")
+export declare function sqrt<T extends float>(x: T): T;
+
+/// Absolute value.
+@intrinsic("abs")
+export declare function abs<T extends float>(x: T): T;
+
+/// Sine.
+@intrinsic("sin")
+export declare function sin<T extends float>(x: T): T;
+
+/// Cosine.
+@intrinsic("cos")
+export declare function cos<T extends float>(x: T): T;
+
+/// Tangent.
+@intrinsic("tan")
+export declare function tan<T extends float>(x: T): T;
+
+/// Arc sine (inverse sine).
+@intrinsic("asin")
+export declare function asin<T extends float>(x: T): T;
+
+/// Arc cosine (inverse cosine).
+@intrinsic("acos")
+export declare function acos<T extends float>(x: T): T;
+
+/// Arc tangent (inverse tangent).
+@intrinsic("atan")
+export declare function atan<T extends float>(x: T): T;
+
+/// Natural exponential (e^x).
+@intrinsic("exp")
+export declare function exp<T extends float>(x: T): T;
+
+/// Base-2 exponential (2^x).
+@intrinsic("exp2")
+export declare function exp2<T extends float>(x: T): T;
+
+/// Natural logarithm (ln).
+@intrinsic("log")
+export declare function log<T extends float>(x: T): T;
+
+/// Base-2 logarithm.
+@intrinsic("log2")
+export declare function log2<T extends float>(x: T): T;
+
+/// Base-10 logarithm.
+@intrinsic("log10")
+export declare function log10<T extends float>(x: T): T;
+
+/// Round toward negative infinity.
+@intrinsic("floor")
+export declare function floor<T extends float>(x: T): T;
+
+/// Round toward positive infinity.
+@intrinsic("ceil")
+export declare function ceil<T extends float>(x: T): T;
+
+/// Round toward zero (truncate).
+@intrinsic("trunc")
+export declare function trunc<T extends float>(x: T): T;
+
+/// Round to nearest integer, ties to even.
+@intrinsic("round")
+export declare function round<T extends float>(x: T): T;
+
+// binary functions
+
+/// Arc tangent of y/x (two-argument form).
+///
+/// Returns the angle in radians between the positive x-axis and the point (x, y).
+/// Handles quadrant determination correctly.
+@intrinsic("atan2")
+export declare function atan2<T extends float>(y: T, x: T): T;
+
+/// Power (base^exponent).
+@intrinsic("pow")
+export declare function pow<T extends float>(base: T, exponent: T): T;
+
+/// Copy sign.
+///
+/// Returns a value with the magnitude of `magnitude` and the sign of `sign`.
+@intrinsic("copysign")
+export declare function copysign<T extends float>(magnitude: T, sign: T): T;
+
+/// Minimum of two floats.
+///
+/// Returns the smaller of two values (IEEE 754 minNum semantics).
+@intrinsic("min")
+export declare function min<T extends float>(a: T, b: T): T;
+
+/// Maximum of two floats.
+///
+/// Returns the larger of two values (IEEE 754 maxNum semantics).
+@intrinsic("max")
+export declare function max<T extends float>(a: T, b: T): T;
+
+// ternary functions
+
+/// Fused multiply-add.
+///
+/// Computes (a * b) + c with a single rounding operation.
+/// More accurate than separate multiply and add operations.
+@intrinsic("fma")
+export declare function fma<T extends float>(a: T, b: T, c: T): T;

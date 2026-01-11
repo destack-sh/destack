@@ -1,0 +1,111 @@
+// Atomic operation intrinsics.
+//
+// Lock-free atomic operations for concurrent programming.
+// All operations take a memory ordering parameter.
+
+import { intrinsic } from "./decorator.ds";
+
+/// Memory ordering for atomic operations.
+///
+/// Specifies how memory accesses around atomic operations can be reordered.
+export enum MemoryOrdering {
+    /// No ordering constraints. Fastest but provides no synchronization.
+    Relaxed,
+    /// Acquire ordering for loads. Prevents reordering of subsequent reads/writes.
+    Acquire,
+    /// Release ordering for stores. Prevents reordering of prior reads/writes.
+    Release,
+    /// Acquire-release ordering. Combines Acquire and Release.
+    AcqRel,
+    /// Sequentially consistent ordering. Strongest guarantee.
+    SeqCst,
+}
+
+/// Atomic load.
+///
+/// Atomically reads the value at `ptr` with the specified memory ordering.
+@intrinsic("atomic.load")
+export declare function atomicLoad<T>(ptr: *T, order: MemoryOrdering): T;
+
+/// Atomic store.
+///
+/// Atomically writes `value` to `ptr` with the specified memory ordering.
+@intrinsic("atomic.store")
+export declare function atomicStore<T>(ptr: *T, value: T, order: MemoryOrdering): void;
+
+/// Atomic compare-and-swap.
+///
+/// Atomically compares the value at `ptr` with `expected`.
+/// If equal, stores `desired` and returns success=true with the original value.
+/// If not equal, returns success=false with the current value.
+@intrinsic("atomic.cas")
+export declare function atomicCas<T>(
+    ptr: *T,
+    expected: T,
+    desired: T,
+    successOrder: MemoryOrdering,
+    failureOrder: MemoryOrdering
+): { success: boolean, value: T };
+
+/// Atomic exchange.
+///
+/// Atomically replaces the value at `ptr` with `value`.
+/// Returns the previous value.
+@intrinsic("atomic.xchg")
+export declare function atomicExchange<T>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-add.
+///
+/// Atomically adds `value` to the value at `ptr`.
+/// Returns the previous value before the addition.
+@intrinsic("atomic.fetch.add")
+export declare function atomicFetchAdd<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-subtract.
+///
+/// Atomically subtracts `value` from the value at `ptr`.
+/// Returns the previous value before the subtraction.
+@intrinsic("atomic.fetch.sub")
+export declare function atomicFetchSub<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-bitwise-and.
+///
+/// Atomically performs bitwise AND of `value` with the value at `ptr`.
+/// Returns the previous value before the operation.
+@intrinsic("atomic.fetch.and")
+export declare function atomicFetchAnd<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-bitwise-or.
+///
+/// Atomically performs bitwise OR of `value` with the value at `ptr`.
+/// Returns the previous value before the operation.
+@intrinsic("atomic.fetch.or")
+export declare function atomicFetchOr<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-bitwise-xor.
+///
+/// Atomically performs bitwise XOR of `value` with the value at `ptr`.
+/// Returns the previous value before the operation.
+@intrinsic("atomic.fetch.xor")
+export declare function atomicFetchXor<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-min.
+///
+/// Atomically stores the minimum of the current value and `value`.
+/// Returns the previous value before the operation.
+@intrinsic("atomic.fetch.min")
+export declare function atomicFetchMin<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Atomic fetch-and-max.
+///
+/// Atomically stores the maximum of the current value and `value`.
+/// Returns the previous value before the operation.
+@intrinsic("atomic.fetch.max")
+export declare function atomicFetchMax<T extends int>(ptr: *T, value: T, order: MemoryOrdering): T;
+
+/// Memory fence.
+///
+/// Establishes a memory ordering constraint without an associated atomic operation.
+/// Prevents reordering of memory accesses across the fence.
+@intrinsic("atomic.fence")
+export declare function atomicFence(order: MemoryOrdering): void;

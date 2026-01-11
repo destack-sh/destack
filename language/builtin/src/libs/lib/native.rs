@@ -154,12 +154,7 @@ const LIB_NATIVE_SYNC_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
     include_str!("../../../lib/native/sync/index.ds"),
 );
 
-const LIB_NATIVE_SYNC_ATOMIC_DS: BuiltinLibSource = BuiltinLibSource::new(
-    "lib",
-    "native/sync",
-    "atomic.ds",
-    include_str!("../../../lib/native/sync/atomic.ds"),
-);
+// NOTE: atomic.ds moved to @core/intrinsic/atomic.ds
 
 // math/
 const LIB_NATIVE_MATH_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
@@ -217,7 +212,7 @@ pub const LIB_NATIVE: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_NATIVE_MEMORY_BUFFER_DS,
         // sync/
         LIB_NATIVE_SYNC_INDEX_DS,
-        LIB_NATIVE_SYNC_ATOMIC_DS,
+        // NOTE: atomic.ds moved to @core/intrinsic/atomic.ds
         // math/
         LIB_NATIVE_MATH_INDEX_DS,
         LIB_NATIVE_MATH_BITS_DS,
