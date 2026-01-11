@@ -211,9 +211,9 @@ These are MIR-only optimizations that justify having an optimizer above the back
 ## Pipeline
 
 Target pipelines evolve with new analyses, but the expected layering is:
-- `O1`: verify, local scalar cleanup, SSA/memory canonicalization, final cleanup
-- `O2`: `O1` + global scalar, memory optimizations, core loop transforms
-- `O3`: `O2` + aggressive loop transforms, vectorization, interprocedural passes
+- `O1`: verify, SSA/memory canonicalization, light scalar fixed-point, type cleanup
+- `O2`: `O1` + global scalar fixed-point islands around memory/loop/type transforms
+- `O3`: `O2` + more aggressive fixed-point islands and loop transforms
 
 Module passes run first, then function passes run on each function.
 Pipelines may iterate passes until a fixed point when profitable.
