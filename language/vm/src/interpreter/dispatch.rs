@@ -23,12 +23,6 @@ macro_rules! next {
     }};
 }
 
-/// Build a local id from a raw value.
-#[inline]
-fn local_id(raw: u32) -> mir::LocalNodeId<mir::Local> {
-    mir::LocalNodeId::new(raw)
-}
-
 /// Build a global id from a raw value.
 #[inline]
 fn global_id(raw: u32) -> mir::LocalNodeId<mir::Global> {
@@ -43,7 +37,7 @@ fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
 
 /// Collect argument values into a smallvec.
 #[inline]
-fn collect_values(state: &mut ThreadedState, arguments: ArgumentRange) -> SmallVec<[Value; 8]> {
+fn collect_values(state: &mut ThreadedState, arguments: ArgumentRange) -> SmallVec<[Value; 16]> {
     // load argument slice
     let argument_slice = state.argument_slice(arguments);
     let mut args = SmallVec::with_capacity(argument_slice.len());
@@ -1486,7 +1480,7 @@ pub(super) fn handle_local_get(
     };
 
     // load local value
-    let value = state.get_local(local_id(*local));
+    let value = state.get_local_by_index(*local);
 
     // store value
     state.set(*dest, value);
@@ -1511,7 +1505,7 @@ pub(super) fn handle_local_set(
     let val = state.get(*value);
 
     // store local value
-    state.set_local(local_id(*local), val);
+    state.set_local_by_index(*local, val);
 
     // continue to next instruction
     next!(state, block, pc)

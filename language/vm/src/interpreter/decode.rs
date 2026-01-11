@@ -13,7 +13,7 @@ use super::threaded::{
 };
 
 /// Storage class for pointer-like values.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PointerStorage {
     /// Managed heap reference.
     Managed,
@@ -28,7 +28,7 @@ enum PointerStorage {
 }
 
 /// Scalar and aggregate kinds used for typed dispatch selection.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ValueKind {
     /// Void value.
     Void,
@@ -84,6 +84,152 @@ impl ValueKinds {
             *slot = Some(kind);
         }
     }
+}
+
+/// Normalize value kinds for block parameters.
+fn kind_for_block_param(kind: ValueKind) -> ValueKind {
+    // keep the type but avoid picking a storage class too early
+    match kind {
+        ValueKind::Pointer {
+            pointee, reference, ..
+        } => ValueKind::Pointer {
+            pointee,
+            storage: PointerStorage::Unknown,
+            reference,
+        },
+        _ => kind,
+    }
+}
+
+/// Merge pointer storage classes when propagating block parameter kinds.
+fn merge_pointer_storage(existing: PointerStorage, incoming: PointerStorage) -> PointerStorage {
+    // prefer known storage, fall back to unknown when mismatched
+    match (existing, incoming) {
+        (PointerStorage::Unknown, other) => other,
+        (other, PointerStorage::Unknown) => other,
+        (left, right) if left == right => left,
+        _ => PointerStorage::Unknown,
+    }
+}
+
+/// Merge block parameter kinds with incoming argument kinds.
+fn merge_block_param_kind(existing: ValueKind, incoming: ValueKind) -> ValueKind {
+    // specialize pointer storage when possible
+    match (existing, incoming) {
+        (
+            ValueKind::Pointer {
+                pointee,
+                storage,
+                reference,
+            },
+            ValueKind::Pointer {
+                storage: incoming_storage,
+                ..
+            },
+        ) => ValueKind::Pointer {
+            pointee,
+            storage: merge_pointer_storage(storage, incoming_storage),
+            reference,
+        },
+        (ValueKind::Unknown, other) => other,
+        (other, ValueKind::Unknown) => other,
+        (other, _) => other,
+    }
+}
+
+/// Propagate value kinds into block parameters from control flow edges.
+fn propagate_block_param_kinds(
+    tree: &mir::NodeTree,
+    mir_blocks: &[mir::LocalNodeId<mir::Block>],
+    value_kinds: &mut ValueKinds,
+) -> bool {
+    // track whether any kind changed
+    let mut changed = false;
+
+    // scan terminators for argument forwarding
+    for block_id in mir_blocks {
+        let block = tree.get(*block_id);
+        match &block.terminator {
+            mir::Terminator::Jump { target, arguments } => {
+                changed |= propagate_target_kinds(tree, value_kinds, *target, arguments);
+            }
+            mir::Terminator::Branch {
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+                ..
+            } => {
+                changed |= propagate_target_kinds(tree, value_kinds, *then_target, then_arguments);
+                changed |= propagate_target_kinds(tree, value_kinds, *else_target, else_arguments);
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                changed |=
+                    propagate_target_kinds(tree, value_kinds, success.target, &success.arguments);
+                changed |=
+                    propagate_target_kinds(tree, value_kinds, failure.target, &failure.arguments);
+            }
+            mir::Terminator::Switch {
+                default,
+                default_arguments,
+                cases,
+                ..
+            } => {
+                changed |= propagate_target_kinds(tree, value_kinds, *default, default_arguments);
+                for case in cases {
+                    changed |=
+                        propagate_target_kinds(tree, value_kinds, case.target, &case.arguments);
+                }
+            }
+            mir::Terminator::Yield {
+                resume,
+                resume_arguments,
+                ..
+            } => {
+                changed |= propagate_target_kinds(tree, value_kinds, *resume, resume_arguments);
+            }
+            mir::Terminator::Return { .. }
+            | mir::Terminator::Unreachable
+            | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallIndirect { .. } => {}
+        }
+    }
+
+    // return whether any changes were applied
+    changed
+}
+
+/// Update target block parameter kinds from incoming argument kinds.
+fn propagate_target_kinds(
+    tree: &mir::NodeTree,
+    value_kinds: &mut ValueKinds,
+    target: mir::LocalNodeId<mir::Block>,
+    arguments: &[mir::Value],
+) -> bool {
+    // track whether any kind changed
+    let mut changed = false;
+    let target_block = tree.get(target);
+
+    // merge each parameter with its incoming argument
+    for (param, arg) in target_block.parameters.iter().zip(arguments.iter()) {
+        let Some(arg_kind) = value_kinds.get(*arg) else {
+            continue;
+        };
+        let existing = value_kinds.get(param.value);
+        let next_kind = match existing {
+            Some(kind) => merge_block_param_kind(kind, arg_kind),
+            None => arg_kind,
+        };
+        if existing != Some(next_kind) {
+            value_kinds.set(param.value, next_kind);
+            changed = true;
+        }
+    }
+
+    // return whether any kinds changed
+    changed
 }
 
 /// Pick a binary handler based on inferred operand kind.
@@ -543,6 +689,16 @@ pub(super) fn thread_function(
     let value_kinds = build_value_kinds(tree, func, &mir_blocks, value_count);
     let value_uses = compute_value_use_counts(tree, &mir_blocks, value_count);
 
+    // build local id to local index mapping
+    debug_assert!(
+        func.locals.len() <= u32::MAX as usize,
+        "too many locals for threaded indices"
+    );
+    let mut local_index_by_id = HashMap::with_capacity(func.locals.len());
+    for (index, local) in func.locals.iter().enumerate() {
+        local_index_by_id.insert(*local, index as u32);
+    }
+
     // validate threaded indices
     debug_assert!(
         mir_blocks.len() <= u32::MAX as usize,
@@ -581,6 +737,7 @@ pub(super) fn thread_function(
             block,
             &block_index_map,
             &block_parameters,
+            &local_index_by_id,
             func_id,
             entry_index,
             function_indices,
@@ -617,6 +774,7 @@ fn thread_block(
     block: &mir::Block,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
+    local_index_by_id: &HashMap<mir::LocalNodeId<mir::Local>, u32>,
     current_function: mir::LocalNodeId<mir::Function>,
     entry_block: u32,
     function_indices: &[u32],
@@ -677,6 +835,7 @@ fn thread_block(
             argument_pool,
             copy_pool,
             function_indices,
+            local_index_by_id,
         );
         instructions.push(threaded);
         inst_index += 1;
@@ -1095,6 +1254,7 @@ fn thread_instruction(
     argument_pool: &mut Vec<mir::Value>,
     copy_pool: &mut Vec<CopyPair>,
     function_indices: &[u32],
+    local_index_by_id: &HashMap<mir::LocalNodeId<mir::Local>, u32>,
 ) -> ThreadedInstruction {
     // map instruction opcode to threaded form
     match inst {
@@ -1224,21 +1384,37 @@ fn thread_instruction(
             }
         }
 
-        mir::Instruction::LocalGet { destination, local } => ThreadedInstruction {
-            handler: dispatch::handle_local_get,
-            data: ThreadedInstructionData::LocalGet {
-                dest: *destination,
-                local: local.id,
-            },
-        },
+        mir::Instruction::LocalGet { destination, local } => {
+            let local_index = if let Some(index) = local_index_by_id.get(local) {
+                *index
+            } else {
+                debug_assert!(false, "missing local index for {local:?}");
+                0
+            };
+            ThreadedInstruction {
+                handler: dispatch::handle_local_get,
+                data: ThreadedInstructionData::LocalGet {
+                    dest: *destination,
+                    local: local_index,
+                },
+            }
+        }
 
-        mir::Instruction::LocalSet { local, value } => ThreadedInstruction {
-            handler: dispatch::handle_local_set,
-            data: ThreadedInstructionData::LocalSet {
-                local: local.id,
-                value: *value,
-            },
-        },
+        mir::Instruction::LocalSet { local, value } => {
+            let local_index = if let Some(index) = local_index_by_id.get(local) {
+                *index
+            } else {
+                debug_assert!(false, "missing local index for {local:?}");
+                0
+            };
+            ThreadedInstruction {
+                handler: dispatch::handle_local_set,
+                data: ThreadedInstructionData::LocalSet {
+                    local: local_index,
+                    value: *value,
+                },
+            }
+        }
 
         mir::Instruction::GlobalAddr {
             destination,
@@ -1541,7 +1717,8 @@ fn build_value_kinds(
     for block_id in mir_blocks {
         let block = tree.get(*block_id);
         for param in &block.parameters {
-            value_kinds.set(param.value, kind_from_type(tree, param.ty));
+            let kind = kind_from_type(tree, param.ty);
+            value_kinds.set(param.value, kind_for_block_param(kind));
         }
     }
 
@@ -1550,6 +1727,11 @@ fn build_value_kinds(
     while changed {
         // reset iteration flag
         changed = false;
+
+        // propagate block parameter kinds from control flow edges
+        if propagate_block_param_kinds(tree, mir_blocks, &mut value_kinds) {
+            changed = true;
+        }
 
         // scan instructions for new kinds
         for block_id in mir_blocks {

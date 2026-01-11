@@ -152,7 +152,7 @@ fn collect_argument_values(
     values: &[Value],
     frame: &Frame,
     arguments: &[mir::Value],
-) -> SmallVec<[Value; 8]> {
+) -> SmallVec<[Value; 16]> {
     // allocate argument buffer
     let mut args = SmallVec::with_capacity(arguments.len());
 
@@ -176,7 +176,7 @@ fn collect_argument_values_from_copies(
     values: &[Value],
     frame: &Frame,
     pairs: &[CopyPair],
-) -> SmallVec<[Value; 8]> {
+) -> SmallVec<[Value; 16]> {
     // allocate argument buffer
     let mut args = SmallVec::with_capacity(pairs.len());
 
@@ -251,16 +251,11 @@ impl Interpreter {
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
         // resolve function id by name
-        let func_id = self
-            .tree
-            .iter_nodes::<mir::Function>()
-            .find(|(_, f)| self.strings.get(f.name) == name)
-            .map(|(id, _)| id)
-            .ok_or_else(|| {
-                self.make_error(Error::ExternalFunctionNotFound {
-                    name: name.to_string(),
-                })
-            })?;
+        let func_id = self.function_name_map.get(name).copied().ok_or_else(|| {
+            self.make_error(Error::ExternalFunctionNotFound {
+                name: name.to_string(),
+            })
+        })?;
 
         // execute function
         self.run_function(func_id, arguments)

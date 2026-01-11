@@ -45,6 +45,8 @@ pub struct Interpreter {
     pub(super) globals: GlobalStorage,
     /// External function handlers.
     pub(super) externals: HashMap<String, ExternalFn>,
+    /// Lookup table for function ids by name.
+    pub(super) function_name_map: HashMap<String, mir::LocalNodeId<mir::Function>>,
     /// Configuration options.
     pub(super) options: MachineOptions,
     /// Pre-threaded functions for fast dispatch.
@@ -153,6 +155,7 @@ impl Interpreter {
     ) -> Self {
         let mut managed_heap = ManagedHeap::new();
         let globals = Self::initialize_globals(&tree, &mut managed_heap);
+        let function_name_map = Self::build_function_name_map(&tree, &strings);
 
         // pre-thread all functions for fast dispatch
         let threaded_functions = ThreadedFunctionTable::new(&tree);
@@ -164,6 +167,7 @@ impl Interpreter {
             raw_heap: RawHeap::new(),
             globals,
             externals: HashMap::new(),
+            function_name_map,
             options,
             threaded_functions,
             call_stack: Vec::new(),
@@ -191,6 +195,22 @@ impl Interpreter {
         }
 
         globals
+    }
+
+    /// Build the function name lookup table.
+    fn build_function_name_map(
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+    ) -> HashMap<String, mir::LocalNodeId<mir::Function>> {
+        // collect names into a lookup map
+        let mut map = HashMap::new();
+        for (id, func) in tree.iter_nodes::<mir::Function>() {
+            let name = strings.get(func.name).to_string();
+            map.entry(name).or_insert(id);
+        }
+
+        // return lookup map
+        map
     }
 
     /// Convert a global initializer to a runtime value.
@@ -276,6 +296,22 @@ impl Interpreter {
         F: Fn(&[Value]) -> Result<Value, Error> + Send + Sync + 'static,
     {
         self.externals.insert(name.to_string(), Box::new(handler));
+    }
+
+    /// Resolve a function id by name.
+    pub fn function_id_by_name(
+        &self,
+        name: &str,
+    ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
+        // look up function id
+        let func_id = self.function_name_map.get(name).copied().ok_or_else(|| {
+            self.make_error(Error::ExternalFunctionNotFound {
+                name: name.to_string(),
+            })
+        })?;
+
+        // return function id
+        Ok(func_id)
     }
 
     /// Create an error with current call stack.
@@ -373,13 +409,28 @@ impl Interpreter {
     }
 
     /// Run garbage collection on the managed heap.
-    pub fn collect_garbage(&mut self) {
+    pub fn collect_garbage(&mut self) -> GcStats {
         // collect roots from all frames
         let mut roots = Vec::new();
         for frame in &self.call_stack {
             frame.collect_roots(&self.value_stack, &self.local_stack, &mut roots);
         }
 
-        self.managed_heap.collect(&roots);
+        let freed_cells = self.managed_heap.collect(&roots);
+        let live_cells = self.managed_heap.cell_count();
+
+        GcStats {
+            freed_cells,
+            live_cells,
+        }
     }
+}
+
+/// Summary statistics for a garbage collection cycle.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GcStats {
+    /// Number of cells freed by the collection.
+    pub freed_cells: usize,
+    /// Number of live cells after the collection.
+    pub live_cells: usize,
 }

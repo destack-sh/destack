@@ -661,6 +661,44 @@ impl<'a> ThreadedState<'a> {
         }
     }
 
+    /// Refresh cached pointers for the current frame and threaded function.
+    pub fn refresh_for_threaded(&mut self, threaded: &ThreadedFunction) {
+        // load frame bounds
+        let (value_base, value_count, local_base, local_count) = {
+            let frame = self.current_frame_mut();
+            (
+                frame.value_base,
+                frame.value_count,
+                frame.local_base,
+                frame.local_count,
+            )
+        };
+
+        // validate stack bounds in debug builds
+        debug_assert!(
+            value_base + value_count <= self.interpreter.value_stack.len(),
+            "value stack out of bounds for frame"
+        );
+        debug_assert!(
+            local_base + local_count <= self.interpreter.local_stack.len(),
+            "local stack out of bounds for frame"
+        );
+
+        // cache stack pointers
+        let values_ptr = self.interpreter.value_stack.as_mut_ptr();
+        let locals_ptr = self.interpreter.local_stack.as_mut_ptr();
+        self.values = unsafe { values_ptr.add(value_base) };
+        self.locals = unsafe { locals_ptr.add(local_base) };
+        self.value_count = value_count;
+        self.local_count = local_count;
+
+        // refresh argument and switch pools
+        self.argument_pool = threaded.argument_pool.as_ptr();
+        self.argument_pool_len = threaded.argument_pool.len();
+        self.switch_case_pool = threaded.switch_case_pool.as_ptr();
+        self.switch_case_pool_len = threaded.switch_case_pool.len();
+    }
+
     /// Get the current frame mutably.
     #[inline(always)]
     pub fn current_frame_mut(&mut self) -> &mut super::Frame {
@@ -704,19 +742,25 @@ impl<'a> ThreadedState<'a> {
         }
     }
 
-    /// Get local variable.
+    /// Get local variable by local index.
     #[inline(always)]
-    pub fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> Value {
-        let index = local.id as usize;
-        debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
+    pub fn get_local_by_index(&self, local_index: u32) -> Value {
+        let index = local_index as usize;
+        debug_assert!(
+            index < self.local_count,
+            "local out of bounds: {local_index}"
+        );
         unsafe { *self.locals.add(index) }
     }
 
-    /// Set local variable.
+    /// Set local variable by local index.
     #[inline(always)]
-    pub fn set_local(&mut self, local: mir::LocalNodeId<mir::Local>, val: Value) {
-        let index = local.id as usize;
-        debug_assert!(index < self.local_count, "local out of bounds: {local:?}");
+    pub fn set_local_by_index(&mut self, local_index: u32, val: Value) {
+        let index = local_index as usize;
+        debug_assert!(
+            index < self.local_count,
+            "local out of bounds: {local_index}"
+        );
         unsafe {
             *self.locals.add(index) = val;
         }
