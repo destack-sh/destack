@@ -1,25 +1,39 @@
 
 function @graph_traversal(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 0i64
     v3 = icmp_eq v0, v2
     branch v3, block14(v2), block1
+
+// branch on condition
 block1:
     v4 = iconst 1i64
     v5 = icmp_slt v1, v4
     branch v5, block2, block3
+
+// merge branch, continue
 block2:
     jump block4(v4)
+
+// merge branch, continue
 block3:
     jump block4(v1)
+
+// merge branch, continue
 block4(v6: i64):
     v7 = managed.alloc_array i64, v0
     v8 = managed.alloc_array i64, v0
     v9 = iconst 0i64
     jump block5(v9)
+
+// loop condition, check limit
 block5(v10: i64):
     v11 = icmp_sge v10, v0
     branch v11, block6, block7
+
+// loop body, update aggregates
 block7:
     v12 = element.addr v7, v10
     v13 = iconst 0i64
@@ -27,6 +41,8 @@ block7:
     v14 = iconst 1i64
     v15 = iadd v10, v14
     jump block5(v15)
+
+// merge branch, continue
 block6:
     v16 = iconst 0i64
     v17 = element.addr v8, v16
@@ -38,9 +54,13 @@ block6:
     v21 = iconst 1i64
     v22 = iconst 0i64
     jump block8(v20, v21, v22)
+
+// loop condition, check limit
 block8(v23: i64, v24: i64, v25: i64):
     v26 = icmp_sge v23, v24
     branch v26, block13(v25), block9
+
+// branch on condition
 block9:
     v27 = element.addr v8, v23
     v28 = load v27
@@ -50,17 +70,25 @@ block9:
     v32 = iadd v28, v29
     v33 = icmp_sge v32, v0
     branch v33, block10, block11
+
+// update state, merge branch
 block10:
     v34 = isub v32, v0
     jump block12(v34, v30, v24, v31, v28)
+
+// merge branch, continue
 block11:
     jump block12(v32, v30, v24, v31, v28)
+
+// base case check
 block12(v35: i64, v36: i64, v37: i64, v38: i64, v39: i64):
     v40 = element.addr v7, v35
     v41 = load v40
     v42 = iconst 0i64
     v43 = icmp_eq v41, v42
     branch v43, block15, block16
+
+// update state, merge branch
 block15:
     v44 = iconst 1i64
     store v40, v44
@@ -69,24 +97,36 @@ block15:
     v46 = iconst 1i64
     v47 = iadd v37, v46
     jump block17(v36, v47, v38, v39)
+
+// merge branch, continue
 block16:
     jump block17(v36, v37, v38, v39)
+
+// branch on condition
 block17(v48: i64, v49: i64, v50: i64, v51: i64):
     v52 = iconst 2i64
     v53 = iadd v51, v52
     v54 = icmp_sge v53, v0
     branch v54, block18, block19
+
+// update state, merge branch
 block18:
     v55 = isub v53, v0
     jump block20(v55, v48, v49, v50, v51)
+
+// merge branch, continue
 block19:
     jump block20(v53, v48, v49, v50, v51)
+
+// base case check
 block20(v56: i64, v57: i64, v58: i64, v59: i64, v60: i64):
     v61 = element.addr v7, v56
     v62 = load v61
     v63 = iconst 0i64
     v64 = icmp_eq v62, v63
     branch v64, block21, block22
+
+// update state, merge branch
 block21:
     v65 = iconst 1i64
     store v61, v65
@@ -95,23 +135,35 @@ block21:
     v67 = iconst 1i64
     v68 = iadd v58, v67
     jump block23(v57, v68, v59, v60)
+
+// merge branch, continue
 block22:
     jump block23(v57, v58, v59, v60)
+
+// branch on condition
 block23(v69: i64, v70: i64, v71: i64, v72: i64):
     v73 = iadd v72, v6
     v74 = icmp_sge v73, v0
     branch v74, block24, block25
+
+// update state, merge branch
 block24:
     v75 = isub v73, v0
     jump block26(v75, v69, v70, v71)
+
+// merge branch, continue
 block25:
     jump block26(v73, v69, v70, v71)
+
+// base case check
 block26(v76: i64, v77: i64, v78: i64, v79: i64):
     v80 = element.addr v7, v76
     v81 = load v80
     v82 = iconst 0i64
     v83 = icmp_eq v81, v82
     branch v83, block27, block28
+
+// loop body, update aggregates
 block27:
     v84 = iconst 1i64
     store v80, v84
@@ -120,10 +172,16 @@ block27:
     v86 = iconst 1i64
     v87 = iadd v78, v86
     jump block8(v77, v87, v79)
+
+// loop body, advance state
 block28:
     jump block8(v77, v78, v79)
+
+// return result
 block13(v88: i64):
     return v88
+
+// return result
 block14(v89: i64):
     return v89
 }

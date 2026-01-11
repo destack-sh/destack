@@ -1,11 +1,17 @@
 
 function @alloc_burst(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 0i64
     jump block1(v1)
+
+// loop condition, check limit
 block1(v2: i64):
     v3 = icmp_sge v2, v0
     branch v3, block3, block2
+
+// loop body, update memory
 block2:
     v4 = managed.alloc i64
     v5 = managed.alloc i64
@@ -20,6 +26,8 @@ block2:
     v14 = iconst 1i64
     v15 = iadd v2, v14
     jump block1(v15)
+
+// return result
 block3:
     return v0
 }

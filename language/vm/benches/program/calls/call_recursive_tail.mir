@@ -1,20 +1,28 @@
 
 function @countdown_rec(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 0i64
     v3 = icmp_eq v0, v2
     branch v3, block2, block1
+
+// return helper result
 block1:
     v4 = iconst 1i64
     v5 = isub v0, v4
     v6 = iadd v1, v4
     v7 = call @countdown_rec(v5, v6)
     return v7
+
+// return result
 block2:
     return v1
 }
 
 function @call_recursive_tail(v0: i64) -> i64 {
+
+// entry, call helper
 block0(v0: i64):
     v1 = iconst 0i64
     v2 = call @countdown_rec(v0, v1)

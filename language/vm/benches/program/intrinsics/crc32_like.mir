@@ -1,11 +1,17 @@
 
 function @crc32_like(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 0i64
     jump block1(v2, v1)
+
+// loop condition, check limit
 block1(v3: i64, v4: i64):
     v5 = icmp_sge v3, v0
     branch v5, block3(v4), block2
+
+// loop body, update memory
 block2:
     v6 = iconst 31i64
     v7 = imul v3, v6
@@ -27,6 +33,8 @@ block2:
     v23 = iconst 1i64
     v24 = iadd v3, v23
     jump block1(v24, v22)
+
+// return result
 block3(v25: i64):
     return v25
 }

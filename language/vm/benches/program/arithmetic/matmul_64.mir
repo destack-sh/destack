@@ -1,5 +1,7 @@
 
 function @matmul_64(v0: i64) -> i64 {
+
+// entry, init allocations
 block0(v0: i64):
     v1 = iconst 64i64
     v2 = imul v1, v1
@@ -8,9 +10,13 @@ block0(v0: i64):
     v5 = managed.alloc_array i64, v2
     v6 = iconst 0i64
     jump block1(v6)
+
+// loop condition, check limit
 block1(v7: i64):
     v8 = icmp_sge v7, v2
     branch v8, block3, block2
+
+// loop body, update aggregates
 block2:
     v9 = element.addr v3, v7
     v10 = iconst 3i64
@@ -26,28 +32,44 @@ block2:
     store v14, v18
     v19 = iadd v7, v12
     jump block1(v19)
+
+// branch on condition
 block3:
     v20 = sdiv v0, v2
     v21 = iconst 1i64
     v22 = icmp_slt v20, v21
     branch v22, block4, block5
+
+// merge branch, continue
 block4:
     jump block6(v21)
+
+// merge branch, continue
 block5:
     jump block6(v20)
+
+// merge branch, continue
 block6(v23: i64):
     v24 = iconst 0i64
     v25 = iconst 0i64
     jump block7(v24, v25, v23)
+
+// loop condition, check limit
 block7(v26: i64, v27: i64, v28: i64):
     v29 = icmp_sge v26, v28
     branch v29, block19(v27), block8
+
+// merge branch, continue
 block8:
     v30 = iconst 0i64
     jump block9(v30, v26, v27, v28)
+
+// loop condition, check limit
 block9(v31: i64, v32: i64, v33: i64, v34: i64):
     v35 = icmp_sge v31, v2
     branch v35, block18(v32, v33, v34), block10
+
+// update state, merge branch
 block10:
     v36 = sdiv v31, v1
     v37 = imul v36, v1
@@ -55,9 +77,13 @@ block10:
     v39 = iconst 0i64
     v40 = iconst 0i64
     jump block11(v39, v40, v37, v38, v31, v32, v33, v34)
+
+// loop condition, check limit
 block11(v41: i64, v42: i64, v43: i64, v44: i64, v45: i64, v46: i64, v47: i64, v48: i64):
     v49 = icmp_sge v41, v1
     branch v49, block12(v42, v43, v44, v45, v46, v47, v48), block13
+
+// loop body, update aggregates
 block13:
     v50 = iadd v43, v41
     v51 = imul v41, v1
@@ -71,6 +97,8 @@ block13:
     v59 = iconst 1i64
     v60 = iadd v41, v59
     jump block11(v60, v58, v43, v44, v45, v46, v47, v48)
+
+// loop body, update aggregates
 block12(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64, v67: i64):
     v68 = element.addr v5, v64
     store v68, v61
@@ -78,10 +106,14 @@ block12(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64, v67: i64):
     v70 = iconst 1i64
     v71 = iadd v64, v70
     jump block9(v71, v65, v69, v67)
+
+// loop body, update accumulators
 block18(v72: i64, v73: i64, v74: i64):
     v75 = iconst 1i64
     v76 = iadd v72, v75
     jump block7(v76, v73, v74)
+
+// return result
 block19(v77: i64):
     return v77
 }

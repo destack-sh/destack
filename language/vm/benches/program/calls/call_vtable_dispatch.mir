@@ -1,5 +1,7 @@
 
 function @method_add(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iadd v0, v1
     v3 = iconst 1i64
@@ -8,6 +10,8 @@ block0(v0: i64, v1: i64):
 }
 
 function @method_mul(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 3i64
     v3 = imul v0, v2
@@ -16,6 +20,8 @@ block0(v0: i64, v1: i64):
 }
 
 function @method_mix(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = bxor v0, v1
     v3 = iconst 7i64
@@ -40,9 +46,13 @@ block0(
     v5 = iconst 0i64
     v6 = iconst 0i64
     jump block1(v5, v6)
+
+// loop condition, check limit
 block1(v7: i64, v8: i64):
     v9 = icmp_sge v7, v0
     branch v9, block3(v8), block2
+
+// branch on condition
 block2:
     v10 = iconst 1103515245i64
     v11 = imul v7, v10
@@ -53,23 +63,35 @@ block2:
     v16 = iconst 200i64
     v17 = icmp_slt v15, v16
     branch v17, block4, block5
+
+// merge branch, continue
 block4:
     v18 = call.indirect v2(v1, v8)
     jump block8(v18, v7)
+
+// branch on condition
 block5:
     v19 = iconst 240i64
     v20 = icmp_slt v15, v19
     branch v20, block6, block7
+
+// merge branch, continue
 block6:
     v21 = call.indirect v3(v1, v8)
     jump block8(v21, v7)
+
+// merge branch, continue
 block7:
     v22 = call.indirect v4(v1, v8)
     jump block8(v22, v7)
+
+// merge branches, advance loop
 block8(v23: i64, v24: i64):
     v25 = iconst 1i64
     v26 = iadd v24, v25
     jump block1(v26, v23)
+
+// return result
 block3(v27: i64):
     return v27
 }
