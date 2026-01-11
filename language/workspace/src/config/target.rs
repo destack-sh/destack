@@ -335,6 +335,215 @@ impl OverflowCheckPolicy {
     }
 }
 
+/// Safety preset that configures runtime checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SafetyPreset {
+    /// Debug safety mode with checks always enabled.
+    Debug,
+    /// Release mode with checks enabled.
+    ReleaseSafe,
+    /// Release mode with checks disabled for maximum speed.
+    ReleaseFast,
+    /// Release mode with checks disabled and size focused settings.
+    ReleaseSmall,
+}
+
+impl std::str::FromStr for SafetyPreset {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "debug" => Ok(Self::Debug),
+            "release_safe" | "releasesafe" | "safe" => Ok(Self::ReleaseSafe),
+            "release_fast" | "releasefast" | "fast" => Ok(Self::ReleaseFast),
+            "release_small" | "releasesmall" | "small" => Ok(Self::ReleaseSmall),
+            _ => Err(()),
+        }
+    }
+}
+
+impl SafetyPreset {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Return the runtime check policies for this preset.
+    pub fn runtime_check_policies(self) -> RuntimeCheckPolicies {
+        match self {
+            SafetyPreset::Debug | SafetyPreset::ReleaseSafe => RuntimeCheckPolicies {
+                overflow: OverflowCheckPolicy::Always,
+                bounds: BoundsCheckPolicy::Always,
+                null: NullCheckPolicy::Always,
+                division: DivisionCheckPolicy::Always,
+                shift: ShiftCheckPolicy::Always,
+            },
+            SafetyPreset::ReleaseFast | SafetyPreset::ReleaseSmall => RuntimeCheckPolicies {
+                overflow: OverflowCheckPolicy::Never,
+                bounds: BoundsCheckPolicy::Never,
+                null: NullCheckPolicy::Never,
+                division: DivisionCheckPolicy::Never,
+                shift: ShiftCheckPolicy::Never,
+            },
+        }
+    }
+}
+
+/// Runtime check policy bundle for safety presets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RuntimeCheckPolicies {
+    /// Overflow check policy.
+    pub overflow: OverflowCheckPolicy,
+    /// Bounds check policy.
+    pub bounds: BoundsCheckPolicy,
+    /// Null check policy.
+    pub null: NullCheckPolicy,
+    /// Division check policy.
+    pub division: DivisionCheckPolicy,
+    /// Shift range check policy.
+    pub shift: ShiftCheckPolicy,
+}
+
+impl Default for RuntimeCheckPolicies {
+    fn default() -> Self {
+        Self {
+            overflow: OverflowCheckPolicy::default(),
+            bounds: BoundsCheckPolicy::default(),
+            null: NullCheckPolicy::default(),
+            division: DivisionCheckPolicy::default(),
+            shift: ShiftCheckPolicy::default(),
+        }
+    }
+}
+
+/// Null check policy for reference operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NullCheckPolicy {
+    /// Always emit null checks.
+    Always,
+    /// Emit null checks only in debug builds.
+    #[default]
+    Debug,
+    /// Never emit null checks (unsafe, fastest).
+    Never,
+}
+
+impl std::str::FromStr for NullCheckPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "always" => Ok(Self::Always),
+            "debug" => Ok(Self::Debug),
+            "never" | "off" => Ok(Self::Never),
+            _ => Err(()),
+        }
+    }
+}
+
+impl NullCheckPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Division check policy for divide and remainder operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DivisionCheckPolicy {
+    /// Always emit division checks.
+    Always,
+    /// Emit division checks only in debug builds.
+    #[default]
+    Debug,
+    /// Never emit division checks (unsafe, fastest).
+    Never,
+}
+
+impl std::str::FromStr for DivisionCheckPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "always" => Ok(Self::Always),
+            "debug" => Ok(Self::Debug),
+            "never" | "off" => Ok(Self::Never),
+            _ => Err(()),
+        }
+    }
+}
+
+impl DivisionCheckPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Shift range check policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShiftCheckPolicy {
+    /// Always emit shift range checks.
+    Always,
+    /// Emit shift range checks only in debug builds.
+    #[default]
+    Debug,
+    /// Never emit shift range checks (unsafe, fastest).
+    Never,
+}
+
+impl std::str::FromStr for ShiftCheckPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "always" => Ok(Self::Always),
+            "debug" => Ok(Self::Debug),
+            "never" | "off" => Ok(Self::Never),
+            _ => Err(()),
+        }
+    }
+}
+
+impl ShiftCheckPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Check failure behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CheckFailurePolicy {
+    /// Trap immediately on a failed check.
+    Trap,
+    /// Trigger a panic on a failed check.
+    #[default]
+    Panic,
+    /// Abort execution on a failed check.
+    Abort,
+}
+
+impl std::str::FromStr for CheckFailurePolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "trap" => Ok(Self::Trap),
+            "panic" => Ok(Self::Panic),
+            "abort" => Ok(Self::Abort),
+            _ => Err(()),
+        }
+    }
+}
+
+impl CheckFailurePolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Global allocator selection for native targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Allocator {
@@ -693,10 +902,20 @@ pub struct Target {
     pub panic: PanicPolicy,
     /// Unwind info format for native targets.
     pub unwind: UnwindFormat,
+    /// Safety preset that configures runtime checks.
+    pub safety_preset: Option<SafetyPreset>,
     /// Integer overflow checking policy.
     pub overflow_checks: OverflowCheckPolicy,
     /// Bounds check policy for array and slice accesses.
     pub bounds_checks: BoundsCheckPolicy,
+    /// Null check policy for reference operations.
+    pub null_checks: NullCheckPolicy,
+    /// Division check policy for divide and remainder operations.
+    pub division_checks: DivisionCheckPolicy,
+    /// Shift range check policy.
+    pub shift_checks: ShiftCheckPolicy,
+    /// Check failure behavior.
+    pub check_failure: CheckFailurePolicy,
     /// Global allocator selection for native targets.
     pub allocator: Allocator,
 
@@ -958,9 +1177,45 @@ impl Target {
         self
     }
 
+    /// Set null check policy for reference operations.
+    pub fn with_null_checks(mut self, null_checks: NullCheckPolicy) -> Self {
+        self.null_checks = null_checks;
+        self
+    }
+
+    /// Set division check policy for divide and remainder operations.
+    pub fn with_division_checks(mut self, division_checks: DivisionCheckPolicy) -> Self {
+        self.division_checks = division_checks;
+        self
+    }
+
+    /// Set shift range check policy.
+    pub fn with_shift_checks(mut self, shift_checks: ShiftCheckPolicy) -> Self {
+        self.shift_checks = shift_checks;
+        self
+    }
+
+    /// Set check failure behavior.
+    pub fn with_check_failure(mut self, check_failure: CheckFailurePolicy) -> Self {
+        self.check_failure = check_failure;
+        self
+    }
+
     /// Set overflow check policy for integer operations.
     pub fn with_overflow_checks(mut self, overflow_checks: OverflowCheckPolicy) -> Self {
         self.overflow_checks = overflow_checks;
+        self
+    }
+
+    /// Set safety preset and update runtime check policies.
+    pub fn with_safety_preset(mut self, safety_preset: SafetyPreset) -> Self {
+        let policies = safety_preset.runtime_check_policies();
+        self.safety_preset = Some(safety_preset);
+        self.overflow_checks = policies.overflow;
+        self.bounds_checks = policies.bounds;
+        self.null_checks = policies.null;
+        self.division_checks = policies.division;
+        self.shift_checks = policies.shift;
         self
     }
 
@@ -1144,5 +1399,28 @@ impl Target {
 
         // change extension and join with output directory
         out_dir.join(relative.with_extension(extension))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Safety presets map to runtime check policies.
+    #[test]
+    fn test_safety_preset_policies() {
+        let debug = SafetyPreset::Debug.runtime_check_policies();
+        assert_eq!(debug.overflow, OverflowCheckPolicy::Always);
+        assert_eq!(debug.bounds, BoundsCheckPolicy::Always);
+        assert_eq!(debug.null, NullCheckPolicy::Always);
+        assert_eq!(debug.division, DivisionCheckPolicy::Always);
+        assert_eq!(debug.shift, ShiftCheckPolicy::Always);
+
+        let fast = SafetyPreset::ReleaseFast.runtime_check_policies();
+        assert_eq!(fast.overflow, OverflowCheckPolicy::Never);
+        assert_eq!(fast.bounds, BoundsCheckPolicy::Never);
+        assert_eq!(fast.null, NullCheckPolicy::Never);
+        assert_eq!(fast.division, DivisionCheckPolicy::Never);
+        assert_eq!(fast.shift, ShiftCheckPolicy::Never);
     }
 }

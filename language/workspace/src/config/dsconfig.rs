@@ -13,8 +13,9 @@ use crate::{
 };
 
 use super::target::{
-    Allocator, BoundsCheckPolicy, DebugInfoLevel, LinkMode, OptimizeLevel, OutputFormat,
-    OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, RelocationModel, Runtime, ShrinkLevel,
+    Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DivisionCheckPolicy,
+    LinkMode, NullCheckPolicy, OptimizeLevel, OutputFormat, OutputMode, OverflowCheckPolicy,
+    PanicPolicy, Platform, RelocationModel, Runtime, SafetyPreset, ShiftCheckPolicy, ShrinkLevel,
     StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
@@ -712,10 +713,20 @@ pub struct DsConfigTargetOptions {
     pub panic: PanicPolicy,
     /// Unwind info format for native targets.
     pub unwind: UnwindFormat,
+    /// Safety preset that configures runtime checks.
+    pub safety_preset: Option<SafetyPreset>,
     /// Integer overflow checking policy.
     pub overflow_checks: OverflowCheckPolicy,
     /// Bounds check policy for array and slice accesses.
     pub bounds_checks: BoundsCheckPolicy,
+    /// Null check policy for reference operations.
+    pub null_checks: NullCheckPolicy,
+    /// Division check policy for divide and remainder operations.
+    pub division_checks: DivisionCheckPolicy,
+    /// Shift range check policy.
+    pub shift_checks: ShiftCheckPolicy,
+    /// Check failure behavior.
+    pub check_failure: CheckFailurePolicy,
     /// Global allocator selection for native targets.
     pub allocator: Allocator,
 }
@@ -754,8 +765,13 @@ impl Default for DsConfigTargetOptions {
             strip: StripLevel::default(),
             panic: PanicPolicy::default(),
             unwind: UnwindFormat::default(),
+            safety_preset: None,
             overflow_checks: OverflowCheckPolicy::default(),
             bounds_checks: BoundsCheckPolicy::default(),
+            null_checks: NullCheckPolicy::default(),
+            division_checks: DivisionCheckPolicy::default(),
+            shift_checks: ShiftCheckPolicy::default(),
+            check_failure: CheckFailurePolicy::default(),
             allocator: Allocator::default(),
         }
     }
@@ -816,8 +832,13 @@ impl DsConfigTargetOptions {
             strip: self.strip,
             panic: self.panic,
             unwind: self.unwind,
+            safety_preset: self.safety_preset,
             overflow_checks: self.overflow_checks,
             bounds_checks: self.bounds_checks,
+            null_checks: self.null_checks,
+            division_checks: self.division_checks,
+            shift_checks: self.shift_checks,
+            check_failure: self.check_failure,
             allocator: self.allocator,
         }
     }
@@ -837,6 +858,11 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
         } else {
             TargetDiscovery::Include
         };
+
+        let safety_preset = json.safety_preset.map(SafetyPreset::from);
+        let default_checks = safety_preset
+            .map(|preset| preset.runtime_check_policies())
+            .unwrap_or_default();
 
         Self {
             discovery,
@@ -899,13 +925,30 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
             unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
+            safety_preset,
             overflow_checks: json
                 .overflow_checks
                 .map(OverflowCheckPolicy::from)
-                .unwrap_or_default(),
+                .unwrap_or(default_checks.overflow),
             bounds_checks: json
                 .bounds_checks
                 .map(BoundsCheckPolicy::from)
+                .unwrap_or(default_checks.bounds),
+            null_checks: json
+                .null_checks
+                .map(NullCheckPolicy::from)
+                .unwrap_or(default_checks.null),
+            division_checks: json
+                .division_checks
+                .map(DivisionCheckPolicy::from)
+                .unwrap_or(default_checks.division),
+            shift_checks: json
+                .shift_checks
+                .map(ShiftCheckPolicy::from)
+                .unwrap_or(default_checks.shift),
+            check_failure: json
+                .check_failure
+                .map(CheckFailurePolicy::from)
                 .unwrap_or_default(),
             allocator: json.allocator.map(Allocator::from).unwrap_or_default(),
         }
@@ -1093,6 +1136,39 @@ impl From<UnwindFormatJson> for UnwindFormat {
     }
 }
 
+/// Safety preset for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum SafetyPresetJson {
+    /// Debug safety mode with checks enabled.
+    #[serde(alias = "debug")]
+    Debug,
+    /// Release mode with checks enabled.
+    #[serde(alias = "releaseSafe")]
+    #[serde(alias = "safe")]
+    ReleaseSafe,
+    /// Release mode with checks disabled.
+    #[serde(alias = "releaseFast")]
+    #[serde(alias = "fast")]
+    ReleaseFast,
+    /// Release mode with checks disabled and size focused settings.
+    #[serde(alias = "releaseSmall")]
+    #[serde(alias = "small")]
+    ReleaseSmall,
+}
+
+impl From<SafetyPresetJson> for SafetyPreset {
+    fn from(value: SafetyPresetJson) -> Self {
+        match value {
+            SafetyPresetJson::Debug => SafetyPreset::Debug,
+            SafetyPresetJson::ReleaseSafe => SafetyPreset::ReleaseSafe,
+            SafetyPresetJson::ReleaseFast => SafetyPreset::ReleaseFast,
+            SafetyPresetJson::ReleaseSmall => SafetyPreset::ReleaseSmall,
+        }
+    }
+}
+
 /// Overflow checking policy for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -1143,6 +1219,113 @@ impl From<BoundsCheckPolicyJson> for BoundsCheckPolicy {
             BoundsCheckPolicyJson::Always => BoundsCheckPolicy::Always,
             BoundsCheckPolicyJson::Debug => BoundsCheckPolicy::Debug,
             BoundsCheckPolicyJson::Never => BoundsCheckPolicy::Never,
+        }
+    }
+}
+
+/// Null check policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum NullCheckPolicyJson {
+    /// Always emit null checks.
+    #[serde(alias = "always")]
+    Always,
+    /// Emit null checks only in debug builds.
+    #[serde(alias = "debug")]
+    Debug,
+    /// Never emit null checks.
+    #[serde(alias = "never")]
+    #[serde(alias = "off")]
+    Never,
+}
+
+impl From<NullCheckPolicyJson> for NullCheckPolicy {
+    fn from(value: NullCheckPolicyJson) -> Self {
+        match value {
+            NullCheckPolicyJson::Always => NullCheckPolicy::Always,
+            NullCheckPolicyJson::Debug => NullCheckPolicy::Debug,
+            NullCheckPolicyJson::Never => NullCheckPolicy::Never,
+        }
+    }
+}
+
+/// Division check policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DivisionCheckPolicyJson {
+    /// Always emit division checks.
+    #[serde(alias = "always")]
+    Always,
+    /// Emit division checks only in debug builds.
+    #[serde(alias = "debug")]
+    Debug,
+    /// Never emit division checks.
+    #[serde(alias = "never")]
+    #[serde(alias = "off")]
+    Never,
+}
+
+impl From<DivisionCheckPolicyJson> for DivisionCheckPolicy {
+    fn from(value: DivisionCheckPolicyJson) -> Self {
+        match value {
+            DivisionCheckPolicyJson::Always => DivisionCheckPolicy::Always,
+            DivisionCheckPolicyJson::Debug => DivisionCheckPolicy::Debug,
+            DivisionCheckPolicyJson::Never => DivisionCheckPolicy::Never,
+        }
+    }
+}
+
+/// Shift range check policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ShiftCheckPolicyJson {
+    /// Always emit shift range checks.
+    #[serde(alias = "always")]
+    Always,
+    /// Emit shift range checks only in debug builds.
+    #[serde(alias = "debug")]
+    Debug,
+    /// Never emit shift range checks.
+    #[serde(alias = "never")]
+    #[serde(alias = "off")]
+    Never,
+}
+
+impl From<ShiftCheckPolicyJson> for ShiftCheckPolicy {
+    fn from(value: ShiftCheckPolicyJson) -> Self {
+        match value {
+            ShiftCheckPolicyJson::Always => ShiftCheckPolicy::Always,
+            ShiftCheckPolicyJson::Debug => ShiftCheckPolicy::Debug,
+            ShiftCheckPolicyJson::Never => ShiftCheckPolicy::Never,
+        }
+    }
+}
+
+/// Check failure behavior for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum CheckFailurePolicyJson {
+    /// Trap immediately on a failed check.
+    #[serde(alias = "trap")]
+    Trap,
+    /// Trigger a panic on a failed check.
+    #[serde(alias = "panic")]
+    Panic,
+    /// Abort execution on a failed check.
+    #[serde(alias = "abort")]
+    Abort,
+}
+
+impl From<CheckFailurePolicyJson> for CheckFailurePolicy {
+    fn from(value: CheckFailurePolicyJson) -> Self {
+        match value {
+            CheckFailurePolicyJson::Trap => CheckFailurePolicy::Trap,
+            CheckFailurePolicyJson::Panic => CheckFailurePolicy::Panic,
+            CheckFailurePolicyJson::Abort => CheckFailurePolicy::Abort,
         }
     }
 }
@@ -1551,10 +1734,20 @@ pub struct DsConfigTargetJson {
     pub panic: Option<PanicPolicyJson>,
     /// Unwind info format.
     pub unwind: Option<UnwindFormatJson>,
+    /// Safety preset that configures runtime checks.
+    pub safety_preset: Option<SafetyPresetJson>,
     /// Overflow checking policy.
     pub overflow_checks: Option<OverflowCheckPolicyJson>,
     /// Bounds check policy.
     pub bounds_checks: Option<BoundsCheckPolicyJson>,
+    /// Null check policy.
+    pub null_checks: Option<NullCheckPolicyJson>,
+    /// Division check policy.
+    pub division_checks: Option<DivisionCheckPolicyJson>,
+    /// Shift range check policy.
+    pub shift_checks: Option<ShiftCheckPolicyJson>,
+    /// Check failure behavior.
+    pub check_failure: Option<CheckFailurePolicyJson>,
     /// Global allocator selection.
     pub allocator: Option<AllocatorJson>,
 }
