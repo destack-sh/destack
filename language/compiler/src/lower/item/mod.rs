@@ -1,3 +1,5 @@
+mod binding;
 mod declaration;
-mod dispatch;
 mod global;
+
+pub(crate) use binding::*;

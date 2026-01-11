@@ -3,7 +3,8 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::{GlobalBinding, ModuleLowerer};
+use super::GlobalBinding;
+use crate::lower::module::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower a module-level let/const binding to MIR globals.

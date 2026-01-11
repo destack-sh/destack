@@ -1,11 +1,11 @@
 use destack_dir::{Expression, LocalNodeId, ScalarLiteral};
 use destack_mir as mir;
 
-use crate::{LowerError, LowerResult};
+use crate::{LowerError, LowerResult, ScalarType};
 
-use super::super::{BlockLowerer, ScalarType};
+use super::FunctionContext;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Lower a scalar literal expression.
     pub(crate) fn lower_scalar_literal(
         &mut self,

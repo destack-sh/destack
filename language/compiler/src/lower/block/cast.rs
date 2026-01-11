@@ -1,11 +1,11 @@
 use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{LowerError, LowerResult, ScalarType};
 
-use super::super::{BlockLowerer, ScalarType};
+use super::FunctionContext;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Lower a cast operator into a MIR cast operator.
     pub(crate) fn lower_cast_operator(
         &self,

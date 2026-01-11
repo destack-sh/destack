@@ -3,11 +3,10 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::BlockLowerer;
-use super::super::block::LocalBinding;
+use super::super::{FunctionContext, LocalBinding};
 use super::ScalarType;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Resolve the MIR type for a typed expression.
     ///
     /// This bridges DIR type information to MIR types during value lowering.

@@ -1,11 +1,11 @@
 use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{LowerError, LowerResult, ScalarType};
 
-use super::super::{BlockLowerer, ScalarType};
+use super::FunctionContext;
 
-impl BlockLowerer<'_, '_> {
+impl FunctionContext<'_> {
     /// Lower a binary operator.
     pub(crate) fn lower_binary_operator(
         &self,

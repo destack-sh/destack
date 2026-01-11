@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 
 use destack_base::StringPool;
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId};
+use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{Compiler, LowerError, LowerResult};
+use crate::{LowerError, LowerResult};
 
-use super::{GlobalBinding, TypeLowerer};
+use crate::lower::item::GlobalBinding;
+use crate::lower::r#type::TypeLowerer;
 
 /// Context for lowering a DIR module to MIR.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to the compiler for shared resources.
-    pub(crate) compiler: &'a Compiler,
+    pub(crate) compiler: &'a crate::Compiler,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
@@ -47,7 +48,7 @@ pub(crate) struct ModuleLowerer<'a> {
 impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(
-        compiler: &'a Compiler,
+        compiler: &'a crate::Compiler,
         module: &'a Module,
         profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
@@ -78,10 +79,23 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower this entire DIR module to MIR (in-place).
+    ///
+    /// Lowering proceeds in phases:
+    /// 1. Lower type declarations (struct/class types are cached)
+    /// 2. Lower global variables
+    /// 3. Lower function/method declarations (signatures + bodies)
+    ///
+    /// Note: Currently all phases are combined in the root expression iteration.
+    /// Type declarations are processed first when encountered, caching their layouts.
+    /// Globals and functions are then lowered in declaration order.
     pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
+        // process root expressions in order
+        // type lowering happens lazily as types are encountered
+        // function bodies reference types that are lowered on-demand
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
+
         Ok(())
     }
 
@@ -109,5 +123,35 @@ impl<'a> ModuleLowerer<'a> {
                 node: node.into_anchored(Some(self.profile)),
                 message: "symbol must have a name".to_string(),
             })
+    }
+
+    /// Lower a root expression.
+    pub(crate) fn lower_root_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LowerResult<()> {
+        let expression = self.dir_tree.get(expression_id);
+        match expression {
+            Expression::Declaration { declaration } => {
+                let declaration_id = *declaration;
+                let declaration = self.dir_tree.get(declaration_id);
+                self.lower_declaration(declaration_id, declaration)
+            }
+            Expression::Statement { statement } => {
+                // unwrap statement wrapper and process the inner expression
+                self.lower_root_expression(*statement)
+            }
+            Expression::Let {
+                mutability,
+                declarators,
+                ..
+            } => self.lower_module_let(expression_id, *mutability, declarators),
+            _ => Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: format!("unsupported root expression `{}`", expression.kind_name()),
+            })?,
+        }
     }
 }
