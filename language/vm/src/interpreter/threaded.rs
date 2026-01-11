@@ -549,6 +549,65 @@ pub enum ThreadedInstructionData {
     },
 }
 
+impl ThreadedInstructionData {
+    /// Return a short opcode label for instruction profiling.
+    #[cfg(feature = "stats")]
+    pub fn opcode_name(&self) -> &'static str {
+        match self {
+            ThreadedInstructionData::Const { .. } => "const",
+            ThreadedInstructionData::Binary { .. } => "binary",
+            ThreadedInstructionData::BinarySpecialized { .. } => "binary_specialized",
+            ThreadedInstructionData::BinaryConstRight { .. } => "binary_const_right",
+            ThreadedInstructionData::BinaryConstRightSpecialized { .. } => {
+                "binary_const_right_specialized"
+            }
+            ThreadedInstructionData::Unary { .. } => "unary",
+            ThreadedInstructionData::Cast { .. } => "cast",
+            ThreadedInstructionData::Select { .. } => "select",
+            ThreadedInstructionData::Call { .. } => "call",
+            ThreadedInstructionData::CallIndirect { .. } => "call_indirect",
+            ThreadedInstructionData::LocalGet { .. } => "local_get",
+            ThreadedInstructionData::LocalSet { .. } => "local_set",
+            ThreadedInstructionData::GlobalAddr { .. } => "global_addr",
+            ThreadedInstructionData::GlobalConst { .. } => "global_const",
+            ThreadedInstructionData::GlobalLoad { .. } => "global_load",
+            ThreadedInstructionData::GlobalStore { .. } => "global_store",
+            ThreadedInstructionData::Load { .. } => "load",
+            ThreadedInstructionData::Store { .. } => "store",
+            ThreadedInstructionData::FieldGet { .. } => "field_get",
+            ThreadedInstructionData::FieldAddr { .. } => "field_addr",
+            ThreadedInstructionData::FieldLoad { .. } => "field_load",
+            ThreadedInstructionData::FieldSet { .. } => "field_set",
+            ThreadedInstructionData::FieldStore { .. } => "field_store",
+            ThreadedInstructionData::ElementGet { .. } => "element_get",
+            ThreadedInstructionData::ElementAddr { .. } => "element_addr",
+            ThreadedInstructionData::ElementLoad { .. } => "element_load",
+            ThreadedInstructionData::ElementSet { .. } => "element_set",
+            ThreadedInstructionData::ElementStore { .. } => "element_store",
+            ThreadedInstructionData::Aggregate { .. } => "aggregate",
+            ThreadedInstructionData::ManagedAlloc { .. } => "managed_alloc",
+            ThreadedInstructionData::ManagedAllocArray { .. } => "managed_alloc_array",
+            ThreadedInstructionData::RawAlloc { .. } => "raw_alloc",
+            ThreadedInstructionData::RawFree { .. } => "raw_free",
+            ThreadedInstructionData::RawDrop { .. } => "raw_drop",
+            ThreadedInstructionData::StackAlloc { .. } => "stack_alloc",
+            ThreadedInstructionData::StackDrop { .. } => "stack_drop",
+            ThreadedInstructionData::Assume { .. } => "assume",
+            ThreadedInstructionData::Intrinsic { .. } => "intrinsic",
+            ThreadedInstructionData::Return { .. } => "return",
+            ThreadedInstructionData::Jump { .. } => "jump",
+            ThreadedInstructionData::Branch { .. } => "branch",
+            ThreadedInstructionData::CompareAndBranch { .. } => "compare_and_branch",
+            ThreadedInstructionData::Switch { .. } => "switch",
+            ThreadedInstructionData::Unreachable => "unreachable",
+            ThreadedInstructionData::Unsupported { .. } => "unsupported",
+            ThreadedInstructionData::TailCall { .. } => "tail_call",
+            ThreadedInstructionData::TailCallSelf { .. } => "tail_call_self",
+            ThreadedInstructionData::TailCallIndirect { .. } => "tail_call_indirect",
+        }
+    }
+}
+
 /// Switch case.
 #[derive(Clone, Debug)]
 pub struct SwitchCase {
@@ -752,6 +811,19 @@ impl<'a> ThreadedState<'a> {
         self.argument_pool_len = threaded.argument_pool.len();
         self.switch_case_pool = threaded.switch_case_pool.as_ptr();
         self.switch_case_pool_len = threaded.switch_case_pool.len();
+    }
+
+    /// Record a profile sample for the current instruction when enabled.
+    #[inline(always)]
+    pub fn maybe_profile_instruction(&mut self, instruction: &ThreadedInstruction) {
+        #[cfg(feature = "stats")]
+        if let Some(profile) = self.interpreter.instruction_profile.as_mut() {
+            profile.maybe_sample(instruction.data.opcode_name());
+        }
+        #[cfg(not(feature = "stats"))]
+        {
+            let _ = instruction;
+        }
     }
 
     /// Get the current frame mutably.

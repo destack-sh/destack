@@ -12,6 +12,12 @@ use super::{arithmetic, calls, dispatch, function_id_by_name, intrinsics, memory
 
 // default quick run time budget
 const QUICK_TIME_BUDGET: Duration = Duration::from_secs(20);
+/// Default sample interval for instruction profiling.
+#[cfg(feature = "stats")]
+const INSTRUCTION_PROFILE_INTERVAL: Duration = Duration::from_micros(150);
+/// Target percentage for instruction profile coverage.
+#[cfg(feature = "stats")]
+const INSTRUCTION_PROFILE_TARGET_PERCENT: f64 = 95.0;
 
 /// Named tags associated with a benchmark program.
 pub(crate) type BenchTags = &'static [&'static str];
@@ -184,11 +190,12 @@ fn output_json(
         out.push('{');
         let _ = write!(
             out,
-            "\"category\":\"{}\",\"name\":\"{}\",\"full_name\":\"{}\",\"mops\":{:.3},\"min_mops\":{:.3},\"max_mops\":{:.3},\"mir\":{},\"threaded\":{},\"calls\":{},\"stack\":{},\"alloc\":{},\"gc\":{:.4},\"freed\":{:.4},\"branches\":{},\"mem\":{},\"range\":\"{}\",\"scale\":\"{}\",\"perf_branch_misses\":",
+            "\"category\":\"{}\",\"name\":\"{}\",\"full_name\":\"{}\",\"mops\":{:.3},\"ns_per_op\":{:.3},\"min_mops\":{:.3},\"max_mops\":{:.3},\"mir\":{},\"threaded\":{},\"calls\":{},\"stack\":{},\"alloc\":{},\"gc\":{:.4},\"freed\":{:.4},\"branches\":{},\"mem\":{},\"range\":\"{}\",\"scale\":\"{}\",",
             json_escape(row.category),
             json_escape(row.name),
             json_escape(&row.full_name),
             row.mops,
+            row.ns_per_op,
             row.min_mops,
             row.max_mops,
             row.mir_instructions,
@@ -203,6 +210,15 @@ fn output_json(
             json_escape(&row.range_label),
             json_escape(&row.scale_label),
         );
+        if let Some(profile) = row.instruction_profile.as_ref() {
+            let _ = write!(
+                out,
+                "\"instruction_profile\":\"{}\",\"perf_branch_misses\":",
+                json_escape(profile)
+            );
+        } else {
+            out.push_str("\"instruction_profile\":null,\"perf_branch_misses\":");
+        }
         if let Some(perf) = row.perf {
             let miss_rate = if perf.l1_accesses == 0 {
                 None
@@ -255,7 +271,7 @@ fn output_csv(
 ) {
     // emit csv header
     println!(
-        "profile,repeat,min_duration_ms,warmup_ms,target_duration_ms,calibrated,deterministic,fast,time_budget_ms,category,name,full_name,mops,min_mops,max_mops,mir,threaded,calls,stack,alloc,gc,freed,branches,mem,range,scale,perf_branch_misses,perf_l1_misses,perf_l1_accesses,perf_l1_miss_rate,elapsed_secs"
+        "profile,repeat,min_duration_ms,warmup_ms,target_duration_ms,calibrated,deterministic,fast,time_budget_ms,category,name,full_name,mops,ns_per_op,min_mops,max_mops,mir,threaded,calls,stack,alloc,gc,freed,branches,mem,range,scale,instruction_profile,perf_branch_misses,perf_l1_misses,perf_l1_accesses,perf_l1_miss_rate,elapsed_secs"
     );
 
     // format shared metadata
@@ -294,7 +310,7 @@ fn output_csv(
         let budget_ms = budget_ms.map(|value| value.to_string()).unwrap_or_default();
 
         println!(
-            "{},{},{},{},{},{},{},{},{},{},{},{},{:.3},{:.3},{:.3},{},{},{},{},{},{:.4},{:.4},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{:.3},{:.3},{:.3},{:.3},{},{},{},{},{},{:.4},{:.4},{},{},{},{},{},{},{},{},{},{}",
             csv_escape(&profile_label),
             repeat,
             min_ms,
@@ -308,6 +324,7 @@ fn output_csv(
             csv_escape(row.name),
             csv_escape(&row.full_name),
             row.mops,
+            row.ns_per_op,
             row.min_mops,
             row.max_mops,
             row.mir_instructions,
@@ -321,6 +338,10 @@ fn output_csv(
             row.memory_ops,
             csv_escape(&row.range_label),
             csv_escape(&row.scale_label),
+            row.instruction_profile
+                .as_ref()
+                .map(|value| csv_escape(value))
+                .unwrap_or_default(),
             perf_branch,
             perf_l1_misses,
             perf_l1_accesses,
@@ -334,7 +355,7 @@ fn output_csv(
         .map(|value| format!("{value:.3}"))
         .unwrap_or_default();
     println!(
-        "{},{},{},{},{},{},{},{},{},summary,average,,{},,,,,,,,,,,,,,,,{:.3}",
+        "{},{},{},{},{},{},{},{},{},summary,average,,{},,,,,,,,,,,,,,,,,,{:.3}",
         csv_escape(&profile_label),
         repeat,
         min_ms,
@@ -445,6 +466,8 @@ pub(crate) struct BenchOptions {
     pub calibrate: bool,
     /// Whether to collect perf counters when supported.
     pub perf_counters: bool,
+    /// Whether to collect instruction profile samples.
+    pub instruction_profile: bool,
     /// Optional total time budget for benchmark runs.
     pub time_budget: Option<Duration>,
     /// Whether to disable time based scaling for reproducibility.
@@ -463,6 +486,7 @@ impl BenchOptions {
         profile: BenchProfile,
         calibrate: bool,
         perf_counters: bool,
+        instruction_profile: bool,
         time_budget: Option<Duration>,
         deterministic: bool,
         fast: bool,
@@ -475,6 +499,7 @@ impl BenchOptions {
             profile,
             calibrate,
             perf_counters,
+            instruction_profile,
             time_budget,
             deterministic,
             fast,
@@ -495,6 +520,7 @@ impl BenchOptions {
             profile: BenchProfileKind::Quick.defaults(),
             calibrate: true,
             perf_counters: false,
+            instruction_profile: false,
             time_budget: Some(QUICK_TIME_BUDGET),
             deterministic: false,
             fast: false,
@@ -549,6 +575,8 @@ struct BenchRow {
     full_name: String,
     /// Median mops for the run.
     mops: f64,
+    /// Median nanoseconds per MIR instruction.
+    ns_per_op: f64,
     /// Min mops for the run.
     min_mops: f64,
     /// Max mops for the run.
@@ -575,6 +603,8 @@ struct BenchRow {
     range_label: String,
     /// Scale label for program inputs.
     scale_label: String,
+    /// Optional instruction profile report.
+    instruction_profile: Option<String>,
     /// Optional perf counters.
     perf: Option<BenchPerf>,
 }
@@ -1068,10 +1098,11 @@ const YELLOW: &str = "\x1b[33m";
 const CYAN: &str = "\x1b[36m";
 const RED: &str = "\x1b[31m";
 const COLUMN_GAP: &str = "  ";
-const COLUMN_COUNT: usize = 13;
+const COLUMN_COUNT: usize = 14;
 const STATS_COLUMN_COUNT: usize = 7;
 const MIN_PROGRAM_WIDTH: usize = 28;
 const MIN_MOPS_WIDTH: usize = 7;
+const MIN_NSOP_WIDTH: usize = 6;
 const MIN_MIR_WIDTH: usize = 8;
 const MIN_THREADED_WIDTH: usize = 8;
 const MIN_CALLS_WIDTH: usize = 6;
@@ -1090,6 +1121,8 @@ struct TableWidths {
     program: usize,
     /// Width for the mops column.
     mops: usize,
+    /// Width for the ns/op column.
+    ns_per_op: usize,
     /// Width for the mir column.
     mir: usize,
     /// Width for the threaded column.
@@ -1120,6 +1153,7 @@ impl TableWidths {
         // seed widths from headers
         let program = MIN_PROGRAM_WIDTH.max("Program".len());
         let mops = MIN_MOPS_WIDTH.max("Mops/s".len());
+        let ns_per_op = MIN_NSOP_WIDTH.max("ns/op".len());
         let mir = MIN_MIR_WIDTH.max("MIR".len());
         let threaded = MIN_THREADED_WIDTH.max("Threaded".len());
         let calls = MIN_CALLS_WIDTH.max("Calls".len());
@@ -1136,6 +1170,7 @@ impl TableWidths {
         let widths = Self {
             program,
             mops,
+            ns_per_op,
             mir,
             threaded,
             calls,
@@ -1158,6 +1193,7 @@ impl TableWidths {
         // format row values
         let program = row.full_name.len();
         let mops = format!("{:.1}", row.mops).len();
+        let ns_per_op = format!("{:.2}", row.ns_per_op).len();
         let mir = row.mir_instructions.to_string().len();
         let threaded = row.threaded_instructions.to_string().len();
         let calls = row.calls.to_string().len();
@@ -1173,6 +1209,7 @@ impl TableWidths {
         // update stored widths
         self.program = self.program.max(program);
         self.mops = self.mops.max(mops);
+        self.ns_per_op = self.ns_per_op.max(ns_per_op);
         self.mir = self.mir.max(mir);
         self.threaded = self.threaded.max(threaded);
         self.calls = self.calls.max(calls);
@@ -1191,6 +1228,7 @@ impl TableWidths {
         // sum column widths
         let columns = self.program
             + self.mops
+            + self.ns_per_op
             + self.mir
             + self.threaded
             + self.calls
@@ -1245,9 +1283,10 @@ fn output_table(
     // print header row
     println!();
     println!(
-        "{BOLD}{:<program_width$}{RESET}{gap}{:>mops_width$}{gap}{:>mir_width$}{gap}{:>threaded_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$}{gap}{:>freed_width$}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
+        "{BOLD}{:<program_width$}{RESET}{gap}{:>mops_width$}{gap}{:>ns_per_op_width$}{gap}{:>mir_width$}{gap}{:>threaded_width$}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$}{gap}{:>freed_width$}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
         "Program",
         "Mops/s",
+        "ns/op",
         "MIR",
         "Threaded",
         "Calls",
@@ -1261,6 +1300,7 @@ fn output_table(
         "Scale",
         program_width = widths.program,
         mops_width = widths.mops,
+        ns_per_op_width = widths.ns_per_op,
         mir_width = widths.mir,
         threaded_width = widths.threaded,
         calls_width = widths.calls,
@@ -1314,9 +1354,10 @@ fn output_table(
             RED
         };
         println!(
-            "{CYAN}{:<program_width$}{RESET}{gap}{mops_color}{:>mops_width$.1}{RESET}{gap}{BOLD}{:>mir_width$}{RESET}{gap}{DIM}{:>threaded_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$.1}{gap}{:>freed_width$.0}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
+            "{CYAN}{:<program_width$}{RESET}{gap}{mops_color}{:>mops_width$.1}{RESET}{gap}{DIM}{:>ns_per_op_width$.2}{RESET}{gap}{BOLD}{:>mir_width$}{RESET}{gap}{DIM}{:>threaded_width$}{RESET}{gap}{:>calls_width$}{gap}{:>stack_width$}{gap}{:>alloc_width$}{gap}{:>gc_width$.1}{gap}{:>freed_width$.0}{gap}{:>branches_width$}{gap}{:>mem_width$}{gap}{:>range_width$}{gap}{:<scale_width$}{RESET}",
             row.full_name,
             row.mops,
+            row.ns_per_op,
             row.mir_instructions,
             row.threaded_instructions,
             row.calls,
@@ -1330,6 +1371,7 @@ fn output_table(
             row.scale_label,
             program_width = widths.program,
             mops_width = widths.mops,
+            ns_per_op_width = widths.ns_per_op,
             mir_width = widths.mir,
             threaded_width = widths.threaded,
             calls_width = widths.calls,
@@ -1359,6 +1401,9 @@ fn output_table(
                 miss_rate * 100.0
             );
         }
+        if let Some(profile) = row.instruction_profile.as_deref() {
+            println!("{DIM}  inst: {profile}{RESET}");
+        }
     }
 
     // print summary line
@@ -1366,21 +1411,24 @@ fn output_table(
     if let Some(avg) = average_mops {
         // compute summary alignment
         let elapsed_label = format!("in {:.2}s", total_elapsed.as_secs_f64());
-        let gaps = COLUMN_GAP.len() * 2;
-        let prefix = widths.program + widths.mops + gaps;
+        let gaps = COLUMN_GAP.len() * 3;
+        let prefix = widths.program + widths.mops + widths.ns_per_op + gaps;
         let padding = table_width
             .saturating_sub(prefix)
             .saturating_sub(elapsed_label.len())
             .max(1);
+        let average_ns_per_op = if avg > 0.0 { 1000.0 / avg } else { 0.0 };
 
         // print summary row
         println!(
-            "{BOLD}{:<program_width$}{RESET}{gap}{BOLD}{:>mops_width$.1}{RESET}{gap}{DIM}{:>padding$}{elapsed_label}{RESET}",
+            "{BOLD}{:<program_width$}{RESET}{gap}{BOLD}{:>mops_width$.1}{RESET}{gap}{DIM}{:>ns_per_op_width$.2}{RESET}{gap}{DIM}{:>padding$}{elapsed_label}{RESET}",
             "Average",
             avg,
+            average_ns_per_op,
             "",
             program_width = widths.program,
             mops_width = widths.mops,
+            ns_per_op_width = widths.ns_per_op,
             padding = padding,
             gap = COLUMN_GAP,
             elapsed_label = elapsed_label,
@@ -1561,13 +1609,48 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             l1_accesses: report.l1_accesses,
         });
 
+        // collect instruction profile samples if requested
+        let instruction_profile = if options.instruction_profile {
+            #[cfg(feature = "stats")]
+            {
+                interp.enable_instruction_profile(INSTRUCTION_PROFILE_INTERVAL);
+                interp.reset_instruction_profile();
+
+                let profile_start = Instant::now();
+                while profile_start.elapsed() < min_duration {
+                    if needs_gc {
+                        let _ = interp.collect_garbage();
+                    }
+                    let _ = interp
+                        .run_function(entry_id, &args)
+                        .unwrap_or_else(|e| panic!("'{}' failed: {:?}", entry.program.name, e));
+                }
+
+                let report = interp.instruction_profile_report(INSTRUCTION_PROFILE_TARGET_PERCENT);
+                interp.clear_instruction_profile();
+                report
+            }
+            #[cfg(not(feature = "stats"))]
+            {
+                None
+            }
+        } else {
+            None
+        };
+
         // assemble row data
         let mem = stats.loads() + stats.stores();
+        let ns_per_op = if summary.median_mops > 0.0 {
+            1000.0 / summary.median_mops
+        } else {
+            0.0
+        };
         let row = BenchRow {
             category: entry.category,
             name: entry.program.name,
             full_name,
             mops: summary.median_mops,
+            ns_per_op,
             min_mops: summary.min_mops,
             max_mops: summary.max_mops,
             mir_instructions: stats.mir_instructions_executed,
@@ -1581,6 +1664,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             memory_ops: mem,
             range_label,
             scale_label,
+            instruction_profile,
             perf,
         };
 
@@ -1647,6 +1731,7 @@ pub(crate) fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>
         tags,
         BenchOutputFormat::Table,
         BenchProfileKind::Quick.defaults(),
+        false,
         false,
         false,
         None,
