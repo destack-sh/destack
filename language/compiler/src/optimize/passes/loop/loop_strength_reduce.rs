@@ -8,7 +8,8 @@ use crate::optimize::analyses::{
     ScalarEvolution, Scev, ValueRange,
 };
 use crate::optimize::common::{
-    constant_is_zero, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    constant_is_zero, instruction_substitute_uses_in_tree, resolve_substitution_chains,
+    terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -1150,33 +1151,6 @@ fn append_arguments_for_successor(
         }
         _ => None,
     }
-}
-
-/// Resolve transitive substitution chains.
-fn resolve_substitution_chains(
-    mut substitutions: HashMap<mir::Value, mir::Value>,
-) -> HashMap<mir::Value, mir::Value> {
-    // collect keys to avoid borrowing during mutation
-    let keys: Vec<_> = substitutions.keys().copied().collect();
-
-    // follow substitution chains to their final targets
-    for key in keys {
-        let mut current = substitutions[&key];
-
-        // walk the chain to the final target
-        while let Some(&next) = substitutions.get(&current) {
-            if next == current {
-                break;
-            }
-
-            current = next;
-        }
-
-        // store the resolved target
-        substitutions.insert(key, current);
-    }
-
-    substitutions
 }
 
 /// Helper for materializing SCEV expressions in the preheader.

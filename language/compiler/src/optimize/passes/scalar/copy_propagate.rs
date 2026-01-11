@@ -6,7 +6,7 @@ use mir::Terminator;
 
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
-    terminator_substitute_uses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -247,24 +247,6 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
     }
 
     true
-}
-
-/// Resolve transitive substitution chains.
-fn resolve_substitution_chains(
-    mut substitutions: HashMap<mir::Value, mir::Value>,
-) -> HashMap<mir::Value, mir::Value> {
-    let keys: Vec<_> = substitutions.keys().copied().collect();
-    for key in keys {
-        let mut current = substitutions[&key];
-        while let Some(&next) = substitutions.get(&current) {
-            if next == current {
-                break;
-            }
-            current = next;
-        }
-        substitutions.insert(key, current);
-    }
-    substitutions
 }
 
 /// Remove arguments at specified indices from terminator's target arguments.

@@ -6,10 +6,8 @@ use destack_mir as mir;
 use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
-    terminator_substitute_uses, terminator_uses,
+    instruction_substitute_uses_in_tree, terminator_substitute_uses, terminator_uses,
 };
-
-// TODO #Architecture: rebuild aggregate loads and stores when base pointers are used
 
 declare_pass! {
     /// Scalar Replacement of Aggregates.
@@ -134,10 +132,16 @@ fn run_sroa(
 struct SplitCandidate {
     /// The stack allocation instruction.
     alloc_instruction: mir::LocalNodeId<mir::Instruction>,
+    /// The aggregate layout type.
+    layout: mir::LocalNodeId<mir::Type>,
     /// The element types after splitting.
     element_types: Vec<mir::LocalNodeId<mir::Type>>,
     /// Uses of the allocation (field/element addresses).
     uses: Vec<UseInfo>,
+    /// Loads performed directly on the base pointer.
+    base_loads: Vec<mir::LocalNodeId<mir::Instruction>>,
+    /// Stores performed directly on the base pointer.
+    base_stores: Vec<mir::LocalNodeId<mir::Instruction>>,
 }
 
 /// Information about a use of an allocation.
@@ -151,6 +155,16 @@ struct UseInfo {
     destination: mir::Value,
 }
 
+/// Aggregate uses discovered during analysis.
+struct AllocationUses {
+    /// Field or element address uses.
+    uses: Vec<UseInfo>,
+    /// Base pointer loads.
+    base_loads: Vec<mir::LocalNodeId<mir::Instruction>>,
+    /// Base pointer stores.
+    base_stores: Vec<mir::LocalNodeId<mir::Instruction>>,
+}
+
 /// Find stack allocations that can be split into scalars.
 fn find_splittable_allocations_core(
     function: &mir::Function,
@@ -161,7 +175,9 @@ fn find_splittable_allocations_core(
     let mut candidates = Vec::new();
 
     // collect all stack allocations of aggregate types
-    for &block_id in &function.blocks {
+    let block_ids: Vec<_> = function.blocks.clone();
+
+    for &block_id in &block_ids {
         let block = tree.get(block_id);
 
         for &inst_id in &block.instructions {
@@ -186,6 +202,7 @@ fn find_splittable_allocations_core(
                     None => continue,
                 };
                 if uses
+                    .uses
                     .iter()
                     .any(|use_info| use_info.index >= element_types.len())
                 {
@@ -194,8 +211,11 @@ fn find_splittable_allocations_core(
 
                 candidates.push(SplitCandidate {
                     alloc_instruction: inst_id,
+                    layout: *layout,
                     element_types,
-                    uses,
+                    uses: uses.uses,
+                    base_loads: uses.base_loads,
+                    base_stores: uses.base_stores,
                 });
             }
         }
@@ -268,8 +288,10 @@ fn analyze_uses(
     function: &mir::Function,
     tree: &mir::NodeTree,
     constants: &ConstantPropagation,
-) -> Option<Vec<UseInfo>> {
+) -> Option<AllocationUses> {
     let mut uses = Vec::new();
+    let mut base_loads = Vec::new();
+    let mut base_stores = Vec::new();
     let mut seen_values: HashSet<mir::Value> = HashSet::new();
     let mut worklist: Vec<mir::Value> = vec![alloc_value];
 
@@ -320,16 +342,16 @@ fn analyze_uses(
                         worklist.push(*destination);
                     }
 
-                    // load and store are fine (they use the derived address, not the base)
+                    // loads and stores are allowed, base pointer uses are recorded
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
                         if value == alloc_value {
-                            return None;
+                            base_loads.push(inst_id);
                         }
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
                         if value == alloc_value {
-                            return None;
+                            base_stores.push(inst_id);
                         }
                     }
 
@@ -364,7 +386,11 @@ fn analyze_uses(
         }
     }
 
-    Some(uses)
+    Some(AllocationUses {
+        uses,
+        base_loads,
+        base_stores,
+    })
 }
 
 /// Resolve a constant integer index from constant propagation.
@@ -443,7 +469,7 @@ fn split_allocation(
     // apply substitutions to all instructions
     apply_substitutions(&substitutions, function, tree);
 
-    // remove the original allocation and field/element address instructions
+    // collect instructions to remove after rewriting
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
     to_remove.insert(candidate.alloc_instruction);
 
@@ -451,13 +477,220 @@ fn split_allocation(
         to_remove.insert(use_info.instruction);
     }
 
-    // remove instructions from blocks
-    for &block_id in &function.blocks {
-        let block = tree.get_mut(block_id);
-        block.instructions.retain(|id| !to_remove.contains(id));
+    // rewrite base pointer loads and stores
+    let base_loads: HashSet<_> = candidate.base_loads.iter().copied().collect();
+    let base_stores: HashSet<_> = candidate.base_stores.iter().copied().collect();
+
+    // rewrite instructions per block
+    let block_ids: Vec<_> = function.blocks.clone();
+    for &block_id in &block_ids {
+        let instruction_ids = {
+            let block = tree.get(block_id);
+            block.instructions.clone()
+        };
+
+        let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+
+        for instruction_id in instruction_ids {
+            // rewrite base pointer loads into scalar loads
+            if base_loads.contains(&instruction_id) {
+                let mut rewritten =
+                    rewrite_base_load(candidate, function, tree, &index_to_value, instruction_id);
+                new_instructions.append(&mut rewritten);
+                continue;
+            }
+
+            // rewrite base pointer stores into scalar stores
+            if base_stores.contains(&instruction_id) {
+                let mut rewritten =
+                    rewrite_base_store(candidate, function, tree, &index_to_value, instruction_id);
+                new_instructions.append(&mut rewritten);
+                continue;
+            }
+
+            // drop instructions that are replaced or removed
+            if to_remove.contains(&instruction_id) {
+                continue;
+            }
+
+            // keep untouched instructions
+            new_instructions.push(instruction_id);
+        }
+
+        let mut block = tree.get(block_id).clone();
+        if block.instructions != new_instructions {
+            block.instructions = new_instructions;
+            tree.replace(block_id, block);
+        }
     }
 
     true
+}
+
+/// Rewrite a base pointer load into scalar loads and aggregate rebuild.
+fn rewrite_base_load(
+    candidate: &SplitCandidate,
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    index_to_value: &HashMap<usize, mir::Value>,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+    // extract load destination
+    let (destination, _pointer) = match tree.get(instruction_id) {
+        mir::Instruction::Load {
+            destination,
+            pointer,
+        } => (*destination, *pointer),
+        _ => panic!("sroa base load rewrite expects a load instruction"),
+    };
+
+    // load each scalar element in order
+    let mut element_values: Vec<mir::Value> = Vec::new();
+    let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    for index in 0..candidate.element_types.len() {
+        let element_pointer = index_to_value
+            .get(&index)
+            .copied()
+            .expect("missing scalar slot for aggregate element");
+        let element_value = function.next_value();
+        let load_inst = mir::Instruction::Load {
+            destination: element_value,
+            pointer: element_pointer,
+        };
+        let load_id = tree.insert(load_inst);
+        new_instructions.push(load_id);
+        element_values.push(element_value);
+    }
+
+    // rebuild the aggregate value from the loaded elements
+    let aggregate_inst =
+        build_aggregate_instruction(tree, candidate.layout, destination, &element_values);
+    let aggregate_id = tree.insert(aggregate_inst);
+    new_instructions.push(aggregate_id);
+
+    new_instructions
+}
+
+/// Rewrite a base pointer store into aggregate decompositions and scalar stores.
+fn rewrite_base_store(
+    candidate: &SplitCandidate,
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    index_to_value: &HashMap<usize, mir::Value>,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+    // extract stored value
+    let stored_value = match tree.get(instruction_id) {
+        mir::Instruction::Store { value, .. } => *value,
+        _ => panic!("sroa base store rewrite expects a store instruction"),
+    };
+
+    // select aggregate decomposition strategy
+    let layout = tree.get(candidate.layout);
+    let is_array = matches!(layout, mir::Type::Array { .. });
+
+    let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    for index in 0..candidate.element_types.len() {
+        let element_pointer = index_to_value
+            .get(&index)
+            .copied()
+            .expect("missing scalar slot for aggregate element");
+        let element_value = function.next_value();
+
+        // handle array extraction using element indices
+        if is_array {
+            let (index_value, index_inst) = insert_index_constant(function, tree, index);
+            new_instructions.push(index_inst);
+
+            let element_get = mir::Instruction::ElementGet {
+                destination: element_value,
+                array: stored_value,
+                index: index_value,
+            };
+            let element_get_id = tree.insert(element_get);
+            new_instructions.push(element_get_id);
+        }
+
+        // handle struct or tuple extraction using field indices
+        if !is_array {
+            let field_get = mir::Instruction::FieldGet {
+                destination: element_value,
+                aggregate: stored_value,
+                index: index as u32,
+            };
+            let field_get_id = tree.insert(field_get);
+            new_instructions.push(field_get_id);
+        }
+
+        // store scalar into the split allocation slot
+        let store_inst = mir::Instruction::Store {
+            pointer: element_pointer,
+            value: element_value,
+        };
+        let store_id = tree.insert(store_inst);
+        new_instructions.push(store_id);
+    }
+
+    new_instructions
+}
+
+/// Build an aggregate construction instruction for the given layout.
+fn build_aggregate_instruction(
+    tree: &mut mir::NodeTree,
+    layout: mir::LocalNodeId<mir::Type>,
+    destination: mir::Value,
+    element_values: &[mir::Value],
+) -> mir::Instruction {
+    // prepare aggregate arguments and layout
+    let arguments = tree.add_arguments(element_values);
+    let layout_type = tree.get(layout);
+
+    match layout_type {
+        mir::Type::Struct { .. } => mir::Instruction::Struct {
+            destination,
+            ty: layout,
+            fields: arguments,
+        },
+        mir::Type::Tuple { .. } => mir::Instruction::Tuple {
+            destination,
+            ty: layout,
+            elements: arguments,
+        },
+        mir::Type::Array { .. } => mir::Instruction::Array {
+            destination,
+            ty: layout,
+            elements: arguments,
+        },
+        _ => panic!("sroa base load expects an aggregate layout type"),
+    }
+}
+
+/// Insert a constant instruction for an array index value.
+fn insert_index_constant(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    index: usize,
+) -> (mir::Value, mir::LocalNodeId<mir::Instruction>) {
+    // convert index to a signed 64 bit constant
+    let index_value = match i64::try_from(index) {
+        Ok(value) => value,
+        Err(_) => panic!("array index does not fit in i64"),
+    };
+
+    // emit constant index
+    let destination = function.next_value();
+    let constant = mir::Constant::Int {
+        value: index_value,
+        width: 64,
+        is_signed: true,
+    };
+    let inst = mir::Instruction::Const {
+        destination,
+        value: constant,
+    };
+    let inst_id = tree.insert(inst);
+
+    (destination, inst_id)
 }
 
 /// Apply value substitutions to all instructions and terminators.
@@ -472,166 +705,21 @@ fn apply_substitutions(
 
     for &block_id in &function.blocks {
         // substitute in instructions
-        let block = tree.get(block_id);
-        let instructions = block.instructions.clone();
+        let instruction_ids = {
+            let block = tree.get(block_id);
+            block.instructions.clone()
+        };
 
-        for &inst_id in &instructions {
-            let inst = tree.get_mut(inst_id);
-            substitute_in_instruction(inst, substitutions);
+        for inst_id in instruction_ids {
+            let instruction = tree.get(inst_id).clone();
+            let new_instruction =
+                instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
+            tree.replace(inst_id, new_instruction);
         }
 
         // substitute in terminator
         let block = tree.get_mut(block_id);
         block.terminator = terminator_substitute_uses(&block.terminator, substitutions);
-    }
-}
-
-/// Substitute values in an instruction.
-fn substitute_in_instruction(
-    inst: &mut mir::Instruction,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) {
-    match inst {
-        mir::Instruction::Binary { left, right, .. } => {
-            if let Some(&new) = substitutions.get(left) {
-                *left = new;
-            }
-            if let Some(&new) = substitutions.get(right) {
-                *right = new;
-            }
-        }
-        mir::Instruction::Unary { argument, .. } => {
-            if let Some(&new) = substitutions.get(argument) {
-                *argument = new;
-            }
-        }
-        mir::Instruction::Cast { argument, .. } => {
-            if let Some(&new) = substitutions.get(argument) {
-                *argument = new;
-            }
-        }
-        mir::Instruction::Select {
-            condition,
-            then_value,
-            else_value,
-            ..
-        } => {
-            if let Some(&new) = substitutions.get(condition) {
-                *condition = new;
-            }
-            if let Some(&new) = substitutions.get(then_value) {
-                *then_value = new;
-            }
-            if let Some(&new) = substitutions.get(else_value) {
-                *else_value = new;
-            }
-        }
-        mir::Instruction::Load { pointer, .. } => {
-            if let Some(&new) = substitutions.get(pointer) {
-                *pointer = new;
-            }
-        }
-        mir::Instruction::Store { pointer, value, .. } => {
-            if let Some(&new) = substitutions.get(pointer) {
-                *pointer = new;
-            }
-            if let Some(&new) = substitutions.get(value) {
-                *value = new;
-            }
-        }
-        mir::Instruction::FieldGet { aggregate, .. } => {
-            if let Some(&new) = substitutions.get(aggregate) {
-                *aggregate = new;
-            }
-        }
-        mir::Instruction::FieldAddr { aggregate, .. } => {
-            if let Some(&new) = substitutions.get(aggregate) {
-                *aggregate = new;
-            }
-        }
-        mir::Instruction::FieldSet {
-            aggregate, value, ..
-        } => {
-            if let Some(&new) = substitutions.get(aggregate) {
-                *aggregate = new;
-            }
-            if let Some(&new) = substitutions.get(value) {
-                *value = new;
-            }
-        }
-        mir::Instruction::ElementGet { array, index, .. } => {
-            if let Some(&new) = substitutions.get(array) {
-                *array = new;
-            }
-            if let Some(&new) = substitutions.get(index) {
-                *index = new;
-            }
-        }
-        mir::Instruction::ElementAddr { array, index, .. } => {
-            if let Some(&new) = substitutions.get(array) {
-                *array = new;
-            }
-            if let Some(&new) = substitutions.get(index) {
-                *index = new;
-            }
-        }
-        mir::Instruction::ElementSet {
-            array,
-            index,
-            value,
-            ..
-        } => {
-            if let Some(&new) = substitutions.get(array) {
-                *array = new;
-            }
-            if let Some(&new) = substitutions.get(index) {
-                *index = new;
-            }
-            if let Some(&new) = substitutions.get(value) {
-                *value = new;
-            }
-        }
-        mir::Instruction::RawFree { pointer } => {
-            if let Some(&new) = substitutions.get(pointer) {
-                *pointer = new;
-            }
-        }
-        mir::Instruction::RawDrop { value, .. } => {
-            if let Some(&new) = substitutions.get(value) {
-                *value = new;
-            }
-        }
-        mir::Instruction::StackDrop { value, .. } => {
-            if let Some(&new) = substitutions.get(value) {
-                *value = new;
-            }
-        }
-        mir::Instruction::LocalSet { value, .. } => {
-            if let Some(&new) = substitutions.get(value) {
-                *value = new;
-            }
-        }
-        mir::Instruction::Assume { condition } => {
-            if let Some(&new) = substitutions.get(condition) {
-                *condition = new;
-            }
-        }
-
-        // instructions without value operands or with external arguments
-        mir::Instruction::Const { .. }
-        | mir::Instruction::LocalGet { .. }
-        | mir::Instruction::GlobalAddr { .. }
-        | mir::Instruction::GlobalConst { .. }
-        | mir::Instruction::Struct { .. }
-        | mir::Instruction::Tuple { .. }
-        | mir::Instruction::Array { .. }
-        | mir::Instruction::Call { .. }
-        | mir::Instruction::CallIndirect { .. }
-        | mir::Instruction::ManagedAlloc { .. }
-        | mir::Instruction::ManagedAllocArray { .. }
-        | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::StackAlloc { .. }
-        | mir::Instruction::Intrinsic { .. } => {}
     }
 }
 
@@ -994,7 +1082,7 @@ block1(v2: i64):
         program.assert_output(expected);
     }
 
-    /// Base pointer loads and stores prevent splitting.
+    /// Base pointer loads and stores are rebuilt from scalar slots.
     #[test]
     fn test_preserve_base_pointer_load_store() {
         let input = r#"type @Point = { i32, i32 }
@@ -1009,9 +1097,68 @@ block0:
     v5 = field.get v4, 0
     return v5
 }"#;
+        let expected = r#"type @Point = { i32, i32 }
+function @test() -> i32 {
+block0:
+    v7 = stack.alloc i32
+    v6 = stack.alloc i32
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    v3 = struct @Point (v1, v2)
+    v8 = field.get v3, 0
+    store v6, v8
+    v9 = field.get v3, 1
+    store v7, v9
+    v10 = load v6
+    v11 = load v7
+    v4 = struct @Point (v10, v11)
+    v5 = field.get v4, 0
+    return v5
+}"#;
 
         let mut program = TestProgram::new(input);
         program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        program.assert_output(expected);
+    }
+
+    /// Base pointer array loads and stores are rebuilt from scalar slots.
+    #[test]
+    fn test_rewrite_base_pointer_array_load_store() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc [i32; 2]
+    v1 = iconst 10i32
+    v2 = iconst 20i32
+    v3 = array [i32; 2] (v1, v2)
+    store v0, v3
+    v4 = load v0
+    v5 = iconst 1i64
+    v6 = element.get v4, v5
+    return v6
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v8 = stack.alloc i32
+    v7 = stack.alloc i32
+    v1 = iconst 10i32
+    v2 = iconst 20i32
+    v3 = array [i32; 2] (v1, v2)
+    v10 = iconst 0i64
+    v9 = element.get v3, v10
+    store v7, v9
+    v12 = iconst 1i64
+    v11 = element.get v3, v12
+    store v8, v11
+    v13 = load v7
+    v14 = load v8
+    v4 = array [i32; 2] (v13, v14)
+    v5 = iconst 1i64
+    v6 = element.get v4, v5
+    return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&Sroa);
+        program.assert_output(expected);
     }
 }
