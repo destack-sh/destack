@@ -14,7 +14,7 @@ use super::threaded::{
     ThreadedInstruction, ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT,
     is_invalid_value,
 };
-use super::{instruction, operator};
+use super::{instruction, operator, resize_and_clear_stack};
 
 // helper macro: do work, then become next handler
 macro_rules! next {
@@ -4690,12 +4690,8 @@ fn enter_tail_call(
     // resize stacks to callee requirements
     let value_end = value_base + callee.value_count;
     let local_end = local_base + callee.local_count;
-    state.interpreter.value_stack.resize(value_end, Value::VOID);
-    state.interpreter.local_stack.resize(local_end, Value::VOID);
-
-    // clear reused stack slots
-    state.interpreter.value_stack[value_base..value_end].fill(Value::VOID);
-    state.interpreter.local_stack[local_base..local_end].fill(Value::VOID);
+    resize_and_clear_stack(&mut state.interpreter.value_stack, value_base, value_end);
+    resize_and_clear_stack(&mut state.interpreter.local_stack, local_base, local_end);
 
     // update frame metadata
     let entry_block = &callee.blocks[callee.entry as usize];
@@ -4717,9 +4713,19 @@ fn enter_tail_call(
 
     // bind function parameters
     let parameter_slice = callee.parameters.slice(callee.argument_pool.as_slice());
-    for (index, param) in parameter_slice.iter().enumerate() {
-        let value = argument_values.get(index).copied().unwrap_or(Value::VOID);
-        state.set(*param, value);
+    // use direct indexing when arguments cover parameters
+    if argument_values.len() >= parameter_slice.len() {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = argument_values[index];
+            state.set(*param, value);
+        }
+    }
+    // fall back to defaulted arguments
+    else {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = argument_values.get(index).copied().unwrap_or(Value::VOID);
+            state.set(*param, value);
+        }
     }
 
     // update statistics
@@ -4860,9 +4866,19 @@ pub(super) fn handle_tail_call_self(
 
     // bind function parameters
     let parameter_slice = threaded.parameters.slice(threaded.argument_pool.as_slice());
-    for (index, param) in parameter_slice.iter().enumerate() {
-        let value = args.get(index).copied().unwrap_or(Value::VOID);
-        state.set(*param, value);
+    // use direct indexing when arguments cover parameters
+    if args.len() >= parameter_slice.len() {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = args[index];
+            state.set(*param, value);
+        }
+    }
+    // fall back to defaulted arguments
+    else {
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = args.get(index).copied().unwrap_or(Value::VOID);
+            state.set(*param, value);
+        }
     }
 
     // continue at entry block

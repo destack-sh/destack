@@ -2,7 +2,7 @@ use std::ptr::NonNull;
 
 use destack_mir as mir;
 
-use super::threaded::{ThreadedBlock, ThreadedFunction};
+use super::threaded::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapCell, HeapHandle, Value};
 
@@ -33,8 +33,8 @@ pub struct Frame {
     pub local_count: usize,
     /// Stack-allocated cells (freed when frame pops).
     pub stack_cells: Vec<HeapCell>,
-    /// Where to store the return value when callee returns (set by caller before pushing a new frame).
-    pub return_destination: Option<mir::Value>,
+    /// Return destination for the caller or INVALID_VALUE_ID for none.
+    pub return_destination: mir::Value,
 }
 
 impl Frame {
@@ -65,7 +65,7 @@ impl Frame {
             local_base,
             local_count,
             stack_cells: Vec::new(),
-            return_destination: None,
+            return_destination: mir::Value(INVALID_VALUE_ID),
         }
     }
 
