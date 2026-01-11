@@ -1385,11 +1385,9 @@ fn thread_instruction(
         }
 
         mir::Instruction::LocalGet { destination, local } => {
-            let local_index = if let Some(index) = local_index_by_id.get(local) {
-                *index
-            } else {
-                debug_assert!(false, "missing local index for {local:?}");
-                0
+            let local_index = match local_index_by_id.get(local) {
+                Some(index) => *index,
+                None => panic!("missing local index for {local:?}"),
             };
             ThreadedInstruction {
                 handler: dispatch::handle_local_get,
@@ -1401,11 +1399,9 @@ fn thread_instruction(
         }
 
         mir::Instruction::LocalSet { local, value } => {
-            let local_index = if let Some(index) = local_index_by_id.get(local) {
-                *index
-            } else {
-                debug_assert!(false, "missing local index for {local:?}");
-                0
+            let local_index = match local_index_by_id.get(local) {
+                Some(index) => *index,
+                None => panic!("missing local index for {local:?}"),
             };
             ThreadedInstruction {
                 handler: dispatch::handle_local_set,

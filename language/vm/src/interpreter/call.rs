@@ -417,6 +417,15 @@ impl Interpreter {
                 self.statistics.mir_instructions_executed += block.mir_instruction_count as u64;
             }
 
+            // refresh threaded function after handler chain (tail calls can swap frames)
+            let current_func = {
+                let frame = self
+                    .call_stack
+                    .last()
+                    .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                unsafe { frame.threaded.as_ref() }
+            };
+
             // handle control flow
             match control {
                 ControlFlow::Jump {
