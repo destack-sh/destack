@@ -399,7 +399,7 @@ pub struct DsConfigCompilerOptions {
     pub no_fallthrough_cases_in_switch: bool,
     /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: bool,
-    /// Add `undefined` to indexed access results.
+    /// Add `undefined` to index signature access results.
     pub no_unchecked_indexed_access: bool,
     /// Disallow property access from index signatures without explicit index access.
     pub no_property_access_from_index_signature: bool,
@@ -1487,7 +1487,7 @@ pub struct CompilerOptionsJson {
     pub no_fallthrough_cases_in_switch: Option<bool>,
     /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: Option<bool>,
-    /// Add `undefined` to indexed access results.
+    /// Add `undefined` to index signature access results.
     pub no_unchecked_indexed_access: Option<bool>,
     /// Disallow property access from index signatures without explicit index access.
     pub no_property_access_from_index_signature: Option<bool>,

@@ -90,6 +90,12 @@ const point: (int32, int32) = (1, 2);
 const (x, _) = getPoint();
 ```
 
+### Arrays
+
+Arrays are dense on native targets: array literals do not permit holes, and index
+access is bounds checked. `a[i]` returns the element type and out of bounds access
+follows the `boundsChecks` and `checkFailure` policies.
+
 ### Patterns
 
 Modern `match` with full pattern matching and exhaustiveness checking:

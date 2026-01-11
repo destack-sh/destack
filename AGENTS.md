@@ -151,6 +151,7 @@ Logic:
 Lints and warnings:
 - Fix all the lints from `cargo check --release -p <crate>` and `cargo clippy --release -p <crate>`
 - Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
+- In general, ignore too many arguments and type complexity warnings
 
 
 ## Commands

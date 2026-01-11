@@ -425,6 +425,11 @@ int32[N]             // fixed-length array
 (x: int32, y: int32) // named tuple
 ```
 
+Arrays are dense on native targets, array literals do not permit holes, and index access is
+bounds checked. `a[i]` returns the element type, and out of bounds access triggers the
+configured bounds check failure (`boundsChecks` and `checkFailure`).
+`noUncheckedIndexedAccess` only affects index signatures, not arrays or tuples.
+
 ### References and Values
 
 By default, any `T` behaves like in TypeScript (with value primitives and reference objects).
@@ -2614,6 +2619,10 @@ Index operators for subscript access and assignment (like Python's `__getitem__`
 |----------|-------------|-----------|
 | `a[i]` | Index access | `Index<I, O>` |
 | `a[i] = v` | Index assignment | `IndexSet<I, V>` |
+
+Array and tuple indexing is bounds checked and returns the element type.
+Out of bounds accesses trigger the configured bounds check failure.
+`noUncheckedIndexedAccess` only affects index signatures and other dynamic indexers.
 
 ### Type Operators
 

@@ -304,7 +304,7 @@
           ]
         },
         "noUncheckedIndexedAccess": {
-          "description": "Add `undefined` to indexed access results.",
+          "description": "Add `undefined` to index signature access results.",
           "type": [
             "boolean",
             "null"
