@@ -1,5 +1,5 @@
 use crate::{
-    BlockLowerer, Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer, TypeLowerer,
+    Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer, TypeLowerer,
 };
 
 use destack_workspace::{Module, ProfileId, TargetId};
@@ -112,42 +112,42 @@ impl Compiler {
             })?;
 
         // build a synthetic function to evaluate the expression
-        let mut function_builder = builder.function("comptime", &[], return_type);
-        let entry_block = function_builder.create_block();
-        function_builder.switch_to_block(entry_block);
+        let function_builder = builder.function("comptime", &[], return_type);
 
-        // track locals, functions, globals, and loops by symbol
-        let mut locals_by_symbol = std::collections::HashMap::new();
-        let mut loops_by_symbol = std::collections::HashMap::new();
-        let mut loop_stack = Vec::new();
+        // create empty maps for function/global lookup (comptime expressions are standalone)
         let functions_by_symbol = std::collections::HashMap::new();
         let globals_by_symbol = std::collections::HashMap::new();
-        let mut block_lowerer = BlockLowerer {
-            module_id: module.id,
-            profile,
-            dir_tree: &dir_tree,
-            symbols: &symbols,
-            types: &types,
-            strings: &self.program.strings,
-            type_lowerer: &type_lowerer,
-            functions_by_symbol: &functions_by_symbol,
-            globals_by_symbol: &globals_by_symbol,
-            builder: &mut function_builder,
-            locals_by_symbol: &mut locals_by_symbol,
-            loops_by_symbol: &mut loops_by_symbol,
-            loop_stack: &mut loop_stack,
-            this_binding: None,
-        };
 
-        let (value, _) = block_lowerer
+        // create function context
+        let mut function_ctx = FunctionContext::new(
+            module.id,
+            profile,
+            &dir_tree,
+            &symbols,
+            &types,
+            &self.program.strings,
+            &functions_by_symbol,
+            &globals_by_symbol,
+            &type_lowerer,
+            function_builder,
+        );
+
+        // create entry block
+        let entry_block = function_ctx.builder.create_block();
+        function_ctx.builder.switch_to_block(entry_block);
+
+        // lower the expression
+        let (value, _) = function_ctx
             .lower_value_expression(expression_id)
             .map_err(|error| ExecuteError::FailedLower {
                 module: module.id,
                 error: Box::new(error.clone()),
                 message: format!("{error}"),
             })?;
-        function_builder.return_(Some(value));
-        let function_id = function_builder.finish();
+
+        // return and finish
+        function_ctx.builder.return_(Some(value));
+        let function_id = function_ctx.builder.finish();
 
         let (tree, strings) = builder.finish_mutable();
         Ok((tree, strings, function_id))

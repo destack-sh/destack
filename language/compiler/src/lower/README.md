@@ -1,6 +1,10 @@
 # Lowering: DIR to MIR
 
-This document describes how Destack's high-level semantic representation (elaborated, canonical DIR) is lowered to machine-level IR (MIR) for native targets (currently via Cranelift).
+This document describes how Destack's high-level semantic representation (elaborated, canonical DIR) is lowered to machine-level IR (MIR) for native targets.
+
+See also:
+- [INTRINSICS.md](INTRINSICS.md) for intrinsic operations
+- [INTEROPERABILITY.md](INTEROPERABILITY.md) for JS/TS compatibility and FFI
 
 ---
 
@@ -9,18 +13,18 @@ This document describes how Destack's high-level semantic representation (elabor
 ## Objectives
 
 The overarching dream is **Rust performance with TypeScript semantics and ergonomics**.
-Naturally, performance and ergonomics are in some tension, and we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level reliable performance without _requiring_ additional changes:  
+Naturally, performance and ergonomics are in some tension, and we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level reliable performance without _requiring_ additional changes:
 
 - **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
 - **Average case (target):** Go-tier performance (efficient GC, good concurrency)
 - **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
 
-AOT compilation provides predictable performance without warmup, but lots of engineering effort goes into making V8's speculative optimization beat static compilation on some dynamic patterns. 
-Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime anymore.
+AOT compilation provides predictable performance without warmup, but astounding levels of engineering have already gone into making V8's speculative optimization beat static compilation on some dynamic patterns.
+Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime.
 
 Specifically, Destack lowering is focused on:
 1. **TypeScript semantics**: TS and Destack code behaves identically^x
-2. **Comptime**: Full compile-time evaluation   
+2. **Comptime**: Full compile-time evaluation
 3. **Reflection**: Types-as-values for comptime and runtime reflection
 4. **Ownership**: Manual memory or GC as needed
 5. **Erasure**: Clean codegen to JS/TS
@@ -44,10 +48,13 @@ SIMD follows a Zig-like model.
 Vector lane counts are static parameters and operators are elementwise.
 Lower maps vector operations to target SIMD instructions when available.
 (If the target lacks support, Lower scalarizes to loops.)
+See [INTRINSICS.md](INTRINSICS.md#simd) for details.
 
-## Pipeline
+## Pipeline Position
 
-The mid-end/back-end flow from DIR to MIR (see [compiler/README.md](../README.md)):
+Lower is **phase M** in the compiler pipeline (see [compiler/README.md](../README.md)).
+It receives patched DIR from Execute and produces target-specific MIR.
+
 ```
 DIR (elaborated, canonical, profile-dependent)
  │
@@ -59,19 +66,13 @@ DIR (elaborated, canonical, profile-dependent)
       │
       MIR (monomorphized, typed, target-specific)
        │
-       ├─→ Optimize: verify, then inline, eliminate dead code, etc.
+       ├─→ Optimize (see optimize/README.md)
+       │    ├─→ Verify: borrow-check, move-check, drop-insert
+       │    └─→ Transform: inline, dead code elim, escape analysis, etc.
        │
        └─→ Generate
             └─→ Cranelift → native binary (.exe, .dylib)
 ```
-
-The basic tasks of the lowering pass are:
-1. **Monomorphize generics**: each `T` instantiation becomes specialised MIR
-2. **Compute layouts**: tag placement, property offsets, struct sizes, alignment
-3. **Prepare dispatch**: builtin ops, direct calls, prepare vtables and itabs
-4. **Generate type descriptors**: for reflection, `typeOf`, `T.is`, and `instanceof`
-5. **Lower control flow**: expressions → blocks with terminators
-6. **Allocate locals**: stack slots for variables and temporaries
 
 ### Input: Canonical DIR (Comptime Patched)
 
@@ -82,6 +83,7 @@ Lower receives "canonical" typed DIR after Analyze, Elaborate, and Execute (see 
 - All overloads resolved ("Resolutions")
 - All static parameters resolved to values ("StaticExpression")
 - All polymorphic instances created ("Instances")
+- All comptime blocks executed and results patched in
 
 ### Output: Target-Specific MIR
 
@@ -89,8 +91,54 @@ MIR is generated per-target with target-specific decisions:
 - Memory layout (LP64, ILP32, etc.)
 - Calling conventions (C, System, etc.)
 - Alignment requirements
+- Policy-controlled checks (bounds, overflow, etc.)
 
-### Native Runtime Library
+## Phases
+
+Lower executes in four explicit phases with clear dependencies:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Lower Pipeline                                  │
+│                                                                          │
+│   Phase 1      Phase 2          Phase 3        Phase 4                  │
+│   ───────      ───────          ───────        ───────                  │
+│    Types   →  Declarations  →    Tables    →    Emit                    │
+│                                                                          │
+│   layouts      signatures       vtables         blocks                   │
+│   lineages     globals          itabs           terminators             │
+│   slots        init order       RTTI            ownership                │
+│                                 string tags     barriers                 │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+| Phase | Input | Output | Why Separate |
+|-------|-------|--------|--------------|
+| Types | DIR types | MIR types, layouts, lineages | Must know sizes before allocating |
+| Declarations | DIR items | Function shells, globals | Enables forward references in Emit |
+| Tables | Types + lineages | VTables, ITabs, RTTI | Needs complete type info |
+| Emit | Everything above | Complete MIR functions | Has all context for codegen |
+
+See [Phases](#phases-1) section for detailed descriptions.
+
+## Target Policies Summary
+
+Lower behavior is configured by target policies (see [Target Configuration](#target-configuration)):
+
+| Policy | Effect on Lower |
+|--------|-----------------|
+| `boundsChecks` | Insert/omit array bounds checks |
+| `overflowChecks` | Insert/omit integer overflow checks |
+| `panic` | Abort immediately or unwind (future) |
+| `debugInfo` | Controls debug metadata granularity |
+| `stripLevel` | Symbol table stripping |
+| `unwindFormat` | Unwind info format (DWARF/SEH/None) |
+| `allocator` | Global allocator selection |
+| `borrowMode` | Hint vs strict borrow enforcement |
+| `relocationModel` | PIC/PIE/static code generation |
+| `linkMode` | Static vs dynamic linking preference |
+
+## Native Runtime Library
 
 Lower doesn't special-case types like `String` or `Array<T>`.
 These are defined in `language/builtin/lib/native/` as regular Destack structs (with some intrinsics).
@@ -106,296 +154,206 @@ language/builtin/
     └── ...
 ```
 
-**Intrinsics** are functions that Lower recognizes and emits as MIR instructions or inline sequences rather than function calls:
+---
 
-| Category | Examples | MIR |
-|----------|----------|-----|
-| Memory | `memcpy`, `memset`, `alloc`, `free` | `Intrinsic::Memcpy`, etc. |
-| Arithmetic | `add.overflow`, `add.unchecked`, `add.sat` | `Intrinsic::AddOverflow`, etc. |
-| Atomics | `atomic.load`, `atomic.cas` | `Intrinsic::AtomicLoad`, etc. |
+# Phases
 
-# Interoperability
+Lower executes in four explicit phases.
+Each phase produces complete, self-contained output before the next phase begins.
+This ensures clear invariants and enables forward references.
 
-Destack aims for full **modern TypeScript** compatibility. 
-Some dynamic JavaScript features are incompatible with ahead-of-time compilation (even when allowing for generous dynamic dispatch and RTTI). 
-Dynamic features that interfere with AOT compilation - like dynamic imports/eval or shape modification - are restricted or forbidden in native targets (but still fully supported in JS targets!).
-Fortunately, most modern TS code already avoids such highly dynamic patterns as a best practice.
-(And many patterns that seem dynamic can actually be statically analyzed, or the source code easily transformed into something that is more statically known, which usually also improves code quality anyway.)
+## Phase 1: Types
 
-## Restrictions
+Lower all type declarations to MIR types with computed layouts.
 
-JavaScript, as originally designed, is a highly dynamic language with dynamic scopes and little typing guarantees. 
-Over time, like in many highly dynamic languages, much of the JavaScript community has come around to a restricted, statically typed variant of the language in "modern" TypeScript.
+### Input
+- DIR type declarations (structs, classes, enums, newtypes, interfaces)
+- Target layout parameters (pointer size, alignment rules)
 
-Destack aims to enable native compilation of **modern TypeScript**, _not_ of arbitrary untyped and dynamic JavaScript.
-There are other projects that attempt AOT compilation for JavaScript (with varying degrees of success), and such fully untyped or highly dynamic code is explicitly out of scope and cannot be compiled.
+### Output
+- MIR `Type` definitions with field offsets and sizes
+- Layout cache mapping DIR types to MIR types
+- Lineage information for class inheritance chains
+- VTable slot assignments for virtual methods
 
-### Exception Handling
+### Operations
 
-**On native targets, `throw` aborts the process.** There is no stack unwinding, no catching.
-This is caught by the compiler, and misusing `throw` is a compile error.
-Instead, Destack supports `try/catch` and `?` propagation for explicit `Result`-based error handling.
-The divergence on exception handling is the most significant semantic difference between Destack and traditional JavaScript/TypeScript:
+**Monomorphization:** Each generic instantiation becomes a concrete MIR type.
+`Array<int>` and `Array<string>` produce separate MIR struct types with different layouts.
 
-```ts
-// this works in JS/TS:
-try {
-    throw new Error("oops")
-} catch (e) {
-    console.log("caught")  // executes
-}
+**Layout computation:** Fields are ordered by alignment (largest first) to minimize padding.
+The default layout minimizes size; `@layout("C")` matches C ABI; `@layout("source")` preserves declaration order.
 
-// On native Destack: process aborts at throw, catch never runs
+**Lineage computation:** For classes with `extends`, compute the inheritance chain.
+Parent fields come first, ensuring pointer compatibility for upcasts.
+
+**VTable slot assignment:** For polymorphic classes, assign vtable slots in declaration order.
+Child classes inherit parent slots; overrides reuse the same slot.
+
+### Invariants After Phase 1
+- Every DIR type maps to exactly one MIR type
+- All MIR types have known size and alignment
+- All class lineages are computed
+- All vtable slots are assigned (but vtables not yet generated)
+
+## Phase 2: Declarations
+
+Create function signatures and global variable bindings.
+
+### Input
+- DIR function and method declarations
+- DIR global variable declarations
+- MIR types from Phase 1
+
+### Output
+- Function shells (signature only, no body)
+- Global variable bindings
+- Module initialization order
+
+### Operations
+
+**Function signatures:** Create MIR function declarations with parameter types and return type.
+Bodies are not lowered yet; this creates "shells" that can be referenced.
+
+**Global variables:** Lower global `const` and `let` declarations to MIR globals.
+Compute initialization order based on dependencies.
+
+**Module initialization:** Generate `__init` function per module containing:
+- Static global initializers (in dependency order)
+- Top-level `using` statements
+- Module-level side effects
+
+Initialization order follows import dependencies.
+Circular dependencies are a compile error (detected earlier in Analyze).
+
+### Invariants After Phase 2
+- All functions have MIR declarations (callable by reference)
+- All globals have MIR bindings
+- Module initialization order is determined
+
+## Phase 3: Tables
+
+Generate dispatch tables and runtime type information.
+
+### Input
+- MIR types with layouts and lineages
+- VTable slot assignments
+- Interface implementations
+
+### Output
+- VTable constants for polymorphic classes
+- ITab constants for (Type, Interface) pairs
+- TypeDescriptor constants for RTTI
+- Interned string tag tables
+
+### Operations
+
+**VTable generation:** For each polymorphic class, emit a constant vtable:
 ```
-
-Instead, use `Result<T, E>` with the `?` operator for recoverable errors:
-
-```ds
-function readConfig(): Result<Config, Error> {
-    const text = readFile("config.json")?;    // propagates error
-    Result.ok(parseConfig(text))
-}
-```
-
-You can still use `try` / `catch` for Result type propagation too, which is useful for manually mapping / wrapping error results or containing the scope of propagation:
-
-```ds
-try {
-    const config = readConfig(); // propagates to catch block
-    console.log(config)
-} catch (e) {
-    console.error("Failed to read config:", e)
-}
-```
-
-For JS targets, `throw` works normally for compatibility. 
-You can still take advantage of Destack's many other features while keeping exceptions around at no extra cost (other than the pre-existing code smell).
-
-Exceptions don't cross FFI boundaries. If calling JS that throws (via WASM), wrap it on the JS side to return a Result-like object. 
-See [FFI Error Handling](#ffi-error-handling) for more details.
-
-### Forbidden Features
-
-Fully dynamic features are forbidden in native targets.
-No prototype changes, no dynamic object shape modification.
-
-| Feature | Reason | Alternative |
-|---------|--------|-------------|
-| `eval()` | Arbitrary code execution | Comptime evaluation |
-| `with` statement | Dynamic scope modification | Explicit object destructuring |
-| `Proxy` | Intercepts all property access | Explicit wrapper types |
-| `Reflect` | Runtime metaprogramming | Comptime reflection, RTTI |
-| `__proto__` | Prototype chain mutation | Fixed type hierarchy |
-| `Object.setPrototypeOf()` | Prototype chain mutation | Fixed type hierarchy |
-| Declaration expressions | Runtime type generation | Named declarations (`noDynamicShapes` on JS) |
-
-Some of these features are already discouraged in modern TypeScript (strict mode forbids `with`; `eval` breaks type safety and security), others have solid alternatives as espoused by our standard library.
-
-### Object.prototype Methods
-
-Object prototype methods that depend on a dynamic prototype chain are emulated using RTTI, comptime, or just not available if there is no obvious semantic equivalent:
-
-| Method | Status | Alternative |
-|--------|--------|-------------|
-| `toString()` | Supported | Via `Display` interface |
-| `valueOf()` | Not needed | Implicit coercion discouraged; use explicit conversion |
-| `hasOwnProperty(key)` | Limited | Static keys only; use `in` operator or RTTI |
-| `constructor` | Aliased | `obj.constructor` becomes `typeOf(obj)` |
-| `isPrototypeOf()` | Forbidden | Use `instanceof` (class identity) or `T.is` with RTTI |
-| `propertyIsEnumerable()` | Forbidden | Use RTTI reflection |
-
-When RTTI is available, `Object.keys/values/entries` and `hasOwnProperty` can be
-lowered for structs/classes by reading their reflected property lists.
-For `Record<K, V>` (which aliases to `Map<K, V>` on native targets), these map
-to the equivalent `Map` methods.
-
-For `toString()`, types implement the `Display` interface:
-```ds
-newtype interface Display {
-    display(): string
+struct VTable {
+    typeDescriptor: &TypeDescriptor  // slot 0, for instanceof/T.is
+    destructor: fn()                 // slot 1, drop glue
+    methods: [fn; N]                 // virtual methods in slot order
 }
 ```
 
-Primitives and common types have default `Display` implementations.
-User types can implement `Display` explicitly or auto-derive it.
-
-### Dynamic Property Access
-
-Static property access (compile-time known keys) works normally:
-```ds
-point.x           // compile-time field offset
-user.name         // compile-time field offset
+**ITab generation:** For each (Type, Interface) pair where the type implements the interface:
 ```
-
-Dynamic property access (i.e., runtime-computed keys) requires special handling:
-```ds
-obj[computedKey]  // not allowed on structs/classes ("static shapes")
-map[computedKey]  // works: Map implements Index<K, V>
-record[key]       // works: Record<K, V> aliases to Map<K, V>
-```
-
-Types with index signatures (`{ [key: string]: T }`) support dynamic keys (without requiring
-`Index/IndexSet` overloads):
-
-- If the key is a compile-time literal and the type has a known field, lower to `field.get/set` for aggregate values or `field.addr` plus `load`/`store` for references
-- Otherwise, lower to runtime index intrinsics (`intrinsic.index_get/index_set`)
-
-## Semantic Differences
-
-Some TypeScript patterns have different semantics in native vs JS targets, even though we try to preserve the surface area and core semantics.
-
-### Record Types
-
-In TypeScript, `Record<string, T>` is an object with dynamic string keys:
-```ts
-const cache: Record<string, User> = {}
-cache[id] = user   // dynamic property access
-cache.get          // undefined (it's not a Map)
-```
-
-For native targets, objects have fixed layouts, so Destack aliases `Record<K, V>` to `Map<K, V>`:
-
-```ds
-// source code (works on both targets!)
-const cache: Record<string, User> = {}
-cache[id] = user   // desugars to cache.indexSet(id, user)
-const u = cache[id] // desugars to cache.index(id)
-```
-
-This works transparently because `Map<K, V>` implements `Index<K, V>` and `IndexSet<K, V>`.
-
-**What works:**
-- `record[key]` and `record[key] = value` (via Index/IndexSet)
-- `record.keys()`, `record.values()`, `record.entries()` (Map methods)
-- `for (const [k, v] of record)` (Map is iterable)
-- `JSON.stringify(record)` (serializes as JSON object, not Map)
-- `key in record` (desugars to `record.has(key)`)
-
-**What doesn't work (compile error on native):** 
-- `for (const k in record)` (use `for (const k of record.keys())`)
-- `{...record}` spread (use `Map.from(record)` or explicit copying)
-- `Object.keys(record)` (use `record.keys()`)
-- `Object.assign(record, other)` (use `record.merge(other)` or loop)
-
-### JSON
-
-JSON just works.
-Both `JSON.parse()` and `JSON.stringify()` are fully supported, both for statically known types and for dynamic data.
-
-Dynamic JSON parsing with **JSON.parse()** returns `JsonValue`, a closed union of all valid JSON types:
-```ds
-type JsonValue = null | boolean | number | string | JsonValue[] | Record<string, JsonValue>
-```
-
-This is type-safe without requiring unbounded `any` because JSON has a known, finite set of value types.
-Pattern matching on `JsonValue` gives you the concrete type:
-```ds
-const data = JSON.parse(text)  // JsonValue
-match (data) {
-    null => ...
-    boolean b => ...
-    number n => ...
-    string s => ...
-    JsonValue[] arr => ...
-    Record<string, JsonValue> obj => obj["name"]
+struct ITab {
+    typeDescriptor: &TypeDescriptor  // for T.is on interface refs
+    methods: [fn; M]                 // interface methods in declaration order
 }
 ```
 
-For typed parsing with validation, use the integrated schema library (which takes advantage of our reflection system):
-```ds
-const user = User.parse(text)  // Result<User, ParseError>
+**TypeDescriptor generation:** For types that need RTTI (used with `instanceof`, `T.is`, `typeOf`, stored in `any`):
 ```
-
-Types can also implement the `Serialize` and `Deserialize` interfaces to customize
-JSON mapping directly when needed.
-
-**JSON.stringify()** generates serialization code at compile time based on the static type:
-```ds
-const user: User = ...
-JSON.stringify(user)  // comptime generates User serialization
-```
-
-No runtime reflection needed; the compiler knows the type and emits field-by-field serialization, which is type-safe and very efficient.
-
-### Symbol Property Keys
-
-Symbols work as property keys when they're statically known:
-```ds
-const iter = obj[Symbol.iterator]  // compile-time known, works
-obj[Symbol.toStringTag] = "MyType" // compile-time known, works
-```
-
-For dynamic symbol-keyed collections, use `Map<symbol, T>`:
-```ds
-const sym = Symbol("dynamic")
-const map = Map<symbol, string>.new()
-map[sym] = "value"  // explicit Map, not object property
-```
-
-### Array Methods
-
-Array prototype methods work as expected.
-Arrays are (conceptually) monomorphized per element type:
-
-```ds
-const nums: int[] = [1, 2, 3]
-nums.map(x => x * 2)      // monomorphized: Array_int_map
-nums.filter(x => x > 1)   // monomorphized: Array_int_filter
-nums.reduce((a, b) => a + b, 0)
-```
-
-Methods that take callbacks receive closures. 
-The closure type is also monomorphized:
-- `map<U>((T) => U)` generates code for the specific `T` and `U`
-- `sort((T, T) => int)` generates a comparator call for the specific `T`
-
-Mutating methods (`push`, `pop`, `splice`, `sort`) work in-place on the array's backing storage, just like in TypeScript.
-
-### this Binding
-
-JavaScript's `this` binding rules are preserved:
-
-**Arrow functions** capture `this` lexically (from enclosing scope):
-```ds
-class Counter {
-    count = 0
-    increment = () => { this.count++ }  // this is always Counter instance
+struct TypeDescriptor {
+    id: uint32                  // index into RTTI table
+    typeIdOffset: uint32        // offset to TypeId string
+    nameOffset: uint32          // offset to name string
+    size: uint32                // sizeof in bytes
+    alignment: uint16           // alignof in bytes
+    kind: uint8                 // struct/class/enum/etc.
+    flags: uint8                // nominal, sealed, etc.
+    ...
 }
 ```
-Lowers to a closure that captures `self` in its environment.
 
-**Regular functions/methods** receive `this` as implicit first parameter:
-```ds
-class Counter {
-    count = 0
-    increment() { this.count++ }  // this passed at call site
-}
+**String tag interning:** TypeScript-style discriminated unions use string tags.
+Lower interns these to integer discriminants:
 ```
-Lowers to `@Counter.increment(self)`.
-
-**Standalone functions** have `this = undefined` (strict mode):
-```ds
-function standalone() { return this }  // undefined
+"loading" → 0
+"success" → 1
+"error"   → 2
 ```
 
-`.call()`, `.apply()`, `.bind()` work by manipulating the implicit `this` parameter:
-```ds
-fn.call(obj, arg)   // lowers to: fn(obj, arg)
-fn.bind(obj)        // lowers to: closure capturing obj as this
+### Invariants After Phase 3
+- All vtables are generated as global constants
+- All itabs are generated as global constants
+- All needed TypeDescriptors are generated
+- String tags are interned to integers
+
+## Phase 4: Emit
+
+Lower function bodies to MIR blocks.
+
+### Input
+- DIR function bodies (expressions, statements)
+- All context from Phases 1-3
+
+### Output
+- Complete MIR functions with blocks and terminators
+- Ownership markers on `^T` values (drops inserted by Optimize)
+- GC write barrier insertions
+- Debug info metadata
+
+### Operations
+
+**Block generation:** Each control flow construct becomes MIR blocks:
+- `if/else` → conditional branch to then/else blocks
+- `match` → switch or branch cascade
+- `while/for/loop` → header, body, and exit blocks
+
+**Value lowering:** Expressions become MIR instructions:
+- Literals → `const`
+- Binary ops → `binary` or builtin intrinsics
+- Function calls → `call` (direct) or `call.indirect` (virtual)
+- Field access → `field.get`/`field.addr`
+
+**Ownership marking:** For `^T` owned values, mark ownership in MIR.
+Optimize's `drop-insert` pass later inserts actual drops at last-use points.
+
+**GC barrier insertion:** For writes to managed reference fields:
+```mir
+intrinsic.gc.write_barrier(field_addr, new_value)
+store field_addr, new_value
 ```
+
+**Terminator generation:** Each block ends with a terminator:
+- `return` for function exit
+- `jump` for unconditional branch
+- `branch` for conditional
+- `switch` for multi-way
+- `yield` for coroutines
+- `unreachable` for dead code
+
+### Invariants After Phase 4
+- All functions have complete bodies
+- All ownership is marked (drops inserted by Optimize)
+- All GC barriers are inserted
+- MIR is ready for Optimize's verification and transformation passes
 
 ---
 
-# Lowering Model
+# Data Model
 
-Destack's type system maps TypeScript's structural, polymorphic types to native representations with concrete, monomorphic layouts.
-Each generic instantiation becomes specialized code with known sizes and offsets.
-This is "zero-cost generics" (no boxing, no vtables) at the cost of code size, the same tradeoff Rust and C++ make.
-TypeScript semantics are preserved: structural compatibility still works, but at the MIR level everything has a concrete type.
+This section defines the semantic model for lowering: how high-level concepts map to low-level representations.
 
-## Monomorphization
+## Lowering Model
 
-DIR has Instance-level information from Analysis, but is still polymorphic. 
+### Monomorphization
+
+DIR has Instance-level information from Analysis, but is still polymorphic.
 For native targets, we fully monomorphize these Instances into concrete types with known sizes and offsets.
 (Thus, each generic instantiation gets its own specialized MIR logic.)
 
@@ -406,7 +364,7 @@ identity<int32>(5)      // generates: identity_int32
 identity<string>("hi")  // generates: identity_string
 ```
 
-Of course, monomorphization trades code size for runtime performance:
+Monomorphization trades code size for runtime performance:
 
 | Aspect | Benefit | Cost |
 |--------|---------|------|
@@ -420,7 +378,7 @@ Lower receives these `Instance`s and generates specialized MIR for each instanti
 (For JS/TS codegen, we preserve polymorphic code with no monomorphization needed, except for
 non-erasable value parameters like `const N: int`.)
 
-## Name Mangling
+### Name Mangling
 
 Monomorphized functions need unique, deterministic names for linking.
 We use a human-readable scheme (inspired by Rust and Zig):
@@ -446,7 +404,7 @@ We use a human-readable scheme (inspired by Rust and Zig):
 Examples omit the hash suffix for internal-only symbols to keep snippets readable.
 This produces predictable, readable symbol names in debuggers and error messages.
 
-## Resolution
+### Resolution
 
 Resolution tells Lower *which symbol* is being called (or might be called in dynamic resolution) at a call site.
 This is determined by Analyze and attached to DIR nodes.
@@ -457,7 +415,7 @@ Even with `Resolution::Static`, the target may require vtable dispatch if it's a
 Dynamic resolutions are reified into if-else chains with `is` type checks in the Elaborate phase; i.e., the Lower phase only sees `Resolution::Static` and `Resolution::Builtin`.
 (`Resolution::Dynamic` is specifically for *union symbols* where different union variants call different target symbols; but, remember, symbols are polymorphic in DIR so this may be different MIR symbols even for the same DIR symbols).
 
-### Builtin Resolution
+#### Builtin Resolution
 
 Primitive operations on builtin types.
 No function call needed; Lower emits MIR instructions directly.
@@ -471,7 +429,7 @@ Lowers to:
 v2 = iadd v0, v1
 ```
 
-### Static Resolution
+#### Static Resolution
 
 Single known target symbol.
 The *symbol* is known, but dispatch may still be virtual or direct depending on the method.
@@ -488,69 +446,65 @@ v1 = call @User.getName(v0)
 
 **Virtual dispatch** (virtual method on class/interface):
 ```ds
-animal.speak()  // static resolution { target: Animal::speak }, but virtual
+node.update(delta)  // static resolution { target: Node::update }, but virtual
 ```
 
 Lowers to vtable lookup:
 ```mir
 v1 = field.get v0, 0           ; load vtable pointer from object layout
-v2 = field.get v1, 2           ; load speak method at vtable slot 2
-v3 = call.indirect v2(v0)      ; indirect call through vtable
+v2 = field.get v1, 2           ; load update method at vtable slot 2
+v3 = call.indirect v2(v0, delta) ; indirect call through vtable
 ```
 
-The key: static resolution means we know *which method signature* (Animal::speak), but if it's virtual, the actual implementation depends on the concrete type.
+The key: static resolution means we know *which method signature* (Node::update), but if it's virtual, the actual implementation depends on the concrete type.
 
-### Dynamic Resolution
+#### Dynamic Resolution
 
 Union-based dispatch: different union symbols call different target symbols.
 Elaborate has already generated the symbol-dispatch logic; Lower just emits it.
 
 **Union method dispatch:**
 ```ds
-function process(x: Cat | Dog) { 
-    // Cat.speak and Dog.speak are different target symbols
-    x.speak() 
+function render(obj: Mesh | Light) {
+    // Mesh.draw and Light.draw have different implementations
+    obj.draw(ctx);
 }
 ```
 
 Elaborate transforms to a type guard chain (conceptually `instanceof`/`T.is`), Lower then emits:
 ```mir
-type @string = ref<struct { i32, i32, i32 }>
+type @RenderContext = struct { ... }
 type @ObjectWithVTable = struct { ref<raw void> }
 
-function @process(v0: ref<@ObjectWithVTable>) -> @string {
-block0(v0: ref<@ObjectWithVTable>):
+function @render(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>) -> void {
+block0(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>):
     v1 = field.get v0, 0       ; load vtablePtr
     v2 = field.get v1, 0       ; load typeDescriptor from vtable slot 0
-    v3 = global.const @Cat_TypeDescriptor
+    v3 = global.const @Mesh_TypeDescriptor
     v4 = icmp_eq v2, v3
     branch v4, block1, block2
 block1:
-    v5 = call @Cat.speak(v0)
-    jump block4(v5)
+    call @Mesh.draw(v0, ctx)
+    jump block4
 block2:
-    v6 = global.const @Dog_TypeDescriptor
-    v7 = icmp_eq v2, v6
-    branch v7, block3, block5
+    v5 = global.const @Light_TypeDescriptor
+    v6 = icmp_eq v2, v5
+    branch v6, block3, block5
 block3:
-    v8 = call @Dog.speak(v0)
-    jump block4(v8)
+    call @Light.draw(v0, ctx)
+    jump block4
 block5:
     unreachable              ; exhaustive match
-block4(v9: @string):
-    return v9
+block4:
+    return
 }
 ```
 
-In the `Cat | Dog` case we could also have used an `Animal` interface / base type, and then this would be solved with vtable dispatch instead of dynamic resolution.
-(The general principle still applies.)
-
-# Types and Layout
-
-This section defines the concrete runtime representation of types in MIR.
-All layouts here are post-monomorphization and target-specific.
+In the `Mesh | Light` case we could also have used a `Drawable` interface or `Object3D` base type, and then this would be solved with vtable dispatch instead of dynamic resolution.
 
 ## Type Representation
+
+All layouts here are post-monomorphization and target-specific.
 
 ### Primitives
 
@@ -844,8 +798,8 @@ Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference
   - Receiver type is exactly known (not a supertype) → direct call
 - Vtables are only emitted when dynamic dispatch remains, fully devirtualized classes can omit vtables
 
-The `final` keyword on methods or classes is an API contract ("you may not override/extend"), not an optimization hint. 
-For whole-program compilation, the optimizer already knows what's overridden. 
+The `final` keyword on methods or classes is an API contract ("you may not override/extend"), not an optimization hint.
+For whole-program compilation, the optimizer already knows what's overridden.
 `final` matters for libraries where downstream users could extend classes.
 
 Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
@@ -894,14 +848,14 @@ Structs are data-oriented: two structs with the same properties are equal by val
 **Prefer discriminated unions** for performance-critical code to avoid runtime RTTI lookups:
 
 ```ds
-struct Cat { kind: "cat" = "cat", name: string };
-struct Dog { kind: "dog" = "dog", name: string };
-type Pet = Cat | Dog;
+struct Circle { kind: "circle" = "circle", radius: float };
+struct Rect { kind: "rect" = "rect", width: float, height: float };
+type Shape = Circle | Rect;
 
-function greet(pet: Pet) {
-    match (pet.kind) {
-        "cat" => print("meow")
-        "dog" => print("woof")
+function area(shape: Shape): float {
+    match (shape.kind) {
+        "circle" => 3.14159 * shape.radius * shape.radius
+        "rect" => shape.width * shape.height
     }
 }
 ```
@@ -913,16 +867,16 @@ String tags are interned to integers (see [String Tag Interning](#string-tag-int
 Polymorphic classes have vtable pointers for virtual dispatch and RTTI:
 
 ```ds
-class Animal {
+class Node {
     name: string;
-    speak(): string { "..." }
+    update(delta: float): void { }
 }
 ```
 
 Native layout:
 ```
-struct AnimalLayout {
-    vtablePtr: &VTable,      // offset 0, vtable[0] = &Animal_TypeDescriptor
+struct NodeLayout {
+    vtablePtr: &VTable,      // offset 0, vtable[0] = &Node_TypeDescriptor
     name: ref<string>,       // offset 8
 }
 ```
@@ -974,119 +928,31 @@ Classes with `extends` get special handling for field layout and method dispatch
 Parent fields come first, then child fields.
 
 ```
-class Animal {
+class Node {
     name: string
 }
 
-class Dog extends Animal {
-    breed: string
+class Sprite extends Node {
+    texture: Texture
 }
 ```
 
-Dog's MIR layout (polymorphic):
+Sprite's MIR layout (polymorphic):
 - offset 0: vtablePtr
-- offset 8: name (from Animal)
-- offset 16: breed (from Dog)
+- offset 8: name (from Node)
+- offset 16: texture (from Sprite)
 
-This ensures a `Dog` pointer can be used where an `Animal` pointer is expected.
+This ensures a `Sprite` pointer can be used where a `Node` pointer is expected.
 Polymorphic classes use vtables for virtual methods (and non-virtual methods are direct calls).
 
 ```
-class Animal {
-    speak(): string { "..." }
+class Node {
+    update(delta: float): void { }
 }
 
-class Dog extends Animal {
-    speak(): string { "woof" }
+class Sprite extends Node {
+    update(delta: float): void { this.animate(delta) }
 }
-```
-
-### VTable Layout
-
-Types with virtual methods have a vtable.
-The vtable is an array of function pointers, one per virtual method.
-
-**VTable structure (conceptual):**
-```
-struct VTable {
-    typeDescriptor: &TypeDescriptor    // for instanceof, T.is, and typeOf
-    destructor: () => void       // cleanup function
-    methods: ((...args) => any)[] // virtual method pointers
-}
-```
-
-**Example vtable layout:**
-```
-Animal vtable:
-  slot 0: typeDescriptor = &Animal_TypeDescriptor
-  slot 1: destructor = Animal_drop
-  slot 2: speak = Animal.speak
-
-Dog vtable (inherits Animal):
-  slot 0: typeDescriptor = &Dog_TypeDescriptor
-  slot 1: destructor = Dog_drop
-  slot 2: speak = Dog.speak      // overrides Animal::speak
-```
-
-**Slot assignment:**
-- Slots are assigned in declaration order, starting from parent
-- Child classes inherit parent's slot assignments
-- Overriding methods use the same slot as parent
-- New methods get new slots after inherited ones
-
-**Virtual call lowering:**
-```mir
-; animal.speak() where animal could be Animal or Dog
-v1 = field.get v0, 0           ; load vtable pointer from object
-v2 = field.get v1, 2           ; load speak method (slot 2)
-v3 = call.indirect v2(v0)      ; call with self as first arg
-```
-
-**Interface itabs:**
-Interfaces use itabs, and interface values carry a fat pointer:
-```
-{ objectPtr: &Object, itabPtr: &InterfaceItab }
-```
-
-Each (Type, Interface) pair has its own itab mapping interface methods to concrete implementations.
-
-Super calls compile to direct calls to parent implementation.
-
-```
-class Dog extends Animal {
-    speak(): string { super.speak() + " woof" }
-}
-```
-
-Lowers to:
-```mir
-type @string = ref<struct { i32, i32, i32 }>
-type @Dog = struct { ref<raw void>, ref<raw void> }
-
-function @Dog.speak(v0: ref<@Dog>) -> @string {
-block0(v0: ref<@Dog>):
-    v1 = call @Animal.speak(v0)   ; direct call, no vtable lookup
-    v2 = global.const @str_woof   ; " woof" string literal
-    v3 = call @string.concat(v1, v2)
-    return v3
-}
-```
-
-### Getters and Setters
-
-Property accessors lower to method calls.
-There is nothing special about them at the MIR level.
-
-```
-class Circle {
-    #radius: float64
-
-    get area(): float64 { 3.14159 * this.#radius * this.#radius }
-    set radius(r: float64) { this.#radius = r }
-}
-
-c.area          // call @Circle.get_area(c)
-c.radius = 5    // call @Circle.set_radius(c, 5)
 ```
 
 ### Tuples
@@ -1095,6 +961,39 @@ Tuples lower to anonymous `Type::Struct` with indexed fields.
 
 ```
 (int, string, bool)  →  Struct { fields: [i64, String, i8] }
+```
+
+### Associated Types
+
+Associated types (like `Container<T>.Item`) are resolved at compile time during the Elaborate phase.
+By the time Lower runs, all associated types have been replaced with their concrete types.
+Lower never sees associated type references; it only sees the resolved concrete types.
+(Sort of like we deal with Resolution::Dynamic.)
+
+```ds
+interface Container<T> {
+    type Item = T
+}
+
+// In DIR after Elaborate:
+// Container<int>.Item is already resolved to int
+```
+
+### Newtypes
+
+Newtypes are fully erased at the MIR level.
+They exist only for type checking; the runtime representation is identical to the wrapped type.
+
+```ds
+newtype UserId = int;
+const id: UserId = UserId(42);  // lowers to: const id: int = 42
+```
+
+Pattern matching on newtypes extracts the inner value with no runtime cost:
+```ds
+match (id) {
+    UserId(n) => print(n)  // lowers to: print(id)
+}
 ```
 
 ## Union Types
@@ -1228,7 +1127,7 @@ In `@noManaged` and `@stackOnly` contexts, converting to `any` is a compile erro
 ### Reflection
 
 Destack's types-as-values feature makes `Type<T>` a first-class value, enabling
-both compile-time and runtime reflection (as needed). 
+both compile-time and runtime reflection (as needed).
 
 **Source-level API** (from `@destack-sh/core/reflection`):
 ```ds
@@ -1249,7 +1148,7 @@ This simplifies the design: there's no separate "comptime type format" vs "runti
 
 ```ds
 const PROP_COUNT = comptime User.properties.length;    // → literal 3
-const HAS_NAME = comptime User.properties.some(p => p.name == "name")  // → true
+const HAS_NAME = comptime User.properties.some(p => p.name == "name");  // → true
 
 if (comptime User.properties.some(p => p.type == string)) {
     // branch selected at compile time, other branch eliminated
@@ -1333,25 +1232,88 @@ These are the same rules described above.
 If all type operations are comptime, no RTTI overhead appears in the binary.
 Dead code elimination removes unused RTTI entries.
 
----
+## Dispatch
 
-# Dispatch
-
-Method calls are resolved and dispatched differently based on structural or nominal types (obviously).
+Method calls are resolved and dispatched differently based on structural or nominal types.
 TypeScript's duck typing means any object with matching methods can satisfy an interface, which creates some interesting challenges for native codegen.
 
 Polymorphic class dispatch uses vtables stored in the object layout, like C++ and Java.
 Interface dispatch uses itabs carried by fat pointers, like Go.
 Union dispatch generates type checking code when a value could be multiple types.
 
-## Dynamic Dispatch
+### VTable Layout
 
-Dynamic dispatch is any situation where the specific function to call is not knowable at compile time, either because the actual symbol is dynamic (union types) or because the symbol is itself a dynamic type that may have multiple implementations.
+Types with virtual methods have a vtable.
+The vtable is an array of function pointers, one per virtual method.
 
-### Method Calls on Interfaces
+**VTable structure (conceptual):**
+```
+struct VTable {
+    typeDescriptor: &TypeDescriptor    // for instanceof, T.is, and typeOf
+    destructor: () => void       // cleanup function
+    methods: ((...args) => any)[] // virtual method pointers
+}
+```
 
-Interfaces in Destack can be **structural** (default) or **nominal** (`newtype interface`).
-Both use itab-based dispatch with fat pointers, but differ in how they are validated.
+**Example vtable layout:**
+```
+Node vtable:
+  slot 0: typeDescriptor = &Node_TypeDescriptor
+  slot 1: destructor = Node_drop
+  slot 2: update = Node.update
+
+Sprite vtable (inherits Node):
+  slot 0: typeDescriptor = &Sprite_TypeDescriptor
+  slot 1: destructor = Sprite_drop
+  slot 2: update = Sprite.update      // overrides Node::update
+```
+
+**Slot assignment:**
+- Slots are assigned in declaration order, starting from parent
+- Child classes inherit parent's slot assignments
+- Overriding methods use the same slot as parent
+- New methods get new slots after inherited ones
+
+**Virtual call lowering:**
+```mir
+; node.update(delta) where node could be Node or Sprite
+v1 = field.get v0, 0           ; load vtable pointer from object
+v2 = field.get v1, 2           ; load update method (slot 2)
+v3 = call.indirect v2(v0, delta) ; call with self as first arg
+```
+
+**Super calls:**
+Super calls compile to direct calls to parent implementation.
+
+```
+class Sprite extends Node {
+    update(delta: float): void {
+        super.update(delta)  // call Node.update
+        this.animate(delta)
+    }
+}
+```
+
+Lowers to:
+```mir
+type @Sprite = struct { ref<raw void>, ref<string>, ref<Texture> }
+
+function @Sprite.update(v0: ref<@Sprite>, delta: f32) -> void {
+block0(v0: ref<@Sprite>, delta: f32):
+    call @Node.update(v0, delta)   ; direct call, no vtable lookup
+    call @Sprite.animate(v0, delta)
+    return
+}
+```
+
+### Interface Dispatch (ITabs)
+
+Interfaces use itabs, and interface values carry a fat pointer:
+```
+{ objectPtr: &Object, itabPtr: &InterfaceItab }
+```
+
+Each (Type, Interface) pair has its own itab mapping interface methods to concrete implementations.
 
 #### Structural Interfaces
 
@@ -1398,7 +1360,7 @@ Slot 0 is always `typeDescriptor`, then methods follow.
 The compiler generates the itab at compile time, and interface references carry a pointer to the appropriate itab.
 
 ```ds
-function render(d: Drawable) { d.draw() }
+function render(d: Drawable) { d.draw(); }
 ```
 
 Lowers to:
@@ -1413,57 +1375,6 @@ block0(v0: ref<raw @Drawable>):
     v3 = field.get v2, 1       ; load draw method from itab slot 1
     call.indirect v3(v1)       ; call with object as self
     return
-}
-```
-
-**Interface field access:**
-
-Structural interfaces can include fields as well as methods. 
-Field access uses the same fat pointer representation, but the itab also carries a field offset table for the interface's required fields (in declaration order). 
-The compiler emits offsets per (Type, Interface) pair.
-
-```ds
-interface Named { name: string }
-function show(n: Named) { n.name }
-```
-
-Lowers to:
-```mir
-type @Named = struct { ref<raw void>, ref<raw void> }
-
-function @show(v0: ref<raw @Named>) -> ref<raw void> {
-block0(v0: ref<raw @Named>):
-    v1 = field.get v0, 0       ; load objectPtr
-    v2 = field.get v0, 1       ; load itabPtr
-    v3 = field.get v2, 1       ; load field offset for name (slot 1)
-    v4 = field.get v1, v3      ; load field at offset
-    return v4
-}
-```
-
-**Creating interface references:**
-
-```
-const c = Circle { radius: 5.0 }
-const d: Drawable = c  // creates fat pointer
-```
-
-Lowers to:
-```mir
-type @Circle = struct { f32 }
-type @Drawable = struct { ref<raw void>, ref<raw void> }
-
-function @example() -> ref<raw @Drawable> {
-block0:
-    v0 = managed.alloc @Circle
-    v1 = iconst 5.0f32
-    v2 = field.set v0, 0, v1         ; set radius
-    ; create fat pointer (inline tuple, no heap allocation)
-    v3 = global.const @Circle_Drawable_itab
-    v4 = stack.alloc @Drawable       ; allocate fat pointer on stack
-    v5 = field.set v4, 0, v0         ; objectPtr
-    v6 = field.set v5, 1, v3         ; itabPtr
-    return v6
 }
 ```
 
@@ -1488,7 +1399,7 @@ extension for Circle implements Hashable {
 }
 ```
 
-#### Itab Generation
+#### ITab Generation
 
 For each (Type, Interface) pair where the type implements the interface:
 
@@ -1520,16 +1431,65 @@ Structural interfaces enable TypeScript's duck typing but have overhead:
 - One itab per (Type, Interface) pair
 - Cache locality may suffer from double indirection
 
----
+### Extension Methods
 
-# Memory
+Extension methods are direct calls with the receiver as the first argument.
+No vtable or itab lookup is needed.
+
+```ds
+extension for Vector2 {
+    magnitude(): float { sqrt(this.x * this.x + this.y * this.y) }
+}
+
+const v = Vector2 { x: 3, y: 4 };
+v.magnitude();  // direct call
+```
+
+Lowers to:
+```mir
+function @Vector2_ext.magnitude(v0: ref<@Vector2>) -> f64 {
+block0(v0: ref<@Vector2>):
+    v1 = field.get v0, 0       ; load x
+    v2 = field.get v0, 1       ; load y
+    v3 = fmul v1, v1
+    v4 = fmul v2, v2
+    v5 = fadd v3, v4
+    v6 = intrinsic.sqrt(v5)
+    return v6
+}
+
+; call site: v.magnitude()
+v1 = call @Vector2_ext.magnitude(v0)
+```
+
+Extension methods are resolved statically at compile time based on the receiver type.
+They do not participate in virtual dispatch.
+
+### Getters and Setters
+
+Property accessors lower to method calls.
+There is nothing special about them at the MIR level.
+
+```
+class Circle {
+    #radius: float64
+
+    get area(): float64 { 3.14159 * this.#radius * this.#radius }
+    set radius(r: float64) { this.#radius = r }
+}
+
+c.area          // call @Circle.get_area(c)
+c.radius = 5    // call @Circle.set_radius(c, 5)
+```
+
+## Memory Model
 
 Memory allocation and ownership at the MIR level.
 TypeScript/JavaScript uses garbage collection with no explicit memory management.
 Destack preserves this simplicity by default (GC managed heap allocation), but enables opt in control for performance critical code.
-The **GC** is implemnentation is assumed abstractly as "managed allocate" and TS compatible, we assume potential pauses and add some barries.
+The **GC** implementation is assumed abstractly as "managed allocate" and TS compatible, we assume potential pauses and add some barriers.
 
-## Memory Management
+### Allocation Modes
 
 Destack supports three allocation modes, controllable via `AllocationMode` per function.
 Users can annotate functions with `@noManaged` or `@stackOnly` decorators to enforce these modes:
@@ -1540,7 +1500,7 @@ Users can annotate functions with `@noManaged` or `@stackOnly` decorators to enf
 | `NoManaged` | `RawAlloc`, `StackAlloc` | Realtime-safe, no GC pauses |
 | `StackOnly` | `StackAlloc` | Embedded, deterministic |
 
-### Managed Allocation (GC)
+#### Managed Allocation (GC)
 
 `ManagedAlloc` creates GC-tracked objects.
 The runtime provides garbage collection; Lower just emits the allocation instructions.
@@ -1558,6 +1518,7 @@ block0:
 
 **Write barriers:** Lower automatically inserts `Intrinsic::GcWriteBarrier` for all `ManagedReference` field writes.
 The runtime uses this for concurrent marking.
+See [INTRINSICS.md](INTRINSICS.md#garbage-collection) for details.
 
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
@@ -1565,8 +1526,9 @@ Managed allocations do not include per object headers.
 The allocator side tables store mark bits, size class, and the TypeDescriptor pointer used for scanning.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
+The general approach is Go-like: insertion write barriers with a concurrent mark phase.
 
-### Raw Allocation
+#### Raw Allocation
 
 `raw.alloc` creates manually-managed heap memory for owned values (`^T`).
 Cleanup uses `raw.drop` (with dispose) or `raw.free` (without dispose).
@@ -1591,7 +1553,7 @@ No GC overhead.
 Used with ownership annotations (`^T`) for Rust-like semantics.
 In debug builds, a tracing allocator (like Zig's) can detect leaks, double-frees, and use-after-free.
 
-### Stack Allocation
+#### Stack Allocation
 
 `stack.alloc` creates frame-local storage.
 Cleanup uses `stack.drop` for dispose; deallocation happens automatically when the frame exits.
@@ -1607,7 +1569,7 @@ stack.drop v0    ; drop glue: dispose only, frame handles memory
 No heap allocation.
 The optimizer promotes `raw.alloc` to `stack.alloc` via escape analysis when the value doesn't escape the function.
 
-### Drop Instructions
+### Drop Glue
 
 The drop instructions (`raw.drop`, `stack.drop`) perform **drop glue**:
 
@@ -1616,7 +1578,11 @@ The drop instructions (`raw.drop`, `stack.drop`) perform **drop glue**:
 3. **Deallocate** (only for `raw.drop`; `stack.drop` skips this)
 
 Drop glue metadata is attached to MIR type definitions during lowering.
-Lowering has full DIR type information (including `Drop` trait bounds) and generates the appropriate drop glue for each type.
+Lower has full DIR type information (including `Drop` trait bounds) and generates the appropriate drop glue for each type.
+
+**Important:** Lower only *marks* ownership on types and values (via `^T` modifiers and allocation instructions).
+The actual drop instruction insertion happens in Optimize's `drop-insert` pass, which runs as part of the Verify phase.
+This separation ensures drops are placed at precise last-use points after all control flow is lowered.
 
 | Instruction | Drop Fields | Call Dispose | Deallocate |
 |-------------|-------------|--------------|------------|
@@ -1627,13 +1593,13 @@ Lowering has full DIR type information (including `Drop` trait bounds) and gener
 For managed allocations (`managed.alloc`), there is no drop instruction.
 The GC handles cleanup, with finalizers for any `^T` fields (nondeterministic).
 
-## Ownership and Value Semantics
+### Ownership
 
 Destack aims to cover the "managedness" spectrum from TS to Go to Rust: implicit GC by default, explicit ownership when needed.
 Most code just uses the default, and that should still be plenty fast thanks to real AOT compilation and fixed layouts (more like Go, Java, C#).
 Performance-critical code adds these ownership modifiers for manual control.
 
-### Explicit Ownership
+**Explicit Ownership:**
 
 To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC-managed references, primitives are values).
 
@@ -1676,58 +1642,10 @@ function process() {
 
 `Drop` is a marker interface that opts a type into last-use cleanup when possible.
 (Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue).
-The compiler inserts drops at last-use points (non-lexical) after lowering, including before
-control-flow merges and before coroutine suspension when the value is not
-used after resume.
+Optimize's `drop-insert` pass inserts drops at last-use points (non-lexical), including before
+control-flow merges and before coroutine suspension when the value is not used after resume.
 
-```
-async function example(flag: bool) {
-    const data = ^LargeData { ... }
-    if (flag) {
-        consume(^data)
-        return
-    }
-    doWork(&data)
-    await sleep(10)  // data can be dropped before the await
-}
-```
-
-### Ownership in Fields (Nested Ownership)
-
-Ownership is at the **usage site**, not the definition site.
-A struct can contain `^T` fields regardless of how the struct itself is allocated:
-
-```ds
-struct Container { data: ^Data }
-
-const managed: Container = ...        // GC-managed container
-const owned: ^Container = ...         // manually owned container
-```
-
-Ownership modifiers on fields follow these rules:
-
-- `^T` inside **owned** (`^Container`) or **stack** objects is **deterministic**.
-  Fields drop in reverse declaration order (LIFO), then the container drops.
-- `^T` inside **managed** objects (`Container`) is allowed but **nondeterministic**.
-  The compiler registers a GC finalizer that runs `raw.drop` on owned fields when the container is collected.
-  A warning is emitted in strict modes.
-- `&T` fields are **disallowed** in managed heap objects by default (no lifetime tracking).
-  They are allowed in `@stackOnly` or `@noManaged` contexts, where the lifetime is explicit,
-  or via a targeted opt-in for advanced use cases.
-
-**Drop order example:**
-
-```ds
-struct Connection {
-    socket: ^Socket      // field 1
-    buffer: ^Buffer      // field 2 (might reference socket)
-}
-
-using conn: ^Connection = ...
-// scope end: buffer drops first (can still use socket), then socket
-```
-
-### Explicit Borrowing (&T)
+**Borrowing:**
 
 `&T` and `&mut T` are explicit references (pointers) to data. They lower directly to pointer types in MIR:
 
@@ -1746,19 +1664,10 @@ function @mutate(v0: ref<borrowed mut @Point>) -> void { ... }
 
 Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
 
-**When to use explicit references:**
-- Avoid copying large values when you don't need ownership
-- Share read access (`&T`) across multiple callers
-- In-place modification (`&mut T`) when the caller retains ownership
-
-In MIR, references carry a kind (managed, owned, borrowed, raw) and mutability.
-Borrowing a managed object is allowed because the GC is non moving and stack maps treat borrows as roots.
-
-### Borrow Modes
+**Borrow Modes:**
 
 By default, `&T` and `&mut T` are hints with compiler warnings only.
 They help document APIs, guide drops, and enable limited optimizations.
-Types can implement `Drop` (see "Explicit Ownership" above) for custom cleanup.
 Set `borrowMode: "strict"` in `dsconfig.json` to enforce exclusive `&mut` borrows.
 Strict mode enables stronger `noalias` optimizations and hard errors on violations.
 Strict mode forbids:
@@ -1766,132 +1675,7 @@ Strict mode forbids:
 - Storing `&mut` inside managed objects
 - Holding `&mut` across `await` or generator suspension
 
-### Lifetime Annotations
-
-When a function returns a borrowed reference or a struct containing borrowed references,
-the compiler infers which parameters the return value may borrow from:
-- Single `&T` parameter: return borrows from it
-- `&self` or `&this` method: return borrows from receiver
-- Multiple `&T` parameters: conservative (borrows from all)
-
-Use `@lifetime` to override inference when it's too conservative:
-```ds
-// Explicit: return only borrows from 'a'
-function first(a: &string, b: &string): @lifetime(a) &string { a }
-
-// Static lifetime: borrows from global/static data
-function constant(): @lifetime("static") &string { &"hello" }
-```
-
-The borrow checker validates that annotated lifetimes are sound.
-
-**What ownership hints are for:**
-- API documentation ("this function borrows, doesn't own")
-- Optimization hints (compiler can assume no aliasing for `&mut`)
-- Warnings for obvious mistakes (returning `&T` to local variable)
-
-**What ownership hints are not for:**
-- A full lifetime system
-- A memory safety mechanism (GC handles that)
-- Required for correctness
-
-The compiler warns on obvious violations:
-```
-function bad(): &Point {
-    const p = Point { x: 1, y: 2 }
-    &p  // warning: returning reference to local variable
-}
-```
-
-But it won't catch complex lifetime issues that Rust's borrow checker handles. That's fine: GC ensures memory safety regardless. The borrow hints are useful for:
-- Performance-critical code where you want to avoid accidental copies
-- API design where you want to communicate intent
-- Catching simple "oops, returned a reference to a local" bugs
-
-
-### Copy Elision and Move Semantics
-
-Avoiding unnecessary copies is critical for "systems-level" performance.
-Lower implements several strategies to minimize data movement.
-
-#### Return Value Optimization (RVO)
-
-When a function returns a locally-constructed value, we allocate directly into the caller's destination:
-
-```
-// Source
-function makePoint(): Point {
-    Point { x: 1, y: 2 }
-}
-const p = makePoint()
-```
-
-Without RVO (copy):
-```mir
-type @Point = struct { i32, i32 }
-
-function @makePoint() -> ref<@Point> {
-block0:
-    v0 = stack.alloc @Point
-    v1 = iconst 1i32
-    v2 = field.set v0, 0, v1     ; set x
-    v3 = iconst 2i32
-    v4 = field.set v2, 1, v3     ; set y
-    return v4
-}
-; caller then copies result into p
-```
-
-With RVO (no copy):
-```mir
-type @Point = struct { i32, i32 }
-
-function @makePoint(v0: ref<@Point>) -> void {
-block0(v0: ref<@Point>):
-    v1 = iconst 1i32
-    v2 = field.set v0, 0, v1     ; construct directly into dest
-    v3 = iconst 2i32
-    v4 = field.set v2, 1, v3
-    return
-}
-```
-
-#### Named RVO (NRVO)
-
-Extends RVO to named variables when there's a single return path:
-
-```ds
-function compute(): Data {
-    const result = Data { ... };    // named variable
-    // ... modify result ...
-    result;                          // returned
-}
-// result is constructed directly in caller's destination
-```
-
-#### Move Semantics
-
-As discussed above, by default, Destack uses **TypeScript semantics**: objects are GC-managed references.
-Assignment shares references; variables remain valid after being passed to functions:
-
-```ds
-const a = LargeStruct { ... };
-const b = a;                    // b shares reference to same object
-process(a);                     // a is still valid after this
-print(a.property);              // works fine
-```
-
-Move semantics only apply with explicit `^T` value types (see above). 
-When passing a value type, the compiler may *move* instead of copy if the source is no longer used:
-
-```ds
-const d = LargeData { ... };
-consume(^d);                    // last use of d → moved, not copied
-```
-
-**Escape analysis optimization:** Even with reference semantics, the compiler optimizes away unnecessary heap allocations. If a value doesn't escape the function, it can be stack-allocated transparently.
-
-## Closures
+### Closures
 
 Functions that capture variables become closure values:
 
@@ -1911,77 +1695,23 @@ The closure value pairs the function pointer with the environment:
 The closure body receives `env` as an implicit first parameter.
 Closure calls: load `fnPtr` and `env`, call with env prepended to arguments.
 
----
+### Copy Elision and Move Semantics
 
-# Concurrency and Memory Model
+Avoiding unnecessary copies is critical for "systems-level" performance.
+Lower implements several strategies to minimize data movement.
 
-Destack preserves JS and TS concurrency semantics by default while enabling native level parallelism on supported targets.
-The core ideas are a single threaded event loop by default, `Promise` and `async` for concurrency, and `Worker` for parallelism.
-Target specific implementations keep surface semantics consistent across JS, WASM, and native targets.
+**Return Value Optimization (RVO):**
+When a function returns a locally-constructed value, we allocate directly into the caller's destination.
 
-## Threading Model
+**Named RVO (NRVO):**
+Extends RVO to named variables when there's a single return path.
 
-Default behavior is a single threaded event loop with microtask and macrotask queues.
-Native targets support worker threads with the same `Worker` API.
-JS targets map to real JS `Worker` instances.
-WASM targets map to host specific workers when available.
-Native targets map to OS threads with message passing.
-Shared memory is explicit and opt-in.
+**Move Semantics:**
+By default, Destack uses TypeScript semantics: objects are GC-managed references.
+Assignment shares references; variables remain valid after being passed to functions.
+Move semantics only apply with explicit `^T` value types.
 
-## Memory Model
-
-Shared memory follows JS Atomics semantics.
-Atomic operations are sequentially consistent by default and accept explicit orderings when needed.
-Non atomic loads and stores have no cross thread ordering guarantees.
-Data races on shared non atomic memory are undefined behavior on native targets.
-This preserves JS and TS semantics while enabling native performance when code uses atomics.
-JS targets follow JS semantics even under data races, with no undefined behavior.
-
-## Atomics and Shared Memory
-
-Shared memory is exposed via `SharedArrayBuffer`-style APIs and MIR atomic intrinsics.
-
-**MIR example, atomic increment with acquire release:**
-```mir
-function @worker_increment(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
-    v1 = iconst 1i32
-    v2 = intrinsic.atomic.fetch.add(v0, v1, acq_rel)
-    return v2
-}
-```
-
-**Fence example:**
-```mir
-function @fence() -> void {
-block0:
-    intrinsic.atomic.fence(seq_cst)
-    return
-}
-```
-
-## GC and Threads
-
-GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.
-GC managed objects are not shared across workers unless explicitly frozen or copied.
-Shared memory uses raw pointers or explicit shared buffers.
-Native targets may add a shared heap mode in the future, which would require atomic write barriers and a defined cross thread memory model.
-
-## Send and Sync Safety
-
-On native targets, the runtime can enforce that only thread safe values cross worker boundaries.
-Types can auto derive `Send` and `Sync` when all fields are `Send` or `Sync`.
-GC managed types are not `Send` unless explicitly frozen or copied.
-Value types and raw pointers are `Send` by default, and `Sync` when they are immutable or explicitly synchronized.
-
-## Systems Concurrency
-
-Systems workloads rely on worker pools, channels, and atomics.
-These are provided in the standard library with comptime ifs for target specific backends.
-JS builds use `Worker` and message channels or fall back to single threaded stubs.
-Native builds use OS threads, work stealing pools, and lock free primitives.
-
-# Control Flow
+## Control Flow
 
 Control flow constructs (errors, async, generators) lower to MIR blocks and terminators.
 JavaScript's `throw`/`catch` and `async`/`await` are powerful but have runtime costs: exception tables, stack unwinding, state machine overhead.
@@ -1989,7 +1719,7 @@ JavaScript's `throw`/`catch` and `async`/`await` are powerful but have runtime c
 Explicit errors in the type system, panics for bugs only (like Rust).
 Async functions lower to state machines, preserving JS `Promise` semantics without the JS runtime overhead.
 
-## Errors and Exceptions
+### Errors and Exceptions
 
 Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics (bugs).
 
@@ -2001,17 +1731,6 @@ Destack uses **Result-first error handling**: recoverable errors use `Result<T, 
 **Panics indicate bugs**, not expected error conditions.
 Use `Result` for anything the caller might want to handle.
 
-### Result Types
-
-The standard library provides `Result<T, E>` as a discriminated union.
-From Lower's perspective, `Result` is just a tagged union with no special handling.
-
-```
-struct Ok<T> { kind: 'ok' = 'ok', value: T }
-struct Err<E> { kind: 'err' = 'err', error: E }
-newtype Result<T, E> = Ok<T> | Err<E>
-```
-
 The `?` operator propagates errors ergonomically:
 
 ```ds
@@ -2022,207 +1741,583 @@ function readConfig(): Result<Config, Error> {
 }
 ```
 
-Lowers to early return on error (note: MIR is post-monomorphization, so `Result<Config, Error>` becomes a concrete monomorphized type like `Result_Config_Error`):
-```mir
-type @Result_Config_Error = struct { i32, ref<raw void> }
+Lowers to early return on error.
 
-function @readConfig() -> ref<@Result_Config_Error> {
-block0:
-    v0 = call @readFile(@str_config_json)
-    v1 = call @Result.isErr(v0)
-    branch v1, block_err, block_ok
-block_err:
-    return v0                ; propagate error
-block_ok:
-    v2 = call @Result.unwrap(v0)
-    ; ... continue with v2 ...
-}
-```
-
-### try/catch on Result
-
-The `try`/`catch` syntax works on `Result` types as pattern matching sugar:
-
-```
-try {
-    const config = readConfig()?
-    process(config)
-} catch (e) {
-    log("Failed to read config:", e)
-}
-```
-
-This desugars to a `match` on the `Result`. No stack unwinding occurs.
-The `catch` block receives the error value from the `Err` variant.
-
-### Panic (throw)
-
+**Panic (throw):**
 `throw` indicates an unrecoverable error (bug, invariant violation).
 Unlike traditional exceptions, panics are not meant to be caught.
 On native targets, `throw` aborts without unwinding.
 Panic policy is configured per target (`panic`), but unwind is reserved for future use.
 
+### Coroutines: Async & Generators
+
+TypeScript already has "function coloring": `await` is only valid inside `async function`, `yield` only inside `function*`.
+This is baked into the language semantics we preserve.
+State machine transformation is therefore the natural implementation strategy.
+
+**Design principle:** Promise is a library type, state machines are a Lower transformation, the runtime glues them together.
+
 ```
-function assertPositive(n: int) {
-    if (n <= 0) {
-        throw new Error("invariant violated")  // panic
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              Architecture                                │
+│                                                                          │
+│   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐     │
+│   │  async function │───▶│  State Machine  │───▶│     Promise     │     │
+│   │    (source)     │    │  (Lower output) │    │ (library type)  │     │
+│   └─────────────────┘    └─────────────────┘    └─────────────────┘     │
+│                                   │                      ▲              │
+│                                   │                      │              │
+│                                   ▼                      │              │
+│                          ┌─────────────────┐             │              │
+│                          │     Runtime     │─────────────┘              │
+│                          │  (event loop)   │                            │
+│                          └─────────────────┘                            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Separation of Concerns
+
+| Component | Responsibility | Location |
+|-----------|----------------|----------|
+| **Lower** | Transform async bodies to state machines, emit `yield` terminators | `compiler/src/lower/` |
+| **Promise** | Store state (pending/fulfilled/rejected), manage continuations | `builtin/lib/native/` |
+| **Runtime** | Event loop, microtask/macrotask queues, I/O primitives | `builtin/lib/native/` |
+
+Lower does NOT know Promise internals.
+Lower just emits `yield` terminators; the runtime hooks them to Promise continuations.
+
+#### Promise as Library Type
+
+Promise is a regular class defined in `language/builtin/lib/native/`:
+
+```ds
+class Promise<T> {
+    #state: "pending" | "fulfilled" | "rejected" = "pending";
+    #value: T | Error | null = null;
+    #continuations: Array<Continuation<T>> = [];
+
+    // register continuation, called when resolved
+    then<U>(
+        onFulfilled?: (value: T) => U | Promise<U>,
+        onRejected?: (error: Error) => U | Promise<U>
+    ): Promise<U> { ... }
+
+    catch<U>(onRejected: (error: Error) => U | Promise<U>): Promise<U> { ... }
+    finally(onFinally: () => void): Promise<T> { ... }
+
+    // internal: resolve/reject (called by state machine or runtime)
+    static resolve<T>(value: T): Promise<T> { ... }
+    static reject<T>(error: Error): Promise<T> { ... }
+
+    // combinators
+    static all<T>(promises: Promise<T>[]): Promise<T[]> { ... }
+    static race<T>(promises: Promise<T>[]): Promise<T> { ... }
+    static any<T>(promises: Promise<T>[]): Promise<T> { ... }
+    static allSettled<T>(promises: Promise<T>[]): Promise<SettledResult<T>[]> { ... }
+}
+```
+
+This is a normal Destack type, and Lower treats it like any other type.
+The "magic" is in how the runtime connects yield terminators to Promise continuations.
+
+#### State Machine Transformation
+
+Lower transforms each async function into:
+
+1. **State machine struct** - captures locals that live across await points
+2. **Entry function** - creates Promise, starts execution, returns Promise
+3. **Poll function** - advances state machine, called on each resume
+
+```ds
+// source
+async function fetchUser(id: string): Promise<User> {
+    const response = await fetch(`/users/${id}`);
+    const data = await response.json();
+    return User.from(data);
+}
+```
+
+Conceptually, Lower generates:
+
+```ds
+// state machine struct: locals that survive across awaits
+struct @fetchUser_StateMachine {
+    state: uint8;
+    id: string;
+    response: Response | null;
+    data: JsonValue | null;
+    promise: Promise<User>;  // the outer promise to resolve
+}
+
+// entry: create state machine and promise, start execution
+function fetchUser(id: string): Promise<User> {
+    const promise = Promise<User>.new();
+    const sm = @fetchUser_StateMachine {
+        state: 0,
+        id: id,
+        response: null,
+        data: null,
+        promise: promise
+    };
+    @fetchUser_poll(sm);  // start execution
+    return promise;        // return immediately
+}
+
+// poll: advance state machine one step
+function @fetchUser_poll(sm: &@fetchUser_StateMachine): void {
+    match (sm.state) {
+        0 => {
+            const p = fetch(`/users/${sm.id}`);
+            p.then(response => {
+                sm.response = response;
+                sm.state = 1;
+                @fetchUser_poll(sm);
+            });
+        }
+        1 => {
+            const p = sm.response!.json();
+            p.then(data => {
+                sm.data = data;
+                sm.state = 2;
+                @fetchUser_poll(sm);
+            });
+        }
+        2 => {
+            sm.promise.resolve(User.from(sm.data!));
+        }
     }
 }
 ```
 
-**When to use panic:**
-- Assertion failures (`assert`, `unreachable`)
-- Invariant violations (bugs in the code)
-- Unrecoverable states ("this should never happen")
+#### MIR: The Yield Terminator
 
-### Target Behavior
-
-| Behavior | Native | JS |
-|----------|--------|-----|
-| `Result` + `?` | Early return, zero overhead | Early return, zero overhead |
-| `try/catch` on `Result` | Pattern match sugar | Pattern match sugar |
-| `throw` | **Abort** (no unwinding) | JS throw (catchable) |
-| Catching panics | Not possible | Standard try/catch |
-
-**Native targets:** `throw` aborts the process immediately via `Intrinsic::Abort`.
-No stack unwinding machinery, no landing pads, no exception tables.
-This enables zero-cost error handling on the happy path.
+At the MIR level, `await` becomes a `yield` terminator:
 
 ```mir
-type @Error = struct { i32, ref<raw void> }
-
-function @example_panic() -> void {
-block0:
-    v0 = managed.alloc @Error
-    ; ... initialize error fields ...
-    call @print_panic_message(v0)
-    intrinsic.abort()        ; terminate process
-    unreachable
-}
+yield <awaited_promise>, resume: <resume_block>, resume_args: [<captured_values>]
 ```
 
-**JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
-Code using `throw` for control flow will work in JS but abort in native.
+Semantics:
+1. **Suspend**: Save current state, return control to caller
+2. **Register**: Runtime calls `awaited_promise.then(resume_callback)`
+3. **Resume**: When promise resolves, runtime calls resume block with result
 
-## Coroutines: Async & Generators
+Full MIR for the async function:
 
-Coroutines (async functions, generators) are lowered to state machines while preserving both Promise and generator semantics.
-This is the standard approach used by Rust, C#, and even some modern JavaScript engines (like V8 or JSC), and it fully supports the existing JS/TS semantics of async/await and generators.
-
-### State Machine Transformation
-
-Consider an async function that fetches data from a URL:
-```
-async function fetchData(url: string): AsyncResult<Data, Error> {
-    const response = await fetch(url)?;     // yield point 1
-    const json = await response.json()?;    // yield point 2
-    Data.parse(json)
-}
-```
-
-We need to remember the state of the coroutine at each yield point, so the union of all possible states becomes a state machine struct.
-In the above case, we would lower to a state machine struct like this:
-```
-struct FetchData_StateMachine {
-    state: uint32,           // which yield point we're at
-    url: string,             // captured parameter
-    response?: Response,     // live across yield point 1
-    json?: any,              // live across yield point 2
-}
-```
-
-And a step function that implements the state machine for each suspension point:
 ```mir
-type @FetchData_StateMachine = struct { i32, ref<raw void>, ref<raw void>, ref<raw void> }
-type @any = struct { ref<raw void>, ref<raw void> }
-type @PollResult = struct { i32, ref<raw void> }
+type @fetchUser_SM = struct {
+    u8,                    ; state
+    ref<string>,           ; id
+    ref<Response | null>,  ; response
+    ref<JsonValue | null>, ; data
+    ref<Promise<User>>     ; promise
+}
 
-function @fetchData_step(v0: ref<@FetchData_StateMachine>, v1: ref<@any>) -> ref<@PollResult> {
-block0(v0: ref<@FetchData_StateMachine>, v1: ref<@any>):
-    v2 = field.get v0, 0           ; load sm.state
-    switch v2, block_unreachable, 0 => block_state0, 1 => block_state1, 2 => block_state2
+; entry function: creates state machine and promise
+function @fetchUser(id: ref<string>) -> ref<Promise<User>> {
+block0(id: ref<string>):
+    v0 = managed.alloc @Promise<User>
+    call @Promise.init(v0)
+    v1 = managed.alloc @fetchUser_SM
+    field.set v1, 0, 0              ; state = 0
+    field.set v1, 1, id             ; id
+    field.set v1, 2, null           ; response
+    field.set v1, 3, null           ; data
+    field.set v1, 4, v0             ; promise
+    call @fetchUser_poll(v1)        ; start execution
+    return v0                        ; return promise immediately
+}
+
+; poll function: state machine
+function @fetchUser_poll(sm: ref<@fetchUser_SM>) -> void {
+block_dispatch(sm: ref<@fetchUser_SM>):
+    v0 = field.get sm, 0            ; load state
+    switch v0, [block_state0, block_state1, block_state2]
 
 block_state0:
-    ; initial: start fetch
-    v3 = field.get v0, 1           ; load sm.url
-    v4 = call @fetch(v3)
-    v5 = iconst 1i32
-    v6 = field.set v0, 0, v5       ; sm.state = 1
-    v7 = call @Poll.Pending(v4)
-    return v7
+    v1 = field.get sm, 1            ; load id
+    v2 = call @fetch(v1)            ; returns Promise<Response>
+    yield v2, resume: block_resume0, resume_args: [sm]
+
+block_resume0(sm: ref<@fetchUser_SM>, response: ref<Response>):
+    field.set sm, 2, response       ; store response
+    field.set sm, 0, 1              ; state = 1
+    jump block_dispatch             ; continue to next state
 
 block_state1:
-    ; resumed with response
-    v8 = field.set v0, 2, v1       ; sm.response = input
-    v9 = field.get v8, 2
-    v10 = call @Response.json(v9)
-    v11 = iconst 2i32
-    v12 = field.set v8, 0, v11     ; sm.state = 2
-    v13 = call @Poll.Pending(v10)
-    return v13
+    v3 = field.get sm, 2            ; load response
+    v4 = call @Response.json(v3)    ; returns Promise<JsonValue>
+    yield v4, resume: block_resume1, resume_args: [sm]
+
+block_resume1(sm: ref<@fetchUser_SM>, data: ref<JsonValue>):
+    field.set sm, 3, data           ; store data
+    field.set sm, 0, 2              ; state = 2
+    jump block_dispatch             ; continue to next state
 
 block_state2:
-    ; resumed with json, done
-    v14 = field.set v0, 3, v1      ; sm.json = input
-    v15 = field.get v14, 3
-    v16 = call @Data.parse(v15)
-    v17 = call @Poll.Ready(v16)
-    return v17
-
-block_unreachable:
-    unreachable
+    v5 = field.get sm, 3            ; load data
+    v6 = call @User.from(v5)
+    v7 = field.get sm, 4            ; load promise
+    call @Promise.resolve(v7, v6)   ; resolve outer promise
+    return
 }
 ```
 
-### Generators
+#### Runtime: Connecting Yield to Promise
 
-Generators work similarly but yield values instead of awaiting promises.
-Both use the same state machine transformation and `Yield` terminator in MIR.
-The key difference: async functions yield to the executor and await `Promise` resolution,
-while generators yield values directly to the caller via `.next()`.
+The runtime interprets `yield` terminators by:
+
+1. Creating a closure that captures the resume block and args
+2. Calling `awaited_promise.then(closure)`
+3. When promise resolves, closure calls resume block with result
+
+```ds
+// runtime pseudocode for handling yield
+function handleYield(
+    awaitedPromise: Promise<T>,
+    resumeBlock: (T) => void,
+    resumeArgs: any[]
+): void {
+    awaitedPromise.then(value => {
+        // schedule as microtask (JS semantics)
+        queueMicrotask(() => {
+            resumeBlock(value, ...resumeArgs);
+        });
+    });
+}
+```
+
+#### Event Loop Semantics
+
+The runtime maintains JS-compatible task queues:
+
+| Queue | Contents | When Drained |
+|-------|----------|--------------|
+| **Microtask** | Promise continuations (`.then`), `queueMicrotask` | After each task, completely |
+| **Macrotask** | `setTimeout`, `setInterval`, I/O callbacks | One per event loop iteration |
+
+```ds
+setTimeout(() => console.log("A"), 0);           // macrotask
+Promise.resolve().then(() => console.log("B"));  // microtask
+console.log("C");
+// output: C, B, A (same as JS)
+```
+
+Order of execution:
+1. Current synchronous code runs to completion → prints "C"
+2. Microtask queue drains → prints "B"
+3. Next macrotask runs → prints "A"
+
+#### Usage Scenarios
+
+**Scenario 1: Simple await**
+```ds
+const response = await fetch(url);
+```
+- `fetch` returns `Promise<Response>` immediately
+- Lower emits `yield fetchPromise, resume: nextBlock`
+- Runtime: `fetchPromise.then(response => resume(response))`
+- When HTTP completes, resume block executes with response
+
+**Scenario 2: Promise.all**
+```ds
+const [a, b, c] = await Promise.all([fetchA(), fetchB(), fetchC()]);
+```
+- `Promise.all` is a library function, creates a new Promise
+- Internally tracks which inputs resolved
+- Resolves output Promise when all inputs resolve
+- State machine yields on the combined Promise
+
+**Scenario 3: setTimeout**
+```ds
+await new Promise(resolve => setTimeout(resolve, 1000));
+```
+- `setTimeout` schedules callback on macrotask queue
+- Callback calls `resolve()`, which resolves the Promise
+- State machine resumes after 1000ms (plus microtask processing)
+
+**Scenario 4: Error handling**
+```ds
+try {
+    const data = await fetchData();
+} catch (e) {
+    console.error(e);
+}
+```
+- If `fetchData()` rejects, Promise stores error
+- Runtime calls reject handler instead of fulfill handler
+- State machine jumps to catch block
+
+#### Async Cancellation
+
+**There is no implicit cancellation.**
+This matches JS semantics: once an async function starts, its state machine runs to completion (or rejection).
+
+The state machine remains alive as long as any continuation holds a reference to it.
+When you `await` a Promise, the runtime registers a continuation closure that captures the state machine.
+The state machine is eligible for GC only when:
+- It completes (resolves or rejects)
+- All continuations are unreachable (Promise is abandoned)
+
+For explicit cancellation, use `AbortController` (same as modern JS/TS):
+
+```ds
+const controller = new AbortController();
+const signal = controller.signal;
+
+// pass signal to async operation
+const data = await fetchData({ signal });
+
+// elsewhere: cancel the operation
+controller.abort();
+```
+
+Inside async functions, check `signal.aborted` at suspension points:
+
+```ds
+async function fetchWithCancel(url: string, signal: AbortSignal): Promise<Data> {
+    const response = await fetch(url, { signal });
+    if (signal.aborted) {
+        return Result.err(AbortError.new());
+    }
+    const data = await response.json();
+    return Result.ok(data);
+}
+```
+
+The `AbortController`/`AbortSignal` pattern is a library concern, not a Lower concern.
+Lower simply emits state machines; the library implements cancellation semantics via signal checking.
+
+#### Generators
+
+Generators use the same state machine approach but yield values to caller instead of awaiting:
 
 ```ds
 function* range(start: int, end: int): Generator<int> {
     for (let i = start; i < end; i++) {
-        yield i
+        yield i;
     }
 }
 ```
 
-Lowers to:
-```
-struct Range_StateMachine {
-    state: uint32
-    start: int
-    end: int
-    i: int      // loop variable, live across yield
-}
-```
+The state machine implements `Iterator<T>`:
+- `next()` advances to next yield, returns `{ value: T, done: boolean }`
+- State persists across `next()` calls
 
-### Yield Terminator
-
-MIR has a `Yield` terminator for suspension points which is used for both async and generator coroutines:
 ```mir
-yield v1, resume: block5, resume_args: [v2]
-```
+function @range_next(sm: ref<@range_SM>) -> @IteratorResult<int> {
+block0(sm: ref<@range_SM>):
+    v0 = field.get sm, 0            ; state
+    v1 = field.get sm, 1            ; i
+    v2 = field.get sm, 2            ; end
+    v3 = icmp_lt v1, v2
+    branch v3, block_yield, block_done
 
-1. Save state (all live locals are in the state machine struct)
-2. Return yielded value to caller
-3. On resume, jump to resume block with resumed value
+block_yield:
+    v4 = iadd v1, 1
+    field.set sm, 1, v4             ; i++
+    v5 = aggregate @IteratorResult<int> { value: v1, done: false }
+    return v5
 
-### Promise
-
-The `Promise` type provides full TS `Promise` compatibility:
-
-```
-async function fetchData(): Promise<Data> {
-    const response = await fetch(url)
-    response.json()
+block_done:
+    v6 = aggregate @IteratorResult<int> { value: undefined, done: true }
+    return v6
 }
 ```
 
-The async runtime model is target-specific (like GC), but the general architecture follows
-JS semantics for compatibility.
+#### Async Generators
+
+Async generators combine both: `await` suspends, `yield` produces values.
+
+```ds
+async function* fetchPages(urls: string[]): AsyncGenerator<Page> {
+    for (const url of urls) {
+        const response = await fetch(url);
+        yield await response.json();
+    }
+}
+```
+
+`next()` returns `Promise<IteratorResult<T>>`:
+- Caller awaits the returned Promise
+- State machine may suspend multiple times per `next()` call (on awaits)
+- Eventually yields a value or completes
+
+#### JS Target Behavior
+
+On JS targets, async functions compile directly to JS async/await.
+No state machine transformation is needed; the JS runtime handles it natively.
+This preserves perfect Promise interop with existing JS code and avoids double-transformation overhead.
+
+## Concurrency
+
+Destack preserves JS and TS concurrency semantics by default while enabling native level parallelism on supported targets.
+The core ideas are a single threaded event loop by default, `Promise` and `async` for concurrency, and `Worker` for parallelism.
+Target specific implementations keep surface semantics consistent across JS, WASM, and native targets.
+
+**Threading Model:**
+Default behavior is a single threaded event loop with microtask and macrotask queues.
+Native targets support worker threads with the same `Worker` API.
+JS targets map to real JS `Worker` instances.
+WASM targets map to host specific workers when available.
+Native targets map to OS threads with message passing.
+Shared memory is explicit and opt-in.
+
+**Memory Model:**
+Shared memory follows JS Atomics semantics.
+Atomic operations are sequentially consistent by default and accept explicit orderings when needed.
+Non atomic loads and stores have no cross thread ordering guarantees.
+Data races on shared non atomic memory are undefined behavior on native targets.
+This preserves JS and TS semantics while enabling native performance when code uses atomics.
+
+**GC and Threads:**
+GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.
+GC managed objects are not shared across workers unless explicitly frozen or copied.
+Shared memory uses raw pointers or explicit shared buffers.
+Native targets may add a shared heap mode in the future.
+
+---
+
+# Target Configuration
+
+Lower behavior is configured by target policies defined in `dsconfig.json` and the target profile.
+See `language/workspace/src/config/target.rs` for the canonical definitions.
+
+## Runtime Checks
+
+### Bounds Checks
+
+Control array and slice bounds checking.
+
+| Variant | Behavior |
+|---------|----------|
+| `Always` | Bounds checks in all builds |
+| `Debug` | Bounds checks only in debug builds (default) |
+| `Never` | No bounds checks (unsafe, fastest) |
+
+Bounds check failure triggers a panic (abort on native targets).
+
+### Overflow Checks
+
+Control integer overflow checking.
+
+| Variant | Behavior |
+|---------|----------|
+| `Always` | Overflow checks in all builds |
+| `Debug` | Overflow checks only in debug builds (default) |
+| `Never` | No overflow checks; signed overflow is UB |
+
+Overflow check failure triggers a panic.
+Explicit wrapping (`+%`) and saturating (`+|`) operators bypass this policy.
+
+## Error Handling
+
+### Panic Policy
+
+What happens when a panic occurs (via `throw` or failed assertions).
+
+| Variant | Behavior |
+|---------|----------|
+| `Abort` | Terminate immediately via `Intrinsic::Abort` (default) |
+| `Unwind` | Stack unwinding (future, for destructors) |
+
+Abort is simpler and has no overhead.
+Unwind enables deterministic destructor calls but requires exception tables.
+
+### Unwind Format
+
+Format for unwind information (for debuggers and profilers).
+
+| Variant | Platform |
+|---------|----------|
+| `None` | No unwind info |
+| `Dwarf` | DWARF CFI (Unix, macOS) |
+| `Seh` | Structured Exception Handling (Windows) |
+
+Even with `panic: Abort`, minimal unwind info can be emitted for debuggers.
+
+## Debug and Symbols
+
+### Debug Info Level
+
+Granularity of debug information.
+
+| Variant | Content |
+|---------|---------|
+| `None` | No debug info |
+| `Line` | Line numbers and function names |
+| `Full` | Line numbers, variables, types (default for debug) |
+
+Debug info is emitted as DWARF (or platform equivalent) by codegen.
+
+### Strip Level
+
+Symbol table stripping for release builds.
+
+| Variant | Behavior |
+|---------|----------|
+| `None` | Keep all symbols |
+| `Partial` | Strip internal symbols, keep exports |
+| `Full` | Strip all symbols (smallest binary) |
+
+## Memory
+
+### Allocator
+
+Global allocator selection for native targets.
+
+| Variant | Description |
+|---------|-------------|
+| `System` | Platform default (malloc/free) |
+| `MiMalloc` | Microsoft's mimalloc (fast, low fragmentation) |
+| `JeMalloc` | FreeBSD's jemalloc (good for large heaps) |
+| `Custom` | User-provided allocator |
+
+The allocator provides both managed (GC) and raw allocations.
+
+### Borrow Mode
+
+How borrow annotations are enforced.
+
+| Variant | Behavior |
+|---------|----------|
+| `Hint` | Warnings only, no hard errors (default) |
+| `Strict` | Hard errors on borrow violations; enables `noalias` |
+
+Strict mode enables stronger optimizations but requires more careful code.
+
+## Codegen
+
+### Relocation Model
+
+Position-independent code generation.
+
+| Variant | Use Case |
+|---------|----------|
+| `Static` | Fixed addresses (executables on some platforms) |
+| `Pic` | Position-independent code (shared libraries) |
+| `Pie` | Position-independent executable (default for security) |
+
+### Link Mode
+
+Preference for linking dependencies.
+
+| Variant | Behavior |
+|---------|----------|
+| `Static` | Prefer static linking (larger binary, no runtime deps) |
+| `Dynamic` | Prefer dynamic linking (smaller binary, runtime deps) |
+
+### CPU and Features
+
+Target CPU and feature detection.
+
+- `cpu`: Target CPU model (e.g., "haswell", "apple-m1", "generic")
+- `cpuFeatures`: Enabled features (e.g., "avx2", "neon", "simd128")
+
+Lower uses `cpuFeatures` to gate SIMD codegen.
+If a feature is unavailable, vector operations scalarize to loops.
+
+---
 
 # Code Generation
 
@@ -2246,29 +2341,62 @@ Debug info emission is configured per target (`debugInfo`).
 Cranelift consumes this metadata and emits DWARF debug info for native targets.
 The MIR itself remains layout-only; debug names are metadata attached to MIR nodes.
 
-## FFI and Calling Conventions
+## Symbol Visibility
 
-FFI uses the C ABI for interoperability with native libraries.
+Symbols have visibility levels that control linking:
 
-**Calling conventions:**
+| Visibility | Description |
+|------------|-------------|
+| `Local` | Internal to module, not exported |
+| `Export` | Visible outside module, public API |
+| `Import` | Declared here, defined elsewhere |
 
-| Convention | Use |
-|------------|-----|
-| `Destack` | Internal ABI (can change between versions) |
-| `C` | C ABI for FFI with native libraries |
-| `System` | Platform default (Windows: stdcall, Unix: C) |
-
-**External functions** use `@extern`:
-```ds
-@extern("C")
-declare function printf(format: &uint8, ...args: any[]): int32
-```
-
-**Exports** use `@export`:
+**@export decorator:**
 ```ds
 @export("C")
 function add(a: int32, b: int32): int32 { a + b }
 ```
 
-**FFI error handling:** Exceptions don't cross FFI boundaries (like Rust).
-Wrap C error codes in `Result`; for WASM/JS interop, wrap throwing JS functions on the JS side.
+Exports the function with C ABI for FFI.
+Without a calling convention, uses Destack ABI (may change between versions).
+
+**public modifier:**
+```ds
+public function process(data: Data): Result { ... }
+```
+
+Exports with Destack ABI.
+
+## Module Initialization
+
+Each module may have initialization code that runs before `main()`:
+- Static global initializers
+- Top-level `using` statements (for resource acquisition)
+- Module-level side effects
+
+Lower generates a `__init` function per module containing this code.
+Initialization order follows import dependencies: if module A imports module B, B's `__init` runs first.
+
+Circular dependencies are detected during Analyze phase and produce a compile error.
+This is the same approach Go uses: deterministic initialization order, no runtime cycle detection.
+
+```ds
+// module.ds
+const config = loadConfig();  // runs during init
+
+using logger = Logger.new();  // acquired during init, released at shutdown
+
+export function process() { ... }
+```
+
+Generates:
+```mir
+function @module.__init() -> void {
+block0:
+    v0 = call @loadConfig()
+    global.store @config, v0
+    v1 = call @Logger.new()
+    global.store @logger, v1
+    return
+}
+```

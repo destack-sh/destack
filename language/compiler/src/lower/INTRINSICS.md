@@ -1,0 +1,273 @@
+# Intrinsics
+
+Intrinsics are primitive operations that Lower emits as MIR instructions or inline sequences rather than function calls.
+Each backend (VM, Cranelift, WASM) implements these directly.
+
+See `language/mir/src/tree/intrinsic.rs` for the canonical definitions.
+
+## Overview
+
+Intrinsics fall into several categories:
+
+| Category | Purpose | Comptime? |
+|----------|---------|-----------|
+| Reflection | Type info queries | Yes (evaluated at compile time) |
+| Bit manipulation | Low-level bit ops | No |
+| Arithmetic | Checked/unchecked/saturating math | No |
+| Memory | Bulk memory ops | No |
+| Atomics | Thread-safe operations | No |
+| GC | Garbage collection barriers | No |
+| Float math | Math library functions | No |
+| Control | Debugging and hints | No |
+| SIMD | Vector operations | No |
+
+## Reflection (Comptime Only)
+
+These are evaluated during compilation and replaced with constants.
+The VM handles them; native codegen never sees them.
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `type_of` | `(T) -> Type<T>` | Get the type descriptor of a value |
+| `size_of` | `() -> usize` | Get the size of a type in bytes |
+| `align_of` | `() -> usize` | Get the alignment of a type in bytes |
+
+## Bit Manipulation
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `clz` | `(T) -> T` | Count leading zeros |
+| `ctz` | `(T) -> T` | Count trailing zeros |
+| `popcnt` | `(T) -> T` | Population count (count set bits) |
+| `byte_swap` | `(T) -> T` | Byte swap (endianness conversion) |
+| `bit_reverse` | `(T) -> T` | Reverse all bits |
+| `rotate_left` | `(T, T) -> T` | Rotate bits left |
+| `rotate_right` | `(T, T) -> T` | Rotate bits right |
+
+## Arithmetic
+
+### Checked (returns result + overflow flag)
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `add.overflow` | `(T, T) -> (T, bool)` | Add with overflow detection |
+| `sub.overflow` | `(T, T) -> (T, bool)` | Subtract with overflow detection |
+| `mul.overflow` | `(T, T) -> (T, bool)` | Multiply with overflow detection |
+
+### Unchecked (UB on overflow)
+
+These allow the optimizer to assume no overflow occurs.
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `add.unchecked` | `(T, T) -> T` | Add (UB on overflow) |
+| `sub.unchecked` | `(T, T) -> T` | Subtract (UB on overflow) |
+| `mul.unchecked` | `(T, T) -> T` | Multiply (UB on overflow) |
+| `div.unchecked` | `(T, T) -> T` | Divide (UB on zero or overflow) |
+| `rem.unchecked` | `(T, T) -> T` | Remainder (UB on zero or overflow) |
+| `shl.unchecked` | `(T, T) -> T` | Shift left (UB if shift >= bit width) |
+| `shr.unchecked` | `(T, T) -> T` | Shift right (UB if shift >= bit width) |
+
+### Saturating (clamps to min/max)
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `add.sat` | `(T, T) -> T` | Saturating add |
+| `sub.sat` | `(T, T) -> T` | Saturating subtract |
+
+## Memory
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `memcpy` | `(dst, src, len) -> ()` | Copy memory (non-overlapping) |
+| `memmove` | `(dst, src, len) -> ()` | Move memory (handles overlap) |
+| `memset` | `(dst, val, len) -> ()` | Set memory to byte value |
+| `memcmp` | `(ptr, ptr, len) -> i32` | Compare memory regions |
+| `volatile.load` | `(ptr<T>) -> T` | Volatile load (not optimized away) |
+| `volatile.store` | `(ptr<T>, T) -> ()` | Volatile store (not optimized away) |
+| `prefetch.read` | `(ptr) -> ()` | Prefetch for reading (CPU hint) |
+| `prefetch.write` | `(ptr) -> ()` | Prefetch for writing (CPU hint) |
+
+## Type Punning and Pointer Ops
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `transmute` | `(T) -> U` | Reinterpret bytes as different type |
+| `ptr_offset_from` | `(ptr, ptr) -> isize` | Byte offset between pointers |
+| `raw_eq` | `(T, T) -> bool` | Byte-wise equality comparison |
+
+## Garbage Collection
+
+These are inserted by Lower for GC write barriers.
+The specific GC algorithm is runtime-dependent.
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `gc.write_barrier` | `(ptr, val) -> ()` | Write barrier for concurrent marking |
+| `gc.read_barrier` | `(ptr) -> ()` | Read barrier (if required by GC) |
+
+### Write Barrier Insertion
+
+Lower inserts `gc.write_barrier` before every store to a managed reference field:
+
+```mir
+; obj.field = newValue (where field is a managed reference)
+v0 = field.addr obj, fieldIndex
+intrinsic.gc.write_barrier(v0, newValue)
+store v0, newValue
+```
+
+The barrier shades the new value grey for concurrent marking.
+This follows Go's approach: insertion write barriers with a concurrent mark phase.
+
+### Weak References
+
+Weak references (`WeakRef<T>`, `WeakMap<K, V>`, `WeakSet<T>`) are **well-known library types**, not intrinsics.
+This follows the JVM/CLR/V8 pattern where these are recognized types with target-specific lowering.
+
+Lower recognizes these well-known symbols and emits appropriate code for the target's memory model:
+
+| Target | Lowering Strategy |
+|--------|-------------------|
+| GC | Coordinate with GC weak table; cleared during collection |
+| Refcount | Weak reference counting (like Rust's `Weak<T>`) |
+| Manual | Explicit weak handle API or unsupported |
+
+```ds
+// WeakRef<T> is defined in builtin/lib/native/
+// Lower recognizes this well-known type
+class WeakRef<T> {
+    deref(): T | null { ... }
+}
+```
+
+For GC targets, when an object becomes unreachable (ignoring weak refs), the runtime:
+1. Clears all weak references pointing to it
+2. Removes WeakMap/WeakSet entries where the key was collected
+3. Collects the object
+
+No intrinsics needed; Lower handles these like other well-known types (`String`, `Array<T>`, `Promise<T>`).
+
+## Atomics
+
+All atomic operations require a `MemoryOrdering` argument.
+
+| Ordering | Description |
+|----------|-------------|
+| `relaxed` | No ordering constraints (weakest) |
+| `acquire` | Reads can't be reordered before this |
+| `release` | Writes can't be reordered after this |
+| `acq_rel` | Both acquire and release |
+| `seq_cst` | Sequentially consistent (strongest, default) |
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `atomic.load` | `(ptr<T>) -> T` | Atomic load |
+| `atomic.store` | `(ptr<T>, T) -> ()` | Atomic store |
+| `atomic.cas` | `(ptr<T>, expected, new) -> T` | Compare-and-swap, returns old value |
+| `atomic.fetch.add` | `(ptr<T>, T) -> T` | Fetch-and-add, returns old value |
+| `atomic.fetch.sub` | `(ptr<T>, T) -> T` | Fetch-and-subtract, returns old value |
+| `atomic.fetch.and` | `(ptr<T>, T) -> T` | Fetch-and-bitwise-and, returns old value |
+| `atomic.fetch.or` | `(ptr<T>, T) -> T` | Fetch-and-bitwise-or, returns old value |
+| `atomic.fetch.xor` | `(ptr<T>, T) -> T` | Fetch-and-bitwise-xor, returns old value |
+| `atomic.fetch.min` | `(ptr<T>, T) -> T` | Fetch-and-min (signed), returns old value |
+| `atomic.fetch.max` | `(ptr<T>, T) -> T` | Fetch-and-max (signed), returns old value |
+| `atomic.fence` | `() -> ()` | Memory fence/barrier |
+
+## Float Math
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `sqrt` | `(T) -> T` | Square root |
+| `abs` | `(T) -> T` | Absolute value |
+| `fma` | `(T, T, T) -> T` | Fused multiply-add: (a * b) + c |
+| `copysign` | `(T, T) -> T` | Copy sign from one float to another |
+| `min` | `(T, T) -> T` | IEEE 754 minimum |
+| `max` | `(T, T) -> T` | IEEE 754 maximum |
+| `sin` | `(T) -> T` | Sine |
+| `cos` | `(T) -> T` | Cosine |
+| `tan` | `(T) -> T` | Tangent |
+| `asin` | `(T) -> T` | Arc sine |
+| `acos` | `(T) -> T` | Arc cosine |
+| `atan` | `(T) -> T` | Arc tangent |
+| `atan2` | `(T, T) -> T` | Arc tangent of y/x |
+| `exp` | `(T) -> T` | e^x (natural exponential) |
+| `exp2` | `(T) -> T` | 2^x |
+| `log` | `(T) -> T` | Natural logarithm |
+| `log2` | `(T) -> T` | Base-2 logarithm |
+| `log10` | `(T) -> T` | Base-10 logarithm |
+| `pow` | `(T, T) -> T` | Power: base^exponent |
+| `floor` | `(T) -> T` | Round toward negative infinity |
+| `ceil` | `(T) -> T` | Round toward positive infinity |
+| `trunc` | `(T) -> T` | Round toward zero |
+| `round` | `(T) -> T` | Round to nearest, ties to even |
+
+## Control Flow and Debugging
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `unreachable` | `() -> !` | Mark code as unreachable (UB if executed) |
+| `breakpoint` | `() -> ()` | Trigger debugger breakpoint |
+| `abort` | `() -> !` | Abort execution immediately |
+| `return_address` | `() -> ptr` | Get return address of current function |
+| `frame_address` | `() -> ptr` | Get frame pointer of current function |
+| `expect` | `(bool, bool) -> bool` | Hint expected value of condition |
+| `likely` | `(bool) -> bool` | Hint condition is likely true |
+| `unlikely` | `(bool) -> bool` | Hint condition is likely false |
+| `black_box` | `(T) -> T` | Optimization barrier |
+
+## SIMD
+
+SIMD follows a Zig-like model: vectors are first-class types with static lane counts.
+Standard operators (+, -, *, etc.) work element-wise on vector types.
+Lower maps these to target SIMD instructions when available.
+If the target lacks support, Lower scalarizes to loops.
+
+### Vector Type
+
+Vectors are represented as `vec<N, T>` where N is the lane count and T is the element type:
+
+```mir
+type @Vec4f32 = vec<4, f32>   ; 4-lane f32 vector
+type @Vec8i32 = vec<8, i32>   ; 8-lane i32 vector
+```
+
+### SIMD Intrinsics
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `shuffle` | `(vec<N, T>, vec<N, T>, mask<M>) -> vec<M, T>` | Shuffle lanes according to mask |
+| `select` | `(vec<N, bool>, vec<N, T>, vec<N, T>) -> vec<N, T>` | Per-lane conditional select |
+| `splat` | `(T) -> vec<N, T>` | Broadcast scalar to all lanes |
+| `reduce.add` | `(vec<N, T>) -> T` | Horizontal sum of all lanes |
+| `reduce.mul` | `(vec<N, T>) -> T` | Horizontal product of all lanes |
+| `reduce.min` | `(vec<N, T>) -> T` | Minimum of all lanes |
+| `reduce.max` | `(vec<N, T>) -> T` | Maximum of all lanes |
+| `reduce.and` | `(vec<N, T>) -> T` | Bitwise AND of all lanes |
+| `reduce.or` | `(vec<N, T>) -> T` | Bitwise OR of all lanes |
+| `reduce.xor` | `(vec<N, T>) -> T` | Bitwise XOR of all lanes |
+
+### Scalarization Fallback
+
+When the target lacks SIMD support (or the vector width exceeds hardware capabilities), Lower scalarizes vector operations to scalar loops:
+
+```mir
+; vec<4, f32> add without SIMD hardware
+v0 = element.get a, 0
+v1 = element.get b, 0
+v2 = fadd v0, v1
+; ... repeat for all lanes
+v8 = aggregate vec<4, f32> (v2, v3, v4, v5)
+```
+
+The optimizer may later vectorize these if profitable.
+
+### Future: GPU/Shader Support
+
+SIMD is the foundation for accelerated computing.
+Future work includes:
+- Compute shaders via SPIR-V/Metal/WebGPU backends
+- GPU kernel extraction from annotated functions
+- Automatic parallelization of map/reduce patterns
+
+These will build on the same vector type infrastructure.
