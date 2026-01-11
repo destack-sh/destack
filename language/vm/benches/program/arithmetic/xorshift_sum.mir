@@ -1,12 +1,18 @@
 
 function @xorshift_sum(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 0i64
     v3 = iconst 0i64
     jump block1(v2, v1, v3)
+
+// loop condition, check limit
 block1(v4: i64, v5: i64, v6: i64):
     v7 = icmp_sge v4, v0
     branch v7, block3(v6), block2
+
+// loop body, update accumulators
 block2:
     v8 = iconst 13i64
     v9 = ishl v5, v8
@@ -21,6 +27,8 @@ block2:
     v18 = iconst 1i64
     v19 = iadd v4, v18
     jump block1(v19, v16, v17)
+
+// return result
 block3(v20: i64):
     return v20
 }

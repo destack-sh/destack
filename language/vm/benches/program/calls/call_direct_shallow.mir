@@ -1,5 +1,7 @@
 
 function @f5(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 1i64
     v2 = iadd v0, v1
@@ -7,41 +9,57 @@ block0(v0: i64):
 }
 
 function @f4(v0: i64) -> i64 {
+
+// entry, call helper
 block0(v0: i64):
     v1 = call @f5(v0)
     return v1
 }
 
 function @f3(v0: i64) -> i64 {
+
+// entry, call helper
 block0(v0: i64):
     v1 = call @f4(v0)
     return v1
 }
 
 function @f2(v0: i64) -> i64 {
+
+// entry, call helper
 block0(v0: i64):
     v1 = call @f3(v0)
     return v1
 }
 
 function @f1(v0: i64) -> i64 {
+
+// entry, call helper
 block0(v0: i64):
     v1 = call @f2(v0)
     return v1
 }
 
 function @call_direct_shallow(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 0i64
     jump block1(v1, v1)
+
+// loop condition, check limit
 block1(v2: i64, v3: i64):
     v4 = icmp_sge v2, v0
     branch v4, block3(v3), block2
+
+// loop body, call helper
 block2:
     v5 = call @f1(v3)
     v6 = iconst 1i64
     v7 = iadd v2, v6
     jump block1(v7, v5)
+
+// return result
 block3(v8: i64):
     return v8
 }

@@ -1,68 +1,110 @@
 
 function @switch_16way(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 0i64
     jump block1(v1, v1)
+
+// loop condition, check limit
 block1(v2: i64, v3: i64):
     v4 = icmp_sge v2, v0
     branch v4, block19(v3), block2
+
+// switch on selector
 block2:
     v5 = iconst 16i64
     v6 = srem v2, v5
     switch v6, block3, 0 => block3, 1 => block4, 2 => block5, 3 => block6, 4 => block7, 5 => block8, 6 => block9, 7 => block10, 8 => block11, 9 => block12, 10 => block13, 11 => block14, 12 => block15, 13 => block16, 14 => block17, 15 => block18
+
+// merge branch, continue
 block3:
     v7 = iconst 0i64
     jump block20(v7)
+
+// merge branch, continue
 block4:
     v8 = iconst 1i64
     jump block20(v8)
+
+// merge branch, continue
 block5:
     v9 = iconst 2i64
     jump block20(v9)
+
+// merge branch, continue
 block6:
     v10 = iconst 3i64
     jump block20(v10)
+
+// merge branch, continue
 block7:
     v11 = iconst 4i64
     jump block20(v11)
+
+// merge branch, continue
 block8:
     v12 = iconst 5i64
     jump block20(v12)
+
+// merge branch, continue
 block9:
     v13 = iconst 6i64
     jump block20(v13)
+
+// merge branch, continue
 block10:
     v14 = iconst 7i64
     jump block20(v14)
+
+// merge branch, continue
 block11:
     v15 = iconst 8i64
     jump block20(v15)
+
+// merge branch, continue
 block12:
     v16 = iconst 9i64
     jump block20(v16)
+
+// merge branch, continue
 block13:
     v17 = iconst 10i64
     jump block20(v17)
+
+// merge branch, continue
 block14:
     v18 = iconst 11i64
     jump block20(v18)
+
+// merge branch, continue
 block15:
     v19 = iconst 12i64
     jump block20(v19)
+
+// merge branch, continue
 block16:
     v20 = iconst 13i64
     jump block20(v20)
+
+// merge branch, continue
 block17:
     v21 = iconst 14i64
     jump block20(v21)
+
+// merge branch, continue
 block18:
     v22 = iconst 15i64
     jump block20(v22)
+
+// merge branches, advance loop
 block20(v24: i64):
     v25 = iadd v3, v24
     v26 = iconst 1i64
     v27 = iadd v2, v26
     jump block1(v27, v25)
+
+// return result
 block19(v28: i64):
     return v28
 }

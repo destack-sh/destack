@@ -26,12 +26,18 @@ block0(
 }
 
 function @call_many_args_16(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 0i64
     jump block1(v1, v1)
+
+// loop condition, check limit
 block1(v2: i64, v3: i64):
     v4 = icmp_sge v2, v0
     branch v4, block3(v3), block2
+
+// loop body, call helper
 block2:
     v5 = iconst 1i64
     v6 = iconst 2i64
@@ -54,6 +60,8 @@ block2:
     v23 = iconst 1i64
     v24 = iadd v2, v23
     jump block1(v24, v22)
+
+// return result
 block3(v25: i64):
     return v25
 }

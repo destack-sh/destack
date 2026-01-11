@@ -1,12 +1,18 @@
 
 function @bit_ops(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 0i64
     v2 = iconst 773738404492881801i64
     jump block1(v1, v2)
+
+// loop condition, check limit
 block1(v3: i64, v4: i64):
     v5 = icmp_sge v3, v0
     branch v5, block3(v4), block2
+
+// loop body, update memory
 block2:
     v6 = intrinsic.clz(v4)
     v7 = intrinsic.ctz(v4)
@@ -16,6 +22,8 @@ block2:
     v11 = bxor v10, v4
     v12 = iadd v3, v9
     jump block1(v12, v11)
+
+// return result
 block3(v13: i64):
     return v13
 }

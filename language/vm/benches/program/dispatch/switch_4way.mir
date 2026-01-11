@@ -1,32 +1,50 @@
 
 function @switch_4way(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 0i64
     jump block1(v1, v1)
+
+// loop condition, check limit
 block1(v2: i64, v3: i64):
     v4 = icmp_sge v2, v0
     branch v4, block8(v3), block2
+
+// switch on selector
 block2:
     v5 = iconst 4i64
     v6 = srem v2, v5
     switch v6, block7, 0 => block3, 1 => block4, 2 => block5, 3 => block7
+
+// merge branch, continue
 block3:
     v7 = iconst 1i64
     jump block6(v7)
+
+// merge branch, continue
 block4:
     v8 = iconst 2i64
     jump block6(v8)
+
+// merge branch, continue
 block5:
     v9 = iconst 3i64
     jump block6(v9)
+
+// merge branches, advance loop
 block7:
     v14 = iconst 0i64
     jump block6(v14)
+
+// merge branches, advance loop
 block6(v10: i64):
     v11 = iadd v3, v10
     v12 = iconst 1i64
     v13 = iadd v2, v12
     jump block1(v13, v11)
+
+// return result
 block8(v15: i64):
     return v15
 }

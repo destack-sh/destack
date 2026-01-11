@@ -1,5 +1,7 @@
 
 function @method_add(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iadd v0, v1
     v3 = iconst 1i64
@@ -8,6 +10,8 @@ block0(v0: i64, v1: i64):
 }
 
 function @method_mul(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 3i64
     v3 = imul v0, v2
@@ -16,6 +20,8 @@ block0(v0: i64, v1: i64):
 }
 
 function @method_mix(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = bxor v0, v1
     v3 = iconst 7i64
@@ -51,9 +57,13 @@ block0(
     v13 = iconst 0i64
     v14 = iconst 0i64
     jump block1(v13, v14, v6)
+
+// loop condition, check limit
 block1(v15: i64, v16: i64, v17: ref<managed fn(i64, i64) -> i64>):
     v18 = icmp_sge v15, v0
     branch v18, block3(v16), block2
+
+// loop body, update aggregates
 block2:
     v19 = iconst 1103515245i64
     v20 = imul v15, v19
@@ -67,6 +77,8 @@ block2:
     v28 = iconst 1i64
     v29 = iadd v15, v28
     jump block1(v29, v27, v17)
+
+// return result
 block3(v30: i64):
     return v30
 }

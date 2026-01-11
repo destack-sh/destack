@@ -1,9 +1,13 @@
 
 function @hash_fold(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 0i64
     v3 = icmp_eq v0, v2
     branch v3, block2, block1
+
+// block
 block1:
     v4 = iconst 1i64
     v5 = isub v0, v4
@@ -13,11 +17,15 @@ block1:
     v9 = bxor v5, v8
     v10 = iadd v7, v9
     tailcall @hash_fold(v5, v10)
+
+// return result
 block2:
     return v1
 }
 
 function @call_tail_hash(v0: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64):
     v1 = iconst 5381i64
     tailcall @hash_fold(v0, v1)

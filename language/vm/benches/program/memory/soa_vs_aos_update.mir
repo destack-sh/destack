@@ -1,13 +1,21 @@
 
 function @soa_vs_aos_update(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
 block0(v0: i64, v1: i64):
     v2 = iconst 1i64
     v3 = icmp_slt v1, v2
     branch v3, block1, block2
+
+// merge branch, continue
 block1:
     jump block3(v2)
+
+// merge branch, continue
 block2:
     jump block3(v1)
+
+// update state, merge branch
 block3(v4: i64):
     v5 = imul v0, v4
     v6 = managed.alloc_array i64, v5
@@ -17,9 +25,13 @@ block3(v4: i64):
     v10 = managed.alloc_array i64, v9
     v11 = iconst 0i64
     jump block4(v11, v5, v6, v7, v10)
+
+// loop condition, check limit
 block4(v12: i64, v13: i64, v14: ref<managed i64>, v15: ref<managed i64>, v16: ref<managed i64>):
     v17 = icmp_sge v12, v13
     branch v17, block6(v13, v14, v15, v16), block5
+
+// loop body, update aggregates
 block5:
     v18 = iconst 1i64
     v19 = iadd v12, v18
@@ -37,13 +49,19 @@ block5:
     store v27, v21
     v28 = iadd v12, v18
     jump block4(v28, v13, v14, v15, v16)
+
+// merge branch, continue
 block6(v29: i64, v30: ref<managed i64>, v31: ref<managed i64>, v32: ref<managed i64>):
     v33 = iconst 0i64
     v34 = iconst 0i64
     jump block7(v33, v34, v29, v30, v31, v32)
+
+// loop condition, check limit
 block7(v35: i64, v36: i64, v37: i64, v38: ref<managed i64>, v39: ref<managed i64>, v40: ref<managed i64>):
     v41 = icmp_sge v35, v37
     branch v41, block9(v36), block8
+
+// loop body, update aggregates
 block8:
     v42 = element.addr v38, v35
     v43 = load v42
@@ -64,6 +82,8 @@ block8:
     v58 = iconst 1i64
     v59 = iadd v35, v58
     jump block7(v59, v57, v37, v38, v39, v40)
+
+// return result
 block9(v60: i64):
     return v60
 }
