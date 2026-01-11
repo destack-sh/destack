@@ -1,10 +1,10 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint, CheckTarget, Constant,
-    Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local, LocalNodeId,
-    MemoryOrdering, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue, UnaryOperator,
-    Value,
+    AllocationMode, BinaryOperator, Block, CallMetadata, CastOperator, CheckConstraint,
+    CheckTarget, Constant, Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local,
+    LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue,
+    UnaryOperator, Value,
 };
 
 use super::Variable;
@@ -1135,6 +1135,29 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
+    /// Call a function with associated dispatch metadata.
+    pub fn call_with_metadata(
+        &mut self,
+        function: LocalNodeId<Function>,
+        argument_values: Vec<Value>,
+        metadata: CallMetadata,
+    ) -> Option<Value> {
+        let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&argument_values);
+        let instruction_id = self.insert_instruction(Instruction::Call {
+            destination: Some(destination),
+            function,
+            arguments,
+        });
+
+        // store call metadata for later optimization passes
+        self.tree
+            .metadata
+            .insert_call_metadata(instruction_id, metadata);
+
+        Some(destination)
+    }
+
     /// Call through a function pointer.
     pub fn call_indirect(&mut self, callee: Value, args: Vec<Value>) -> Value {
         let destination = self.allocate_value();
@@ -1346,8 +1369,8 @@ impl<'a> FunctionBuilder<'a> {
     /// The callee's return value becomes this function's return value.
     pub fn tail_call(&mut self, function: LocalNodeId<Function>, argument_values: Vec<Value>) {
         let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::TailCall {
+        let block = self.tree.get_mut(block);
+        block.terminator = Terminator::TailCall {
             function,
             arguments: argument_values,
         };
@@ -1358,19 +1381,20 @@ impl<'a> FunctionBuilder<'a> {
     /// The callee's return value becomes this function's return value.
     pub fn tail_call_indirect(&mut self, callee: Value, argument_values: Vec<Value>) {
         let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.terminator = Terminator::TailCallIndirect {
+        let block = self.tree.get_mut(block);
+        block.terminator = Terminator::TailCallIndirect {
             callee,
             arguments: argument_values,
         };
     }
 
     /// Insert an instruction into the current block.
-    fn insert_instruction(&mut self, instruction: Instruction) {
+    fn insert_instruction(&mut self, instruction: Instruction) -> LocalNodeId<Instruction> {
         let instruction_id = self.tree.insert(instruction);
-        let block = self.current_block();
-        let block_data = self.tree.get_mut(block);
-        block_data.instructions.push(instruction_id);
+        let block_id = self.current_block();
+        let block = self.tree.get_mut(block_id);
+        block.instructions.push(instruction_id);
+        instruction_id
     }
 
     /// Finish building the function.
