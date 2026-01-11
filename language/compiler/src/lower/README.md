@@ -111,7 +111,7 @@ language/builtin/
 | Category | Examples | MIR |
 |----------|----------|-----|
 | Memory | `memcpy`, `memset`, `alloc`, `free` | `Intrinsic::Memcpy`, etc. |
-| Arithmetic | `wrapping_add`, `saturating_mul` | `Intrinsic::WrappingAdd`, etc. |
+| Arithmetic | `add.overflow`, `add.unchecked`, `add.sat` | `Intrinsic::AddOverflow`, etc. |
 | Atomics | `atomic_load`, `atomic_cas` | `Intrinsic::AtomicLoad`, etc. |
 
 # Interoperability
@@ -564,14 +564,13 @@ All layouts here are post-monomorphization and target-specific.
 ### Overflow Behavior
 
 Integer arithmetic has defined overflow semantics (unlike C, inspired by Zig and Rust).
-Default overflow behavior is configurable per-target in build configuration (`overflowChecks`).
+Default overflow behavior is configurable per target in build configuration (`overflowChecks`) or via `safetyPreset`.
+Explicit `overflowChecks` overrides any `safetyPreset` value.
 
-**Default (debug mode):** Trap on overflow.
-Like Zig and Rust debug builds, arithmetic operations trap on overflow.
-This catches bugs early with clear error messages.
-
-**Release mode:** Configurable per-project.
-Options: trap (safest), wrap (fastest), or check-and-handle.
+When overflow checks are enabled, the lowerer emits explicit overflow checks for `+`, `-`, and `*` and traps on overflow.
+When overflow checks are disabled, arithmetic wraps in two's complement.
+Signed division and remainder trap on division by zero and on `min_value / -1`.
+When safety checks are disabled, the lowerer emits `div.unchecked` and `rem.unchecked` intrinsics.
 
 **Explicit operators:** Always available regardless of mode.
 - `+%`, `-%`, `*%`: wrapping (two's complement wrap)
@@ -581,15 +580,15 @@ Options: trap (safest), wrap (fastest), or check-and-handle.
 const a: uint8 = 250;
 const b: uint8 = 10;
 
-a + b       // traps in debug, behavior depends on config in release
+a + b       // checked when overflowChecks enables safety
 a +% b      // always wrapping: 250 + 10 = 4
 a +| b      // always saturating: 250 + 10 = 255
 ```
 
 MIR representation:
-- Default ops use `Binary` with overflow checking intrinsic in debug
-- Wrapping ops use `Intrinsic::WrappingAdd` etc.
-- Saturating ops use `Intrinsic::SatAdd` etc.
+- `Binary` uses wrapping semantics for integer add, sub, and mul
+- overflow checks use `add.overflow` and related intrinsics plus `check`
+- unchecked operations use `*.unchecked` intrinsics
 
 ### Null and Undefined
 
@@ -777,10 +776,43 @@ v5 = field.get v0, 1        ; load length field
 
 **Bounds checks:**
 Array and slice indexing emits bounds checks by default.
-The policy is configured per target (`boundsChecks` in `dsconfig.json`):
+The policy is configured per target (`boundsChecks` in `dsconfig.json` or via `safetyPreset`):
 - `always`: checks in all builds
 - `debug`: checks only when `target.debug` is true (default)
 - `never`: no checks (unsafe, fastest)
+Explicit `boundsChecks` overrides any `safetyPreset` value.
+
+**Null checks:**
+Reference operations emit null checks when required.
+The policy is configured per target (`nullChecks` or `safetyPreset`):
+- `always`: checks in all builds
+- `debug`: checks only when `target.debug` is true (default)
+- `never`: no checks (unsafe, fastest)
+Explicit `nullChecks` overrides any `safetyPreset` value.
+
+**Division checks:**
+Division and remainder emit checks for division by zero (and signed `min_value / -1`) when enabled.
+The policy is configured per target (`divisionChecks` or `safetyPreset`):
+- `always`: checks in all builds
+- `debug`: checks only when `target.debug` is true (default)
+- `never`: no checks (unsafe, fastest)
+Explicit `divisionChecks` overrides any `safetyPreset` value.
+
+**Shift range checks:**
+Shift operations can emit range checks when enabled.
+The policy is configured per target (`shiftChecks` or `safetyPreset`):
+- `always`: checks in all builds
+- `debug`: checks only when `target.debug` is true (default)
+- `never`: no checks (unsafe, fastest)
+Explicit `shiftChecks` overrides any `safetyPreset` value.
+
+**Check failure behavior:**
+When a check fails, the compiler can trap, panic, or abort.
+The policy is configured per target (`checkFailure`):
+- `trap`: emit a trap/unreachable
+- `panic`: call the panic runtime (uses `panic`/`unwind` policy)
+- `abort`: abort immediately
+The safety preset does not modify `checkFailure`.
 
 **Slices:**
 Slices are explicit view types with a pointer and length (`Slice<T>`).

@@ -2537,6 +2537,23 @@ Destack adds explicit overflow control for integer types:
 - **Wrapping** (`%`): overflow wraps around (like C unsigned)
 - **Saturating** (`|`): overflow clamps to min/max
 
+The standard operators follow the target safety policy (`overflowChecks` or `safetyPreset`).
+When overflow checks are enabled, `+`, `-`, and `*` trap on overflow.
+When overflow checks are disabled, those operators wrap in two's complement.
+Division and remainder trap on division by zero and signed `min_value / -1` in safe modes.
+Unchecked builds lower `/` and `%` to unchecked operations.
+
+Runtime checks are configured per target:
+- `safetyPreset`: sets default policies for all runtime checks
+- `overflowChecks`: controls overflow checking for `+`, `-`, `*`
+- `boundsChecks`: controls array and slice bounds checks
+- `nullChecks`: controls null checks on reference operations
+- `divisionChecks`: controls divide and remainder checks
+- `shiftChecks`: controls shift range checks
+- `checkFailure`: controls how check failures are handled (`trap`, `panic`, `abort`)
+Explicit per check settings override the preset.
+The safety preset does not modify `checkFailure`.
+
 ```
 const a: uint8 = 250;
 const b: uint8 = 10;

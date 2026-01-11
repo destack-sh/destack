@@ -152,7 +152,10 @@ Blocks end with a terminator that transfers control:
 | `branch` | Conditional branch (if-then-else) |
 | `switch` | Multi-way branch on integer |
 | `yield` | Suspend coroutine (generators, async) |
+| `check` | Checked branch with semantic constraint |
 | `unreachable` | UB if reached (traps/panics usually) |
+
+`check` carries a semantic constraint (bounds, null, division, shift, overflow, etc.) and splits control flow into success and failure paths.
 
 ## Intrinsics
 
@@ -165,7 +168,7 @@ They have no function body: each backend implements them specially.
 | Reflection | `size_of`, `align_of`, `type_of` |
 | Bit manipulation | `clz`, `ctz`, `popcnt`, `byte_swap`, `rotate_left` |
 | Checked arithmetic | `add.overflow`, `sub.overflow`, `mul.overflow` |
-| Unchecked arithmetic | `add.unchecked`, `div.unchecked` (UB on overflow) |
+| Unchecked arithmetic | `add.unchecked`, `div.unchecked`, `shl.unchecked` (UB on overflow, division by zero, or shift out of range) |
 | Saturating arithmetic | `add.sat`, `sub.sat` |
 | Memory | `memcpy`, `memmove`, `memset`, `volatile.load` |
 | Atomics | `atomic.load`, `atomic.cas`, `atomic.fetch.add`, etc. |
@@ -176,6 +179,18 @@ They have no function body: each backend implements them specially.
 
 Reflection intrinsics (`size_of`, etc.) are comptime-only—they get evaluated during compilation and replaced with constants.
 The VM handles these; native codegen never sees them.
+
+### Integer Arithmetic Semantics
+
+Integer `binary` operations have defined semantics in MIR.
+Addition, subtraction, and multiplication wrap in two's complement.
+Shift operators mask the shift amount to the integer bit width.
+Signed and unsigned division and remainder trap on division by zero.
+Signed division and remainder also trap on `min_value / -1`.
+
+When you need unchecked behavior, use the `*.unchecked` intrinsics.
+Unchecked intrinsics have undefined behavior on overflow or division by zero, so optimizers may assume they do not occur.
+Checked arithmetic can be modeled explicitly with `add.overflow` and related intrinsics.
 
 ## Types
 

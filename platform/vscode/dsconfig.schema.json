@@ -1459,6 +1459,17 @@
             }
           ]
         },
+        "safetyPreset": {
+          "description": "Safety preset that configures runtime checks.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafetyPresetJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "overflowChecks": {
           "description": "Overflow checking policy.",
           "anyOf": [
@@ -1475,6 +1486,50 @@
           "anyOf": [
             {
               "$ref": "#/$defs/BoundsCheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nullChecks": {
+          "description": "Null check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NullCheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "divisionChecks": {
+          "description": "Division check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DivisionCheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shiftChecks": {
+          "description": "Shift range check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShiftCheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkFailure": {
+          "description": "Check failure behavior.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckFailurePolicyJson"
             },
             {
               "type": "null"
@@ -1629,6 +1684,31 @@
         }
       ]
     },
+    "SafetyPresetJson": {
+      "description": "Safety preset for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Debug safety mode with checks enabled.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Release mode with checks enabled.",
+          "type": "string",
+          "const": "release-safe"
+        },
+        {
+          "description": "Release mode with checks disabled.",
+          "type": "string",
+          "const": "release-fast"
+        },
+        {
+          "description": "Release mode with checks disabled and size focused settings.",
+          "type": "string",
+          "const": "release-small"
+        }
+      ]
+    },
     "OverflowCheckPolicyJson": {
       "description": "Overflow checking policy for JSON deserialization.",
       "oneOf": [
@@ -1666,6 +1746,86 @@
           "description": "Never emit bounds checks.",
           "type": "string",
           "const": "never"
+        }
+      ]
+    },
+    "NullCheckPolicyJson": {
+      "description": "Null check policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always emit null checks.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit null checks only in debug builds.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit null checks.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "DivisionCheckPolicyJson": {
+      "description": "Division check policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always emit division checks.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit division checks only in debug builds.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit division checks.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "ShiftCheckPolicyJson": {
+      "description": "Shift range check policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always emit shift range checks.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit shift range checks only in debug builds.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit shift range checks.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "CheckFailurePolicyJson": {
+      "description": "Check failure behavior for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Trap immediately on a failed check.",
+          "type": "string",
+          "const": "trap"
+        },
+        {
+          "description": "Trigger a panic on a failed check.",
+          "type": "string",
+          "const": "panic"
+        },
+        {
+          "description": "Abort execution on a failed check.",
+          "type": "string",
+          "const": "abort"
         }
       ]
     },
