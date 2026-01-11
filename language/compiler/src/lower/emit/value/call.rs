@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::FunctionContext;
+use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a call expression to its result value and type.

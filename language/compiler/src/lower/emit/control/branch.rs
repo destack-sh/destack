@@ -3,7 +3,7 @@ use destack_mir as mir;
 
 use crate::{LowerError, LowerResult};
 
-use super::FunctionContext;
+use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a conditional (ternary) expression.

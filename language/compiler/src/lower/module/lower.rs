@@ -80,22 +80,40 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower this entire DIR module to MIR (in-place).
     ///
-    /// Lowering proceeds in phases:
-    /// 1. Lower type declarations (struct/class types are cached)
-    /// 2. Lower global variables
-    /// 3. Lower function/method declarations (signatures + bodies)
-    ///
-    /// Note: Currently all phases are combined in the root expression iteration.
-    /// Type declarations are processed first when encountered, caching their layouts.
-    /// Globals and functions are then lowered in declaration order.
+    /// Lowering proceeds in four phases:
+    /// 1. Types: lower struct/class type layouts (cached on-demand)
+    /// 2. Declarations: lower globals, function/method signatures and bodies
+    /// 3. Tables: generate vtables, itabs, RTTI (currently stubbed)
+    /// 4. Emit: (bodies are currently lowered inline with declarations)
     pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
-        // process root expressions in order
-        // type lowering happens lazily as types are encountered
-        // function bodies reference types that are lowered on-demand
+        // phase 1: types (lowered lazily as encountered)
+        self.lower_type()?;
+
+        // phase 2: declarations (globals + functions)
+        self.lower_item()?;
+
+        // phase 3: tables (vtables, itabs, RTTI)
+        self.lower_table()?;
+
+        Ok(())
+    }
+
+    /// Phase 1: Lower type declarations.
+    ///
+    /// Type layouts are cached lazily when first encountered during lowering.
+    /// This phase is a no-op since types are lowered on-demand.
+    fn lower_type(&mut self) -> LowerResult<()> {
+        // types are lowered lazily via TypeLowerer when first accessed
+        Ok(())
+    }
+
+    /// Phase 2: Lower item declarations (globals, functions, methods).
+    ///
+    /// Processes all root expressions to lower globals and function bodies.
+    fn lower_item(&mut self) -> LowerResult<()> {
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
-
         Ok(())
     }
 
