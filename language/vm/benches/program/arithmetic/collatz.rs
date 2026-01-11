@@ -1,0 +1,16 @@
+use super::super::{Program, scale_axis};
+use destack_vm::memory::Value;
+
+declare_program! {
+    /// Collatz sequence with unpredictable branching and varied operations.
+    pub(crate) const COLLATZ,
+    name: "collatz",
+    source: include_str!("collatz.mir"),
+    entry: "collatz_sum",
+    expected: || Value::int64(3142),
+    default_args: |_interp| vec![Value::int64(100)],
+    tags: &["arithmetic", "collatz"],
+    scales: &[
+        scale_axis("iter", 0, 100, 1000, 10000, true),
+    ],
+}

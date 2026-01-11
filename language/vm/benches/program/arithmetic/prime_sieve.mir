@@ -1,0 +1,37 @@
+
+function @count_primes(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 2i64
+    v2 = iconst 0i64
+    jump block1(v1, v2)
+block1(v3: i64, v4: i64):
+    v5 = icmp_sgt v3, v0
+    branch v5, block6(v4), block2
+block2:
+    v6 = iconst 2i64
+    jump block3(v6)
+block3(v7: i64):
+    v8 = imul v7, v7
+    v9 = icmp_sgt v8, v3
+    branch v9, block5, block4
+block4:
+    v10 = srem v3, v7
+    v11 = iconst 0i64
+    v12 = icmp_eq v10, v11
+    branch v12, block7, block8
+block5:
+    v13 = iconst 1i64
+    v14 = iadd v4, v13
+    v15 = iadd v3, v13
+    jump block1(v15, v14)
+block6(v16: i64):
+    return v16
+block7:
+    v17 = iconst 1i64
+    v18 = iadd v3, v17
+    jump block1(v18, v4)
+block8:
+    v19 = iconst 1i64
+    v20 = iadd v7, v19
+    jump block3(v20)
+}

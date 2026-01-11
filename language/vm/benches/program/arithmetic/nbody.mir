@@ -1,0 +1,113 @@
+
+function @nbody(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 32i64
+    v2 = managed.alloc_array i64, v1
+    v3 = managed.alloc_array i64, v1
+    v4 = iconst 0i64
+    jump block1(v4)
+block1(v5: i64):
+    v6 = icmp_sge v5, v1
+    branch v6, block3, block2
+block2:
+    v7 = iconst 1i64
+    v8 = iadd v5, v7
+    v9 = iconst 2i64
+    v10 = imul v5, v9
+    v11 = iadd v10, v7
+    v12 = element.addr v2, v5
+    store v12, v8
+    v13 = element.addr v3, v5
+    store v13, v11
+    v14 = iadd v5, v7
+    jump block1(v14)
+block3:
+    v15 = iconst 64i64
+    v16 = sdiv v0, v15
+    v17 = iconst 1i64
+    v18 = icmp_slt v16, v17
+    branch v18, block4, block5
+block4:
+    jump block6(v17)
+block5:
+    jump block6(v16)
+block6(v19: i64):
+    v20 = iconst 0i64
+    jump block7(v20, v19)
+block7(v21: i64, v22: i64):
+    v23 = icmp_sge v21, v22
+    branch v23, block24, block8
+block8:
+    v24 = iconst 0i64
+    jump block9(v24, v21, v22)
+block9(v25: i64, v26: i64, v27: i64):
+    v28 = icmp_sge v25, v1
+    branch v28, block22(v26, v27), block10
+block10:
+    v29 = element.addr v2, v25
+    v30 = load v29
+    v31 = iconst 0i64
+    v32 = iconst 0i64
+    jump block11(v32, v31, v30, v25, v26, v27)
+block11(v33: i64, v34: i64, v35: i64, v36: i64, v37: i64, v38: i64):
+    v39 = icmp_sge v33, v1
+    branch v39, block18(v34, v35, v36, v37, v38), block12
+block12:
+    v40 = icmp_eq v33, v36
+    branch v40, block17, block13
+block13:
+    v41 = element.addr v2, v33
+    v42 = load v41
+    v43 = isub v42, v35
+    v44 = iconst 0i64
+    v45 = icmp_slt v43, v44
+    branch v45, block14, block15
+block14:
+    v46 = ineg v43
+    jump block16(v46, v43, v34, v35, v36, v37, v38, v33)
+block15:
+    jump block16(v43, v43, v34, v35, v36, v37, v38, v33)
+block16(v47: i64, v48: i64, v49: i64, v50: i64, v51: i64, v52: i64, v53: i64, v54: i64):
+    v55 = iconst 1i64
+    v56 = iadd v47, v55
+    v57 = sdiv v48, v56
+    v58 = iadd v49, v57
+    v59 = iconst 1i64
+    v60 = iadd v54, v59
+    jump block11(v60, v58, v50, v51, v52, v53)
+block17:
+    v61 = iconst 1i64
+    v62 = iadd v33, v61
+    jump block11(v62, v34, v35, v36, v37, v38)
+block18(v63: i64, v64: i64, v65: i64, v66: i64, v67: i64):
+    v68 = element.addr v3, v65
+    v69 = load v68
+    v70 = iadd v69, v63
+    v71 = iadd v64, v70
+    store v68, v70
+    v72 = element.addr v2, v65
+    store v72, v71
+    v73 = iconst 1i64
+    v74 = iadd v65, v73
+    jump block9(v74, v66, v67)
+block22(v75: i64, v76: i64):
+    v77 = iconst 1i64
+    v78 = iadd v75, v77
+    jump block7(v78, v76)
+block24:
+    v79 = iconst 0i64
+    v80 = iconst 0i64
+    jump block25(v79, v80)
+block25(v81: i64, v82: i64):
+    v83 = icmp_sge v81, v1
+    branch v83, block27(v82), block26
+block26:
+    v84 = element.addr v2, v81
+    v85 = load v84
+    v86 = iadd v82, v85
+    v87 = iconst 1i64
+    v88 = iadd v81, v87
+    jump block25(v88, v86)
+block27(v89: i64):
+    return v89
+}

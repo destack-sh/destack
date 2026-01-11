@@ -1,0 +1,54 @@
+
+function @is_odd(v0: i64) -> bool {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = icmp_eq v0, v1
+    branch v2, block2, block1
+block1:
+    v3 = iconst 1i64
+    v4 = isub v0, v3
+    v5 = call @is_even(v4)
+    return v5
+block2:
+    v6 = iconst false
+    return v6
+}
+
+function @is_even(v0: i64) -> bool {
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = icmp_eq v0, v1
+    branch v2, block2, block1
+block1:
+    v3 = iconst 1i64
+    v4 = isub v0, v3
+    v5 = call @is_odd(v4)
+    return v5
+block2:
+    v6 = iconst true
+    return v6
+}
+
+function @call_mutual(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    jump block1(v1, v1)
+block1(v2: i64, v3: i64):
+    v4 = icmp_sge v2, v0
+    branch v4, block4(v3), block2
+block2:
+    v5 = call @is_even(v2)
+    branch v5, block3, block6
+block3:
+    v6 = iconst 1i64
+    v7 = iadd v3, v6
+    jump block5(v7)
+block6:
+    jump block5(v3)
+block5(v8: i64):
+    v9 = iconst 1i64
+    v10 = iadd v2, v9
+    jump block1(v10, v8)
+block4(v11: i64):
+    return v11
+}

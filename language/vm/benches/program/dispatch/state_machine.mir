@@ -1,0 +1,32 @@
+
+function @state_machine(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = iconst 0i64
+    jump block1(v1, v1, v1)
+block1(v2: i64, v3: i64, v4: i64):
+    v5 = icmp_sge v2, v0
+    branch v5, block5(v4), block2
+block2:
+    switch v3, block3, 0 => block3, 1 => block6, 2 => block7
+block3:
+    v6 = iconst 1i64
+    v7 = iadd v4, v6
+    v8 = iconst 1i64
+    jump block4(v8, v7)
+block6:
+    v9 = iconst 2i64
+    v10 = iadd v4, v9
+    v11 = iconst 2i64
+    jump block4(v11, v10)
+block7:
+    v12 = iconst 3i64
+    v13 = iadd v4, v12
+    v14 = iconst 0i64
+    jump block4(v14, v13)
+block4(v15: i64, v16: i64):
+    v17 = iconst 1i64
+    v18 = iadd v2, v17
+    jump block1(v18, v15, v16)
+block5(v19: i64):
+    return v19
+}

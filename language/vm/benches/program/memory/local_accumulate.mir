@@ -1,0 +1,28 @@
+
+function @local_accumulate(v0: i64) -> i64 {
+    local0: i64 ; owned, mut
+    local1: i64 ; owned, mut
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 1i64
+    local.set local0, v1
+    local.set local1, v2
+    jump block1(v1)
+block1(v3: i64):
+    v4 = icmp_eq v3, v3
+    assume v4
+    v5 = icmp_sge v3, v0
+    branch v5, block3, block2
+block2:
+    v6 = local.get local0
+    v7 = local.get local1
+    v8 = iadd v6, v7
+    local.set local0, v7
+    local.set local1, v8
+    v9 = iconst 1i64
+    v10 = iadd v3, v9
+    jump block1(v10)
+block3:
+    v11 = local.get local1
+    return v11
+}

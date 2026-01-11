@@ -1,0 +1,28 @@
+
+function @stack_scratch(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = stack.alloc i64
+    v2 = stack.alloc i64
+    v3 = iconst 0i64
+    v4 = iconst 1i64
+    store v1, v3
+    store v2, v4
+    jump block1(v3, v1, v2)
+block1(v5: i64, v6: ref<raw i64>, v7: ref<raw i64>):
+    v8 = icmp_sge v5, v0
+    branch v8, block3(v6, v7), block2
+block2:
+    v9 = load v6
+    v10 = load v7
+    v11 = iadd v9, v10
+    store v6, v10
+    store v7, v11
+    v12 = iconst 1i64
+    v13 = iadd v5, v12
+    jump block1(v13, v6, v7)
+block3(v14: ref<raw i64>, v15: ref<raw i64>):
+    v16 = load v15
+    stack.drop v14
+    stack.drop v15
+    return v16
+}

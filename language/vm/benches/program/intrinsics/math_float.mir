@@ -1,0 +1,23 @@
+
+function @math_float(v0: i64, v1: f64, v2: f64) -> f64 {
+block0(v0: i64, v1: f64, v2: f64):
+    v3 = iconst 0i64
+    jump block1(v3, v1, v2)
+block1(v4: i64, v5: f64, v6: f64):
+    v7 = icmp_sge v4, v0
+    branch v7, block3(v5), block2
+block2:
+    v8 = intrinsic.sqrt(v6)
+    v9 = intrinsic.sin(v6)
+    v10 = intrinsic.cos(v6)
+    v11 = fmul v9, v9
+    v12 = fmul v10, v10
+    v13 = fadd v11, v12
+    v14 = fadd v5, v13
+    v15 = fadd v6, v2
+    v16 = iconst 1i64
+    v17 = iadd v4, v16
+    jump block1(v17, v14, v15)
+block3(v18: f64):
+    return v18
+}

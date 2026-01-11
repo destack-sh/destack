@@ -1,0 +1,72 @@
+
+function @method_add(v0: i64, v1: i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iadd v0, v1
+    v3 = iconst 1i64
+    v4 = iadd v2, v3
+    return v4
+}
+
+function @method_mul(v0: i64, v1: i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = iconst 3i64
+    v3 = imul v0, v2
+    v4 = iadd v3, v1
+    return v4
+}
+
+function @method_mix(v0: i64, v1: i64) -> i64 {
+block0(v0: i64, v1: i64):
+    v2 = bxor v0, v1
+    v3 = iconst 7i64
+    v4 = iadd v2, v3
+    return v4
+}
+
+function @call_indirect_table(
+    v0: i64,
+    v1: i64,
+    v2: fn(i64, i64) -> i64,
+    v3: fn(i64, i64) -> i64,
+    v4: fn(i64, i64) -> i64
+) -> i64 {
+block0(
+    v0: i64,
+    v1: i64,
+    v2: fn(i64, i64) -> i64,
+    v3: fn(i64, i64) -> i64,
+    v4: fn(i64, i64) -> i64
+):
+    v5 = iconst 3i64
+    v6 = managed.alloc_array fn(i64, i64) -> i64, v5
+    v7 = iconst 0i64
+    v8 = element.addr v6, v7
+    store v8, v2
+    v9 = iconst 1i64
+    v10 = element.addr v6, v9
+    store v10, v3
+    v11 = iconst 2i64
+    v12 = element.addr v6, v11
+    store v12, v4
+    v13 = iconst 0i64
+    v14 = iconst 0i64
+    jump block1(v13, v14, v6)
+block1(v15: i64, v16: i64, v17: ref<managed fn(i64, i64) -> i64>):
+    v18 = icmp_sge v15, v0
+    branch v18, block3(v16), block2
+block2:
+    v19 = iconst 1103515245i64
+    v20 = imul v15, v19
+    v21 = iconst 12345i64
+    v22 = iadd v20, v21
+    v23 = iconst 3i64
+    v24 = srem v22, v23
+    v25 = element.addr v17, v24
+    v26 = load v25
+    v27 = call.indirect v26(v1, v16)
+    v28 = iconst 1i64
+    v29 = iadd v15, v28
+    jump block1(v29, v27, v17)
+block3(v30: i64):
+    return v30
+}
