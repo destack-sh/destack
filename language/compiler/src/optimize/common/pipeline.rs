@@ -616,6 +616,28 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
     ]
 }
 
+/// Lightweight scalar fixed-point island.
+fn scalar_island_light() -> Vec<Box<dyn FunctionPass>> {
+    let mut passes = Vec::new();
+    passes.extend(simplify());
+    passes.push(Box::new(LocalCse));
+    passes.push(Box::new(CopyPropagate));
+    passes
+}
+
+/// Full scalar fixed-point island.
+fn scalar_island_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
+    let mut passes = Vec::new();
+    passes.extend(eliminate_redundancy());
+    passes.extend(simplify());
+    if aggressive {
+        passes.push(Box::new(InstructionCombine));
+        passes.push(Box::new(SimplifyCfg));
+        passes.push(Box::new(DeadCodeEliminate));
+    }
+    passes
+}
+
 fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
     vec![Box::new(LoadStoreForward), Box::new(DeadStoreEliminate)]
 }
@@ -623,10 +645,10 @@ fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
 fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes: Vec<Box<dyn FunctionPass>> = vec![
         Box::new(LoopSimplify),
-        Box::new(Licm),
         Box::new(LoopRotate),
         Box::new(InductionVariableSimplify),
         Box::new(LoopStrengthReduce),
+        Box::new(Licm),
     ];
     if aggressive {
         passes.push(Box::new(LoopUnswitch));
@@ -658,9 +680,8 @@ fn o0_pipeline() -> CompositePipeline {
 fn o1_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(simplify())
         .function_passes(canonicalize())
-        .function_passes(vec![Box::new(LocalCse), Box::new(CopyPropagate)])
+        .function_passes(scalar_island_light())
         .function_passes(optimize_types())
         .function_passes(cleanup())
         .build()
@@ -674,22 +695,23 @@ fn o2_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
         .function_passes(canonicalize())
-        // early simplification
+        // early scalar fixed-point island
         .repeat(
             2,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(simplify())),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
         )
-        // scalar optimization with interleaved simplification
-        .function_passes(eliminate_redundancy())
-        .function_passes(simplify())
         // memory optimization
         .function_passes(optimize_memory())
-        .function_passes(simplify())
+        .function_passes(scalar_island_full(false))
         // loop optimization
         .function_passes(optimize_loops(false))
-        .function_passes(simplify())
+        .repeat(
+            2,
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
+        )
         // type optimization
         .function_passes(optimize_types())
+        .function_passes(scalar_island_full(false))
         // late scalar
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
@@ -704,31 +726,29 @@ fn o3_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
         .function_passes(canonicalize())
-        // early simplification (more iterations)
+        // early scalar fixed-point island (more iterations)
         .repeat(
             3,
-            FunctionToModuleAdaptor::new(FunctionPipeline::new(simplify())),
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
         )
-        // scalar optimization round 1
-        .function_passes(eliminate_redundancy())
-        .function_passes(simplify())
         // memory optimization
         .function_passes(optimize_memory())
-        .function_passes(simplify())
-        // scalar optimization round 2 (may find new opportunities after memory opts)
-        .function_passes(eliminate_redundancy())
-        .function_passes(simplify())
+        .function_passes(scalar_island_full(true))
         // loop optimization (aggressive)
         .function_passes(optimize_loops(true))
-        .function_passes(simplify())
+        .repeat(
+            2,
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+        )
         // type optimization
         .function_passes(optimize_types())
+        .repeat(
+            2,
+            FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
+        )
         // late scalar
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
-        // final cleanup (extra round at O3)
-        .function_passes(cleanup())
-        .function_passes(vec![Box::new(InstructionCombine)])
         .function_passes(cleanup())
         .build()
 }
