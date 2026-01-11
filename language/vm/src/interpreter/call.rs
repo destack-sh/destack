@@ -56,6 +56,37 @@ fn copy_values_with_plan(
     dest_frame: &Frame,
     pairs: &[CopyPair],
 ) {
+    // fast path: contiguous copy pairs
+    if let Some((src_start, dest_start, len)) = contiguous_copy_plan(pairs) {
+        let src_index = source_frame.value_base + src_start as usize;
+        let dest_index = dest_frame.value_base + dest_start as usize;
+
+        // validate bounds in debug builds
+        debug_assert!(
+            (src_start as usize) + len <= source_frame.value_count,
+            "ssa value out of bounds: {src_start}"
+        );
+        debug_assert!(
+            (dest_start as usize) + len <= dest_frame.value_count,
+            "ssa value out of bounds: {dest_start}"
+        );
+
+        // copy contiguous range
+        let values_ptr = values.as_mut_ptr();
+        unsafe {
+            if std::ptr::eq(source_frame, dest_frame) {
+                std::ptr::copy(values_ptr.add(src_index), values_ptr.add(dest_index), len);
+            } else {
+                std::ptr::copy_nonoverlapping(
+                    values_ptr.add(src_index),
+                    values_ptr.add(dest_index),
+                    len,
+                );
+            }
+        }
+        return;
+    }
+
     // use raw pointer to avoid repeated bounds checks
     let values_ptr = values.as_mut_ptr();
 
@@ -91,6 +122,31 @@ fn copy_values_with_plan(
     }
 }
 
+/// Detect contiguous copy pairs for bulk copying.
+fn contiguous_copy_plan(pairs: &[CopyPair]) -> Option<(u32, u32, usize)> {
+    // require at least one pair
+    let first = pairs.first()?;
+
+    // reject missing sources
+    if first.src == INVALID_VALUE_ID {
+        return None;
+    }
+
+    let src_start = first.src;
+    let dest_start = first.dest;
+
+    // validate contiguous sequence
+    for (offset, pair) in pairs.iter().enumerate() {
+        let expected_src = src_start + offset as u32;
+        let expected_dest = dest_start + offset as u32;
+        if pair.src != expected_src || pair.dest != expected_dest {
+            return None;
+        }
+    }
+
+    Some((src_start, dest_start, pairs.len()))
+}
+
 /// Collect argument values from a frame into a smallvec.
 fn collect_argument_values(
     values: &[Value],
@@ -113,6 +169,66 @@ fn collect_argument_values(
 
     // return arguments
     args
+}
+
+/// Collect argument values from a copy plan into a smallvec.
+fn collect_argument_values_from_copies(
+    values: &[Value],
+    frame: &Frame,
+    pairs: &[CopyPair],
+) -> SmallVec<[Value; 8]> {
+    // allocate argument buffer
+    let mut args = SmallVec::with_capacity(pairs.len());
+
+    // use raw pointer to avoid repeated bounds checks
+    let values_ptr = values.as_ptr();
+
+    // resolve argument values
+    for pair in pairs {
+        // load argument value
+        let value = if pair.src == INVALID_VALUE_ID {
+            Value::VOID
+        } else {
+            let src_index = frame.value_base + pair.src as usize;
+            debug_assert!(
+                (pair.src as usize) < frame.value_count,
+                "ssa value out of bounds: {}",
+                pair.src
+            );
+            unsafe { *values_ptr.add(src_index) }
+        };
+        args.push(value);
+    }
+
+    // return arguments
+    args
+}
+
+/// Bind argument values to parameter slots in a frame.
+fn bind_parameters_from_values(
+    values: &mut [Value],
+    frame: &Frame,
+    params: &[mir::Value],
+    arguments: &[Value],
+) {
+    // use raw pointer to avoid repeated bounds checks
+    let values_ptr = values.as_mut_ptr();
+
+    // write parameter values
+    for (index, param) in params.iter().enumerate() {
+        // load argument value
+        let value = arguments.get(index).copied().unwrap_or(Value::VOID);
+
+        // write parameter value
+        let dest_index = frame.value_base + param.0 as usize;
+        debug_assert!(
+            (param.0 as usize) < frame.value_count,
+            "ssa value out of bounds: {param:?}"
+        );
+        unsafe {
+            *values_ptr.add(dest_index) = value;
+        }
+    }
 }
 
 /// Resolve an argument range into a slice.
@@ -345,15 +461,24 @@ impl Interpreter {
                     // check for external or imported function
                     let func: &mir::Function = self.tree.get(function_id);
                     if func.is_import() {
-                        // resolve arguments from caller
-                        let argument_values =
-                            argument_slice(current_func.argument_pool.as_slice(), arguments);
                         let caller = self
                             .call_stack
                             .last()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        let args =
-                            collect_argument_values(&self.value_stack, caller, argument_values);
+
+                        // resolve arguments from caller
+                        let args = if let Some(copies) = copies {
+                            let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
+                            collect_argument_values_from_copies(
+                                &self.value_stack,
+                                caller,
+                                copy_pairs,
+                            )
+                        } else {
+                            let argument_values =
+                                argument_slice(current_func.argument_pool.as_slice(), arguments);
+                            collect_argument_values(&self.value_stack, caller, argument_values)
+                        };
 
                         // resolve external handler
                         let name = self.strings.get(func.name).to_string();
@@ -482,6 +607,134 @@ impl Interpreter {
                     self.statistics.calls_made += 1;
                     self.statistics.max_stack_depth =
                         self.statistics.max_stack_depth.max(self.call_stack.len());
+                }
+
+                ControlFlow::TailCall {
+                    function,
+                    callee_index,
+                    arguments,
+                    copies,
+                } => {
+                    // resolve target function id
+                    let function_id = mir::LocalNodeId::<mir::Function>::new(function);
+
+                    // collect argument values from the current frame
+                    let caller = self
+                        .call_stack
+                        .last()
+                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                    let argument_values = if let Some(copies) = copies {
+                        let copy_pairs = copy_pairs(current_func.copy_pool.as_slice(), copies);
+                        collect_argument_values_from_copies(&self.value_stack, caller, copy_pairs)
+                    } else {
+                        let argument_values =
+                            argument_slice(current_func.argument_pool.as_slice(), arguments);
+                        collect_argument_values(&self.value_stack, caller, argument_values)
+                    };
+
+                    // check for external or imported function
+                    let func: &mir::Function = self.tree.get(function_id);
+                    if func.is_import() {
+                        // resolve external handler
+                        let name = self.strings.get(func.name).to_string();
+                        let handler = self.externals.get(&name).ok_or_else(|| {
+                            self.make_error(Error::ExternalFunctionNotFound { name })
+                        })?;
+
+                        // execute external handler
+                        let result = handler(&argument_values).map_err(|e| self.make_error(e))?;
+
+                        // pop completed frame
+                        let frame = self
+                            .call_stack
+                            .pop()
+                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                        self.value_stack.truncate(frame.value_base);
+                        self.local_stack.truncate(frame.local_base);
+
+                        // if stack is empty, execution is complete
+                        if self.call_stack.is_empty() {
+                            return Ok(result);
+                        }
+
+                        // store return value in caller's frame
+                        let caller = self
+                            .call_stack
+                            .last_mut()
+                            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                        if let Some(dest) = caller.return_destination.take() {
+                            caller.set_value(&mut self.value_stack, dest, result);
+                        }
+                        continue;
+                    }
+
+                    // resolve callee index
+                    let callee_index = if callee_index == INVALID_FUNCTION_INDEX {
+                        self.threaded_functions.index_for(function_id)
+                    } else {
+                        Some(callee_index)
+                    };
+
+                    // get callee's threaded function
+                    let callee_index = callee_index.ok_or_else(|| {
+                        RuntimeError::new(Error::UndefinedFunction {
+                            function: function_id,
+                        })
+                    })?;
+                    let callee = self
+                        .threaded_functions
+                        .get_by_index(callee_index)
+                        .ok_or_else(|| {
+                            RuntimeError::new(Error::UndefinedFunction {
+                                function: function_id,
+                            })
+                        })?;
+
+                    // reuse the current frame for the tail call
+                    let frame = self
+                        .call_stack
+                        .last_mut()
+                        .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                    let value_base = frame.value_base;
+                    let local_base = frame.local_base;
+                    let value_end = value_base + callee.value_count;
+                    let local_end = local_base + callee.local_count;
+
+                    // clear frame-local stack allocations
+                    frame.stack_cells.clear();
+
+                    // resize stacks to callee requirements
+                    self.value_stack.resize(value_end, Value::VOID);
+                    self.local_stack.resize(local_end, Value::VOID);
+
+                    // clear reused stack slots
+                    self.value_stack[value_base..value_end].fill(Value::VOID);
+                    self.local_stack[local_base..local_end].fill(Value::VOID);
+
+                    // update frame metadata
+                    let entry_block = &callee.blocks[callee.entry as usize];
+                    frame.function = function_id;
+                    frame.threaded = NonNull::from(callee.as_ref());
+                    frame.block_ptr = NonNull::from(entry_block);
+                    frame.entry_block = entry_block.mir_block;
+                    frame.current_block = entry_block.mir_block;
+                    frame.block_index = callee.entry as usize;
+                    frame.resume_pc = 0;
+                    frame.value_count = callee.value_count;
+                    frame.local_count = callee.local_count;
+
+                    // bind callee parameters
+                    let parameter_slice =
+                        argument_slice(callee.argument_pool.as_slice(), callee.parameters);
+                    bind_parameters_from_values(
+                        &mut self.value_stack,
+                        frame,
+                        parameter_slice,
+                        &argument_values,
+                    );
+
+                    // update statistics
+                    self.statistics.calls_made += 1;
                 }
 
                 ControlFlow::Return(value) => {

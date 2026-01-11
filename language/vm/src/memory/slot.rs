@@ -64,6 +64,15 @@ impl SlotStorage {
         }
     }
 
+    /// Create slot storage for exactly 1 value (avoids Vec allocation).
+    #[inline]
+    pub fn from_single(value: Value) -> Self {
+        Self::Inline {
+            len: 1,
+            slots: [value, Value::VOID],
+        }
+    }
+
     /// Return the number of slots.
     #[inline]
     pub fn len(&self) -> usize {

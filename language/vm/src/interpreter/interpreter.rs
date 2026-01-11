@@ -297,6 +297,13 @@ impl Interpreter {
         Value::aggregate(handle)
     }
 
+    /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
+    #[inline]
+    pub fn allocate_single(&mut self, value: Value) -> Value {
+        let handle = self.managed_heap.allocate_single(value);
+        Value::aggregate(handle)
+    }
+
     /// Get the slots of an aggregate value (looking up from heap if needed).
     pub(super) fn get_aggregate_slots(&self, value: &Value) -> Option<&[Value]> {
         value

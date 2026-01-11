@@ -566,6 +566,9 @@ pub(super) fn thread_function(
     let parameter_values: Vec<mir::Value> = func.parameters.iter().map(|p| p.value).collect();
     let parameters = push_argument_range(&mut argument_pool, &parameter_values);
 
+    // resolve entry block index
+    let entry_index = block_index_map[&entry_block] as u32;
+
     // allocate threaded blocks
     let mut threaded_blocks = Vec::with_capacity(mir_blocks.len());
 
@@ -578,6 +581,8 @@ pub(super) fn thread_function(
             block,
             &block_index_map,
             &block_parameters,
+            func_id,
+            entry_index,
             function_indices,
             &value_kinds,
             &value_uses,
@@ -594,7 +599,7 @@ pub(super) fn thread_function(
     // assemble threaded function
     Some(ThreadedFunction {
         parameters,
-        entry: block_index_map[&entry_block] as u32,
+        entry: entry_index,
         blocks: threaded_blocks,
         argument_pool,
         switch_case_pool,
@@ -612,6 +617,8 @@ fn thread_block(
     block: &mir::Block,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
+    current_function: mir::LocalNodeId<mir::Function>,
+    entry_block: u32,
     function_indices: &[u32],
     value_kinds: &ValueKinds,
     value_uses: &[u32],
@@ -693,6 +700,8 @@ fn thread_block(
             &block.terminator,
             block_index_map,
             block_parameters,
+            current_function,
+            entry_block,
             function_indices,
             value_kinds,
             argument_pool,
@@ -2335,6 +2344,8 @@ fn thread_terminator(
     term: &mir::Terminator,
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
+    current_function: mir::LocalNodeId<mir::Function>,
+    entry_block: u32,
     function_indices: &[u32],
     value_kinds: &ValueKinds,
     argument_pool: &mut Vec<mir::Value>,
@@ -2483,19 +2494,31 @@ fn thread_terminator(
             function,
             arguments,
         } => {
-            // for the interpreter, tail call = call + return
-            let callee = tree.get(*function);
-            let copies = push_copy_range_from_params(copy_pool, &callee.parameters, arguments);
-            let callee_index = lookup_function_index(function_indices, *function)
-                .unwrap_or(INVALID_FUNCTION_INDEX);
+            // fast path self tail calls by reusing the current frame
+            if *function == current_function {
+                let args = push_argument_range(argument_pool, arguments);
+                ThreadedInstruction {
+                    handler: dispatch::handle_tail_call_self,
+                    data: ThreadedInstructionData::TailCallSelf {
+                        entry: entry_block,
+                        arguments: args,
+                    },
+                }
+            } else {
+                // encode tail call metadata for the trampoline
+                let callee = tree.get(*function);
+                let copies = push_copy_range_from_params(copy_pool, &callee.parameters, arguments);
+                let callee_index = lookup_function_index(function_indices, *function)
+                    .unwrap_or(INVALID_FUNCTION_INDEX);
 
-            ThreadedInstruction {
-                handler: dispatch::handle_tail_call,
-                data: ThreadedInstructionData::TailCall {
-                    function: function.id,
-                    callee_index,
-                    copies,
-                },
+                ThreadedInstruction {
+                    handler: dispatch::handle_tail_call,
+                    data: ThreadedInstructionData::TailCall {
+                        function: function.id,
+                        callee_index,
+                        copies,
+                    },
+                }
             }
         }
 

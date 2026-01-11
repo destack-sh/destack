@@ -1,5 +1,7 @@
 #![allow(elided_lifetimes_in_paths)]
 
+use std::ptr::NonNull;
+
 use destack_mir as mir;
 use smallvec::SmallVec;
 
@@ -4563,15 +4565,29 @@ pub(super) fn handle_aggregate(
         unreachable!()
     };
 
-    // collect element values from the argument pool
-    let element_values: Vec<Value> = state
-        .argument_slice(*elements)
-        .iter()
-        .map(|v| state.get(*v))
-        .collect();
+    // resolve element values from the argument pool
+    let element_slice = state.argument_slice(*elements);
+    let result = match element_slice {
+        // empty aggregate
+        [] => state.interpreter.allocate_aggregate(Vec::new()),
+        // single element aggregate
+        [first] => state.interpreter.allocate_single(state.get(*first)),
+        // pair aggregate fast path
+        [first, second] => state
+            .interpreter
+            .allocate_pair(state.get(*first), state.get(*second)),
+        // general aggregate
+        _ => {
+            // collect element values into a vec
+            let mut element_values = Vec::with_capacity(element_slice.len());
+            for value in element_slice {
+                element_values.push(state.get(*value));
+            }
 
-    // allocate the aggregate on the heap
-    let result = state.interpreter.allocate_aggregate(element_values);
+            // allocate the aggregate on the heap
+            state.interpreter.allocate_aggregate(element_values)
+        }
+    };
 
     // store result
     state.set(*dest, result);
@@ -4608,9 +4624,6 @@ pub(super) fn handle_unsupported(
 }
 
 /// Handle tail call to function.
-///
-/// FUGU #Performance: vm implements tail calls / indirect tail calls as regular calls.
-/// The caller's frame will be popped when the return value flows back.
 pub(super) fn handle_tail_call(
     _state: &mut ThreadedState,
     block: &[ThreadedInstruction],
@@ -4626,16 +4639,74 @@ pub(super) fn handle_tail_call(
         unreachable!()
     };
 
-    // for now: treat as call + implicit return
-    // the trampoline will handle this and return the result
-    ControlFlow::Call {
+    // return tail call control to trampoline
+    ControlFlow::TailCall {
         function: *function,
         callee_index: *callee_index,
-        destination: mir::Value(0), // dummy, result goes to caller's frame
         arguments: ArgumentRange::empty(),
         copies: Some(*copies),
-        resume_pc: pc, // won't be used, we return immediately after
     }
+}
+
+/// Handle self tail call by reusing the current frame.
+pub(super) fn handle_tail_call_self(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::TailCallSelf { entry, arguments } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // collect argument values
+    let args = collect_values(state, *arguments);
+
+    state.interpreter.statistics.calls_made += 1;
+
+    // resolve current function entry block
+    let (threaded_ptr, value_base, value_count, local_base, local_count) = {
+        let frame = state.current_frame_mut();
+        (
+            frame.threaded,
+            frame.value_base,
+            frame.value_count,
+            frame.local_base,
+            frame.local_count,
+        )
+    };
+    let threaded = unsafe { threaded_ptr.as_ref() };
+    let entry_block = &threaded.blocks[*entry as usize];
+
+    // clear frame-local stack allocations
+    state.current_frame_mut().stack_cells.clear();
+
+    // clear value and local slots
+    let value_end = value_base + value_count;
+    state.interpreter.value_stack[value_base..value_end].fill(Value::VOID);
+    let local_end = local_base + local_count;
+    state.interpreter.local_stack[local_base..local_end].fill(Value::VOID);
+
+    // update frame to entry block
+    {
+        let frame = state.current_frame_mut();
+        frame.block_index = *entry as usize;
+        frame.block_ptr = NonNull::from(entry_block);
+        frame.entry_block = entry_block.mir_block;
+        frame.current_block = entry_block.mir_block;
+        frame.resume_pc = 0;
+    }
+
+    // bind function parameters
+    let parameter_slice = threaded.parameters.slice(threaded.argument_pool.as_slice());
+    for (index, param) in parameter_slice.iter().enumerate() {
+        let value = args.get(index).copied().unwrap_or(Value::VOID);
+        state.set(*param, value);
+    }
+
+    // continue at entry block
+    let entry_instructions = entry_block.instructions.as_slice();
+    become (entry_instructions[0].handler)(state, entry_instructions, 0)
 }
 
 /// Handle indirect tail call.
@@ -4663,13 +4734,11 @@ pub(super) fn handle_tail_call_indirect(
         }
     };
 
-    // for now: treat as call + implicit return
-    ControlFlow::Call {
+    // return tail call control to trampoline
+    ControlFlow::TailCall {
         function,
         callee_index: INVALID_FUNCTION_INDEX,
-        destination: mir::Value(0), // dummy
         arguments: *arguments,
         copies: None,
-        resume_pc: pc,
     }
 }

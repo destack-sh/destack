@@ -160,6 +160,17 @@ pub enum ControlFlow {
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
+    /// Tail call another function.
+    TailCall {
+        /// Function to call.
+        function: u32,
+        /// Threaded function index when available.
+        callee_index: u32,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
+        /// Copy plan for callee parameters.
+        copies: Option<CopyRange>,
+    },
     /// Return from current function.
     Return(Value),
     /// Runtime error.
@@ -471,6 +482,14 @@ pub enum ThreadedInstructionData {
         function: u32,
         callee_index: u32,
         copies: CopyRange,
+    },
+
+    /// Tail call to the current function (fast path).
+    TailCallSelf {
+        /// Entry block index for the current function.
+        entry: u32,
+        /// Arguments to pass.
+        arguments: ArgumentRange,
     },
 
     /// Indirect tail call (call + return).
