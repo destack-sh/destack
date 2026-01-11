@@ -6,9 +6,7 @@ use destack_mir as mir;
 use crate::optimize::analyses::{
     ConstantPropagation, ControlFlowGraph, DominatorTree, RangeAnalysis, RangeMap, ValueRange,
 };
-use crate::optimize::common::{
-    SuccessorArguments, fold_binary, terminator_arguments_for_successor_checked,
-};
+use crate::optimize::common::{BlockParamForwarding, fold_binary};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -16,6 +14,40 @@ declare_pass! {
     ///
     /// Uses range analysis, dominator based constraints, and assume metadata
     /// to remove checks that are guaranteed to succeed.
+    ///
+    /// ```mir
+    /// function @before(v0: [i32; 4]) -> void {
+    /// block0(v0: [i32; 4]):
+    ///     v1 = iconst 2u32
+    ///     v2 = iconst 4u32
+    ///     v3 = icmp_ult v1, v2
+    ///     check v3, bounds.unsigned v1, v2, v0, block1, block2
+    /// block1:
+    ///     v4 = icmp_ult v1, v2
+    ///     check v4, bounds.unsigned v1, v2, v0, block3, block2
+    /// block3:
+    ///     return
+    /// block2:
+    ///     unreachable
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: [i32; 4]) -> void {
+    /// block0(v0: [i32; 4]):
+    ///     v1 = iconst 2u32
+    ///     v2 = iconst 4u32
+    ///     v3 = icmp_ult v1, v2
+    ///     check v3, bounds.unsigned v1, v2, v0, block1, block2
+    /// block1:
+    ///     v4 = icmp_ult v1, v2
+    ///     jump block3
+    /// block3:
+    ///     return
+    /// block2:
+    ///     unreachable
+    /// }
+    /// ```
     #[pass(id = "bounds-check-eliminate")]
     pub BoundsCheckEliminate,
     "Eliminate redundant bounds checks"
@@ -44,8 +76,8 @@ impl FunctionPass for BoundsCheckEliminate {
         // build value definition metadata
         let definitions = ValueDefinitions::build(function, tree);
 
-        // build value equivalence for block parameters
-        let equivalence = ValueEquivalence::build(function, tree, &cfg);
+        // build block parameter forwarding
+        let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
         // build block constraint maps
         let block_constraints = build_block_constraints(
@@ -127,7 +159,7 @@ impl FunctionPass for BoundsCheckEliminate {
                 known_constraints,
                 &required_constraints,
                 block_ranges,
-                &equivalence,
+                &forwarding,
             );
 
             // rewrite the check when constraints imply the bounds
@@ -223,104 +255,6 @@ impl ValueDefinitions {
     /// Return the definition for an SSA value.
     fn get(&self, value: mir::Value) -> Option<ValueDefinition> {
         self.definitions.get(&value).copied()
-    }
-}
-
-/// Equivalence mapping for SSA values.
-#[derive(Debug)]
-struct ValueEquivalence {
-    /// Mapping from a value to its canonical representative.
-    map: HashMap<mir::Value, mir::Value>,
-}
-
-impl ValueEquivalence {
-    /// Build an equivalence map for block parameters with consistent arguments.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
-        // collect parameter mappings with consistent incoming values
-        let mut map = HashMap::new();
-
-        // scan blocks that define parameters
-        for &block_id in &function.blocks {
-            // load the block data
-            let block = tree.get(block_id);
-            if block.parameters.is_empty() {
-                continue;
-            }
-
-            // seed candidate mappings for each parameter
-            let mut candidates: Vec<Option<mir::Value>> = vec![None; block.parameters.len()];
-            let mut conflicts = vec![false; block.parameters.len()];
-
-            // collect incoming arguments from predecessors
-            for &pred in cfg.predecessors(block_id) {
-                // resolve successor arguments for this predecessor edge
-                let successor_args = terminator_arguments_for_successor_checked(
-                    &tree.get(pred).terminator,
-                    block_id,
-                );
-
-                // reject inconsistent successor argument shapes
-                let SuccessorArguments::Consistent(args) = successor_args else {
-                    conflicts.fill(true);
-                    continue;
-                };
-
-                // reject mismatched parameter arity
-                if args.len() != block.parameters.len() {
-                    conflicts.fill(true);
-                    continue;
-                }
-
-                // reconcile candidate values per parameter index
-                for (index, arg) in args.iter().enumerate() {
-                    match candidates[index] {
-                        None => candidates[index] = Some(*arg),
-                        Some(existing) if existing == *arg => {}
-                        _ => conflicts[index] = true,
-                    }
-                }
-            }
-
-            // record non conflicting mappings for this block
-            for (index, param) in block.parameters.iter().enumerate() {
-                if conflicts[index] {
-                    continue;
-                }
-
-                // skip parameters with no consistent candidate
-                let Some(candidate) = candidates[index] else {
-                    continue;
-                };
-
-                // store the mapping for non identity values
-                if candidate != param.value {
-                    map.insert(param.value, candidate);
-                }
-            }
-        }
-
-        Self { map }
-    }
-
-    /// Resolve a value to its canonical representative.
-    fn canonical(&self, value: mir::Value) -> mir::Value {
-        // walk equivalence chains with cycle detection
-        let mut current = value;
-        let mut seen = Vec::new();
-
-        // follow the equivalence chain
-        while let Some(next) = self.map.get(&current) {
-            // stop on cycles
-            if seen.contains(&current) {
-                break;
-            }
-
-            // record the traversal and continue
-            seen.push(current);
-            current = *next;
-        }
-
-        current
     }
 }
 
@@ -791,17 +725,17 @@ fn constraints_imply_requirements(
     known: &[BoundsConstraint],
     required: &[BoundsConstraint],
     ranges: &RangeMap,
-    equivalence: &ValueEquivalence,
+    forwarding: &BlockParamForwarding,
 ) -> bool {
     // normalize known constraints once for this block
     let normalized_known: Vec<BoundsConstraint> = known
         .iter()
-        .map(|constraint| normalize_constraint(constraint, ranges, equivalence))
+        .map(|constraint| normalize_constraint(constraint, ranges, forwarding))
         .collect();
 
     // ensure every required constraint is satisfied
     required.iter().all(|required_constraint| {
-        let required_constraint = normalize_constraint(required_constraint, ranges, equivalence);
+        let required_constraint = normalize_constraint(required_constraint, ranges, forwarding);
         let implied_by_known = normalized_known
             .iter()
             .any(|known_constraint| constraint_implies(known_constraint, &required_constraint));
@@ -827,17 +761,17 @@ fn constraint_implies(existing: &BoundsConstraint, required: &BoundsConstraint) 
     constraint_implies_direct(&flipped, required)
 }
 
-/// Normalize constraint bounds using range constants and equivalence.
+/// Normalize constraint bounds using range constants and forwarding.
 fn normalize_constraint(
     constraint: &BoundsConstraint,
     ranges: &RangeMap,
-    equivalence: &ValueEquivalence,
+    forwarding: &BlockParamForwarding,
 ) -> BoundsConstraint {
     // normalize the value side
-    let value = normalize_bound_key(&constraint.value, ranges, equivalence);
+    let value = normalize_bound_key(&constraint.value, ranges, forwarding);
 
     // normalize the bound side
-    let bound = normalize_bound_key(&constraint.bound, ranges, equivalence);
+    let bound = normalize_bound_key(&constraint.bound, ranges, forwarding);
     BoundsConstraint {
         value,
         bound,
@@ -850,13 +784,13 @@ fn normalize_constraint(
 fn normalize_bound_key(
     bound: &BoundKey,
     ranges: &RangeMap,
-    equivalence: &ValueEquivalence,
+    forwarding: &BlockParamForwarding,
 ) -> BoundKey {
     // resolve value and constant bounds into canonical keys
     match bound {
         BoundKey::Value(value) => {
             // canonicalize the value and check for constants
-            let canonical = equivalence.canonical(*value);
+            let canonical = forwarding.resolve(*value);
             let Some(range) = ranges.get(canonical) else {
                 return BoundKey::Value(canonical);
             };
@@ -2265,5 +2199,71 @@ block4:
         let mut program = TestProgram::new(input);
         program.run_pass(&BoundsCheckEliminate);
         program.assert_unchanged(input);
+    }
+
+    /// Bounds checks are preserved when the trap block has side effects.
+    #[test]
+    fn test_preserve_non_trap_branch() {
+        // source program
+        let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 4u32
+    v3 = icmp_ult v1, v2
+    branch v3, block1, block2
+block1:
+    v4 = element.get v0, v1
+    return v4
+block2:
+    v5 = iconst 0u32
+    unreachable
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BoundsCheckEliminate);
+        program.assert_unchanged(input);
+    }
+
+    /// Upper inclusive guards with constant bounds imply bounds checks.
+    #[test]
+    fn test_eliminate_upper_inclusive_guard() {
+        // source program
+        let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 3u32
+    v3 = iconst 4u32
+    v4 = icmp_ule v1, v2
+    branch v4, block1, block2
+block1:
+    v5 = icmp_ult v1, v3
+    check v5, bounds.unsigned v1, v3, v0, block3, block2
+block2:
+    unreachable
+block3:
+    v6 = element.get v0, v1
+    return v6
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
+block0(v0: [i32; 4], v1: u32):
+    v2 = iconst 3u32
+    v3 = iconst 4u32
+    v4 = icmp_ule v1, v2
+    branch v4, block1, block2
+block1:
+    v5 = icmp_ult v1, v3
+    jump block3
+block2:
+    unreachable
+block3:
+    v6 = element.get v0, v1
+    return v6
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&BoundsCheckEliminate);
+        program.assert_output(expected);
     }
 }
