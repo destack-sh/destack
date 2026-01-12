@@ -1,7 +1,7 @@
 # cli
 
-Destack command-line interface.
-The `destack` binary for compiling, formatting, and running Destack projects.
+Destack command-line interface (`ds`, `dsc`, `dsx`, `destack`).
+The `destack` binary for working with Destack projects.
 
 ## Layout
 
