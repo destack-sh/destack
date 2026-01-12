@@ -187,10 +187,8 @@ impl Compiler {
                 options,
             ),
 
-            // empty array is assignable to any array
-            (Type::Array { element: Some(_) }, Type::Array { element: None }) => {
-                Assignability::Assignable
-            }
+            // empty array is assignable to any array (including itself)
+            (Type::Array { .. }, Type::Array { element: None }) => Assignability::Assignable,
 
             // tuples: same length and each element assignable
             (

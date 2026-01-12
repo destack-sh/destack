@@ -223,12 +223,22 @@ pub fn format_type(
         } => format_type_binary(*left, *operator, *right, types, modules, strings),
         dir::Type::ArraySized { element, count: _ } => {
             let elem_str = format_local_type(*element, types, modules, strings);
-            format!("{elem_str}[]")
+            let needs_parens = matches!(types.get_type(*element), dir::Type::Union { .. });
+            if needs_parens {
+                format!("({elem_str})[]")
+            } else {
+                format!("{elem_str}[]")
+            }
         }
         dir::Type::Array { element } => {
             if let Some(elem) = element {
                 let elem_str = format_local_type(*elem, types, modules, strings);
-                format!("{elem_str}[]")
+                let needs_parens = matches!(types.get_type(*elem), dir::Type::Union { .. });
+                if needs_parens {
+                    format!("({elem_str})[]")
+                } else {
+                    format!("{elem_str}[]")
+                }
             } else {
                 "[]".to_string()
             }

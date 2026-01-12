@@ -140,4 +140,4 @@ function total(values: number[]) {
 total([1, "hi"])
 ```
 
-- contains: type (number, "hi") is not assignable to type number[]
+- contains: type (number | "hi")[] is not assignable to type number[]
