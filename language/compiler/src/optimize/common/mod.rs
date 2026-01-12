@@ -1,5 +1,7 @@
 mod analysis;
 mod block;
+mod check;
+mod compare;
 mod constant;
 mod context;
 mod dominator;
@@ -13,6 +15,8 @@ mod r#type;
 
 pub use analysis::*;
 pub use block::*;
+pub(crate) use check::*;
+pub(crate) use compare::*;
 pub use constant::*;
 pub use context::*;
 pub use dominator::*;

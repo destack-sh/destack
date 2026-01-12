@@ -5,9 +5,12 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, function_thread_jumps,
-    instruction_is_speculatable, instruction_map, instruction_substitute_uses, substitute_values,
-    terminator_remap, terminator_substitute_uses,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    bool_from_range, build_value_instruction_map, build_value_use_counts,
+    constraint_truth_value, evaluate_integer_range_comparison, function_thread_jumps,
+    instruction_is_speculatable, instruction_map, instruction_substitute_uses,
+    is_comparison_operator, substitute_values, swap_comparison_operator, terminator_remap,
+    terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -23,6 +26,12 @@ struct ReturnBlockInfo {
 const MAX_TAIL_DUP_INSTRUCTIONS: usize = 6;
 /// Maximum predecessors to duplicate per block.
 const MAX_TAIL_DUP_PREDECESSORS: usize = 4;
+/// Ratio of total edge count required to duplicate all hot edges.
+const TAIL_DUP_HOT_EDGE_RATIO: f64 = 0.70;
+/// Ratio of total edge count required to duplicate the hottest edge.
+const TAIL_DUP_MIN_EDGE_RATIO: f64 = 0.20;
+/// Maximum rounds of CFG simplification before re-analysis.
+const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 3;
 
 declare_pass! {
     /// Simplify the control flow graph.
@@ -32,11 +41,14 @@ declare_pass! {
     /// 2. Path sensitive threading: threads edges using edge specific range facts
     /// 3. Jump threading: threads jumps through empty or passthrough blocks
     /// 4. Return canonicalization: merges empty return blocks into one
-    /// 5. Same target folding: replaces branches to the same target with `select` + `jump`
-    /// 6. Tail duplication: duplicates small jump targets into jump predecessors
-    /// 7. Block merging: merges blocks with single predecessor/successor
-    /// 8. Unreachable block elimination: removes blocks not reachable from entry
-    /// 9. Critical edge splitting: splits edges from multi-successor blocks into multi-predecessor blocks
+    /// 5. Switch canonicalization: folds constant/range switches and lowers single case switches
+    /// 6. Same target folding: replaces branches to the same target with `select` + `jump`
+    /// 7. Tail duplication: duplicates small jump targets into jump predecessors
+    /// 8. Block merging: merges blocks with single predecessor/successor
+    /// 9. Unreachable block elimination: removes blocks not reachable from entry
+    /// 10. Critical edge splitting: splits edges from multi-successor blocks into multi-predecessor blocks
+    ///
+    /// The pass iterates to a bounded fixed point.
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -86,17 +98,8 @@ impl FunctionPass for SimplifyCfg {
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // get constant propagation and range analyses
-        let (constants, ranges) = {
-            let analyses = FunctionAnalyses::new(function, tree);
-            (
-                analyses.get::<ConstantPropagation>().clone(),
-                analyses.get::<RangeAnalysis>().clone(),
-            )
-        };
-
-        // run simplify CFG
-        let changed = run_simplify_cfg(function, tree, &constants, &ranges);
+        // run simplify cfg with bounded fixed point
+        let changed = run_simplify_cfg(function, tree, _ctx.profile());
 
         // select preservation based on CFG changes
         if changed {
@@ -121,48 +124,85 @@ impl FunctionPass for SimplifyCfg {
 fn run_simplify_cfg(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
-    constants: &ConstantPropagation,
-    ranges: &RangeAnalysis,
+    profile: Option<&mir::ProfileTable>,
 ) -> bool {
     // track whether any changes were made
     let mut changed = false;
 
-    // phase 1: branch folding
-    // converts `branch always_true, A, B` -> `jump A`
-    changed |= fold_branches(function, tree, constants, ranges);
+    // keep track of profile-guided tail duplication targets
+    let mut profiled_tail_dup_targets: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
 
-    // phase 2: path sensitive jump threading
-    // threads edges using edge specific range facts
-    changed |= thread_edge_conditions(function, tree, constants, ranges);
+    // run until fixed point or iteration cap
+    let mut iteration = 0;
+    loop {
+        // refresh analyses for this iteration
+        let (constants, ranges) = {
+            let analyses = FunctionAnalyses::new(function, tree);
+            (
+                analyses.get::<ConstantPropagation>().clone(),
+                analyses.get::<RangeAnalysis>().clone(),
+            )
+        };
 
-    // phase 3: jump threading
-    // threads jumps through empty blocks
-    changed |= function_thread_jumps(function, tree);
+        // track changes in this iteration
+        let mut changed_this_round = false;
 
-    // phase 4: canonicalize return blocks
-    changed |= canonicalize_return_blocks(function, tree);
+        // phase 1: branch folding
+        // converts `branch always_true, A, B` -> `jump A`
+        changed_this_round |= fold_branches(function, tree, &constants, &ranges);
 
-    // phase 5: fold branches and checks with identical edges
-    changed |= fold_redundant_edges(function, tree);
+        // phase 2: path sensitive jump threading
+        // threads edges using edge specific range facts
+        changed_this_round |= thread_edge_conditions(function, tree, &constants, &ranges);
 
-    // phase 6: fold branches that share the same target
-    changed |= fold_same_target_branches(function, tree);
+        // phase 3: jump threading
+        // threads jumps through empty blocks
+        changed_this_round |= function_thread_jumps(function, tree);
 
-    // phase 7: tail duplicate small jump targets
-    changed |= tail_duplicate_blocks(function, tree);
+        // phase 4: canonicalize return blocks
+        changed_this_round |= canonicalize_return_blocks(function, tree);
 
-    // phase 8: block merging
-    // merges blocks with single predecessor/successor
-    if let Some(entry) = function.entry {
-        changed |= merge_blocks(function, tree, entry);
+        // phase 5: fold branches and checks with identical edges
+        changed_this_round |= fold_redundant_edges(function, tree);
+
+        // phase 6: fold branches that share the same target
+        changed_this_round |= fold_same_target_branches(function, tree);
+
+        // phase 7: tail duplicate small jump targets
+        changed_this_round |= tail_duplicate_blocks(
+            function,
+            tree,
+            profile,
+            &mut profiled_tail_dup_targets,
+        );
+
+        // phase 8: block merging
+        // merges blocks with single predecessor/successor
+        if let Some(entry) = function.entry {
+            changed_this_round |= merge_blocks(function, tree, entry);
+        }
+
+        // phase 9: eliminate unreachable blocks
+        if let Some(entry) = function.entry {
+            changed_this_round |= eliminate_unreachable_blocks(function, tree, entry);
+        }
+
+        // stop when no changes are made
+        if !changed_this_round {
+            break;
+        }
+
+        // record that we changed in this iteration
+        changed = true;
+
+        // stop when the iteration cap is reached
+        iteration += 1;
+        if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
+            break;
+        }
     }
 
-    // phase 9: eliminate unreachable blocks
-    if let Some(entry) = function.entry {
-        changed |= eliminate_unreachable_blocks(function, tree, entry);
-    }
-
-    // phase 10: split critical edges
+    // split critical edges after simplification converges
     changed |= split_critical_edges(function, tree);
 
     changed
@@ -171,7 +211,7 @@ fn run_simplify_cfg(
 /// Fold branches on constant conditions into unconditional jumps.
 /// Returns true if any branches were folded.
 fn fold_branches(
-    function: &mir::Function,
+    function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
@@ -179,9 +219,15 @@ fn fold_branches(
     // track whether any changes were made
     let mut changed = false;
 
+    // build value definitions for boolean detection
+    let value_definitions = build_value_instruction_map(function, tree);
+
+    // snapshot block list to avoid borrow conflicts
+    let block_ids = function.blocks.clone();
+
     // fold branches with constant or range proven conditions
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
+    for block_id in block_ids {
+        let block = tree.get(block_id).clone();
         let exit_ranges = ranges.exit(block_id);
         match &block.terminator {
             mir::Terminator::Branch {
@@ -197,8 +243,9 @@ fn fold_branches(
                     Some(mir::Constant::Boolean { value }) => Some(*value),
                     _ => None,
                 };
-                let condition_value =
-                    condition_value.or_else(|| bool_from_range(exit_ranges.get(*condition)));
+                let condition_value = condition_value
+                    .or_else(|| bool_from_range(exit_ranges.get(*condition)))
+                    .or_else(|| assume_truth_value(&block, tree, *condition));
 
                 if let Some(is_true) = condition_value {
                     let (target, arguments) = if is_true {
@@ -215,6 +262,7 @@ fn fold_branches(
             }
             mir::Terminator::Check {
                 condition,
+                constraint,
                 success,
                 failure,
                 ..
@@ -225,8 +273,10 @@ fn fold_branches(
                     Some(mir::Constant::Boolean { value }) => Some(*value),
                     _ => None,
                 };
-                let condition_value =
-                    condition_value.or_else(|| bool_from_range(exit_ranges.get(*condition)));
+                let condition_value = condition_value
+                    .or_else(|| bool_from_range(exit_ranges.get(*condition)))
+                    .or_else(|| constraint_truth_value(constraint, exit_ranges))
+                    .or_else(|| assume_truth_value(&block, tree, *condition));
 
                 if let Some(is_true) = condition_value {
                     let (target, arguments) = if is_true {
@@ -247,8 +297,11 @@ fn fold_branches(
                 default_arguments,
                 cases,
             } => {
+                // fold switches when value is constant or range restricted
                 let constant_value = constants.constant_at_exit(block_id, *value);
                 let range_value = exit_ranges.get(*value);
+                let is_boolean_value =
+                    value_is_boolean(*value, range_value, &value_definitions);
                 if let Some(new_terminator) = fold_switch(
                     *value,
                     *default,
@@ -258,6 +311,77 @@ fn fold_branches(
                     range_value,
                 ) {
                     let mut new_block = block.clone();
+                    if let mir::Terminator::Switch {
+                        value,
+                        default,
+                        default_arguments,
+                        cases,
+                    } = &new_terminator
+                    {
+                        // lower boolean switches into branches
+                        if let Some(lowered) = lower_boolean_switch(
+                            *value,
+                            *default,
+                            default_arguments,
+                            cases,
+                            is_boolean_value,
+                        ) {
+                            new_block.terminator = lowered;
+                            tree.replace(block_id, new_block);
+                            changed = true;
+                            continue;
+                        }
+
+                        // lower to a branch when a single case remains
+                        if let Some((new_instructions, lowered)) = lower_single_case_switch(
+                            function,
+                            tree,
+                            *value,
+                            *default,
+                            default_arguments,
+                            cases,
+                            range_value,
+                        ) {
+                            new_block.instructions.extend(new_instructions);
+                            new_block.terminator = lowered;
+                        } else {
+                            new_block.terminator = new_terminator;
+                        }
+                    } else {
+                        new_block.terminator = new_terminator;
+                    }
+                    tree.replace(block_id, new_block);
+                    changed = true;
+                    continue;
+                }
+
+                // lower boolean switches into branches
+                if let Some(new_terminator) = lower_boolean_switch(
+                    *value,
+                    *default,
+                    default_arguments,
+                    cases,
+                    is_boolean_value,
+                ) {
+                    let mut new_block = block.clone();
+                    new_block.terminator = new_terminator;
+                    tree.replace(block_id, new_block);
+                    changed = true;
+                    continue;
+                }
+
+                // lower single case switches into branches when safe
+                if let Some((new_instructions, new_terminator)) = lower_single_case_switch(
+                    function,
+                    tree,
+                    *value,
+                    *default,
+                    default_arguments,
+                    cases,
+                    range_value,
+                ) {
+                    let mut new_block = block.clone();
+                    new_block.instructions.extend(new_instructions);
                     new_block.terminator = new_terminator;
                     tree.replace(block_id, new_block);
                     changed = true;
@@ -278,8 +402,8 @@ fn thread_edge_conditions(
     ranges: &RangeAnalysis,
 ) -> bool {
     // build value definition and use maps
-    let value_definitions = build_value_definitions(function, tree);
-    let value_use_counts = collect_value_use_counts(function, tree);
+    let value_definitions = build_value_instruction_map(function, tree);
+    let value_use_counts = build_value_use_counts(function, tree);
 
     // track whether any changes were made
     let mut changed = false;
@@ -419,70 +543,6 @@ fn thread_edge_conditions(
     changed
 }
 
-/// Build a mapping from SSA values to their defining instructions.
-fn build_value_definitions(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
-    // collect destination values for every instruction
-    let mut definitions = HashMap::new();
-
-    // scan blocks in order
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-
-        // record instruction destinations for this block
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-
-            // track each destination value
-            if let Some(destination) = instruction.destination() {
-                definitions.insert(destination, instruction_id);
-            }
-        }
-    }
-
-    definitions
-}
-
-/// Count value uses across instructions and terminators.
-fn collect_value_use_counts(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-) -> HashMap<mir::Value, usize> {
-    // initialize per value use counters
-    let mut counts: HashMap<mir::Value, usize> = HashMap::new();
-
-    // scan blocks for uses
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-
-        // scan instruction uses
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-
-            // count inline operands
-            for value in instruction.uses() {
-                *counts.entry(value).or_insert(0) += 1;
-            }
-
-            // count external argument slices
-            if let Some(args_slice) = instruction.argument_slice() {
-                for &arg in tree.get_arguments(args_slice) {
-                    *counts.entry(arg).or_insert(0) += 1;
-                }
-            }
-        }
-
-        // count terminator operands
-        for value in block.terminator.uses() {
-            *counts.entry(value).or_insert(0) += 1;
-        }
-    }
-
-    counts
-}
-
 /// Resolve a single edge to a threaded target using edge specific facts.
 #[allow(clippy::too_many_arguments)]
 fn resolve_edge_target(
@@ -494,7 +554,7 @@ fn resolve_edge_target(
     tree: &mir::NodeTree,
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    value_definitions: &HashMap<mir::Value, mir::Instruction>,
     value_use_counts: &HashMap<mir::Value, usize>,
 ) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
     // fetch the edge target block
@@ -519,7 +579,6 @@ fn resolve_edge_target(
         ranges,
         constants,
         value_definitions,
-        tree,
     );
     let mut target_ranges = edge_ranges.clone();
     apply_block_param_ranges_for_edge(block, arguments, &edge_ranges, &mut target_ranges);
@@ -539,7 +598,6 @@ fn resolve_edge_target(
                 &target_ranges,
                 constants,
                 value_definitions,
-                tree,
             )?;
             // choose the resolved branch target
             let (target, args) = if condition_value {
@@ -562,7 +620,6 @@ fn resolve_edge_target(
                 &target_ranges,
                 constants,
                 value_definitions,
-                tree,
             )?;
             // choose the resolved check target
             let (target, args) = if condition_value {
@@ -649,8 +706,7 @@ fn edge_ranges_for_condition(
     is_true: bool,
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    value_definitions: &HashMap<mir::Value, mir::Instruction>,
 ) -> RangeMap {
     // seed ranges from the source block exit
     let mut edge_ranges = ranges.exit(block_id).clone();
@@ -669,7 +725,6 @@ fn edge_ranges_for_condition(
         block_id,
         constants,
         value_definitions,
-        tree,
         &mut edge_ranges,
     );
 
@@ -682,15 +737,13 @@ fn apply_comparison_constraint(
     is_true: bool,
     block_id: mir::LocalNodeId<mir::Block>,
     constants: &ConstantPropagation,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    value_definitions: &HashMap<mir::Value, mir::Instruction>,
     edge_ranges: &mut RangeMap,
 ) {
     // look up the condition definition
-    let Some(&definition_id) = value_definitions.get(&condition) else {
+    let Some(instruction) = value_definitions.get(&condition) else {
         return;
     };
-    let instruction = tree.get(definition_id);
     let mir::Instruction::Binary {
         operator,
         left,
@@ -746,8 +799,7 @@ fn resolve_condition_value(
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeMap,
     constants: &ConstantPropagation,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
+    value_definitions: &HashMap<mir::Value, mir::Instruction>,
 ) -> Option<bool> {
     // check constant propagation facts
     let constant = constants
@@ -763,8 +815,7 @@ fn resolve_condition_value(
     }
 
     // evaluate comparison conditions from operand ranges
-    let &definition_id = value_definitions.get(&condition)?;
-    let instruction = tree.get(definition_id);
+    let instruction = value_definitions.get(&condition)?;
     let mir::Instruction::Binary {
         operator,
         left,
@@ -778,7 +829,9 @@ fn resolve_condition_value(
         return None;
     }
 
-    evaluate_integer_comparison(*operator, *left, *right, ranges)
+    let left_range = ranges.get(*left)?;
+    let right_range = ranges.get(*right)?;
+    evaluate_integer_range_comparison(*operator, left_range, right_range)
 }
 
 /// Resolve a switch to a single target using edge specific ranges.
@@ -853,121 +906,6 @@ fn extract_switch_target(
     }
 }
 
-/// Evaluate integer comparisons using range information.
-fn evaluate_integer_comparison(
-    operator: mir::BinaryOperator,
-    left: mir::Value,
-    right: mir::Value,
-    ranges: &RangeMap,
-) -> Option<bool> {
-    // extract integer ranges for both operands
-    let ValueRange::Integer {
-        min: left_min,
-        max: left_max,
-        width: left_width,
-        is_signed: left_signed,
-    } = ranges.get(left)?
-    else {
-        return None;
-    };
-    let ValueRange::Integer {
-        min: right_min,
-        max: right_max,
-        width: right_width,
-        is_signed: right_signed,
-    } = ranges.get(right)?
-    else {
-        return None;
-    };
-    // reject mismatched integer widths or signedness
-    if left_width != right_width || left_signed != right_signed {
-        return None;
-    }
-
-    // reject comparisons that do not match operand signedness
-    let expects_signed = matches!(
-        operator,
-        mir::BinaryOperator::SignedLessThan
-            | mir::BinaryOperator::SignedLessEqual
-            | mir::BinaryOperator::SignedGreaterThan
-            | mir::BinaryOperator::SignedGreaterEqual
-    );
-    let expects_unsigned = matches!(
-        operator,
-        mir::BinaryOperator::UnsignedLessThan
-            | mir::BinaryOperator::UnsignedLessEqual
-            | mir::BinaryOperator::UnsignedGreaterThan
-            | mir::BinaryOperator::UnsignedGreaterEqual
-    );
-    if expects_signed && !*left_signed {
-        return None;
-    }
-    if expects_unsigned && *left_signed {
-        return None;
-    }
-
-    // evaluate comparison from range relationships
-    match operator {
-        mir::BinaryOperator::Equal => {
-            let is_single = left_min == left_max && right_min == right_max;
-            if is_single && left_min == right_min {
-                Some(true)
-            } else if left_max < right_min || left_min > right_max {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::NotEqual => {
-            let is_single = left_min == left_max && right_min == right_max;
-            if left_max < right_min || left_min > right_max {
-                Some(true)
-            } else if is_single && left_min == right_min {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
-            if left_max < right_min {
-                Some(true)
-            } else if left_min >= right_max {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
-            if left_max <= right_min {
-                Some(true)
-            } else if left_min > right_max {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
-            if left_min > right_max {
-                Some(true)
-            } else if left_max <= right_min {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
-            if left_min >= right_max {
-                Some(true)
-            } else if left_max < right_min {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
 /// Resolve an integer constant from range or constant propagation.
 fn resolve_integer_constant(
     value: mir::Value,
@@ -993,22 +931,6 @@ fn integer_constant_to_i128(constant: &mir::Constant) -> Option<i128> {
     match constant {
         mir::Constant::Int { value, .. } => Some(*value as i128),
         mir::Constant::UInt { value, .. } => Some(*value as i128),
-        _ => None,
-    }
-}
-
-/// Swap a comparison operator by exchanging operands.
-fn swap_comparison_operator(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
-    match operator {
-        mir::BinaryOperator::Equal | mir::BinaryOperator::NotEqual => Some(operator),
-        mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterThan),
-        mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterEqual),
-        mir::BinaryOperator::SignedGreaterThan => Some(mir::BinaryOperator::SignedLessThan),
-        mir::BinaryOperator::SignedGreaterEqual => Some(mir::BinaryOperator::SignedLessEqual),
-        mir::BinaryOperator::UnsignedLessThan => Some(mir::BinaryOperator::UnsignedGreaterThan),
-        mir::BinaryOperator::UnsignedLessEqual => Some(mir::BinaryOperator::UnsignedGreaterEqual),
-        mir::BinaryOperator::UnsignedGreaterThan => Some(mir::BinaryOperator::UnsignedLessThan),
-        mir::BinaryOperator::UnsignedGreaterEqual => Some(mir::BinaryOperator::UnsignedLessEqual),
         _ => None,
     }
 }
@@ -1129,21 +1051,27 @@ fn comparison_bounds(
     }
 }
 
-/// Convert a boolean range into a constant when possible.
-fn bool_from_range(range: Option<&ValueRange>) -> Option<bool> {
-    let ValueRange::Boolean {
-        can_be_true,
-        can_be_false,
-    } = range?
-    else {
-        return None;
-    };
+/// Return true when a block assumes the condition is true.
+fn assume_truth_value(
+    block: &mir::Block,
+    tree: &mir::NodeTree,
+    condition: mir::Value,
+) -> Option<bool> {
+    for instruction_id in &block.instructions {
+        let instruction = tree.get(*instruction_id);
+        let mir::Instruction::Assume {
+            condition: assumed,
+        } = instruction
+        else {
+            continue;
+        };
 
-    match (*can_be_true, *can_be_false) {
-        (true, false) => Some(true),
-        (false, true) => Some(false),
-        _ => None,
+        if *assumed == condition {
+            return Some(true);
+        }
     }
+
+    None
 }
 
 /// Fold switch terminators using constant or range information.
@@ -1261,6 +1189,148 @@ fn resolve_switch_case(
         target: default,
         arguments: default_arguments.to_vec(),
     }
+}
+
+/// Return true when a value is known to be boolean.
+fn value_is_boolean(
+    value: mir::Value,
+    range_value: Option<&ValueRange>,
+    value_definitions: &HashMap<mir::Value, mir::Instruction>,
+) -> bool {
+    // prefer range information when available
+    if matches!(range_value, Some(ValueRange::Boolean { .. })) {
+        return true;
+    }
+
+    // fall back to instruction based detection
+    let Some(instruction) = value_definitions.get(&value) else {
+        return false;
+    };
+
+    match instruction {
+        mir::Instruction::Const {
+            value: mir::Constant::Boolean { .. },
+            ..
+        } => true,
+        mir::Instruction::Binary { operator, .. } => is_comparison_operator(*operator),
+        _ => false,
+    }
+}
+
+/// Lower boolean switches into conditional branches when possible.
+fn lower_boolean_switch(
+    value: mir::Value,
+    default: mir::LocalNodeId<mir::Block>,
+    default_arguments: &[mir::Value],
+    cases: &[mir::SwitchCase],
+    is_boolean_value: bool,
+) -> Option<mir::Terminator> {
+    // require a boolean value
+    if !is_boolean_value {
+        return None;
+    };
+
+    // gather case edges for 0 and 1
+    let mut case_zero: Option<&mir::SwitchCase> = None;
+    let mut case_one: Option<&mir::SwitchCase> = None;
+    for case in cases {
+        match case.value {
+            0 => case_zero = Some(case),
+            1 => case_one = Some(case),
+            _ => return None,
+        }
+    }
+
+    // require at least one boolean case
+    if case_zero.is_none() && case_one.is_none() {
+        return None;
+    }
+
+    // map cases to branch edges
+    let (then_target, then_arguments) = match case_one {
+        Some(case) => (case.target, case.arguments.clone()),
+        None => (default, default_arguments.to_vec()),
+    };
+    let (else_target, else_arguments) = match case_zero {
+        Some(case) => (case.target, case.arguments.clone()),
+        None => (default, default_arguments.to_vec()),
+    };
+
+    Some(mir::Terminator::Branch {
+        condition: value,
+        then_target,
+        then_arguments,
+        else_target,
+        else_arguments,
+    })
+}
+
+/// Lower a single case switch into a conditional branch when possible.
+fn lower_single_case_switch(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    value: mir::Value,
+    default: mir::LocalNodeId<mir::Block>,
+    default_arguments: &[mir::Value],
+    cases: &[mir::SwitchCase],
+    range_value: Option<&ValueRange>,
+) -> Option<(Vec<mir::LocalNodeId<mir::Instruction>>, mir::Terminator)> {
+    // require exactly one case
+    let [case] = cases else {
+        return None;
+    };
+
+    // skip when the case is identical to the default
+    if case.target == default && case.arguments == default_arguments {
+        return None;
+    }
+
+    // require integer range metadata to materialize the constant
+    let ValueRange::Integer {
+        width, is_signed, ..
+    } = range_value?
+    else {
+        return None;
+    };
+
+    // materialize the case constant
+    let constant_value = function.next_value();
+    let constant = if *is_signed {
+        mir::Constant::Int {
+            value: case.value,
+            width: *width,
+            is_signed: true,
+        }
+    } else {
+        mir::Constant::UInt {
+            value: case.value as u64,
+            width: *width,
+        }
+    };
+    let constant_id = tree.insert(mir::Instruction::Const {
+        destination: constant_value,
+        value: constant,
+    });
+
+    // compare the switch value against the case
+    let condition_value = function.next_value();
+    let compare_id = tree.insert(mir::Instruction::Binary {
+        destination: condition_value,
+        operator: mir::BinaryOperator::Equal,
+        left: value,
+        right: constant_value,
+    });
+
+    // build the conditional branch
+    let terminator = mir::Terminator::Branch {
+        condition: condition_value,
+        then_target: case.target,
+        then_arguments: case.arguments.clone(),
+        else_target: default,
+        else_arguments: default_arguments.to_vec(),
+    };
+
+    Some((vec![constant_id, compare_id], terminator))
 }
 
 /// Compute canonical return arguments for an edge into a return block.
@@ -1843,25 +1913,35 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
                 })
             }
             mir::Terminator::Switch {
+                value,
                 default,
                 default_arguments,
                 cases,
                 ..
             } => {
-                // check whether all cases match the default edge
-                let mut all_same = true;
+                // drop cases that match the default edge
+                let mut filtered_cases: Vec<mir::SwitchCase> = Vec::new();
+                let mut changed_cases = false;
                 for case in cases {
-                    if case.target != *default || case.arguments != *default_arguments {
-                        all_same = false;
-                        break;
+                    if case.target == *default && case.arguments == *default_arguments {
+                        changed_cases = true;
+                        continue;
                     }
+                    filtered_cases.push(case.clone());
                 }
 
                 // replace with a jump when all edges are identical
-                if all_same {
+                if filtered_cases.is_empty() {
                     Some(mir::Terminator::Jump {
                         target: *default,
                         arguments: default_arguments.clone(),
+                    })
+                } else if changed_cases {
+                    Some(mir::Terminator::Switch {
+                        value: *value,
+                        default: *default,
+                        default_arguments: default_arguments.clone(),
+                        cases: filtered_cases,
                     })
                 } else {
                     None
@@ -1966,7 +2046,12 @@ struct JumpPredecessor {
 }
 
 /// Duplicate small jump targets into jump predecessors.
-fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn tail_duplicate_blocks(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    profile: Option<&mir::ProfileTable>,
+    profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
+) -> bool {
     // collect predecessor counts and jump predecessors
     let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
     let mut jump_predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<JumpPredecessor>> =
@@ -1994,6 +2079,11 @@ fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree)
     let mut changed = false;
 
     for block_id in block_ids {
+        // skip blocks already handled by profile-guided duplication
+        if profile.is_some() && profiled_targets.contains(&block_id) {
+            continue;
+        }
+
         // skip blocks with a single predecessor
         let predecessor_count = predecessor_counts.get(&block_id).copied().unwrap_or(0);
         if predecessor_count <= 1 {
@@ -2005,8 +2095,18 @@ fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree)
             continue;
         };
 
-        if jump_preds.is_empty() || jump_preds.len() > MAX_TAIL_DUP_PREDECESSORS {
+        let candidates = select_tail_dup_predecessors(block_id, jump_preds, profile);
+        if candidates.is_empty() {
             continue;
+        }
+
+        if candidates.len() > MAX_TAIL_DUP_PREDECESSORS {
+            continue;
+        }
+
+        // mark when profile selects a strict subset to avoid cold duplication later
+        if profile.is_some() && candidates.len() < jump_preds.len() {
+            profiled_targets.insert(block_id);
         }
 
         // skip entry blocks
@@ -2050,7 +2150,7 @@ fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree)
 
         // ensure all predecessors pass the correct argument counts
         let mut arguments_match = true;
-        for pred in jump_preds {
+        for pred in &candidates {
             if pred.arguments.len() != block.parameters.len() {
                 arguments_match = false;
                 break;
@@ -2061,7 +2161,7 @@ fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree)
         }
 
         // duplicate the block into each jump predecessor
-        for pred in jump_preds.clone() {
+        for pred in candidates.clone() {
             if pred.pred == block_id {
                 continue;
             }
@@ -2112,6 +2212,74 @@ fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree)
     }
 
     changed
+}
+
+/// Select jump predecessors to duplicate using profile guidance when available.
+fn select_tail_dup_predecessors(
+    block_id: mir::LocalNodeId<mir::Block>,
+    jump_predecessors: &[JumpPredecessor],
+    profile: Option<&mir::ProfileTable>,
+) -> Vec<JumpPredecessor> {
+    // fall back to all predecessors when profile data is missing
+    let Some(profile) = profile else {
+        return jump_predecessors.to_vec();
+    };
+
+    // collect edge counts for jump predecessors
+    let mut total_count = 0_u64;
+    let mut counts: HashMap<mir::LocalNodeId<mir::Block>, u64> = HashMap::new();
+    for pred in jump_predecessors {
+        let edge = mir::EdgeKey::new(pred.pred, mir::EdgeKind::Jump, block_id);
+        let count = profile.edge_count(&edge).map(|c| c.value).unwrap_or(0);
+        total_count = total_count.saturating_add(count);
+        counts.insert(pred.pred, count);
+    }
+
+    // fall back to all predecessors when counts are missing
+    if total_count == 0 {
+        return jump_predecessors.to_vec();
+    }
+
+    // collect hot edges
+    let mut hot_preds = Vec::new();
+    for pred in jump_predecessors {
+        let count = counts.get(&pred.pred).copied().unwrap_or(0);
+        let ratio = count as f64 / total_count as f64;
+        if ratio >= TAIL_DUP_HOT_EDGE_RATIO {
+            hot_preds.push(pred.pred);
+        }
+    }
+    if !hot_preds.is_empty() {
+        return jump_predecessors
+            .iter()
+            .filter(|pred| hot_preds.contains(&pred.pred))
+            .cloned()
+            .collect();
+    }
+
+    // select the hottest edge when it dominates enough
+    let mut hottest_pred: Option<mir::LocalNodeId<mir::Block>> = None;
+    let mut hottest_count = 0_u64;
+    for (pred, count) in &counts {
+        if *count > hottest_count || (*count == hottest_count && Some(*pred) < hottest_pred) {
+            hottest_pred = Some(*pred);
+            hottest_count = *count;
+        }
+    }
+
+    let Some(hottest_pred) = hottest_pred else {
+        return Vec::new();
+    };
+    let ratio = hottest_count as f64 / total_count as f64;
+    if ratio < TAIL_DUP_MIN_EDGE_RATIO {
+        return Vec::new();
+    }
+
+    jump_predecessors
+        .iter()
+        .filter(|pred| pred.pred == hottest_pred)
+        .cloned()
+        .collect()
 }
 
 /// Insert a block after a specific block in the function ordering.
@@ -2547,6 +2715,7 @@ fn eliminate_unreachable_blocks(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+    use destack_mir as mir;
 
     /// Unreachable blocks are eliminated from the function.
     #[test]
@@ -2799,8 +2968,6 @@ block5:
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst true
-    jump block1(v1)
-block1(v4: bool):
     v5 = iconst 1i32
     return v5
 }"#;
@@ -2986,6 +3153,83 @@ block0:
         program.assert_output(expected);
     }
 
+    /// Assume conditions fold branches to the assumed target.
+    #[test]
+    fn test_fold_assume_branch() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    assume v0
+    branch v0, block1, block2
+block1:
+    return v1
+block2:
+    return v2
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    assume v0
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Assume conditions fold checks to the success edge.
+    #[test]
+    fn test_fold_assume_check() {
+        let input = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> u32 {
+block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
+    v4 = icmp_ult v1, v2
+    assume v4
+    check v4, bounds.unsigned v1, v2, v3, block1, block2
+block1:
+    return v1
+block2:
+    unreachable
+}"#;
+        let expected = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> u32 {
+block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
+    v4 = icmp_ult v1, v2
+    assume v4
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Check constraints fold even when condition ranges are unknown.
+    #[test]
+    fn test_fold_check_constraint_truth() {
+        let input = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
+block0(v0: bool, v1: [u32; 4]):
+    v2 = iconst 0u32
+    v3 = iconst 4u32
+    check v0, bounds.unsigned v2, v3, v1, block1, block2
+block1:
+    return v2
+block2:
+    unreachable
+}"#;
+        let expected = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
+block0(v0: bool, v1: [u32; 4]):
+    v2 = iconst 0u32
+    v3 = iconst 4u32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
     /// Jump through empty block is threaded to final target.
     #[test]
     fn test_thread_simple_jump() {
@@ -3113,10 +3357,6 @@ block4:
 }"#;
         let expected = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> void {
 block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
-    check v0, bounds.unsigned v1, v2, v3, block1, block2
-block1:
-    return
-block2:
     return
 }"#;
 
@@ -3144,11 +3384,11 @@ block4:
 }"#;
         let expected = r#"function @test(v0: u32) -> i32 {
 block0(v0: u32):
-    switch v0, block3, 0 => block4
-block3:
+    switch v0, block1, 0 => block2
+block1:
     v1 = iconst 1i32
     return v1
-block4:
+block2:
     v2 = iconst 2i32
     return v2
 }"#;
@@ -3260,6 +3500,71 @@ block2(v3: i32):
 
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Profile-guided tail duplication duplicates only the hot edge.
+    #[test]
+    fn test_tail_duplicate_profile_hot_edge() {
+        // base cfg with two jump predecessors into a shared tail block
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    branch v0, block1(v1), block2(v2)
+block1(v3: i32):
+    jump block3(v3)
+block2(v4: i32):
+    jump block3(v4)
+block3(v5: i32):
+    v6 = imul v5, v5
+    return v6
+}"#;
+        // expected cfg after duplicating the hot predecessor only
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    branch v0, block1(v1), block3(v2)
+block1(v3: i32):
+    jump block2
+block2:
+    v7 = imul v3, v3
+    return v7
+block3(v4: i32):
+    jump block4(v4)
+block4(v5: i32):
+    v6 = imul v5, v5
+    return v6
+}"#;
+
+        // parse input program
+        let mut program = TestProgram::new(input);
+
+        // gather the hot and cold jump predecessors
+        let function_id = program.first_function_id();
+        let mut function = program.tree.get(function_id).clone();
+        let (hot_pred, cold_pred) = program.entry_branch_targets(&function);
+        let tail_block = program.jump_target(hot_pred);
+
+        // build the profile table for jump edges
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        program.record_jump_edge_profile(&mut profile, hot_pred, tail_block, 100);
+        program.record_jump_edge_profile(&mut profile, cold_pred, tail_block, 1);
+
+        // run tail duplication with the profile data
+        function.recompute_next_value_id(&program.tree);
+        let mut profiled_targets = HashSet::new();
+        let changed = tail_duplicate_blocks(
+            &mut function,
+            &mut program.tree,
+            Some(&profile),
+            &mut profiled_targets,
+        );
+
+        // persist changes and assert the snapshot
+        assert!(changed);
+        *program.tree.get_mut(function_id) = function;
         program.assert_output(expected);
     }
 
@@ -3394,6 +3699,217 @@ block0(v0: u32):
         program.assert_output(expected);
     }
 
+    /// Single case switches lower to conditional branches.
+    #[test]
+    fn test_lower_single_case_switch_to_branch() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = select v0, v1, v2
+    switch v3, block1, 1 => block2
+block1:
+    v4 = iconst 10i32
+    return v4
+block2:
+    v5 = iconst 20i32
+    return v5
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = select v0, v1, v2
+    v6 = iconst 1u32
+    v7 = icmp_eq v3, v6
+    branch v7, block2, block1
+block1:
+    v4 = iconst 10i32
+    return v4
+block2:
+    v5 = iconst 20i32
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Boolean switches lower to branches without new compares.
+    #[test]
+    fn test_lower_boolean_switch_to_branch() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    switch v2, block1, 1 => block2
+block1:
+    v3 = iconst 1i32
+    return v3
+block2:
+    v4 = iconst 2i32
+    return v4
+}"#;
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    branch v2, block2, block1
+block1:
+    v3 = iconst 1i32
+    return v3
+block2:
+    v4 = iconst 2i32
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Boolean switches preserve argument passing on lowering.
+    #[test]
+    fn test_lower_boolean_switch_with_arguments() {
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = icmp_eq v0, v1
+    v3 = iconst 7i32
+    v4 = iconst 9i32
+    switch v2, block1(v3), 1 => block2(v4)
+block1(v5: i32):
+    v6 = iadd v5, v5
+    return v6
+block2(v7: i32):
+    v8 = iadd v7, v7
+    return v8
+}"#;
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = icmp_eq v0, v1
+    v3 = iconst 7i32
+    v4 = iconst 9i32
+    branch v2, block2(v4), block1(v3)
+block1(v5: i32):
+    v6 = iadd v5, v5
+    return v6
+block2(v7: i32):
+    v8 = iadd v7, v7
+    return v8
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Boolean switches with two cases lower to a branch.
+    #[test]
+    fn test_lower_boolean_switch_two_cases() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    switch v2, block1, 0 => block2, 1 => block3
+block1:
+    v3 = iconst 10i32
+    return v3
+block2:
+    v4 = iconst 20i32
+    return v4
+block3:
+    v5 = iconst 30i32
+    return v5
+}"#;
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = icmp_eq v0, v1
+    branch v2, block2, block1
+block1:
+    v4 = iconst 20i32
+    return v4
+block2:
+    v5 = iconst 30i32
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Single case switches preserve argument passing on lowering.
+    #[test]
+    fn test_lower_single_case_switch_with_arguments() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = select v0, v1, v2
+    v4 = iconst 4i32
+    v5 = iconst 8i32
+    switch v3, block1(v4), 1 => block2(v5)
+block1(v6: i32):
+    v7 = imul v6, v6
+    return v7
+block2(v8: i32):
+    v9 = imul v8, v8
+    return v9
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = select v0, v1, v2
+    v4 = iconst 4i32
+    v5 = iconst 8i32
+    v10 = iconst 1i32
+    v11 = icmp_eq v3, v10
+    branch v11, block2(v5), block1(v4)
+block1(v6: i32):
+    v7 = imul v6, v6
+    return v7
+block2(v8: i32):
+    v9 = imul v8, v8
+    return v9
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Switch cases that mirror the default edge are dropped.
+    #[test]
+    fn test_prune_default_switch_case() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    switch v0, block1, 0 => block1, 1 => block2
+block1:
+    v1 = iconst 10i32
+    return v1
+block2:
+    v2 = iconst 20i32
+    return v2
+}"#;
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    switch v0, block1, 1 => block2
+block1:
+    v1 = iconst 10i32
+    return v1
+block2:
+    v2 = iconst 20i32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
     /// Passthrough blocks forward parameters directly to their successor.
     #[test]
     fn test_thread_passthrough_block_parameters() {
@@ -3409,9 +3925,7 @@ block2(v2: i32):
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst 5i32
-    jump block1(v0)
-block1(v2: i32):
-    return v2
+    return v0
 }"#;
 
         let mut program = TestProgram::new(input);

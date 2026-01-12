@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::analyses::{
     ConstantPropagation, ControlFlowGraph, DominatorTree, RangeAnalysis, RangeMap, ValueRange,
 };
-use crate::optimize::common::{BlockParamForwarding, fold_binary};
+use crate::optimize::common::{BlockParamForwarding, evaluate_integer_range_comparison, fold_binary};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -1146,88 +1146,14 @@ fn evaluate_comparison(
         mir::BinaryOperator::SignedLessThan
         | mir::BinaryOperator::SignedLessEqual
         | mir::BinaryOperator::SignedGreaterThan
-        | mir::BinaryOperator::SignedGreaterEqual => {
-            evaluate_integer_comparison(operator, left_range, right_range, true)
-        }
-        mir::BinaryOperator::UnsignedLessThan
+        | mir::BinaryOperator::SignedGreaterEqual
+        | mir::BinaryOperator::UnsignedLessThan
         | mir::BinaryOperator::UnsignedLessEqual
         | mir::BinaryOperator::UnsignedGreaterThan
-        | mir::BinaryOperator::UnsignedGreaterEqual => {
-            evaluate_integer_comparison(operator, left_range, right_range, false)
-        }
-        _ => None,
-    }
-}
-
-/// Evaluate integer comparisons using range bounds.
-fn evaluate_integer_comparison(
-    operator: mir::BinaryOperator,
-    left: &ValueRange,
-    right: &ValueRange,
-    is_signed: bool,
-) -> Option<bool> {
-    // extract integer ranges
-    let ValueRange::Integer {
-        min: left_min,
-        max: left_max,
-        is_signed: left_signed,
-        ..
-    } = left
-    else {
-        return None;
-    };
-    let ValueRange::Integer {
-        min: right_min,
-        max: right_max,
-        is_signed: right_signed,
-        ..
-    } = right
-    else {
-        return None;
-    };
-
-    // require compatible signedness
-    if *left_signed != is_signed || *right_signed != is_signed {
-        return None;
-    }
-
-    // compare ranges based on the operator
-    match operator {
-        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
-            if left_max < right_min {
-                Some(true)
-            } else if left_min >= right_max {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
-            if left_max <= right_min {
-                Some(true)
-            } else if left_min > right_max {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
-            if left_min > right_max {
-                Some(true)
-            } else if left_max <= right_min {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
-            if left_min >= right_max {
-                Some(true)
-            } else if left_max < right_min {
-                Some(false)
-            } else {
-                None
-            }
+        | mir::BinaryOperator::UnsignedGreaterEqual
+        | mir::BinaryOperator::Equal
+        | mir::BinaryOperator::NotEqual => {
+            evaluate_integer_range_comparison(operator, left_range, right_range)
         }
         _ => None,
     }
