@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferContext};
 use destack_dir::{
     Argument, BindingKind, Block, Constraint, Declaration, Expression, FlowGraphBuilder,
-    ForEachBinding, FunctionKind, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern,
-    PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type, TypeElement, TypeField,
-    TypeLiteral, TypeTable,
+    ForEachBinding, FunctionKind, GlobalSymbolId, InferOrigin, InferScope, InferTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability,
+    NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable,
+    Type, TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -2396,12 +2396,20 @@ impl Compiler {
                 types,
             )?
         }
-        // default to unknown when no type is available
+        // local symbol without type: use InferVar for forward references
         else {
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
+            let scope = InferScope {
+                owner: canonical_symbol,
+                function_id: ctx.in_function.map(|f| f.into_global(module.id)),
             };
-            types.insert_type_from(ty, expression_id)
+            self.infer_var_type_for_symbol(
+                infer,
+                types,
+                canonical_symbol,
+                expression_id.into_any(),
+                InferOrigin::Expression(expression_id.into_global_any(module.id)),
+                scope,
+            )
         };
 
         // ensure instance types for referenced symbols
