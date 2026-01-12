@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
+use destack_workspace::FloatMathPolicy;
 
 use crate::optimize::analyses::{ConstantMap, ConstantPropagation};
-use crate::optimize::common::fold_binary;
+use crate::optimize::common::{InstructionRef, build_value_instruction_refs, fold_binary};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -49,7 +50,7 @@ impl FunctionPass for Reassociate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // collect constant propagation state
         let constants = {
@@ -58,7 +59,9 @@ impl FunctionPass for Reassociate {
         };
 
         // run reassociation
-        let changed = run_reassociate(function, tree, &constants);
+        let changed = run_reassociate(function, tree, &constants, ctx.options.float_math);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -80,9 +83,10 @@ fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     constants: &ConstantPropagation,
+    float_math: FloatMathPolicy,
 ) -> bool {
     // build lookup for value definitions
-    let mut value_to_instruction = build_value_instruction_map(function, tree);
+    let mut value_to_instruction = build_value_instruction_refs(function, tree);
 
     // track whether any changes were made
     let mut changed = false;
@@ -120,6 +124,7 @@ fn run_reassociate(
                     instruction_index,
                     &block_constants,
                     &value_to_instruction,
+                    float_math,
                 );
 
                 // apply reassociation when available
@@ -241,17 +246,6 @@ struct ReassociatePlan {
     constant: mir::Constant,
 }
 
-/// Definition metadata for instructions.
-#[derive(Debug, Clone)]
-struct InstructionRef {
-    /// The instruction that defines the value.
-    instruction: mir::Instruction,
-    /// The block containing the instruction.
-    block: mir::LocalNodeId<mir::Block>,
-    /// The instruction index within the block.
-    index: usize,
-}
-
 /// Context for collecting associative operands.
 struct CollectContext<'a> {
     /// Operator being reassociated.
@@ -267,6 +261,7 @@ struct CollectContext<'a> {
 }
 
 /// Decide whether a binary instruction can be reassociated.
+#[allow(clippy::too_many_arguments)]
 fn reassociate_binary(
     operator: mir::BinaryOperator,
     left: mir::Value,
@@ -275,9 +270,10 @@ fn reassociate_binary(
     instruction_index: usize,
     constants: &ConstantMap,
     value_to_instruction: &HashMap<mir::Value, InstructionRef>,
+    float_math: FloatMathPolicy,
 ) -> Option<ReassociatePlan> {
     // only reassociate associative and commutative operators
-    if !binary_operator_is_associative(operator) {
+    if !binary_operator_is_associative(operator, float_math) {
         return None;
     }
 
@@ -534,45 +530,35 @@ fn resolve_constant_value(
     }
 }
 
-/// Build a mapping from values to their defining instructions.
-fn build_value_instruction_map(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-) -> HashMap<mir::Value, InstructionRef> {
-    // collect instruction destinations
-    let mut map = HashMap::new();
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for (index, instruction_id) in block.instructions.iter().enumerate() {
-            let instruction = tree.get(*instruction_id);
-            if let Some(destination) = instruction.destination() {
-                map.insert(
-                    destination,
-                    InstructionRef {
-                        instruction: instruction.clone(),
-                        block: block_id,
-                        index,
-                    },
-                );
-            }
-        }
-    }
-
-    map
-}
-
 /// Check if a binary operator is associative and commutative.
-fn binary_operator_is_associative(operator: mir::BinaryOperator) -> bool {
+fn binary_operator_is_associative(
+    operator: mir::BinaryOperator,
+    float_math: FloatMathPolicy,
+) -> bool {
     use mir::BinaryOperator::*;
 
     // restrict to integer associative and commutative operators
-    matches!(operator, Add | Multiply | And | Or | Xor)
+    if matches!(operator, Add | Multiply | And | Or | Xor) {
+        return true;
+    }
+
+    // enable float reassociation with explicit policy
+    if matches!(operator, FloatAdd | FloatMultiply) {
+        return matches!(
+            float_math,
+            FloatMathPolicy::Reassociate | FloatMathPolicy::Fast
+        );
+    }
+
+    false
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::passes::Reassociate;
+    use destack_workspace::FloatMathPolicy;
 
     /// Constant reassociation combines adjacent constants.
     #[test]
@@ -615,6 +601,38 @@ block0(v0: f64):
         let mut program = TestProgram::new(input);
         program.run_pass(&Reassociate);
         program.assert_output(input);
+    }
+
+    /// Float reassociation runs with reassociate policy.
+    #[test]
+    fn test_reassociate_float_policy() {
+        let input = r#"function @test(v0: f64) -> f64 {
+block0(v0: f64):
+    v1 = iconst 1f64
+    v2 = iconst 2f64
+    v3 = fadd v0, v1
+    v4 = fadd v3, v2
+    return v4
+}"#;
+        let expected = r#"function @test(v0: f64) -> f64 {
+block0(v0: f64):
+    v1 = iconst 1f64
+    v2 = iconst 2f64
+    v3 = fadd v0, v1
+    v5 = iconst 3f64
+    v4 = fadd v0, v5
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass_with_options(
+            &Reassociate,
+            PipelineOptions {
+                float_math: FloatMathPolicy::Reassociate,
+                ..PipelineOptions::default()
+            },
+        );
+        program.assert_output(expected);
     }
 
     /// Reassociation does not fire without adjacent constants.

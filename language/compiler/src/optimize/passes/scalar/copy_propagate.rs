@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
@@ -50,6 +50,8 @@ impl FunctionPass for CopyPropagate {
     ) -> AnalysisPreservation {
         // run copy propagation
         let changed = run_copy_propagate(function, tree);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -154,11 +156,13 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
 
     // find copy parameters
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         let preds = &predecessors[&block_id];
 
+        // skip blocks without predecessors or parameters
         if preds.is_empty() || block.parameters.is_empty() {
             continue;
         }
@@ -172,10 +176,12 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
                 }
             }
 
+            // require every predecessor to pass an argument
             if incoming_values.len() != preds.len() {
                 continue;
             }
 
+            // record copies when all incoming values match
             if let Some(&first) = incoming_values.first()
                 && incoming_values.iter().all(|&v| v == first)
                 && first != param_value
@@ -185,11 +191,31 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
         }
     }
 
+    // collect select based copies
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if let mir::Instruction::Select {
+                destination,
+                then_value,
+                else_value,
+                ..
+            } = instruction
+                && then_value == else_value
+            {
+                substitutions.insert(*destination, *then_value);
+                to_remove.insert(instruction_id);
+            }
+        }
+    }
+
     // nothing to do
-    if substitutions.is_empty() {
+    if substitutions.is_empty() && to_remove.is_empty() {
         return false;
     }
 
+    // collapse transitive substitutions
     let substitutions = resolve_substitution_chains(substitutions);
 
     // collect removed indices
@@ -201,6 +227,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
             .iter()
             .enumerate()
             .filter_map(|(idx, p)| {
+                // record indices that will be removed
                 if substitutions.contains_key(&p.value) {
                     Some(idx)
                 } else {
@@ -217,9 +244,16 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
     for &block_id in &function.blocks {
         let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
         for instruction_id in instruction_ids {
+            // skip instructions that will be removed
+            if to_remove.contains(&instruction_id) {
+                continue;
+            }
+
             let instruction = tree.get(instruction_id).clone();
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+
+            // replace instructions when substitutions apply
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
             }
@@ -237,11 +271,22 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
             .filter(|p| !substitutions.contains_key(&p.value))
             .cloned()
             .collect();
+        let new_instructions: Vec<_> = block
+            .instructions
+            .iter()
+            .copied()
+            .filter(|id| !to_remove.contains(id))
+            .collect();
 
-        if new_terminator != block.terminator || new_parameters.len() != block.parameters.len() {
+        // replace blocks when terminators or parameters change
+        if new_terminator != block.terminator
+            || new_parameters.len() != block.parameters.len()
+            || new_instructions.len() != block.instructions.len()
+        {
             let mut new_block = block.clone();
             new_block.terminator = new_terminator;
             new_block.parameters = new_parameters;
+            new_block.instructions = new_instructions;
             tree.replace(block_id, new_block);
         }
     }
@@ -404,6 +449,7 @@ mod tests {
     /// Block parameter that receives the same value from all predecessors is eliminated.
     #[test]
     fn test_propagate_uniform_incoming_value() {
+        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     branch v0, block1, block2
@@ -414,6 +460,8 @@ block2:
 block3(v1: i32):
     return v1
 }"#;
+
+        // expected output
         // v1 is always v0, so replace uses of v1 with v0 and remove the parameter
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
@@ -426,6 +474,7 @@ block3:
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -434,6 +483,7 @@ block3:
     /// Block parameter with different values from predecessors is NOT eliminated.
     #[test]
     fn test_preserve_varying_incoming_values() {
+        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -445,8 +495,11 @@ block2:
 block3(v2: i32):
     return v2
 }"#;
+
+        // no changes are expected
         // v2 gets different values from different predecessors, so no change
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_unchanged(input);
@@ -455,12 +508,15 @@ block3(v2: i32):
     /// Single predecessor block parameter is a trivial copy.
     #[test]
     fn test_propagate_single_predecessor() {
+        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
 block1(v1: i32):
     return v1
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1
@@ -468,6 +524,7 @@ block1:
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -476,6 +533,7 @@ block1:
     /// Chained copies are resolved transitively.
     #[test]
     fn test_propagate_through_chain() {
+        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
@@ -484,6 +542,8 @@ block1(v1: i32):
 block2(v2: i32):
     return v2
 }"#;
+
+        // expected output
         // v1 = v0, v2 = v1 = v0
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
@@ -494,6 +554,7 @@ block2:
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -502,6 +563,7 @@ block2:
     /// Multiple parameters, only some are copies.
     #[test]
     fn test_propagate_partial_copies() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     branch v0, block1, block2
@@ -515,6 +577,8 @@ block3(v4: i32, v5: i32):
     v6 = iadd v4, v5
     return v6
 }"#;
+
+        // expected output
         // v4 is always v0 (copy), but v5 differs between predecessors
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -530,6 +594,7 @@ block3(v5: i32):
     return v6
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -538,6 +603,7 @@ block3(v5: i32):
     /// No copies means no changes.
     #[test]
     fn test_preserve_without_copies() {
+        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -545,8 +611,31 @@ block0(v0: i32):
     return v2
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_unchanged(input);
+    }
+
+    /// Selects with identical arms are removed.
+    #[test]
+    fn test_remove_redundant_select() {
+        // source program
+        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    v2 = select v0, v1, v1
+    return v2
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    return v1
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&CopyPropagate);
+        program.assert_output(expected);
     }
 }

@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ConstantPropagation, ControlFlowGraph, DominatorTree};
+use crate::optimize::analyses::{ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange};
 use crate::optimize::common::{
-    build_use_def_maps, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
+    constant_from_global,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -50,6 +51,7 @@ declare_pass! {
     /// Restrictions:
     /// - Only propagates integer and pointer equality
     /// - Does not propagate float equality due to NaN and signed zero
+    /// - Folds dominated integer comparisons using branch range constraints
     #[pass(id = "correlated-value-prop")]
     pub CorrelatedValueProp,
     "Propagate correlated values from dominating conditions"
@@ -75,6 +77,8 @@ impl FunctionPass for CorrelatedValueProp {
 
         // run correlated propagation
         let changed = run_correlated_value_prop(function, tree, &domtree, &cfg, &constants);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -90,8 +94,6 @@ impl FunctionPass for CorrelatedValueProp {
         "correlated-value-prop"
     }
 }
-
-// NOTE #Incomplete: extend to range constraints
 
 /// Propagate equalities implied by conditional branches.
 fn run_correlated_value_prop(
@@ -131,54 +133,90 @@ fn run_correlated_value_prop(
         };
 
         // extract an equality condition
-        let Some(equality) = equality_condition(condition, &value_to_instruction) else {
-            continue;
-        };
-
-        // decide which successor is the equality path
-        let equality_block = if equality.is_equal_on_then {
-            then_target
-        } else {
-            else_target
-        };
-
-        // require the equality block to be reached only from this branch
-        if !is_single_predecessor(cfg, equality_block, block_id) {
-            continue;
-        }
-
-        // use constant operands when available
-        let constant_substitution =
-            constant_substitution(constants, block_id, equality.left, equality.right);
-
-        // pick a canonical replacement value
-        let (canonical, replace) = if let Some((canonical, replace)) = constant_substitution {
-            (canonical, replace)
-        } else {
-            let Some((canonical, replace)) = choose_replacement(
-                function.entry,
-                equality.left,
-                equality.right,
-                equality_block,
-                &use_def.def_block,
-                domtree,
-            ) else {
-                continue;
+        if let Some(equality) = equality_condition(condition, &value_to_instruction) {
+            // decide which successor is the equality path
+            let equality_block = if equality.is_equal_on_then {
+                then_target
+            } else {
+                else_target
             };
 
-            (canonical, replace)
-        };
+            // require the equality block to be reached only from this branch
+            if is_single_predecessor(cfg, equality_block, block_id) {
+                // use constant operands when available
+                let constant_substitution =
+                    constant_substitution(constants, block_id, equality.left, equality.right);
 
-        // avoid self substitution
-        if canonical == replace {
-            continue;
+                // pick a canonical replacement value
+                let replacement = if let Some((canonical, replace)) = constant_substitution {
+                    Some((canonical, replace))
+                } else {
+                    choose_replacement(
+                        function.entry,
+                        equality.left,
+                        equality.right,
+                        equality_block,
+                        &use_def.def_block,
+                        domtree,
+                    )
+                };
+
+                // apply the substitution when a distinct replacement exists
+                if let Some((canonical, replace)) = replacement
+                    && canonical != replace
+                {
+                    // apply substitutions in dominated blocks
+                    let mut substitutions = HashMap::new();
+                    substitutions.insert(replace, canonical);
+                    let applied = apply_substitutions_in_dominated_blocks(
+                        function,
+                        tree,
+                        domtree,
+                        equality_block,
+                        &substitutions,
+                    );
+                    changed |= applied;
+                }
+            }
         }
 
-        // apply substitutions in dominated blocks
-        let mut substitutions = HashMap::new();
-        substitutions.insert(replace, canonical);
-        let applied = apply_substitutions(function, tree, domtree, equality_block, &substitutions);
-        changed |= applied;
+        // apply range constraints derived from the branch condition
+        let range_constraints =
+            range_constraints_for_condition(condition, &value_to_instruction, tree);
+        let mut range_changed = false;
+
+        // apply the constraint on the then edge
+        if let Some(constraint) = range_constraints.then_constraint {
+            // require a single predecessor on the constrained block
+            if is_single_predecessor(cfg, then_target, block_id) {
+                range_changed |= apply_range_constraint(
+                    function,
+                    tree,
+                    domtree,
+                    then_target,
+                    &constraint,
+                    &value_to_instruction,
+                );
+            }
+        }
+
+        // apply the constraint on the else edge
+        if let Some(constraint) = range_constraints.else_constraint {
+            // require a single predecessor on the constrained block
+            if is_single_predecessor(cfg, else_target, block_id) {
+                range_changed |= apply_range_constraint(
+                    function,
+                    tree,
+                    domtree,
+                    else_target,
+                    &constraint,
+                    &value_to_instruction,
+                );
+            }
+        }
+
+        // record whether range updates changed anything
+        changed |= range_changed;
     }
 
     changed
@@ -192,6 +230,22 @@ struct EqualityCondition {
     right: mir::Value,
     /// True when equality holds on the then edge.
     is_equal_on_then: bool,
+}
+
+/// Constraint derived from a comparison branch.
+struct RangeConstraint {
+    /// The constrained value.
+    value: mir::Value,
+    /// The constrained range.
+    range: ValueRange,
+}
+
+/// Pair of constraints for true and false edges.
+struct RangeConstraintPair {
+    /// Constraint that holds on the true edge.
+    then_constraint: Option<RangeConstraint>,
+    /// Constraint that holds on the false edge.
+    else_constraint: Option<RangeConstraint>,
 }
 
 /// Extract equality information from a condition value.
@@ -210,6 +264,7 @@ fn equality_condition(
         ..
     } = instruction
     {
+        // map equality operators to the condition
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
                 left: *left,
@@ -239,6 +294,7 @@ fn equality_condition(
             ..
         } = nested
     {
+        // invert equality operators for the negated condition
         return match operator {
             mir::BinaryOperator::Equal => Some(EqualityCondition {
                 left: *left,
@@ -255,6 +311,386 @@ fn equality_condition(
     }
 
     None
+}
+
+/// Extract range constraints from a comparison condition.
+fn range_constraints_for_condition(
+    condition: mir::Value,
+    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    tree: &mir::NodeTree,
+) -> RangeConstraintPair {
+    // default to no constraints
+    let mut constraints = RangeConstraintPair {
+        then_constraint: None,
+        else_constraint: None,
+    };
+
+    // find the defining instruction
+    let Some(instruction) = value_to_instruction.get(&condition) else {
+        return constraints;
+    };
+
+    // unwrap the comparison
+    let (operator, left, right) = match instruction {
+        mir::Instruction::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } => (*operator, *left, *right),
+        _ => return constraints,
+    };
+
+    // detect a constant operand
+    let left_constant = constant_from_value(left, value_to_instruction, tree);
+    let right_constant = constant_from_value(right, value_to_instruction, tree);
+
+    // pick the non constant value to constrain
+    let (value, constant, is_swapped) = match (left_constant, right_constant) {
+        (Some(constant), None) => (right, constant, true),
+        (None, Some(constant)) => (left, constant, false),
+        _ => return constraints,
+    };
+
+    // derive a range constraint for integer comparisons
+    let Some((then_range, else_range)) = integer_range_constraints(operator, &constant, is_swapped)
+    else {
+        return constraints;
+    };
+
+    // populate the constraint pair
+    constraints.then_constraint = Some(RangeConstraint {
+        value,
+        range: then_range,
+    });
+    constraints.else_constraint = Some(RangeConstraint {
+        value,
+        range: else_range,
+    });
+
+    constraints
+}
+
+/// Extract a constant value for a SSA value if it is defined by a constant.
+fn constant_from_value(
+    value: mir::Value,
+    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    tree: &mir::NodeTree,
+) -> Option<mir::Constant> {
+    // look up the defining instruction
+    let instruction = value_to_instruction.get(&value)?;
+
+    // map constants to their values
+    match instruction {
+        mir::Instruction::Const { value, .. } => Some(value.clone()),
+        mir::Instruction::GlobalConst { global, .. } => constant_from_global(*global, tree),
+        _ => None,
+    }
+}
+
+/// Derive integer range constraints for a comparison.
+fn integer_range_constraints(
+    operator: mir::BinaryOperator,
+    constant: &mir::Constant,
+    is_swapped: bool,
+) -> Option<(ValueRange, ValueRange)> {
+    // decode integer constant
+    let (constant_value, width, is_signed) = match constant {
+        mir::Constant::Int {
+            value,
+            width,
+            is_signed,
+        } => (*value as i128, *width, *is_signed),
+        mir::Constant::UInt { value, width } => (*value as i128, *width, false),
+        _ => return None,
+    };
+
+    // resolve full type bounds
+    let (full_min, full_max) = integer_full_bounds(width, is_signed)?;
+
+    // flip operator when constant is on the left
+    let operator = if is_swapped {
+        swap_comparison_operator(operator)?
+    } else {
+        operator
+    };
+
+    // derive range for the true edge
+    let (then_min, then_max, else_min, else_max) = match operator {
+        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => (
+            full_min,
+            constant_value.saturating_sub(1),
+            constant_value,
+            full_max,
+        ),
+        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => (
+            full_min,
+            constant_value,
+            constant_value.saturating_add(1),
+            full_max,
+        ),
+        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => (
+            constant_value.saturating_add(1),
+            full_max,
+            full_min,
+            constant_value,
+        ),
+        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => (
+            constant_value,
+            full_max,
+            full_min,
+            constant_value.saturating_sub(1),
+        ),
+        _ => return None,
+    };
+
+    // clamp ranges to the type bounds
+    let then_range = integer_range_from_bounds(then_min, then_max, width, is_signed)?;
+    let else_range = integer_range_from_bounds(else_min, else_max, width, is_signed)?;
+
+    Some((then_range, else_range))
+}
+
+/// Return the full integer bounds for a type.
+fn integer_full_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
+    // reject unsupported widths
+    if width == 0 || width > 127 {
+        return None;
+    }
+
+    // compute the maximum bound
+    let max = if is_signed {
+        (1i128 << (width - 1)) - 1
+    } else {
+        (1i128 << width) - 1
+    };
+
+    // compute the minimum bound
+    let min = if is_signed {
+        -(1i128 << (width - 1))
+    } else {
+        0
+    };
+
+    Some((min, max))
+}
+
+/// Clamp integer bounds into a ValueRange.
+fn integer_range_from_bounds(
+    min: i128,
+    max: i128,
+    width: u8,
+    is_signed: bool,
+) -> Option<ValueRange> {
+    // reject empty ranges
+    if min > max {
+        return None;
+    }
+
+    // clamp to the full type bounds
+    let (full_min, full_max) = integer_full_bounds(width, is_signed)?;
+    let min = min.max(full_min);
+    let max = max.min(full_max);
+
+    // reject empty ranges after clamping
+    if min > max {
+        return None;
+    }
+
+    Some(ValueRange::Integer {
+        min,
+        max,
+        width,
+        is_signed,
+    })
+}
+
+/// Swap a comparison operator when the operands are reversed.
+fn swap_comparison_operator(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
+    // map operators to their swapped equivalents
+    match operator {
+        mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterThan),
+        mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterEqual),
+        mir::BinaryOperator::SignedGreaterThan => Some(mir::BinaryOperator::SignedLessThan),
+        mir::BinaryOperator::SignedGreaterEqual => Some(mir::BinaryOperator::SignedLessEqual),
+        mir::BinaryOperator::UnsignedLessThan => Some(mir::BinaryOperator::UnsignedGreaterThan),
+        mir::BinaryOperator::UnsignedLessEqual => Some(mir::BinaryOperator::UnsignedGreaterEqual),
+        mir::BinaryOperator::UnsignedGreaterThan => Some(mir::BinaryOperator::UnsignedLessThan),
+        mir::BinaryOperator::UnsignedGreaterEqual => Some(mir::BinaryOperator::UnsignedLessEqual),
+        mir::BinaryOperator::Equal => Some(mir::BinaryOperator::Equal),
+        mir::BinaryOperator::NotEqual => Some(mir::BinaryOperator::NotEqual),
+        _ => None,
+    }
+}
+
+/// Apply a range constraint by folding dominated comparisons.
+fn apply_range_constraint(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    domtree: &DominatorTree,
+    root: mir::LocalNodeId<mir::Block>,
+    constraint: &RangeConstraint,
+    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+) -> bool {
+    // collect dominated blocks
+    let mut blocks = Vec::new();
+    for &block_id in &function.blocks {
+        // record blocks dominated by the root
+        if domtree.dominates(root, block_id) {
+            blocks.push(block_id);
+        }
+    }
+
+    // fold comparisons using the constraint
+    let mut changed = false;
+    for block_id in blocks {
+        // read the block instruction list
+        let block = tree.get(block_id);
+        let instruction_ids: Vec<_> = block.instructions.clone();
+
+        // scan instructions for comparisons
+        for instruction_id in instruction_ids {
+            // skip non comparison instructions
+            let instruction = tree.get(instruction_id);
+            let mir::Instruction::Binary {
+                destination,
+                operator,
+                left,
+                right,
+            } = instruction
+            else {
+                continue;
+            };
+
+            // fold the comparison when constrained
+            let comparison = comparison_from_range(
+                *operator,
+                *left,
+                *right,
+                constraint,
+                value_to_instruction,
+                tree,
+            );
+
+            // replace with a constant when the outcome is known
+            if let Some(result) = comparison {
+                let new_instruction = mir::Instruction::Const {
+                    destination: *destination,
+                    value: mir::Constant::Boolean { value: result },
+                };
+                tree.replace(instruction_id, new_instruction);
+                changed = true;
+            }
+        }
+    }
+
+    changed
+}
+
+/// Determine if a comparison is constant given a range constraint.
+fn comparison_from_range(
+    operator: mir::BinaryOperator,
+    left: mir::Value,
+    right: mir::Value,
+    constraint: &RangeConstraint,
+    value_to_instruction: &HashMap<mir::Value, mir::Instruction>,
+    tree: &mir::NodeTree,
+) -> Option<bool> {
+    // identify the constrained operand
+    let (is_left, constant_value) = if left == constraint.value {
+        (
+            true,
+            constant_to_i128(constant_from_value(right, value_to_instruction, tree)?)?,
+        )
+    } else if right == constraint.value {
+        (
+            false,
+            constant_to_i128(constant_from_value(left, value_to_instruction, tree)?)?,
+        )
+    } else {
+        return None;
+    };
+
+    // apply the constraint for integer ranges only
+    let ValueRange::Integer { min, max, .. } = constraint.range else {
+        return None;
+    };
+
+    // adjust operator if the constrained value is on the right
+    let operator = if is_left {
+        operator
+    } else {
+        swap_comparison_operator(operator)?
+    };
+
+    // evaluate comparison outcome
+    match operator {
+        mir::BinaryOperator::SignedLessThan | mir::BinaryOperator::UnsignedLessThan => {
+            if max < constant_value {
+                Some(true)
+            } else if min >= constant_value {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedLessEqual | mir::BinaryOperator::UnsignedLessEqual => {
+            if max <= constant_value {
+                Some(true)
+            } else if min > constant_value {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedGreaterThan | mir::BinaryOperator::UnsignedGreaterThan => {
+            if min > constant_value {
+                Some(true)
+            } else if max <= constant_value {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::SignedGreaterEqual | mir::BinaryOperator::UnsignedGreaterEqual => {
+            if min >= constant_value {
+                Some(true)
+            } else if max < constant_value {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::Equal => {
+            if min == max && min == constant_value {
+                Some(true)
+            } else if constant_value < min || constant_value > max {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        mir::BinaryOperator::NotEqual => {
+            if min == max && min == constant_value {
+                Some(false)
+            } else if constant_value < min || constant_value > max {
+                Some(true)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Convert an integer constant to i128.
+fn constant_to_i128(constant: mir::Constant) -> Option<i128> {
+    // map integer constants to i128
+    match constant {
+        mir::Constant::Int { value, .. } => Some(value as i128),
+        mir::Constant::UInt { value, .. } => Some(value as i128),
+        _ => None,
+    }
 }
 
 /// Choose the value to substitute within a dominated block.
@@ -278,6 +714,7 @@ fn choose_replacement(
     // select a replacement value when available
     match (left_available, right_available) {
         (true, true) => {
+            // prefer the smaller value id for determinism
             if left.0 <= right.0 {
                 Some((left, right))
             } else {
@@ -288,69 +725,6 @@ fn choose_replacement(
         (false, true) => Some((right, left)),
         (false, false) => None,
     }
-}
-
-/// Apply a substitution map to all blocks dominated by the root.
-fn apply_substitutions(
-    function: &mir::Function,
-    tree: &mut mir::NodeTree,
-    domtree: &DominatorTree,
-    root: mir::LocalNodeId<mir::Block>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> bool {
-    // track the set of blocks to visit
-    let mut changed = false;
-    let mut blocks = Vec::new();
-    for &block_id in &function.blocks {
-        if domtree.dominates(root, block_id) {
-            blocks.push(block_id);
-        }
-    }
-
-    // apply substitutions in each dominated block
-    for block_id in blocks {
-        let mut block = tree.get(block_id).clone();
-
-        // rewrite instructions with new uses
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id).clone();
-            let updated = instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
-            if updated != instruction {
-                tree.replace(instruction_id, updated);
-                changed = true;
-            }
-        }
-
-        // rewrite terminator uses
-        let new_terminator = terminator_substitute_uses(&block.terminator, substitutions);
-        if new_terminator != block.terminator {
-            block.terminator = new_terminator;
-            tree.replace(block_id, block);
-            changed = true;
-        }
-    }
-
-    changed
-}
-
-/// Build a map from values to their defining instructions.
-fn build_value_instruction_map(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-) -> HashMap<mir::Value, mir::Instruction> {
-    // collect all instruction definitions
-    let mut map = HashMap::new();
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
-                map.insert(destination, instruction.clone());
-            }
-        }
-    }
-
-    map
 }
 
 /// Pick a constant operand as the canonical value when safe.
@@ -406,6 +780,7 @@ mod tests {
     /// Equality branches substitute the dominated value.
     #[test]
     fn test_cvp_substitutes_equal_values() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -419,6 +794,8 @@ block2:
 block3(v5: i32):
     return v5
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -433,6 +810,7 @@ block3(v5: i32):
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CorrelatedValueProp);
         program.assert_output(expected);
@@ -441,6 +819,7 @@ block3(v5: i32):
     /// Not equal conditions propagate equality on the false edge.
     #[test]
     fn test_cvp_inverts_not_equal() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_ne v0, v1
@@ -452,6 +831,8 @@ block2:
     v4 = isub v0, v1
     return v4
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_ne v0, v1
@@ -464,6 +845,7 @@ block2:
     return v4
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CorrelatedValueProp);
         program.assert_output(expected);
@@ -472,6 +854,7 @@ block2:
     /// Constant equalities substitute the non constant operand.
     #[test]
     fn test_cvp_prefers_constant_operand() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 7i32
@@ -483,6 +866,8 @@ block1:
 block2:
     return v0
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 7i32
@@ -495,6 +880,7 @@ block2:
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CorrelatedValueProp);
         program.assert_output(expected);
@@ -503,6 +889,7 @@ block2:
     /// Float equality is not substituted.
     #[test]
     fn test_cvp_skips_float_equal() {
+        // source program
         let input = r#"function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = fcmp_eq v0, v1
@@ -515,6 +902,7 @@ block2:
     return v4
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CorrelatedValueProp);
         program.assert_output(input);
@@ -523,6 +911,7 @@ block2:
     /// Substitution flows into blocks dominated by the equality edge.
     #[test]
     fn test_cvp_propagates_into_dominated_blocks() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -535,6 +924,8 @@ block3:
     v3 = iadd v0, v1
     return v3
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -548,6 +939,7 @@ block3:
     return v3
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CorrelatedValueProp);
         program.assert_output(expected);
@@ -569,6 +961,7 @@ block2:
     v5 = iadd v0, v1
     return v5
 }"#;
+
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -603,6 +996,7 @@ block1:
 block2:
     return v0
 }"#;
+
         // expected output
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
@@ -640,5 +1034,75 @@ block2:
         let mut program = TestProgram::new(input);
         program.run_pass(&CorrelatedValueProp);
         program.assert_output(input);
+    }
+
+    /// Range constraints fold comparisons on dominated paths.
+    #[test]
+    fn test_cvp_range_constraint_then_edge() {
+        // source program
+        let input = r#"function @test(v0: i32) -> bool {
+block0(v0: i32):
+    v1 = iconst 5i32
+    v2 = icmp_slt v0, v1
+    branch v2, block1, block2
+block1:
+    v3 = icmp_slt v0, v1
+    return v3
+block2:
+    return v2
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> bool {
+block0(v0: i32):
+    v1 = iconst 5i32
+    v2 = icmp_slt v0, v1
+    branch v2, block1, block2
+block1:
+    v3 = iconst true
+    return v3
+block2:
+    return v2
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&CorrelatedValueProp);
+        program.assert_output(expected);
+    }
+
+    /// Range constraints fold comparisons on the false edge.
+    #[test]
+    fn test_cvp_range_constraint_else_edge() {
+        // source program
+        let input = r#"function @test(v0: i32) -> bool {
+block0(v0: i32):
+    v1 = iconst 5i32
+    v2 = icmp_slt v0, v1
+    branch v2, block1, block2
+block1:
+    return v2
+block2:
+    v3 = icmp_slt v0, v1
+    return v3
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> bool {
+block0(v0: i32):
+    v1 = iconst 5i32
+    v2 = icmp_slt v0, v1
+    branch v2, block1, block2
+block1:
+    return v2
+block2:
+    v3 = iconst false
+    return v3
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&CorrelatedValueProp);
+        program.assert_output(expected);
     }
 }

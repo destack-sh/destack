@@ -5,8 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{
-    build_use_def_maps, expression_key_from_instruction, instruction_is_speculatable,
-    instruction_map, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    ExpressionKey, apply_substitutions_in_dominated_blocks, build_use_def_maps,
+    expression_key_from_instruction, instruction_is_speculatable, instruction_map,
+    instruction_substitute_uses_in_tree,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -46,9 +47,10 @@ declare_pass! {
     /// ```
     ///
     /// Restrictions:
-    /// - Only hoists identical instruction prefixes
-    /// - Only hoists speculatable instructions
+    /// - Only hoists identical speculatable instructions present in both arms
+    /// - Only hoists instructions whose operands dominate the header
     /// - Requires branch successors with a single predecessor
+    /// - Limits hoisting per diamond to keep compile time predictable
     #[pass(id = "hoist")]
     pub CodeHoisting,
     "Hoist redundant instructions"
@@ -79,6 +81,8 @@ impl FunctionPass for CodeHoisting {
 
         // run the hoisting pass
         let changed = run_code_hoisting(function, tree, &cfg, &domtree);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -94,8 +98,6 @@ impl FunctionPass for CodeHoisting {
         "hoist"
     }
 }
-
-// NOTE #Incomplete: extend to non prefix redundancy via gvn
 
 /// Hoist common instructions out of branch diamonds.
 fn run_code_hoisting(
@@ -113,6 +115,7 @@ fn run_code_hoisting(
     // scan each block for a branch candidate
     let block_ids = function.blocks.clone();
     for block_id in block_ids {
+        // load block data
         let block = tree.get(block_id);
 
         // require a conditional branch
@@ -154,6 +157,8 @@ fn run_code_hoisting(
             &then_arguments,
             &else_arguments,
         );
+
+        // record whether the function changed
         changed |= hoisted;
     }
 
@@ -188,131 +193,106 @@ fn hoist_common_prefix(
     let (then_param_rewrites, else_param_rewrites) =
         build_param_rewrites(&then_data, &else_data, then_arguments, else_arguments);
 
-    // track equivalence for hoisted values
-    let mut equivalence: HashMap<mir::Value, mir::Value> = HashMap::new();
-
-    // track which then values have been hoisted already
-    let mut hoisted_then_values: HashSet<mir::Value> = HashSet::new();
-
-    // collect hoistable instruction pairs
-    let mut hoist_pairs: Vec<(
-        mir::LocalNodeId<mir::Instruction>,
-        mir::LocalNodeId<mir::Instruction>,
-    )> = Vec::new();
-
-    // compute the common prefix length
-    let max_len = then_data
-        .instructions
-        .len()
-        .min(else_data.instructions.len());
-    for index in 0..max_len {
-        // stop after the configured limit
-        if hoist_pairs.len() >= MAX_HOISTED_INSTRUCTIONS {
-            break;
-        }
-
-        // read the instruction pair
-        let then_id = then_data.instructions[index];
-        let else_id = else_data.instructions[index];
-        let then_instruction = tree.get(then_id).clone();
-        let else_instruction = tree.get(else_id).clone();
-
-        // require destinations for both instructions
-        let Some(then_dest) = then_instruction.destination() else {
-            break;
-        };
-        let Some(else_dest) = else_instruction.destination() else {
-            break;
-        };
-
-        // require speculatable instructions on both sides
-        if !instruction_is_speculatable(&then_instruction)
-            || !instruction_is_speculatable(&else_instruction)
-        {
-            break;
-        }
-
-        // require equivalent expressions
-        let Some(_) = expression_key_from_instruction(&then_instruction, tree) else {
-            break;
-        };
-        let then_normalized =
-            instruction_substitute_uses_in_tree(&then_instruction, &then_param_rewrites, tree);
-        let Some(then_key) = expression_key_from_instruction(&then_normalized, tree) else {
-            break;
-        };
-
-        let mut else_normalize_map = else_param_rewrites.clone();
-        for (else_value, then_value) in &equivalence {
-            else_normalize_map.insert(*else_value, *then_value);
-        }
-        let else_normalized =
-            instruction_substitute_uses_in_tree(&else_instruction, &else_normalize_map, tree);
-        let Some(else_key) = expression_key_from_instruction(&else_normalized, tree) else {
-            break;
-        };
-        if then_key != else_key {
-            break;
-        }
-
-        // ensure operands are available in the header
-        if !instruction_operands_available(
-            &then_instruction,
-            header,
-            def_blocks,
-            domtree,
-            &hoisted_then_values,
-            &then_param_rewrites,
-        ) {
-            break;
-        }
-
-        // record this instruction pair for hoisting
-        hoist_pairs.push((then_id, else_id));
-        hoisted_then_values.insert(then_dest);
-        equivalence.insert(else_dest, then_dest);
-    }
-
-    // bail when no instructions can be hoisted
-    if hoist_pairs.is_empty() {
-        return false;
-    }
-
     // build substitution maps for both sides
     let mut then_substitutions = HashMap::new();
     let mut else_substitutions = HashMap::new();
     let mut new_header_instructions = tree.get(header).instructions.clone();
 
-    // insert hoisted instructions into the header
-    for (then_id, else_id) in &hoist_pairs {
-        // read the original instruction
-        let then_instruction = tree.get(*then_id).clone();
-        let else_instruction = tree.get(*else_id).clone();
+    // track which values are hoisted already
+    let mut hoisted_values: HashSet<mir::Value> = HashSet::new();
+    let mut hoisted_then_ids: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
+    let mut hoisted_else_ids: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
-        // extract destinations for substitution maps
-        let Some(then_dest) = then_instruction.destination() else {
-            continue;
-        };
-        let Some(else_dest) = else_instruction.destination() else {
-            continue;
-        };
+    // hoist candidates while dependencies are available
+    let mut progress = true;
+    while progress && hoisted_then_ids.len() < MAX_HOISTED_INSTRUCTIONS {
+        // reset progress until a candidate is hoisted
+        progress = false;
 
-        // allocate a new destination for the hoisted instruction
-        let new_dest = function.next_value();
+        // rebuild expression indices using current substitutions
+        let mut then_value_map = then_param_rewrites.clone();
+        then_value_map.extend(then_substitutions.clone());
+        let mut else_value_map = else_param_rewrites.clone();
+        else_value_map.extend(else_substitutions.clone());
 
-        // build a remap for existing hoisted values
-        let mut value_map = then_param_rewrites.clone();
-        value_map.extend(then_substitutions.clone());
-        value_map.insert(then_dest, new_dest);
+        let then_index = build_expression_index(&then_data, &then_value_map, tree);
+        let else_index = build_expression_index(&else_data, &else_value_map, tree);
 
-        // clone instruction with updated destinations and operands
-        let hoisted_instruction = instruction_map(&then_instruction, &value_map, tree);
-        let hoisted_id = tree.insert(hoisted_instruction);
-        new_header_instructions.push(hoisted_id);
+        // collect matching expression pairs
+        let mut candidates = Vec::new();
+        for (key, then_entry) in &then_index {
+            // skip when the else side has no match
+            let Some(else_entry) = else_index.get(key) else {
+                continue;
+            };
 
-        // record substitutions for both branches
-        then_substitutions.insert(then_dest, new_dest);
-        else_substitutions.insert(else_dest, new_dest);
+            // skip entries already hoisted
+            if hoisted_then_ids.contains(&then_entry.instruction_id)
+                || hoisted_else_ids.contains(&else_entry.instruction_id)
+            {
+                continue;
+            }
+
+            candidates.push(HoistCandidate {
+                then_id: then_entry.instruction_id,
+                else_id: else_entry.instruction_id,
+                instruction: then_entry.instruction.clone(),
+                then_dest: then_entry.destination,
+                else_dest: else_entry.destination,
+            });
+        }
+
+        // stop when no more candidates are available
+        if candidates.is_empty() {
+            break;
+        }
+
+        // process candidate pairs
+        for candidate in candidates {
+            // stop when the configured limit is reached
+            if hoisted_then_ids.len() >= MAX_HOISTED_INSTRUCTIONS {
+                break;
+            }
+
+            // build a remap for existing hoisted values
+            let mut value_map = then_param_rewrites.clone();
+            value_map.extend(then_substitutions.clone());
+            let normalized =
+                instruction_substitute_uses_in_tree(&candidate.instruction, &value_map, tree);
+
+            // ensure operands are available in the header
+            if !instruction_operands_available(
+                &normalized,
+                header,
+                def_blocks,
+                domtree,
+                &hoisted_values,
+            ) {
+                continue;
+            }
+
+            // allocate a new destination for the hoisted instruction
+            let new_dest = function.next_value();
+            value_map.insert(candidate.then_dest, new_dest);
+
+            // clone instruction with updated destinations and operands
+            let hoisted_instruction = instruction_map(&candidate.instruction, &value_map, tree);
+            let hoisted_id = tree.insert(hoisted_instruction);
+            new_header_instructions.push(hoisted_id);
+
+            // record substitutions for both branches
+            then_substitutions.insert(candidate.then_dest, new_dest);
+            else_substitutions.insert(candidate.else_dest, new_dest);
+            hoisted_values.insert(new_dest);
+            hoisted_then_ids.insert(candidate.then_id);
+            hoisted_else_ids.insert(candidate.else_id);
+            progress = true;
+        }
+    }
+
+    // bail when nothing is hoisted
+    if hoisted_then_ids.is_empty() {
+        return false;
     }
 
     // update the header block with hoisted instructions
@@ -321,16 +301,26 @@ fn hoist_common_prefix(
     tree.replace(header, header_block);
 
     // drop hoisted instructions from both successor blocks
-    let then_trimmed = drop_prefix_instructions(&then_data, hoist_pairs.len());
-    let else_trimmed = drop_prefix_instructions(&else_data, hoist_pairs.len());
+    let then_trimmed = drop_instructions(&then_data, &hoisted_then_ids);
+    let else_trimmed = drop_instructions(&else_data, &hoisted_else_ids);
     tree.replace(then_block, then_trimmed);
     tree.replace(else_block, else_trimmed);
 
     // apply substitutions to dominated blocks
-    let then_changed =
-        apply_substitutions(function, tree, domtree, then_block, &then_substitutions);
-    let else_changed =
-        apply_substitutions(function, tree, domtree, else_block, &else_substitutions);
+    let then_changed = apply_substitutions_in_dominated_blocks(
+        function,
+        tree,
+        domtree,
+        then_block,
+        &then_substitutions,
+    );
+    let else_changed = apply_substitutions_in_dominated_blocks(
+        function,
+        tree,
+        domtree,
+        else_block,
+        &else_substitutions,
+    );
 
     then_changed || else_changed || !then_substitutions.is_empty()
 }
@@ -356,10 +346,12 @@ fn build_param_rewrites(
         return (then_rewrites, else_rewrites);
     }
 
-    // map parameters to their incoming arguments
+    // map then parameters to their incoming arguments
     for (then_param, then_arg) in then_block.parameters.iter().zip(then_arguments.iter()) {
         then_rewrites.insert(then_param.value, *then_arg);
     }
+
+    // map else parameters to their incoming arguments
     for (else_param, else_arg) in else_block.parameters.iter().zip(else_arguments.iter()) {
         else_rewrites.insert(else_param.value, *else_arg);
     }
@@ -374,19 +366,20 @@ fn instruction_operands_available(
     def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
     domtree: &DominatorTree,
     hoisted_values: &HashSet<mir::Value>,
-    param_rewrites: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
     // scan all operands
     for value in instruction.uses() {
-        let normalized = param_rewrites.get(&value).copied().unwrap_or(value);
-
-        if hoisted_values.contains(&normalized) {
+        // skip values already hoisted into the header
+        if hoisted_values.contains(&value) {
             continue;
         }
 
-        let Some(def_block) = def_blocks.get(&normalized) else {
-            return false;
+        // skip values with no known definition block
+        let Some(def_block) = def_blocks.get(&value) else {
+            continue;
         };
+
+        // require the definition to dominate the header
         if !domtree.dominates(*def_block, header) {
             return false;
         }
@@ -395,62 +388,87 @@ fn instruction_operands_available(
     true
 }
 
-/// Remove a prefix of instructions from a block.
-fn drop_prefix_instructions(block: &mir::Block, count: usize) -> mir::Block {
+/// Remove specific instructions from a block.
+fn drop_instructions(
+    block: &mir::Block,
+    removed: &HashSet<mir::LocalNodeId<mir::Instruction>>,
+) -> mir::Block {
     // clone the original block
     let mut updated = block.clone();
 
-    // drop instructions from the start
-    if count > 0 && count <= updated.instructions.len() {
-        updated.instructions.drain(0..count);
-    }
+    // retain instructions not removed
+    updated
+        .instructions
+        .retain(|instruction_id| !removed.contains(instruction_id));
 
     updated
 }
 
-/// Apply a substitution map to dominated blocks.
-fn apply_substitutions(
-    function: &mir::Function,
+/// Index entry for hoistable expressions.
+struct ExpressionEntry {
+    /// Instruction id for this expression.
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    /// The instruction itself.
+    instruction: mir::Instruction,
+    /// The destination value.
+    destination: mir::Value,
+}
+
+/// Candidate instruction pair to hoist.
+struct HoistCandidate {
+    /// Instruction id in the then block.
+    then_id: mir::LocalNodeId<mir::Instruction>,
+    /// Instruction id in the else block.
+    else_id: mir::LocalNodeId<mir::Instruction>,
+    /// The instruction to clone.
+    instruction: mir::Instruction,
+    /// Destination value in the then block.
+    then_dest: mir::Value,
+    /// Destination value in the else block.
+    else_dest: mir::Value,
+}
+
+/// Build an expression index for a block.
+fn build_expression_index(
+    block: &mir::Block,
+    value_rewrites: &HashMap<mir::Value, mir::Value>,
     tree: &mut mir::NodeTree,
-    domtree: &DominatorTree,
-    root: mir::LocalNodeId<mir::Block>,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> bool {
-    // skip when there is nothing to substitute
-    if substitutions.is_empty() {
-        return false;
-    }
+) -> HashMap<ExpressionKey, ExpressionEntry> {
+    // allocate the index map
+    let mut index = HashMap::new();
 
-    // track whether any changes were made
-    let mut changed = false;
+    // scan instructions in program order
+    for &instruction_id in &block.instructions {
+        // clone the instruction for inspection
+        let instruction = tree.get(instruction_id).clone();
 
-    // update blocks dominated by the root
-    for &block_id in &function.blocks {
-        if !domtree.dominates(root, block_id) {
+        // skip instructions without destinations
+        let Some(destination) = instruction.destination() else {
+            continue;
+        };
+
+        // skip non speculatable instructions
+        if !instruction_is_speculatable(&instruction) {
             continue;
         }
 
-        // rewrite instructions in place
-        let mut block = tree.get(block_id).clone();
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id).clone();
-            let updated = instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
-            if updated != instruction {
-                tree.replace(instruction_id, updated);
-                changed = true;
-            }
-        }
+        // normalize operands before hashing
+        let normalized = instruction_substitute_uses_in_tree(&instruction, value_rewrites, tree);
 
-        // rewrite terminator uses
-        let new_terminator = terminator_substitute_uses(&block.terminator, substitutions);
-        if new_terminator != block.terminator {
-            block.terminator = new_terminator;
-            tree.replace(block_id, block);
-            changed = true;
-        }
+        // skip instructions without a stable key
+        let Some(key) = expression_key_from_instruction(&normalized, tree) else {
+            continue;
+        };
+
+        // insert the first instance for the key
+        index.entry(key).or_insert(ExpressionEntry {
+            instruction_id,
+            instruction,
+            destination,
+        });
     }
 
-    changed
+    index
 }
 
 #[cfg(test)]
@@ -461,6 +479,7 @@ mod tests {
     /// Identical branch instructions are hoisted into the header.
     #[test]
     fn test_hoist_simple_diamond() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -473,6 +492,8 @@ block2:
 block3(v5: i32):
     return v5
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     v6 = iadd v0, v1
@@ -485,6 +506,7 @@ block3(v5: i32):
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CodeHoisting);
         program.assert_output(expected);
@@ -493,6 +515,7 @@ block3(v5: i32):
     /// Non speculatable instructions are not hoisted.
     #[test]
     fn test_hoist_skips_division() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -506,6 +529,7 @@ block3(v5: i32):
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CodeHoisting);
         program.assert_output(input);
@@ -514,6 +538,7 @@ block3(v5: i32):
     /// Differing branch instructions are not hoisted.
     #[test]
     fn test_hoist_requires_equivalence() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -527,6 +552,7 @@ block3(v5: i32):
     return v5
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CodeHoisting);
         program.assert_output(input);
@@ -535,6 +561,7 @@ block3(v5: i32):
     /// Chains of identical instructions are hoisted together.
     #[test]
     fn test_hoist_common_prefix_chain() {
+        // source program
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -549,6 +576,8 @@ block2:
 block3(v7: i32):
     return v7
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     v8 = iadd v0, v1
@@ -562,6 +591,7 @@ block3(v7: i32):
     return v7
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CodeHoisting);
         program.assert_output(expected);
@@ -583,6 +613,7 @@ block2(v6: i32, v7: i32):
 block3(v9: i32):
     return v9
 }"#;
+
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
@@ -594,6 +625,46 @@ block2(v6: i32, v7: i32):
     jump block3(v10)
 block3(v9: i32):
     return v9
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&CodeHoisting);
+        program.assert_output(expected);
+    }
+
+    /// Identical instructions can be hoisted even when not in the prefix.
+    #[test]
+    fn test_hoist_non_prefix_match() {
+        // source program
+        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    branch v2, block1, block2
+block1:
+    v3 = imul v0, v1
+    v4 = iadd v0, v1
+    jump block3(v4)
+block2:
+    v5 = isub v0, v1
+    v6 = iadd v0, v1
+    jump block3(v6)
+block3(v7: i32):
+    return v7
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    v8 = iadd v0, v1
+    branch v2, block1, block2
+block1:
+    v3 = imul v0, v1
+    jump block3(v8)
+block2:
+    v5 = isub v0, v1
+    jump block3(v8)
+block3(v7: i32):
+    return v7
 }"#;
 
         // run the pass and verify output

@@ -4,8 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, UnaryOperator};
 
+use destack_workspace::FloatMathPolicy;
+
+use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, constant_all_ones_like,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
     constant_is_zero, constant_zero_like, instruction_substitute_uses, resolve_substitution_chains,
     terminator_substitute_uses,
@@ -56,9 +59,17 @@ impl FunctionPass for InstructionCombine {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        let changed = run_instruction_combine(function, tree);
+        // collect analyses and options
+        let analyses = FunctionAnalyses::new(function, tree);
+        let constants = analyses.get::<ConstantPropagation>().clone();
+        let ranges = analyses.get::<RangeAnalysis>().clone();
+        let float_math = ctx.options.float_math;
+
+        let changed = run_instruction_combine(function, tree, &constants, &ranges, float_math);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -76,26 +87,27 @@ impl FunctionPass for InstructionCombine {
 }
 
 /// Core instruction combine logic.
-fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
-    // build map of value -> constant for known constants
-    let mut constants: HashMap<mir::Value, mir::Constant> = HashMap::new();
-
-    // build map of value -> instruction for unary simplifications
+fn run_instruction_combine(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    constants: &ConstantPropagation,
+    ranges: &RangeAnalysis,
+    float_math: FloatMathPolicy,
+) -> bool {
+    // build map of value to instruction for unary simplifications
     let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
 
     // track aggregate construction operands: dest -> operand list
     let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
 
-    // scan all blocks for constant definitions and build value map
+    // scan all blocks for aggregate definitions and value maps
     for &block_id in &function.blocks {
+        // load the block instructions
         let block = tree.get(block_id);
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
 
-            // track constants
-            if let mir::Instruction::Const { destination, value } = instruction {
-                constants.insert(*destination, value.clone());
-            }
+        for &instruction_id in &block.instructions {
+            // load the instruction for inspection
+            let instruction = tree.get(instruction_id);
 
             // track aggregate constructions
             match instruction {
@@ -137,62 +149,90 @@ fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTre
 
     // apply simplifications
     for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        let instruction_ids: Vec<_> = block.instructions.clone();
+        // seed constants and ranges for the block
+        let mut block_constants = constants.entry(block_id).clone();
+        let block_ranges = ranges.exit(block_id).clone();
+        let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
 
+        // scan instructions in program order
         for instruction_id in instruction_ids {
-            let instruction = tree.get(instruction_id);
+            // load the instruction for rewriting
+            let instruction = tree.get(instruction_id).clone();
 
-            let simplified = match instruction {
-                mir::Instruction::Binary {
-                    destination,
-                    operator,
-                    left,
-                    right,
-                } => simplify_binary_operator(*destination, *operator, *left, *right, &constants),
+            // attempt to simplify the instruction
+            let simplified = {
+                let constant_lookup = ConstantLookup::new(&block_constants, &block_ranges);
+                match &instruction {
+                    mir::Instruction::Binary {
+                        destination,
+                        operator,
+                        left,
+                        right,
+                    } => simplify_binary_operator(
+                        *destination,
+                        *operator,
+                        *left,
+                        *right,
+                        &constant_lookup,
+                        &block_ranges,
+                        float_math,
+                    ),
 
-                mir::Instruction::Unary {
-                    destination,
-                    operator,
-                    argument,
-                } => simplify_unary_operator(
-                    *destination,
-                    *operator,
-                    *argument,
-                    &value_to_instruction,
-                ),
+                    mir::Instruction::Unary {
+                        destination,
+                        operator,
+                        argument,
+                    } => simplify_unary_operator(
+                        *destination,
+                        *operator,
+                        *argument,
+                        &value_to_instruction,
+                    ),
 
-                mir::Instruction::FieldGet {
-                    aggregate, index, ..
-                } => {
-                    if let Some(operands) = aggregate_operands.get(aggregate) {
-                        operands
-                            .get(*index as usize)
-                            .map(|&op| Simplification::Substitute(op))
-                    } else {
-                        None
-                    }
-                }
-
-                mir::Instruction::ElementGet { array, index, .. } => {
-                    if let Some(operands) = aggregate_operands.get(array) {
-                        if let Some(Constant::Int { value: idx, .. }) = constants.get(index) {
+                    mir::Instruction::FieldGet {
+                        aggregate, index, ..
+                    } => {
+                        // resolve field from known aggregate operands
+                        if let Some(operands) = aggregate_operands.get(aggregate) {
                             operands
-                                .get(*idx as usize)
+                                .get(*index as usize)
                                 .map(|&op| Simplification::Substitute(op))
                         } else {
                             None
                         }
-                    } else {
-                        None
                     }
-                }
 
-                _ => None,
+                    mir::Instruction::ElementGet { array, index, .. } => {
+                        // resolve array element from known operands
+                        if let Some(operands) = aggregate_operands.get(array) {
+                            let index_constant = constant_lookup.get(*index);
+                            let index_value = match index_constant {
+                                Some(Constant::Int { value, .. }) => Some(value as usize),
+                                Some(Constant::UInt { value, .. }) => Some(value as usize),
+                                _ => None,
+                            };
+
+                            if let Some(index_value) = index_value {
+                                operands
+                                    .get(index_value)
+                                    .map(|&op| Simplification::Substitute(op))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+
+                    _ => None,
+                }
             };
 
+            // apply the simplification when available
+            let mut applied_simplification = false;
             if let Some(simplification) = simplified {
                 changed = true;
+                applied_simplification = true;
                 match simplification {
                     Simplification::Constant(value) => {
                         let dest = instruction.destination().unwrap();
@@ -200,7 +240,7 @@ fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTre
                             destination: dest,
                             value: value.clone(),
                         };
-                        constants.insert(dest, value);
+                        block_constants.insert(dest, value);
                         value_to_instruction.insert(dest, new_instruction.clone());
                         tree.replace(instruction_id, new_instruction);
                     }
@@ -208,8 +248,19 @@ fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTre
                         let dest = instruction.destination().unwrap();
                         substitutions.insert(dest, replacement);
                         to_remove.push(instruction_id);
+                        let constant_lookup = ConstantLookup::new(&block_constants, &block_ranges);
+                        if let Some(constant) = constant_lookup.get(replacement) {
+                            block_constants.insert(dest, constant);
+                        } else {
+                            block_constants.remove(dest);
+                        }
                     }
                 }
+            }
+
+            // update constant tracking for instructions
+            if !applied_simplification {
+                update_constant_map(&instruction, tree, &mut block_constants, &block_ranges);
             }
         }
     }
@@ -222,9 +273,12 @@ fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTre
         for &block_id in &function.blocks {
             let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
             for instruction_id in instruction_ids {
+                // skip removed instructions
                 if to_remove.contains(&instruction_id) {
                     continue;
                 }
+
+                // rewrite instruction operands
                 let instruction = tree.get(instruction_id);
                 let new_instruction = instruction_substitute_uses(instruction, &substitutions);
                 if new_instruction != *instruction {
@@ -243,6 +297,7 @@ fn run_instruction_combine(function: &mut mir::Function, tree: &mut mir::NodeTre
                 .filter(|id| !to_remove.contains(id))
                 .collect();
 
+            // replace the block when terminators or instructions change
             if new_terminator != block.terminator || filtered.len() != block.instructions.len() {
                 let mut new_block = block.clone();
                 new_block.terminator = new_terminator;
@@ -261,119 +316,131 @@ fn simplify_binary_operator(
     operator: BinaryOperator,
     left: mir::Value,
     right: mir::Value,
-    constants: &HashMap<mir::Value, Constant>,
+    constants: &ConstantLookup<'_>,
+    ranges: &RangeMap,
+    float_math: FloatMathPolicy,
 ) -> Option<Simplification> {
-    let left_const = constants.get(&left);
-    let right_const = constants.get(&right);
+    // read constant operands
+    let left_const = constants.get(left);
+    let right_const = constants.get(right);
+    let left_const_ref = left_const.as_ref();
+    let right_const_ref = right_const.as_ref();
+
+    // fold comparisons using range evidence
+    if let Some(result) = comparison_from_ranges(operator, left, right, ranges) {
+        return Some(Simplification::Constant(Constant::Boolean {
+            value: result,
+        }));
+    }
 
     // same operand simplifications (x op x)
     if left == right {
-        return simplify_same_binary_operand(destination, operator, left, constants);
+        return simplify_same_binary_operand(destination, operator, left, left_const_ref);
     }
 
     // identity and annihilator rules with constants
     match operator {
         // x + 0 = x, 0 + x = x
         BinaryOperator::Add => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_zero(left_const) {
+            if constant_is_zero(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
         }
 
         // x - 0 = x
         BinaryOperator::Subtract => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
         // x * 0 = 0, 0 * x = 0, x * 1 = x, 1 * x = x
         BinaryOperator::Multiply => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
-                    right_const.unwrap(),
+                    right_const_ref.unwrap(),
                 )));
             }
-            if constant_is_zero(left_const) {
+            if constant_is_zero(left_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
-                    left_const.unwrap(),
+                    left_const_ref.unwrap(),
                 )));
             }
-            if constant_is_one(right_const) {
+            if constant_is_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_one(left_const) {
+            if constant_is_one(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
         }
 
         // x / 1 = x (signed)
         BinaryOperator::SignedDivide | BinaryOperator::UnsignedDivide => {
-            if constant_is_one(right_const) {
+            if constant_is_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
         // x % 1 = 0 (signed and unsigned)
         BinaryOperator::SignedRemainder | BinaryOperator::UnsignedRemainder => {
-            if constant_is_one(right_const) {
+            if constant_is_one(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
-                    right_const.unwrap(),
+                    right_const_ref.unwrap(),
                 )));
             }
         }
 
         // x & 0 = 0, 0 & x = 0
         BinaryOperator::And => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
-                    right_const.unwrap(),
+                    right_const_ref.unwrap(),
                 )));
             }
-            if constant_is_zero(left_const) {
+            if constant_is_zero(left_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
-                    left_const.unwrap(),
+                    left_const_ref.unwrap(),
                 )));
             }
             // x & all_ones = x
-            if constant_is_all_ones(right_const) {
+            if constant_is_all_ones(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_all_ones(left_const) {
+            if constant_is_all_ones(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
         }
 
         // x | 0 = x, 0 | x = x
         BinaryOperator::Or => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_zero(left_const) {
+            if constant_is_zero(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
             // x | all_ones = all_ones
-            if constant_is_all_ones(right_const) {
+            if constant_is_all_ones(right_const_ref) {
                 return Some(Simplification::Constant(constant_all_ones_like(
-                    right_const.unwrap(),
+                    right_const_ref.unwrap(),
                 )));
             }
-            if constant_is_all_ones(left_const) {
+            if constant_is_all_ones(left_const_ref) {
                 return Some(Simplification::Constant(constant_all_ones_like(
-                    left_const.unwrap(),
+                    left_const_ref.unwrap(),
                 )));
             }
         }
 
         // x ^ 0 = x, 0 ^ x = x
         BinaryOperator::Xor => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_zero(left_const) {
+            if constant_is_zero(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
         }
@@ -382,47 +449,47 @@ fn simplify_binary_operator(
         BinaryOperator::ShiftLeft
         | BinaryOperator::ArithmeticShiftRight
         | BinaryOperator::LogicalShiftRight => {
-            if constant_is_zero(right_const) {
+            if constant_is_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
             // 0 << x = 0, 0 >> x = 0
-            if constant_is_zero(left_const) {
+            if constant_is_zero(left_const_ref) {
                 return Some(Simplification::Constant(constant_zero_like(
-                    left_const.unwrap(),
+                    left_const_ref.unwrap(),
                 )));
             }
         }
 
         // float: x + 0.0 = x (not for -0.0, but we simplify for 0.0)
         BinaryOperator::FloatAdd => {
-            if constant_is_float_zero(right_const) {
+            if allow_float_identities(float_math) && constant_is_float_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_float_zero(left_const) {
+            if allow_float_identities(float_math) && constant_is_float_zero(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
         }
 
         // float: x - 0.0 = x
         BinaryOperator::FloatSubtract => {
-            if constant_is_float_zero(right_const) {
+            if allow_float_identities(float_math) && constant_is_float_zero(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
 
         // float: x * 1.0 = x
         BinaryOperator::FloatMultiply => {
-            if constant_is_float_one(right_const) {
+            if allow_float_identities(float_math) && constant_is_float_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
-            if constant_is_float_one(left_const) {
+            if allow_float_identities(float_math) && constant_is_float_one(left_const_ref) {
                 return Some(Simplification::Substitute(right));
             }
         }
 
         // float: x / 1.0 = x
         BinaryOperator::FloatDivide => {
-            if constant_is_float_one(right_const) {
+            if allow_float_identities(float_math) && constant_is_float_one(right_const_ref) {
                 return Some(Simplification::Substitute(left));
             }
         }
@@ -438,11 +505,12 @@ fn simplify_same_binary_operand(
     _destination: mir::Value,
     operator: BinaryOperator,
     operand: mir::Value,
-    constants: &HashMap<mir::Value, Constant>,
+    constant: Option<&Constant>,
 ) -> Option<Simplification> {
     // get type info from constant if available for proper zero type
-    let operand_const = constants.get(&operand);
+    let operand_const = constant;
 
+    // simplify based on the operator
     match operator {
         // x - x = 0
         BinaryOperator::Subtract => {
@@ -483,6 +551,236 @@ fn simplify_same_binary_operand(
     }
 }
 
+/// Lookup for constants from propagation and range analysis.
+struct ConstantLookup<'a> {
+    /// Constants derived from propagation.
+    block_constants: &'a crate::optimize::analyses::ConstantMap,
+    /// Ranges for the block.
+    ranges: &'a RangeMap,
+}
+
+impl<'a> ConstantLookup<'a> {
+    /// Create a new lookup for a block.
+    fn new(
+        block_constants: &'a crate::optimize::analyses::ConstantMap,
+        ranges: &'a RangeMap,
+    ) -> Self {
+        Self {
+            block_constants,
+            ranges,
+        }
+    }
+
+    /// Get a constant value for a SSA value.
+    fn get(&self, value: mir::Value) -> Option<Constant> {
+        // check propagation constants first
+        if let Some(constant) = self.block_constants.get(value) {
+            return Some(constant.clone());
+        }
+
+        // fall back to range derived constants
+        let range = self.ranges.get(value)?;
+        range.as_constant()
+    }
+}
+
+/// Update a constant map with instruction effects.
+fn update_constant_map(
+    instruction: &mir::Instruction,
+    tree: &mir::NodeTree,
+    block_constants: &mut crate::optimize::analyses::ConstantMap,
+    ranges: &RangeMap,
+) {
+    // skip instructions without destinations
+    let Some(destination) = instruction.destination() else {
+        return;
+    };
+
+    // capture a local constant lookup
+    let constant_for = |value: mir::Value| -> Option<Constant> {
+        if let Some(constant) = block_constants.get(value) {
+            return Some(constant.clone());
+        }
+
+        let range = ranges.get(value)?;
+        range.as_constant()
+    };
+
+    // update the constant map based on instruction semantics
+    match instruction {
+        mir::Instruction::Const { value, .. } => {
+            block_constants.insert(destination, value.clone());
+        }
+        mir::Instruction::GlobalConst { global, .. } => {
+            if let Some(constant) = crate::optimize::common::constant_from_global(*global, tree) {
+                block_constants.insert(destination, constant);
+            } else {
+                block_constants.remove(destination);
+            }
+        }
+        mir::Instruction::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } => {
+            // fold binary constants when possible
+            let left = constant_for(*left);
+            let right = constant_for(*right);
+            if let (Some(left), Some(right)) = (left, right)
+                && let Some(result) = crate::optimize::common::fold_binary(*operator, left, right)
+            {
+                block_constants.insert(destination, result);
+            } else {
+                block_constants.remove(destination);
+            }
+        }
+        mir::Instruction::Unary {
+            operator, argument, ..
+        } => {
+            // fold unary constants when possible
+            let argument = constant_for(*argument);
+            if let Some(argument) = argument
+                && let Some(result) = crate::optimize::common::fold_unary(*operator, argument)
+            {
+                block_constants.insert(destination, result);
+            } else {
+                block_constants.remove(destination);
+            }
+        }
+        mir::Instruction::Cast {
+            operator,
+            argument,
+            to_type,
+            ..
+        } => {
+            // fold casts when possible
+            let argument = constant_for(*argument);
+            if let Some(argument) = argument
+                && let Some(result) =
+                    crate::optimize::common::fold_cast(*operator, argument, *to_type, tree)
+            {
+                block_constants.insert(destination, result);
+            } else {
+                block_constants.remove(destination);
+            }
+        }
+        mir::Instruction::Select {
+            condition,
+            then_value,
+            else_value,
+            ..
+        } => {
+            // fold selects with constant conditions
+            let condition = constant_for(*condition);
+            if let Some(Constant::Boolean { value }) = condition {
+                let selected = if value { *then_value } else { *else_value };
+                if let Some(constant) = constant_for(selected) {
+                    block_constants.insert(destination, constant);
+                } else {
+                    block_constants.remove(destination);
+                }
+            } else {
+                block_constants.remove(destination);
+            }
+        }
+        _ => {
+            // clear constants for unhandled instructions
+            block_constants.remove(destination);
+        }
+    }
+}
+
+/// Fold comparisons using range analysis when possible.
+fn comparison_from_ranges(
+    operator: mir::BinaryOperator,
+    left: mir::Value,
+    right: mir::Value,
+    ranges: &RangeMap,
+) -> Option<bool> {
+    // read operand ranges
+    let left_range = ranges.get(left)?;
+    let right_range = ranges.get(right)?;
+
+    // fold comparisons when both operands are integer ranges
+    match (left_range, right_range) {
+        (
+            crate::optimize::analyses::ValueRange::Integer {
+                min: left_min,
+                max: left_max,
+                ..
+            },
+            crate::optimize::analyses::ValueRange::Integer {
+                min: right_min,
+                max: right_max,
+                ..
+            },
+        ) => match operator {
+            BinaryOperator::SignedLessThan | BinaryOperator::UnsignedLessThan => {
+                if left_max < right_min {
+                    Some(true)
+                } else if left_min >= right_max {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::SignedLessEqual | BinaryOperator::UnsignedLessEqual => {
+                if left_max <= right_min {
+                    Some(true)
+                } else if left_min > right_max {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::SignedGreaterThan | BinaryOperator::UnsignedGreaterThan => {
+                if left_min > right_max {
+                    Some(true)
+                } else if left_max <= right_min {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::SignedGreaterEqual | BinaryOperator::UnsignedGreaterEqual => {
+                if left_min >= right_max {
+                    Some(true)
+                } else if left_max < right_min {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::Equal => {
+                if left_min == left_max && left_min == right_min && right_min == right_max {
+                    Some(true)
+                } else if left_max < right_min || right_max < left_min {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::NotEqual => {
+                if left_min == left_max && left_min == right_min && right_min == right_max {
+                    Some(false)
+                } else if left_max < right_min || right_max < left_min {
+                    Some(true)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Check if float identity simplifications are allowed.
+fn allow_float_identities(policy: FloatMathPolicy) -> bool {
+    matches!(policy, FloatMathPolicy::Fast)
+}
+
 /// Try to simplify a unary operation.
 fn simplify_unary_operator(
     _destination: mir::Value,
@@ -508,7 +806,9 @@ fn simplify_unary_operator(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
+    use destack_workspace::FloatMathPolicy;
 
     /// x + 0 simplifies to x (instruction removed, uses substituted).
     #[test]
@@ -824,6 +1124,41 @@ block0(v0: i32):
         program.assert_output(expected);
     }
 
+    /// Range evidence folds comparisons.
+    #[test]
+    fn test_fold_comparison_from_range() {
+        let left = mir::Value::new(1);
+        let right = mir::Value::new(2);
+        let mut ranges = RangeMap::new();
+        ranges.insert(
+            left,
+            crate::optimize::analyses::ValueRange::Integer {
+                min: 0,
+                max: 4,
+                width: 32,
+                is_signed: true,
+            },
+        );
+        ranges.insert(
+            right,
+            crate::optimize::analyses::ValueRange::Integer {
+                min: 10,
+                max: 12,
+                width: 32,
+                is_signed: true,
+            },
+        );
+
+        assert_eq!(
+            comparison_from_ranges(BinaryOperator::SignedLessThan, left, right, &ranges),
+            Some(true)
+        );
+        assert_eq!(
+            comparison_from_ranges(BinaryOperator::SignedGreaterEqual, left, right, &ranges),
+            Some(false)
+        );
+    }
+
     /// x << 0 simplifies to x.
     #[test]
     fn test_simplify_shl_zero() {
@@ -1109,7 +1444,13 @@ block0(v0: f32):
 }"#;
 
         let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
+        program.run_pass_with_options(
+            &InstructionCombine,
+            PipelineOptions {
+                float_math: FloatMathPolicy::Fast,
+                ..PipelineOptions::default()
+            },
+        );
         program.assert_output(expected);
     }
 
@@ -1130,7 +1471,13 @@ block0(v0: f32):
 }"#;
 
         let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
+        program.run_pass_with_options(
+            &InstructionCombine,
+            PipelineOptions {
+                float_math: FloatMathPolicy::Fast,
+                ..PipelineOptions::default()
+            },
+        );
         program.assert_output(expected);
     }
 
@@ -1151,7 +1498,13 @@ block0(v0: f32):
 }"#;
 
         let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
+        program.run_pass_with_options(
+            &InstructionCombine,
+            PipelineOptions {
+                float_math: FloatMathPolicy::Fast,
+                ..PipelineOptions::default()
+            },
+        );
         program.assert_output(expected);
     }
 
@@ -1172,7 +1525,13 @@ block0(v0: f32):
 }"#;
 
         let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
+        program.run_pass_with_options(
+            &InstructionCombine,
+            PipelineOptions {
+                float_math: FloatMathPolicy::Fast,
+                ..PipelineOptions::default()
+            },
+        );
         program.assert_output(expected);
     }
 

@@ -3,8 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
+use crate::optimize::analyses::AliasAnalysis;
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
+    AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
     instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -48,8 +49,14 @@ impl FunctionPass for LocalCse {
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // build alias analysis
+        let analyses = FunctionAnalyses::new(function, tree);
+        let alias = analyses.get::<AliasAnalysis>();
+
         // run local CSE
-        let changed = run_local_cse(function, tree);
+        let changed = run_local_cse(function, tree, &alias);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -67,10 +74,17 @@ impl FunctionPass for LocalCse {
 }
 
 /// Run local CSE on all blocks in a function.
-fn run_local_cse(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_local_cse(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    alias: &AliasAnalysis,
+) -> bool {
+    // track whether any block changes
     let mut changed = false;
+
+    // run local CSE per block
     for &block_id in &function.blocks {
-        changed |= eliminate_common_subexpressions_in_block(block_id, tree);
+        changed |= eliminate_common_subexpressions_in_block(block_id, tree, alias);
     }
     changed
 }
@@ -81,6 +95,7 @@ fn run_local_cse(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool
 fn eliminate_common_subexpressions_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::NodeTree,
+    alias: &AliasAnalysis,
 ) -> bool {
     // expression table: key -> defining value
     let mut expression_table: HashMap<ExpressionKey, mir::Value> = HashMap::new();
@@ -91,12 +106,60 @@ fn eliminate_common_subexpressions_in_block(
     // instructions to remove (now redundant)
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
+    // track redundant loads within the block
+    let mut load_table: Vec<LoadEntry> = Vec::new();
+
+    // track local values
+    let mut local_values: HashMap<mir::LocalNodeId<mir::Local>, mir::Value> = HashMap::new();
+
     // scan instructions for redundant expressions
     let block = tree.get(block_id);
     let instruction_ids: Vec<_> = block.instructions.clone();
 
+    // scan instructions in program order
     for instruction_id in instruction_ids {
         let instruction = tree.get(instruction_id);
+
+        // handle local get forwarding
+        if let mir::Instruction::LocalGet { destination, local } = instruction {
+            if let Some(existing) = local_values.get(local) {
+                substitutions.insert(*destination, *existing);
+                to_remove.insert(instruction_id);
+            } else {
+                local_values.insert(*local, *destination);
+            }
+            continue;
+        }
+
+        // update local state on set
+        if let mir::Instruction::LocalSet { local, value } = instruction {
+            local_values.insert(*local, *value);
+        }
+
+        // handle load forwarding
+        if let mir::Instruction::Load {
+            destination,
+            pointer,
+            ..
+        } = instruction
+        {
+            let location = crate::optimize::common::MemoryLocation::from_ptr(*pointer);
+            if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
+                substitutions.insert(*destination, existing);
+                to_remove.insert(instruction_id);
+            } else {
+                load_table.push(LoadEntry {
+                    location,
+                    value: *destination,
+                });
+            }
+            continue;
+        }
+
+        // invalidate load entries on memory clobbers
+        if instruction_may_clobber_memory(instruction, instruction_id, &load_table, alias) {
+            load_table = prune_load_table(instruction_id, &load_table, alias);
+        }
 
         // skip instructions with side effects (don't CSE across side effects)
         if instruction_has_side_effects(instruction) {
@@ -139,10 +202,12 @@ fn eliminate_common_subexpressions_in_block(
     // apply substitutions to remaining instructions
     let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
     for instruction_id in instruction_ids {
+        // skip instructions slated for removal
         if to_remove.contains(&instruction_id) {
             continue;
         }
 
+        // rewrite instruction operands
         let instruction = tree.get(instruction_id);
         let new_instruction = instruction_substitute_uses(instruction, &substitutions);
         if new_instruction != *instruction {
@@ -161,6 +226,78 @@ fn eliminate_common_subexpressions_in_block(
     tree.replace(block_id, new_block);
 
     true
+}
+
+/// Load entry in the local CSE table.
+#[derive(Clone)]
+struct LoadEntry {
+    /// Memory location for the load.
+    location: crate::optimize::common::MemoryLocation,
+    /// The value produced by the load.
+    value: mir::Value,
+}
+
+/// Find a redundant load using alias analysis.
+fn find_load_redundancy(
+    load_table: &[LoadEntry],
+    location: &crate::optimize::common::MemoryLocation,
+    alias: &AliasAnalysis,
+) -> Option<mir::Value> {
+    // scan load table from most recent to oldest
+    for entry in load_table.iter().rev() {
+        // treat identical pointers as a must alias
+        if entry.location.ptr == location.ptr {
+            return Some(entry.value);
+        }
+
+        // consult alias analysis for memory overlap
+        let result = alias.alias(&entry.location, location);
+        if result.is_no_alias() {
+            continue;
+        }
+        if result.is_must_alias() {
+            return Some(entry.value);
+        }
+        return None;
+    }
+
+    None
+}
+
+/// Check if an instruction may clobber any tracked load.
+fn instruction_may_clobber_memory(
+    instruction: &mir::Instruction,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    load_table: &[LoadEntry],
+    alias: &AliasAnalysis,
+) -> bool {
+    // skip instructions that do not touch memory
+    if !crate::optimize::common::instruction_may_affect_memory(instruction) {
+        return false;
+    }
+
+    // check if any tracked load is clobbered
+    for entry in load_table {
+        if alias.may_clobber(instruction_id, &entry.location) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Remove any load entries clobbered by an instruction.
+fn prune_load_table(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    load_table: &[LoadEntry],
+    alias: &AliasAnalysis,
+) -> Vec<LoadEntry> {
+    // retain only loads not clobbered by the instruction
+    load_table
+        .iter()
+        .filter(|entry| !alias.may_clobber(instruction_id, &entry.location))
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]
@@ -349,6 +486,49 @@ block0(v0: (i32, i32)):
         let mut program = TestProgram::new(input);
         program.run_pass(&LocalCse);
         program.assert_output(expected);
+    }
+
+    /// Redundant loads in a block are eliminated when not clobbered.
+    #[test]
+    fn test_eliminate_redundant_loads() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    v2 = load v0
+    v3 = iadd v1, v2
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    v3 = iadd v1, v1
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LocalCse);
+        program.assert_output(expected);
+    }
+
+    /// Loads are not CSE'd across clobbering stores.
+    #[test]
+    fn test_preserve_loads_after_store() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = load v0
+    v4 = iadd v1, v3
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LocalCse);
+        program.assert_output(input);
     }
 
     /// Different field indices are not CSE'd.

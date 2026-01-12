@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::optimize::common::terminator_substitute_uses;
 use destack_mir as mir;
 use mir::Instruction;
 
@@ -12,6 +13,7 @@ use mir::Instruction;
 ///
 /// Use this for LICM, code motion, and speculation optimizations.
 pub fn instruction_is_pure(instruction: &Instruction) -> bool {
+    // classify instructions by purity
     match instruction {
         // pure computations
         Instruction::Const { .. }
@@ -65,6 +67,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
 ///
 /// This is a stricter predicate than purity: some pure operations may trap.
 pub fn instruction_is_speculatable(instruction: &Instruction) -> bool {
+    // classify instructions by speculative safety
     match instruction {
         // assumptions must not be speculated across control flow
         Instruction::Assume { .. } => false,
@@ -86,6 +89,7 @@ pub fn instruction_is_speculatable(instruction: &Instruction) -> bool {
 /// Instructions with side effects must be preserved regardless of whether their
 /// result is used. This includes stores, calls, allocations, and drops.
 pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
+    // classify instructions by side effects
     match instruction {
         // pure computations, no side effects
         Instruction::Const { .. }
@@ -129,8 +133,10 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         // deallocation has side effects
         Instruction::RawFree { .. } => true,
 
-        // intrinsics may have side effects (conservative)
-        Instruction::Intrinsic { .. } => true,
+        // intrinsics may have side effects (check purity for safe removal)
+        Instruction::Intrinsic { intrinsic, .. } => {
+            !intrinsic.is_pure() || matches!(intrinsic, mir::Intrinsic::BlackBox)
+        }
     }
 }
 
@@ -140,6 +146,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
 /// instructions don't have side effects but read mutable state, so they
 /// cannot be freely reordered past memory writes.
 pub fn instruction_is_memory_read(instruction: &Instruction) -> bool {
+    // identify instructions that read mutable memory
     matches!(
         instruction,
         Instruction::Load { .. } | Instruction::LocalGet { .. }
@@ -152,6 +159,7 @@ pub fn instruction_is_memory_read(instruction: &Instruction) -> bool {
 /// Any instruction that writes memory, calls functions (which might write memory),
 /// or performs allocations/deallocations is considered to affect memory.
 pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
+    // identify instructions that can modify memory state
     matches!(
         instruction,
         Instruction::Store { .. }
@@ -177,6 +185,7 @@ pub fn instruction_collect_used_values(
     function: &mir::Function,
     tree: &mir::NodeTree,
 ) -> HashSet<mir::Value> {
+    // seed the used value set
     let mut used = HashSet::new();
 
     // add function parameters as implicitly used (they're inputs)
@@ -184,6 +193,7 @@ pub fn instruction_collect_used_values(
         used.insert(param.value);
     }
 
+    // scan blocks for instruction and terminator uses
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
 
@@ -221,12 +231,15 @@ pub fn instruction_substitute_uses(
     instruction: &mir::Instruction,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> mir::Instruction {
+    // skip when no substitutions are provided
     if substitutions.is_empty() {
         return instruction.clone();
     }
 
+    // resolve a value through the substitution map
     let substitute = |v: &mir::Value| -> mir::Value { *substitutions.get(v).unwrap_or(v) };
 
+    // rebuild the instruction with substituted operands
     match instruction {
         mir::Instruction::Binary {
             destination,
@@ -398,15 +411,21 @@ pub fn instruction_substitute_uses_in_tree(
     substitutions: &HashMap<mir::Value, mir::Value>,
     tree: &mut mir::NodeTree,
 ) -> mir::Instruction {
+    // skip when no substitutions are provided
     if substitutions.is_empty() {
         return instruction.clone();
     }
 
+    // resolve values through the substitution map
     let substitute =
         |value: mir::Value| -> mir::Value { *substitutions.get(&value).unwrap_or(&value) };
 
+    // rebuild argument slices when needed
     let mut substitute_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
+        // read existing arguments
         let arguments = tree.get_arguments(slice);
+
+        // skip when no arguments are substituted
         if !arguments
             .iter()
             .any(|value| substitutions.contains_key(value))
@@ -414,10 +433,13 @@ pub fn instruction_substitute_uses_in_tree(
             return slice;
         }
 
+        // build remapped arguments
         let new_arguments: Vec<_> = arguments.iter().map(|value| substitute(*value)).collect();
+
         tree.add_arguments(&new_arguments)
     };
 
+    // rebuild the instruction using substituted operands
     match instruction {
         mir::Instruction::Struct {
             destination,
@@ -479,6 +501,92 @@ pub fn instruction_substitute_uses_in_tree(
     }
 }
 
+/// Substitute values in a slice using the provided mapping.
+pub fn substitute_values(
+    values: &[mir::Value],
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> Vec<mir::Value> {
+    // fast path for empty substitutions
+    if substitutions.is_empty() {
+        return values.to_vec();
+    }
+
+    // apply substitutions to the value list
+    values
+        .iter()
+        .map(|value| substitutions.get(value).copied().unwrap_or(*value))
+        .collect()
+}
+
+/// Apply substitutions and optional removals across a function.
+///
+/// Returns true when any instruction or terminator is updated or removed.
+pub fn apply_substitutions_in_function(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+    to_remove: Option<&HashSet<mir::LocalNodeId<mir::Instruction>>>,
+) -> bool {
+    // check if work is required
+    let has_substitutions = !substitutions.is_empty();
+    let has_removals = to_remove.is_some_and(|set| !set.is_empty());
+    if !has_substitutions && !has_removals {
+        return false;
+    }
+
+    // track whether any changes occur
+    let mut changed = false;
+
+    // rewrite instructions and terminators in each block
+    for &block_id in &function.blocks {
+        // snapshot block contents
+        let block = tree.get(block_id).clone();
+        let instruction_ids = block.instructions.clone();
+        let terminator = block.terminator.clone();
+
+        // rebuild instructions with substitutions and removals
+        let mut new_instructions = Vec::with_capacity(instruction_ids.len());
+        for instruction_id in instruction_ids {
+            // skip instructions slated for removal
+            if to_remove.is_some_and(|set| set.contains(&instruction_id)) {
+                changed = true;
+                continue;
+            }
+
+            // substitute instruction operands when requested
+            if has_substitutions {
+                let instruction = tree.get(instruction_id).clone();
+                let updated =
+                    instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
+                if updated != instruction {
+                    tree.replace(instruction_id, updated);
+                    changed = true;
+                }
+            }
+
+            new_instructions.push(instruction_id);
+        }
+
+        // rewrite terminator operands when requested
+        let new_terminator = if has_substitutions {
+            terminator_substitute_uses(&terminator, substitutions)
+        } else {
+            terminator.clone()
+        };
+
+        // update block when instructions or terminator changed
+        if new_instructions.len() != block.instructions.len() || new_terminator != terminator {
+            let mut new_block = block;
+            new_block.instructions = new_instructions;
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
 /// Maps for tracking where values are used and defined.
 #[derive(Debug)]
 pub struct UseDefMaps {
@@ -493,9 +601,11 @@ pub struct UseDefMaps {
 /// This is useful for sinking, code motion, and liveness analysis.
 /// Function parameters are not included in `def_block` (they have no defining block).
 pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> UseDefMaps {
+    // initialize use and definition maps
     let mut use_blocks: HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>> = HashMap::new();
     let mut def_block: HashMap<mir::Value, mir::LocalNodeId<mir::Block>> = HashMap::new();
 
+    // scan blocks for definitions and uses
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
 
@@ -538,6 +648,72 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
     }
 }
 
+/// Definition metadata for instructions.
+#[derive(Debug, Clone)]
+pub struct InstructionRef {
+    /// The instruction that defines the value.
+    pub instruction: mir::Instruction,
+    /// The block containing the instruction.
+    pub block: mir::LocalNodeId<mir::Block>,
+    /// The instruction index within the block.
+    pub index: usize,
+}
+
+/// Build a map from values to their defining instructions.
+pub fn build_value_instruction_map(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, mir::Instruction> {
+    // collect instruction destinations
+    let mut map = HashMap::new();
+
+    // scan blocks for definitions
+    for &block_id in &function.blocks {
+        // read block instructions
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            // record instructions that define a value
+            let instruction = tree.get(instruction_id);
+            if let Some(destination) = instruction.destination() {
+                map.insert(destination, instruction.clone());
+            }
+        }
+    }
+
+    map
+}
+
+/// Build a map from values to their defining instruction references.
+pub fn build_value_instruction_refs(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, InstructionRef> {
+    // collect instruction references
+    let mut map = HashMap::new();
+
+    // scan blocks for definitions
+    for &block_id in &function.blocks {
+        // read block instructions
+        let block = tree.get(block_id);
+        for (index, instruction_id) in block.instructions.iter().enumerate() {
+            // record instructions that define a value
+            let instruction = tree.get(*instruction_id);
+            if let Some(destination) = instruction.destination() {
+                map.insert(
+                    destination,
+                    InstructionRef {
+                        instruction: instruction.clone(),
+                        block: block_id,
+                        index,
+                    },
+                );
+            }
+        }
+    }
+
+    map
+}
+
 /// Remap all values in an instruction according to the given map.
 ///
 /// Unlike `instruction_substitute_uses`, this also remaps the destination and
@@ -548,8 +724,22 @@ pub fn instruction_map(
     value_map: &HashMap<mir::Value, mir::Value>,
     tree: &mut mir::NodeTree,
 ) -> mir::Instruction {
+    // remap values through the provided map
     let remap = |v: mir::Value| -> mir::Value { *value_map.get(&v).unwrap_or(&v) };
 
+    // rebuild argument slices with remapped values
+    let mut remap_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
+        // remap argument values
+        let new_args: Vec<_> = tree
+            .get_arguments(slice)
+            .iter()
+            .map(|&v| remap(v))
+            .collect();
+
+        tree.add_arguments(&new_args)
+    };
+
+    // rebuild the instruction with remapped values
     match instruction {
         mir::Instruction::Const { destination, value } => mir::Instruction::Const {
             destination: remap(*destination),
@@ -701,87 +891,47 @@ pub fn instruction_map(
             destination,
             ty,
             fields,
-        } => {
-            let new_args: Vec<mir::Value> = tree
-                .get_arguments(*fields)
-                .iter()
-                .map(|&v| remap(v))
-                .collect();
-            let new_slice = tree.add_arguments(&new_args);
-            mir::Instruction::Struct {
-                destination: remap(*destination),
-                ty: *ty,
-                fields: new_slice,
-            }
-        }
+        } => mir::Instruction::Struct {
+            destination: remap(*destination),
+            ty: *ty,
+            fields: remap_arguments(*fields),
+        },
         mir::Instruction::Tuple {
             destination,
             ty,
             elements,
-        } => {
-            let new_args: Vec<mir::Value> = tree
-                .get_arguments(*elements)
-                .iter()
-                .map(|&v| remap(v))
-                .collect();
-            let new_slice = tree.add_arguments(&new_args);
-            mir::Instruction::Tuple {
-                destination: remap(*destination),
-                ty: *ty,
-                elements: new_slice,
-            }
-        }
+        } => mir::Instruction::Tuple {
+            destination: remap(*destination),
+            ty: *ty,
+            elements: remap_arguments(*elements),
+        },
         mir::Instruction::Array {
             destination,
             ty,
             elements,
-        } => {
-            let new_args: Vec<mir::Value> = tree
-                .get_arguments(*elements)
-                .iter()
-                .map(|&v| remap(v))
-                .collect();
-            let new_slice = tree.add_arguments(&new_args);
-            mir::Instruction::Array {
-                destination: remap(*destination),
-                ty: *ty,
-                elements: new_slice,
-            }
-        }
+        } => mir::Instruction::Array {
+            destination: remap(*destination),
+            ty: *ty,
+            elements: remap_arguments(*elements),
+        },
         mir::Instruction::Call {
             destination,
             function,
             arguments,
-        } => {
-            let new_args: Vec<mir::Value> = tree
-                .get_arguments(*arguments)
-                .iter()
-                .map(|&v| remap(v))
-                .collect();
-            let new_slice = tree.add_arguments(&new_args);
-            mir::Instruction::Call {
-                destination: destination.map(remap),
-                function: *function,
-                arguments: new_slice,
-            }
-        }
+        } => mir::Instruction::Call {
+            destination: destination.map(remap),
+            function: *function,
+            arguments: remap_arguments(*arguments),
+        },
         mir::Instruction::CallIndirect {
             destination,
             callee,
             arguments,
-        } => {
-            let new_args: Vec<mir::Value> = tree
-                .get_arguments(*arguments)
-                .iter()
-                .map(|&v| remap(v))
-                .collect();
-            let new_slice = tree.add_arguments(&new_args);
-            mir::Instruction::CallIndirect {
-                destination: destination.map(remap),
-                callee: remap(*callee),
-                arguments: new_slice,
-            }
-        }
+        } => mir::Instruction::CallIndirect {
+            destination: destination.map(remap),
+            callee: remap(*callee),
+            arguments: remap_arguments(*arguments),
+        },
         mir::Instruction::ManagedAlloc {
             destination,
             layout,
@@ -820,20 +970,12 @@ pub fn instruction_map(
             intrinsic,
             arguments,
             ordering,
-        } => {
-            let new_args: Vec<mir::Value> = tree
-                .get_arguments(*arguments)
-                .iter()
-                .map(|&v| remap(v))
-                .collect();
-            let new_slice = tree.add_arguments(&new_args);
-            mir::Instruction::Intrinsic {
-                destination: destination.map(remap),
-                intrinsic: *intrinsic,
-                arguments: new_slice,
-                ordering: *ordering,
-            }
-        }
+        } => mir::Instruction::Intrinsic {
+            destination: destination.map(remap),
+            intrinsic: *intrinsic,
+            arguments: remap_arguments(*arguments),
+            ordering: *ordering,
+        },
     }
 }
 
@@ -846,24 +988,28 @@ pub fn terminator_remap(
     block_map: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &HashMap<mir::Value, mir::Value>,
 ) {
+    // remap block targets in place
     let remap_target = |t: &mut mir::LocalNodeId<mir::Block>| {
         if let Some(&new_t) = block_map.get(t) {
             *t = new_t;
         }
     };
 
+    // remap values in place
     let remap_value = |v: &mut mir::Value| {
         if let Some(&new_v) = value_map.get(v) {
             *v = new_v;
         }
     };
 
+    // remap a list of arguments
     let remap_args = |args: &mut Vec<mir::Value>| {
         for arg in args.iter_mut() {
             remap_value(arg);
         }
     };
 
+    // remap terminator fields
     match terminator {
         mir::Terminator::Jump { target, arguments } => {
             remap_target(target);
