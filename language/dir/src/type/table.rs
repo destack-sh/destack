@@ -267,6 +267,11 @@ impl TypeTable {
         self.inferred_type_by_node_id.insert(node_id, ty);
     }
 
+    /// Clear all cached inferred types.
+    pub fn clear_inferred_types(&mut self) {
+        self.inferred_type_by_node_id.clear();
+    }
+
     /// Get the inferred type for a node.
     pub fn get_inferred_type(&self, node_id: GlobalNodeIdAny) -> Option<&Type> {
         self.inferred_type_by_node_id
