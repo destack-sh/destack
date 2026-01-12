@@ -426,3 +426,103 @@ block1(v2: i32, v3: i32):
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::InvalidContinuation));
 }
+
+/// Continuations can be cloned for multi-shot resumption.
+#[test]
+fn test_continuation_clone_for_fork() {
+    // define mir program
+    let mir = r#"
+function @yield_once() -> i32 {
+block0:
+    v0 = iconst 1i32
+    yield v0, block1
+block1(v1: i32):
+    return v1
+}
+"#;
+
+    // create interpreter
+    let mut interpreter = super::create_interpreter(mir);
+
+    // start coroutine and capture continuation
+    let outcome = interpreter
+        .run_function_by_name_yielding("yield_once", &[])
+        .expect("execution failed");
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
+        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
+    };
+    assert_eq!(yielded_value, Value::int32(1));
+
+    // clone the continuation for a forked resume
+    let forked = continuation.clone_for_fork();
+
+    // resume the original continuation
+    let outcome = interpreter
+        .resume(continuation, Value::int32(5))
+        .expect("resume failed");
+    let output = match outcome {
+        ExecutionOutcome::Completed { output } => output,
+        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
+    };
+    assert_eq!(output.value, Value::int32(5));
+
+    // resume the forked continuation
+    let outcome = interpreter
+        .resume(forked, Value::int32(9))
+        .expect("resume failed");
+    let output = match outcome {
+        ExecutionOutcome::Completed { output } => output,
+        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
+    };
+    assert_eq!(output.value, Value::int32(9));
+}
+
+/// Continuation roots keep managed allocations alive across yields.
+#[test]
+fn test_continuation_roots_keep_allocations() {
+    // define mir program
+    let mir = r#"
+type @Pair = { i32, i32 }
+
+function @yield_alloc() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = iconst 2i32
+    v2 = struct @Pair (v0, v1)
+    yield v0, block1(v2)
+block1(v3: @Pair, v4: i32):
+    return v4
+}
+"#;
+
+    // create interpreter
+    let mut interpreter = super::create_interpreter(mir);
+
+    // start coroutine and capture continuation
+    let outcome = interpreter
+        .run_function_by_name_yielding("yield_alloc", &[])
+        .expect("execution failed");
+    let (_, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
+        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
+    };
+
+    // collect garbage while continuation is suspended
+    let stats = interpreter.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
+    assert_eq!(stats.live_cells, 1);
+
+    // resume and complete the coroutine
+    let outcome = interpreter
+        .resume(continuation, Value::int32(7))
+        .expect("resume failed");
+    let output = match outcome {
+        ExecutionOutcome::Completed { output } => output,
+        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
+    };
+    assert_eq!(output.value, Value::int32(7));
+
+    // collect garbage after completion
+    let stats = interpreter.collect_garbage();
+    assert_eq!(stats.live_cells, 0);
+}

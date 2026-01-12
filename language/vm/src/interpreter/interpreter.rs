@@ -8,7 +8,7 @@ use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
-use crate::memory::{ManagedHeap, RawHeap, Value};
+use crate::memory::{HeapHandle, ManagedHeap, RawHeap, Value};
 
 use super::decode::thread_function;
 #[cfg(feature = "stats")]
@@ -39,7 +39,7 @@ pub struct ExecutionOutput {
 }
 
 /// Resume state captured at a yield terminator.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct YieldState {
     /// Frame index to resume execution in.
     pub frame_index: usize,
@@ -69,6 +69,38 @@ pub struct Continuation {
     /// The instruction profile state for the suspended execution.
     #[cfg(feature = "stats")]
     pub(super) instruction_profile: Option<InstructionProfile>,
+}
+
+impl Continuation {
+    /// Clone this continuation for multi-shot resumption.
+    pub fn clone_for_fork(&self) -> Self {
+        let call_stack = self.call_stack.iter().map(Frame::clone_for_fork).collect();
+        let value_stack = self.value_stack.clone();
+        let local_stack = self.local_stack.clone();
+        let yield_state = self.yield_state.clone();
+        let statistics = self.statistics.clone();
+        #[cfg(feature = "stats")]
+        let instruction_profile = self.instruction_profile.clone();
+
+        Self {
+            interpreter_id: self.interpreter_id,
+            call_stack,
+            value_stack,
+            local_stack,
+            yield_state,
+            statistics,
+            #[cfg(feature = "stats")]
+            instruction_profile,
+        }
+    }
+
+    /// Collect managed heap roots referenced by this continuation.
+    pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
+        // collect roots from captured frames
+        for frame in &self.call_stack {
+            frame.collect_roots(&self.value_stack, &self.local_stack, roots);
+        }
+    }
 }
 
 /// Yield result from a suspended coroutine execution.
@@ -586,12 +618,26 @@ impl Interpreter {
 
     /// Run garbage collection on the managed heap.
     pub fn collect_garbage(&mut self) -> GcStats {
-        // collect roots from all frames
+        self.collect_garbage_with_continuations(&[])
+    }
+
+    /// Run garbage collection including suspended continuations.
+    pub fn collect_garbage_with_continuations(
+        &mut self,
+        continuations: &[Continuation],
+    ) -> GcStats {
+        // collect roots from active frames
         let mut roots = Vec::new();
         for frame in &self.call_stack {
             frame.collect_roots(&self.value_stack, &self.local_stack, &mut roots);
         }
 
+        // collect roots from continuations
+        for continuation in continuations {
+            continuation.collect_roots(&mut roots);
+        }
+
+        // run collection
         let freed_cells = self.managed_heap.collect(&roots);
         let live_cells = self.managed_heap.cell_count();
 
