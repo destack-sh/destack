@@ -1,5 +1,5 @@
 // core types (ambient)
-export { String, string } from "./string/index.ds";
+export { String } from "./string/index.ds";
 export { Array, arrayOf, arrayFill } from "./collections/index.ds";
 export { Slice, MutSlice } from "./collections/index.ds";
 export { Map, Record } from "./collections/index.ds";

@@ -31,9 +31,6 @@ struct String {
     data: *uint8,
 }
 
-/// Lowercase alias for TypeScript compatibility.
-type string = String;
-
 extension for String {
     /// The length in UTF-16 code units (TypeScript-compatible).
     get length(): number {
@@ -52,7 +49,7 @@ extension for String {
 
     /// Get a character at the given UTF-16 index.
     /// Returns undefined if index is out of bounds.
-    charAt(index: number): string | undefined {
+    charAt(index: number): String | undefined {
         // #Incomplete
         undefined
     }
@@ -64,103 +61,103 @@ extension for String {
     }
 
     /// Concatenate two strings.
-    concat(other: string): string {
+    concat(other: String): String {
         // #Incomplete
         this
     }
 
     /// Check if string includes a substring.
-    includes(search: string, position?: number): boolean {
+    includes(search: String, position?: number): boolean {
         // #Incomplete
         false
     }
 
     /// Find the first index of a substring.
-    indexOf(search: string, position?: number): number {
+    indexOf(search: String, position?: number): number {
         // #Incomplete
         -1
     }
 
     /// Find the last index of a substring.
-    lastIndexOf(search: string, position?: number): number {
+    lastIndexOf(search: String, position?: number): number {
         // #Incomplete
         -1
     }
 
     /// Check if string starts with a prefix.
-    startsWith(search: string, position?: number): boolean {
+    startsWith(search: String, position?: number): boolean {
         // #Incomplete
         false
     }
 
     /// Check if string ends with a suffix.
-    endsWith(search: string, position?: number): boolean {
+    endsWith(search: String, position?: number): boolean {
         // #Incomplete
         false
     }
 
     /// Extract a substring.
-    substring(start: number, end?: number): string {
+    substring(start: number, end?: number): String {
         // #Incomplete
         this
     }
 
     /// Extract a slice of the string.
-    slice(start?: number, end?: number): string {
+    slice(start?: number, end?: number): String {
         // #Incomplete
         this
     }
 
     /// Convert to lowercase.
-    toLowerCase(): string {
+    toLowerCase(): String {
         // #Incomplete
         this
     }
 
     /// Convert to uppercase.
-    toUpperCase(): string {
+    toUpperCase(): String {
         // #Incomplete
         this
     }
 
     /// Remove leading and trailing whitespace.
-    trim(): string {
+    trim(): String {
         // #Incomplete
         this
     }
 
     /// Remove leading whitespace.
-    trimStart(): string {
+    trimStart(): String {
         // #Incomplete
         this
     }
 
     /// Remove trailing whitespace.
-    trimEnd(): string {
+    trimEnd(): String {
         // #Incomplete
         this
     }
 
     /// Repeat the string n times.
-    repeat(count: number): string {
+    repeat(count: number): String {
         // #Incomplete
         this
     }
 
     /// Pad the start of the string.
-    padStart(targetLength: number, padString?: string): string {
+    padStart(targetLength: number, padString?: String): String {
         // #Incomplete
         this
     }
 
     /// Pad the end of the string.
-    padEnd(targetLength: number, padString?: string): string {
+    padEnd(targetLength: number, padString?: String): String {
         // #Incomplete
         this
     }
 
     /// Split the string by a separator.
-    split(separator: string, limit?: number): Array<string> {
+    split(separator: String, limit?: number): Array<String> {
         // #Incomplete
         []
     }

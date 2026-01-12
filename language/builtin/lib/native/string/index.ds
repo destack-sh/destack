@@ -1,1 +1,1 @@
-export { String, string } from "./string.ds";
+export { String } from "./string.ds";
