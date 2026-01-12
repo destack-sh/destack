@@ -10,8 +10,6 @@ use crate::optimize::common::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
-// NOTE #Performance: add profile guided unswitch heuristics and partial unswitching
-
 declare_pass! {
     /// Move loop-invariant conditionals outside of loops by duplicating the loop.
     ///
@@ -62,6 +60,8 @@ declare_pass! {
 const MAX_LOOP_SIZE: usize = 50;
 /// Maximum number of unswitch operations per function invocation.
 const MAX_UNSWITCHES_PER_FUNCTION: usize = 2;
+
+// NOTE #Incomplete: add block frequency cost modeling for unswitch selection
 
 impl FunctionPass for LoopUnswitch {
     /// Run loop unswitching on a function.
