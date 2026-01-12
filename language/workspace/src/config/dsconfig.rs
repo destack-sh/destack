@@ -14,9 +14,9 @@ use crate::{
 
 use super::target::{
     Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DivisionCheckPolicy,
-    LinkMode, NullCheckPolicy, OptimizeLevel, OutputFormat, OutputMode, OverflowCheckPolicy,
-    PanicPolicy, Platform, RelocationModel, Runtime, SafetyPreset, ShiftCheckPolicy, ShrinkLevel,
-    StripLevel, Target, TargetDiscovery, UnwindFormat,
+    FloatMathPolicy, LinkMode, NullCheckPolicy, OptimizeLevel, OutputFormat, OutputMode,
+    OverflowCheckPolicy, PanicPolicy, Platform, RelocationModel, Runtime, SafetyPreset,
+    ShiftCheckPolicy, ShrinkLevel, StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 use super::{ProfileConfig, ProfileConfigJson};
@@ -705,6 +705,8 @@ pub struct DsConfigTargetOptions {
     pub optimize_level: OptimizeLevel,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
+    /// Floating point math optimization policy.
+    pub float_math: FloatMathPolicy,
     /// Debug info emission policy.
     pub debug_info: DebugInfoLevel,
     /// Symbol stripping policy.
@@ -761,6 +763,7 @@ impl Default for DsConfigTargetOptions {
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             shrink_level: ShrinkLevel::S0,
+            float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
             strip: StripLevel::default(),
             panic: PanicPolicy::default(),
@@ -828,6 +831,7 @@ impl DsConfigTargetOptions {
             optimize: self.optimize,
             optimize_level: self.optimize_level,
             shrink_level: self.shrink_level,
+            float_math: self.float_math,
             debug_info: self.debug_info,
             strip: self.strip,
             panic: self.panic,
@@ -862,6 +866,9 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
         let safety_preset = json.safety_preset.map(SafetyPreset::from);
         let default_checks = safety_preset
             .map(|preset| preset.runtime_check_policies())
+            .unwrap_or_default();
+        let default_float_math = safety_preset
+            .map(|preset| preset.float_math_policy())
             .unwrap_or_default();
 
         Self {
@@ -918,6 +925,10 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .map(OptimizeLevel::from)
                 .unwrap_or_default(),
             shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
+            float_math: json
+                .float_math
+                .map(FloatMathPolicy::from)
+                .unwrap_or(default_float_math),
             debug_info: json
                 .debug_info
                 .map(DebugInfoLevel::from)
@@ -1165,6 +1176,37 @@ impl From<SafetyPresetJson> for SafetyPreset {
             SafetyPresetJson::ReleaseSafe => SafetyPreset::ReleaseSafe,
             SafetyPresetJson::ReleaseFast => SafetyPreset::ReleaseFast,
             SafetyPresetJson::ReleaseSmall => SafetyPreset::ReleaseSmall,
+        }
+    }
+}
+
+/// Floating point math policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum FloatMathPolicyJson {
+    /// Strict IEEE semantics.
+    #[serde(alias = "strict")]
+    Strict,
+    /// Allow reassociation and algebraic simplifications.
+    #[serde(alias = "reassoc")]
+    #[serde(alias = "reassociate")]
+    #[serde(alias = "relaxed")]
+    Reassociate,
+    /// Enable fast math optimizations (assume no NaN, inf, or signed zero).
+    #[serde(alias = "fast")]
+    #[serde(alias = "fast-math")]
+    #[serde(alias = "fast_math")]
+    #[serde(alias = "fastmath")]
+    Fast,
+}
+
+impl From<FloatMathPolicyJson> for FloatMathPolicy {
+    fn from(value: FloatMathPolicyJson) -> Self {
+        match value {
+            FloatMathPolicyJson::Strict => FloatMathPolicy::Strict,
+            FloatMathPolicyJson::Reassociate => FloatMathPolicy::Reassociate,
+            FloatMathPolicyJson::Fast => FloatMathPolicy::Fast,
         }
     }
 }
@@ -1726,6 +1768,8 @@ pub struct DsConfigTargetJson {
     pub optimize_level: Option<u8>,
     /// Shrink level (0-3).
     pub shrink_level: Option<u8>,
+    /// Floating point math optimization policy.
+    pub float_math: Option<FloatMathPolicyJson>,
     /// Debug info emission policy.
     pub debug_info: Option<DebugInfoLevelJson>,
     /// Symbol stripping policy.

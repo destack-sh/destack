@@ -335,6 +335,38 @@ impl OverflowCheckPolicy {
     }
 }
 
+/// Floating point math optimization policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FloatMathPolicy {
+    /// Strict IEEE semantics.
+    #[default]
+    Strict,
+    /// Allow reassociation and algebraic simplifications.
+    Reassociate,
+    /// Enable fast math optimizations (assume no NaN, inf, or signed zero).
+    Fast,
+}
+
+impl std::str::FromStr for FloatMathPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "strict" => Ok(Self::Strict),
+            "reassoc" | "reassociate" | "relaxed" => Ok(Self::Reassociate),
+            "fast" | "fast_math" | "fastmath" => Ok(Self::Fast),
+            _ => Err(()),
+        }
+    }
+}
+
+impl FloatMathPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Safety preset that configures runtime checks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SafetyPreset {
@@ -385,6 +417,14 @@ impl SafetyPreset {
                 division: DivisionCheckPolicy::Never,
                 shift: ShiftCheckPolicy::Never,
             },
+        }
+    }
+
+    /// Return the float math policy for this preset.
+    pub fn float_math_policy(self) -> FloatMathPolicy {
+        match self {
+            SafetyPreset::Debug | SafetyPreset::ReleaseSafe => FloatMathPolicy::Strict,
+            SafetyPreset::ReleaseFast | SafetyPreset::ReleaseSmall => FloatMathPolicy::Fast,
         }
     }
 }
@@ -882,6 +922,8 @@ pub struct Target {
     pub optimize_level: OptimizeLevel,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
+    /// Floating point math optimization policy.
+    pub float_math: FloatMathPolicy,
     /// Debug info emission policy.
     pub debug_info: DebugInfoLevel,
     /// Symbol stripping policy.
@@ -1195,6 +1237,12 @@ impl Target {
         self
     }
 
+    /// Set floating point math optimization policy.
+    pub fn with_float_math(mut self, float_math: FloatMathPolicy) -> Self {
+        self.float_math = float_math;
+        self
+    }
+
     /// Set safety preset and update runtime check policies.
     pub fn with_safety_preset(mut self, safety_preset: SafetyPreset) -> Self {
         let policies = safety_preset.runtime_check_policies();
@@ -1204,6 +1252,7 @@ impl Target {
         self.null_checks = policies.null;
         self.division_checks = policies.division;
         self.shift_checks = policies.shift;
+        self.float_math = safety_preset.float_math_policy();
         self
     }
 
@@ -1410,5 +1459,10 @@ mod tests {
         assert_eq!(fast.null, NullCheckPolicy::Never);
         assert_eq!(fast.division, DivisionCheckPolicy::Never);
         assert_eq!(fast.shift, ShiftCheckPolicy::Never);
+
+        let debug_float = SafetyPreset::Debug.float_math_policy();
+        let fast_float = SafetyPreset::ReleaseFast.float_math_policy();
+        assert_eq!(debug_float, FloatMathPolicy::Strict);
+        assert_eq!(fast_float, FloatMathPolicy::Fast);
     }
 }
