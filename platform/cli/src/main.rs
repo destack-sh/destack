@@ -21,6 +21,7 @@ fn main() {
         #[cfg(feature = "dev")]
         Command::Dev(subcommand) => match subcommand {
             DevCommand::Resolve(args) => dev::resolve::run(&args),
+            DevCommand::Stats(args) => dev::stats::run(&args),
             DevCommand::Version(cmd) => match cmd {
                 dev::VersionCommands::Show => dev::version::show(),
                 cmd => dev::version::bump(&cmd),
