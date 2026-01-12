@@ -1443,7 +1443,7 @@ impl Compiler {
         visited.push(symbol);
 
         // ensure instance types are resolved for this symbol
-        let _ = self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
+        self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
 
         // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
@@ -1456,7 +1456,8 @@ impl Compiler {
         }
 
         // step 2: traverse lineage (extends, implements, embedded)
-        if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
+        let lineage = types.get_lineage_for_symbol(symbol).cloned();
+        if let Some(lineage) = lineage {
             // check parent type (extends)
             if let Some(extends) = lineage.extends
                 && let Some(member_ty) = self.infer_member_of_symbol(
