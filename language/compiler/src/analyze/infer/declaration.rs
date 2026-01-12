@@ -104,15 +104,15 @@ impl Compiler {
                 // infer generics for member bodies
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
 
-                // resolve the instance type for `this`
+                // resolve the nominal type for `this`
                 let symbol = descriptor.symbol.into_global(module.id);
-                let this_ty_id = types.get_instance_type_id(symbol).or_else(|| {
-                    let ty = Type::Reference {
+                let this_ty_id = Some(types.insert_type_from(
+                    Type::Reference {
                         symbol,
                         static_arguments: None,
-                    };
-                    Some(types.insert_type_from(ty, declaration_id))
-                });
+                    },
+                    declaration_id,
+                ));
 
                 // infer member bodies without mutating instance shapes
                 for member_id in members {
@@ -137,15 +137,15 @@ impl Compiler {
                 let is_abstract = descriptor.abstraction == DeclarationAbstraction::Abstract;
                 let mut ctx = ctx.fork().in_abstract_class_maybe(is_abstract);
 
-                // resolve the instance type for `this`
+                // resolve the nominal type for `this`
                 let symbol = descriptor.symbol.into_global(module.id);
-                let this_ty_id = types.get_instance_type_id(symbol).or_else(|| {
-                    let ty = Type::Reference {
+                let this_ty_id = Some(types.insert_type_from(
+                    Type::Reference {
                         symbol,
                         static_arguments: None,
-                    };
-                    Some(types.insert_type_from(ty, declaration_id))
-                });
+                    },
+                    declaration_id,
+                ));
 
                 // infer member bodies without mutating instance shapes
                 for member_id in members {
@@ -179,14 +179,14 @@ impl Compiler {
                     self.infer_enum_backing_type(module, ctx.profile, fields, tree, types)?;
                 types.set_enum_backing_type(enum_symbol, backing_type);
 
-                // resolve the instance type for `this`
-                let this_ty_id = types.get_instance_type_id(enum_symbol).or_else(|| {
-                    let ty = Type::Reference {
+                // resolve the nominal type for `this`
+                let this_ty_id = Some(types.insert_type_from(
+                    Type::Reference {
                         symbol: enum_symbol,
                         static_arguments: None,
-                    };
-                    Some(types.insert_type_from(ty, declaration_id))
-                });
+                    },
+                    declaration_id,
+                ));
 
                 // infer member bodies without mutating instance shapes
                 for member_id in members {
@@ -210,15 +210,15 @@ impl Compiler {
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
                 self.infer_expression(module, *target_type, tree, symbols, types, infer, ctx)?;
 
-                // assign this to the target type when available
-                let this_ty_id = target_symbol.and_then(|target| {
-                    types.get_instance_type_id(target).or_else(|| {
-                        let ty = Type::Reference {
+                // assign this to the nominal target type when available
+                let this_ty_id = target_symbol.map(|target| {
+                    types.insert_type_from(
+                        Type::Reference {
                             symbol: target,
                             static_arguments: None,
-                        };
-                        Some(types.insert_type_from(ty, declaration_id))
-                    })
+                        },
+                        declaration_id,
+                    )
                 });
 
                 // infer member bodies without mutating instance shapes
@@ -241,15 +241,15 @@ impl Compiler {
                 // infer generics for member bodies
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
 
-                // resolve the instance type for `this`
+                // resolve the nominal type for `this`
                 let symbol = descriptor.symbol.into_global(module.id);
-                let this_ty_id = types.get_instance_type_id(symbol).or_else(|| {
-                    let ty = Type::Reference {
+                let this_ty_id = Some(types.insert_type_from(
+                    Type::Reference {
                         symbol,
                         static_arguments: None,
-                    };
-                    Some(types.insert_type_from(ty, declaration_id))
-                });
+                    },
+                    declaration_id,
+                ));
 
                 // infer member bodies without mutating instance shapes
                 for member_id in members {

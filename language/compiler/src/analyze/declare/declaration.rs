@@ -218,6 +218,7 @@ impl Compiler {
                 let instance_ty_id = self.try_evaluate_expression_to_type(
                     module, profile, *value, tree, symbols, types,
                 )?;
+                types.set_declared_type(value.into_global_any(module.id), instance_ty_id);
 
                 // register the instance type for this symbol
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -844,9 +845,11 @@ impl Compiler {
 
                 // resolve the field type
                 let value_ty_id = if let Some(value) = value {
-                    self.try_evaluate_expression_to_type(
+                    let value_ty_id = self.try_evaluate_expression_to_type(
                         module, profile, *value, tree, symbols, types,
-                    )?
+                    )?;
+                    types.set_declared_type(value.into_global_any(module.id), value_ty_id);
+                    value_ty_id
                 } else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
