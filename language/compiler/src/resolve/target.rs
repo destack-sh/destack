@@ -71,7 +71,8 @@ impl Compiler {
 
         // include ambient lib modules when available
         if let Some(builtins) = self.program.builtins.as_ref()
-            && let Some(ambient_modules) = builtins.ambient_libs(&self.program.profile(profile_id).key)
+            && let Some(ambient_modules) =
+                builtins.ambient_libs(&self.program.profile(profile_id).key)
         {
             let mut seen = HashSet::new();
             for root in roots.iter().copied() {

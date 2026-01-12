@@ -153,7 +153,11 @@ impl Compiler {
         let target_symbol = target_symbol.or_else(|| {
             let builtins = self.program.builtins.as_ref()?;
             let profile = self.program.profile(profile_id);
-            builtins.get_ambient_lib_symbol_for_space_order(&profile.key, first_segment, space_order)
+            builtins.get_ambient_lib_symbol_for_space_order(
+                &profile.key,
+                first_segment,
+                space_order,
+            )
         });
 
         let Some(target_symbol) = target_symbol else {

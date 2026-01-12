@@ -339,10 +339,16 @@ impl Compiler {
         let key = StaticKey::Name(first_segment);
 
         // prefer cached declared lib symbols when available
-        if let Some(symbol_id) =
-            builtins.get_declared_lib_symbol_for_space_order(profile_key, first_segment, space_order)
-        {
-            self.require_resolve_module_prepare_if_needed(module.id, symbol_id.module_id, profile_id)?;
+        if let Some(symbol_id) = builtins.get_declared_lib_symbol_for_space_order(
+            profile_key,
+            first_segment,
+            space_order,
+        ) {
+            self.require_resolve_module_prepare_if_needed(
+                module.id,
+                symbol_id.module_id,
+                profile_id,
+            )?;
             let ambient_module = self.program.modules.get(symbol_id.module_id);
             let ambient_module = ambient_module.read();
             let ambient_dir = ambient_module.dir(profile_id);

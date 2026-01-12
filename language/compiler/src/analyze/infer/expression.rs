@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferContext};
 use destack_dir::{
     Argument, BindingKind, Block, Constraint, Declaration, Expression, FlowGraphBuilder,
-    ForEachBinding, FunctionKind, GlobalSymbolId, InferOrigin, InferScope, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability,
-    NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable,
-    Type, TypeElement, TypeField, TypeLiteral, TypeTable,
+    ForEachBinding, FunctionKind, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree,
+    NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
+    TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
