@@ -1551,7 +1551,7 @@ impl Target {
             | Runtime::NativeHosted
             | Runtime::NativeFreestanding
             | Runtime::NativeEmbedded => {
-                // #Incomplete: map to Destack runtime libs
+                libs.push("native".to_string());
             }
         }
 

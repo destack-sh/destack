@@ -480,10 +480,25 @@ impl Program {
             seen.insert(lib_name.clone());
         }
 
+        // regular additive "types" libs
         let types = Self::collect_types_for_target(target, &compiler_options, profile_config);
         for type_name in types {
             if seen.insert(type_name.clone()) {
                 libs.push(type_name);
+            }
+        }
+
+        // lock native targets to native-friendly libs (#Cleanup)
+        if runtime.is_native() {
+            libs.retain(|lib| {
+                let Some(builtin) = destack_builtin::builtin_lib(lib) else {
+                    return true;
+                };
+                matches!(builtin.kind, destack_builtin::BuiltinLibKind::Std)
+                    || builtin.name == "native"
+            });
+            if !libs.iter().any(|lib| lib == "native") {
+                libs.push("native".to_string());
             }
         }
 
