@@ -160,6 +160,17 @@ block0:
     );
 }
 
+/// Roundtrip parsing supports address space references.
+#[test]
+fn test_roundtrip_addrspace_reference() {
+    roundtrip(
+        r#"function @addrspaceTest(v0: ref<raw addrspace(shared) i32>, v1: ref<raw addrspace(7) mut i32>) -> void {
+block0(v0: ref<raw addrspace(shared) i32>, v1: ref<raw addrspace(7) mut i32>):
+    return
+}"#,
+    );
+}
+
 #[test]
 fn test_roundtrip_nullable_ref() {
     roundtrip(

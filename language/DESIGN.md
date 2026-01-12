@@ -168,6 +168,9 @@ struct User {
 // on function parameters
 function process(@nonempty input: string) { }
 
+// on reference types
+function kernel(data: @addrspace("shared") &Point) { }
+
 // on match arms
 match (result) {
     @cold
@@ -672,6 +675,22 @@ T            // automatic (TypeScript behavior, implicitly GC-managed)
 ^T           // ownership transfer (caller gives up ownership)
 ^mut T       // ownership transfer (explicitly mutable)
 ```
+
+### Address Spaces
+
+References can target explicit address spaces for native and accelerated targets.
+The default is `generic`, which maps to the target's normal memory.
+Non-generic address spaces are only valid for borrowed and raw references.
+`constant` references are always immutable.
+
+Address spaces are spelled with `addrspace(name)` or `addrspace(7)` on a reference:
+
+```
+ref<raw addrspace(shared) i32>
+ref<raw addrspace(7) mut i32>
+```
+
+Address space changes are explicit (and lower to the `addrspace.cast` intrinsic).
 
 ### Ownership Semantics
 

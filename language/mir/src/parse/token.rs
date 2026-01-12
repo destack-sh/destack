@@ -46,6 +46,8 @@ pub enum TokenType {
     Ref,
     /// `ref?`
     RefNullable,
+    /// `addrspace`
+    AddrSpace,
     /// `fn`
     Fn,
     /// `struct`

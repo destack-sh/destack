@@ -172,6 +172,7 @@ impl<'a> Lexer<'a> {
                     TokenType::Ref
                 }
             }
+            "addrspace" => TokenType::AddrSpace,
             "fn" => TokenType::Fn,
             "struct" => TokenType::Struct,
             "true" | "false" => TokenType::BoolLiteral,

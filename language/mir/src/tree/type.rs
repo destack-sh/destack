@@ -63,6 +63,63 @@ pub enum Mutability {
     Mutable,
 }
 
+/// Address space for a reference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum AddressSpace {
+    /// Target default address space.
+    #[default]
+    Generic,
+    /// Stack or function-local memory.
+    Stack,
+    /// Global or module-static memory.
+    Global,
+    /// Heap-allocated memory.
+    Heap,
+    /// Target shared or workgroup memory.
+    Shared,
+    /// Target local or thread-local memory.
+    Local,
+    /// Target constant or read-only memory.
+    Constant,
+    /// Target-specific custom address space.
+    Target(u32),
+}
+
+impl AddressSpace {
+    /// Check if this is the default address space.
+    pub fn is_generic(self) -> bool {
+        matches!(self, AddressSpace::Generic)
+    }
+
+    /// Parse a named address space.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "generic" => Some(AddressSpace::Generic),
+            "stack" => Some(AddressSpace::Stack),
+            "global" => Some(AddressSpace::Global),
+            "heap" => Some(AddressSpace::Heap),
+            "shared" => Some(AddressSpace::Shared),
+            "local" => Some(AddressSpace::Local),
+            "constant" => Some(AddressSpace::Constant),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical name when this address space is named.
+    pub fn keyword(self) -> Option<&'static str> {
+        match self {
+            AddressSpace::Generic => Some("generic"),
+            AddressSpace::Stack => Some("stack"),
+            AddressSpace::Global => Some("global"),
+            AddressSpace::Heap => Some("heap"),
+            AddressSpace::Shared => Some("shared"),
+            AddressSpace::Local => Some("local"),
+            AddressSpace::Constant => Some("constant"),
+            AddressSpace::Target(_) => None,
+        }
+    }
+}
+
 /// Kind of reference in MIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReferenceKind {
@@ -135,6 +192,8 @@ pub enum Type {
     Reference {
         /// The reference kind (managed, owned, borrowed, raw).
         kind: ReferenceKind,
+        /// The address space for this reference.
+        address_space: AddressSpace,
         /// The reference mutability.
         mutability: Mutability,
         /// The referenced type.

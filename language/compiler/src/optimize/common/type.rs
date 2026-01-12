@@ -23,6 +23,7 @@ pub enum TypeKey {
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
+        address_space: mir::AddressSpace,
         mutability: mir::Mutability,
         pointee: Box<TypeKey>,
         is_nullable: bool,
@@ -56,6 +57,7 @@ impl TypeKey {
 
             mir::Type::Reference {
                 kind,
+                address_space,
                 mutability,
                 pointee,
                 is_nullable,
@@ -63,6 +65,7 @@ impl TypeKey {
                 let pointee_ty = tree.get(*pointee);
                 TypeKey::Reference {
                     kind: *kind,
+                    address_space: *address_space,
                     mutability: *mutability,
                     pointee: Box::new(TypeKey::from_type(pointee_ty, tree)),
                     is_nullable: *is_nullable,
@@ -173,17 +176,19 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
         (
             mir::Type::Reference {
                 kind: k1,
+                address_space: a1,
                 mutability: m1,
                 pointee: p1,
                 is_nullable: n1,
             },
             mir::Type::Reference {
                 kind: k2,
+                address_space: a2,
                 mutability: m2,
                 pointee: p2,
                 is_nullable: n2,
             },
-        ) => k1 == k2 && m1 == m2 && n1 == n2 && types_are_equal(*p1, *p2, tree),
+        ) => k1 == k2 && a1 == a2 && m1 == m2 && n1 == n2 && types_are_equal(*p1, *p2, tree),
 
         // arrays: compare element type and length
         (

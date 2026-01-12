@@ -115,6 +115,9 @@ pub enum Intrinsic {
     /// Reinterpret bytes as a different type (no conversion, just reinterpret).
     /// `(T) -> U`
     Transmute,
+    /// Cast between address spaces without changing the representation.
+    /// `(T) -> U`
+    AddrSpaceCast,
     /// Compute byte offset between two pointers.
     /// `(ptr, ptr) -> isize`
     PtrOffsetFrom,
@@ -345,6 +348,7 @@ impl Intrinsic {
 
             // type punning and pointer ops
             Intrinsic::Transmute => "transmute",
+            Intrinsic::AddrSpaceCast => "addrspace.cast",
             Intrinsic::PtrOffsetFrom => "ptr_offset_from",
             Intrinsic::RawEq => "raw_eq",
 
@@ -450,6 +454,7 @@ impl Intrinsic {
                 | Intrinsic::SatAdd
                 | Intrinsic::SatSub
                 | Intrinsic::Transmute
+                | Intrinsic::AddrSpaceCast
                 | Intrinsic::PtrOffsetFrom
                 | Intrinsic::RawEq
                 | Intrinsic::Sqrt
@@ -561,6 +566,7 @@ impl FromStr for Intrinsic {
             "prefetch.read" => Ok(Intrinsic::PrefetchRead),
             "prefetch.write" => Ok(Intrinsic::PrefetchWrite),
             "transmute" => Ok(Intrinsic::Transmute),
+            "addrspace.cast" => Ok(Intrinsic::AddrSpaceCast),
             "ptr_offset_from" => Ok(Intrinsic::PtrOffsetFrom),
             "raw_eq" => Ok(Intrinsic::RawEq),
             "gc.write_barrier" => Ok(Intrinsic::GcWriteBarrier),
@@ -692,7 +698,7 @@ pub enum IntrinsicSignature {
     /// Examples: add_overflow, sub_overflow, mul_overflow
     CheckedBinary,
 
-    /// Transmute: (T) -> U (reinterpret bits)
+    /// Transmute or addrspace.cast: (T) -> U (reinterpret bits)
     Transmute,
 
     /// Comparison: (T, T) -> bool
@@ -796,7 +802,7 @@ impl Intrinsic {
             Intrinsic::PrefetchRead | Intrinsic::PrefetchWrite => IntrinsicSignature::Prefetch,
 
             // type punning and pointer ops
-            Intrinsic::Transmute => IntrinsicSignature::Transmute,
+            Intrinsic::Transmute | Intrinsic::AddrSpaceCast => IntrinsicSignature::Transmute,
             Intrinsic::PtrOffsetFrom => IntrinsicSignature::PointerDiff,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
@@ -987,8 +993,8 @@ impl Intrinsic {
             | Intrinsic::AtomicFetchMin
             | Intrinsic::AtomicFetchMax => IntrinsicResultType::Pointee(0),
 
-            // transmute: explicit target type (caller must know)
-            Intrinsic::Transmute => IntrinsicResultType::Explicit,
+            // transmute and addrspace cast: explicit target type (caller must know)
+            Intrinsic::Transmute | Intrinsic::AddrSpaceCast => IntrinsicResultType::Explicit,
 
             // everything else: result type = first argument type
             _ => IntrinsicResultType::SameAsArgument(0),
@@ -998,10 +1004,10 @@ impl Intrinsic {
     /// Returns indices of arguments that are consumed (moved) by this intrinsic.
     ///
     /// Most intrinsics operate on primitives or through pointers, so nothing is consumed.
-    /// Transmute consumes its input to produce a reinterpreted output.
+    /// Transmute and addrspace.cast consume their input to produce a reinterpreted output.
     pub fn consumed_arguments(self) -> &'static [u8] {
         match self {
-            Intrinsic::Transmute => &[0],
+            Intrinsic::Transmute | Intrinsic::AddrSpaceCast => &[0],
             _ => &[],
         }
     }
