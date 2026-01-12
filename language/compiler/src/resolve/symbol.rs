@@ -321,7 +321,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
-        profile: ProfileId,
+        profile_id: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         space_order: SymbolSpaceOrder,
@@ -330,18 +330,22 @@ impl Compiler {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(None);
         };
-        let Some(ambient_modules) = builtins.ambient_libs(profile) else {
+        let profile = self.program.profile(profile_id);
+        let profile_key = &profile.key;
+        let Some(ambient_modules) = builtins.ambient_libs(profile_key) else {
             return Ok(None);
         };
         let first_segment = path.first_segment().expect("path is empty");
         let key = StaticKey::Name(first_segment);
 
         // prefer cached declared lib symbols when available
-        if let Some(symbol_id) = builtins.get_declared_lib_symbol(profile, first_segment) {
-            self.require_resolve_module_prepare_if_needed(module.id, symbol_id.module_id, profile)?;
+        if let Some(symbol_id) =
+            builtins.get_declared_lib_symbol_for_space_order(profile_key, first_segment, space_order)
+        {
+            self.require_resolve_module_prepare_if_needed(module.id, symbol_id.module_id, profile_id)?;
             let ambient_module = self.program.modules.get(symbol_id.module_id);
             let ambient_module = ambient_module.read();
-            let ambient_dir = ambient_module.dir(profile);
+            let ambient_dir = ambient_module.dir(profile_id);
             let symbols = ambient_dir.symbols.read();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             let global_this_name = self.program.strings.intern("globalThis");
@@ -361,7 +365,7 @@ impl Compiler {
                     let remaining_path = path.slice(1..);
                     match self.resolve_relative_symbol(
                         &ambient_module,
-                        profile,
+                        profile_id,
                         node,
                         symbol_id.local_id,
                         &remaining_path,
@@ -421,17 +425,17 @@ impl Compiler {
             }
 
             // read the ambient module's symbols
-            self.require_resolve_module_prepare_if_needed(module.id, module_id, profile)?;
+            self.require_resolve_module_prepare_if_needed(module.id, module_id, profile_id)?;
             let ambient_module = self.program.modules.get(module_id);
             let ambient_module = ambient_module.read();
-            let ambient_dir = ambient_module.dir(profile);
+            let ambient_dir = ambient_module.dir(profile_id);
             let symbols = ambient_dir.symbols.read();
 
             // find symbol in ambient lib global augmentation scope
             let global_scope = symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
             let symbol_id = self.resolve_absolute_symbol(
                 &ambient_module,
-                profile,
+                profile_id,
                 node,
                 (
                     ambient_dir.global_augmentation_scope,
@@ -462,7 +466,7 @@ impl Compiler {
                 let remaining_path = path.slice(1..);
                 match self.resolve_relative_symbol(
                     &ambient_module,
-                    profile,
+                    profile_id,
                     node,
                     symbol_id,
                     &remaining_path,
