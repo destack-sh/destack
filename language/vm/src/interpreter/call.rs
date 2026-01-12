@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
-use super::interpreter::YieldState;
+use super::interpreter::{Continuation, YieldState};
 use super::threaded::{
     ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedState, is_invalid_value,
@@ -464,7 +464,6 @@ impl Interpreter {
         self.call_stack.clear();
         self.value_stack.clear();
         self.local_stack.clear();
-        self.yield_state = None;
 
         // load function metadata
         let function = self.tree.get(func_id);
@@ -491,25 +490,56 @@ impl Interpreter {
     /// Resume a previously yielded coroutine.
     ///
     /// The resume value is appended after explicit resume arguments.
-    pub fn resume(&mut self, resume_value: Value) -> RuntimeResult<ExecutionOutcome> {
-        // load pending yield state
-        let yield_state = self
-            .yield_state
-            .take()
-            .ok_or_else(|| self.make_error(Error::ResumeWithoutYield))?;
+    pub fn resume(
+        &mut self,
+        continuation: Continuation,
+        resume_value: Value,
+    ) -> RuntimeResult<ExecutionOutcome> {
+        // validate continuation ownership
+        if continuation.interpreter_id != self.id {
+            return Err(self.make_error(Error::InvalidContinuation));
+        }
 
+        // ensure the interpreter is idle
+        if !self.call_stack.is_empty()
+            || !self.value_stack.is_empty()
+            || !self.local_stack.is_empty()
+        {
+            return Err(self.make_error(Error::InvalidContinuation));
+        }
+
+        // restore execution state
+        self.call_stack = continuation.call_stack;
+        self.value_stack = continuation.value_stack;
+        self.local_stack = continuation.local_stack;
+        self.statistics = continuation.statistics;
+        #[cfg(feature = "stats")]
+        {
+            self.instruction_profile = continuation.instruction_profile;
+        }
+
+        // resume from the captured state
+        self.resume_continuation(continuation.yield_state, resume_value)
+    }
+
+    /// Resume execution using a captured yield state.
+    fn resume_continuation(
+        &mut self,
+        yield_state: YieldState,
+        resume_value: Value,
+    ) -> RuntimeResult<ExecutionOutcome> {
         // load the frame to resume
         let frame = self
             .call_stack
             .get_mut(yield_state.frame_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
         // resolve threaded function and resume block
         let threaded = unsafe { frame.threaded.as_ref() };
         let resume_block = threaded
             .blocks
             .get(yield_state.resume_block as usize)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
 
         // bind resume arguments
         copy_values_with_plan(
@@ -539,11 +569,34 @@ impl Interpreter {
         self.execute_threaded_loop()
     }
 
+    /// Capture execution state into a continuation.
+    fn suspend_continuation(&mut self, yield_state: YieldState) -> Continuation {
+        // move execution stacks into the continuation
+        let call_stack = std::mem::take(&mut self.call_stack);
+        let value_stack = std::mem::take(&mut self.value_stack);
+        let local_stack = std::mem::take(&mut self.local_stack);
+
+        // move execution statistics into the continuation
+        let statistics = std::mem::take(&mut self.statistics);
+
+        // move instruction profile state into the continuation
+        #[cfg(feature = "stats")]
+        let instruction_profile = self.instruction_profile.take();
+
+        Continuation {
+            interpreter_id: self.id,
+            call_stack,
+            value_stack,
+            local_stack,
+            yield_state,
+            statistics,
+            #[cfg(feature = "stats")]
+            instruction_profile,
+        }
+    }
+
     /// Assemble a completed execution outcome.
     fn finish_execution(&mut self, value: Value) -> ExecutionOutcome {
-        // clear pending yield state
-        self.yield_state = None;
-
         // assemble output
         let output = ExecutionOutput {
             value,
@@ -1016,15 +1069,21 @@ impl Interpreter {
                 } => {
                     // capture yield state
                     let frame_index = self.call_stack.len() - 1;
-                    self.yield_state = Some(YieldState {
+                    let yield_state = YieldState {
                         frame_index,
                         resume_block,
                         resume_copies,
                         resume_value,
-                    });
+                    };
+
+                    // externalize continuation state
+                    let continuation = self.suspend_continuation(yield_state);
 
                     // return yielded value
-                    let yielded = ExecutionYield { value };
+                    let yielded = ExecutionYield {
+                        value,
+                        continuation,
+                    };
                     return Ok(ExecutionOutcome::Yielded { yielded });
                 }
 

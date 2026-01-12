@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(feature = "stats")]
 use std::time::Duration;
 
@@ -21,6 +22,9 @@ pub type ExternalFn = Box<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync
 /// Cached external handler pointer.
 type ExternalFnPtr = NonNull<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
 
+/// Interpreter id generator for continuation validation.
+static INTERPRETER_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
 /// Output from executing MIR code.
 #[derive(Debug, Clone)]
 pub struct ExecutionOutput {
@@ -34,15 +38,50 @@ pub struct ExecutionOutput {
     pub raw_heap_cells: usize,
 }
 
+/// Resume state captured at a yield terminator.
+#[derive(Debug)]
+pub(super) struct YieldState {
+    /// Frame index to resume execution in.
+    pub frame_index: usize,
+    /// Resume block index in the threaded function.
+    pub resume_block: u32,
+    /// Copy plan for resume arguments.
+    pub resume_copies: CopyRange,
+    /// Destination for the resumed value.
+    pub resume_value: mir::Value,
+}
+
+/// Continuation snapshot captured at a yield terminator.
+#[derive(Debug)]
+pub struct Continuation {
+    /// The interpreter id used to validate the continuation.
+    pub(super) interpreter_id: u64,
+    /// The call stack for the suspended execution.
+    pub(super) call_stack: Vec<Frame>,
+    /// The SSA value stack for the suspended execution.
+    pub(super) value_stack: Vec<Value>,
+    /// The local variable stack for the suspended execution.
+    pub(super) local_stack: Vec<Value>,
+    /// The resume state captured at the yield point.
+    pub(super) yield_state: YieldState,
+    /// The statistics captured for the suspended execution.
+    pub(super) statistics: Statistics,
+    /// The instruction profile state for the suspended execution.
+    #[cfg(feature = "stats")]
+    pub(super) instruction_profile: Option<InstructionProfile>,
+}
+
 /// Yield result from a suspended coroutine execution.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExecutionYield {
     /// The value yielded to the caller.
     pub value: Value,
+    /// The continuation used to resume execution.
+    pub continuation: Continuation,
 }
 
 /// Outcome from a coroutine-capable execution entry.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ExecutionOutcome {
     /// Execution completed with a final result.
     Completed {
@@ -56,25 +95,14 @@ pub enum ExecutionOutcome {
     },
 }
 
-/// Resume state captured at a yield terminator.
-#[derive(Debug, Clone)]
-pub(super) struct YieldState {
-    /// Frame index to resume execution in.
-    pub frame_index: usize,
-    /// Resume block index in the threaded function.
-    pub resume_block: u32,
-    /// Copy plan for resume arguments.
-    pub resume_copies: CopyRange,
-    /// Destination for the resumed value.
-    pub resume_value: mir::Value,
-}
-
 /// MIR interpreter using direct-threaded dispatch for fast execution.
 ///
 /// The interpreter pre-compiles all MIR functions into a threaded form at
 /// construction time, enabling efficient dispatch via tail calls between
 /// instruction handlers.
 pub struct Interpreter {
+    /// Unique id used to validate continuation ownership.
+    pub(super) id: u64,
     /// The MIR tree being executed.
     pub tree: mir::NodeTree,
     /// String pool for names.
@@ -101,8 +129,6 @@ pub struct Interpreter {
     pub(super) value_stack: Vec<Value>,
     /// Local variable stack for all active frames.
     pub(super) local_stack: Vec<Value>,
-    /// Pending resume state from a yield terminator. (#Incomplete: externalize continuation)
-    pub(super) yield_state: Option<YieldState>,
     /// Execution statistics.
     pub statistics: Statistics,
     /// Optional instruction profiling sampler.
@@ -233,7 +259,11 @@ impl Interpreter {
         // pre-thread all functions for fast dispatch
         let threaded_functions = ThreadedFunctionTable::new(&tree);
 
+        // assign a unique interpreter id
+        let id = INTERPRETER_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+
         Self {
+            id,
             tree,
             strings,
             managed_heap,
@@ -247,7 +277,6 @@ impl Interpreter {
             call_stack: Vec::new(),
             value_stack: Vec::new(),
             local_stack: Vec::new(),
-            yield_state: None,
             statistics: Statistics::new(),
             #[cfg(feature = "stats")]
             instruction_profile: None,

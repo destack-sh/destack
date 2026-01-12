@@ -15,7 +15,9 @@ use crate::memory::Value;
 
 pub use frame::Frame;
 pub use global::GlobalStorage;
-pub use interpreter::{ExecutionOutcome, ExecutionOutput, ExecutionYield, ExternalFn, Interpreter};
+pub use interpreter::{
+    Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, ExternalFn, Interpreter,
+};
 pub use options::{
     BorrowMode, CheckPolicy, ExecutionMode, ExternalCallPolicy, MachineOptions, RuntimePolicy,
 };
