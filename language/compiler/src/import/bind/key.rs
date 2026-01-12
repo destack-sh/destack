@@ -46,7 +46,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpaceOrder::ValueOnly,
                 );
                 DynamicKey::Expression(expression)
             }
