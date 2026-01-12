@@ -217,6 +217,17 @@ pub enum ControlFlow {
         /// Copy plan for callee parameters.
         copies: Option<CopyRange>,
     },
+    /// Yield from the current function.
+    Yield {
+        /// The value yielded to the caller.
+        value: Value,
+        /// Resume block index.
+        resume_block: u32,
+        /// Copy plan for resume arguments.
+        resume_copies: CopyRange,
+        /// Destination for the resumed value.
+        resume_value: mir::Value,
+    },
     /// Return from current function.
     Return(Value),
     /// Runtime error.
@@ -488,6 +499,18 @@ pub enum ThreadedInstructionData {
     /// Return from function.
     Return { value: mir::Value },
 
+    /// Yield from a coroutine.
+    Yield {
+        /// The value to yield.
+        value: mir::Value,
+        /// Resume block index.
+        resume_block: u32,
+        /// Copy plan for resume arguments.
+        resume_copies: CopyRange,
+        /// Destination for the resumed value.
+        resume_value: mir::Value,
+    },
+
     /// Unconditional jump.
     Jump { target: u32, copies: CopyRange },
 
@@ -541,9 +564,6 @@ pub enum ThreadedInstructionData {
 
     /// Unreachable code.
     Unreachable,
-
-    /// Unsupported instruction or terminator.
-    Unsupported { name: &'static str },
 
     /// Tail call to a function (call + return).
     TailCall {
@@ -615,6 +635,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::Assume { .. } => "assume",
             ThreadedInstructionData::Intrinsic { .. } => "intrinsic",
             ThreadedInstructionData::Return { .. } => "return",
+            ThreadedInstructionData::Yield { .. } => "yield",
             ThreadedInstructionData::Jump { .. } => "jump",
             ThreadedInstructionData::Branch { .. } => "branch",
             ThreadedInstructionData::CompareAndBranch { .. } => "compare_and_branch",
@@ -622,7 +643,6 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::Switch { .. } => "switch",
             ThreadedInstructionData::SwitchTable { .. } => "switch_table",
             ThreadedInstructionData::Unreachable => "unreachable",
-            ThreadedInstructionData::Unsupported { .. } => "unsupported",
             ThreadedInstructionData::TailCall { .. } => "tail_call",
             ThreadedInstructionData::TailCallSelf { .. } => "tail_call_self",
             ThreadedInstructionData::TailCallIndirect { .. } => "tail_call_indirect",

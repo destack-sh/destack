@@ -691,9 +691,11 @@ pub(super) fn thread_function(
                 }
                 queue.push(*default);
             }
+            mir::Terminator::Yield { resume, .. } => {
+                queue.push(*resume);
+            }
             mir::Terminator::Return { .. }
             | mir::Terminator::Unreachable
-            | mir::Terminator::Yield { .. }
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. } => {}
         }
@@ -2937,10 +2939,38 @@ fn thread_terminator(
             data: ThreadedInstructionData::Unreachable,
         },
 
-        mir::Terminator::Yield { .. } => ThreadedInstruction {
-            handler: dispatch::handle_unsupported,
-            data: ThreadedInstructionData::Unsupported { name: "yield" },
-        },
+        mir::Terminator::Yield {
+            value,
+            resume,
+            resume_arguments,
+        } => {
+            // resolve resume block copies
+            let resume_index = block_index_map[resume];
+            let resume_parameters = block_parameters
+                .get(resume_index)
+                .map(|params| params.as_slice())
+                .unwrap_or_default();
+            debug_assert!(
+                resume_arguments.len() <= resume_parameters.len(),
+                "resume arguments exceed resume block parameters"
+            );
+            let resume_copies = push_copy_range(copy_pool, resume_parameters, resume_arguments);
+
+            // capture resume value destination after explicit arguments
+            let resume_value =
+                pack_optional_value(resume_parameters.get(resume_arguments.len()).copied());
+
+            // assemble threaded yield
+            ThreadedInstruction {
+                handler: dispatch::handle_yield,
+                data: ThreadedInstructionData::Yield {
+                    value: *value,
+                    resume_block: resume_index as u32,
+                    resume_copies,
+                    resume_value,
+                },
+            }
+        }
 
         mir::Terminator::TailCall {
             function,

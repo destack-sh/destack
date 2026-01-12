@@ -5,7 +5,10 @@ use std::time::{Duration, Instant};
 use clap::ValueEnum;
 use destack_mir as mir;
 use destack_mir::parse::Parser;
-use destack_vm::interpreter::{CheckPolicy, Interpreter, MachineOptions};
+use destack_vm::diagnostic::RuntimeResult;
+use destack_vm::interpreter::{
+    CheckPolicy, ExecutionOutcome, ExecutionOutput, Interpreter, MachineOptions,
+};
 use destack_vm::memory::Value;
 
 use super::{arithmetic, calls, dispatch, function_id_by_name, intrinsics, memory, perf};
@@ -434,6 +437,21 @@ impl BenchProfileKind {
     }
 }
 
+/// Function that produces a resume value for coroutine benchmarks.
+pub(crate) type ResumeValueFn = fn(args: &[Value], yield_index: usize, yielded: Value) -> Value;
+
+/// Runner selection for a benchmark program.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ProgramRunner {
+    /// Execute the entry function to completion.
+    Function,
+    /// Execute the entry function as a coroutine.
+    Coroutine {
+        /// Resume value factory for each yield.
+        resume_value: ResumeValueFn,
+    },
+}
+
 /// Benchmark program with metadata for validation and throughput calculation.
 pub(crate) struct Program {
     /// Human readable name.
@@ -450,6 +468,8 @@ pub(crate) struct Program {
     pub default_args: fn(&Interpreter) -> Vec<Value>,
     /// Scale axes for this program.
     pub scales: &'static [ScaleAxis],
+    /// Runner selection for this program.
+    pub runner: ProgramRunner,
 }
 
 /// Benchmark options for quick runs.
@@ -920,9 +940,7 @@ fn calibrate_scale(
             let _ = interp.collect_garbage();
         }
         let start = Instant::now();
-        let _ = interp
-            .run_function(entry_id, args)
-            .unwrap_or_else(|e| panic!("'{}' failed: {:?}", program.name, e));
+        let _ = program.run_or_panic(interp, entry_id, args);
         sample = sample.max(start.elapsed());
     }
 
@@ -977,6 +995,36 @@ fn matches_filters(entry: &ProgramEntry, options: &BenchOptions) -> bool {
     true
 }
 
+/// Run a coroutine program to completion.
+fn run_coroutine(
+    interp: &mut Interpreter,
+    entry_id: mir::LocalNodeId<mir::Function>,
+    args: &[Value],
+    resume_value: ResumeValueFn,
+) -> RuntimeResult<ExecutionOutput> {
+    // start execution
+    let mut outcome = interp.run_function_yielding(entry_id, args)?;
+    let mut yield_index = 0usize;
+
+    // continue until completion
+    loop {
+        // handle completion or yield
+        match outcome {
+            // return on completion
+            ExecutionOutcome::Completed { output } => return Ok(output),
+            // resume after suspension
+            ExecutionOutcome::Yielded { yielded } => {
+                // compute resume value
+                let resume = resume_value(args, yield_index, yielded.value);
+                yield_index += 1;
+
+                // resume execution
+                outcome = interp.resume(resume)?;
+            }
+        }
+    }
+}
+
 impl Program {
     /// Create an interpreter for this program.
     pub(crate) fn interpreter(&self) -> Interpreter {
@@ -1017,6 +1065,38 @@ impl Program {
         function_id_by_name(interp, self.entry)
     }
 
+    /// Run the program once using the configured runner.
+    pub(crate) fn run_once(
+        &self,
+        interp: &mut Interpreter,
+        entry_id: mir::LocalNodeId<mir::Function>,
+        args: &[Value],
+    ) -> RuntimeResult<ExecutionOutput> {
+        // dispatch to the selected runner
+        match self.runner {
+            ProgramRunner::Function => interp.run_function(entry_id, args),
+            ProgramRunner::Coroutine { resume_value } => {
+                run_coroutine(interp, entry_id, args, resume_value)
+            }
+        }
+    }
+
+    /// Run the program once and panic on failure.
+    pub(crate) fn run_or_panic(
+        &self,
+        interp: &mut Interpreter,
+        entry_id: mir::LocalNodeId<mir::Function>,
+        args: &[Value],
+    ) -> ExecutionOutput {
+        // execute program
+        let result = self
+            .run_once(interp, entry_id, args)
+            .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e));
+
+        // return output
+        result
+    }
+
     /// Build arguments for a given profile.
     pub(crate) fn args_for_profile(
         &self,
@@ -1038,9 +1118,7 @@ impl Program {
     pub(crate) fn actual_instruction_count(&self, args: &[Value]) -> u64 {
         let mut interp = self.interpreter();
         let entry_id = self.entry_id(&interp);
-        let result = interp
-            .run_function(entry_id, args)
-            .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e));
+        let result = self.run_or_panic(&mut interp, entry_id, args);
         result.statistics.threaded_instructions_executed
     }
 
@@ -1053,9 +1131,7 @@ impl Program {
         let mut interp = self.interpreter();
         let args = (self.default_args)(&interp);
         let entry_id = self.entry_id(&interp);
-        let result = interp
-            .run_function(entry_id, &args)
-            .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e));
+        let result = self.run_or_panic(&mut interp, entry_id, &args);
 
         assert_eq!(
             result.value, expected,
@@ -1504,9 +1580,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
         let mut args = entry.program.args_for_profile(&interp, profile.kind);
 
         // run once for stats
-        let result = interp
-            .run_function(entry_id, &args)
-            .unwrap_or_else(|e| panic!("'{}' failed: {:?}", entry.program.name, e));
+        let result = entry.program.run_or_panic(&mut interp, entry_id, &args);
         let mut stats = result.statistics;
         let mut needs_gc = stats.heap_allocations > 0;
 
@@ -1524,9 +1598,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                 );
             }
 
-            let result = interp
-                .run_function(entry_id, &args)
-                .unwrap_or_else(|e| panic!("'{}' failed: {:?}", entry.program.name, e));
+            let result = entry.program.run_or_panic(&mut interp, entry_id, &args);
             stats = result.statistics;
             needs_gc = stats.heap_allocations > 0;
         }
@@ -1546,9 +1618,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                 if needs_gc {
                     let _ = interp.collect_garbage();
                 }
-                let _ = interp
-                    .run_function(entry_id, &args)
-                    .unwrap_or_else(|e| panic!("'{}' failed: {:?}", entry.program.name, e));
+                let _ = entry.program.run_or_panic(&mut interp, entry_id, &args);
             }
         }
 
@@ -1572,9 +1642,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                     gc_collections += 1;
                     gc_freed_cells += gc.freed_cells as u64;
                 }
-                let _ = interp
-                    .run_function(entry_id, &args)
-                    .unwrap_or_else(|e| panic!("'{}' failed: {:?}", entry.program.name, e));
+                let _ = entry.program.run_or_panic(&mut interp, entry_id, &args);
                 iterations += 1;
             }
             let elapsed = run_start.elapsed();
@@ -1621,9 +1689,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                     if needs_gc {
                         let _ = interp.collect_garbage();
                     }
-                    let _ = interp
-                        .run_function(entry_id, &args)
-                        .unwrap_or_else(|e| panic!("'{}' failed: {:?}", entry.program.name, e));
+                    let _ = entry.program.run_or_panic(&mut interp, entry_id, &args);
                 }
 
                 let report = interp.instruction_profile_report(INSTRUCTION_PROFILE_TARGET_PERCENT);
@@ -1793,9 +1859,7 @@ pub(crate) fn print_stats(options: &BenchOptions) {
         let entry_id = entry.program.entry_id(&interp);
 
         // run program and capture stats
-        let result = interp
-            .run_function(entry_id, &args)
-            .expect("execution failed");
+        let result = entry.program.run_or_panic(&mut interp, entry_id, &args);
         let stats = result.statistics;
         let label = scale_label(entry.program, &args);
         rows.push(StatsRow {

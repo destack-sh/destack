@@ -1,0 +1,37 @@
+
+function @yield_inner(v0: i64) -> i64 {
+
+// entry, yield once
+block0(v0: i64):
+    yield v0, block1(v0)
+
+// resume, return combined value
+block1(v1: i64, v2: i64):
+    v3 = iadd v1, v2
+    return v3
+}
+
+function @yield_nested_call(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1 = iconst 0i64
+    v2 = iconst 1i64
+    jump block1(v1, v1)
+
+// loop condition, check limit
+block1(v3: i64, v4: i64):
+    v5 = icmp_sge v3, v0
+    branch v5, block3(v4), block2(v3, v4)
+
+// loop body, call yielding helper
+block2(v6: i64, v7: i64):
+    v8 = call @yield_inner(v6)
+    v9 = iadd v7, v8
+    v10 = iadd v6, v2
+    jump block1(v10, v9)
+
+// return result
+block3(v11: i64):
+    return v11
+}

@@ -1,6 +1,7 @@
 mod arithmetic;
 mod block;
 mod cast;
+mod coroutine;
 mod gc;
 mod global;
 mod intrinsic;

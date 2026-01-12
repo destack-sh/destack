@@ -12,7 +12,7 @@ use crate::memory::{ManagedHeap, RawHeap, Value};
 use super::decode::thread_function;
 #[cfg(feature = "stats")]
 use super::statistics::InstructionProfile;
-use super::threaded::{INVALID_FUNCTION_INDEX, ThreadedFunction};
+use super::threaded::{CopyRange, INVALID_FUNCTION_INDEX, ThreadedFunction};
 use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
@@ -32,6 +32,41 @@ pub struct ExecutionOutput {
     pub heap_cells: usize,
     /// Number of raw heap cells at end of execution.
     pub raw_heap_cells: usize,
+}
+
+/// Yield result from a suspended coroutine execution.
+#[derive(Debug, Clone)]
+pub struct ExecutionYield {
+    /// The value yielded to the caller.
+    pub value: Value,
+}
+
+/// Outcome from a coroutine-capable execution entry.
+#[derive(Debug, Clone)]
+pub enum ExecutionOutcome {
+    /// Execution completed with a final result.
+    Completed {
+        /// Completed execution output.
+        output: ExecutionOutput,
+    },
+    /// Execution suspended with a yielded value.
+    Yielded {
+        /// Yield information for the suspended execution.
+        yielded: ExecutionYield,
+    },
+}
+
+/// Resume state captured at a yield terminator.
+#[derive(Debug, Clone)]
+pub(super) struct YieldState {
+    /// Frame index to resume execution in.
+    pub frame_index: usize,
+    /// Resume block index in the threaded function.
+    pub resume_block: u32,
+    /// Copy plan for resume arguments.
+    pub resume_copies: CopyRange,
+    /// Destination for the resumed value.
+    pub resume_value: mir::Value,
 }
 
 /// MIR interpreter using direct-threaded dispatch for fast execution.
@@ -66,6 +101,8 @@ pub struct Interpreter {
     pub(super) value_stack: Vec<Value>,
     /// Local variable stack for all active frames.
     pub(super) local_stack: Vec<Value>,
+    /// Pending resume state from a yield terminator. (#Incomplete: externalize continuation)
+    pub(super) yield_state: Option<YieldState>,
     /// Execution statistics.
     pub statistics: Statistics,
     /// Optional instruction profiling sampler.
@@ -210,6 +247,7 @@ impl Interpreter {
             call_stack: Vec::new(),
             value_stack: Vec::new(),
             local_stack: Vec::new(),
+            yield_state: None,
             statistics: Statistics::new(),
             #[cfg(feature = "stats")]
             instruction_profile: None,
